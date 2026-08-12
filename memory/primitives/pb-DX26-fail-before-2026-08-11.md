@@ -332,3 +332,70 @@ Worth stating plainly: this was a **pre-existing latent bug in a shipped gate**,
 harmless only because no keyword in its old list is a prefix of a common English
 word the way `Equip`/`Equipped` is. Widening a gate's subject is how you find out
 whether it was right about the subject it already had.
+
+
+## 5. Corrections from the `/review` cycle (2026-08-11)
+
+**The published tally was "13 of 14 rows red", and both halves of that were wrong.**
+The matrix has **15** rows, not 14, and one of them is a **positive control that must
+be green** — V6a exists to show the recursive walk KEEPS a `Sequence`-nested attach in
+the pin, and V6b next to it shows the old flat `matches!` dropping it. Labelling V6a
+with the same "STILL GREEN — NOT DISCRIMINATING" banner the script prints for a real
+non-discriminator made a success look like a defect, and dropping it from the
+denominator hid that the two rows are a matched pair.
+
+Restated, and this is the form to quote: **15 rows — 13 RED as required, 1 CONTROL
+(V6a, must be green), 1 UNDISCRIMINATED (V4b, shadowed by `OOS-DX20-7`'s legacy guard,
+disclosed in the test's own doc comment).**
+
+A revert matrix that reports only "how many went red" cannot tell a positive control
+from a failure, which is the same category error as a gate that reports only that it
+passed.
+
+## 6. Fix-cycle revert matrix (rows V9-V12), executed 2026-08-11
+
+Four gates were added or strengthened by the `/review` fix cycle. Each is watched
+failing when the thing it guards is undone, to the same standard as §2.
+
+### V9 — bone_saw's equip loses `TimingRestriction::SorcerySpeed` (CR 702.6d) — the gap the reviewer's CR-coverage table found: no probe or gate asserted timing before this
+
+**RED (as required)**
+
+```
+test cards1_equip_target_roster::r2_every_roster_member_has_exactly_the_expected_target_requirement ... FAILED
+---- cards1_equip_target_roster::r2_every_roster_member_has_exactly_the_expected_target_requirement stdout ----
+thread 'cards1_equip_target_roster::r2_every_roster_member_has_exactly_the_expected_target_requirement' (3481343) panicked at crates/engine/tests/core/cards1_equip_target_roster.rs:333:5:
+    cards1_equip_target_roster::r2_every_roster_member_has_exactly_the_expected_target_requirement
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 507 filtered out; finished in 0.01s
+```
+
+### V10 — R7's `Equip` arm stops matching (stands in for a regressed whole-word guard or a flat `matches!` going stale) — the AGGREGATE floor alone would have stayed green on the other 10 comparisons
+
+**RED (as required)**
+
+```
+test cards2_printed_field_fidelity::r7_ability_embedded_costs_match_printed ... FAILED
+thread 'cards2_printed_field_fidelity::r7_ability_embedded_costs_match_printed' (3482585) panicked at crates/engine/tests/core/cards2_printed_field_fidelity.rs:921:5:
+R7 compared only 10 ability costs (expected at least 46) — the extraction has stopped matching, which would make this rule silently vacuous
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 507 filtered out; finished in 0.02s
+```
+
+### V11 — a def with a PLAIN printed equip line is added to `EQUIP_VARIANT_COST_DEFS` — the excusal is asserted, not assumed, so an entry that no longer has its stated reason expires loudly (review Finding L8)
+
+***** STILL GREEN — NOT DISCRIMINATING *****
+
+```
+test cards2_printed_field_fidelity::r7_ability_embedded_costs_match_printed ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 507 filtered out; finished in 0.02s
+```
+
+### V12 — the `RollDice` arm is removed from `contains_attach` and R6's composite count re-pinned to 0 — i.e. the state the batch shipped in before its own `/review` found the eleventh site. R6 now catches it
+
+**RED (as required)**
+
+```
+test pb_dx26_attach_keyword_roster::r6_effect_nesting_sites_are_pinned ... FAILED
+thread 'pb_dx26_attach_keyword_roster::r6_effect_nesting_sites_are_pinned' (3483574) panicked at crates/engine/tests/core/pb_dx26_attach_keyword_roster.rs:518:5:
+assertion `left == right` failed: The `Effect` enum's nesting sites changed (found Box<Effect>=8, Vec<Effect>=2, composite `…Effect)`=1; expected 8, 2 and 1). `contains_attach` in this file walks them by hand: Conditional{if_true,if_false}, Repeat{effect}, ForEach{effect}, MayPayOrElse{or_else}, MayPayThenEffect{then}, CoinFlip{on_win,on_lose} (Box); Sequence(..), Choose{choices} (Vec); RollDice{results: Vec<(u32, u32, Effect)>} (composite). Add the new site to `contains_attach` — and to the two mirrored walks in `cards1_equip_target_roster.rs` and `cards1_equip_target_repair.rs` — then re-pin this count, or every attach census silently stops seeing effects nested inside it.
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 507 filtered out; finished in 0.00s
+```

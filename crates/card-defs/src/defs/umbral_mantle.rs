@@ -4,7 +4,7 @@
 //
 // Partially unblocked by PB-S: the grant uses AddActivatedAbility with
 //   EffectFilter::AttachedCreature. Still blocked on:
-//   (1) {Q} (untap symbol) — ActivationCost lacks requires_untap_self field
+//   (1) {Q} (untap symbol) — no Cost variant carries an untap-self requirement
 //   (2) self-pump effect ("this creature gets +2/+2 until EOT") is expressible
 //       but needs the {Q} cost to be complete
 use crate::cards::helpers::*;
@@ -24,10 +24,9 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: grant "3, {Q}: gets +2/+2 until EOT" to equipped creature via
             //   LayerModification::AddActivatedAbility + EffectFilter::AttachedCreature.
-            //   Blocked on {Q} (untap symbol) — ActivationCost needs requires_untap_self.
+            //   Blocked on {Q} (untap symbol) — the Cost enum needs an untap-self requirement.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
             // Equip {0}: attach this Equipment to target creature you control. A {0} cost is
-            // legal (see bone_saw.rs for another Equip {0} card).
             // CR 702.6b: Equip is an activated ability; CR 702.6d: sorcery speed only.
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost::default()),
@@ -53,8 +52,9 @@ pub fn card() -> CardDefinition {
         completeness: Completeness::partial(
             "grant '3, {Q}: gets +2/+2 until EOT' to equipped creature via \
              LayerModification::AddActivatedAbility + EffectFilter::AttachedCreature; blocked on \
-             {Q} (untap symbol) — ActivationCost still lacks requires_untap_self. Equip {0} is \
-             now authored as an Activated/AttachEquipment ability.",
+             {Q} (untap symbol) — no Cost variant carries an untap-self requirement (re-checked \
+             against the current enum 2026-08-11). Equip {0} is now authored as an \
+             Activated/AttachEquipment ability.",
         ),
         ..Default::default()
     }

@@ -189,6 +189,20 @@ fn equip_ability_index(state: &GameState, id: ObjectId) -> Option<usize> {
         .position(|a| matches!(a.effect, Some(Effect::AttachEquipment { .. })))
 }
 
+/// The Fortify sibling of [`equip_ability_index`].
+///
+/// **PB-DX26 fix cycle (review Finding L10).** `t7`/`t8` hardcoded `ability_index:
+/// 0`, which is the very assumption `OOS-DX26-3` was filed about: the index is
+/// positional over declaration order, so a later batch authoring another activated
+/// ability into `darksteel_garrison` would silently retarget these probes at the
+/// wrong ability rather than failing. Locate it the same way equip does.
+fn fortify_ability_index(state: &GameState, id: ObjectId) -> Option<usize> {
+    chars_of(state, id)
+        .activated_abilities
+        .iter()
+        .position(|a| matches!(a.effect, Some(Effect::AttachFortification { .. })))
+}
+
 /// The candidate list for each declared target slot of `source`'s ability
 /// `ability_index`, as the browser picker computes it: requirements from
 /// `queries::ability_target_requirements`, candidates from
@@ -536,7 +550,9 @@ fn setup_fortify() -> (
 fn t7_darksteel_garrison_fortify_offers_only_a_land_its_controller_owns() {
     let (state, garrison_id, p1_land_id, p2_land_id, p1_creature_id, p1, _p2) = setup_fortify();
 
-    let reqs = ability_target_requirements(&state, garrison_id, 0);
+    let fortify_idx = fortify_ability_index(&state, garrison_id)
+        .expect("Darksteel Garrison must have an activated Fortify ability");
+    let reqs = ability_target_requirements(&state, garrison_id, fortify_idx);
     assert_eq!(
         reqs.len(),
         1,
@@ -545,7 +561,7 @@ fn t7_darksteel_garrison_fortify_offers_only_a_land_its_controller_owns() {
          paid, and the attach fizzled in silence. Found: {reqs:?}"
     );
 
-    let candidates = slot_candidates(&state, garrison_id, 0, p1);
+    let candidates = slot_candidates(&state, garrison_id, fortify_idx, p1);
     assert_eq!(candidates.len(), 1);
     assert!(
         candidates[0].contains(&Target::Object(p1_land_id)),
@@ -583,11 +599,13 @@ fn t8_darksteel_garrison_fortify_attaches_and_grants_indestructible() {
     );
 
     // A creature is not a legal target even if a client names it directly.
+    let fortify_idx = fortify_ability_index(&state, garrison_id)
+        .expect("Darksteel Garrison must have an activated Fortify ability");
     let creature_attempt = activate(
         state.clone(),
         p1,
         garrison_id,
-        0,
+        fortify_idx,
         vec![Target::Object(p1_creature_id)],
     );
     assert!(
@@ -596,8 +614,14 @@ fn t8_darksteel_garrison_fortify_attaches_and_grants_indestructible() {
         creature_attempt.map(|(_, ev)| ev)
     );
 
-    let (state, _) = activate(state, p1, garrison_id, 0, vec![Target::Object(p1_land_id)])
-        .expect("Fortify {3} on the controller's own land must succeed");
+    let (state, _) = activate(
+        state,
+        p1,
+        garrison_id,
+        fortify_idx,
+        vec![Target::Object(p1_land_id)],
+    )
+    .expect("Fortify {3} on the controller's own land must succeed");
     let (state, events) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
@@ -800,5 +824,105 @@ fn t9_guardian_project_draws_on_a_nontoken_etb_and_not_on_a_token_one() {
          Project must NOT draw when a TOKEN creature enters. A further draw here means the \
          trigger's TargetFilter lost its `is_nontoken: true` (OOS-DX3b-1) — reverting that \
          one field is exactly what makes this assertion fail."
+    );
+}
+
+// ── T10/T11: the two equip costs that are not plain generic (review Finding L12) ──
+
+/// `glimmer_lens` is the only COLOURED equip cost in the corpus — `{1}{W}`, not
+/// `{1}`. Before this probe it was covered only by R7's static comparison against the
+/// Scryfall fixture, which reads the def rather than running it: a `ManaCost` whose
+/// `white` field never reached the payment path would still have compared equal.
+/// This pays it for real, and proves the colour requirement is enforced by paying
+/// with two generic first and watching that fail.
+#[test]
+fn t10_glimmer_lens_equip_requires_its_white_pip() {
+    let (state, lens_id, p1_creature_id, _p2, p1, p2) = setup("Glimmer Lens", 0);
+    let idx =
+        equip_ability_index(&state, lens_id).expect("Glimmer Lens must have an equip ability");
+
+    // Two colourless mana cannot pay {1}{W} (CR 202.1 — the pip is coloured).
+    let mut wrong = state.clone();
+    wrong
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 2);
+    assert!(
+        activate(
+            wrong,
+            p1,
+            lens_id,
+            idx,
+            vec![Target::Object(p1_creature_id)]
+        )
+        .is_err(),
+        "Equip {{1}}{{W}} must not be payable with two colourless — the printed cost's white \
+         pip is the one thing that distinguishes this def's cost from every other member's"
+    );
+
+    // {1} + {W} pays it.
+    let mut right = state;
+    {
+        let pool = &mut right.players_mut().get_mut(&p1).unwrap().mana_pool;
+        pool.add(ManaColor::Colorless, 1);
+        pool.add(ManaColor::White, 1);
+    }
+    let (right, _) = activate(
+        right,
+        p1,
+        lens_id,
+        idx,
+        vec![Target::Object(p1_creature_id)],
+    )
+    .expect("Equip {1}{W} must be payable with one generic and one white");
+    let (right, _) = pass_all(right, &[p1, p2]);
+    assert_eq!(
+        right
+            .objects()
+            .get(&lens_id)
+            .expect("lens exists")
+            .attached_to,
+        Some(p1_creature_id),
+        "Glimmer Lens must attach once its coloured equip cost is actually paid"
+    );
+}
+
+/// `umbral_mantle`'s printed line is **Equip {0}** — an empty cost, which is legal and
+/// is the one member whose cost could be silently "missing" rather than wrong. A
+/// `ManaCost::default()` and a dropped `cost` field look identical in a static
+/// comparison; only activating with an empty pool distinguishes them.
+#[test]
+fn t11_umbral_mantle_equip_costs_nothing_and_still_attaches() {
+    let (state, mantle_id, p1_creature_id, _p2, p1, p2) = setup("Umbral Mantle", 0);
+    let idx =
+        equip_ability_index(&state, mantle_id).expect("Umbral Mantle must have an equip ability");
+
+    let pool = &state.players().get(&p1).unwrap().mana_pool;
+    assert_eq!(
+        pool.colorless + pool.white + pool.blue + pool.black + pool.red + pool.green,
+        0,
+        "sanity: the pool is empty, so a successful activation proves the cost really is \
+         zero"
+    );
+
+    let (state, _) = activate(
+        state,
+        p1,
+        mantle_id,
+        idx,
+        vec![Target::Object(p1_creature_id)],
+    )
+    .expect("Equip {0} must be activatable with an empty mana pool");
+    let (state, _) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state
+            .objects()
+            .get(&mantle_id)
+            .expect("mantle exists")
+            .attached_to,
+        Some(p1_creature_id),
+        "Umbral Mantle must attach — its printed Equip {{0}} costs nothing"
     );
 }

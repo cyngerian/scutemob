@@ -66,7 +66,9 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::known_wrong(
-            "'you may draw two cards, then discard' implemented as a mandatory draw",
+            "'you may draw two cards, then discard' implemented as a mandatory draw — no \
+             free-optional mechanism exists in the DSL (re-checked 2026-08-11). Equip {1} IS \
+             authored (PB-DX26 / OOS-CARDS1-3); it is not part of this deviation.",
         ),
         ..Default::default()
     }

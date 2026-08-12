@@ -4,8 +4,12 @@
 // Whenever equipped creature and at least one other creature attack, draw a card.
 // Equip {1}{W}
 //
-// TODO: "For Mirrodin!" — ETB token + auto-attach not expressible.
-// TODO: "Equipped creature + another attack" trigger not expressible.
+// RE-VERIFIED 2026-08-11 (PB-DX26 fix cycle, review Finding 4): "For Mirrodin!" IS
+// expressible — `Effect::CreateTokenAndAttachSource` on a `WhenEntersBattlefield` trigger
+// (`card_definition.rs`, executed in `effects/mod.rs`). The old TODO saying otherwise was
+// stale, and this def's own `completeness` note has said so since before this batch.
+// TODO: still genuinely blocked — "Whenever equipped creature and at least one other
+//   creature attack" has no `TriggerCondition` (re-checked 2026-08-11).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -23,7 +27,8 @@ pub fn card() -> CardDefinition {
                       one other creature attack, draw a card.\nEquip {1}{W}"
             .to_string(),
         abilities: vec![
-            // TODO: For Mirrodin! + equipped attack trigger not expressible.
+            // TODO: the attack trigger only — "For Mirrodin!" is expressible and unauthored
+            // (see the header note, re-verified 2026-08-11).
             AbilityDefinition::Keyword(KeywordAbility::Equip),
             // Equip {1}{W}: attach this Equipment to target creature you control.
             // CR 702.6b: Equip is an activated ability; CR 702.6d: sorcery speed only.

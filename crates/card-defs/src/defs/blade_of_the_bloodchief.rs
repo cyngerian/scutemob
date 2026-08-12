@@ -18,10 +18,13 @@ pub fn card() -> CardDefinition {
                       instead.\nEquip {1}"
             .to_string(),
         abilities: vec![
-            // TODO: DSL gap — "Whenever a creature dies, put +1/+1 counter on equipped
-            // creature (2 if Vampire)." WheneverCreatureDies trigger exists, but
-            // EffectTarget::EquippedCreature does not, and conditional counter count
-            // based on equipped creature's subtype is not in DSL.
+            // RE-VERIFIED 2026-08-11 (PB-DX26 fix cycle, review Finding 4):
+            // `EffectTarget::EquippedCreature` DOES exist (`card_definition.rs`) — the old
+            // TODO said it did not, and this def's own `completeness` note has contradicted
+            // it since before this batch. `TriggerCondition::WheneverCreatureDies` exists too.
+            // TODO: still genuinely blocked — the conditional count ("two +1/+1 counters
+            //   INSTEAD if equipped creature is a Vampire") needs a `Condition` testing the
+            //   equipped creature's subtype, which does not exist (re-checked 2026-08-11).
             AbilityDefinition::Keyword(KeywordAbility::Equip),
             // Equip {1}: attach this Equipment to target creature you control.
             // CR 702.6b: Equip is an activated ability; CR 702.6d: sorcery speed only.

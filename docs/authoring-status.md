@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-12 01:14 UTC  
-**Git:** `72ad0f93` on `feat/pb-dx26-the-equip-surface-one-link-earlier-21-equipment-defs`  
+**Generated:** 2026-08-12 01:34 UTC  
+**Git:** `6af2fab5` on `feat/pb-dx26-the-equip-surface-one-link-earlier-21-equipment-defs`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.9% | 1,134 | +1 |
-| With TODO markers | 518 | -1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.8% | 1,133 | -1 |
+| With TODO markers | 519 | +1 |
 | Empty `abilities: vec![]` placeholders | 151 | · |
-| Total TODO lines across all defs | 938 | -2 |
+| Total TODO lines across all defs | 938 | · |
 
 ## Authoring activity (git, by window)
 
@@ -68,7 +68,7 @@ are blocked on engine primitives.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 88 | 84 | 15 |
 | `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
-| `token-create` | 148 / 155 | 95% | 87 | 45 | 16 |
+| `token-create` | 148 / 155 | 95% | 86 | 46 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 115 | 23 | 0 |
 | `other` | 108 / 131 | 82% | 69 | 31 | 8 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 575 | -1 |
+| OTHER (unclassified) | 575 | · |
 | DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -185,7 +185,7 @@ the next thing to triage when the classifier table is grown.
 | can't / must block-attack | 7 | · |
 | can't be countered | 7 | · |
 | opponent-action trigger | 7 | · |
-| TargetFilter missing field | 6 | -1 |
+| TargetFilter missing field | 6 | · |
 | per-opponent upkeep | 6 | · |
 | conditional static / grant | 5 | · |
 | delayed triggers | 5 | · |
@@ -223,7 +223,7 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 
 ## ⚠ Completeness-marker drift
 
-12 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+13 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `birchlore_rangers` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -236,6 +236,7 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `shambling_ghast` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `the_reaver_cleaver` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `thrasios_triton_hero` — marked partial but has no TODO / ENGINE-BLOCKED comment
 
 ## Recent card-touching commits

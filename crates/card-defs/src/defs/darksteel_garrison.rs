@@ -78,8 +78,13 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::partial(
-            "TriggerCondition::WhenFortifiedLandBecomesTapped does not exist yet. 'Whenever \
-             fortified land becomes tapped, target...",
+            "TriggerCondition::WhenFortifiedLandBecomesTapped does not exist yet, so 'Whenever \
+             fortified land becomes tapped, target creature gets +1/+1 until end of turn' is \
+             unimplemented — the trigger never fires and no creature is ever pumped (re-checked \
+             against the current enum 2026-08-11; WhenSelfBecomesTapped is self-scoped to the \
+             Fortification, not the fortified land). The indestructible static \
+             (EffectFilter::AttachedLand) and Fortify {3} — including its CR 702.67a target, \
+             authored by PB-DX26 / OOS-CARDS1-1 — ARE implemented.",
         ),
         ..Default::default()
     }

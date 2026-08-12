@@ -95,8 +95,8 @@
   three sessions; and the reviews doc's `HASH 69` corrected to **70** in four places — the claim was
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
-  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,134/1,803 = 62.9%**
-  (was 62.8% until PB-DX26's single flip up, `sword_of_body_and_mind`, 2026-08-11)
+  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,133/1,803 = 62.8%**
+  (unmoved by PB-DX26 — one flip up and one honest flip down cancelled, 2026-08-11)
   (PB-DX4's 6 honest demotions outweigh its 6 in-place repairs — the number went *down* because the
   corpus got *truer*) — regenerate with `tools/authoring-report.py`; `docs/authoring-status.md` is
   the canonical, self-dating source. **Current queue state: the PB-OS queue is COMPLETE; the PB-DP
@@ -127,7 +127,8 @@
   in the v3 memo §4) — ranks **1-7c are all shipped**.
   **PB-DX26 SHIPPED** (`scutemob-206`; v3 queue rank 8 — **OOS-CARDS1-3**, **OOS-CARDS1-1**
   and **OOS-DX3b-1** all CLOSED) — ranks **1-8 are all shipped**, so **next dispatch: PB-DX7**
-  (rank 9). Live coverage moves **1,133/1,803 = 62.8% → 1,134/1,803 = 62.9%**, one flip up.
+  (rank 9). Live coverage NET UNMOVED at **1,133/1,803 = 62.8%** — one flip up
+  (`sword_of_body_and_mind`) and one honest flip down (`the_reaver_cleaver`).
   PROTOCOL **35** / HASH **74** as of PB-DX26 (both gate-executed, both unmoved by it).
 - **Tests (delta 2026-08-11, PB-DX26)**: **4,506 / 0 / 5** full-workspace on branch
   `scutemob-206` (+15 over the **4,491** baseline measured on this branch BEFORE any edit —
@@ -136,15 +137,22 @@
   every other change is a modification of an existing test, not an addition), `--workspace
   --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
   **PROTOCOL 35 / HASH 74 both unmoved**, gate-executed (`hash_schema` 21/21,
-  `protocol_schema` 17/17). **0 engine-source lines** (`git diff --numstat` over
+  `protocol_schema` 17/17). **0 engine-source lines** — `git diff --numstat` over
   `crates/engine/src`, `crates/card-types/src`, `crates/view-model/src` and
-  `crates/simulator/src` is empty). Coverage **1,133 → 1,134 / 1,803 = 62.8% → 62.9%**,
-  regenerated: ONE flip up (`sword_of_body_and_mind`), which re-dealt three seeded
-  fixtures exactly as `pb_dx32_fuzz_output`'s own `MOVED_MSG` warns
-  (`completeness_deviation_scan` floor 670 → 669, `CORPUS_COMPLETE` 1133 → 1134,
-  `UI3_SPLIT_COMBAT_SEED` 21 → 28 — the last **re-observed** by a deleted sweep, not
-  guessed). `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check`
-  clean, `tools/check-defs-fmt.sh` clean (1,803 defs).
+  `crates/simulator/src` is empty. **`tools/` is not zero**, and the first draft of this
+  line implied it was (review Finding L11): `tools/play-server/src/main.rs` moves
+  **+~50 -~24**, entirely inside its `#[cfg(test)]` module — the
+  `UI3_SPLIT_COMBAT_SEED` constant and its doc. **Coverage NET ZERO at 1,133/1,803 =
+  62.8%**, regenerated: one flip UP (`sword_of_body_and_mind`, its only blocker being
+  the Equip {2} this batch authored) and one honest flip DOWN (`the_reaver_cleaver`,
+  review Finding 7 — derive-`Complete` with no marker anyone had ever ruled on, while
+  the trigger it grants under-fires against "a player **or planeswalker**").
+  **A stable count is not a stable deal**: the two moves cancelled in
+  `CORPUS_COMPLETE` and not in the SET, so the fuzz pool holds a different card and
+  `UI3_SPLIT_COMBAT_SEED` had to be re-observed **twice** (21 → 28 → 26), each time by
+  an executed sweep, while the constant that normally shouts about a pool change
+  stayed green. `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt
+  --check` clean, `tools/check-defs-fmt.sh` clean (1,803 defs).
 - **Tests (delta 2026-08-06, PB-DX25c fix cycle 2)**: **4,491 / 0 / 5** full-workspace on
   branch `scutemob-205` (+4 over the **4,487** fix-cycle-1 SETTLED pin — 4 new probes:
   `t7b_plain_target_spell_victim_cannot_redirect_onto_its_own_card`,
@@ -386,13 +394,20 @@
   `all_cards()` walk could ever see them (both `Inert`, 0 deck-legal blast radius —
   `OOS-DX26-1`). `cards1_equip_target_roster` R1 re-pinned **17 → 38** and its `Effect` match
   made **recursive** over all ten nesting sites — the §2.7 hazard, proven live by revert row
-  V6b; `t7b` strengthened from a name-set pin to a requirement-shape pin. Revert matrix: 15
-  rows executed, 13 red as required, V6a deliberately green, and **V4b honestly recorded as
-  UNDISCRIMINATED** (shadowed by `OOS-DX20-7`'s legacy guard) in the test's own doc rather
-  than glossed. Tests **4,506** (+15); coverage **62.8% → 62.9%**; PROTOCOL **35** / HASH
-  **74** gate-executed and unmoved; 0 engine-source lines. Seeds: three CLOSED, **OOS-DX26-1
-  ..6** filed. Durable lesson: **a roster derived from a keyword marker measures the marker,
-  not the printed card** — the fix for a short census is a second axis, not a better grep.
+  V6b; `t7b` strengthened from a name-set pin to a requirement-shape pin. Revert matrix: **15
+  rows — 13 RED as required, 1 CONTROL (V6a, must be green), 1 UNDISCRIMINATED** (V4b,
+  shadowed by `OOS-DX20-7`'s legacy guard, disclosed in the test's own doc rather than
+  glossed). **Review: 1 HIGH / 6 MEDIUM / 11 LOW, all 18 taken**, and its two sharpest were
+  this batch's own failure modes recurring inside it — a `Complete` def declaring a MANDATORY
+  target for a printed "up to one target" (`sword_of_light_and_shadow`, which lost its
+  unconditional life gain under CR 603.3d), and **an eleventh `Effect` nesting site that was
+  already in the enum while the new gate claimed to be exhaustive** (`RollDice`'s
+  `Vec<(u32, u32, Effect)>`, invisible to a `Box`/`Vec` count — and the residual the gate
+  DID state named a form that would have fired it). Tests **4,508** (+17); coverage net
+  unmoved at **62.8%**; PROTOCOL **35** / HASH **74** gate-executed and unmoved. Seeds: three
+  CLOSED, **OOS-DX26-1..6** filed. Durable lesson: **a roster derived from a keyword marker
+  measures the marker, not the printed card** — the fix for a short census is a second axis,
+  not a better grep.
   Full handoff: `memory/workstream-state.md`; measurements and revert matrix:
   `memory/primitives/pb-DX26-fail-before-2026-08-11.md`.
 - **Prior**: 2026-08-06 — **PB-DX25c SHIPPED** (`scutemob-205`; v3 queue rank 7c,

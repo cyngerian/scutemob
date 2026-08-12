@@ -560,7 +560,13 @@ fn equip_activated_attach_equipment_roster(defs: &[CardDefinition]) -> Vec<Strin
     use mtg_engine::AbilityDefinition;
     let mut out = Vec::new();
     for def in defs {
-        for ability in &def.abilities {
+        // PB-DX26 fix cycle (review Finding 6): both faces, matching the census in
+        // `core::pb_dx26_attach_keyword_roster` rather than the front-face-only walks
+        // this file used to share with it.
+        for ability in std::iter::once(&def.abilities)
+            .chain(def.back_face.iter().map(|f| &f.abilities))
+            .flatten()
+        {
             if let AbilityDefinition::Activated { effect, .. } = ability {
                 // PB-DX26: was a flat `matches!`, which dropped a Sequence-nested
                 // attach out of the pin SILENTLY (`seed-rerank-2026-08-02.md` §2.7
@@ -600,6 +606,11 @@ fn find_attach_equipment_target(effect: &Effect) -> Option<&CardEffectTarget> {
         Effect::CoinFlip {
             on_win, on_lose, ..
         } => find_attach_equipment_target(on_win).or_else(|| find_attach_equipment_target(on_lose)),
+        // PB-DX26 fix cycle: `Vec<(u32, u32, Effect)>` — the eleventh site, invisible
+        // to a `Box<Effect>`/`Vec<Effect>` count and missed by this walk's first draft.
+        Effect::RollDice { results, .. } => results
+            .iter()
+            .find_map(|(_, _, e)| find_attach_equipment_target(e)),
         _ => None,
     }
 }

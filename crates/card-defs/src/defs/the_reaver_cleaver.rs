@@ -85,6 +85,25 @@ pub fn card() -> CardDefinition {
                 modes: None,
             },
         ],
+        // PB-DX26 fix cycle (review Finding 7): DEMOTED to `partial`. This def had no
+        // `completeness` field at all, so it was `Complete` by the `#[default]` derive
+        // (the `aurelia_the_warleader` trap) and nobody had ever ruled on it — while the
+        // granted trigger under-fires against the printed card. PB-DX26's `r3` pin now
+        // asserts each member's marker as a REVIEWED fact, so an unexamined derive is no
+        // longer an acceptable state for a roster member.
+        completeness: Completeness::partial(
+            "The granted trigger under-fires: printed 'Whenever this creature deals combat damage \
+             to a player OR PLANESWALKER, create that many Treasure tokens' (MCP-verified \
+             2026-08-11), but no exact TriggerCondition variant exists — \
+             WhenEquippedCreatureDealsCombatDamageToPlayer fires only on damage to a player (its \
+             own enum doc says so) and the sibling WhenEquippedCreatureDealsCombatDamage is \
+             any-recipient and would OVER-fire on damage to a creature. Combat damage to a \
+             planeswalker therefore makes no Treasures. Needs a \
+             WhenEquippedCreatureDealsCombatDamageToPlayerOrPlaneswalker variant. Separately \
+             (narrower, not the blocker): the printed card GRANTS the trigger to the equipped \
+             creature, while this def installs it on the Equipment — a distinction that shows \
+             only if the Equipment leaves mid-combat. Equip {3} IS authored (PB-DX26).",
+        ),
         ..Default::default()
     }
 }

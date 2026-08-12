@@ -70,10 +70,21 @@ pub fn card() -> CardDefinition {
                     },
                 ]),
                 intervening_if: None,
-                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
-                    has_card_type: Some(CardType::Creature),
-                    ..Default::default()
-                })],
+                // PB-DX26 fix cycle (review Finding 1, HIGH): the printed clause is "you may
+                // return UP TO ONE target creature card", so the requirement is optional.
+                // Declared MANDATORY before this, which made the whole trigger illegal under
+                // CR 603.3d whenever the controller's graveyard held no creature card — and
+                // since the life gain rides the same Sequence, "you gain 3 life" was lost
+                // too, on a def that is `Complete` by the `#[default]` derive and deck-legal
+                // today. `UpToN` is the right shape and needed no DSL work: its roster-mate
+                // `sword_of_sinew_and_steel` already uses it twice for exactly this reading.
+                targets: vec![TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    })),
+                }],
 
                 modes: None,
                 trigger_zone: None,

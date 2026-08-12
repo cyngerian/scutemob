@@ -20,11 +20,15 @@
 ## Worker Handoff (PB-DX26, `scutemob-206`) — a printed ability that did not exist
 
 > v3 queue rank 8. **`OOS-CARDS1-3` + `OOS-CARDS1-1` + `OOS-DX3b-1` all CLOSED.**
-> Tests **4,491 → 4,506** (+15), 46 targets, residual empty. Coverage
-> **1,133/1,803 = 62.8% → 1,134/1,803 = 62.9%** (one flip up). **PROTOCOL 35 /
-> HASH 74 gate-executed and unmoved.** **0 engine-source lines** —
+> Tests **4,491 → 4,508** (+17), 46 targets, residual empty. Coverage **net unmoved at
+> 1,133/1,803 = 62.8%** — one flip up (`sword_of_body_and_mind`) and one honest flip
+> down (`the_reaver_cleaver`, from the `/review`). **PROTOCOL 35 / HASH 74
+> gate-executed and unmoved.** **0 engine-source lines** —
 > `git diff main..HEAD --numstat -- crates/engine/src crates/card-types/src
-> crates/view-model/src crates/simulator/src` is empty. Measurements and the
+> crates/view-model/src crates/simulator/src` is empty. **`tools/` is NOT zero**
+> (review Finding L11 — the first draft of this line implied it was):
+> `tools/play-server/src/main.rs` moves ~+50 -24, all inside its `#[cfg(test)]`
+> module (the `UI3_SPLIT_COMBAT_SEED` constant and its doc). Measurements and the
 > executed revert matrix: `memory/primitives/pb-DX26-fail-before-2026-08-11.md`;
 > per-def plan: `memory/primitives/pb-DX26-equip-spec.md`.
 
@@ -152,9 +156,12 @@ absent: `TriggerCondition::WhenEquippedCreatureAttacks`,
 `sword_of_the_paruns`'s own TODO comment). Confirmed **stale and corrected in
 place**: `sword_of_body_and_mind`'s header TODO claiming multi-colour protection was
 unexpressible (the def already carried two `AddKeyword(ProtectionFrom)` statics),
-`glimmer_lens`'s "Equip {1}{W} cost is also not modeled", `sting`'s "Equip {2} …
-is also a DSL gap", and `guardian_project`'s "`TargetFilter` lacks non_token field"
-— which was never true. **`OOS-DX26-6`** records the ten still-`partial` equip defs
+`glimmer_lens`'s "Equip {1}{W} cost is also not modeled" and `guardian_project`'s
+"`TargetFilter` lacks non_token field" — which was never true. **Correction from the
+`/review` (Finding 4): this list originally also claimed `sting`'s header had been
+corrected, and it had not been.** The discipline was applied to the `completeness`
+field and not to the `//` comments beside it, on six defs; the fix cycle rewrote all
+six, each dated. A closure claim is a dated claim too. **`OOS-DX26-6`** records the ten still-`partial` equip defs
 as a measured worklist, three of which their own notes say are authorable today.
 
 ### Seeds

@@ -15,8 +15,14 @@ pub fn card() -> CardDefinition {
         oracle_text: "Equipped creature gets +1/+1 for each card in your hand.\nEquip {2}"
             .to_string(),
         abilities: vec![
-            // TODO: DSL gap — dynamic +1/+1 per card in hand. LayerModification::ModifyBoth
-            // takes fixed i32, not EffectAmount. Needs dynamic LayerModification.
+            // RE-VERIFIED 2026-08-11 (PB-DX26 fix cycle, review Finding 4): the dynamic
+            // "+1/+1 for each card in your hand" IS expressible —
+            // `LayerModification::ModifyBothDynamic` + `EffectAmount::HandSize` both exist,
+            // and this def's own `completeness` note already gives the exact rewire. The old
+            // TODO ("needs dynamic LayerModification") was stale.
+            // TODO: unauthored, with one open question the note states — confirm
+            //   `layers.rs` resolves "your hand" to the EQUIPMENT's controller under
+            //   gain-control before marking this Complete.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
             // Equip {2}: attach this Equipment to target creature you control.
             // CR 702.6b: Equip is an activated ability; CR 702.6d: sorcery speed only.
