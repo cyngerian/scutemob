@@ -694,3 +694,236 @@ Recorded rather than silently fixed, because a count of proofs is exactly the
 kind of claim this batch exists to make checkable, and it was wrong in the
 document whose subject is gates that overstate their own coverage. Verified by
 enumerating the table's row labels, not by re-reading the sentence.)*
+
+---
+
+## 15. `/review` fix cycle (2026-08-12) — `memory/primitives/pb-review-DX7.md`
+
+**Verdict: needs-fix — 2 HIGH, 5 MEDIUM, 9 LOW. All 16 findings taken; none
+disputed.** The reviewer had no shell — nothing in the review was executed.
+The coordinator executed both HIGHs personally and confirmed both real
+before dispatching the fix. Every fix below was re-verified by an executed
+revert using the review's own named defeat, not a synthetic stand-in.
+
+### H1 — the unordered-container ratchet counted one spelling (27), not
+containers (real: 85 across 9 files, not 6)
+
+**Fixed.** `unordered_container_count` rewritten from `Hash{Map,Set}<`
+substring counting to whole-token `HashMap`/`HashSet` matching (annotation,
+construction, turbofish, `use` imports — everything). Re-measured: **85**
+occurrences across **9** files (`replacement.rs` 21, `effects/mod.rs` 19,
+`abilities.rs` 11, `casting.rs` 9, `sba.rs` 8, `resolution.rs` 7,
+`commander.rs` 4, `engine.rs` 3, `turn_actions.rs` 3). All 85 traced to a
+named variable/field/parameter and classified — no new hazard, every
+addition beyond the original 27 is an import, a parameter restatement, a
+`.clone()`, or an empty-literal `&HashSet::new()` argument. `UNORDERED_CEILINGS`
+re-pinned to the 9-file table; `MIN_TOTAL_FOUND` 20 → 60. Module doc and the
+`OOS-DP9-10` registry row corrected (the "deliberately obscure code" residual
+claim was itself wrong about type-inferred construction, which is 58 of the
+85 real occurrences).
+
+Coordinator's scope decision, recorded as instructed: the reviewer argued
+`OOS-DP9-10` should have been deferred (different seed, different subsystem,
+closed on a partial scan). Coordinator's ruling: **keep it and fix it
+properly** — deferring now would leave the registry row carrying a wrong
+count and a gate that green-lights the defect it names, worse than either
+shipping it correct or never starting. Not pulled; the fixed ratchet is
+honest (see the re-measured 85/9-file table and the re-inspected
+classification above).
+
+Revert row (continuing V-numbering, restored immediately, `git diff --stat`
+confirmed clean after each):
+
+| # | Gate | Revert applied | Result |
+|---|---|---|---|
+| V-H1 | `unordered_container_surface_is_ratcheted` | injected the review's exact type-inferred defeat into `rules/layers.rs` (`let mut best = std::collections::HashMap::new(); ... .max_by_key(...)`) | **RED** — "rules/layers.rs: 1 > ceiling 0" |
+| V-H1b | same | ceiling-raise revert re-run post-fix: added an un-annotated `HashSet::new()` to `rules/sba.rs` (listed, ceiling 8) | **RED** — "rules/sba.rs: 10 > ceiling 8" |
+| V-H1c | same | conversion revert re-run post-fix: `rules/engine.rs`'s `sources_on_bf` `HashSet` → `BTreeSet` | **RED** — "rules/engine.rs: 2 < ceiling 3" |
+
+### H2 — `FieldCoverage::Full` meant "the token appears", not "the value is
+hashed" (the `OOS-DP9-13` defect, one spelling over)
+
+**Fixed.** `token_coverage`'s fail-open `else` arm (any non-summariser
+occurrence → `Full`) removed. New `FieldCoverage::Unverified` (token present,
+no occurrence matches a recognised shape) fails the gate — never silently
+passes, never satisfies either `NOT_HASHED*` allowlist (their dead-entry
+guards require raw textual absence, deliberately kept separate). `Full` now
+requires one of: direct feed, iteration-with-hashing-body, `match`-with-
+hashing-body, `if let Some(...)`-with-hashing-body (incl. a collection
+`.get()`/`.get_mut()` lookup scrutinee), a cast-to-repr (`(*x as u8)` or
+`(x as u64)`, with or without one intervening method call), or a bare
+field/tuple-index access chain (`x.0.hash_into(`). Every shape was surveyed
+against REAL `hash.rs` occurrences before being added (not invented) —
+running the fixed classifier against the whole codebase surfaced 8
+previously-mis-classified real fields (`DungeonState.current_room`,
+`GameObject.designations`/`.cast_alt_cost`, `ModeSelection.mode_costs`/
+`.mode_targets`, `PendingEffectChoice.index`, plus ~10 enum tuple fields
+wrapping `SubType`, plus `GameState.objects`/`.permanents_put_into_
+graveyard_this_turn`), each individually verified against its real source
+and either recognised as a legitimate new shape (all of them) or would have
+required a new allowlist entry (none did — zero regressions, zero new
+allowlist entries). One additional bug found and fixed WHILE implementing
+this fix, not shipped: the strict-adjacency checks (`.starts_with(".hash_into(")`
+etc.) did not tolerate whitespace/newlines between a token and its chained
+call, breaking on real rustfmt-wrapped code
+(`self.permanents_put_into_graveyard_this_turn\n    .hash_into(...)`) — fixed
+with a shared `skip_ws` helper applied at every adjacency check.
+
+Revert rows (continuing V-numbering):
+
+| # | Gate | Revert applied | Result |
+|---|---|---|---|
+| V-H2 | `every_hashed_enum_variant_field_is_hashed_or_allowlisted` | the review's exact defeat: `EffectChoiceQuestion::SearchLibrary`'s `may_fail_to_find.hash_into(hasher);` → `let _ = may_fail_to_find;` | **RED** — "UNVERIFIED"; independently confirmed clippy-clean at this revert state, matching the review's own observation |
+| V-H2b | `every_hashed_struct_field_is_hashed_or_allowlisted` | struct-side equivalent: `PendingCleanupDiscard.count` → `let _ = self.count;` | **RED** — proves the shared classifier fix reaches the struct half too, per the coordinator's "check, don't assume" instruction |
+
+### M3 — nothing required an arm to feed the hasher at all
+
+**Fixed.** Every Unit-variant arm body, and the whole bare-cast-shape impl
+body, must now contain at least one `.hash_into(`. Exception carved out and
+verified live: the `let disc: u8 = match self { A => 0, ... };
+disc.hash_into(hasher);` indirect-discriminant idiom (`AltCostKind`,
+`DungeonId`) legitimately has no per-arm `.hash_into(` — detected via a new
+`match_self_result_is_bound_and_hashed` body-level check. Also fixed:
+`enum_discriminant_collisions` now returns arms with NO integer literal as a
+reportable finding (previously silently skipped).
+
+| # | Gate | Revert applied | Result |
+|---|---|---|---|
+| V-M3 | `every_hashed_enum_variant_field_is_hashed_or_allowlisted` | the review's exact defeat: `GiftType::Food => 0u8.hash_into(hasher)` → `GiftType::Food => {}` | **RED** — "this arm's body feeds NOTHING to the hasher" |
+| V-M3b | `discriminant_collisions_are_ratcheted_at_their_known_bad_state` | same defeat | **RED**, independently — "GiftType::Food" reported with no integer literal |
+
+### M4 — the Named branch did not reject `_`, the Tuple branch did
+
+**Fixed.** Named branch now rejects a field bound to exactly `_`, mirroring
+the tuple branch.
+
+| # | Gate | Revert applied | Result |
+|---|---|---|---|
+| V-M4 | `every_hashed_enum_variant_field_is_hashed_or_allowlisted` | `EffectChoiceQuestion::SearchLibrary`'s pattern rewritten to `{ candidates, may_fail_to_find: _ }` with a stray `let _ = 1;` in the body (the review's exact latent-shape description) | **RED** — "named field bound to `_`" |
+
+### M5 — the GameState gate stopped one level short: hand-hashed collection
+elements with no `HashInto` impl of their own were invisible
+
+**Fixed.** New `HAND_HASHED_ELEMENT_TYPES` roster + `hand_hashed_gamestate_
+elements_cover_every_field`, covering the one genuine instance
+(`AdditionalLandPlaySource`, hand-hashed in `additional_land_play_sources`'s
+loop) — every other hand-destructured collection in `public_state_hash`
+either unpacks a fixed-arity tuple or delegates to a type that already has
+its own `HashInto` impl. Uses `token_coverage`, not bare presence — a first
+draft using `body_references_token` was caught by its OWN revert proof
+passing when it should have failed (the exact H2 shape, recurring inside its
+own fix), corrected before shipping.
+
+| # | Gate | Revert applied | Result |
+|---|---|---|---|
+| V-M5 | `hand_hashed_gamestate_elements_cover_every_field` | `src.count.hash_into(&mut hasher);` → `let _ = &src.count;` | **RED** — "declares fields never FULLY fed to the hasher" |
+
+### M6 — the GameState gate used `body_references_field`, the matcher this
+same batch diagnosed as insufficient
+
+**Fixed.** Both GameState gates switched to `struct_field_coverage`; new
+`PARTIALLY_HASHED_GAMESTATE` allowlist + dead-entry guard, shipped EMPTY
+(verified: all 42 currently-referenced fields classify `Full`, zero
+regressions).
+
+| # | Gate | Revert applied | Result |
+|---|---|---|---|
+| V-M6 | `every_gamestate_field_is_in_public_hash_or_allowlisted` | the review's exact example: `match self.day_night {...}` → `self.day_night.is_some().hash_into(&mut hasher);` | **RED** — "PARTIAL coverage only ... is_some" |
+
+### M7 — both `PARTIALLY_HASHED_VARIANT_FIELDS` reasons cited a line range
+with no such reasoning
+
+**Fixed.** Re-cited to the real locations (`ActivatedAbility` feed
+`hash.rs:4120`, `TriggeredAbility` reasoning `hash.rs:4136-4142`,
+`ForecastAbility` feed `hash.rs:4241`). `ActivatedAbility`'s arm — which
+genuinely carried no comment of its own, confirmed by the review — was given
+one (comment-only), mirroring its sibling, so "documented in-source" is now
+literally true rather than inferred. No revert applies (a citation
+correction has no executable assertion behind it); verified by re-reading
+the cited line ranges directly, twice (once before, once after the ADD in
+`hash.rs` shifted every subsequent line number by +4).
+
+### LOW findings — all 9 taken
+
+- **L1**: `loop_detection_hashes`'s allowlist entry mis-cited `state/mod.rs`;
+  the real citation is `hash.rs:8290-8293` (`public_state_hash`'s own
+  "Excludes:" doc). Fixed in the entry and in the `OOS-DX7-3` registry row.
+- **L2**: `hash.rs:6793-6800` claimed the discriminant error was "inherited
+  by several `HASH_SCHEMA_HISTORY` entries below" — wrong twice (the history
+  is above, and zero entries actually reference the 18 colliding variants,
+  already verified and stated correctly elsewhere in the same file). Reworded
+  to match the already-correct verified result.
+- **L3**: `OOS-DP9-13`/`OOS-DX7-3` both said 3 GameState fields "reached
+  neither `public_state_hash` nor any stated exclusion list" — wrong for 2 of
+  3 (`history`/`loop_detection_hashes` ARE named in `public_state_hash`'s own
+  doc; only `card_registry` was genuinely unstated). Both registry rows
+  corrected.
+- **L4**: `enum_coverage_scanners_are_not_vacuous` floored ALL declared enums
+  (measured: 109) against `MIN_HASHED_ENUMS` (52, meant for the 79 HASHED
+  ones) — ~2x unintended slack. New `MIN_DECLARED_ENUMS = 72` against the
+  real 109.
+- **L5**: `hashinto_impl_bodies()` could silently drop a malformed/unusual
+  spelling with `MIN_HASHINTO_IMPLS = 80` giving 59 impls of headroom before
+  noticing. New `hashinto_impl_bodies_parses_every_raw_occurrence` asserts an
+  EXACT match between the parsed count and an independent raw needle count.
+- **L6**: `pb_dp9_roster_walks_agree_by_value` compares a REPLICA of the
+  copy, not the real copy in `pb_dp9_effect_choice.rs`. Residual stated in
+  both the test's own doc and the `OOS-DP10-1` registry row: proves the
+  ALGORITHM is blind to unit variants, not that the real copy still IS that
+  algorithm. Durable fix (shared function) confirmed out of scope, not
+  silently deferred.
+- **L7**: `first_integer_literal` read the first digit run ANYWHERE,
+  including inside an identifier (`u32`, `x2`) if a cast preceded the real
+  tag. Fixed to skip a digit run immediately preceded by an identifier
+  character, WITHOUT requiring a `uN` suffix (which would have broken the
+  legitimate bare-literal indirect-discriminant idiom M3 also touches).
+- **L8**: trim candidate for `effect_colliding_variant_digests_are_pairwise_
+  distinct`. **Coordinator's explicit instruction: keep it** — it is the
+  only executed evidence behind `OOS-DX7-1`. Not trimmed.
+- **L9**: `every_hashed_struct_is_parsed_by_named_field_structs`'s non-`pub`
+  half cannot fire independently (`every_hashed_type_resolves_to_a_declaration`
+  always catches the same case first). Documented honestly in the function's
+  own doc rather than left implying independent coverage; not removed (still
+  a better error message on the same underlying failure).
+
+### Final close conditions, this round
+
+`cargo test -p mtg-engine --test core hash_schema`: **36/0** (+2 over the
+34 pin before this review round — `hashinto_impl_bodies_parses_every_raw_
+occurrence` (L5) and `hand_hashed_gamestate_elements_cover_every_field`
+(M5); every other fix strengthened an EXISTING test's assertion rather than
+adding a new one, or was a doc/citation-only change).
+
+`cargo test --workspace --no-fail-fast`: **4,527 / 0 / 5**, 46 targets,
+residual empty. Itemized against the **4,508** baseline: **+19** = 4 already
+on the branch from the pre-existing OOS-DP10-1/OOS-DP9-10 riders +
+15 from `hash_schema.rs` growing 21 → 36 across the whole task (three
+implementation rounds plus this review fix cycle).
+
+`cargo clippy --workspace --all-targets -- -D warnings`: clean (one real
+finding hit and fixed along the way — `clippy::if_same_then_else` on the
+`field_chain_directly_hashed`/`cast_wrapped_and_hashed` two-arm `else if`
+chain, merged with `||`).
+`cargo fmt --check`: clean (one pass applied).
+`tools/check-defs-fmt.sh`: clean, 1,803 defs.
+`cargo build --workspace`: clean.
+
+**Gate-executed, not assumed:**
+- `hash_schema_version_sentinel`: **1/0**, asserting `HASH_SCHEMA_VERSION ==
+  74` — **HASH = 74**, unmoved across the whole task including this review
+  round.
+- `protocol_schema`: **17/0** including `protocol_version_sentinel` —
+  **PROTOCOL = 35** (`crates/engine/src/rules/protocol.rs:360`), unmoved.
+
+`git diff -- crates/engine/src/state/hash.rs`: verified via the same
+executed Python line-by-line check (not grep) — **zero non-comment lines**,
+across the WHOLE task including this review round (the `ActivatedAbility`
+comment addition for M7 is comment-only, as are the L2/M3-header corrections
+already present).
+
+`git status --short`: **5** files now (`hash.rs`, `hash_schema.rs`,
+`decision_gate.rs` (L6 doc), `unordered_iteration_ratchet.rs` (H1),
+`docs/audits/decision-point-audit.md` (L1/L3/L6 registry corrections)) —
+0 card-def edits, 0 other engine-source edits.
+
+**Not committed** (coordinator's instruction — they commit).

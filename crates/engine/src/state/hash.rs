@@ -4117,6 +4117,10 @@ impl HashInto for StackObjectKind {
                 1u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 ability_index.hash_into(hasher);
+                // PB-DX7 review M7 (2026-08-11): this arm previously carried no comment
+                // of its own. Same reasoning as the TriggeredAbility arm below: presence
+                // suffices for divergence detection because the embedded effect is a copy
+                // of the source ability's, redundant with source_object + ability_index.
                 embedded_effect.is_some().hash_into(hasher);
             }
             StackObjectKind::TriggeredAbility {
@@ -6789,11 +6793,18 @@ impl HashInto for ModeSelection {
 // The shape (an `AddMana*` mana-family cluster at roughly line 6832-6920
 // reusing the same low tag range as an unrelated cluster at roughly line
 // 7150-7420) indicates two historically-separate numbering sequences were
-// merged into this one enum without reconciling their ranges — a
-// documentation/hygiene defect inherited by several `HASH_SCHEMA_HISTORY`
-// entries below (SR-17's history is append-only and its shipped rows are
-// never edited, so those entries' "discriminant N" phrasing stands as
-// originally written; this note is the correction, not a rewrite of them).
+// merged into this one enum without reconciling their ranges.
+//
+// PB-DX7 review L2 correction (2026-08-12): this paragraph used to claim the
+// defect was "inherited by several HASH_SCHEMA_HISTORY entries below" (the
+// history is ABOVE this point in the file, not below -- a second error in
+// the same sentence). Checked directly, not assumed (see the correction
+// paragraph ABOVE `pub const HASH_SCHEMA_VERSION`, immediately following the
+// history): none of the 18 colliding variant names, and none of their 9
+// shared tag values, appear anywhere in the numbered history at all, so no
+// SPECIFIC row is factually wrong about this. There is nothing to inherit;
+// this is a general caution for future "(discriminant N)" phrasing on an
+// `Effect` variant, not a correction of a claim any existing row makes.
 //
 // It does NOT, by itself, make two different `Effect` values hash
 // identically — uniqueness of the ARM TAG was never what made the byte

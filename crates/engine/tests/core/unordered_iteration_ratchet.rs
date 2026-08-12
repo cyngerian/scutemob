@@ -33,7 +33,9 @@
 //! A source scan cannot do dataflow, so it does **not** try to decide "does this container's
 //! iteration order reach an outcome?" — that is the judgement call this gate exists to
 //! *force a human to make*, not to make itself. What it pins is the **surface**: the number of
-//! `HashMap<` / `HashSet<` type occurrences in the resolution path, per file, as a ratchet.
+//! whole-token `HashMap` / `HashSet` occurrences in the resolution path, per file, as a
+//! ratchet (widened from the `<`-suffixed annotation spelling to whole-token matching in the
+//! PB-DX7 review's H1 fix — see below).
 //!
 //! - A count may only ever go **down**. Introducing an unordered container in the resolution
 //!   path exceeds its file's ceiling and fails with the classification question.
@@ -53,28 +55,50 @@
 //!
 //! Known limitation, shared with every sibling source-scan gate: only `//` line comments are
 //! stripped, not block comments, and a type aliased elsewhere (`type Foo = HashMap<..>;` in
-//! another crate, then `Foo` used here) would not be seen. Both take deliberately obscure code
-//! that review would reject; they are stated rather than defended against, because a gate that
-//! overclaims its reach is what PB-DX7 exists to fix.
+//! another crate, then `Foo` used here) would not be seen. The block-comment gap is genuinely
+//! obscure code review would likely reject. **The alias gap is not, and neither is
+//! type-inferred construction, which this doc previously (wrongly) called equally obscure --
+//! `let x = HashSet::new();` with the type inferred from use is completely ordinary Rust, and
+//! before the H1 fix it (along with imports, parameter restatements and empty-literal
+//! arguments -- everything that is not the `<`-suffixed annotation spelling) accounted for 58
+//! of the tree's 85 real occurrences, undercounted to 0 in three files entirely.** Stated
+//! rather than defended against, because a gate that overclaims its reach is what PB-DX7
+//! exists to fix -- and this file itself was found, by execution, to be exactly such a gate
+//! before the widened needle.
 //!
-//! # The classification as re-verified at HEAD by PB-DX7
+//! # The classification as re-verified at HEAD by PB-DX7 (and re-verified again for review H1)
 //!
-//! All 27 occurrences below were re-inspected (not assumed from the seed's summary), and every
+//! **Corrected 2026-08-11 (review H1)**: the count below is now **85**, not 27 — the original
+//! needle (`HashMap<` / `HashSet<`, the type-ANNOTATION spelling only) missed every
+//! CONSTRUCTION-style occurrence (`HashSet::new()`, `HashMap::with_capacity(n)`, an empty
+//! `&HashSet::new()` literal argument, a `use` import, a turbofish), which is the majority
+//! idiom in this tree — `rules/casting.rs` alone has 9 `HashSet::new()` sites and matched the
+//! old needle exactly zero times. All 85 occurrences were traced to a named
+//! variable/field/parameter and classified (not assumed from the original 27's summary); every
 //! one is still clean:
 //!
-//! - `replacement.rs` — the only file that genuinely *iterates* a `HashSet` to an outcome. All
-//!   three `already_applied.into_iter()` sites collect into a `Vec` and `sort_by_key(|id| id.0)`
-//!   immediately (the fix-cycle repair, and the source comments say so). The five
-//!   `.iter().copied().collect()` sites read the *`Vec`* field into a set — construction, not
-//!   unordered iteration. Inside `find_applicable` the set is `contains`-only (`:54`).
-//! - `effects/mod.rs` — `top_ids` is iterated at `:5958`, but only to partition into
-//!   `matched_ids` / `unmatched_ids`, both of which are `sort_by_key(|id| id.0)`'d before use.
-//!   `target_remaps` is `insert`/`get`-only (the seed's original claim, still true).
-//!   `seen_names` is a membership filter.
-//! - `sba.rs` (`chars_map`), `abilities.rs` (`seen`, `left_battlefield`,
-//!   `arrived_in_graveyard_this_batch`), `commander.rs` (`seen`, `reported_incomplete`),
-//!   `engine.rs` (`sources_on_bf`) — all `contains`/`get`-only membership or lookup tables;
-//!   none is iterated at all.
+//! - `replacement.rs` (21) — the only file that genuinely *iterates* a `HashSet` to an
+//!   outcome, via the `already_applied` family. All three `already_applied.into_iter()` sites
+//!   collect into a `Vec` and `sort_by_key(|id| id.0)` immediately (the fix-cycle repair, and
+//!   the source comments say so); the remaining declarations, parameter restatements and two
+//!   `.clone()`s into `applied` are the same family. 7 empty `&HashSet::new()` arguments feed
+//!   `find_applicable`, which is `contains`-only (`:54`).
+//! - `effects/mod.rs` (19) — `top_ids` is iterated at `:5958`, but only to partition into
+//!   `matched_ids` / `unmatched_ids`, both `sort_by_key(|id| id.0)`'d before use.
+//!   `target_remaps` is `insert`/`get`-only across its 1 declaration + 1 field annotation + 5
+//!   construction sites (the seed's original claim, still true). `seen_names` is a membership
+//!   filter. The rest are 1 `use` import and 9 empty `&HashSet::new()` arguments.
+//! - `abilities.rs` (11), `sba.rs` (8), `commander.rs` (4), `engine.rs` (3) — `seen`,
+//!   `left_battlefield`, `arrived_in_graveyard_this_batch`, `chars_map`, `reported_incomplete`,
+//!   `sources_on_bf` are all `contains`/`get`-only membership or lookup tables, each counted
+//!   once per declaration/parameter/construction site rather than once per file; the rest are
+//!   `use` imports and empty-literal arguments.
+//! - `casting.rs` (9), `resolution.rs` (7), `turn_actions.rs` (3) — **entirely newly visible
+//!   under the widened needle** (the old counter measured all three at 0). `casting.rs` is 9
+//!   independent `let mut seen(_x) = HashSet::new();` dedup sites, each `insert`-only.
+//!   `resolution.rs` is 7 empty `&HashSet::new()` arguments. `turn_actions.rs` is 1
+//!   construction + 2 empty-literal arguments. All inspected individually; none iterated to an
+//!   outcome.
 //!
 //! **This gate does not close OOS-DP9-10's determinism question for all time**, and must not be
 //! read as doing so: it cannot see an outcome reached through iteration of a container that
@@ -94,35 +118,59 @@ const SCAN_DIRS: [&str; 3] = [
     "crates/engine/src/state",
 ];
 
-/// Per-file ceilings on `HashMap<` / `HashSet<` occurrences, comment-stripped and
-/// whitespace-insensitive. **A count may only decrease.** Any file under [`SCAN_DIRS`] not
-/// listed here is pinned at zero.
+/// Per-file ceilings on whole-token `HashMap` / `HashSet` occurrences, comment-stripped.
+/// **A count may only decrease.** Any file under [`SCAN_DIRS`] not listed here is pinned at
+/// zero.
 ///
-/// Measured at HEAD by PB-DX7 (2026-08-11); see the module docs for the per-site
-/// classification behind each number.
+/// **Re-measured for PB-DX7 review H1 (2026-08-11)**, after widening the counter from the
+/// `<`-suffixed annotation spelling (which found 27) to whole-token matching (which finds
+/// **85** — see `unordered_container_count`'s doc for why 27 undercounted). Every one of the
+/// 85 occurrences was traced to a named variable/parameter/field and classified; see the
+/// module doc's "classification as re-verified" section below for the full per-file account.
+/// No genuinely new unordered-iteration-to-outcome site was found — every additional
+/// occurrence beyond the original 27 is one of: a `use` import line, a function parameter
+/// restating an already-classified set's type, a `.clone()` of an already-classified set, or
+/// an empty-literal `&HashSet::new()` argument (which cannot have an iteration-order hazard —
+/// it is always empty at the call site).
 const UNORDERED_CEILINGS: &[(&str, usize)] = &[
-    // 11 — the only genuine iteration site in the resolution path, and all three
-    // `into_iter()` collections are sorted by `ReplacementId` immediately (PB-DP9 fix cycle).
-    // The remaining eight are `Vec` -> set construction and `contains`-only reads.
-    ("rules/replacement.rs", 11),
-    // 5 — `chars_map: HashMap<ObjectId, Characteristics>`, threaded through four SBA helpers
-    // as a lookup table. Never iterated.
-    ("rules/sba.rs", 5),
-    // 5 — `seen` (x2), `left_battlefield`, `arrived_in_graveyard_this_batch` (declaration +
-    // parameter). All membership filters; none iterated.
-    ("rules/abilities.rs", 5),
-    // 3 — `target_remaps` (insert/get-only, the audited-clean subject of the seed's original
-    // narrower claim), `top_ids` (iterated, but both output vectors are sorted before use),
-    // `seen_names` (membership filter).
-    ("effects/mod.rs", 3),
-    // 2 — `reported_incomplete` and `seen`, both membership filters in deck validation.
-    ("rules/commander.rs", 2),
-    // 1 — `sources_on_bf`, a membership filter.
-    ("rules/engine.rs", 1),
+    // 21 — the `already_applied` family (CR 616.1 replacement-ordering; sorted by
+    // `ReplacementId` before use, PB-DP9 fix cycle) across its declarations, parameter
+    // restatements, and two `.clone()`s into `applied`; plus 7 empty `&HashSet::new()`
+    // arguments to `find_applicable` (contains-only there, per the original audit).
+    ("rules/replacement.rs", 21),
+    // 19 — `target_remaps` (insert/get-only; 1 declaration + 1 field annotation + 5
+    // `HashMap::new()` construction sites across the functions that build `EffectContext`),
+    // `top_ids` (iterated, but both output vectors are `sort_by_key`'d before use),
+    // `seen_names` (declaration + construction), 1 `use` import, and 9 empty
+    // `&HashSet::new()` arguments.
+    ("effects/mod.rs", 19),
+    // 11 — `seen` (x2 declaration+construction pairs across two helper fns), `left_battlefield`
+    // (declaration + construction), `arrived_in_graveyard_this_batch` (declaration +
+    // parameter), 2 `use` imports. All membership filters; none iterated.
+    ("rules/abilities.rs", 11),
+    // 9 — 9x `let mut seen(_x) = std::collections::HashSet::new();`, one per splice/dedup
+    // site; each is `insert`-only, never iterated. **Newly visible under the widened
+    // needle** (the `<`-suffixed counter found 0 here) — inspected individually, all clean.
+    ("rules/casting.rs", 9),
+    // 8 — `chars_map: HashMap<ObjectId, Characteristics>` (1 declaration + 4 parameter
+    // restatements across SBA helpers, a lookup table, never iterated), 1 `use` import, 2
+    // empty `&HashSet::new()` arguments.
+    ("rules/sba.rs", 8),
+    // 7 — 7x `&std::collections::HashSet::new()` empty-set arguments. **Newly visible under
+    // the widened needle.** Inspected individually, all clean.
+    ("rules/resolution.rs", 7),
+    // 4 — `reported_incomplete` and `seen` (each declaration + construction), both membership
+    // filters in deck validation.
+    ("rules/commander.rs", 4),
+    // 3 — `sources_on_bf` (a membership filter) + 2 empty `&HashSet::new()` arguments.
+    ("rules/engine.rs", 3),
+    // 3 — 1x `HashSet::new()` construction + 2x empty `&HashSet::new()` arguments. **Newly
+    // visible under the widened needle.** Inspected individually, all clean.
+    ("rules/turn_actions.rs", 3),
 ];
 
-/// Non-vacuity floor: the scan must find a real codebase. Deliberately below the live 27.
-const MIN_TOTAL_FOUND: usize = 20;
+/// Non-vacuity floor: the scan must find a real codebase. Deliberately below the live 85.
+const MIN_TOTAL_FOUND: usize = 60;
 /// The scan must actually walk a meaningful number of files.
 const MIN_FILES_SCANNED: usize = 20;
 
@@ -148,9 +196,19 @@ fn walk_rs(dir: &Path, acc: &mut Vec<PathBuf>) {
     }
 }
 
-/// `HashMap<` / `HashSet<` occurrences in `src`, with `//` line comments stripped and all
-/// whitespace removed (so a rustfmt-wrapped `HashMap<\n    K,\n    V,\n>` counts once, and a
-/// comment quoting the needle counts zero).
+/// Whole-token `HashMap` / `HashSet` occurrences in `src`, with `//` line comments stripped.
+///
+/// **PB-DX7 review fix (H1, 2026-08-11).** The original counter matched only the `<`-suffixed
+/// type-annotation spelling (`HashMap<`), which is the MINORITY idiom in this tree — measured:
+/// 27 annotation-style occurrences vs 85 total whole-token occurrences across the same scan
+/// roots. `rules/casting.rs` alone carries 9 `HashSet::new()` construction sites and matched
+/// the old needle exactly zero times, so it was pinned at ceiling 0 while genuinely carrying 9 —
+/// the exact `OOS-DP9-10` defect (a new unordered-iteration-to-outcome site going unnoticed),
+/// reproduced inside this gate's own file by an executed revert (see `pb-DX7-execution-notes.md`
+/// §14). This counts the bare identifier as a whole token regardless of what follows it —
+/// annotation (`HashMap<K, V>`), construction (`HashMap::new()`, `HashMap::with_capacity(n)`),
+/// turbofish (`.collect::<HashSet<_>>()`), or a bare mention anywhere else a `HashMap`/`HashSet`
+/// name can occur in real (non-string, non-comment) source.
 fn unordered_container_count(src: &str) -> usize {
     let decommented: String = src
         .lines()
@@ -160,12 +218,27 @@ fn unordered_container_count(src: &str) -> usize {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    let squeezed: String = decommented.chars().filter(|c| !c.is_whitespace()).collect();
+    let b = decommented.as_bytes();
     // Built at runtime so this file's own source cannot match the needle if it is ever
     // brought under a scan root.
-    let map_needle = format!("Hash{}<", "Map");
-    let set_needle = format!("Hash{}<", "Set");
-    squeezed.matches(&map_needle).count() + squeezed.matches(&set_needle).count()
+    let map_needle = format!("Hash{}", "Map");
+    let set_needle = format!("Hash{}", "Set");
+    let mut count = 0usize;
+    for needle in [map_needle.as_str(), set_needle.as_str()] {
+        let mut from = 0usize;
+        while let Some(rel) = decommented[from..].find(needle) {
+            let at = from + rel;
+            let after = at + needle.len();
+            let ok_before = at == 0 || !(b[at - 1].is_ascii_alphanumeric() || b[at - 1] == b'_');
+            let ok_after =
+                after >= b.len() || !(b[after].is_ascii_alphanumeric() || b[after] == b'_');
+            if ok_before && ok_after {
+                count += 1;
+            }
+            from = at + 1;
+        }
+    }
+    count
 }
 
 /// Every scanned file → its live count, keyed by path relative to `crates/engine/src`.
@@ -208,13 +281,56 @@ fn unordered_scanner_is_not_vacuous() {
          counter is broken (expected >= {MIN_TOTAL_FOUND})"
     );
 
-    // Positive control.
+    // Positive control: annotation spelling.
     assert_eq!(
         unordered_container_count("let x: HashMap<A, B> = ...; let y: HashSet<C> = ...;"),
         2,
         "positive control failed: the counter missed a bare declaration"
     );
-    // Line-wrap control (the whole reason whitespace is squeezed).
+    // PB-DX7 review H1: construction spelling, no annotation at all -- this is the shape
+    // `rules/casting.rs`'s 9 sites use, and the old `<`-suffixed needle could never see it.
+    assert_eq!(
+        unordered_container_count("let x = std::collections::HashSet::new();"),
+        1,
+        "H1 positive control failed: a type-inferred construction (no `<` anywhere on the \
+         line) must still count -- this is the majority idiom in the tree, not an edge case"
+    );
+    // H1: both spellings on the same line count separately -- this is a whole-token CENSUS,
+    // not a per-variable dedup.
+    assert_eq!(
+        unordered_container_count("let mut m: HashMap<K, V> = HashMap::new();"),
+        2,
+        "H1 positive control failed: annotation + construction on one line must count as 2 \
+         occurrences of the token, not 1 occurrence of the variable"
+    );
+    // H1: turbofish and `use` import spellings, both real shapes found in the tree.
+    assert_eq!(
+        unordered_container_count("let s = items.collect::<HashSet<_>>();"),
+        1,
+        "H1 positive control failed: turbofish construction must count"
+    );
+    assert_eq!(
+        unordered_container_count("use std::collections::HashMap;"),
+        1,
+        "H1 positive control failed: a bare `use` import must count (it is real surface, even \
+         though not itself a hazard)"
+    );
+    // H1 token-boundary control: a name that merely CONTAINS "HashMap"/"HashSet" as a
+    // substring must not match -- the whole point of moving off blind substring counting.
+    assert_eq!(
+        unordered_container_count("let x: MyHashMapWrapper = MyHashMapWrapper::new();"),
+        0,
+        "H1 token-boundary control failed: `HashMap` matched inside `MyHashMapWrapper`"
+    );
+    assert_eq!(
+        unordered_container_count("struct HashMapper { x: u8 }"),
+        0,
+        "H1 token-boundary control failed: `HashMap` matched inside `HashMapper`"
+    );
+    // Occurrences spanning a line wrap still count once each -- not because whitespace is
+    // squeezed (it no longer is; whole-token matching does not need to be), but because the
+    // token itself (`HashMap`) never contains a newline regardless of how its generic
+    // arguments are wrapped.
     assert_eq!(
         unordered_container_count("let x: HashMap<\n    ObjectId,\n    Characteristics,\n> = z;"),
         1,

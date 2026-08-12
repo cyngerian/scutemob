@@ -1111,6 +1111,20 @@ fn key_only_contains_variant(v: &serde_json::Value, variant: &str) -> bool {
 /// OOS-DP10-1 names. If a future refactor makes these two agree, the equality half above has
 /// lost its teeth and the seed's residual hazard must be re-assessed, not the assertion
 /// relaxed.
+///
+/// **Residual, stated plainly (`/review` L6, 2026-08-12):** this test compares the canonical
+/// walk against `key_only_contains_variant` — a REPLICA of `primitives/pb_dp9_effect_choice
+/// .rs::roster`'s algorithm, hand-copied into this file (see its own doc above: "a
+/// byte-faithful replica"). It does NOT read the real copy. What this test proves is that the
+/// ALGORITHM `key_only_contains_variant` implements is blind to unit variants (with a real
+/// discriminating control, `Proliferate` 23 vs 0) — it does not prove the real copy in
+/// `pb_dp9_effect_choice.rs` still IS that algorithm today. If the real copy drifts away from
+/// the replica (a rename, a refactor, a bug fix applied to one but not the other), this test
+/// stays green throughout, because it never touches the real copy at all. The replica was
+/// verified byte-faithful to the real copy AT THE TIME this test was written
+/// (`pb-DX7-execution-notes.md` §4.1); nothing re-verifies that afterward. The durable fix —
+/// promoting the walk to one shared function both files call — is out of scope here (an engine
+/// change) and is recorded as such, not silently deferred.
 fn pb_dp9_roster_walks_agree_by_value() {
     let defs = all_cards();
     let jsons: Vec<serde_json::Value> = defs

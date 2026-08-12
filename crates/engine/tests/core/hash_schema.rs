@@ -1668,6 +1668,33 @@ fn every_hashed_type_resolves_to_a_declaration() {
     );
 }
 
+/// **PB-DX7 review L5 fix (2026-08-12).** `hashinto_impl_bodies()` can silently
+/// drop an impl two ways: the needle `"impl HashInto for "` misses a spelling
+/// variant (a line break after `for`, a double space, `impl<'a> HashInto for
+/// Foo<'a>`), or `ty.is_empty()`/the missing-`{`-body check silently
+/// `continue`s past a malformed match. `MIN_HASHINTO_IMPLS = 80` against a
+/// live 139 leaves 59 impls of headroom before that floor would even notice.
+/// This asserts an EXACT ratchet instead: an independent raw count of the
+/// literal needle (comment-stripped, no parsing) must equal the number of
+/// impls `hashinto_impl_bodies()` actually parsed. If they diverge, the
+/// scanner silently dropped something the raw count still sees.
+#[test]
+fn hashinto_impl_bodies_parses_every_raw_occurrence() {
+    let bodies = hashinto_impl_bodies();
+    let raw = std::fs::read_to_string(hash_rs_path()).expect("readable hash.rs");
+    let src = strip_comments(&raw);
+    let raw_count = src.matches("impl HashInto for ").count();
+    assert_eq!(
+        bodies.len(),
+        raw_count,
+        "hashinto_impl_bodies() parsed {} impls, but the raw needle \"impl HashInto for \" \
+         (comment-stripped) occurs {raw_count} times -- the scanner silently dropped {} impl(s) \
+         (a malformed match, an unparseable body, or a spelling it doesn't recognise)",
+        bodies.len(),
+        raw_count.saturating_sub(bodies.len())
+    );
+}
+
 /// **AC 6383 / OOS-DP7-11, part 2.** For every `HashInto` impl target classified
 /// as a struct: if its own declaration has named fields, it must appear in
 /// `named_field_structs()` (else `every_hashed_struct_field_is_hashed_or_allowlisted`
@@ -1680,6 +1707,18 @@ fn every_hashed_type_resolves_to_a_declaration() {
 /// so `pub(crate) struct Foo` matches none of them — a THIRD instance of
 /// OOS-DP7-11's "the gate can't see this spelling" class, distinct from the
 /// bare-vs-path-qualified one Part A fixes above.
+///
+/// **PB-DX7 review L9 (2026-08-12): this second half CANNOT fire independently
+/// today, stated rather than left implied.** It only inspects targets absent
+/// from `decls.index` — but `every_hashed_type_resolves_to_a_declaration`
+/// already asserts (and reddens on) exactly that emptiness independently, for
+/// every target not also on `HASHED_PRIMITIVE_TARGETS`. So a non-`pub` hashed
+/// type is always caught by that OTHER test first; this half never produces a
+/// finding the other test didn't already produce. It is a better, more
+/// specific error message layered on the same underlying failure, not an
+/// independently-reachable gate — kept for the message quality, not removed,
+/// but not to be read as adding coverage beyond `every_hashed_type_resolves_
+/// to_a_declaration`.
 #[test]
 fn every_hashed_struct_is_parsed_by_named_field_structs() {
     let bodies = hashinto_impl_bodies();
@@ -1952,19 +1991,59 @@ fn body_references_field(body: &str, field: &str) -> bool {
 /// apart the way they had before this follow-up).
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum FieldCoverage {
-    /// The token never appears in the body at all.
+    /// The token never appears in the body at all. This is the ONLY state a
+    /// `NOT_HASHED`/`NOT_HASHED_VARIANT_FIELDS` allowlist entry may satisfy
+    /// (their own dead-entry guards check raw textual absence, independent of
+    /// this classifier) — see `Unverified` below for why that separation
+    /// matters.
     NotReferenced,
-    /// At least one occurrence is a bare `<token>.hash_into(..)`, or is used
-    /// some other way that isn't reducible to "call a method and hash only
-    /// its return value" (iteration, a nested field access, passed by
-    /// reference/value elsewhere) — the value's real content plausibly
-    /// reaches the hasher somewhere.
+    /// At least one occurrence is RECOGNISABLY fed to a hasher: a bare
+    /// `<token>.hash_into(..)`, a summariser chained to `.hash_into(..)` (the
+    /// same evidence `Partial` uses, promoted — one direct feed anywhere
+    /// makes the whole value `Full` even if OTHER occurrences are
+    /// summarisers), a `for … in <token>`/`&<token>` loop whose body hashes,
+    /// a `(*<token> as TYPE).hash_into(..)` discriminant cast, or a
+    /// `match <token> {`/`match &<token> {` block whose arms hash. See
+    /// `token_reaches_hasher` for the exhaustive list this batch's review
+    /// (H2) required be surveyed, not assumed.
     Full,
     /// EVERY occurrence is exactly `<token>.<method>(..).hash_into(..)` for
-    /// some non-`hash_into` method — the value's actual content is discarded
-    /// and only a derived summary is fed. Carries the summariser method
-    /// name(s) seen, for diagnostics.
+    /// some non-`hash_into` method, and NONE reaches a hasher any other
+    /// recognised way — the value's actual content is discarded and only a
+    /// derived summary is fed. Carries the summariser method name(s) seen,
+    /// for diagnostics.
     Partial(BTreeSet<String>),
+    /// The token DOES appear in the body, but NO occurrence matches any
+    /// recognised hashing shape (direct, summariser, iteration, cast, or
+    /// match) — e.g. `let _ = <token>;`, a guard-only read
+    /// (`if *<token> { … }` with no feed), or a genuinely new idiom this
+    /// classifier has not been taught. **PB-DX7 review H2 fix (2026-08-11)**:
+    /// the ORIGINAL classifier folded this case into `Full` (fail-OPEN — the
+    /// exact `OOS-DP9-13` shape, one spelling over: `let _ =
+    /// may_fail_to_find;` passed as "covered"). It is deliberately a FOURTH
+    /// state, not folded into `NotReferenced`: the two `NOT_HASHED*`
+    /// allowlists' own dead-entry guards require raw textual ABSENCE, so a
+    /// field that IS textually present but unverifiably fed cannot be waved
+    /// through by either of them — it always fails
+    /// `every_hashed_struct_field_is_hashed_or_allowlisted` /
+    /// `every_hashed_enum_variant_field_is_hashed_or_allowlisted`, forcing a
+    /// human to either feed the value in a recognised shape or extend the
+    /// classifier for a genuinely new one (never to silently loosen the rule
+    /// for everyone, per the coordinator's explicit instruction).
+    Unverified,
+}
+
+/// Index of the first non-whitespace byte at or after `i` — rustfmt wraps a
+/// long chain onto a new line (`self.permanents_put_into_graveyard_this_turn`
+/// followed by `.hash_into(&mut hasher)` on the NEXT line is real, live code
+/// at `hash.rs:8409-8410`), so every "is this token immediately followed by
+/// X" check below must tolerate whitespace/newlines between the token and
+/// what follows it, not just adjacent bytes.
+fn skip_ws(b: &[u8], mut i: usize) -> usize {
+    while i < b.len() && b[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    i
 }
 
 /// If `body[after..]` starts with `.<ident>(<args>)` immediately followed by
@@ -1974,6 +2053,7 @@ enum FieldCoverage {
 fn summariser_chained_to_hash_into(body: &str, after: usize) -> Option<String> {
     let b = body.as_bytes();
     let n = b.len();
+    let after = skip_ws(b, after);
     if after >= n || b[after] != b'.' {
         return None;
     }
@@ -1990,6 +2070,7 @@ fn summariser_chained_to_hash_into(body: &str, after: usize) -> Option<String> {
         return None;
     }
     let call_end = match_delim(b, i, b'(', b')');
+    let call_end = skip_ws(b, call_end);
     if body[call_end..].starts_with(".hash_into(") {
         Some(method.to_string())
     } else {
@@ -1997,18 +2078,242 @@ fn summariser_chained_to_hash_into(body: &str, after: usize) -> Option<String> {
     }
 }
 
-/// Classify every whole-token occurrence of `needle` in `body` and aggregate:
-/// `Full` if any occurrence is a bare feed or any other non-summary use;
-/// `Partial` only if EVERY occurrence is a summariser chained straight into
-/// `.hash_into(..)`; `NotReferenced` if the token never appears. The shared
-/// core both `struct_field_coverage` (`needle = "self.<field>"`) and
+/// If `body[at..]` is a bare-field-access chain — `.digit` or `.ident` with
+/// NO parens (a tuple index or a named field projection, never a method
+/// call) — immediately followed by `.hash_into(`, returns true. This is
+/// structurally LOSSLESS (a field/tuple-index projection, not a summarising
+/// call), so it counts as `Full`, unlike a method-call chain
+/// (`summariser_chained_to_hash_into`'s subject), which is lossy and stays
+/// `Partial`. Surveyed live: `st.0.hash_into(hasher)`
+/// (`ManaRestriction::SubtypeOnly` and 5 siblings, all wrapping `SubType`),
+/// `onto_subtype.0.hash_into(hasher)` (`AbilityDefinition::Splice`),
+/// `default.0.hash_into(hasher)` (`Effect::ChooseCreatureType`).
+fn field_chain_directly_hashed(body: &str, after: usize) -> bool {
+    let b = body.as_bytes();
+    let after = skip_ws(b, after);
+    if after >= b.len() || b[after] != b'.' {
+        return false;
+    }
+    let seg_start = after + 1;
+    let mut j = seg_start;
+    while j < b.len() && (b[j].is_ascii_alphanumeric() || b[j] == b'_') {
+        j += 1;
+    }
+    if j == seg_start || b.get(j) == Some(&b'(') {
+        return false; // empty segment, or it's a method call -- not this shape
+    }
+    let j = skip_ws(b, j);
+    body[j..].starts_with(".hash_into(")
+}
+
+/// If the token occurrence at `[at, after)` is immediately wrapped in `(` or
+/// `(*` (a parenthesised, possibly-dereferenced expression), and — after an
+/// OPTIONAL single chain segment (`.ident` or `.ident(args)`) — is cast
+/// (`as TYPE`) and the whole parenthesised expression is immediately
+/// followed by `.hash_into(`, returns true. Covers both a bare cast
+/// (`(self.current_room as u64).hash_into(hasher)`, `(*c as
+/// u8).hash_into(hasher)`) and a cast of a method result
+/// (`(self.designations.bits() as u32).hash_into(hasher)` — `.bits()` on a
+/// `bitflags` value is a LOSSLESS read of its whole representation, not a
+/// summary, so casting and hashing it is `Full`, unlike `.is_some()`/`.len()`
+/// with no cast, which stay `Partial`/uncounted).
+fn cast_wrapped_and_hashed(body: &str, at: usize, after: usize) -> bool {
+    let b = body.as_bytes();
+    let preceded_by_paren = at > 0 && b[at - 1] == b'(';
+    let preceded_by_paren_deref = at >= 2 && b[at - 1] == b'*' && b[at - 2] == b'(';
+    if !(preceded_by_paren || preceded_by_paren_deref) {
+        return false;
+    }
+    let mut j = skip_ws(b, after);
+    if j < b.len() && b[j] == b'.' {
+        let mut k = j + 1;
+        while k < b.len() && (b[k].is_ascii_alphanumeric() || b[k] == b'_') {
+            k += 1;
+        }
+        if k > j + 1 {
+            if k < b.len() && b[k] == b'(' {
+                k = match_delim(b, k, b'(', b')');
+            }
+            j = k;
+        }
+    }
+    j = skip_ws(b, j);
+    let Some(rest) = body[j..].strip_prefix("as ") else {
+        return false;
+    };
+    let rest = rest.trim_start();
+    let ty_len = rest
+        .bytes()
+        .take_while(|c| c.is_ascii_alphanumeric() || *c == b'_' || *c == b':')
+        .count();
+    if ty_len == 0 {
+        return false;
+    }
+    let after_ty = rest[ty_len..].trim_start();
+    let Some(after_close) = after_ty.strip_prefix(')') else {
+        return false;
+    };
+    after_close.starts_with(".hash_into(")
+}
+
+/// True iff `body` contains `if let Some(<name>) = <token>` or `if let
+/// Some(<name>) = &<token>`, and the `if` block's body contains at least one
+/// `.hash_into(` call — the `if let Some(kw) = grants_keyword { kw.hash_into
+/// (hasher); } else { 0u8.hash_into(hasher); }` idiom, and its compound form
+/// with a nested iteration (`if let Some(costs) = &self.mode_costs { true.
+/// hash_into(hasher); for cost in costs { cost.hash_into(hasher); } } else {
+/// false.hash_into(hasher); }`, `ModeSelection.mode_costs`/`.mode_targets`).
+/// Deliberately does not require the REBOUND name itself be what feeds the
+/// hasher (only that the block does, somewhere) — matching the same
+/// body-contains-a-feed pragmatism `token_match_body_hashes` and
+/// `token_iteration_body_hashes` already use for their blocks.
+fn token_if_let_some_body_hashes(body: &str, token: &str) -> bool {
+    let b = body.as_bytes();
+    let mut from = 0usize;
+    while let Some(rel) = body[from..].find("if let Some(") {
+        let at = from + rel;
+        let paren_open = at + "if let Some(".len() - 1;
+        let close = match_delim(b, paren_open, b'(', b')');
+        let mut k = close;
+        while k < b.len() && b[k].is_ascii_whitespace() {
+            k += 1;
+        }
+        let Some(rest) = body[k..].strip_prefix('=') else {
+            from = at + 1;
+            continue;
+        };
+        let scrutinee_start = k + 1 + (rest.len() - rest.trim_start().len());
+        let mut j = scrutinee_start;
+        while j < b.len() && b[j] != b'{' {
+            j += 1;
+        }
+        if j >= b.len() {
+            from = at + 1;
+            continue;
+        }
+        let scrutinee = body[scrutinee_start..j]
+            .trim()
+            .trim_start_matches('&')
+            .trim();
+        // Bare token (`if let Some(costs) = &self.mode_costs`), OR a collection lookup
+        // on it (`if let Some(obj) = self.objects.get(&obj_id)` -- surveyed live:
+        // `hash.rs:8342`, filtering `self.objects` down to the subset reachable from
+        // PUBLIC zones only, CR-required hidden-info exclusion of hand/library; the
+        // looked-up value's FULL content is hashed, nothing is lost, it is gated by
+        // membership, not summarised).
+        let is_scrutinee = scrutinee == token
+            || scrutinee.starts_with(&format!("{token}.get("))
+            || scrutinee.starts_with(&format!("{token}.get_mut("));
+        if is_scrutinee {
+            let end = match_delim(b, j, b'{', b'}');
+            if body[j..end].contains(".hash_into(") {
+                return true;
+            }
+        }
+        from = j;
+    }
+    false
+}
+
+/// True iff `body` contains `match <token> {` or `match &<token> {`, and that
+/// match's ENTIRE block contains at least one `.hash_into(` call in some arm
+/// — the `match &self.field { None => 0u8.hash_into(hasher), Some(x) => {
+/// … x.hash_into(hasher) … } }` idiom used for a hand-matched `Option<T>` (or
+/// small inline enum) rather than a nested `HashInto` impl. Surveyed live:
+/// 8 struct-side sites (`hash.rs:2334/2342/2353/2825/2844/2958/2975/8434` —
+/// the last is `GameState.day_night` inside `public_state_hash` itself).
+fn token_match_body_hashes(body: &str, token: &str) -> bool {
+    let b = body.as_bytes();
+    for prefix in ["match &", "match "] {
+        let needle = format!("{prefix}{token}");
+        let mut from = 0usize;
+        while let Some(rel) = body[from..].find(&needle) {
+            let at = from + rel;
+            let after = at + needle.len();
+            let ok_after = b
+                .get(after)
+                .is_none_or(|c| !(c.is_ascii_alphanumeric() || *c == b'_'));
+            let ok_before = at == 0 || !(b[at - 1].is_ascii_alphanumeric() || b[at - 1] == b'_');
+            if ok_after && ok_before {
+                let mut j = after;
+                while j < b.len() && b[j] != b'{' {
+                    j += 1;
+                }
+                if j < b.len() {
+                    let end = match_delim(b, j, b'{', b'}');
+                    if body[j..end].contains(".hash_into(") {
+                        return true;
+                    }
+                }
+            }
+            from = after;
+        }
+    }
+    false
+}
+
+/// True iff `body` contains a `for` loop iterating `<token>` — bare,
+/// `&<token>`, `<token>.iter()`, or `&<token>.iter()`/`.into_iter()` — whose
+/// body contains at least one `.hash_into(` call. The
+/// `(self.field.len() as u64).hash_into(hasher); for x in &self.field {
+/// x.hash_into(hasher); }` length-prefix-then-iterate idiom (e.g.
+/// `PendingZoneChange.already_applied`, `GameState.players`) relies on this.
+fn token_iteration_body_hashes(body: &str, token: &str) -> bool {
+    let b = body.as_bytes();
+    let mut from = 0usize;
+    while let Some(rel) = body[from..].find("for ") {
+        let at = from + rel;
+        let after_for = at + "for ".len();
+        let Some(in_rel) = body[after_for..].find(" in ") else {
+            from = after_for;
+            continue;
+        };
+        let in_at = after_for + in_rel;
+        let src_start = in_at + " in ".len();
+        let mut j = src_start;
+        while j < b.len() && b[j] != b'{' {
+            j += 1;
+        }
+        if j >= b.len() {
+            from = src_start;
+            continue;
+        }
+        let iter_src = body[src_start..j].trim();
+        let stripped = iter_src.trim_start_matches('&');
+        let stripped = stripped
+            .trim_end_matches(".into_iter()")
+            .trim_end_matches(".iter()")
+            .trim();
+        if stripped == token {
+            let end = match_delim(b, j, b'{', b'}');
+            if body[j..end].contains(".hash_into(") {
+                return true;
+            }
+        }
+        from = j;
+    }
+    false
+}
+
+/// Classify every whole-token occurrence of `needle` in `body` and aggregate.
+/// **PB-DX7 review H2 fix (2026-08-11)**: `Full` now requires that at least
+/// ONE occurrence — or a body-level shape keyed on the same token — is
+/// recognisably fed to a hasher (direct, summariser, iteration, cast, or
+/// match; see `FieldCoverage::Full`'s doc for the full list, each surveyed
+/// against real `hash.rs` shapes before being added, per the coordinator's
+/// instruction). An occurrence matching none of them is `Unverified`, not
+/// `Full` — the ORIGINAL bug's fail-open `else` arm is gone. The shared core
+/// both `struct_field_coverage` (`needle = "self.<field>"`) and
 /// `variant_field_coverage` (`needle = "<binding>"`, no prefix — an enum arm
 /// binds a bare local name) delegate to.
 fn token_coverage(body: &str, needle: &str) -> FieldCoverage {
     let b = body.as_bytes();
     let mut from = 0;
     let mut any = false;
-    let mut all_partial = true;
+    let mut has_full = token_iteration_body_hashes(body, needle)
+        || token_match_body_hashes(body, needle)
+        || token_if_let_some_body_hashes(body, needle);
+    let mut has_partial = false;
     let mut summarisers: BTreeSet<String> = BTreeSet::new();
 
     while let Some(rel) = body[from..].find(needle) {
@@ -2023,22 +2328,31 @@ fn token_coverage(body: &str, needle: &str) -> FieldCoverage {
             continue;
         }
         any = true;
-        if body[after..].starts_with(".hash_into(") {
-            all_partial = false;
+        if body[skip_ws(b, after)..].starts_with(".hash_into(") {
+            has_full = true;
         } else if let Some(method) = summariser_chained_to_hash_into(body, after) {
+            has_partial = true;
             summarisers.insert(method);
-        } else {
-            all_partial = false;
+        } else if field_chain_directly_hashed(body, after)
+            || cast_wrapped_and_hashed(body, at, after)
+        {
+            has_full = true;
         }
+        // Else: this specific occurrence matches no recognised shape. It
+        // contributes neither Full nor Partial evidence on its own — a
+        // body-level shape (iteration/match/if-let, computed above) or
+        // another occurrence may still supply it.
         from = after;
     }
 
     if !any {
         FieldCoverage::NotReferenced
-    } else if all_partial {
+    } else if has_full {
+        FieldCoverage::Full
+    } else if has_partial {
         FieldCoverage::Partial(summarisers)
     } else {
-        FieldCoverage::Full
+        FieldCoverage::Unverified
     }
 }
 
@@ -2218,6 +2532,14 @@ fn every_hashed_struct_field_is_hashed_or_allowlisted() {
                         ));
                     }
                 }
+                FieldCoverage::Unverified => {
+                    violations.push(format!(
+                        "{ty}.{f} -- UNVERIFIED: self.{f} is referenced in the body, but no \
+                         occurrence matches a recognised hashing shape (direct feed, \
+                         summariser, iteration, cast, or match) -- its value may never reach \
+                         the hasher (PB-DX7 review H2)"
+                    ));
+                }
             }
         }
     }
@@ -2286,6 +2608,12 @@ fn partially_hashed_allowlist_has_no_dead_entries() {
                 "PARTIALLY_HASHED entry ({ty}, {field}): `{ty}::{field}` is not referenced at \
                  all any more — this is NOT_HASHED's territory now, not PARTIALLY_HASHED's \
                  (dead entry)."
+            ),
+            FieldCoverage::Unverified => panic!(
+                "PARTIALLY_HASHED entry ({ty}, {field}): `{ty}::{field}` no longer classifies \
+                 as a recognised summariser shape (Unverified) — either the site changed shape \
+                 or the classifier regressed; re-derive the entry's status, do not assume it \
+                 is still Partial."
             ),
         }
     }
@@ -2391,10 +2719,23 @@ const NOT_HASHED_VARIANT_FIELDS: &[(&str, &str, &str, &str)] = &[];
 ///
 /// `StackObjectKind::ForecastAbility.embedded_effect` deliberately does NOT
 /// appear here — it hashes the full effect (`embedded_effect.hash_into(hasher)`,
-/// `hash.rs:4210`), and the dead-entry guard would reject an entry for it if
+/// `hash.rs:4241`), and the dead-entry guard would reject an entry for it if
 /// one were ever added by mistake. That asymmetry (two variants summarise the
 /// same field name, one hashes it fully) is exactly what this allowlist exists
 /// to make visible.
+///
+/// **PB-DX7 review M7 fix (2026-08-11): both citations below were WRONG.**
+/// Both originally cited `hash.rs:4105-4111`, which is the impl HEADER and
+/// the `Spell` arm — no reasoning about `embedded_effect` appears there. The
+/// coordinator approved the entries without checking the cites, and named
+/// that as their own error too; a false citation is worse than none, and
+/// this batch's own subject is exactly claims that don't hold up when
+/// checked. `ActivatedAbility`'s arm ORIGINALLY carried no comment of its
+/// own (feed at `hash.rs:4120`, unmodified); a comment mirroring
+/// `TriggeredAbility`'s was ADDED there in this same fix (comment-only) so
+/// the "documented in-source" premise is now literally true rather than
+/// inferred. `TriggeredAbility`'s pre-existing reasoning is at
+/// `hash.rs:4136-4142`, its feed at `:4143`.
 const PARTIALLY_HASHED_VARIANT_FIELDS: &[(&str, &str, &str, &str)] = &[
     (
         "StackObjectKind",
@@ -2402,7 +2743,8 @@ const PARTIALLY_HASHED_VARIANT_FIELDS: &[(&str, &str, &str, &str)] = &[
         "embedded_effect",
         "presence suffices for divergence detection -- the effect is a copy of \
          the source ability's, redundant with source_object + ability_index \
-         (hash.rs:4105-4111, mirrors PendingTrigger's identical reasoning)",
+         (hash.rs:4120-4123, comment added by PB-DX7 review M7 fix, mirroring \
+         TriggeredAbility's pre-existing reasoning)",
     ),
     (
         "StackObjectKind",
@@ -2410,7 +2752,7 @@ const PARTIALLY_HASHED_VARIANT_FIELDS: &[(&str, &str, &str, &str)] = &[
         "embedded_effect",
         "presence suffices for divergence detection -- the effect is a copy of \
          the source ability's, redundant with source_object + ability_index \
-         (hash.rs:4105-4111, MR-B12-04 / SR-19)",
+         (hash.rs:4136-4142, MR-B12-04 / SR-19)",
     ),
 ];
 
@@ -2680,6 +3022,47 @@ fn top_level_match_self_body(body: &str) -> Option<&str> {
     Some(&body[j + 1..end - 1])
 }
 
+/// True iff `body`'s top-level `match self { ... }` is assigned to a `let`
+/// binding that is later fed to `.hash_into(` — the `let disc: u8 = match
+/// self { A => 0, B => 1, ... }; disc.hash_into(hasher);` INDIRECT
+/// discriminant idiom (surveyed live: `AltCostKind`, `DungeonId`). When this
+/// holds, an individual Unit-variant arm legitimately has no `.hash_into(`
+/// of its own — the bare literal it evaluates to is what gets hashed,
+/// collectively, once, after the match — so the per-arm "feeds nothing"
+/// check (M3) must not fire for any arm of this enum.
+fn match_self_result_is_bound_and_hashed(body: &str) -> bool {
+    let Some(match_pos) = body.find("match self") else {
+        return false;
+    };
+    let before = body[..match_pos].trim_end();
+    let Some(before_eq) = before.strip_suffix('=') else {
+        return false;
+    };
+    let before_eq = before_eq.trim_end();
+    let Some(let_pos) = before_eq.rfind("let ") else {
+        return false;
+    };
+    let after_let = &before_eq[let_pos + "let ".len()..];
+    let name: String = after_let
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+        .collect();
+    if name.is_empty() {
+        return false;
+    }
+    let b = body.as_bytes();
+    let mut j = match_pos;
+    while j < b.len() && b[j] != b'{' {
+        j += 1;
+    }
+    if j >= b.len() {
+        return false;
+    }
+    let end = match_delim(b, j, b'{', b'}');
+    let needle = format!("{name}.hash_into(");
+    body[end..].contains(&needle)
+}
+
 /// Non-vacuity floors for the enum gate. Measured at implementation time (79
 /// hashed enums / 1,252 variants / 1,097 variant-fields checked) and floored at
 /// roughly 2/3 — well below the real counts, so this catches a scanner that
@@ -2687,6 +3070,13 @@ fn top_level_match_self_body(body: &str) -> Option<&str> {
 const MIN_HASHED_ENUMS: usize = 52;
 const MIN_VARIANTS_CHECKED: usize = 830;
 const MIN_VARIANT_FIELDS_CHECKED: usize = 730;
+/// **PB-DX7 review L4 fix (2026-08-12).** `named_enum_variants()` returns
+/// EVERY `pub enum` under the scan roots (measured: 109), not just the 79
+/// hashed ones — `enum_coverage_scanners_are_not_vacuous` was floored against
+/// `MIN_HASHED_ENUMS` (52, a floor for the HASHED subset), leaving ~2x
+/// unintended slack against the true 109-enum population. Separate floor,
+/// same ~2/3 rule, against the real denominator.
+const MIN_DECLARED_ENUMS: usize = 72;
 
 /// **AC 6383 / OOS-DP9-13.** Every field of every hashed enum's declared variant
 /// is fed to that enum's `HashInto`, or is on the `NOT_HASHED_VARIANT_FIELDS`
@@ -2741,8 +3131,24 @@ fn every_hashed_enum_variant_field_is_hashed_or_allowlisted() {
                     ));
                 }
             }
+            // PB-DX7 review M3: even an all-Unit enum in this shape must feed SOMETHING --
+            // `let _ = hasher;` in place of `(*self as u8).hash_into(hasher);` leaves every
+            // variant Unit (the loop above stays green) but feeds zero bytes for every
+            // variant, so all of them hash identically to each other.
+            if !body.contains(".hash_into(") {
+                violations.push(format!(
+                    "{bare}: has no `match self` (a bare-cast shape) AND its body feeds \
+                     NOTHING to the hasher -- every variant hashes identically"
+                ));
+            }
             continue;
         };
+
+        // PB-DX7 review M3, exception surveyed live (AltCostKind, DungeonId): the
+        // `let disc: u8 = match self { A => 0, ... }; disc.hash_into(hasher);` indirect
+        // idiom legitimately has NO `.hash_into(` inside any individual arm -- the value
+        // the match evaluates to is hashed once, collectively, after the match closes.
+        let indirect_discriminant_hashed = match_self_result_is_bound_and_hashed(body);
 
         let has_data_variant = variants.iter().any(|v| v.kind != VariantKind::Unit);
         let arms = parse_match_arms(match_body);
@@ -2779,6 +3185,23 @@ fn every_hashed_enum_variant_field_is_hashed_or_allowlisted() {
                         violations.push(format!(
                             "{bare}::{variant_name}: declared as a unit variant but the arm \
                              pattern carries a payload `{payload}`"
+                        ));
+                    }
+                    // PB-DX7 review M3: a Unit variant has no fields, so the checks above
+                    // are the ONLY thing this gate examined about it -- nothing required the
+                    // arm to feed the hasher anything at all. `GiftType::Food => {}` passed
+                    // both this gate (payload-free, present) and the discriminant ratchet
+                    // (no integer literal -> skipped). Two Unit variants with empty bodies
+                    // hash IDENTICALLY (both feed zero bytes for this arm), which is the
+                    // exact harm SR-19 exists to prevent. Skipped for the indirect-
+                    // discriminant idiom (`AltCostKind`, `DungeonId`), where the bare
+                    // literal each such arm evaluates to genuinely is hashed, just not
+                    // inside the arm itself.
+                    if !indirect_discriminant_hashed && !arm_body.contains(".hash_into(") {
+                        violations.push(format!(
+                            "{bare}::{variant_name}: this arm's body feeds NOTHING to the \
+                             hasher (no `.hash_into(` call anywhere in it) -- two Unit \
+                             variants with empty arm bodies hash identically"
                         ));
                     }
                 }
@@ -2847,6 +3270,16 @@ fn every_hashed_enum_variant_field_is_hashed_or_allowlisted() {
                                                 ));
                                             }
                                         }
+                                        FieldCoverage::Unverified => {
+                                            violations.push(format!(
+                                                "{bare}::{variant_name}.{idx} (bound as `{s}`): \
+                                                 UNVERIFIED: `{s}` is bound but no occurrence \
+                                                 matches a recognised hashing shape (direct \
+                                                 feed, summariser, iteration, cast, or match) \
+                                                 -- its value may never reach the hasher \
+                                                 (PB-DX7 review H2)"
+                                            ));
+                                        }
                                     }
                                 }
                             }
@@ -2890,6 +3323,18 @@ fn every_hashed_enum_variant_field_is_hashed_or_allowlisted() {
                                         ));
                                         continue;
                                     };
+                                    // PB-DX7 review M4: mirror the Tuple branch's `_`
+                                    // rejection. `{ field: _ }` must not classify as covered
+                                    // just because a standalone `_` token happens to appear
+                                    // somewhere else in the arm body.
+                                    if binding == "_" {
+                                        violations.push(format!(
+                                            "{bare}::{variant_name}.{field}: named field bound \
+                                             to `_` -- its value is discarded, never fed to the \
+                                             hasher"
+                                        ));
+                                        continue;
+                                    }
                                     let key =
                                         (bare.as_str(), variant_name.as_str(), field.as_str());
                                     match variant_field_coverage(arm_body, binding) {
@@ -2918,6 +3363,16 @@ fn every_hashed_enum_variant_field_is_hashed_or_allowlisted() {
                                                      PARTIALLY_HASHED_VARIANT_FIELDS"
                                                 ));
                                             }
+                                        }
+                                        FieldCoverage::Unverified => {
+                                            violations.push(format!(
+                                                "{bare}::{variant_name}.{field} (bound as \
+                                                 `{binding}`): UNVERIFIED: `{binding}` is bound \
+                                                 but no occurrence matches a recognised hashing \
+                                                 shape (direct feed, summariser, iteration, \
+                                                 cast, or match) -- its value may never reach \
+                                                 the hasher (PB-DX7 review H2)"
+                                            ));
                                         }
                                     }
                                 }
@@ -3218,6 +3673,12 @@ fn partially_hashed_variant_fields_allowlist_has_no_dead_entries() {
                  NOT_HASHED_VARIANT_FIELDS's territory now, not PARTIALLY_HASHED_VARIANT_FIELDS's \
                  (dead entry)."
             ),
+            FieldCoverage::Unverified => panic!(
+                "PARTIALLY_HASHED_VARIANT_FIELDS entry ({ty}, {variant}, {field}): \
+                 `{ty}::{variant}`'s `{binding}` no longer classifies as a recognised \
+                 summariser shape (Unverified) — re-derive the entry's status, do not assume \
+                 it is still Partial."
+            ),
         }
     }
 }
@@ -3230,10 +3691,10 @@ fn enum_coverage_scanners_are_not_vacuous() {
     let bodies = hashinto_impl_bodies();
     let enum_variants = named_enum_variants();
     assert!(
-        enum_variants.len() >= MIN_HASHED_ENUMS,
+        enum_variants.len() >= MIN_DECLARED_ENUMS,
         "found only {} declared enums; named_enum_variants is broken (expected >= {})",
         enum_variants.len(),
-        MIN_HASHED_ENUMS
+        MIN_DECLARED_ENUMS
     );
 
     let ctv = enum_variants
@@ -3381,6 +3842,20 @@ fn enum_coverage_scanners_are_not_vacuous() {
 
 /// The first bare integer literal in `s` (skipping over string literals),
 /// read as an arm's hashed discriminant byte.
+///
+/// **PB-DX7 review L7 fix (2026-08-12).** The ORIGINAL version read the first
+/// digit run ANYWHERE, including one embedded in an identifier or type name
+/// (`u32`, `i64`, a local like `x2`) — so an arm that casts BEFORE its tag
+/// (`(count as u32).hash_into(hasher); 56u8.hash_into(hasher);`) would have
+/// been measured as tag `32`, not `56`. Latent, not live today (every real
+/// `Effect` arm opens with its tag), but the fix does not require a `uN`
+/// SUFFIX on the digit run — that would break the legitimate indirect-
+/// discriminant idiom (`AltCostKind`/`DungeonId`'s `let disc: u8 = match
+/// self { A => 0, B => 1, ... };`, whose arm bodies are BARE literals with
+/// no suffix at all). Instead: a digit run immediately preceded by an
+/// identifier character (a letter or `_`) is embedded in something else
+/// (`u32`, `x2`) and is skipped, not returned — the scan continues past it
+/// for the next digit run.
 fn first_integer_literal(s: &str) -> Option<u64> {
     let b = s.as_bytes();
     let n = b.len();
@@ -3392,8 +3867,13 @@ fn first_integer_literal(s: &str) -> Option<u64> {
         }
         if b[i].is_ascii_digit() {
             let start = i;
+            let embedded_in_ident =
+                start > 0 && (b[start - 1].is_ascii_alphabetic() || b[start - 1] == b'_');
             while i < n && b[i].is_ascii_digit() {
                 i += 1;
+            }
+            if embedded_in_ident {
+                continue;
             }
             return s[start..i].parse::<u64>().ok();
         }
@@ -3404,23 +3884,36 @@ fn first_integer_literal(s: &str) -> Option<u64> {
 
 /// For one hashed enum's `HashInto` impl body, every discriminant value shared
 /// by more than one variant (empty if the enum has no `match self`, or every
-/// discriminant is unique).
-fn enum_discriminant_collisions(impl_body: &str) -> BTreeMap<u64, Vec<String>> {
+/// discriminant is unique), AND every named variant whose arm has NO integer
+/// literal at all.
+///
+/// **PB-DX7 review M3 fix (2026-08-11)**: the ORIGINAL version silently
+/// dropped the no-literal case (`first_integer_literal` returning `None` just
+/// skipped the arm), so `GiftType::Food => {}` was invisible to this scan —
+/// not merely "unique", genuinely UNSEEN, and a second empty arm
+/// (`GiftType::Card => {}`) would have hashed identically with this ratchet
+/// staying green throughout. Every arm with no literal is now a reportable
+/// finding here, independent of the collision check (which needs at least
+/// two literals to compare) — see `discriminant_collisions_are_ratcheted_at_
+/// their_known_bad_state`'s companion assertion.
+fn enum_discriminant_collisions(impl_body: &str) -> (BTreeMap<u64, Vec<String>>, Vec<String>) {
     let mut by_disc: BTreeMap<u64, Vec<String>> = BTreeMap::new();
+    let mut no_literal: Vec<String> = Vec::new();
     let Some(match_body) = top_level_match_self_body(impl_body) else {
-        return by_disc;
+        return (by_disc, no_literal);
     };
     for (pattern, arm_body) in parse_match_arms(match_body) {
         let (variant_name, _payload) = split_pattern(pattern.trim());
         if variant_name.is_empty() {
             continue; // catch-all or unparseable; not this scan's concern
         }
-        if let Some(disc) = first_integer_literal(&arm_body) {
-            by_disc.entry(disc).or_default().push(variant_name);
+        match first_integer_literal(&arm_body) {
+            Some(disc) => by_disc.entry(disc).or_default().push(variant_name),
+            None => no_literal.push(variant_name),
         }
     }
     by_disc.retain(|_, variants| variants.len() > 1);
-    by_disc
+    (by_disc, no_literal)
 }
 
 /// The pinned, known-bad state: every `(discriminant, variant_a, variant_b)`
@@ -3453,7 +3946,14 @@ fn discriminant_collisions_are_ratcheted_at_their_known_bad_state() {
     let decls = index_declarations();
 
     let effect_body = &bodies.get("Effect").expect("Effect impl").body;
-    let effect_collisions = enum_discriminant_collisions(effect_body);
+    let (effect_collisions, effect_no_literal) = enum_discriminant_collisions(effect_body);
+    assert!(
+        effect_no_literal.is_empty(),
+        "\n\nThese Effect variant arms have NO integer literal at all (never seen by the \
+         collision check above, which needs two literals to compare) -- feed the hasher \
+         something in the arm, even a bare discriminant byte:\n  {}\n",
+        effect_no_literal.join("\n  ")
+    );
     let mut found_pairs: BTreeSet<(u64, String, String)> = BTreeSet::new();
     for (disc, variants) in effect_collisions {
         for i in 0..variants.len() {
@@ -3481,20 +3981,25 @@ fn discriminant_collisions_are_ratcheted_at_their_known_bad_state() {
     );
 
     // No OTHER hashed enum may have ANY collision at all -- Effect is the
-    // named, pinned exception, not the norm.
+    // named, pinned exception, not the norm. AND no arm of ANY hashed enum
+    // (Effect included -- checked above) may feed zero bytes.
     let mut unexpected: Vec<String> = Vec::new();
+    let mut no_literal_elsewhere: Vec<String> = Vec::new();
     for (bare, impl_body) in &bodies {
-        if bare == "Effect" {
-            continue;
-        }
         let Some(decl) = decls.index.get(bare) else {
             continue;
         };
         if !decl_is_enum(decl) {
             continue;
         }
-        for (disc, variants) in enum_discriminant_collisions(&impl_body.body) {
-            unexpected.push(format!("{bare} discriminant {disc}: {variants:?}"));
+        let (collisions, no_literal) = enum_discriminant_collisions(&impl_body.body);
+        if bare != "Effect" {
+            for (disc, variants) in collisions {
+                unexpected.push(format!("{bare} discriminant {disc}: {variants:?}"));
+            }
+        }
+        for v in no_literal {
+            no_literal_elsewhere.push(format!("{bare}::{v}"));
         }
     }
     assert!(
@@ -3502,6 +4007,12 @@ fn discriminant_collisions_are_ratcheted_at_their_known_bad_state() {
         "\n\nThese hashed enums have a NEW discriminant collision, outside the pinned `Effect` \
          exception above:\n  {}\n",
         unexpected.join("\n  ")
+    );
+    assert!(
+        no_literal_elsewhere.is_empty(),
+        "\n\nThese enum variant arms have NO integer literal at all -- two such arms on the \
+         same enum feed zero bytes each and hash identically:\n  {}\n",
+        no_literal_elsewhere.join("\n  ")
     );
 }
 
@@ -3742,8 +4253,11 @@ const GAMESTATE_NOT_IN_PUBLIC_HASH: &[(&str, &str)] = &[
         "CR 104.4b mandatory-loop-detection bookkeeping, not game state -- two \
          independent engine instances processing the SAME legal game may \
          accumulate DIFFERENT hash histories depending on when their \
-         mandatory-action sequences began (state/mod.rs's own doc on this \
-         field), so including it would produce FALSE mismatches between two \
+         mandatory-action sequences began (PB-DX7 review L1 fix: this claim's \
+         real citation is hash.rs:8290-8293, public_state_hash's own \
+         'Excludes:' doc -- NOT state/mod.rs, which only says 'metadata used \
+         by the loop-detection algorithm, not actual game state'), so \
+         including it would produce FALSE mismatches between two \
          genuinely-agreeing states, not catch real ones.",
     ),
     (
@@ -3770,16 +4284,39 @@ const GAMESTATE_NOT_IN_PUBLIC_HASH: &[(&str, &str)] = &[
     ),
 ];
 
+/// `(field, reason)` triples for `GameState` fields referenced in
+/// `public_state_hash` ONLY via a summarising method (the enum/struct-level
+/// `PARTIALLY_HASHED` shape, one level up). **Empty today** — see
+/// `every_gamestate_field_is_in_public_hash_or_allowlisted`'s doc for why
+/// shipping empty here is itself a finding, not an oversight.
+const PARTIALLY_HASHED_GAMESTATE: &[(&str, &str)] = &[];
+
 /// Non-vacuity floor. `GameState` has 45 fields at implementation time;
 /// deliberately well below that.
 const MIN_GAMESTATE_FIELDS: usize = 30;
 
-/// **PB-DX7 follow-up.** Every `GameState` field is either referenced in
-/// `public_state_hash`'s body, or on `GAMESTATE_NOT_IN_PUBLIC_HASH`. A field
-/// silently added and never fed to the public hash is invisible to every
-/// consumer of that digest (distributed verification / desync detection) —
-/// the same SR-7-shaped blind spot the struct/enum halves above close, one
-/// level up (the whole-struct selection function, not a per-type impl).
+/// **PB-DX7 follow-up, review M6 fix (2026-08-11).** Every `GameState` field
+/// is either FULLY fed in `public_state_hash`'s body, on
+/// `GAMESTATE_NOT_IN_PUBLIC_HASH`, or on `PARTIALLY_HASHED_GAMESTATE`. A
+/// field silently added and never fed to the public hash is invisible to
+/// every consumer of that digest (distributed verification / desync
+/// detection) — the same SR-7-shaped blind spot the struct/enum halves above
+/// close, one level up (the whole-struct selection function, not a per-type
+/// impl).
+///
+/// ORIGINALLY this called `body_references_field` — the exact matcher
+/// `PARTIALLY_HASHED` was built to stop trusting, because it reads
+/// `self.<field>` as covered on mere textual presence, regardless of what
+/// follows. The very next field in the real body proves the risk was live,
+/// not theoretical: `self.day_night` is fed via `match self.day_night {
+/// None => 0u8..., Some(Day) => 1u8..., Some(Night) => 2u8... }` — a real
+/// `token_match_body_hashes` shape, correctly `Full` under
+/// `struct_field_coverage`, but `body_references_field` would have called
+/// ANY shape (including a stripped-down `.is_some()` summary) equally
+/// "covered". Switched to `struct_field_coverage`; verified by execution
+/// (2026-08-11) that every one of the 42 currently-referenced fields still
+/// classifies `Full` — zero regressions, and `PARTIALLY_HASHED_GAMESTATE`
+/// ships EMPTY because none of them turned out to be summarised.
 #[test]
 fn every_gamestate_field_is_in_public_hash_or_allowlisted() {
     let structs = named_field_structs();
@@ -3791,22 +4328,43 @@ fn every_gamestate_field_is_in_public_hash_or_allowlisted() {
         .iter()
         .map(|(f, _reason)| *f)
         .collect();
+    let partial_allow: BTreeSet<&str> = PARTIALLY_HASHED_GAMESTATE
+        .iter()
+        .map(|(f, _reason)| *f)
+        .collect();
 
     let mut violations: Vec<String> = Vec::new();
     for f in fields {
-        if body_references_field(&body, f) {
-            continue;
+        match struct_field_coverage(&body, f) {
+            FieldCoverage::Full => {}
+            FieldCoverage::NotReferenced => {
+                if !allow.contains(f.as_str()) {
+                    violations.push(format!("{f} -- never referenced at all"));
+                }
+            }
+            FieldCoverage::Partial(summarisers) => {
+                if !partial_allow.contains(f.as_str()) {
+                    let methods = summarisers.into_iter().collect::<Vec<_>>().join(", ");
+                    violations.push(format!(
+                        "{f} -- PARTIAL coverage only: every occurrence is \
+                         `self.{f}.{{{methods}}}(..).hash_into(..)`, discarding the field's \
+                         actual value, and it is not on PARTIALLY_HASHED_GAMESTATE"
+                    ));
+                }
+            }
+            FieldCoverage::Unverified => {
+                violations.push(format!(
+                    "{f} -- UNVERIFIED: self.{f} is referenced in public_state_hash, but no \
+                     occurrence matches a recognised hashing shape"
+                ));
+            }
         }
-        if allow.contains(f.as_str()) {
-            continue;
-        }
-        violations.push(f.clone());
     }
 
     assert!(
         violations.is_empty(),
-        "\n\nThese GameState fields are declared but never referenced in \
-         public_state_hash, and are not on GAMESTATE_NOT_IN_PUBLIC_HASH:\n  {}\n\n\
+        "\n\nThese GameState fields are declared but never fully fed in public_state_hash, \
+         and are not on GAMESTATE_NOT_IN_PUBLIC_HASH or PARTIALLY_HASHED_GAMESTATE:\n  {}\n\n\
          public_state_hash is the top-level divergence-detection digest for distributed \
          verification; a field silently absent from it is invisible to every consumer of \
          that digest. Either feed `self.<field>` into public_state_hash (bump \
@@ -3850,4 +4408,165 @@ fn gamestate_not_in_public_hash_has_no_dead_entries() {
              reference `{field}` — remove it from the allowlist (dead entry)."
         );
     }
+}
+
+/// The `PARTIALLY_HASHED_GAMESTATE` allowlist is honest: every entry names a
+/// real declared `GameState` field whose coverage is GENUINELY `Partial` in
+/// `public_state_hash`. Mirrors `partially_hashed_allowlist_has_no_dead_entries`.
+/// Vacuous today (the constant is empty) but present for the day it is not.
+#[test]
+fn partially_hashed_gamestate_has_no_dead_entries() {
+    let structs = named_field_structs();
+    let fields = structs
+        .get("GameState")
+        .expect("GameState is a named-field struct under the scan roots");
+    let body = public_state_hash_body();
+
+    for (field, _reason) in PARTIALLY_HASHED_GAMESTATE {
+        assert!(
+            fields.iter().any(|f| f == field),
+            "PARTIALLY_HASHED_GAMESTATE entry ({field}): GameState declares no field named \
+             `{field}` (dead entry — remove it or fix the name)"
+        );
+        match struct_field_coverage(&body, field) {
+            FieldCoverage::Partial(_) => {} // legitimate
+            FieldCoverage::Full => panic!(
+                "PARTIALLY_HASHED_GAMESTATE entry ({field}): `{field}` is now FULLY hashed — \
+                 remove this entry (dead)."
+            ),
+            FieldCoverage::NotReferenced => panic!(
+                "PARTIALLY_HASHED_GAMESTATE entry ({field}): `{field}` is not referenced at \
+                 all — this is GAMESTATE_NOT_IN_PUBLIC_HASH's territory, not \
+                 PARTIALLY_HASHED_GAMESTATE's (dead entry)."
+            ),
+            FieldCoverage::Unverified => panic!(
+                "PARTIALLY_HASHED_GAMESTATE entry ({field}): `{field}` no longer classifies \
+                 as a recognised summariser shape (Unverified) — re-derive the entry's status."
+            ),
+        }
+    }
+}
+
+/// `(collection_field, element_type)` pairs where `public_state_hash` hashes a
+/// `Vector`/`OrdMap` collection's elements FIELD-BY-FIELD inline, rather than
+/// delegating to the element type's own `HashInto` impl — because it doesn't
+/// have one. Every entry's `element_type` must be a real named-field struct
+/// under the scan roots with NO `impl HashInto` (if it later gains one, the
+/// hand-hashing should be replaced by a single `.hash_into(&mut hasher)` call
+/// and this entry removed).
+///
+/// **PB-DX7 review M5 fix (2026-08-11).** `every_gamestate_field_is_in_public_
+/// hash_or_allowlisted` only checks that `self.<field>` is REFERENCED — it
+/// cannot see one level deeper, into the hand-written per-element hashing
+/// loop, to notice that a NEW field on the element struct was never added to
+/// the loop body. That is the same "silent field-add" exposure Part A closed
+/// for the top-level struct gate (`OOS-DP7-11`'s `else { continue }`), one
+/// level down. `AdditionalLandPlaySource` (`crates/card-types/src/state/
+/// stubs.rs:737-744`) is the ONLY genuine instance surveyed: every OTHER
+/// hand-destructured collection in `public_state_hash` either unpacks a bare
+/// tuple (`(PlayerId, ObjectId)`, `(PlayerId, ObjectId, ManaCost)` — fixed
+/// arity, a field add would be a type error, not a silent gap) or delegates
+/// to an element type that already has its own `HashInto` impl
+/// (`DungeonState`, `PlayFromTopPermission`, `PlayFromGraveyardPermission`).
+const HAND_HASHED_ELEMENT_TYPES: &[(&str, &str)] =
+    &[("additional_land_play_sources", "AdditionalLandPlaySource")];
+
+/// Find `for <pat> in self.<field>` / `for <pat> in self.<field>.iter()` /
+/// `for <pat> in &self.<field>` in `body` and return the loop's bound
+/// pattern name and its body text.
+fn find_for_loop_over_self_field(body: &str, field: &str) -> Option<(String, String)> {
+    let b = body.as_bytes();
+    let mut from = 0usize;
+    while let Some(rel) = body[from..].find("for ") {
+        let at = from + rel;
+        let after_for = at + "for ".len();
+        let Some(in_rel) = body[after_for..].find(" in ") else {
+            from = after_for;
+            continue;
+        };
+        let in_at = after_for + in_rel;
+        let pat = body[after_for..in_at].trim().to_string();
+        let src_start = in_at + " in ".len();
+        let mut j = src_start;
+        while j < b.len() && b[j] != b'{' {
+            j += 1;
+        }
+        if j >= b.len() {
+            from = src_start;
+            continue;
+        }
+        let iter_src = body[src_start..j].trim();
+        let stripped = iter_src.trim_start_matches('&');
+        let stripped = stripped
+            .trim_end_matches(".into_iter()")
+            .trim_end_matches(".iter()")
+            .trim();
+        if stripped == format!("self.{field}") {
+            let end = match_delim(b, j, b'{', b'}');
+            return Some((pat, body[j + 1..end - 1].to_string()));
+        }
+        from = j;
+    }
+    None
+}
+
+/// Every `HAND_HASHED_ELEMENT_TYPES` entry's element type declares fields
+/// that are ALL referenced inside its own per-element loop body in
+/// `public_state_hash` — closing M5.
+#[test]
+fn hand_hashed_gamestate_elements_cover_every_field() {
+    let structs = named_field_structs();
+    let bodies = hashinto_impl_bodies();
+    let body = public_state_hash_body();
+
+    let mut checked_types = 0usize;
+    for (collection_field, element_type) in HAND_HASHED_ELEMENT_TYPES {
+        assert!(
+            !bodies.contains_key(*element_type),
+            "HAND_HASHED_ELEMENT_TYPES entry ({collection_field}, {element_type}): \
+             `{element_type}` now HAS an `impl HashInto` — replace the hand-hashing loop in \
+             public_state_hash with a single `.hash_into(&mut hasher)` call and remove this \
+             entry (dead)."
+        );
+        let fields = structs.get(*element_type).unwrap_or_else(|| {
+            panic!(
+                "HAND_HASHED_ELEMENT_TYPES entry ({collection_field}, {element_type}): \
+                 `{element_type}` is not a named-field struct under the scan roots"
+            )
+        });
+        let (pat, loop_body) = find_for_loop_over_self_field(&body, collection_field)
+            .unwrap_or_else(|| {
+                panic!(
+                    "HAND_HASHED_ELEMENT_TYPES entry ({collection_field}, {element_type}): no \
+                     `for ... in self.{collection_field}...` loop found in public_state_hash \
+                     (dead entry, or the loop's shape changed)"
+                )
+            });
+        checked_types += 1;
+        let mut missing: Vec<String> = Vec::new();
+        for f in fields {
+            // Full is required, not mere presence — the same H2 lesson applies here:
+            // `let _ = &src.count;` still contains the substring `src.count`, so a bare
+            // presence check would pass it silently. token_coverage requires the field
+            // actually reach a hasher.
+            if token_coverage(&loop_body, &format!("{pat}.{f}")) != FieldCoverage::Full {
+                missing.push(f.clone());
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "\n\n`{element_type}` (hand-hashed per-element in public_state_hash's `for {pat} \
+             in self.{collection_field}...` loop, HAS NO `impl HashInto` of its own) declares \
+             fields never FULLY fed to the hasher in that loop body:\n  {}\n\n\
+             A field silently added to `{element_type}` and never added to this loop is \
+             invisible to every other gate in this file (the struct gate cannot see it -- there \
+             is no `impl HashInto` to check against). Either add the missing field(s) to the \
+             loop body, or give `{element_type}` a real `HashInto` impl and delegate to it.\n",
+            missing.join(", ")
+        );
+    }
+    assert!(
+        checked_types > 0,
+        "HAND_HASHED_ELEMENT_TYPES is non-empty but nothing was checked -- a scanner broke"
+    );
 }
