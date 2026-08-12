@@ -33,9 +33,15 @@
 //! `cards1_equip_target_repair.rs:541` matched `Effect::AttachEquipment` with a
 //! flat `matches!`, so a def nesting its attach inside an `Effect::Sequence`
 //! dropped out of the pin **silently** (the hazard `seed-rerank-2026-08-02.md`
-//! §2.7 names). `contains_attach` walks all ten `Box<Effect>` /
-//! `Vec<Effect>` nesting sites in the `Effect` enum, and **R6 fails if an
-//! eleventh is ever added**, so the walk cannot silently go shallow.
+//! §2.7 names). `contains_attach` walks every nesting site in the `Effect` enum —
+//! eight `Box<Effect>`, two `Vec<Effect>` and one `Vec<(u32, u32, Effect)>` — and
+//! **R6 fails if a twelfth is ever added**, so the walk cannot silently go shallow.
+//!
+//! The third form is there because the first draft of this file missed it: the walk
+//! and R6 both counted only the two obvious spellings, and `Effect::RollDice`'s
+//! `results: Vec<(u32, u32, Effect)>` matches neither. It was caught by this batch's
+//! own `/review`, not by the gate — which is the argument for R6 counting *forms*
+//! rather than the author counting sites.
 //!
 //! **What membership asserts, and does NOT assert** (PB-DX4's `BASELINE` lesson):
 //! membership means only that this def carries this specific shape. It says
@@ -86,6 +92,13 @@ fn contains_attach(effect: &Effect, kind: AttachKind) -> bool {
         Effect::CoinFlip {
             on_win, on_lose, ..
         } => contains_attach(on_win, kind) || contains_attach(on_lose, kind),
+        // The ELEVENTH site, and the one the first draft of this walk missed:
+        // `Vec<(u32, u32, Effect)>` is a nested `Effect` that contains neither the
+        // substring `Box<Effect>` nor `Vec<Effect>`, so R6's original two-form count
+        // could not see it either. Found by PB-DX26's own `/review` (Finding 2).
+        Effect::RollDice { results, .. } => {
+            results.iter().any(|(_, _, e)| contains_attach(e, kind))
+        }
         _ => false,
     }
 }
@@ -237,7 +250,7 @@ fn r2_every_equip_marker_def_has_a_reachable_equip_ability() {
 
 /// R3 — the deck-legal `Complete` subset of R1, pinned EXACT.
 ///
-/// **10 pre-batch, 11 after.** The ten `OOS-CARDS1-3`'s rank rested on — a human
+/// **10 pre-batch, 10 after — but not the same ten.** The ten `OOS-CARDS1-3`'s rank rested on — a human
 /// could legally deck any of them and simply never be offered an equip — were
 /// `bone_saw`, `kite_shield`, `paradise_mantle`, `the_reaver_cleaver`,
 /// `umezawas_jitte` and the five swords. Nine of those ten are `Complete` by the
@@ -245,9 +258,20 @@ fn r2_every_equip_marker_def_has_a_reachable_equip_ability() {
 /// `aurelia_the_warleader` trap, this table's fourth route into it); only
 /// Umezawa's Jitte declares `Completeness::Complete` explicitly.
 ///
-/// `Sword of Body and Mind` is the eleventh and is PB-DX26's one completeness
-/// FLIP UP: its `Completeness::partial(..)` note named the missing Equip {2} as
-/// its *only* remaining blocker, so authoring the ability discharged it.
+/// `Sword of Body and Mind` is PB-DX26's one flip UP: its `Completeness::partial(..)`
+/// note named the missing Equip {2} as its *only* remaining blocker, so authoring
+/// the ability discharged it.
+///
+/// **And `The Reaver Cleaver` is one flip DOWN**, so the net coverage movement is
+/// zero. Its marker was the `#[default]` derive with no `completeness` field at all
+/// — nobody had ever ruled on it — while the trigger it grants under-fires against
+/// the printed card ("…to a player **or planeswalker**"; no exact `TriggerCondition`
+/// variant exists). PB-DX26's `/review` (Finding 7) caught it precisely because this
+/// row turns each member's marker into a REVIEWED assertion, and an unexamined derive
+/// is not a review. That is the row working as designed on its very first pass: the
+/// batch's own handoff had reasoned "the ten deck-legal defs were already `Complete`,
+/// so repairing them flips nothing", which assumed the markers were right rather than
+/// checking them.
 #[test]
 fn r3_deck_legal_complete_subset_of_r1_is_pinned() {
     let defs = mtg_engine::all_cards();
@@ -266,7 +290,6 @@ fn r3_deck_legal_complete_subset_of_r1_is_pinned() {
         "Sword of Sinew and Steel",
         "Sword of Truth and Justice",
         "Sword of War and Peace",
-        "The Reaver Cleaver",
         "Umezawa's Jitte",
     ]);
     assert_eq!(
@@ -434,12 +457,19 @@ fn r5_every_fortification_subtyped_def_has_a_reachable_attach() {
 /// `matches!` this file replaces. This gate counts the nesting sites in the enum's
 /// own source and fails when the count moves, so the walk cannot rot unnoticed.
 ///
-/// **Stated residual**: this is a source count, not a type-level proof. It cannot
-/// see a nesting site expressed some other way (e.g. `Option<Box<Effect>>`, or a
-/// newtype wrapping `Effect`) — those forms do not exist in the enum today, and
-/// the count below is over the two forms that do. An exhaustive `match` with no
-/// wildcard would be the stronger construction, but `Effect` has ~150 variants and
-/// the arms would be noise; this gate buys the same alarm for two dozen lines.
+/// **Stated residual, corrected.** This is a source count, not a type-level proof,
+/// and it can only see the spellings it is told to count. The first draft named
+/// `Option<Box<Effect>>` as the invisible form; that was **backwards** — that
+/// spelling *contains* the substring `Box<Effect>` and would move the count and
+/// fire the gate. The genuinely invisible form is a nested `Effect` inside a
+/// composite type, which is exactly what `Effect::RollDice`'s
+/// `Vec<(u32, u32, Effect)>` is — and it was already in the enum while this gate
+/// claimed to be exhaustive. It is now counted as a third form. What remains
+/// invisible is any FURTHER composite spelling nobody has thought of (a newtype
+/// wrapping `Effect`, a `HashMap<_, Effect>`), none of which exists today.
+/// An exhaustive `match` with no wildcard would be the stronger construction, but
+/// `Effect` has ~150 variants and the arms would be noise; this gate buys the same
+/// alarm for two dozen lines, having now been shown to need the alarm.
 #[test]
 fn r6_effect_nesting_sites_are_pinned() {
     let src = include_str!("../../../card-types/src/cards/card_definition.rs");
@@ -479,16 +509,26 @@ fn r6_effect_nesting_sites_are_pinned() {
 
     let boxed = code_only.matches("Box<Effect>").count();
     let vecs = code_only.matches("Vec<Effect>").count();
-    println!("R6 measured Effect nesting sites: Box<Effect>={boxed}, Vec<Effect>={vecs}");
+    // The third form: a nested `Effect` inside a composite. Counted by its closing
+    // `Effect)` rather than by the whole type so a differently-shaped tuple still
+    // registers. `Vec<Effect>` and `Box<Effect>` close with `Effect>`, never
+    // `Effect)`, so the three counts are disjoint by construction.
+    let composite = code_only.matches("Effect)").count();
+    println!(
+        "R6 measured Effect nesting sites: Box<Effect>={boxed}, Vec<Effect>={vecs}, \
+         composite `…Effect)`={composite}"
+    );
     assert_eq!(
-        (boxed, vecs),
-        (8, 2),
+        (boxed, vecs, composite),
+        (8, 2, 1),
         "The `Effect` enum's nesting sites changed (found Box<Effect>={boxed}, \
-         Vec<Effect>={vecs}; expected 8 and 2). `contains_attach` in this file walks them by \
-         hand: Conditional{{if_true,if_false}}, Repeat{{effect}}, ForEach{{effect}}, \
-         MayPayOrElse{{or_else}}, MayPayThenEffect{{then}}, CoinFlip{{on_win,on_lose}} \
-         (Box) and Sequence(..), Choose{{choices}} (Vec). Add the new site to \
-         `contains_attach` and re-pin this count, or every attach census in this file \
-         silently stops seeing effects nested inside it."
+         Vec<Effect>={vecs}, composite `…Effect)`={composite}; expected 8, 2 and 1). \
+         `contains_attach` in this file walks them by hand: Conditional{{if_true,if_false}}, \
+         Repeat{{effect}}, ForEach{{effect}}, MayPayOrElse{{or_else}}, \
+         MayPayThenEffect{{then}}, CoinFlip{{on_win,on_lose}} (Box); Sequence(..), \
+         Choose{{choices}} (Vec); RollDice{{results: Vec<(u32, u32, Effect)>}} (composite). \
+         Add the new site to `contains_attach` — and to the two mirrored walks in \
+         `cards1_equip_target_roster.rs` and `cards1_equip_target_repair.rs` — then re-pin \
+         this count, or every attach census silently stops seeing effects nested inside it."
     );
 }

@@ -382,12 +382,33 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 507 filtered out
 
 ### V11 — a def with a PLAIN printed equip line is added to `EQUIP_VARIANT_COST_DEFS` — the excusal is asserted, not assumed, so an entry that no longer has its stated reason expires loudly (review Finding L8)
 
-***** STILL GREEN — NOT DISCRIMINATING *****
+**RED (as required)**
 
 ```
-test cards2_printed_field_fidelity::r7_ability_embedded_costs_match_printed ... ok
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 507 filtered out; finished in 0.02s
+thread 'cards2_printed_field_fidelity::r7_ability_embedded_costs_match_printed' panicked at
+crates/engine/tests/core/cards2_printed_field_fidelity.rs:869:
+Bone Saw is excused from R7's Equip comparison because its printed text puts a CR 702.6c
+VARIANT cost line ahead of the plain one, which is what `printed_ability_cost` reads. Its
+first Equip line is now "Equip {1} ({1}: Attach to target creature you control. Equip only
+as a sorcery.)" — a plain cost — so the excusal no longer applies: remove it from
+EQUIP_VARIANT_COST_DEFS and let the comparison run (OOS-DX26-2).
+test result: FAILED. 0 passed; 1 failed; ...
 ```
+
+> **Method note, recorded because it nearly produced a false result.** V11's first run
+> came back GREEN, and the gate was not at fault: the revert harness restores each file
+> with `git checkout -- <path>`, which reverts to **HEAD**, not to the working tree it
+> found. The fix-cycle edits to this file were still uncommitted when V10 ran before it,
+> so V10's `restore()` silently discarded them and V11 then exercised a version of the
+> file that had no excusal assertion in it at all. The row above is the re-run against
+> the committed state.
+>
+> Two things worth carrying forward: **commit before running a revert matrix**, and
+> **a revert row that comes back green deserves the same suspicion as a test that comes
+> back green** — the first question is not "is the gate weak" but "did I measure the
+> tree I think I measured". Left in this document rather than quietly re-run, because a
+> matrix whose failures are all explained and whose one anomaly is deleted is not
+> evidence, it is a story.
 
 ### V12 — the `RollDice` arm is removed from `contains_attach` and R6's composite count re-pinned to 0 — i.e. the state the batch shipped in before its own `/review` found the eleventh site. R6 now catches it
 

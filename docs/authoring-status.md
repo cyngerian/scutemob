@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-12 01:34 UTC  
-**Git:** `6af2fab5` on `feat/pb-dx26-the-equip-surface-one-link-earlier-21-equipment-defs`  
+**Generated:** 2026-08-12 01:48 UTC  
+**Git:** `3d5db7b2` on `feat/pb-dx26-the-equip-surface-one-link-earlier-21-equipment-defs`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,16 +25,16 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.8% | 1,133 | -1 |
-| With TODO markers | 519 | +1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.8% | 1,133 | · |
+| With TODO markers | 519 | · |
 | Empty `abilities: vec![]` placeholders | 151 | · |
-| Total TODO lines across all defs | 938 | · |
+| Total TODO lines across all defs | 933 | -5 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 31 |
+| last 7 days | 0 | 33 |
 | last 30 days | 57 | 1,772 |
 | last 90 days | 57 | 2,954 |
 | last 1 year | 1,830 | 3,369 |
@@ -171,8 +171,8 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 575 | · |
-| DSL gap (unspecified) | 122 | · |
+| OTHER (unclassified) | 577 | +2 |
+| DSL gap (unspecified) | 117 | -5 |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 15 | · |
@@ -189,36 +189,36 @@ the next thing to triage when the classifier table is grown.
 | per-opponent upkeep | 6 | · |
 | conditional static / grant | 5 | · |
 | delayed triggers | 5 | · |
-| equipment grants ability | 5 | · |
 | untap-all / untap trigger | 4 | · |
 | noncombat-damage prevent | 4 | · |
 | ETB choice | 4 | · |
 | impulse draw | 4 | · |
 | CDA / dynamic P/T | 4 | · |
 | devotion | 4 | · |
+| per-player effect dispatch | 3 | · |
 
 _…and 26 more buckets totaling 44 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 575 
+Showing 12 of 577 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-bloodchief_ascension: // TODO: Both abilities are complex — end-step conditional counter placement needs
-deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
-experimental_augury: // TODO: Interactive top-3 selection deferred to M10.
-go_for_the_throat: // TODO: "nonartifact creature" — no exclude_card_types on TargetFilter.
-joraga_treespeaker: // TODO: Level-dependent abilities and P/T changes (Level 1-4: 1/2 + {T}: Add {G}{G};
-marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
-pact_of_negation: // TODO: Counter target spell + delayed upkeep trigger "pay {3}{U}{U} or lose the game."
-sarkhan_fireblood: // TODO: Optional discard-then-draw not in DSL. Using Nothing to avoid free draw.
-sorin_imperious_bloodlord: // TODO: Interactive hand selection by creature subtype ("Vampire creature card from
-teferis_protection: // TODO: "Exile Teferi's Protection" — self-exile on resolution.
-tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with MV filter.
+blood_tribute: // TODO: Kicker cost "tap a Vampire" is non-mana kicker.
+curse_of_opulence: // TODO: "Whenever enchanted player is attacked" trigger not in DSL.
+everflowing_chalice: // TODO: "This artifact enters with a charge counter on it for each time it was kicked." —
+glimmer_lens: // TODO: the attack trigger only — "For Mirrodin!" is expressible and unauthored
+jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
+marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
+out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
+sakashimas_student: // TODO: "enter as a copy of any creature, except it's also a Ninja" — needs
+sorin_imperious_bloodlord: // TODO: "You may sacrifice a Vampire. When you do, [effects]" — optional sacrifice
+teferis_protection: // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
+tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
 ## ⚠ Completeness-marker drift
@@ -242,6 +242,7 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 ## Recent card-touching commits
 
 ```
+3d5db7b2 scutemob-206: PB-DX26 fix cycle — all 18 review findings taken (1 HIGH / 6 MEDIUM / 11 LOW)
 72ad0f93 scutemob-206: PB-DX26 — the equip surface, one link earlier
 32373601 scutemob-205: PB-DX25c fix cycle — take all 22 review findings (0 HIGH / 5 MEDIUM / 17 LOW)
 557ef5ce scutemob-205: PB-DX25c stage 2 — fixture repairs, new probes, roster/gate, HASH bump, revert matrix, seed close-out (closes OOS-DX25b-3)
@@ -266,7 +267,6 @@ b7a46cb3 scutemob-181: CARDS-2 — repair all 45 printed-field mismatches; gate 
 99d54ed5 scutemob-179: CARDS-1 — author the CR 702.6a equip target into all 17 equip defs (OOS-M11-10)
 869f09d6 scutemob-168: PB-DX4 fix cycle — 2 HIGH / 5 MEDIUM / 6 LOW from pb-review-DX4.md, all 13 applied
 e658c9d8 scutemob-168: PB-DX4 — triage the 97-entry decision BASELINE against oracle text (OOS-DP10-8)
-39d4902c scutemob-166: PB-DX3b fix cycle — apply review findings (5 MEDIUM / 7 LOW)
 ```
 
 ## Missing card-defs sidecar
