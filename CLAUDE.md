@@ -45,7 +45,9 @@
   PB-DX25c shipped `scutemob-205` 2026-08-06 (rank 7c, INSERTED 2026-08-06 user-approved —
   closed OOS-DX25b-3, the CR 115.7a redirect-legality gap);
   PB-DX26 shipped `scutemob-206` 2026-08-11 (rank 8 — closed OOS-CARDS1-3, OOS-CARDS1-1 and
-  OOS-DX3b-1); **next dispatch: PB-DX7** (rank 9);
+  OOS-DX3b-1);
+  PB-DX7 shipped `scutemob-207` 2026-08-11 (rank 9 — closed OOS-DP7-11, OOS-DP9-13,
+  and both riders OOS-DP10-1 and OOS-DP9-10's residual); **next dispatch: PB-DX8** (rank 10);
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -126,10 +128,29 @@
   2026-08-06 user-approved — closed **OOS-DX25b-3**, the CR 115.7a redirect-legality gap; row
   in the v3 memo §4) — ranks **1-7c are all shipped**.
   **PB-DX26 SHIPPED** (`scutemob-206`; v3 queue rank 8 — **OOS-CARDS1-3**, **OOS-CARDS1-1**
-  and **OOS-DX3b-1** all CLOSED) — ranks **1-8 are all shipped**, so **next dispatch: PB-DX7**
-  (rank 9). Live coverage NET UNMOVED at **1,133/1,803 = 62.8%** — one flip up
+  and **OOS-DX3b-1** all CLOSED) — ranks **1-8 are all shipped**.
+  Live coverage NET UNMOVED at **1,133/1,803 = 62.8%** — one flip up
   (`sword_of_body_and_mind`) and one honest flip down (`the_reaver_cleaver`).
-  PROTOCOL **35** / HASH **74** as of PB-DX26 (both gate-executed, both unmoved by it).
+  **PB-DX7 SHIPPED** (`scutemob-207`; v3 queue rank 9 — **OOS-DP7-11** and **OOS-DP9-13**
+  CLOSED, plus both riders **OOS-DP10-1** and **OOS-DP9-10**'s residual) — ranks
+  **1-9 are all shipped**, so **next dispatch: PB-DX8** (rank 10). Coverage unmoved at
+  **62.8%**, proven by regeneration. PROTOCOL **35** / HASH **74** as of PB-DX7
+  (both gate-executed, both unmoved by it).
+- **Tests (delta 2026-08-11, PB-DX7)**: **4,524 / 0 / 5** full-workspace on branch
+  `scutemob-207` (+16 over the **4,508** baseline measured on this branch BEFORE any edit),
+  `--workspace --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
+  **The delta is itemised by test NAME, not by arithmetic**: 4 on the rider commit
+  (`decision_gate::pb_dp9_roster_walks_agree_by_value` plus the three in the new
+  `crates/engine/tests/core/unordered_iteration_ratchet.rs`) and 12 in
+  `crates/engine/tests/core/hash_schema.rs`. **PROTOCOL 35 / HASH 74 both unmoved**,
+  gate-executed (`hash_schema` 33/33, `protocol_schema` 17/17) — no genuinely-unhashed
+  field was found, so no bump was warranted and none was taken. **0 non-comment lines in
+  `crates/engine/src/state/hash.rs`** — verified line-by-line in python, because
+  `grep -E '^[+-]//'` returns a **false positive on indented comments** and would have
+  under-reported the check. 3 files touched, **0 card-def edits**; coverage unmoved at
+  **1,133/1,803 = 62.8%**, proven by regeneration with the self-dating churn reverted.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs).
 - **Tests (delta 2026-08-11, PB-DX26 + fix cycle)**: **4,508 / 0 / 5** full-workspace on
   branch `scutemob-206` (+17 over the **4,491** baseline measured on this branch BEFORE any
   edit — 6 gates in the new `crates/engine/tests/core/pb_dx26_attach_keyword_roster.rs`
@@ -370,7 +391,51 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-11 — **PB-DX26 SHIPPED** (`scutemob-206`; v3 queue rank 8,
+- **Last Updated**: 2026-08-11 — **PB-DX7 SHIPPED** (`scutemob-207`; v3 queue rank 9,
+  closing `OOS-DP7-11`, `OOS-DP9-13`, and both riders `OOS-DP10-1` and `OOS-DP9-10`'s
+  residual). A gate that reported success while checking nothing. **Both holes were
+  REPRODUCED at HEAD before anything changed** — deleting a live field from the
+  path-qualified `MergedComponent` impl left **all 21 gates green, including
+  `stream_fingerprint_is_pinned`** (no seed row claims that half: the canonical fixture
+  carries no merged component), and the enum demo was green **and** `clippy -D warnings`
+  clean, because `..` silences `unused_variables`. Part A keys `hashinto_impl_bodies()` on
+  the bare name with **zero call sites renamed**, so the hole cannot reopen by spelling.
+  **The durable lesson is about briefs, not code: a scope that is true about a subset reads
+  exactly like a scope that is complete.** The brief scoped the enum half to "the 10
+  path-qualified enums" — a true sentence, and irrelevant, since path qualification has
+  nothing to do with the enum half and **all 79** hashed enums were outside the struct gate.
+  Obeying it would have closed `OOS-DP9-13` on paper with 69 enums uncovered. Final scope:
+  **79 enums / 1,252 variants / 1,097 variant fields**. **Three further holes of the same
+  family surfaced only by widening, each found by refusing a plausible "this is fine"**:
+  the coverage predicate could not tell `self.f.hash_into()` from `self.f.is_some()
+  .hash_into()`, so 4 sites passed as covered while their values never reached the hasher
+  (`OOS-DX7-2`, closed by new `PARTIALLY_HASHED` categories — the enum half was nearly
+  omitted as a scope call, which would have left two halves of one file disagreeing about
+  coverage on the same field name); `Effect` reuses **9 discriminants across 18 variants**
+  while its comments called them unique, and the first disposition ("subsequent field bytes
+  differ") was an assertion of the same shape that let `OOS-SIM2-6` survive 4.5 months —
+  settled instead by an **executed** pairwise-distinctness experiment over all 18, plus a
+  ratchet so a 10th cannot appear (`OOS-DX7-1`); and **`GameState` was carved out of the
+  field gate entirely**, with 3 of its 45 fields reaching no hash and no stated exclusion
+  list (`OOS-DX7-3`). **24 revert rows, all executed red then restored, none
+  UNDISCRIMINATED — and two caught real bugs before shipping**: V14 exposed a **false
+  negative in the new dead-entry checker itself** (it searched for the literal tuple-index
+  string `"0"` instead of the actual pattern binding, passing GREEN where it should have
+  failed RED — this batch's own subject matter recurring inside its implementation, caught
+  only because every row had to *demonstrate* red), and V18 forced an artificial digest
+  collision rather than assuming the detector fired. Tests **4,524** (+16, itemised by test
+  name); coverage unmoved at **62.8%** by regeneration; PROTOCOL **35** / HASH **74**
+  gate-executed and unmoved; **0 non-comment `hash.rs` lines**, 0 card-def edits.
+  **Corrections carried back into the rows themselves**: the seed's cite
+  `hash_schema.rs:1540-1541` names the wrong symbol; the implement phase's "26 revert rows"
+  is **24**; `OOS-DP10-1`'s "cross-checked BY VALUE" was a **floor** check with one floor
+  *below* the live count, so a one-def divergence passed in silence; and a premise the
+  **coordinator** asserted — that `HASH_SCHEMA_HISTORY` rows inherited the discriminant
+  error — was checked and found **false**, so a clean-result note was recorded rather than a
+  correction invented to fit the instruction. **A brief, a comment and a coordinator's
+  message are each a claim like any other.** Full handoff: `memory/workstream-state.md`;
+  measurements and revert matrix: `memory/primitives/pb-DX7-execution-notes.md`.
+- **Prior**: 2026-08-11 — **PB-DX26 SHIPPED** (`scutemob-206`; v3 queue rank 8,
   closing `OOS-CARDS1-3`, `OOS-CARDS1-1` and `OOS-DX3b-1`). A printed ability that did not
   exist. `keyword_registry.rs`'s `K::Equip` arm is a `KeywordHandling::Marker` and a marker
   **synthesises nothing**, so 21 defs carrying only
