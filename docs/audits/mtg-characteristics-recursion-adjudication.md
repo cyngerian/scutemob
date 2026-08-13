@@ -572,6 +572,33 @@ belongs earlier than the fix.
 
 ### 5.1 PB-DX42a — the **corpus** roster gate (offered as a **rider on PB-DX8**, rank 10)
 
+> **✅ SHIPPED 2026-08-12 as the rider on PB-DX8 (`scutemob-208`).**
+> `crates/engine/tests/core/pb_dx42a_continuous_condition_roster.rs`, 10 tests, test-only
+> (`git diff --numstat` over `crates/engine/src`, `crates/card-types/src`, `crates/card-defs/src`,
+> `crates/view-model/src`, `crates/simulator/src`, `tools/` is empty). Every number this section
+> asked to be **re-derived at dispatch rather than transcribed** was re-derived, and every one
+> matched: **382** `ContinuousEffectDef` nodes (206 under a `Static` ancestor, **176** reachable
+> only by the structural field-set walk), **17** conditioned instances across **15** distinct cards
+> and **9** distinct variants, and the layer-querying subset is exactly
+> `{ Indomitable Archangel × YouControlNOrMoreWithFilter }`. Both non-vacuity floors are asserted
+> (`>= 382`, `>= 17`), plus a third this section did not ask for and which the other two do not
+> imply — **`>= 176` nodes reached with no `Static` ancestor**, because a walk that found only
+> `AbilityDefinition::Static` nodes would clear both stated floors while missing the entire nesting
+> class the structural walk exists for. The failure message states both legal exits and `t8` asserts
+> that it does.
+>
+> **One correction to this section's premise, disclosed rather than papered over.** The gate pins
+> the layer-querying set along **two independent axes** (source-read + structural), and the
+> structural axis — *"does the condition's payload carry a `TargetFilter`?"* — is **not** a fully
+> general proxy for *"reaches `characteristics_for_condition`"*. `Condition::ControlLandWithSubtypes`
+> also reaches it, via `check_condition`'s ETB-replacement arm, while carrying no `TargetFilter`.
+> It does not affect today's population — that variant never appears inside a
+> `ContinuousEffectDef.condition` — but the agreement between the two axes rests on that
+> coincidence, so `t7` pins the coincidence itself rather than assuming it, and both the module doc
+> and `t6`'s failure message say so. **PB-DX42b (§5.2) inherits this**: its rank argument rests on a
+> population of exactly 1, and the second axis alone would not notice a `ControlLandWithSubtypes`
+> condition joining that population.
+
 **First, what already exists, so this is not proposed twice.** `569087e6` shipped
 `no_condition_evaluator_resolves_characteristics_directly` — a **source** gate over
 `check_condition` and `check_static_condition`, which fails if either evaluator ever resolves
