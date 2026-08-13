@@ -47,7 +47,9 @@
   PB-DX26 shipped `scutemob-206` 2026-08-11 (rank 8 — closed OOS-CARDS1-3, OOS-CARDS1-1 and
   OOS-DX3b-1);
   PB-DX7 shipped `scutemob-207` 2026-08-11 (rank 9 — closed OOS-DP7-11, OOS-DP9-13,
-  and both riders OOS-DP10-1 and OOS-DP9-10's residual); **next dispatch: PB-DX8** (rank 10);
+  and both riders OOS-DP10-1 and OOS-DP9-10's residual);
+  PB-DX8 shipped `scutemob-208` 2026-08-12 (rank 10 — FILED and closed OOS-CARDS2-7,
+  RECORDED OOS-DP10-9, shipped the PB-DX42a rider); **next dispatch: PB-DX27** (rank 11);
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -133,9 +135,29 @@
   (`sword_of_body_and_mind`) and one honest flip down (`the_reaver_cleaver`).
   **PB-DX7 SHIPPED** (`scutemob-207`; v3 queue rank 9 — **OOS-DP7-11** and **OOS-DP9-13**
   CLOSED, plus both riders **OOS-DP10-1** and **OOS-DP9-10**'s residual) — ranks
-  **1-9 are all shipped**, so **next dispatch: PB-DX8** (rank 10). Coverage unmoved at
+  **1-9 are all shipped**. Coverage unmoved at
   **62.8%**, proven by regeneration. PROTOCOL **35** / HASH **74** as of PB-DX7
   (both gate-executed, both unmoved by it).
+  **PB-DX8 SHIPPED** (`scutemob-208`; v3 queue rank 10 — **OOS-CARDS2-7** FILED *and* CLOSED
+  (it had no registry row at all until this batch wrote one), **OOS-DP10-9** **RECORDED, not
+  closed**, and the **PB-DX42a** rider shipped per adjudication §5.1) — ranks **1-10 are all
+  shipped**, so **next dispatch: PB-DX27** (rank 11). Coverage unmoved at **62.8%**, proven by
+  regeneration; PROTOCOL **35** / HASH **74** gate-executed and unmoved.
+- **Tests (delta 2026-08-12, PB-DX8)**: **4,558 / 0 / 5** full-workspace on branch
+  `scutemob-208` (+31 over the **4,527** baseline measured on this branch BEFORE any edit),
+  `--workspace --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
+  **Delta itemised by test NAME with zero removals**, by set-diffing the two run logs: 15 in the
+  new `crates/engine/tests/core/pb_dx8_oracle_decision_cross_check.rs`, 10 in the new
+  `crates/engine/tests/core/pb_dx42a_continuous_condition_roster.rs`, and 6 added to
+  `crates/engine/tests/core/completeness_deviation_scan.rs` (4 → 11).
+  **PROTOCOL 35 / HASH 74 both unmoved**, gate-executed (`hash_schema` 36/36,
+  `protocol_schema` 17/17). **0 source lines and 0 card-def edits of ANY kind** —
+  `git diff --numstat` over `crates/engine/src`, `crates/card-types/src`,
+  `crates/card-defs/src`, `crates/view-model/src`, `crates/simulator/src` and `tools/` is
+  empty, so unlike PB-DX7 no per-line comment audit was owed. Coverage unmoved at
+  **1,133/1,803 = 62.8%**, proven by regeneration with the self-dating churn reverted.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs).
 - **Tests (delta 2026-08-12, PB-DX7 + fix cycle)**: **4,527 / 0 / 5** full-workspace on branch
   `scutemob-207` (+19 over the **4,508** baseline measured on this branch BEFORE any edit),
   `--workspace --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
@@ -391,7 +413,54 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-11 — **PB-DX7 SHIPPED** (`scutemob-207`; v3 queue rank 9,
+- **Last Updated**: 2026-08-12 — **PB-DX8 SHIPPED** (`scutemob-208`; v3 queue rank 10 —
+  **OOS-CARDS2-7** FILED *and* CLOSED, **OOS-DP10-9** **RECORDED not closed**, rider
+  **PB-DX42a** SHIPPED). A gate can only see the vocabulary it was given. Three files, all
+  tests: the new oracle-text-vs-DSL cross-check, the new `ContinuousEffectDef` roster, and a
+  rewritten `completeness_deviation_scan`. **Both vocabularies are DERIVED, and it took three
+  measured failures to find a derivation that works** — iterated bootstrapping DRIFTS
+  (`battlefield`, `library`, `graveyard` enter by iteration 3); single-pass lift returns object
+  nouns; and **a vocabulary learned from the DSL's own ground truth is self-blinding on the
+  target**, dropping `may` entirely, because "you may" is precisely the class the DSL cannot
+  encode. §2.6's rule needs a companion clause: **derive the category from the thing being
+  checked, not from the thing that already handles it correctly.** What shipped is a
+  morphological closure, which cannot drift because it does not iterate. **The channel split is
+  load-bearing**: a `choose`-shaped construct does not discharge a printed "you may", and
+  collapsing them is what let Smuggler's Copter pass `decision_gate.rs` — which saw it only
+  through the incidental `Effect::DiscardCards` inside the same unconditional `Sequence`.
+  Measured: `may` **285** oracle-positive / **72** effectively-`Complete` with nothing able to
+  express it, `choose` 116/2, `up_to` 70/10; union **80**, frozen mechanically (documented as
+  such at write time, the PB-DP10 correction) and ratcheted; 6 reasoned
+  `RECORDED_STRUCTURAL_EVIDENCE` suppressions covering 18 real defs. **Fail-closed proven
+  END-TO-END on a real def** — `lightning_bolt.rs` given "You may draw a card.", both gates RED
+  naming card/channel/CR and the union 80→81, restored GREEN. **The seed's 35-def floor
+  reproduces EXACTLY at HEAD**, but the derived set is NOT a superset of it — the two are
+  non-nested (14 seed-only, 10 derived-only), union **45** — and the reason is the batch's second
+  headline: `todo`/`deferred` live in `// TODO` COMMENTS, not compiled `Completeness` notes, so a
+  derivation keyed on ONE declaration construct is short by exactly the failure mode
+  `OOS-CARDS2-7` names, **reproduced inside the fix for it**.
+  **The batch committed its own subject matter three times and execution caught every one**: the
+  oracle axis read `def.oracle_text` alone while `CardFace` carries its OWN (blind to every
+  transformed face and Adventure half — found by the inverse-method census, not by a test);
+  the deviation scan matched whole SOURCE while its needles were derived from PROSE, so
+  `drawcards` (== `Effect::DrawCards`) scored **203 files / 127 unmarked / 37% precision**
+  against the derivation's own **20/1/95%** and would have blown the freeze past 150 silently;
+  and a population ratchet filtered its own denominator down to the roster it was checking and
+  **could never redden**, caught only because revert row V4 had to demonstrate red. That last is
+  the **third instance in three batches** — PB-DX7's V14 and this batch's own
+  `t_optional_false_is_not_evidence` are the others — and the common cause is worth naming:
+  **a checker whose reference set is derived from the thing it checks can never disagree with
+  it.** 30 revert rows, 29 RED, **1 honestly UNDISCRIMINATED** (`PROSE_FIELDS`, inherited rather
+  than earned, disclosed in the module doc). Corrections carried back: the brief's Tier-A dedupe
+  note was imprecise in both directions, and the adjudication's structural layer-querying axis is
+  **not** a general proxy (`Condition::ControlLandWithSubtypes` reaches
+  `characteristics_for_condition` with no `TargetFilter`) — so `t7` pins the coincidence and
+  **PB-DX42b's rank argument inherits the caveat**. Tests **4,558** (+31, itemised by name);
+  coverage unmoved at **62.8%** by regeneration; PROTOCOL **35** / HASH **74** gate-executed and
+  unmoved; **0 source lines, 0 card-def edits**. Seeds: **OOS-CARDS2-7 filed and CLOSED**,
+  **OOS-DX8-1..8** filed. Full handoff: `memory/workstream-state.md`; measurements and the
+  30-row revert matrix: `memory/primitives/pb-DX8-execution-notes.md`.
+- **Prior**: 2026-08-11 — **PB-DX7 SHIPPED** (`scutemob-207`; v3 queue rank 9,
   closing `OOS-DP7-11`, `OOS-DP9-13`, and both riders `OOS-DP10-1` and `OOS-DP9-10`'s
   residual). A gate that reported success while checking nothing. **Both holes were
   REPRODUCED at HEAD before anything changed** — deleting a live field from the
