@@ -143,13 +143,14 @@
   closed**, and the **PB-DX42a** rider shipped per adjudication §5.1) — ranks **1-10 are all
   shipped**, so **next dispatch: PB-DX27** (rank 11). Coverage unmoved at **62.8%**, proven by
   regeneration; PROTOCOL **35** / HASH **74** gate-executed and unmoved.
-- **Tests (delta 2026-08-12, PB-DX8)**: **4,558 / 0 / 5** full-workspace on branch
-  `scutemob-208` (+31 over the **4,527** baseline measured on this branch BEFORE any edit),
+- **Tests (delta 2026-08-12, PB-DX8 + fix cycle)**: **4,561 / 0 / 5** full-workspace on branch
+  `scutemob-208` (+34 over the **4,527** baseline measured on this branch BEFORE any edit),
   `--workspace --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
-  **Delta itemised by test NAME with zero removals**, by set-diffing the two run logs: 15 in the
+  **Delta itemised by test NAME with zero removals**, by set-diffing the two run logs: 17 in the
   new `crates/engine/tests/core/pb_dx8_oracle_decision_cross_check.rs`, 10 in the new
-  `crates/engine/tests/core/pb_dx42a_continuous_condition_roster.rs`, and 6 added to
-  `crates/engine/tests/core/completeness_deviation_scan.rs` (4 → 11).
+  `crates/engine/tests/core/pb_dx42a_continuous_condition_roster.rs`, and 7 added to
+  `crates/engine/tests/core/completeness_deviation_scan.rs` (5 → 12). Three of the 34 are the
+  `/review` fix cycle's own additions.
   **PROTOCOL 35 / HASH 74 both unmoved**, gate-executed (`hash_schema` 36/36,
   `protocol_schema` 17/17). **0 source lines and 0 card-def edits of ANY kind** —
   `git diff --numstat` over `crates/engine/src`, `crates/card-types/src`,
@@ -428,10 +429,13 @@
   load-bearing**: a `choose`-shaped construct does not discharge a printed "you may", and
   collapsing them is what let Smuggler's Copter pass `decision_gate.rs` — which saw it only
   through the incidental `Effect::DiscardCards` inside the same unconditional `Sequence`.
-  Measured: `may` **285** oracle-positive / **72** effectively-`Complete` with nothing able to
+  Measured: `may` **287** oracle-positive / **72** effectively-`Complete` with nothing able to
   express it, `choose` 116/2, `up_to` 70/10; union **80**, frozen mechanically (documented as
   such at write time, the PB-DP10 correction) and ratcheted; 6 reasoned
-  `RECORDED_STRUCTURAL_EVIDENCE` suppressions covering 18 real defs. **Fail-closed proven
+  `RECORDED_STRUCTURAL_EVIDENCE` suppressions covering **24** real defs — and those figures are
+  now **printed by `t_reconciliation_report`**, not transcribed, because the first draft
+  published `285` and `18`, both measured against the *pre-fix front-face-only* oracle axis and
+  never re-run after the multi-face widening corrected them. **Fail-closed proven
   END-TO-END on a real def** — `lightning_bolt.rs` given "You may draw a card.", both gates RED
   naming card/channel/CR and the union 80→81, restored GREEN. **The seed's 35-def floor
   reproduces EXACTLY at HEAD**, but the derived set is NOT a superset of it — the two are
@@ -458,8 +462,25 @@
   **PB-DX42b's rank argument inherits the caveat**. Tests **4,558** (+31, itemised by name);
   coverage unmoved at **62.8%** by regeneration; PROTOCOL **35** / HASH **74** gate-executed and
   unmoved; **0 source lines, 0 card-def edits**. Seeds: **OOS-CARDS2-7 filed and CLOSED**,
-  **OOS-DX8-1..8** filed. Full handoff: `memory/workstream-state.md`; measurements and the
-  30-row revert matrix: `memory/primitives/pb-DX8-execution-notes.md`.
+  **OOS-DX8-1..8** filed.
+  **The `/review` cycle found 4 MEDIUM / 6 LOW and all 10 were taken — and the reviewer, who had
+  a shell and used it, DEFEATED two of the three gates by execution.** (1) Narrowing the deviation
+  scan to `//` comments silently dropped `/* */` blocks: the byte-identical sentence reddened as a
+  line comment and left every test green as a block comment — `OOS-DX32-6`'s class, latent only
+  because the corpus happens to carry zero such comments today. (2) Evidence is scoped to the
+  **def**, not the **clause**, so a printed "may" appended to a `Complete` def whose
+  `optional: true` belongs to an unrelated clause is invisible — **24** `Complete` defs are
+  exempted by a single piece of evidence, now stated as a second recall bound rather than
+  discovered later. Also taken: a doc comment citing a test **that did not exist** (the precise
+  failure the same file cites `decision_gate.rs`'s precedent for); a
+  **compile-time-tautological** test that compared two `const` array lengths and then asserted
+  `A || true` (rewritten to parse the struct declaration; a one-field desync now reddens **5**
+  tests where it reddened none); six Tier-A needles that are ordinary English clearing the
+  concentration floor on base rate, kept and stated as a precision bound rather than tuned away;
+  and a count ceiling whose comment claimed a per-entry promise it cannot keep — corrected, with
+  the note that `decision_gate.rs`'s identical construct carries the same overclaim.
+  Full handoff: `memory/workstream-state.md`; measurements, the 30-row revert matrix and the
+  fix-cycle table: `memory/primitives/pb-DX8-execution-notes.md`.
 - **Prior**: 2026-08-11 — **PB-DX7 SHIPPED** (`scutemob-207`; v3 queue rank 9,
   closing `OOS-DP7-11`, `OOS-DP9-13`, and both riders `OOS-DP10-1` and `OOS-DP9-10`'s
   residual). A gate that reported success while checking nothing. **Both holes were

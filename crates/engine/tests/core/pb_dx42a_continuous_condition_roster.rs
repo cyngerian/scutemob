@@ -607,24 +607,78 @@ fn t8_failure_message_names_both_exits() {
 
 // ── T9: field-set fingerprint sanity (proves the two fingerprints don't collide) ────
 
-/// The two structural fingerprints used by this file (5-key ContinuousEffectDef, 32-key
-/// TargetFilter) must not accidentally match the same node -- otherwise the walk could
-/// misclassify a TargetFilter as a ContinuousEffectDef or vice versa. Field-count alone
-/// already guarantees this (5 != 32), but this test proves it directly rather than
-/// leaving it as an unstated arithmetic fact.
+/// The two structural fingerprints used by this file must not be able to match the same node,
+/// and — the part that matters — each must actually match the struct it names, field for field.
+///
+/// **Rewritten during the `/review` fix cycle: the first version was a compile-time tautology.**
+/// It compared the two `const` arrays' *lengths* (fixed at 5 and 32) and then asserted
+/// `intersection.is_none() || len != len`, whose right-hand side is unconditionally true. It
+/// could not fail for any code change — including the one change that matters here, a field
+/// added to or removed from `ContinuousEffectDef`, which would silently desync the fingerprint
+/// from the type while every test stayed green. This version reads the two struct declarations
+/// out of `crates/card-types/src/cards/card_definition.rs` and compares the field NAMES, so the
+/// desync fails by name.
 #[test]
-fn t9_fingerprints_are_disjoint() {
+fn t9_fingerprints_match_their_structs_and_cannot_collide() {
     let ce: BTreeSet<&str> = CONTINUOUS_EFFECT_DEF_FIELDS.iter().copied().collect();
     let tf: BTreeSet<&str> = TARGET_FILTER_FIELDS.iter().copied().collect();
+
+    // A node is classified by an EXACT field-set match, so an overlap is harmless as long as the
+    // two sets are not equal. Assert the real property (set inequality), not a length comparison
+    // that happens to imply it today.
     assert_ne!(
-        ce.len(),
-        tf.len(),
-        "the two fingerprints must not be the same size"
+        ce, tf,
+        "the two fingerprints are the same SET, so a node matching one matches the other and the \
+         walk cannot tell a ContinuousEffectDef from a TargetFilter"
     );
-    assert!(
-        ce.intersection(&tf).next().is_none() || ce.len() != tf.len(),
-        "sanity: even a partial field overlap is fine as long as the SET differs in size \
-         (checked above); this assertion exists so a future reader sees the intersection \
-         was considered, not ignored"
+
+    // And each fingerprint must still equal its struct's declared field set.
+    let src = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(std::path::Path::parent)
+            .expect("engine manifest dir is <workspace>/crates/engine")
+            .join("crates/card-types/src/cards/card_definition.rs"),
+    )
+    .expect("card_definition.rs must be readable");
+
+    let declared = |struct_name: &str| -> BTreeSet<String> {
+        let at = src
+            .find(&format!("pub struct {struct_name} {{"))
+            .unwrap_or_else(|| panic!("struct {struct_name} not found in card_definition.rs"));
+        let body_start = src[at..].find('{').expect("brace") + at + 1;
+        let mut depth = 1usize;
+        let mut end = body_start;
+        for (i, ch) in src[body_start..].char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = body_start + i;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        src[body_start..end]
+            .lines()
+            .map(|l| l.split("//").next().unwrap_or("").trim())
+            .filter_map(|l| l.strip_prefix("pub "))
+            .filter_map(|l| l.split(':').next())
+            .map(|n| n.trim().to_string())
+            .filter(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+            .collect()
+    };
+
+    let ce_declared = declared("ContinuousEffectDef");
+    let ce_pinned: BTreeSet<String> = ce.iter().map(|s| s.to_string()).collect();
+    assert_eq!(
+        ce_pinned, ce_declared,
+        "CONTINUOUS_EFFECT_DEF_FIELDS has desynced from `pub struct ContinuousEffectDef`. The \
+         structural walk matches nodes by EXACT field set, so a desynced fingerprint silently \
+         matches NOTHING and every roster assertion in this file goes vacuous while staying \
+         green. Update the fingerprint, then re-derive the non-vacuity floors."
     );
 }

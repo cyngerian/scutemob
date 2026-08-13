@@ -61,6 +61,31 @@
 //! This produced **34** needles ("TIER A" below), measured 2026-08-12 against
 //! the 1,803-def corpus (670 marked / 1,133 unmarked at the time).
 //!
+//! ### D2's precision floor has a known confound, and it is stated rather than implied
+//!
+//! **D2 measures concentration, and concentration is partly base rate.** Marked
+//! defs carry far more comment prose than unmarked ones (median ~121 words vs
+//! ~49), so an ordinary English word that authors happen to write while
+//! explaining a blocker clears 95% largely by *volume*, not by meaning. Six
+//! TIER A needles are of that kind — `should`, `needs`, `complex`, `expression`,
+//! `executes`, `tracking` — and the `/review` cycle proved the consequence by
+//! execution: the innocuous comment
+//! `// Straightforward: this should be a plain damage spell, no special handling
+//! needed.` on `lightning_bolt.rs` reddens both the gate and the ratchet.
+//!
+//! **The consequence is a real cost, not a theoretical one**: routine authoring
+//! will push benign defs toward the mechanical [`RECORDED_BASELINE`] exit rather
+//! than toward a marker, diluting the signal over time. It is left in rather than
+//! tuned away because dropping a needle for being inconvenient is precisely the
+//! defect this batch exists to remove (zero silent needle tuning), and because a
+//! minimum-specificity criterion in D3 would itself be an author's judgement
+//! smuggled back into a derived rule. **The honest disposition is: this is a
+//! measured precision bound of D2, the next batch may add a specificity criterion
+//! with its own stated rule, and until then a `RECORDED_BASELINE` entry whose
+//! reason names one of the six should be read as "ordinary English tripped the
+//! scan", not as "this def declares a gap".** One baseline entry (`tyrranax_rex`)
+//! already says exactly that on its own row.
+//!
 //! ### The headline finding: the derivation does NOT rediscover the seed's own six
 //!
 //! The seed that reported this defect (OOS-CARDS2-7) named six phrases by hand:
@@ -264,13 +289,25 @@ fn completeness_note_bodies(src: &str) -> Vec<String> {
     out
 }
 
-/// "Author prose": the body of every `//` line comment plus every
-/// [`completeness_note_bodies`] string, lower-cased. This is the corpus's own
-/// deviation vocabulary — deliberately narrower than the whole file. See the
-/// module doc, "Why the scan reads prose, not the whole raw file", for the
-/// measured reason a full-source scan is wrong (it collides with DSL
+/// "Author prose": the body of every `//` line comment, every `/* … */` block
+/// comment, and every [`completeness_note_bodies`] string, lower-cased. This is
+/// the corpus's own deviation vocabulary — deliberately narrower than the whole
+/// file. See the module doc, "Why the scan reads prose, not the whole raw file",
+/// for the measured reason a full-source scan is wrong (it collides with DSL
 /// identifiers like `Effect::DrawCards` and the `Completeness::partial(`
 /// constructor itself).
+///
+/// **Block comments are included because the `/review` cycle proved their omission
+/// by execution.** Narrowing from whole-source to `//`-only was a coverage
+/// *regression* nobody had measured: the identical sentence
+/// `known dsl gap: …` reddens the gate as `// known dsl gap: …` and leaves all
+/// tests green as `/* known dsl gap: … */`. That is `OOS-DX32-6`'s class exactly —
+/// a `/* */` wrapper leaving a gate green — and it was latent rather than live only
+/// because the corpus happens to carry **zero** deviation-language block comments
+/// today (all 12 `/*` occurrences under `defs/` are `*/*` power/toughness notation
+/// **inside** `//` comments). Latent is not the same as absent, and a fix that
+/// depends on a coincidence is not a fix. Pinned by
+/// [`block_comments_are_prose_too`].
 fn author_prose(src: &str) -> String {
     let mut out = String::new();
     for line in src.lines() {
@@ -279,11 +316,56 @@ fn author_prose(src: &str) -> String {
             out.push('\n');
         }
     }
+    for body in block_comment_bodies(src) {
+        out.push_str(&body);
+        out.push('\n');
+    }
     for note in completeness_note_bodies(src) {
         out.push_str(&note);
         out.push('\n');
     }
     out.to_lowercase()
+}
+
+/// The body of every `/* … */` block comment in `src`.
+///
+/// Deliberately simple and deliberately over-inclusive at the margin: it does not
+/// track string literals, so a `/*` inside a string would open a span. That errs
+/// toward *more* prose reaching the scan, which is the safe direction for a gate
+/// whose failure mode is missing a declared gap — and the corpus contains no such
+/// literal (checked: every `/*` under `defs/` is `*/*` P/T notation inside a `//`
+/// comment, which this function's own `//`-stripping pass has already consumed).
+/// Nested block comments are not tracked either; Rust allows them, the corpus has
+/// none, and the outer span still yields the inner text.
+fn block_comment_bodies(src: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let bytes = src.as_bytes();
+    let mut i = 0usize;
+    while i + 1 < bytes.len() {
+        if bytes[i] == b'/' && bytes[i + 1] == b'*' {
+            let start = i + 2;
+            let mut j = start;
+            while j + 1 < bytes.len() && !(bytes[j] == b'*' && bytes[j + 1] == b'/') {
+                j += 1;
+            }
+            let end = if j + 1 < bytes.len() { j } else { bytes.len() };
+            // Char-boundary safe: slice on the nearest boundaries at or inside the span.
+            let (mut s0, mut e0) = (start.min(src.len()), end.min(src.len()));
+            while s0 < src.len() && !src.is_char_boundary(s0) {
+                s0 += 1;
+            }
+            while e0 > s0 && !src.is_char_boundary(e0) {
+                e0 -= 1;
+            }
+            if s0 < e0 {
+                out.push(src[s0..e0].to_string());
+            }
+            i = end + 2;
+        } else {
+            i += 1;
+        }
+    }
+    out
 }
 
 /// Non-`Complete` marker fragments. Presence of any means the def already
@@ -812,6 +894,47 @@ fn offenders(sources: &[(String, String)]) -> Vec<String> {
         })
         .map(|(stem, _)| stem.clone())
         .collect()
+}
+
+#[test]
+/// `author_prose` must reach `/* … */` block comments, not only `//` lines.
+///
+/// Written because the `/review` cycle DEFEATED the first draft with this exact input: the
+/// sentence `known dsl gap: …` reddened the gate as a `//` comment and left every test green
+/// wrapped in `/* */`. Both halves are asserted here — the positive so the extractor is not
+/// vacuously returning nothing, and the negative control so a future "simplification" that drops
+/// block comments fails by name instead of silently shrinking the gate's reach.
+fn block_comments_are_prose_too() {
+    let line = "// known dsl gap: the trigger has no TriggerCondition variant\npub fn card() {}";
+    let block =
+        "/* known dsl gap: the trigger has no TriggerCondition variant */\npub fn card() {}";
+    let neither = "pub fn card() { /* nothing to declare here */ }";
+
+    assert!(
+        has_deviation_language(line),
+        "a `//` comment carrying deviation language must reach the scan"
+    );
+    assert!(
+        has_deviation_language(block),
+        "the IDENTICAL text in a `/* */` block comment must reach the scan too — a `/* */` \
+         wrapper leaving a gate green is OOS-DX32-6's class, and this is the input the review \
+         used to defeat the first draft of `author_prose`"
+    );
+    assert!(
+        !has_deviation_language(neither),
+        "negative control: a block comment with no deviation language must NOT match, so the \
+         positive above is about the needles and not about the extractor matching everything"
+    );
+
+    // Multi-line and unterminated spans, the two shapes a naive extractor gets wrong.
+    assert!(
+        has_deviation_language("/* line one\n   known dsl gap here\n*/"),
+        "a multi-line block comment's interior lines must reach the scan"
+    );
+    assert!(
+        has_deviation_language("/* known dsl gap and no closing delimiter"),
+        "an unterminated block comment must not swallow its own body"
+    );
 }
 
 #[test]

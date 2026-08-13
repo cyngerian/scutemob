@@ -86,11 +86,25 @@
 //! for the `may` channel, mostly *engine* work: a costless "you may" on a trigger has no DSL
 //! representation at all — audit §5 DP-12). The two legal exits are in the failure message.
 //!
-//! Its recall bound is also stated rather than implied. The closure reaches the three markers'
-//! families and nothing else, so these attested optionality idioms are **outside** it and are
-//! **not** measured by this gate: `unless` (54 occurrences), `any number of` (24), `rather than`
-//! (17), `instead of` (5). Widening to them is a later batch's call; pretending they are covered
+//! It has **two** recall bounds, and both are stated rather than implied — pretending otherwise
 //! is the `OOS-DP7-11` class (a claim wearing a gate's authority).
+//!
+//! **Vocabulary bound.** The closure reaches the three markers' families and nothing else, so
+//! these attested optionality idioms are **outside** it and are **not** measured here: `unless`
+//! (54 occurrences), `any number of` (24), `rather than` (17), `instead of` (5). Widening is not
+//! free — each new family needs its own DSL-side evidence set, and the `unless` family already
+//! appears on the DSL side in [`RECORDED_STRUCTURAL_EVIDENCE`], so the two halves would need
+//! reconciling rather than merely adding.
+//!
+//! **Structural bound: evidence is scoped to the DEF, not to the CLAUSE.** One may-shaped
+//! construct anywhere in a def exempts that def on the `may` channel, even when the printed "may"
+//! it drops belongs to a completely different ability. The `/review` cycle demonstrated this by
+//! execution: appending *"You may sacrifice a land. If you do, draw a card."* to a `Complete` def
+//! whose `optional: true` belongs to an unrelated clause left **every test green**. **Measured
+//! exposure: 24 effectively-`Complete` defs are exempted on the `may` channel by a single piece
+//! of evidence** (the 96 → 72 chain printed by [`t_reconciliation_report`]). Closing it means
+//! scoping evidence to the ability subtree carrying the matched clause, which needs a
+//! clause-to-ability alignment this gate does not have and did not attempt. Recorded, not fixed.
 
 use crate::decision_site_walk::{is_effectively_complete, PROSE_FIELDS};
 use mtg_engine::{all_cards, CardDefinition};
@@ -168,8 +182,14 @@ const LEXICAL_EXCLUSIONS: &[(&str, &str)] = &[(
 /// These are **suppressions**, and every one is written down with its justification rather than
 /// folded into a stem — the brief's standing instruction, and the `PROSE_FIELDS`/`T3` precedent
 /// from PB-DP10. Measured effect on the `may` channel's effectively-`Complete` offender
-/// population: 90 → 80 for the three `…Unless…` variants, and 80 → 72 once `unless_condition` is
-/// counted, i.e. these rows suppress 18 defs that really do encode the choice.
+/// population: **96 → 85** for the three `…Unless…` variants and **85 → 72** for the rest, i.e.
+/// these rows suppress **24** defs that really do encode the choice.
+///
+/// **Those figures are printed by [`t_reconciliation_report`], not transcribed here from a
+/// one-off script.** The first draft published `90 → 80 → 72 / 18`, measured against the pre-fix
+/// front-face-only oracle axis and never re-run after the multi-face widening corrected it — the
+/// exact "a stale number survives the fix that invalidated it" class the `/review` cycle caught.
+/// Re-derive by running the report; do not trust this comment's arithmetic.
 pub const RECORDED_STRUCTURAL_EVIDENCE: &[(&str, &str, &str, &str)] = &[
     (
         "EntersTappedUnlessPayLife",
@@ -868,12 +888,23 @@ fn t_every_baseline_entry_is_live_and_necessary() {
     }
 
     let unexplained = BASELINE.iter().filter(|(_, _, r)| r.is_none()).count();
+    // What this ceiling does and does NOT enforce. It bounds the COUNT of reason-less entries at
+    // the freeze size, so entries cannot be added `None` in bulk. It does NOT identify WHICH
+    // entries are the frozen ones, so a one-for-one swap — a def repaired out of BASELINE and a
+    // different one added `None` in the same commit — leaves the count unchanged and passes.
+    // `/review` finding 9 caught this file's first draft claiming the stronger property ("this is
+    // where the promise is kept"). The honest statement is below, and it applies equally to
+    // `decision_gate.rs`'s identical `FROZEN_2026_07_27` construct, which this was modelled on.
+    // Closing it properly means recording the 80 frozen NAMES, duplicating BASELINE's first
+    // column; that trade was considered and declined, and the residual is stated rather than the
+    // claim being left overstated.
     assert!(
         unexplained <= FROZEN_2026_08_12,
         "{unexplained} BASELINE entries carry no written reason, but only the \
          {FROZEN_2026_08_12} entries of the 2026-08-12 PB-DX8 freeze are allowed to. Every entry \
-         added after that freeze is a deliberate act and must carry `Some(reason)` — that is what \
-         the gate's failure message promises an author, and this is where the promise is kept."
+         added after that freeze is a deliberate act and must carry `Some(reason)`. NOTE the \
+         bound: this is a COUNT ceiling, not a per-entry check — it cannot see a one-for-one swap, \
+         so it makes bulk reason-less growth impossible rather than making every entry justified."
     );
 }
 
@@ -989,7 +1020,7 @@ fn t_oracle_side_is_not_vacuous() {
     assert!(
         hits >= MIN_MAY_ORACLE_HITS,
         "only {hits} defs' oracle text matched the `may` channel (< {MIN_MAY_ORACLE_HITS}); \
-         measured 285 at the freeze. The closure or the tokenizer is broken and the gate is \
+         measured 287 at the freeze — 287, not the 285 the first draft published, which was the pre-fix front-face-only figure. The closure or the tokenizer is broken and the gate is \
          vacuous"
     );
 }
@@ -1031,6 +1062,155 @@ fn t_may_not_is_measured_absent() {
          grant, so the `may` channel would now produce false positives on {offenders:?}. Add a \
          suppression with its reason and update the module doc's count."
     );
+}
+
+#[test]
+/// **Reconciliation report** — prints every figure this file's prose, `memory/`, and CLAUDE.md
+/// quote, so a reader can re-derive them instead of trusting them. Never fails on a count; the
+/// ratchets above are what enforce.
+///
+/// Written during the `/review` fix cycle after two published numbers were found stale: the `may`
+/// channel's oracle-positive count was the **pre-fix, front-face-only** figure republished as the
+/// post-fix measurement in the same document that celebrates the multi-face widening, and the
+/// suppression chain's first link was off by one. `decision_gate.rs`'s
+/// `decision_site_reconciliation_report` is the precedent — a printed derivation is cheaper than a
+/// transcribed one, and it cannot go stale.
+fn t_reconciliation_report() {
+    let defs = all_cards();
+    let (closures, elements) = closures_and_elements(&defs);
+    let facts: Vec<DefFacts> = defs.iter().map(def_facts).collect();
+
+    eprintln!("\n== PB-DX8 reconciliation ==");
+    eprintln!("corpus: {} defs", defs.len());
+    for c in CHANNELS {
+        let oracle_pos = defs
+            .iter()
+            .filter(|d| oracle_grants(d, c, &closures[c.id]))
+            .count();
+        let no_evidence = defs
+            .iter()
+            .zip(&facts)
+            .filter(|(d, f)| {
+                oracle_grants(d, c, &closures[c.id]) && !dsl_expresses(f, c, &elements[c.id])
+            })
+            .count();
+        let complete = defs
+            .iter()
+            .zip(&facts)
+            .filter(|(d, f)| {
+                is_effectively_complete(d)
+                    && oracle_grants(d, c, &closures[c.id])
+                    && !dsl_expresses(f, c, &elements[c.id])
+            })
+            .count();
+        eprintln!(
+            "channel {:>6}: oracle-positive {oracle_pos}, no DSL evidence {no_evidence}, of \
+             which effectively-Complete {complete}; closure {:?}; {} DSL elements",
+            c.id,
+            closures[c.id],
+            elements[c.id].len()
+        );
+    }
+
+    // The suppression chain, computed by driving the production predicate with rows disabled.
+    let may = CHANNELS
+        .iter()
+        .find(|c| c.id == "may")
+        .expect("may channel");
+    let count_with = |allow: &dyn Fn(&str) -> bool| -> usize {
+        defs.iter()
+            .zip(&facts)
+            .filter(|(d, f)| {
+                if !is_effectively_complete(d) || !oracle_grants(d, may, &closures["may"]) {
+                    return false;
+                }
+                if !f.elements.is_disjoint(&elements["may"]) {
+                    return false;
+                }
+                !RECORDED_STRUCTURAL_EVIDENCE
+                    .iter()
+                    .filter(|(e, chan, _, _)| *chan == "may" && allow(e))
+                    .any(|(e, _, _, _)| match *e {
+                        "optional" => f.truthy_keys.contains(*e),
+                        "modes" | "unless_condition" => f.nonnull_keys.contains(*e),
+                        _ => f.elements.contains(*e),
+                    })
+            })
+            .count()
+    };
+    let lexical_only = count_with(&|_| false);
+    let plus_variants = count_with(&|e| {
+        e.ends_with("UnlessPayLife") || e.ends_with("UnlessPays") || e.ends_with("UnlessPay")
+    });
+    let all_rows = count_with(&|_| true);
+    eprintln!(
+        "may-channel suppression chain (effectively-Complete): lexical-only {lexical_only} -> \
+         +Unless variants {plus_variants} -> +all structural rows {all_rows}  (rows suppress {} \
+         defs)",
+        lexical_only - all_rows
+    );
+
+    let union: BTreeSet<&str> = defs
+        .iter()
+        .filter(|d| is_effectively_complete(d))
+        .filter(|d| !dropped_channels(d, &closures, &elements).is_empty())
+        .map(|d| d.name.as_str())
+        .collect();
+    eprintln!(
+        "union {} (pinned {COMPLETE_DROPPED_UNION}); BASELINE {} entries; multi-face defs {}",
+        union.len(),
+        BASELINE.len(),
+        defs.iter().filter(|d| printed_texts(d).len() > 1).count()
+    );
+    eprintln!(
+        "defs carrying an `optional` key: {}; of those with it true: {}",
+        facts
+            .iter()
+            .filter(|f| f.elements.contains("optional"))
+            .count(),
+        facts
+            .iter()
+            .filter(|f| f.truthy_keys.contains("optional"))
+            .count()
+    );
+}
+
+#[test]
+/// Every [`LEXICAL_EXCLUSIONS`] word must still occur in the corpus's oracle text, and must still
+/// be admitted by the stem rule it exists to narrow. A dead exclusion is not harmless: it sits in
+/// the file reading as justification for a narrowing that no longer happens, and the next reader
+/// trusts it.
+///
+/// **This test is written because the `/review` cycle found the module doc citing it while it did
+/// not exist** — the exact failure `decision_gate.rs`'s `t4_failure_message_names_the_bound` was
+/// written to close, committed inside the batch that cites that precedent. A doc comment naming a
+/// test is a claim like any other.
+fn t_every_lexical_exclusion_is_live() {
+    let defs = all_cards();
+    let stems: Vec<String> = CHANNELS
+        .iter()
+        .filter(|c| !c.marker.contains(' '))
+        .map(|c| c.marker.chars().take(STEM_LEN).collect())
+        .collect();
+
+    for (word, reason) in LEXICAL_EXCLUSIONS {
+        assert!(
+            reason.len() >= 40,
+            "LEXICAL_EXCLUSIONS entry {word:?} needs a real reason, not a stub"
+        );
+        assert!(
+            stems.iter().any(|st| word.starts_with(st.as_str())),
+            "LEXICAL_EXCLUSIONS entry {word:?} is not admitted by any channel stem {stems:?}, so              it narrows nothing — the stem rule would never have produced it. Remove the entry."
+        );
+        let occurrences: usize = defs
+            .iter()
+            .map(|d| all_oracle_words(d).iter().filter(|w| *w == word).count())
+            .sum();
+        assert!(
+            occurrences > 0,
+            "LEXICAL_EXCLUSIONS entry {word:?} no longer occurs in any def's oracle text — it is              suppressing nothing. Remove it, and check first that the word did not simply move              (a card renamed, a def deleted) rather than the class going away."
+        );
+    }
 }
 
 #[test]

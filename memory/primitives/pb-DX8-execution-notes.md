@@ -41,7 +41,8 @@ as `OOS-CARDS2-7` itself, met a second time, from the opposite direction.
 
 ## 2. OOS-DP10-9 — the oracle-text-vs-DSL cross-check
 
-`crates/engine/tests/core/pb_dx8_oracle_decision_cross_check.rs`, **16 tests**.
+`crates/engine/tests/core/pb_dx8_oracle_decision_cross_check.rs`, **17 tests** (15 at the
+implement phase, +2 in the `/review` fix cycle).
 
 ### 2.1 The two axes
 
@@ -62,7 +63,7 @@ decision at all" test passes it. `t_channels_are_not_interchangeable` pins both 
 
 | channel | oracle-positive defs | no DSL evidence | of which effectively-`Complete` |
 |---|---:|---:|---:|
-| `may` | 285 | 265 | **72** |
+| `may` | **287** | 245 | **72** |
 | `choose` | 116 | 44 | **2** |
 | `up_to` | 70 | 46 | **10** |
 
@@ -73,9 +74,15 @@ Union of effectively-`Complete` defs dropping ≥1 channel: **80** — the `BASE
 
 Six `RECORDED_STRUCTURAL_EVIDENCE` rows, each with a CR cite and a written reason, for DSL
 constructs that express optionality **structurally** and carry no morpheme the stem rule can see.
-Measured effect on the `may` channel's `Complete` population: **90 → 80** (the three `…Unless…`
-variants, chiefly the ten shock lands' `EntersTappedUnlessPayLife`) **→ 72** (`unless_condition`
-non-null). So the suppressions account for **18 real defs**, not a rounding.
+Measured effect on the `may` channel's effectively-`Complete` population: **96 → 85** (the three
+`…Unless…` variants, chiefly the ten shock lands' `EntersTappedUnlessPayLife`) **→ 72** (the rest).
+So the suppressions account for **24 real defs**, not a rounding.
+
+**Those numbers are now printed by `t_reconciliation_report`, not transcribed.** The implement
+phase published `90 → 80 → 72 / 18`, measured against the *pre-fix front-face-only* oracle axis and
+never re-run after §2.4's multi-face widening corrected it — a stale number surviving the fix that
+invalidated it, caught by the `/review` cycle. The report exists so the next reader re-derives
+rather than trusts.
 
 Two false-positive classes the brief anticipated were **measured** rather than assumed:
 
@@ -165,7 +172,8 @@ conditioned population, so the two axes agree by coincidence; `t7` pins the coin
 
 ## 4. OOS-CARDS2-7
 
-`crates/engine/tests/core/completeness_deviation_scan.rs`, **+906 / −34**, 4 tests → **11**.
+`crates/engine/tests/core/completeness_deviation_scan.rs`, **5 tests → 12** (11 at the implement
+phase, +1 in the `/review` fix cycle).
 
 Floor reproduction: the seed's **35** `Complete` defs invisible to the shipped needle set is
 **reproduced exactly at HEAD** by its own six needles — the filed number is neither stale nor an
@@ -262,3 +270,36 @@ memo §2.6) — plus `OOS-DX8-1..8`.
 **Dispositions**: `OOS-CARDS2-7` **CLOSED**. `OOS-DP10-9` **RECORDED, not closed** — the gate makes
 the class visible and says so in its own failure message; the class needs the owning engine PB
 (audit §5 DP-12). `PB-DX42a` **SHIPPED**, adjudication §5.1 banner'd.
+
+
+---
+
+## 6. `/review` fix cycle (2026-08-12)
+
+**10 findings — 4 MEDIUM, 6 LOW — all 10 taken.** The reviewer had a shell and used it: it
+independently reproduced every published corpus count, re-ran the end-to-end fail-closed proof,
+and **defeated two of the three gates by execution**. Both defeats are closed and re-executed.
+
+| # | sev | finding | disposition |
+|---|---|---|---|
+| 1 | MED | `LEXICAL_EXCLUSIONS`'s doc cited `t_every_lexical_exclusion_is_live`, **which did not exist** — the exact failure the same file cites `decision_gate.rs`'s precedent for, committed inside the batch that cites it | **TAKEN**: test written (word still occurs in oracle text, still admitted by a channel stem, reason ≥40 chars) |
+| 2 | MED | narrowing the deviation scan from whole-source to `//`-only silently dropped `/* */` block comments. **Proven by execution**: `// known dsl gap: …` reddens the gate; the byte-identical `/* known dsl gap: … */` left all tests green. `OOS-DX32-6`'s class | **TAKEN**: `block_comment_bodies` added to `author_prose`; `block_comments_are_prose_too` pins both directions; the reviewer's exact defeat re-executed on `lightning_bolt.rs` — **both the gate and the ratchet now RED**, restored green |
+| 3 | MED | evidence is scoped to the **def**, not the **clause**, and the bound was undisclosed. **Proven by execution**: a printed "may" appended to a `Complete` def whose `optional: true` belongs to an unrelated clause left every test green | **TAKEN**: stated as a second, structural recall bound in the module doc with its **measured 24-def exposure**, alongside the vocabulary bound. Not fixed — scoping evidence to the ability subtree needs a clause-to-ability alignment this gate does not have |
+| 4 | MED | `OOS-DP10-9`'s own registry row was untouched while its disposition was written into four other places — dispatch hygiene 5's lag, created deliberately | **TAKEN**: `↻ PB-DX8` note appended to the row with the measured populations, the RECORDED-not-CLOSED reason, and all three bounds |
+| 5 | MED | six Tier-A needles (`should`, `needs`, `complex`, `expression`, `executes`, `tracking`) are ordinary English clearing D2 largely on base rate — marked defs carry ~2.5× the prose. **Proven**: a benign `// Straightforward: this should be …` comment reddens the gate | **TAKEN as a stated precision bound** in the derivation section, with the confound named and the disposition argued: dropping a needle for being inconvenient is the defect this batch removes, and a specificity criterion is itself an author's judgement smuggled into a derived rule |
+| 6 | LOW | `may` oracle-positive published as **285**; the true post-fix figure is **287** — 285 was the *pre-fix front-face-only* number republished in the same documents that celebrate the multi-face widening | **TAKEN**: corrected everywhere, and `t_reconciliation_report` added so the figures are **printed by the code** rather than transcribed |
+| 7 | LOW | suppression chain published as `90 → 80 → 72 / 18` | **TAKEN**: the report prints **96 → 85 → 72 / 24**; corrected everywhere. (The reviewer's own `91 → 80 → 72 / 19` was measured on a different intermediate grouping; the executed report supersedes both) |
+| 8 | LOW | notes said the cross-check file has "16 tests"; it had 15 | **TAKEN**: now 17 after this cycle, stated with the split |
+| 9 | LOW | `FROZEN_2026_08_12` is a COUNT ceiling while its comment claimed a per-entry promise ("this is where the promise is kept") — a one-for-one swap is invisible to it | **TAKEN**: claim corrected to what the ceiling enforces, in both the comment and the failure message, with the residual stated. **Recorded that `decision_gate.rs`'s identical `FROZEN_2026_07_27` carries the same overclaim.** Naming the 80 frozen entries was considered and declined (it duplicates `BASELINE`'s first column) — the trade is written down rather than left implicit |
+| 10 | LOW | `t9_fingerprints_are_disjoint` was a **compile-time tautology** — it compared two `const` array lengths and then asserted `A \|\| true` | **TAKEN**: rewritten as `t9_fingerprints_match_their_structs_and_cannot_collide`, which parses `ContinuousEffectDef`'s declaration out of `card_definition.rs` and compares field NAMES. **Proven discriminating**: desyncing one field name now reddens **5** tests (t1/t2/t3/t5/t9) where the old version stayed green |
+
+**Two of these are the batch's own subject matter, again.** Finding 1 is a doc citing a test that
+does not exist — the same class this file's own §2 celebrates catching. Finding 10 is a test that
+could not fail — the same class as `OOS-DX8-7`'s ratchet. **Neither was found by any gate; both
+were found by a reviewer who ran things.**
+
+**Post-cycle**: tests **4,527 → 4,561 (+34**, 17 + 10 + 7, zero removed), 46 targets, residual
+empty. `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+`tools/check-defs-fmt.sh` clean (1,803 defs). PROTOCOL **35** / HASH **74** re-executed and
+unmoved. Coverage unmoved at **1,133/1,803 = 62.8%**. Test-only scope re-verified: `git diff
+--numstat` over the five source crates and `tools/` still empty.
