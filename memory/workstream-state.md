@@ -4800,6 +4800,80 @@ behaviourally identical.
 
 ## Last Handoff
 
+**Date**: 2026-08-11..12 (oversight session #8 — three-batch queue run, v3 ranks 8/9/10)
+**Workstream**: W6 correctness queue (v3)
+**Task**: `scutemob-206` (PB-DX26, merge `1f2ec5d3`) + `scutemob-207` (PB-DX7, merge
+`5e5ab073`) + `scutemob-208` (PB-DX8, merge `fbcf495f`) — each dispatch → monitor → collect
+in sequence, single worker at a time, each dispatch explicitly user-approved.
+
+**Completed**:
+- **PB-DX26 shipped** (rank 8, equip surface): `OOS-CARDS1-3` + `OOS-CARDS1-1` + `OOS-DX3b-1`
+  all CLOSED — 21 equip defs gained the ability their printed line promised, `darksteel_garrison`
+  its CR 702.67a fortify target, `guardian_project` its `is_nontoken` flip. 0 engine lines.
+  Inverse census found 2 defs the brief's roster was structurally blind to (Quietus Spike,
+  Sting — print Equip, carry neither marker nor ability, both Inert). A gate-defeat exercise
+  found the 38 authored equip costs checked by NO gate → SR-37 R7 extended to Equip/Fortify,
+  which exposed a latent R7 scanner bug (`Equip` matched inside `Equipped`). Review flipped
+  `the_reaver_cleaver` down, cancelling `sword_of_body_and_mind`'s flip up — **coverage NET
+  UNMOVED at 62.8%**, and the struck queue row records why the ~4-6 flip estimate was wrong
+  twice in opposite directions. Tests 4,491 → **4,508**.
+- **PB-DX7 shipped** (rank 9, SR-19 gate holes, test-only): `OOS-DP7-11` + `OOS-DP9-13` CLOSED,
+  riders `OOS-DP10-1` + `OOS-DP9-10` residual **CLOSED gated-not-deferred**. Scanner key
+  normalised on the bare name; enum coverage added (79 enums / 1,252 variants / 1,097 variant
+  fields); **zero genuinely-unhashed fields found**, so HASH 74 unmoved. OOS-DP10-1's
+  "cross-check by value" was actually a floor check one below live; OOS-DP9-10's residual got
+  `unordered_iteration_ratchet.rs`. Review 2 HIGH: the new ratchet counted the literal
+  `HashSet<` annotation — the MINORITY spelling (27 vs 54 `::new()`) — its own subject matter
+  recurring; both HIGH defeats re-executed red against the fixed gates. Tests → **4,527**.
+- **PB-DX8 shipped** (rank 10, oracle-text-vs-DSL cross-check, test-only): `OOS-CARDS2-7`
+  FILED (it had no registry row — memo-only) and CLOSED; `OOS-DP10-9` **RECORDED not closed**
+  (80-entry frozen baseline of dropped-'may'/'choose' defs, fail-closed proven on
+  `lightning_bolt.rs`); rider **PB-DX42a SHIPPED** (adjudication §5.1 marked shipped;
+  DX42b keeps rank 13 with the rider's disclosed caveat). Inverse census found `CardFace`
+  carries its own `oracle_text` — back/adventure faces were invisible to the first draft,
+  fixed structurally. Tests → **4,561**. Seeds `OOS-DX8-1..8` filed.
+- Coordinator state-sync gaps caught at collect, both the N4 shape: PB-DX26's W6 row carried a
+  stale pre-fix-cycle coverage claim (fixed `0b944806`); PB-DX7's worker appended its handoff
+  but left the W6 summary row saying "next PB-DX7" (fixed `79f05d9e`). PB-DX8's worker did
+  full state-sync — nothing to reconcile.
+
+**Not done / deferred** (inherited set, mostly unchanged):
+- Feedback doc rows 2 (FUZZ-CRASH) / 4 / 5 / 6 / 7 / 8 undispatched; **OOS-DX22-8**
+  unclassified; **OOS-DX32-1** undiagnosed; OOS-ADJ-1..7 still not rowed into §8.1
+  (ADJ-7 rides PB-DX27); `scutemob-127` still backlog. **PB-DX27 not dispatched**
+  (queue-next, offered; session ended at /eot).
+
+**Next session candidates** (highest-yield first):
+- **PB-DX27** (rank 11): the corpus-wide stale-blocker-note re-check (`OOS-RR3-2` +
+  `OOS-CARDS2-8`, ~67-def machine-checkable surface), with `OOS-ADJ-7`
+  (blood_moon/magus strip Artifact from artifact lands) riding it. Re-word OOS-DX19-2 per
+  OOS-ADJ-3 before any DX42b dispatch (standing note, still undone).
+- **OOS-DX32-1 diagnosis** or **FUZZ-CRASH** (feedback row 2, cheapest row).
+
+**Hazards** (carrying forward):
+- **The floor lesson is now FIVE consecutive batches**: DX25 family (three), DX26 (census
+  short by 2 — Quietus Spike/Sting carry neither marker nor ability, invisible to both
+  grep families), DX8 (`CardFace.oracle_text` — a per-FACE prose field the def-level scan
+  missed). The inverse-census acceptance criterion has paid for itself every single time;
+  keep it in every PB brief.
+- **A gate's own vocabulary is a floor too**: DX7's ratchet counted the minority `HashSet<`
+  spelling; DX8's whole subject was needle sets the corpus outgrew. When writing any
+  source-scan gate, derive the needle set from the corpus and prove the derivation.
+- PB-DX8's 80-entry dropped-decision baseline is a WORKLIST, not a closure — `OOS-DP10-9`
+  stays open until the defs are re-authored (later card work, not a PB).
+- `tests/rules/copy_redirect.rs` still carries 8 disclosed collapsed-id fixtures;
+  `OOS-DX25c-6` stays open (resolution-order self-redirect).
+- Coordinator ops: Monitor + stdin-JSON pattern held for all three workers (fixed field
+  names: `content`/`timestamp`, not `body`/`created_at`). Workers' collect state-sync is
+  still inconsistent batch-to-batch — verify the W6 summary row *and* the queue banner at
+  every /collect, even when the handoff landed.
+
+**Commit prefix used**: `scutemob-206:` / `scutemob-207:` / `scutemob-208:` (workers) +
+`merge:` + `chore:` (collect reconciliations, eot)
+
+
+## Previous Handoff (preserved for chain context)
+
 **Date**: 2026-08-06 (oversight session #7 — two user-approved queue inserts, ranks 7b + 7c)
 **Workstream**: W6 correctness queue (v3)
 **Task**: `scutemob-204` (PB-DX25b, merge `8258e715`) + `scutemob-205` (PB-DX25c, merge
@@ -4859,60 +4933,6 @@ behaviourally identical.
 
 **Commit prefix used**: `scutemob-204:` / `scutemob-205:` (workers) + `merge:` + `chore:`
 (insert bookkeeping, eot)
-
-## Previous Handoff (preserved for chain context)
-
-**Date**: 2026-08-05 (oversight session #6 — v3 rank 7, single dispatch)
-**Workstream**: W6 correctness queue (v3)
-**Task**: `scutemob-203` (PB-DX25, merge `f8ed9618`), dispatched and collected same evening.
-
-**Completed**:
-- **PB-DX25 shipped** (rank 7): counter-on-mutate silent no-op closed. Structural fix — a new
-  engine-side `state::stack_registry::card_in_stack_zone`, exhaustive over `StackObjectKind`
-  with no wildcard, consumed by BOTH counter paths, so a 28th kind is a compile error until
-  classified. The simulator's `stack_card_of` deliberately NOT unified with it (a verifier
-  reading the engine's own answer goes silent on exactly the defect it exists to catch).
-- **The seed and the queue row had the live shape backwards**: (c) was the only live shape;
-  (a) was never independently reachable — Ward cannot reach a mutate spell because the mutate
-  target rides `AdditionalCost::Mutate` and never enters `spell_targets` (`OOS-DX25-1`) — so
-  (a) is what fixing (c) ALONE would have created, a permanent `ZoneId::Stack` leak in place
-  of a silent no-op. (b) is unreachable three independent ways. Live-wrong population
-  re-measured: **66** pairs, not the row's implied 144. All corrections written into the
-  registry row and the v3 §3 row in place.
-- Tests **4,435 → 4,452 / 0 / 5**; PROTOCOL **35** / HASH **73** gate-executed and unmoved
-  (prediction held); coverage unmoved **1,133/1,803 = 62.8%** proven by regeneration; benches
-  within noise (`full_turn_4p` 214-215 µs).
-- Review 0 HIGH / 6 MEDIUM / 3 LOW + 7 folded notes, **all taken** — its sharpest findings
-  were the batch's own failure mode recurring inside it (a census short by two sites; a roster
-  blind to a delegating variant; a non-vacuity assertion comparing a fixture to itself).
-- **OOS-SIM3-5 CLOSED**; **OOS-DX25-1..6 filed** (registry grep-checked per the dedup rule).
-  Worker did FULL collect state-sync (queue row struck, W6 row, CLAUDE.md delta, registry) —
-  verified, not assumed, at `/collect`.
-
-**Not done / deferred** (inherited set, unchanged):
-- Feedback doc rows 2 (FUZZ-CRASH) / 4 / 5 / 6 / 7 / 8 undispatched; **OOS-DX22-8**
-  unclassified; **OOS-DX32-1** undiagnosed; v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7 not
-  rowed into §8.1; `scutemob-127` still backlog.
-
-**Next session candidates** (highest-yield first):
-- **Read `OOS-DX25-3` first — LIVE on 2 deck-legal `Complete` defs**: `misdirection` and
-  `bolt_bend` can NEVER resolve a legal target (`TargetSpellWithSingleTarget` compares a card
-  id to a stack-entry id across disjoint id namespaces; the in-src negative tests pass
-  vacuously). Weigh as an insert before PB-DX26.
-- **PB-DX26** (rank 8 — the equip surface one link earlier; ~4-6 flips; re-measure the
-  21/18/10 roster from `all_cards()` at dispatch per v3 §2.7).
-- **OOS-DX32-1 diagnosis** or **FUZZ-CRASH** (feedback row 2, cheapest row).
-
-**Hazards** (carrying forward):
-- The three standing #5 hazards (registry-grep dedup rule; Monitor over bash poll loops;
-  verify worker state-sync at `/collect`) all held this session — PB-DX25's worker synced
-  fully.
-- New from PB-DX25: `next_object_id` mints stack-entry ids and card ids from ONE counter, so
-  an id lives in exactly one namespace — any `so.id == <card id>` comparison type-checks and
-  can never match. `OOS-DX25-3` is a second instance of the same class one function over from
-  the seed's. Grep for the pattern before trusting any stack-lookup-by-id.
-
-**Commit prefix used**: `scutemob-203:` (worker) + `merge:` + `chore:` (eot)
 
 ## Worker Handoff (UI-1, `scutemob-174`)
 
@@ -5388,6 +5408,59 @@ shows S7's work, not this branch's.
 
 ## Handoff History
 
+### 2026-08-05 (oversight #6 — v3 rank 7, single dispatch) [rotated]
+**Date**: 2026-08-05 (oversight session #6 — v3 rank 7, single dispatch)
+**Workstream**: W6 correctness queue (v3)
+**Task**: `scutemob-203` (PB-DX25, merge `f8ed9618`), dispatched and collected same evening.
+
+**Completed**:
+- **PB-DX25 shipped** (rank 7): counter-on-mutate silent no-op closed. Structural fix — a new
+  engine-side `state::stack_registry::card_in_stack_zone`, exhaustive over `StackObjectKind`
+  with no wildcard, consumed by BOTH counter paths, so a 28th kind is a compile error until
+  classified. The simulator's `stack_card_of` deliberately NOT unified with it (a verifier
+  reading the engine's own answer goes silent on exactly the defect it exists to catch).
+- **The seed and the queue row had the live shape backwards**: (c) was the only live shape;
+  (a) was never independently reachable — Ward cannot reach a mutate spell because the mutate
+  target rides `AdditionalCost::Mutate` and never enters `spell_targets` (`OOS-DX25-1`) — so
+  (a) is what fixing (c) ALONE would have created, a permanent `ZoneId::Stack` leak in place
+  of a silent no-op. (b) is unreachable three independent ways. Live-wrong population
+  re-measured: **66** pairs, not the row's implied 144. All corrections written into the
+  registry row and the v3 §3 row in place.
+- Tests **4,435 → 4,452 / 0 / 5**; PROTOCOL **35** / HASH **73** gate-executed and unmoved
+  (prediction held); coverage unmoved **1,133/1,803 = 62.8%** proven by regeneration; benches
+  within noise (`full_turn_4p` 214-215 µs).
+- Review 0 HIGH / 6 MEDIUM / 3 LOW + 7 folded notes, **all taken** — its sharpest findings
+  were the batch's own failure mode recurring inside it (a census short by two sites; a roster
+  blind to a delegating variant; a non-vacuity assertion comparing a fixture to itself).
+- **OOS-SIM3-5 CLOSED**; **OOS-DX25-1..6 filed** (registry grep-checked per the dedup rule).
+  Worker did FULL collect state-sync (queue row struck, W6 row, CLAUDE.md delta, registry) —
+  verified, not assumed, at `/collect`.
+
+**Not done / deferred** (inherited set, unchanged):
+- Feedback doc rows 2 (FUZZ-CRASH) / 4 / 5 / 6 / 7 / 8 undispatched; **OOS-DX22-8**
+  unclassified; **OOS-DX32-1** undiagnosed; v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7 not
+  rowed into §8.1; `scutemob-127` still backlog.
+
+**Next session candidates** (highest-yield first):
+- **Read `OOS-DX25-3` first — LIVE on 2 deck-legal `Complete` defs**: `misdirection` and
+  `bolt_bend` can NEVER resolve a legal target (`TargetSpellWithSingleTarget` compares a card
+  id to a stack-entry id across disjoint id namespaces; the in-src negative tests pass
+  vacuously). Weigh as an insert before PB-DX26.
+- **PB-DX26** (rank 8 — the equip surface one link earlier; ~4-6 flips; re-measure the
+  21/18/10 roster from `all_cards()` at dispatch per v3 §2.7).
+- **OOS-DX32-1 diagnosis** or **FUZZ-CRASH** (feedback row 2, cheapest row).
+
+**Hazards** (carrying forward):
+- The three standing #5 hazards (registry-grep dedup rule; Monitor over bash poll loops;
+  verify worker state-sync at `/collect`) all held this session — PB-DX25's worker synced
+  fully.
+- New from PB-DX25: `next_object_id` mints stack-entry ids and card ids from ONE counter, so
+  an id lives in exactly one namespace — any `so.id == <card id>` comparison type-checks and
+  can never match. `OOS-DX25-3` is a second instance of the same class one function over from
+  the seed's. Grep for the pattern before trusting any stack-lookup-by-id.
+
+**Commit prefix used**: `scutemob-203:` (worker) + `merge:` + `chore:` (eot)
+
 ### 2026-08-04..05 (oversight #5 — correctness-queue run, ranks 2/3/5/6) [rotated]
 
 **Date**: 2026-08-04..05 (oversight session #5 — correctness-queue run, v3 ranks 2/3/5/6)
@@ -5615,54 +5688,5 @@ rows shipped)**; every row ✅-marked in `memory/playtest-triage-2026-08-02b.md`
   branch from main and do not see untracked coordinator files (hit on the external findings doc).
 - Both-append CLAUDE.md/workstream-state conflicts remain routine in parallel waves: union-merge,
   demote the older bullet to Prior.
-
-**Commit prefix used**: `scutemob-N:` (workers) / `merge:` / `chore:`
-
-### 2026-08-02 (oversight — playtest-successor run 174-181) [rotated]
-
-**Date**: 2026-08-02 (oversight session — the full playtest-successor run)
-**Workstream**: playtest-triage successor track (UI-1/2/3, SIM-1/2/3, CARDS-1/2)
-**Task**: coordinated dispatch of `scutemob-174..181` in four waves of two workers; all 8 collected
-same-day. Merges: `f28df527` (174 UI-1), `d04f42a1` (179 CARDS-1), `83bfdba5` (175 SIM-1),
-`8cad9c36` (181 CARDS-2), `b30c99f4` (176 SIM-2), `f40c9fb9` (178 UI-2), `a23f0be0` (177 SIM-3),
-`b76b1df4` (180 UI-3); bookkeeping `662e4264`.
-
-**Completed**:
-- **Playtest triage 2026-08-02 fully closed** — F1–F10, OPEN = none (roll-up in
-  `memory/playtest-triage-2026-08-02.md`, rewritten at collect as the union of two
-  mutually-blind updates).
-- Tests **4,124 → 4,263 / 0 / 5** on main; PROTOCOL **33** / HASH **70** unmoved by every batch,
-  gate-executed each time. Coverage **62.8%** (1,133/1,803) after CARDS-2's honest demotions.
-- Per-batch detail: the eight Worker Handoff sections above; per-batch narratives rotated to
-  `memory/archive/claude-md-changelog-2026-08.md` at the wave-4 collect.
-- **Two cross-branch reconciliations happened at collect, not in any worker**: (1) UI-2 × SIM-2
-  conflicted in `local_game.rs::advance` — resolved onto SIM-2's unified `auto_tap_commands_for`,
-  inside which UI-2's Squad pricing already lived; (2) UI-2's F4 pin test flipped 0 → 1 by its own
-  written instruction (SIM-2 closed F4 in parallel) and was renamed
-  `squad_max_count_counts_true_production_now_that_f4_is_closed`; OOS-UI2-3 row annotated.
-
-**Not done / deferred**:
-- `scutemob-127` (abilities-corpus distillation) — pre-existing backlog, out of the run's scope.
-- PB-DX7 (SR-19 gate checks nothing) — still the standing queue's next item, untouched.
-- The seeds below — filed, not fixed.
-
-**Next session candidates**:
-- **OOS-SIM2-6 (HIGH)**: unbounded `calculate_characteristics` recursion — hard crash from a legal
-  deck (`indomitable_archangel`); likely the real cause of OOS-M11-3/OOS-DP3-9.
-- **OOS-UI2-1**: the fuzzer has never cast a spell (unshuffled libraries) — closing it together
-  with OOS-SIM1-4 (fuzzer games aren't Commander games) re-rolls every recorded seed ONCE.
-- **PB-DX7** per the standing queue (`memory/primitives/seed-rerank-2026-07-27.md` §4).
-- OOS-UI2-4 (14 remaining additional-cost kinds), OOS-SIM2-5 (i32 P/T wrap).
-
-**Hazards** (carrying forward):
-- Parallel workers sharing `crates/simulator` or `tools/play-server` WILL conflict on
-  `local_game.rs` + the four coordination docs; collect one at a time and re-check the second
-  against the new main. Semantic conflicts (a pin one branch wrote, the other branch's fix flips)
-  survive a clean textual merge — run the FULL suite between collects, with output captured
-  (a `| tail` pipe destroyed the evidence once this session).
-- Every task staged before PB-DX6 cites PROTOCOL 32 in its criteria; main is 33. Brief workers.
-- Assertion messages containing mana symbols (`{2}`) are format strings — escape the braces.
-- Workers leave throwaway A/B worktrees under scratchpad paths — check `git worktree list` at
-  collect, not just `esm worktree list`.
 
 **Commit prefix used**: `scutemob-N:` (workers) / `merge:` / `chore:`
