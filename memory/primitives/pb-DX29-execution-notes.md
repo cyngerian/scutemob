@@ -408,6 +408,55 @@ with an untargeted right half, because no corpus fuse def has one: the zone clau
 clause shadow each other on every real card, which is exactly the shape that leaves a clause
 untested while its test passes.
 
+### 5.6 A live SR-38 defect the batch shipped, found by its own HTTP-probe author
+
+**A marker rider was offered with no affordability bound at all.**
+
+A count rider carries `max_count`, and `api.rs` turns an over-count into a **400**.
+`MarkerCostOption` had no such field and the validator no such check, so Entwine / Offspring /
+Fuse were offered whenever the spell's **base** cost was affordable. Measured: with four Mountains
+— Goblin War Party's base `{3}{R}` affordable, its Entwine `{2}{R}` not — the picker rendered a
+tickable Entwine box, and ticking it returned
+
+```
+422 {"error":"player does not have enough mana to pay the cost","kind":"rejected"}
+```
+
+An offer this server made and this server then refused: **the SR-38 shape UI-2, SIM-6 and this
+batch all exist to delete, shipped by this batch.**
+
+`SpliceCostOption` is also unbounded, and its doc gives a reason — bounding it is a subset-sum
+over `eligible`, because each spliced card costs a different amount. **That reason does not extend
+to a marker**: each is one yes/no payment, so the bound is a single `can_afford(base + rider)`
+call, which is what `repeated_cost_max_count` already performs for `n == 1`. Fuse included:
+CR 702.102b makes its cost the two halves summed, and the Fuse arm computes exactly that.
+
+Fixed rather than deferred, because there was no successor to defer to — the defect was this
+batch's own. `MarkerCostOption::affordable` is computed by `marker_rider_is_affordable` through
+the *same* `effective_cast_cost_with_additional` + `can_afford` pair, so it inherits that
+function's stated `OOS-UI2-3` under-report and no new one. **`false` does not suppress**: the
+mirror is `max_count: 0`, so the rider stays visible with a stated reason and a disabled box (a
+`title` never opens on a disabled control — UI-5's finding), and `api.rs` turns a submission
+against it into a **400 that names the offer**.
+
+**The probe author had pinned it wrong-way-round**, with a message instructing a successor batch
+to invert the test. This batch is that batch; the pin is inverted and now asserts the 400 in both
+halves, with a non-vacuity check that the rider really is the marker family and not a count.
+
+### 5.7 Two more findings from the same author, recorded rather than fixed
+
+* **`OOS-DX29-15`** — `casting.rs` computes `entwine_paid` and validates the keyword;
+  `resolution.rs` **never reads that flag** and re-derives the decision by rescanning
+  `stack_obj.additional_costs`. The charge and the mode execution are keyed on different things.
+  Found by *execution*: a revert row that zeroed `casting.rs`'s flag expected 1/1 tokens and got
+  2/2, with only the mana assertion red. Latent — they agree today only because `casting.rs`
+  errors out before a stack object exists when the spell lacks entwine.
+* **`OOS-DX29-16`** — modal mode labels reaching the browser are truncated Rust `Debug`
+  renderings of `Effect`, because no oracle-text-per-mode field exists in the DSL.
+  `view.rs::mode_label`'s own doc says so, so it has always been a known limitation — but this
+  batch's Entwine and Escalate pickers are what make modal spells routinely clickable, so a
+  theoretical limitation is now what an alpha tester reads.
+
 ---
 
 ## 6. The refusal channel, after — and the honest reading of an unmoved number
