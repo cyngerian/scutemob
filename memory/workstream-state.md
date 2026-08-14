@@ -111,14 +111,49 @@ while their rustdoc promised "never panics" — *what is impossible for an engin
 ordinary input for a UI one*; and joining the params allowlist widened the declared silent-ignore
 residual from nine arms to ten while that doc still said nine.
 
-**Numbers**: coverage **1,136/1,803 = 63.0%**, **0 flips as predicted**, proven by regeneration
-(three card defs were edited, so the empty-diff shortcut was unavailable). PROTOCOL **37** / HASH
-**76**, both gate-executed and **unmoved**. Engine lines are **NOT zero** and the brief predicted
-zero — **+177/−11**, of which 101 are the new read-only query surface and 76 are registry
-*declarations* two machine gates refused to let the batch omit; zero behaviour-changing engine
-lines outside `queries.rs`. `crates/view-model`: **0**. Refusal-channel A/B **105 → 105 with an
+**Numbers (at close, after the fix cycle)**: tests **4,721 / 0 / 5**, +87 over the pre-edit
+baseline itemised by name with **0 removals**. Coverage **1,136/1,803 = 63.0%**, **0 flips as
+predicted**, proven by regeneration (three card defs were edited, so the empty-diff shortcut was
+unavailable). PROTOCOL **37** / HASH **76**, both gate-executed and **unmoved**. Engine lines are
+**NOT zero** and the brief predicted zero — **+218/−12**, of which 138 are the new read-only query
+surface, 76 are registry *declarations* two machine gates refused to let the batch omit, and 4 are
+one comment; zero behaviour-changing engine lines anywhere. `crates/view-model`: **0**. The
+prediction went outward twice — zero, then 177, then 218 — and the record says so rather than
+quietly settling on the last number. Refusal-channel A/B **105 → 105 with an
 empty diff**, reported as proof of bot-path neutrality (no recorded seed moved) rather than as
 proof of nothing happening — bots structurally cannot produce an additional-cost refusal.
+
+**The `/review` found 2 HIGH / 6 MEDIUM / 11 LOW and all 19 were taken.** The reviewer had a
+shell, reproduced every acceptance figure independently (its own test-NAME set came back
+byte-identical) and verified the two mirrors this batch flagged hardest — the `casting.rs` cost
+arithmetic arm by arm, and the loyalty query against the handler — **finding no second
+divergence**. What it did find were three more instances of the batch's own class, in places the
+batch had not looked:
+
+* **H1** — **Splice** was offered with no affordability bound and 422'd after a clean offer, on
+  two deck-legal `Complete` cards. `SpliceCostOption`'s doc gives a real reason not to publish a
+  bound in the OFFER (a subset-sum); it is not a reason to skip the check at the BOUNDARY, where
+  the chosen list is known. Fixed by checking the **whole announced vector**, which also closes
+  the joint-rider gap the reviewer only suspected.
+* **H2** — the `OOS-M11-10` renumbering **orphaned 30 in-source cites** (17 of them card-def
+  comments CARDS-1 authored, four of them live test-failure strings) while the resolution note
+  asserted no cite needed rewriting. All 30 rewritten; and the premise the renumbering was chosen
+  on — "equip has the fewer external cites" — is **inverted** at HEAD, so it was the *more*
+  expensive direction. Kept, and the note now says so.
+* **M1** — the validator's catch-all was a **default-ALLOW**. The reviewer POSTed an `Assist` and
+  the engine accepted it, draining another seat's pool 5 → 3 without that seat being asked. The
+  batch's own doc had argued not-surfacing was the mitigation; it closes the picker, not the wire.
+* **M2** — the loyalty `{X}` channel **this batch opened** was unbounded above the engine (X = 9
+  on a 4-loyalty `chandra_flamecaller` reached the engine and came back 422) while the batch was
+  building `max_count` bounds for counts and `affordable` bounds for markers.
+* **M6** — the execution notes' per-area line table **did not reproduce**: measured once and
+  republished after a 1,452-line commit. PB-DX8's "publish the figure, do not transcribe it", in
+  the file recording it.
+
+**Two of the fixes were themselves caught by gates before shipping**, which is the durable half:
+M1's first draft made every legal marker answer a 400 (the marker arms are *guards*, so the accept
+case fell through the new catch-all), and L9's first draft opened a new raw `GameState` read in
+`view.rs` that the Invariant-7 pin caught on the spot.
 
 **For the next dispatch**: `OOS-DX29-1` (Assist spends an opponent's mana without asking) and
 `OOS-DX29-2` (Mutate's `on_top` asked at the wrong time, and `copy.rs` answers it the other way)
