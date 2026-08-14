@@ -717,3 +717,106 @@ fn t10_takenuma_channel_mills_then_returns_from_the_graveyard() {
         "the planeswalker card the mill put into the graveyard must be the one returned"
     );
 }
+
+/// Card integration: `Connive // Concoct`'s REAL Concoct half — the **18th**
+/// member of the `OOS-DX4-6` class, and the one neither the seed nor the plan's
+/// §0.1 census named.
+///
+/// It was found by `pb_dx28_chosen_object_roster.rs`'s R4 inverse axis after the
+/// roster had already been pinned at 17, and it is the only member whose
+/// `targets` list hangs off an `AbilityDefinition::Fuse` (a split card's half)
+/// rather than a `Spell`/`Triggered`/`Activated` node — which is why R3's walk
+/// could not see it until its variant list was widened.
+///
+/// The card had **zero** behavioural coverage before this probe: the corpus's
+/// only `connive`-named test file exercises the connive KEYWORD (CR 702.163),
+/// not this card. A roster pin asserts a def's shape; it asserts nothing about
+/// whether the shape executes, and shipping the migration on the pin alone
+/// would repeat the failure PB-DX27's review recorded (three headline defs
+/// promoted with no behavioural coverage at all).
+///
+/// CR 115.10 / CR 701.25 / CR 608.2b.
+#[test]
+fn t11_concoct_surveils_then_returns_a_chosen_creature_with_no_declared_target() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let def = card_def("Connive // Concoct");
+    let concoct = def
+        .abilities
+        .iter()
+        .find_map(|a| match a {
+            AbilityDefinition::Fuse {
+                name,
+                effect,
+                targets,
+                ..
+            } if name == "Concoct" => {
+                assert!(
+                    targets.is_empty(),
+                    "CR 115.10: Concoct prints no \"target\" -- its half must declare \
+                     no TargetRequirement after the PB-DX28 migration, got {targets:?}"
+                );
+                Some(effect.clone())
+            }
+            _ => None,
+        })
+        .expect("Connive // Concoct must carry a Fuse half named Concoct");
+
+    // Two eligible creature cards in the graveyard, so the choice is a REAL one
+    // (not the determined short-circuit t10 exercises) -- and one ineligible
+    // card, so a predicate that ignored the filter would be caught.
+    let eligible_a =
+        ObjectSpec::creature(p1, "Grave Creature A", 2, 2).in_zone(ZoneId::Graveyard(p1));
+    let eligible_b =
+        ObjectSpec::creature(p1, "Grave Creature B", 3, 3).in_zone(ZoneId::Graveyard(p1));
+    let ineligible = ObjectSpec::card(p1, "Grave Instant")
+        .with_types(vec![CardType::Instant])
+        .in_zone(ZoneId::Graveyard(p1));
+    let source = ObjectSpec::card(p1, "Concoct Stand-In")
+        .with_types(vec![CardType::Sorcery])
+        .in_zone(ZoneId::Stack);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(source)
+        .object(eligible_a)
+        .object(eligible_b)
+        .object(ineligible)
+        .build()
+        .unwrap();
+    let source_id = find_obj(&state, "Concoct Stand-In");
+    let mut ctx = EffectContext::new(p1, source_id, vec![]);
+    execute_effect(&mut state, &concoct, &mut ctx);
+
+    // Two eligible creature cards means the answer is NOT determined, so the
+    // resolution must SUSPEND on a real question rather than auto-pick.
+    let pending = state
+        .pending_effect_choice()
+        .cloned()
+        .expect("two eligible creature cards must raise a real CR 608.2d question");
+    assert_eq!(pending.player, p1, "CR 608.2d: the controller chooses");
+    match &pending.question {
+        EffectChoiceQuestion::ChooseObject {
+            candidates,
+            count,
+            up_to,
+        } => {
+            assert_eq!(*count, 1, "\"a creature card\" is exactly one");
+            assert!(!*up_to, "\"a creature card\" is not \"up to one\"");
+            let names: Vec<String> = candidates
+                .iter()
+                .map(|id| state.objects()[id].characteristics.name.clone())
+                .collect();
+            assert_eq!(
+                names,
+                vec![
+                    "Grave Creature A".to_string(),
+                    "Grave Creature B".to_string()
+                ],
+                "the answer space is the two CREATURE cards in the controller's own \
+                 graveyard -- the Instant must be filtered out, and no other zone reached"
+            );
+        }
+        other => panic!("expected a ChooseObject question, got {other:?}"),
+    }
+}

@@ -500,3 +500,64 @@ exercises.
   before this run's own tests existed) and was fixed as part of this run's engine work, not
   weakened or glossed.
 - Tree left DIRTY, uncommitted, per instructions.
+
+---
+
+# PB-DX28 — coordinator addendum: the 18th member, migrated rather than deferred
+
+Part 2's run found an 18th `OOS-DX4-6` member — `Connive // Concoct`'s Concoct half — with its own
+R4 inverse axis, *after* the roster had been pinned at 17, and **deferred** it on scope-discipline
+grounds (`memory/conventions.md`'s implement-phase default-to-defer). That reasoning is sound in
+general and wrong here. Reversed by the coordinator, with the argument stated so the next reader
+can disagree with it on the merits:
+
+* `connive.rs` declares **no `completeness` field**, so it derives `Complete` and is deck-legal.
+  It is not a latent member.
+* Its shape is *identical* to `takenuma_abandoned_mire`'s, which this batch already migrated:
+  a printed "return **a creature card from your graveyard**" with no "target", authored as a real
+  `TargetCardInYourGraveyard`. The migration is the same four lines.
+* This batch **closes** `OOS-DX4-6`. Closing a class while a known deck-legal `Complete` member
+  keeps the defective shape closes it on a false premise — which is the precise failure this
+  queue has recorded against itself repeatedly (`OOS-DX3-1`'s "cheap standing sweep" closure is
+  the batch immediately before this one).
+* AC 6448 says registry member lists are **floors**. A floor written by this batch's own plan is
+  still a floor. Deferring here would make "18 ≥ 14" a fact the batch discovered and then declined
+  to act on.
+
+## What the reversal cost, and what it caught
+
+Migrating it reddened **two** rows of part 2's own roster gate, and the second is the interesting
+one:
+
+| row | why it reddened | resolution |
+|---|---|---|
+| `r1_chosen_object_roster_is_pinned` | a hardcoded `CHOSEN_OBJECT_MEMBERS.len() == 17` floor | re-pinned to 18, with the reason for the difference written into the constant's doc rather than just the number changed |
+| `r3_migration_is_complete_not_additive` | **the walk could not SEE the member.** R3 enumerated `["Triggered", "Spell", "Activated"]` nodes. A split card's half is an `AbilityDefinition::Fuse`, which is none of the three, so R3 reported "R1 found a ChosenObject but no node carries it" | variant list widened to include `Fuse`, `LoyaltyAbility` and `SagaChapter`, with the mechanism written into the function's doc |
+
+R3's gap is `seed-rerank-2026-08-02.md` §2.7's hazard — a short variant list dropping a nesting
+site in silence — **occurring inside a gate written by the batch that cites that hazard**, and it
+was invisible for as long as no member used the missing variant. Had the 18th member been deferred,
+R3 would have shipped with a hole nothing could have found, because the only def that exercises it
+would have been the one deliberately left out of scope.
+
+## Probe
+
+`t11_concoct_surveils_then_returns_a_chosen_creature_with_no_declared_target`
+(`crates/engine/tests/primitives/pb_dx28_untargeted_choice.rs`). The card had **zero** behavioural
+coverage before it — `crates/engine/tests/mechanics_a_d/connive.rs` exercises the connive KEYWORD
+(CR 702.163), not this card — so the migration would otherwise have rested on a roster pin alone,
+which asserts a def's shape and nothing about whether that shape executes. That is the failure
+PB-DX27's `/review` recorded against three headline defs, in this same queue, one batch ago.
+
+The probe puts TWO eligible creature cards plus one ineligible Instant in the controller's
+graveyard, so it exercises the real question rather than the determined short-circuit, and asserts
+the answer space is exactly the two creatures.
+
+**Revert row (executed):** restore `connive.rs` to its pre-migration shape → `t11` **RED**, then
+restored and re-confirmed green (11/11 in the probe file, 5/5 in the roster gate). Recorded
+precisely: the revert trips `t11`'s in-finder `targets.is_empty()` assertion, so this row
+discriminates on the **declaration**; the behavioural half (the `ChooseObject` question and its
+candidate set) is what the green run proves. Under the reverted shape `MoveZone` would read
+`DeclaredTarget { index: 0 }` against an empty `ctx.targets` and move nothing, so the probe would
+fail either way — but it fails at the earlier assertion, and saying so is cheaper than implying a
+behavioural discrimination this row does not perform.

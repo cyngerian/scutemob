@@ -33,11 +33,22 @@ use std::collections::BTreeSet;
 
 // ── R1: the pinned roster ────────────────────────────────────────────────────
 
-/// The exact 17 corpus defs naming `EffectTarget::ChosenObject`, by name.
+/// The exact 18 corpus defs naming `EffectTarget::ChosenObject`, by name.
+///
+/// **18, not the plan's 17, and the difference is the point.** `pb-plan-DX28.md`
+/// §0.1's census enumerated 17 by comparing declared target-requirement SLOTS
+/// against `"target"` occurrences in the printed oracle text. `Connive // Concoct`
+/// was invisible to it and was found by **R4** below — this file's own inverse
+/// axis — after the roster had already been written down. It is migrated, not
+/// deferred: `OOS-DX4-6` is CLOSED by this batch, and closing a class while a
+/// known deck-legal `Complete` member keeps the old shape would close it on a
+/// false premise. AC 6448's "registry member lists are FLOORS" does not stop
+/// applying at the number a plan happened to write.
 const CHOSEN_OBJECT_MEMBERS: &[&str] = &[
     "Azorius Chancery",
     "Boros Garrison",
     "Cloud of Faeries",
+    "Connive // Concoct",
     "Dimir Aqueduct",
     "Frantic Search",
     "Golgari Rot Farm",
@@ -76,7 +87,7 @@ fn r1_chosen_object_roster_is_pinned() {
     );
     assert_eq!(
         CHOSEN_OBJECT_MEMBERS.len(),
-        17,
+        18,
         "the roster itself must not silently shrink"
     );
 }
@@ -131,16 +142,35 @@ fn r2_chosen_object_filters_set_only_supported_axes() {
 
 // ── R3: the migration is complete, not additive ──────────────────────────────
 
-/// Every `AbilityDefinition::Triggered` / `Spell` / `Activated` node's OWN
-/// `targets` list, as parsed JSON arrays, paired with whether that SAME node
-/// also contains a `ChosenObject`. Returns `(has_chosen_object, targets_len)`
-/// for every Triggered/Spell/Activated node in the def. `Activated` is
-/// searched too -- `takenuma_abandoned_mire`'s Channel ability is an
-/// `AbilityDefinition::Activated`, not a Triggered or Spell.
+/// Every target-declaring `AbilityDefinition` node's OWN `targets` list, as
+/// parsed JSON arrays, paired with whether that SAME node also contains a
+/// `ChosenObject`. Returns `(has_chosen_object, targets_len)` per node.
+///
+/// **The variant list is the whole correctness of this row**, and it has been
+/// wrong once already. `Activated` is here because
+/// `takenuma_abandoned_mire`'s Channel ability is one, not a Triggered or a
+/// Spell. `Fuse` is here because `Connive // Concoct`'s Concoct half is one —
+/// a split card's half declares its own `targets` and is neither a `Spell` nor
+/// an `Activated` node, so the three-variant version of this walk reported
+/// "R1 found a ChosenObject but no node carries it" and could not tell a
+/// migration it could not SEE from a migration that had not happened. That is
+/// the `seed-rerank-2026-08-02.md` §2.7 hazard (a flat/short match dropping a
+/// nesting site in silence) in a gate written by the batch that cites it.
+///
+/// `LoyaltyAbility` and `SagaChapter` also declare `targets` and are included
+/// for completeness — no corpus member uses `ChosenObject` in one today, and
+/// the point of listing them is that the day one does, this row sees it.
 fn ability_target_shapes(def: &mtg_engine::CardDefinition) -> Vec<(bool, usize)> {
     let json = serde_json::to_value(def).expect("CardDefinition serializes");
     let mut out = Vec::new();
-    for variant in ["Triggered", "Spell", "Activated"] {
+    for variant in [
+        "Triggered",
+        "Spell",
+        "Activated",
+        "Fuse",
+        "LoyaltyAbility",
+        "SagaChapter",
+    ] {
         for node in find_variant_nodes(&json, variant) {
             let targets_len = node
                 .get("targets")
@@ -268,16 +298,6 @@ const SLOT_COUNT_REFUTED: &[&str] = &[
     "Sword of Fire and Ice",
     "Sword of Light and Shadow",
     "Sword of Sinew and Steel",
-    // NOT refuted -- FOUND by this batch's own R4 census, and DEFERRED rather
-    // than fixed: Concoct's half ("Surveil 3, then return a creature card
-    // from your graveyard to the battlefield") prints no "target" at all and
-    // is authored as a real `TargetCardInYourGraveyard`, the identical
-    // OOS-DX4-6 shape `takenuma_abandoned_mire` had. This is an 18th member
-    // the plan's §0.1 census did not name and this batch's own plan pinned
-    // the roster at 17 -- migrating an unreviewed 18th member here would be
-    // exactly the "I'll just fix one more" scope creep `memory/conventions.md`
-    // warns against. Filed for a follow-up batch, not silently expanded here.
-    "Connive // Concoct",
 ];
 
 fn count_bare_string(v: &Value, needle: &str, parent_key: Option<&str>) -> usize {
