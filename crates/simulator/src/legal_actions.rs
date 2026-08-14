@@ -1236,10 +1236,32 @@ impl LegalActionProvider for StubProvider {
                                         })
                                         .count()
                                         - 1;
-                                    actions.push(LegalAction::ActivateLoyaltyAbility {
-                                        source: obj.id,
-                                        ability_index: filtered_idx,
-                                    });
+                                    // SR-38 (PB-DX29, CR 601.2c): an ability whose
+                                    // MANDATORY target slot has no legal candidate
+                                    // cannot be activated, and `handle_activate_
+                                    // loyalty_ability` refuses it with `InvalidTarget`
+                                    // AFTER the offer has been rendered. Suppress it
+                                    // here instead, mirroring `offerable_cast_plan` and
+                                    // `offerable_activation_plan`.
+                                    //
+                                    // This became REACHABLE with this batch and was not
+                                    // before: while `params.rs` hard-coded
+                                    // `targets: Vec::new()`, every targeted loyalty
+                                    // activation was refused whether candidates existed
+                                    // or not, so suppressing on candidates would have
+                                    // changed nothing. Now that the offer can be
+                                    // honoured, an unhonourable one must not be made.
+                                    if loyalty_ability_is_offerable(
+                                        state,
+                                        player,
+                                        obj.id,
+                                        filtered_idx,
+                                    ) {
+                                        actions.push(LegalAction::ActivateLoyaltyAbility {
+                                            source: obj.id,
+                                            ability_index: filtered_idx,
+                                        });
+                                    }
                                 }
                             }
                         }
@@ -2228,6 +2250,55 @@ fn offerable_activation_plan(
         return None;
     }
     Some(plan)
+}
+
+/// SR-38 / CR 601.2c (PB-DX29): may this loyalty ability be OFFERED at all?
+///
+/// `false` means exactly one thing, and it is [`offerable_activation_plan`]'s meaning
+/// one command over: the ability declares a **mandatory** target slot for which this
+/// player has no legal candidate, so `handle_activate_loyalty_ability`'s
+/// `validate_targets_with_source` call would refuse the activation outright.
+///
+/// # Nothing here re-derives target legality
+///
+/// Requirements come from `mtg_engine::loyalty_ability_target_requirements` (the same
+/// registry-filtered list `handle_activate_loyalty_ability` indexes) and candidates from
+/// `mtg_engine::legal_targets_per_slot`, which delegates every legality decision to
+/// `casting::validate_targets_inner` — the engine's own checker. The only arithmetic
+/// done here is "is a slot with `min > 0` empty?", via `target_count_range`.
+///
+/// # Why this is a floor and not the whole check
+///
+/// `legal_targets_per_slot` is documented **advisory**: it applies each requirement
+/// independently, so it enforces neither inter-target distinctness (CR 601.2c "another
+/// target") nor the collective count range. An ability whose two slots share a single
+/// legal candidate is therefore still offered and still refused by the engine. That is
+/// the same bound `offerable_cast_plan` and `plan_targets` already carry, stated rather
+/// than silently inherited — closing it means a combinatorial search this layer has no
+/// business doing.
+fn loyalty_ability_is_offerable(
+    state: &GameState,
+    player: PlayerId,
+    source: ObjectId,
+    ability_index: usize,
+) -> bool {
+    let requirements = mtg_engine::loyalty_ability_target_requirements(state, source, ability_index);
+    if requirements.is_empty() {
+        return true;
+    }
+    let per_slot = mtg_engine::legal_targets_per_slot(state, player, source, &requirements);
+    // `legal_targets_per_slot` returns one entry per requirement, in the same order —
+    // its own doc says "parallel to `requirements`" — so this zip is index-correspondent
+    // by the engine's construction rather than by an assumption made here.
+    for (candidates, req) in per_slot.iter().zip(requirements.iter()) {
+        let (min, _max) = mtg_engine::target_count_range(std::slice::from_ref(req));
+        // `UpToN` is the only requirement whose min is 0; an optional slot with no
+        // candidate is announced as nothing and is not a reason to withhold the offer.
+        if min > 0 && candidates.is_empty() {
+            return false;
+        }
+    }
+    true
 }
 
 /// CR 602.2 (SIM-6): build the non-mana activation-cost descriptor for `ability`.

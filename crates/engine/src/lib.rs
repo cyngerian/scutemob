@@ -32,7 +32,8 @@ pub use rules::protocol::{
 };
 pub use rules::queries::{
     ability_target_requirements, attack_tax_total, legal_targets_per_slot,
-    spell_target_requirements, target_count_range,
+    loyalty_ability_needs_x, loyalty_ability_target_requirements, spell_target_requirements,
+    target_count_range,
 };
 pub use rules::sba::check_and_apply_sbas;
 pub use rules::{CastSpellData, Command, GameEvent, LossReason};

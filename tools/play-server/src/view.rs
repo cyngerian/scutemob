@@ -1399,6 +1399,17 @@ fn action_needs_x(action: &LegalAction, state: &GameState) -> bool {
             .and_then(|chars| chars.activated_abilities.get(*ability_index).cloned())
             .and_then(|ability| ability.cost.mana_cost)
             .is_some_and(|cost| cost.x_count > 0),
+        // PB-DX29 (CR 606.4 / CR 107.3m): the third half, and it is not a mana `{X}`.
+        // `LoyaltyCost::MinusX` spends X **loyalty counters**, so the `{X}` does not
+        // live in a `ManaCost` at all and neither arm above could ever have found it.
+        // `chandra_flamecaller` is `Complete` and deck-legal; before this arm its
+        // printed "−X: deals X damage to each creature" was −0 for 0 damage in every
+        // client, because `params.rs` hard-coded `x_value: None` and the engine reads
+        // `x_value.unwrap_or(0)`.
+        LegalAction::ActivateLoyaltyAbility {
+            source,
+            ability_index,
+        } => mtg_engine::loyalty_ability_needs_x(state, *source, *ability_index),
         _ => false,
     }
 }
@@ -1484,6 +1495,16 @@ fn action_target_requirements(action: &LegalAction, state: &GameState) -> Vec<Ta
             ability_index,
             ..
         } => mtg_engine::ability_target_requirements(state, *source, *ability_index),
+        // PB-DX29 (`OOS-M11-10(loyalty)`, CR 606.3 / CR 601.2c). Deliberately NOT
+        // `ability_target_requirements` — a loyalty `ability_index` indexes the
+        // registry def's `AbilityDefinition::LoyaltyAbility` entries, not the
+        // layer-resolved `activated_abilities` list, and on a planeswalker carrying
+        // both the two name different abilities. See
+        // `queries.rs::loyalty_ability_target_requirements`.
+        LegalAction::ActivateLoyaltyAbility {
+            source,
+            ability_index,
+        } => mtg_engine::loyalty_ability_target_requirements(state, *source, *ability_index),
         // Every other variant either takes no targets or carries them inside the
         // action itself (`ActivateBloodrush`, `CastWithMutate`,
         // `ChooseTriggerTargets`), and `params.rs` refuses a `targets` param on
@@ -1494,10 +1515,17 @@ fn action_target_requirements(action: &LegalAction, state: &GameState) -> Vec<Ta
 }
 
 /// The object whose controller/source context the target query runs against.
+///
+/// **This function is as load-bearing as [`action_target_requirements`] and is easy to
+/// miss**: `action_option_view`'s `slots` closure returns `Vec::new()` the moment this
+/// returns `None`, so an action whose requirements are surfaced but whose source is not
+/// renders a picker with **zero candidates** — visibly broken rather than absent. The
+/// loyalty arm was added to both together (PB-DX29).
 fn target_query_source(action: &LegalAction) -> Option<ObjectId> {
     match action {
         LegalAction::CastSpell { card, .. } => Some(*card),
         LegalAction::ActivateAbility { source, .. } => Some(*source),
+        LegalAction::ActivateLoyaltyAbility { source, .. } => Some(*source),
         _ => None,
     }
 }

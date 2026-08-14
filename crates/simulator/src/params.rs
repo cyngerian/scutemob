@@ -279,6 +279,11 @@ pub fn action_to_command_with_params(
             | LegalAction::DiscardToHandSize { .. }
             | LegalAction::ChooseTriggerTargets { .. }
             | LegalAction::AnswerEffectChoice { .. }
+            // PB-DX29 (`OOS-M11-10(loyalty)`, CR 606.3/601.2c/107.3m): the tenth arm.
+            // `Command::ActivateLoyaltyAbility` has carried `targets` and `x_value`
+            // since M11-local S5; nothing could reach either, so a targeted loyalty
+            // ability was a 400 and `LoyaltyCost::MinusX` was silently `-0`.
+            | LegalAction::ActivateLoyaltyAbility { .. }
     ) {
         if let Some(field) = params.first_announced_field() {
             return Err(ParamError::UnsupportedParam(field));
@@ -594,20 +599,36 @@ pub fn action_to_command_with_params(
                 phyrexian_life_payments: vec![],
             })))
         }
-        // KNOWN GAP, filed as **OOS-M11-10** (`docs/audits/decision-point-audit.md`
-        // §8.1) by the M11-local close-out: a loyalty ability's targets cannot be
-        // announced. This comment read "to be filed for S6/S7" from S5 until S8's
-        // close, and S6, S7 and S8 all shipped without filing it — review MR-M11-06.
-        // A comment asserting a seed exists is not a seed; the seed is the row.
-        // `ActivateLoyaltyAbility` is outside the nine-arm
-        // allowlist above, so `ActionParams { targets, .. }` on a planeswalker
-        // ability is REJECTED with `UnsupportedParam("targets")` rather than
-        // forwarded — loud, not silently wrong, but it means a human still cannot
-        // use a targeted loyalty ability. Planeswalkers are common in Commander
-        // (Architecture Invariant 6), so this will surface the moment the browser
-        // client offers a loyalty picker. Same shape applies to
-        // `ActivateBloodrush` and the Mutate/Morph casts below, which also
-        // hard-code `targets: Vec::new()`.
+        // CR 606.3 / CR 601.2c / CR 107.3m — `OOS-M11-10(loyalty)`, CLOSED by PB-DX29.
+        //
+        // This arm used to hard-code `targets: Vec::new(), x_value: None` while sitting
+        // OUTSIDE the parameterization allowlist above, so a client that tried to
+        // announce either got `UnsupportedParam` (a 400) and a client that did not got a
+        // silently untargeted, X = 0 activation. `handle_activate_loyalty_ability`
+        // validates the declared targets against the ability's own `TargetRequirement`s
+        // (`rules/engine.rs`, the `validate_targets_with_source` call) and reads
+        // `x_value.unwrap_or(0)` for `LoyaltyCost::MinusX`, so both fields were live on
+        // the `Command` and dead on every path that could build one.
+        //
+        // **`x_value: 0` maps to `None`, not to `Some(0)`, and the choice is
+        // load-bearing rather than cosmetic.** `ActionParams::x_value` is a bare `u32`
+        // whose `serde` default is 0 (`view.rs::ActionParamsDto`), so 0 is exactly
+        // "the caller announced nothing"; the engine reads `x_value.unwrap_or(0)`, so
+        // `Some(0)` and `None` are behaviourally identical to it. They are NOT
+        // identical on the wire: `Command` is serialized into the replay log and the
+        // journal, so mapping 0 to `Some(0)` would change every bot-driven loyalty
+        // activation's recorded bytes for no behavioural gain. This mapping keeps a
+        // default-params bot producing the byte-identical pre-PB-DX29 command.
+        //
+        // On the three sibling arms the old comment named — measured, and it was wrong
+        // about one of them: `ActivateBloodrush` does NOT hard-code targets
+        // (`Command::ActivateBloodrush` carries a scalar `target` forwarded from the
+        // `LegalAction`, and `legal_actions.rs` emits one action per attacking creature
+        // — the `PayEcho`/`ChooseDredge` shape); `CastMorphFaceDown`'s empty `targets`
+        // is CR 708.2a-CORRECT, since a face-down spell has no text and therefore no
+        // targets; and `CastWithMutate`'s real lost choice is `on_top`, which this batch
+        // offers as a second action dimension rather than as a param (see
+        // `legal_actions.rs`' mutate loop).
         LegalAction::ActivateLoyaltyAbility {
             source,
             ability_index,
@@ -615,8 +636,8 @@ pub fn action_to_command_with_params(
             player,
             source: *source,
             ability_index: *ability_index,
-            targets: Vec::new(),
-            x_value: None,
+            targets: params.targets.clone(),
+            x_value: (params.x_value > 0).then_some(params.x_value),
         }),
         LegalAction::PayEcho { permanent, pay } => Ok(Command::PayEcho {
             player,
