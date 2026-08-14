@@ -53,9 +53,12 @@
   PB-DX27 shipped `scutemob-209` 2026-08-13 (rank 11 — closed OOS-CARDS2-8/-10/-11, OOS-RR3-2
   and rider OOS-ADJ-7, all five registry-rowed for the first time; PROTOCOL 36 / HASH 75);
   PB-DX28 shipped `scutemob-210` 2026-08-14 (rank 12 — closed OOS-DX4-6 and OOS-DX4-1);
-  **next dispatch: coordinator's call** — the v3 memo's rank 13 is PB-DX42b, but
-  `OOS-DX27-9` already recorded that its rank premise (a layer-querying population of
-  exactly 1) is false, so the rank order past 12 needs re-deciding rather than reading off;
+  PB-DX29 shipped `scutemob-211` 2026-08-14 (rank 13 — closed OOS-M11-10(loyalty) and
+  OOS-UI2-4; PB-DX42b was passed over, its rank premise recorded false by OOS-DX27-9);
+  **next dispatch: coordinator's call** — the table's rank 14 is PB-DX18, but a v4 re-rank
+  is due before much more reading-off: DX42b's premise is falsified, the Blood Moon/Urza's
+  Saga flag (workstream-state) awaits ranking, and OOS-DX27-1..10 + OOS-DX28-1..8 +
+  OOS-DX29-1..17 are all unranked;
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
