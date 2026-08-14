@@ -2401,7 +2401,21 @@ mod tests {
     /// blocker; every other seed in the range offers exactly one eligible attacker. 28 is
     /// the lowest. Measured at 28: 2 attackers across 2 distinct defenders, blockers
     /// exercised.
-    const UI3_SPLIT_COMBAT_SEED: u64 = 28;
+    ///
+    /// *Fourth re-observation* — **PB-DX43 (`scutemob-213`, 2026-08-14): 28 -> 32.**
+    /// The CR 305.6 intrinsic-mana derivation (`rules::layers::derive_intrinsic_land_
+    /// mana_abilities`) makes a nonbasic land that has been turned into a basic land
+    /// type (Urborg, the Dryad, Yavimaya, awaken_the_woods' Forest token, ...) able
+    /// to tap for mana where it previously produced nothing — this is the exact
+    /// "fuzz/seeded fixtures that depended on a land producing nothing may move"
+    /// hazard the batch's own plan names. RandomBot's action-index selection over a
+    /// board with one more legal `TapForMana` diverges from that point on, so a seed
+    /// number no longer replays the same game. Fresh sweep over `seed` ∈ 0..80 (same
+    /// throwaway-probe recipe as above): seed 28 no longer reaches a declared blocker
+    /// (split, blocker=false). Hits satisfying BOTH halves: **32, 47, 48, 79**. 32 is
+    /// the lowest. Measured at 32: 2 attackers across 2 distinct defenders, blockers
+    /// exercised.
+    const UI3_SPLIT_COMBAT_SEED: u64 = 32;
 
     /// **UI-3 AC 6006**: after attackers are declared, the seat payload says
     /// **which attacker is attacking which defending player**, and after blockers

@@ -2127,24 +2127,32 @@ pub fn queue_carddef_etb_triggers(
             return Vec::new();
         }
     }
-    // IG-1 (CR 603.2, 613 Layer 6): If any active continuous effect applies
-    // RemoveAllAbilities (Layer 6) to the entering permanent, its CardDef triggered
-    // abilities are suppressed — do not queue any ETB triggers.
+    // IG-1 (CR 603.2, CR 305.7, CR 613): If any active continuous effect blanks the
+    // entering permanent's abilities, its CardDef triggered abilities are suppressed —
+    // do not queue any ETB triggers.
     //
-    // We check this by calling calculate_characteristics and examining whether any
-    // Layer 6 RemoveAllAbilities effect applies. Using the layer-resolved chars
-    // directly: if RemoveAllAbilities was applied, the keywords will reflect that.
-    // However, CardDef triggers are not in chars.triggered_abilities, so we must
-    // check the active effects directly for RemoveAllAbilities targeting new_id.
+    // CardDef triggers are not in `chars.triggered_abilities`, so the layer-resolved
+    // characteristics cannot answer this on their own; the active effects have to be
+    // examined directly.
+    //
+    // **The classification is delegated to `layers::modification_blanks_abilities`,
+    // and the layer filter is deliberately gone** (PB-DX43 `/review` Issue 1). This
+    // used to read `e.layer == EffectLayer::Ability && matches!(e.modification,
+    // LayerModification::RemoveAllAbilities)` — correct while a Layer-6
+    // `RemoveAllAbilities` was the only way to blank abilities, and silently wrong the
+    // moment PB-DX43 made CR 305.7's loss a **Layer-4** consequence of `SetLandTypes`.
+    // Blood Moon and Magus of the Moon dropped their Layer-6 static in that batch, so
+    // this scan stopped seeing them and 26 nonbasic land defs (the ten Karoos, the six
+    // Temples, the five gain-lands, ...) began firing CardDef ETB triggers off a land
+    // whose abilities are gone. Keying on the modification rather than on the layer is
+    // what makes a third channel impossible to add silently: that function is
+    // exhaustive over `LayerModification` with no wildcard arm.
     {
         use crate::rules::layers;
-        use crate::state::continuous_effect::{EffectLayer, LayerModification};
         let abilities_removed = state
             .continuous_effects
             .iter()
             .filter(|e| layers::is_effect_active(state, e))
-            .filter(|e| e.layer == EffectLayer::Ability)
-            .filter(|e| matches!(e.modification, LayerModification::RemoveAllAbilities))
             .any(|e| {
                 // Check if this effect's filter applies to new_id.
                 // We need base characteristics to evaluate filter predicates.
@@ -2160,7 +2168,11 @@ pub fn queue_carddef_etb_triggers(
                     .fizzle_object(new_id)
                     .map(|o| o.characteristics.clone())
                     .unwrap_or_default();
-                layers::effect_applies_to_object(state, e, new_id, obj_zone, &chars)
+                // The blanking classification needs the same `chars` the filter is evaluated
+                // against, because CR 305.7 is scoped to lands — so it is asked here rather
+                // than in a `.filter` above.
+                layers::modification_blanks_abilities(&e.modification, &chars)
+                    && layers::effect_applies_to_object(state, e, new_id, obj_zone, &chars)
             });
         if abilities_removed {
             return Vec::new();
