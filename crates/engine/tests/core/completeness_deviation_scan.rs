@@ -505,22 +505,15 @@ const ALLOWLIST: &[(&str, &str)] = &[
          gain-control of your own creatures; W-PB2 engine finding notes the residual. Not a real \
          deviation — it is the only expression the DSL offers. (scutemob-95)",
     ),
-    (
-        "sword_of_truth_and_justice",
-        "\"a second, unfixed deviation\" for oracle \"put a +1/+1 counter on a creature you \
-         control\", which carries NO \"target\" (CR 115.10) and is therefore chosen on \
-         resolution — authored as a real `TargetRequirement`, so hexproof / shroud / \
-         protection / \"can't be the target of\" all wrongly bite, and CR 608.2b fizzles the \
-         whole trigger (counter AND proliferate) if the chosen creature leaves, where the \
-         printed card would simply pick another. Real and reachable. Allowlisted rather than \
-         demoted on the same rule as `staff_of_compleation` and `nether_traitor` below: the \
-         DSL has no choose-on-resolution-without-targeting channel for this shape, and \
-         `frantic_search` ships `Complete` with the identical approximation (printed \"untap \
-         up to three lands\", no \"target\"), so demoting the member that happens to sit in \
-         PB-DP10's BASELINE would report a corpus class as one card. Filed as OOS-DX4-6. The \
-         note that trips this detector is new (PB-DX4 fix cycle, review Finding 6); the \
-         deviation is not. (scutemob-168)",
-    ),
+    // "sword_of_truth_and_justice"'s entry REMOVED (PB-DX28 §1): the untargeted-choice
+    // channel this entry was allowlisting the ABSENCE of now exists
+    // (`EffectTarget::ChosenObject`, CR 115.10), and the def's `AddCounter` was
+    // migrated onto it — the deviation this entry described is closed, not
+    // approximated, so the exemption is dead weight (caught by
+    // `every_allowlist_entry_is_live_and_necessary`). `frantic_search`'s twin
+    // instance is closed the same way, in the same batch. `OOS-DX4-6`'s remaining
+    // scope is the census this batch's own roster gates (`pb_dx28_chosen_object_
+    // roster.rs`) now stand in for.
     (
         "staff_of_compleation",
         "\"corpus-wide approximation class\" for oracle \"Destroy target permanent YOU OWN\" \

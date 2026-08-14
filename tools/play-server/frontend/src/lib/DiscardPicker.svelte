@@ -21,9 +21,19 @@
    *   candidates (CardOptionView[]) — `{id, label}`. For the cleanup discard this
    *                          is the player's WHOLE hand, not a pre-trimmed subset;
    *                          same for the ENG-1 effect-driven discard.
-   *   count (number)       — choose exactly this many. `api.rs` rejects any other
-   *                          length with a 400 ("CR 514.1 requires exactly N" /
-   *                          "CR 701.9b: this effect discards exactly N card(s)").
+   *   count (number)       — choose AT MOST this many (the maximum). `api.rs`
+   *                          rejects a length outside `[minCount, count]` with a
+   *                          400 ("CR 514.1 requires exactly N" / "CR 701.9b: this
+   *                          effect discards exactly N card(s)" / PB-DX28's
+   *                          CR 115.10 "up to N" wording).
+   *   minCount (number)    — the fewest legal (PB-DX28, `AnswerShapeView::PickN::
+   *                          min_count`). Defaults to `count` — every PRE-PB-DX28
+   *                          use (CR 514.1, CR 701.9b) is exact-count, so the two
+   *                          are equal and this component's existing exact-count
+   *                          behaviour is unchanged unless a caller passes a
+   *                          smaller `minCount` (a PB-DX28 "up to N" untargeted
+   *                          choice, `EffectChoiceQuestion::ChooseObject` with
+   *                          `up_to: true`).
    *   defaults (number[])  — the engine's OWN default subset. For `Subset`,
    *                          `default_cleanup_discard`: the `count` HIGHEST
    *                          `ObjectId`s. For `PickN`, `default_discard_answer`:
@@ -100,8 +110,9 @@
    * (which the server never sends — `DiscardToHandSize` is only offered when the
    * hand is over the maximum, and `PickN`'s short-circuit means the engine never
    * sends `count === 0` either — and which would render as an immediately
-   * confirmable empty choice), and (ENG-1) the `PickN`/`template` path and its
-   * malformed-template guard.
+   * confirmable empty choice), (ENG-1) the `PickN`/`template` path and its
+   * malformed-template guard, and (PB-DX28) the `minCount < count` "up to N"
+   * range display and the ability to Confirm with FEWER than `count` selected.
    */
   import { plainClone } from './plainClone.svelte.js';
 
@@ -109,6 +120,7 @@
     prompt = '',
     candidates = [],
     count = 0,
+    minCount = count,
     defaults = [],
     answerField = 'discard_cards',
     template = null,
@@ -122,7 +134,7 @@
   /** Chosen object ids, in click order; re-sorted ascending on confirm. */
   let selected = $state([]);
 
-  const canConfirm = $derived(selected.length === count);
+  const canConfirm = $derived(selected.length >= minCount && selected.length <= count);
 
   /** Ids that actually have a button, for the `defaults` intersection above. */
   const candidateIds = $derived(new Set(candidates.map((c) => c.id)));
@@ -184,7 +196,9 @@
 <div class="discard-picker">
   <div class="picker-header">
     <span class="picker-title">{prompt}</span>
-    <span class="picker-count" class:satisfied={canConfirm}>{selected.length}/{count}</span>
+    <span class="picker-count" class:satisfied={canConfirm}
+      >{selected.length}/{minCount < count ? `${minCount}-${count}` : count}</span
+    >
   </div>
 
   {#if candidates.length === 0}
@@ -206,7 +220,7 @@
 
   <div class="picker-actions">
     <button class="confirm" disabled={disabled || !canConfirm} onclick={confirm}>
-      Discard {selected.length} of {count}
+      {minCount < count ? `Confirm ${selected.length} chosen` : `Discard ${selected.length} of ${count}`}
     </button>
     {#if defaultsApplicable}
       <button

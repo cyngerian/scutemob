@@ -53,43 +53,37 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
-            // put a +1/+1 counter on a creature you control, then proliferate."
+            // CR 510.3a / CR 115.10 (PB-DX28): "Whenever equipped creature deals combat
+            // damage to a player, put a +1/+1 counter on a creature you control, then
+            // proliferate." Printed with no "target" — this is a resolution-time
+            // UNTARGETED choice (CR 115.10), not a declared target. Previously authored
+            // as a real `TargetCreatureWithFilter`, which was wrong in BOTH directions
+            // (OOS-DX4-6, filed by PB-DX4's fix cycle): hexproof/shroud/protection
+            // wrongly restricted the choice, and CR 608.2b fizzled the WHOLE trigger —
+            // counter AND proliferate — when the chosen creature left in response, where
+            // the printed card would simply choose another creature on resolution.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::Sequence(vec![
                     Effect::AddCounter {
-                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        target: EffectTarget::ChosenObject {
+                            zone: ChoiceZone::Battlefield,
+                            filter: Box::new(TargetFilter {
+                                has_card_type: Some(CardType::Creature),
+                                controller: TargetController::You,
+                                ..Default::default()
+                            }),
+                            count: 1,
+                            up_to: false,
+                        },
                         counter: CounterType::PlusOnePlusOne,
                         count: 1,
                     },
                     Effect::Proliferate,
                 ]),
                 intervening_if: None,
-                // CR 601.2c: "put a +1/+1 counter on a creature you control" — controller-
-                // restricted, not "another", so no exclude_self.
-                // PB-DX4 fixed the CONTROLLER axis here ("a creature **you control**"; this
-                // was a bare `TargetRequirement::TargetCreature`, so the counter could land on
-                // an opponent's creature).
-                //
-                // The TARGETING axis is a second, unfixed deviation and is recorded rather
-                // than left silent (fix cycle, review Finding 6): the printed clause is "put a
-                // +1/+1 counter on a creature you control" with **no "target"** (CR 115.10 —
-                // an effect only targets when it says so), so the choice is made on
-                // resolution, cannot be responded to, and is unaffected by hexproof, shroud,
-                // protection or a "can't be the target of" restriction. Authoring it as a real
-                // target makes all five of those bite, and lets CR 608.2b fizzle the whole
-                // trigger when the chosen creature leaves. The DSL has no
-                // choose-on-resolution-without-targeting channel for this shape, so it is not
-                // authorable today; filed as the class it is — **OOS-DX4-6**, whose second
-                // known member (`frantic_search`, printed "untap **up to three** lands" with
-                // no "target") this batch's own triage found independently.
-                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                    controller: TargetController::You,
-                    ..Default::default()
-                })],
-
+                targets: vec![],
                 modes: None,
                 trigger_zone: None,
             },

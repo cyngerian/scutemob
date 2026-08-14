@@ -2515,11 +2515,12 @@ fn test_dp9_roster_enumeration() {
 ///
 /// A mana ability resolves immediately and OUTSIDE the stack, so there is no
 /// stack object to roll back to and PB-DP9's suspension cannot apply. The
-/// `EffectContext::effect_choice_gate_closed` flag makes the four arms take
-/// their deterministic default there instead.
+/// `EffectContext::effect_choice_gate_closed` flag makes the FIVE arms take
+/// their deterministic default there instead (PB-DX28 added the fifth,
+/// `ChooseObject`, CR 115.10's untargeted-choice channel).
 ///
 /// That branch skips an obligation (offering the choice), so this test is where
-/// the obligation is discharged: **no `Complete` card def puts one of the four
+/// the obligation is discharged: **no `Complete` card def puts one of the five
 /// asking effects inside a mana ability.** If this ever reddens, the branch has
 /// become live and the card needs a rules decision, not a silent default.
 ///
@@ -2555,9 +2556,22 @@ fn test_dp9_mana_ability_gate() {
                     ) {
                         continue;
                     }
-                    let asks = ["SearchLibrary", "Scry", "Surveil", "DiscardCards"]
-                        .iter()
-                        .any(|v| roster::contains_variant(a, v));
+                    // PB-DX28: "ChosenObject" is the `EffectTarget::ChosenObject`
+                    // variant name -- the fifth asking channel's actual carrier
+                    // is one of MoveZone/AddCounter/UntapPermanent, which are
+                    // FAR too generic to use as a needle here (they appear
+                    // throughout the corpus with no choice attached), so this
+                    // gate keys on the channel-marking variant instead, exactly
+                    // as the other four key on their own asking Effect variant.
+                    let asks = [
+                        "SearchLibrary",
+                        "Scry",
+                        "Surveil",
+                        "DiscardCards",
+                        "ChosenObject",
+                    ]
+                    .iter()
+                    .any(|v| roster::contains_variant(a, v));
                     if asks {
                         offenders.push(def.name.clone());
                     }

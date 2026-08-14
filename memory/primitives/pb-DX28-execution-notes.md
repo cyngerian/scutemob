@@ -3,6 +3,253 @@
 Scope of this run: `pb-plan-DX28.md` §2 and §3 ONLY. §1 (untargeted-choice channel) and §4
 (allowlist retirement) are separate runs — not touched here.
 
+---
+
+# PB-DX28 — part 2 execution notes (§1, the untargeted-choice channel)
+
+Scope: `pb-plan-DX28.md` §1 ONLY, per `pb-plan-DX28-part2.md`'s consumer-surface census and
+derivation rule. §4 (allowlist retirement) NOT touched except for one line removed as a direct,
+mechanical fallout of this run's own migration (see "What §4 forced" below). Starting commit:
+`6aeb2008` (part 1 SHIPPED and committed). Tree left DIRTY, uncommitted, per instructions.
+
+## Files touched
+
+**DSL / engine**:
+- `crates/card-types/src/cards/card_definition.rs` — `ChoiceZone` enum, `EffectTarget::ChosenObject`
+  variant.
+- `crates/card-types/src/state/stubs.rs` — `EffectChoiceQuestion::ChooseObject`,
+  `EffectChoiceAnswer::ChooseObject`.
+- `crates/card-types/src/cards/helpers.rs`, `crates/card-types/src/cards/mod.rs`,
+  `crates/engine/src/cards/mod.rs`, `crates/engine/src/lib.rs` — `ChoiceZone` re-export chain
+  (mirrors part 1's `TargetOwner` chain).
+- `crates/engine/src/effects/mod.rs` — `EffectContext.chosen_objects` field (+ 2 constructors, 2
+  `ForEach` sub-context rebuilds); `filter_matches_object_untargeted` (the dedicated
+  filter-only predicate, NOT `casting::validate_targets_inner`); `resolve_pending_object_choices`
+  (the pre-pass, called at the top of `execute_effect_inner`); `resolve_effect_target_list_indexed`'s
+  new `ChosenObject` arm (fail-closed `debug_assert`); `default_effect_choice_answer`'s new arm;
+  `handle_answer_effect_choice`'s variant-agreement match + new per-variant legality arm.
+- `crates/engine/src/state/hash.rs` — `EffectTarget::ChosenObject` (discriminant 13),
+  `impl HashInto for ChoiceZone`, `EffectChoiceQuestion::ChooseObject` / `EffectChoiceAnswer::
+  ChooseObject` (discriminant 4 each).
+- `crates/engine/src/testing/replay_harness.rs` — new `ChooseObject` arm in `answer_effect_choice`.
+- `crates/engine/src/testing/script_schema.rs` — `EffectChoiceScriptAnswer.chosen: Vec<String>`.
+- `crates/engine/src/rules/abilities.rs` — one `chosen_objects: Vec::new()` backfill (a
+  hand-built `EffectContext` literal for a condition check).
+
+**Consumer surfaces** (part2 plan §2, every line re-grepped before editing, all moved since the
+2026-08-14 measurement — confirmed by diffing against what the plan cited):
+- `crates/simulator/src/decision_coverage.rs` — `row_id_for`'s `EffectChoiceQuestion` match
+  restructured `.map` → `.and_then`, new `ChooseObject => None` arm (see "R4 of part2 plan §2"
+  below — NOT a new decision-audit ROW).
+- `crates/simulator/src/legal_actions.rs` — VERIFIED generic, 0 lines changed
+  (`LegalAction::AnswerEffectChoice` calls `default_effect_choice_answer` uniformly).
+- `crates/engine/src/rules/engine.rs` — VERIFIED generic, 0 lines changed (`BlockingDecision::
+  EffectChoice` carries no per-variant code).
+- `crates/simulator/src/params.rs` — VERIFIED generic, 0 lines changed (`Command::AnswerEffectChoice`
+  construction reads `params.effect_choice_answer` uniformly).
+- `tools/play-server/src/view.rs` — `AnswerShapeView::PickN` gains `min_count: usize`; the
+  Discard arm sets `min_count: *count as usize` (unchanged behaviour); new `ChooseObject` match
+  arm, routed through the EXISTING `question_cards` channel (no 4th raw `GameState` read —
+  `test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places` stays green unmoved).
+- `tools/play-server/src/api.rs` — `question_kind` new arm; `validate_decision_params`'s
+  `(question, answer)` match new arm (full CR 115.10/608.2 legality: dedup, subset, exact-`min(
+  count,len)`-when-`!up_to`, `<=count`-when-`up_to`).
+- `tools/play-server/frontend/src/lib/DiscardPicker.svelte` — new `minCount` prop (default
+  `count`, so every pre-PB-DX28 caller is behaviourally unchanged), `canConfirm` widened to a
+  range, header/button text updated for the `up_to` case.
+- `tools/play-server/frontend/src/lib/ActionBar.svelte` — `minCount={currentShape.min_count}`
+  passed on the `PickN` branch only (the `Subset` branch has no `min_count` field and is untouched).
+- `tools/tui/src/play/app.rs` — new `EffectChoiceQuestion::ChooseObject => "choose object"` arm
+  in the event-log formatter (found by `cargo build --workspace`, not named in either plan file).
+
+**Tests**:
+- `crates/engine/tests/core/pb_dx28_chosen_object_roster.rs` (NEW) — R1-R4.
+- `crates/engine/tests/primitives/pb_dx28_untargeted_choice.rs` (NEW) — T1-T10 behavioural probes.
+- `crates/engine/tests/core/main.rs`, `crates/engine/tests/primitives/main.rs` — `mod` registration.
+- `crates/engine/tests/primitives/pb_dp9_effect_choice.rs` — `test_dp9_mana_ability_gate` extended
+  to 5 channels (`"ChosenObject"` needle added).
+- **Pre-existing tests repaired as DIRECT, MECHANICAL fallout of the migration** (all 4 reasoned
+  through below): `crates/engine/tests/core/completeness_deviation_scan.rs`,
+  `crates/engine/tests/core/decision_gate.rs`, `crates/engine/tests/primitives/
+  pb_dp8_trigger_target_choice.rs`, `crates/engine/tests/primitives/pb_dx4_baseline_triage.rs`.
+- `crates/engine/tests/primitives/primitive_pb37.rs` — 1-line `chosen_objects: Vec::new()`
+  backfill for a hand-built `EffectContext` literal.
+
+## The 17-def migration table
+
+| def | ability | before | after |
+|---|---|---|---|
+| 10 Karoos | ETB Triggered | `targets: [TargetPermanentWithFilter(Land+You)]`, `MoveZone{DeclaredTarget{0}}`, `Hand.owner = OwnerOf(DeclaredTarget{0})` | `targets: []`, `MoveZone{ChosenObject{Battlefield, Land+You, 1, false}}`, `Hand.owner = OwnerOf(`the same `ChosenObject` value`)` |
+| `shrieking_drake`, `whitemane_lion` | ETB Triggered | `targets: [TargetCreatureWithFilter(You)]` (implicit creature check) | `targets: []`, `ChosenObject{Battlefield, Creature+You, 1, false}` (creature-ness now EXPLICIT via `has_card_type`, since the untargeted predicate has no separate "must be a creature" branch the way `TargetCreatureWithFilter`'s `!is_creature` guard does) |
+| `sword_of_truth_and_justice` | combat-damage Triggered, `AddCounter` half only | `targets: [TargetCreatureWithFilter(You)]` on the ability | `targets: []`, `ChosenObject{Battlefield, Creature+You, 1, false}` on `AddCounter.target`. Equip {2}'s OWN `TargetCreatureWithFilter(You)` is UNTOUCHED (a real CR 702.6a target) |
+| `cloud_of_faeries` | ETB Triggered | `targets: [UpToN{2, TargetLand}]`, 2× `UntapPermanent{DeclaredTarget}` | `targets: []`, ONE `UntapPermanent{ChosenObject{Battlefield, Land, 2, true}}` (no `You` — printed "lands", not "lands you control") |
+| `frantic_search` | Spell | `targets: [UpToN{3, TargetLand}]`, 3× `UntapPermanent{DeclaredTarget}` | `targets: []`, ONE `UntapPermanent{ChosenObject{Battlefield, Land, 3, true}}` |
+| `rewind` | Spell | `targets: [TargetSpell, UpToN{4, TargetLand}]`, `CounterSpell{DeclaredTarget{0}}` + 4× `UntapPermanent{DeclaredTarget}` | `targets: [TargetSpell]` (slot 0 KEPT, real printed target), `CounterSpell{DeclaredTarget{0}}` UNCHANGED, ONE `UntapPermanent{ChosenObject{Battlefield, Land, 4, true}}` replaces slot 1 + the 4 `UntapPermanent`s. The def's long "pooled indexing" comment REWRITTEN (it described a mechanism that no longer exists) |
+| `takenuma_abandoned_mire` | Channel Activated | `targets: [TargetCardInYourGraveyard(Creature\|Planeswalker)]`, `MoveZone{DeclaredTarget{0}}` | `targets: []`, `MoveZone{ChosenObject{YourGraveyard, Creature\|Planeswalker, 1, false}}` |
+
+All 17 stay `Completeness::Complete`. **Zero completeness markers changed.**
+
+## Consumer-surface census — what I actually verified, with line numbers AT THIS COMMIT
+
+Every line number the two plan files cited was **stale** (both plan files say so explicitly,
+`OOS-DX6-5`) — re-grepped, not trusted:
+
+- `crates/simulator/src/decision_coverage.rs:256-276` (`row_id_for`) — the ONE site part2 plan §2
+  named that needed real design judgment, not a mechanical arm. See "R4" below for the decision
+  taken (NOT a new decision-audit ROW).
+- `crates/simulator/src/legal_actions.rs:519-532` (the `EffectChoice` arm inside the pending-decision
+  dispatch) — confirmed generic via `default_effect_choice_answer(&question)`, 0 lines changed.
+- `crates/engine/src/rules/engine.rs` `BlockingDecision::EffectChoice` (3 sites, 161/199/253 in the
+  plan's stale measurement) — confirmed generic, 0 lines changed.
+- `tools/play-server/src/view.rs` — the `EffectChoiceQuestion` match inside
+  `LegalAction::AnswerEffectChoice`'s rendering arm (originally cited ~2116, actually at this
+  commit inside a larger match after PB-DX23/DX27 growth) — found by re-grep, not by trusting the
+  line number.
+- `tools/play-server/src/api.rs` — `question_kind` (originally ~912) and `validate_decision_params`
+  (originally ~524-586) — both re-grepped, both moved from the plan's cited lines.
+- **`tools/tui/src/play/app.rs`** — a SIXTH consumer surface, in NEITHER plan file, found only by
+  `cargo build --workspace` (the TUI's event-log formatter has its own exhaustive
+  `EffectChoiceQuestion` match, `app.rs:642` at this commit). The dispatch brief's own framing —
+  "the auto-target picker turned out to be two functions rather than one" as part 1's example of a
+  short site list — repeated here on a SIXTH consumer, not a second function at an already-named
+  site. **A `cargo build --workspace` compile error is a stronger census method than either plan
+  file's own reading of the source, because it cannot miss an exhaustive match.**
+
+## R4 (the inverse-axis roster gate) — measured convergence, not a re-derivation of the planner's
+
+`pb-plan-DX28-part2.md` §3 asks for "no `Complete` def still pairs `slots > 'target'-word-count`
+outside a named allowlist ... This is the census, frozen." The FIRST draft of this gate — the
+literal reading of plan §0's Axis A ("sum every declared `TargetRequirement` slot ... compare with
+the number of `\"target\"` occurrences") — measured **40 false positives** against the live corpus.
+Every one was chased to a real, nameable cause and fixed in the GATE (not worked around by
+allowlisting the symptom):
+
+1. **Case sensitivity** (40 → 12): `"Target creature ..."` at a sentence start was invisible to a
+   case-SENSITIVE `"target"` match. Fixed: `.to_lowercase()`.
+2. **`UpToN` weighted by its own `count` field** (12 → 8, net, after #1): `elder_deep_fiend.rs`'s
+   "tap up to four target permanents" is ONE printed "target" word for a REAL `UpToN{count:4}`
+   slot; weighting the slot side by 4 made a genuinely CR-correct target read as 4-slots-vs-1-word.
+   Fixed: `UpToN` contributes exactly 1 slot, however large its `count` — it is one element of
+   `targets: Vec<TargetRequirement>`, which is the DSL's own notion of "a slot".
+3. **`UpToN.inner` double-counted** (8 → 2): both the bare-string counter (unit-variant `inner`,
+   e.g. `TargetPermanent`) and the object-key counter (filter-carrying `inner`, e.g.
+   `force_of_vigor.rs`'s `TargetPermanentWithFilter`) were counting the WRAPPED requirement a
+   SECOND time on top of the UpToN slot itself. Fixed: both counters skip any match whose direct
+   parent JSON key is `"inner"`.
+4. **DFC back faces have their OWN `oracle_text`, not folded into the front's** (2 → 1):
+   `thaumatic_compass.rs` // Spires of Orazca prints "target attacking creature" on the BACK face
+   only; `def.oracle_text` alone undercounted. Fixed: the word count reads `def.oracle_text` +
+   `back_face.oracle_text` + `adventure_face.oracle_text` — the plan's own phrase, "the COMBINED
+   oracle text", taken literally.
+5. **`"Connive // Concoct"` (1 → 0, by DEFERRAL, not a bug fix)**: Concoct's half — "Surveil 3, then
+   return a creature card from your graveyard to the battlefield" — prints NO "target" and is
+   authored as a real `TargetCardInYourGraveyard`. This is a GENUINE, PREVIOUSLY-UNKNOWN 18th
+   `OOS-DX4-6` member, found by this batch's own gate, that neither plan file names. **NOT migrated
+   in this run** — the 17-member roster was the plan's own reviewed scope (R1 pins it at exactly
+   17), and migrating an 18th, un-reviewed member here would be the "I'll just fix one more" scope
+   creep `memory/conventions.md`'s "Implement-phase default-to-defer" rule exists to stop. Recorded
+   in `SLOT_COUNT_REFUTED` with the reason spelled out, NOT silently swallowed into a
+   "refuted" bucket it does not belong in — filed here as the batch's own finding for a follow-up.
+
+Final state: R4 passes with **zero unexplained violations** and **one explained, deferred one**
+(`Connive // Concoct`). The equip-carrying-Equipment allowlist entries (10 named cards, matching
+plan §0.1) turned out to be REDUNDANT once `AttachEquipment` was excluded structurally (CR 702.6a's
+implicit, never-printed target) — kept anyway as a second, independent floor.
+
+## Fallout the migration itself forced (not additive scope — required by §1 alone)
+
+- **`completeness_deviation_scan.rs`'s `sword_of_truth_and_justice` ALLOWLIST entry went dead.**
+  The entry existed to allowlist a deviation this batch's own migration CLOSES. The gate's own
+  message said so verbatim ("no longer matches any deviation needle ... remove it"). Removed —
+  exactly that one entry, nothing else in `ALLOWLIST` (that is §4's job, explicitly out of scope
+  here; `staff_of_compleation` and `nether_traitor`'s entries are untouched).
+- **`decision_gate.rs`'s `triggered_targets` row census dropped 74 → 60** (measured, not
+  back-derived): 13 defs (10 Karoos + `shrieking_drake` + `whitemane_lion` +
+  `sword_of_truth_and_justice`) lost their non-empty `targets` list on the Triggered node the
+  `triggered_targets` predicate counts. Floor re-pinned to the measured value with the reason
+  stated in the assertion message.
+- **`pb_dp8_trigger_target_choice.rs::test_dp8_up_to_n_accepts_n_targets_not_one`** cited
+  `Cloud of Faeries` as one of its two motivating oracle examples for the `UpToN`-accepts-N-not-1
+  fix. Cloud of Faeries no longer uses `UpToN` (by DESIGN — "untap up to two lands" was itself an
+  instance of the class this batch fixes). Test's oracle census narrowed to `Elder Deep-Fiend`
+  alone; doc comment corrected to say so, not silently trimmed.
+- **`pb_dx4_baseline_triage.rs::sword_of_truth_and_justice_targets_only_your_creature`** — a
+  PRE-EXISTING test that went RED on arrival and encoded the NOW-SUPERSEDED fix (PB-DX4's
+  controller-axis repair on a REAL `TargetCreatureWithFilter`, which this batch's own plan names
+  as `OOS-DX4-6`'s live instance). Rewritten to assert the SAME controller/self-exclusion facts on
+  the NEW primitive's filter (`EffectTarget::ChosenObject`'s `TargetFilter`), not weakened —
+  documented in the test's own doc comment as a rewrite, with the reason.
+
+## Revert matrix
+
+All executed against LIVE source (`crates/engine/src/effects/mod.rs`), rebuilt, observed red,
+restored, reconfirmed green with a full `cargo test --workspace --no-fail-fast` (571 passed / 2
+failed [the two version gates, unmoved] / 0 ignored, identical before and after every revert).
+
+| # | Revert | Site | Probes covered | Observed |
+|---|---|---|---|---|
+| R1 | Disabled `resolve_pending_object_choices`'s CALL at the top of `execute_effect_inner` (a `const` bool guard) | `execute_effect_inner`'s entry | T1-T7, T9, T10 (9 of 10) | **RED**: every one hit the fail-closed `debug_assert!(false, "... was resolved with no banked answer ...")` in `resolve_effect_target_list_indexed`'s `ChosenObject` arm, naming the exact `ChosenObject` value unresolved. T8 (stack-shape only, no resolution) correctly UNAFFECTED — the one test that doesn't touch this path. |
+| R2 | `filter_matches_object_untargeted` rejects any candidate carrying `Hexproof`/`Shroud` (simulating the pre-batch defect: routing through full CR 115 legality) | `filter_matches_object_untargeted`'s body | T1, T2 | **RED**, precisely: `t1_hexproofed_land_is_eligible...` and `t2_shrouded_creature_is_eligible...`, both on "the choice must be ASKED" (their SECOND-candidate setup no longer suspends because the hexproof/shroud candidate is excluded, collapsing the "ask" case to a determined 1-candidate case). Every OTHER test unaffected — precise, single-property discrimination. |
+| R3 | `resolve_pending_object_choices`'s `determined` short-circuit forced to `None` unconditionally (never auto-resolve) | `resolve_pending_object_choices`'s determined-answer computation | T3, T4, T5, T7, T10 (5 of 10) | **RED**, precisely the determined-shape-dependent tests: T3 ("must resolve immediately, not fizzle and not suspend"), T4 ("zero candidates is DETERMINED"), T5 ("zero candidates ... still DETERMINED"), T7 (graveyard mill-count assertion, since the Sequence's second half never got a chance to auto-apply before the first `pending_effect_choice` check its own harness doesn't drive further), T10 ("one eligible card is DETERMINED"). T1/T2/T6/T8/T9 (which either expect an ASK already, or don't touch resolution) correctly UNAFFECTED. |
+
+Zero UNDISCRIMINATED rows — every probe that touches the primitive was individually reddened by a
+revert of the exact mechanism it exercises; the one test that does NOT touch resolution (T8) is
+correctly unaffected by both resolution-side reverts, which is itself informative (T8 tests a
+DIFFERENT property — the trigger's declared-targets list at STACK-PUSH time, CR 603.3d — not
+resolution behaviour, and the revert matrix proves that separation is real, not assumed).
+
+## Live digests, taken from the gates' own output (NOT bumped — coordinator's job)
+
+- `hash_schema::declaration_fingerprint_is_pinned`: pinned (unmoved, HASH_SCHEMA_VERSION 75)
+  `e8ca51103996c3094a0c6c1e1107511e2f98719e15cf0fe15f1726cc730f4ca5`; **LIVE**
+  `06208006f9fb87b49e3f15b1132f4dbf2656da44a47895d2ea58e88aa97348e0` (131 types, up from part 1's
+  130 — `ChoiceZone` + the two `ChooseObject` variants + `EffectTarget::ChosenObject` all reachable
+  from `GameState`'s closure via `embedded_effect: Option<Box<Effect>>` etc).
+- `protocol_schema::protocol_schema_fingerprint_is_pinned`: pinned (unmoved, PROTOCOL_VERSION 36)
+  `bdd02df0eb7f84f0a957852a7e0944affa7e0f7c8de1348990ad53d1c5e73f62`; **LIVE**
+  `03c5a4ac138556dd27c63a00088624287070a6107d382220b16c67b0df3d00a3` (98 types, up from part 1's
+  97). Digest UNCHANGED between the engine-changes commit and the card-def-migration commit (card
+  defs are data, not new types — confirmed by re-running the gate after EVERY edit phase, not
+  assumed).
+- Neither `HASH_SCHEMA_VERSION`, `PROTOCOL_VERSION`, nor either pinned fingerprint constant was
+  edited in this run, per instruction.
+
+## What the plan files got wrong (both are claims like any other)
+
+1. **`pb-plan-DX28-part2.md` §2's consumer-surface table names 5 files; the real count is 6.**
+   `tools/tui/src/play/app.rs` carries its OWN exhaustive `EffectChoiceQuestion` match (the TUI's
+   event-log formatter) and is in NEITHER plan file. Found only by `cargo build --workspace`.
+2. **The plan's `pb-plan-DX28.md` §1.4 "Supported arms" list (`MoveZone`, `AddCounter`,
+   `UntapPermanent`) is correct as the closed corpus population, but its claim that reaching an
+   unsupported arm is caught ONLY by the roster gate (R3) undersells it** — this run also wired a
+   runtime `debug_assert!` fail-closed path (in `resolve_effect_target_list_indexed`'s
+   `ChosenObject` arm) that fires INDEPENDENTLY of R3 the moment an 18th, unsupported use is
+   authored and actually resolved, which is exactly what R1 revert-proof R1 above exercises.
+3. **Neither plan file anticipated the SR-25 bare-lookup ratchet reacting to
+   `filter_matches_object_untargeted`'s first-draft `state.objects.get(&id)`.** Fixed by routing
+   through `state.expect_object(id)` (SR-4 engine-bug classification, since every caller passes an
+   `id` freshly drawn from the SAME `state.objects` walk) — mirrors part 1's own identical finding
+   on `EffectTarget::DamagedPlayer`'s resolver, so this is the SAME class recurring, not a new one.
+4. **Plan §0.1's refutation list undersold its own completeness.** It refutes the equip-carrying
+   Equipment population by NAME (10 cards); the real, general reason (CR 702.6a's implicit,
+   never-printed target) covers the WHOLE Equip-carrying population structurally, which R4's design
+   now encodes directly (`AttachEquipment` node subtraction) rather than by an ever-growing name
+   list — the 10 names are now redundant, not load-bearing.
+5. **The plan's §1.6 probe list did not anticipate the determined-short-circuit needing its OWN
+   dedicated tests beyond "cloud_of_faeries: up_to lets the chooser take fewer".** T5 (the
+   zero-candidate `up_to` case) surfaced a design point neither plan file states explicitly:
+   `up_to` does NOT short-circuit merely because `candidates.len() < count` (only on the EMPTY
+   set) — a 1-candidate "up to 2" choice is genuinely asked, because the player could still
+   legally choose zero. This is CR-correct (confirmed by reading the shipped
+   `resolve_pending_object_choices` code, not assumed) and is now the ONLY place either plan
+   document — or this note — states it in so many words.
+
+## Deferred, not fixed (report per instructions)
+
+`"Connive // Concoct"`'s Concoct half is a genuine, previously-unfiled 18th `OOS-DX4-6` member
+(see R4 §5 above). Recorded in `SLOT_COUNT_REFUTED` with the deferral reason inline; NOT migrated;
+NOT silently absorbed into a "refuted" classification it does not belong in.
+
 ## Starting point
 
 Resumed from `memory/primitives/pb-DX28-RESUME.md` at commit `e5ee1994` ("mechanical — owner:

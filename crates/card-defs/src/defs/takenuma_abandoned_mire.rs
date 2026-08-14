@@ -43,10 +43,24 @@ pub fn card() -> CardDefinition {
                         player: PlayerTarget::Controller,
                         count: EffectAmount::Fixed(3),
                     },
-                    // CR 701.13: "return a creature or planeswalker card from your graveyard to
-                    // your hand" — uses has_card_types (OR semantics) for multi-type filter.
+                    // CR 701.13 / CR 115.10 (PB-DX28): "return a creature or planeswalker
+                    // card from your graveyard to your hand" — printed with no "target",
+                    // a resolution-time UNTARGETED choice from the GRAVEYARD zone (uses
+                    // has_card_types, OR semantics, for the multi-type filter). Also
+                    // closes CR 608.2b's fizzle window: milling THIS spell's own trigger
+                    // never removes the chosen card before the choice is made, but a
+                    // response that exiles the only eligible graveyard card now correctly
+                    // still lets the mill happen — only the return half is affected.
                     Effect::MoveZone {
-                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        target: EffectTarget::ChosenObject {
+                            zone: ChoiceZone::YourGraveyard,
+                            filter: Box::new(TargetFilter {
+                                has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                                ..Default::default()
+                            }),
+                            count: 1,
+                            up_to: false,
+                        },
                         to: ZoneTarget::Hand {
                             owner: PlayerTarget::Controller,
                         },
@@ -54,10 +68,7 @@ pub fn card() -> CardDefinition {
                     },
                 ]),
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
-                    has_card_types: vec![CardType::Creature, CardType::Planeswalker],
-                    ..Default::default()
-                })],
+                targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,

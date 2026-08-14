@@ -1507,13 +1507,22 @@ fn test_dp8_concede_under_a_suspended_batch_does_not_strand_priority() {
 ///
 /// **Fail-before**: `slot.max` did not exist, and the 4-target answer was rejected
 /// with "expected 0 or 1".
+///
+/// **PB-DX28 correction**: Cloud of Faeries was always the WRONG oracle example
+/// for this primitive. "untap up to two lands" prints no "target" at all (CR
+/// 115.10), so `UpToN` -- a real `TargetRequirement` -- was itself the deviation
+/// `OOS-DX4-6` later named: it let hexproof/shroud/protection wrongly restrict the
+/// choice. PB-DX28 §1 migrated it onto the new `EffectTarget::ChosenObject`
+/// (resolution-time, untargeted) channel instead, so it no longer appears in this
+/// census at all. Elder Deep-Fiend's "target permanents" is a REAL target and is
+/// untouched.
 #[test]
 fn test_dp8_up_to_n_accepts_n_targets_not_one() {
-    // The two oracle counts this fixes, read off the real defs (SR-36: enumerated,
-    // not grepped) so the fixture is the cards' own shape.
+    // The one oracle count this fixes, read off the real def (SR-36: enumerated,
+    // not grepped) so the fixture is the card's own shape.
     let mut oracle_counts: Vec<(String, u32)> = Vec::new();
     for def in all_cards() {
-        if def.name != "Elder Deep-Fiend" && def.name != "Cloud of Faeries" {
+        if def.name != "Elder Deep-Fiend" {
             continue;
         }
         for ability in &def.abilities {
@@ -1529,11 +1538,8 @@ fn test_dp8_up_to_n_accepts_n_targets_not_one() {
     oracle_counts.sort();
     assert_eq!(
         oracle_counts,
-        vec![
-            ("Cloud of Faeries".to_string(), 2),
-            ("Elder Deep-Fiend".to_string(), 4),
-        ],
-        "oracle: 'tap up to four target permanents' / 'untap up to two lands'"
+        vec![("Elder Deep-Fiend".to_string(), 4)],
+        "oracle: 'tap up to four target permanents'"
     );
 
     let mut state = GameStateBuilder::new()

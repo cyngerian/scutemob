@@ -263,14 +263,24 @@ pub fn row_id_for(state: &GameState, decision: &BlockingDecision) -> Option<&'st
         BlockingDecision::CleanupDiscard { .. } => None,
         BlockingDecision::TriggerTargets { .. } => Some("triggered_targets"),
         BlockingDecision::EffectChoice { .. } => {
-            state
-                .pending_effect_choice()
-                .map(|pending| match &pending.question {
-                    EffectChoiceQuestion::SearchLibrary { .. } => "search_library",
-                    EffectChoiceQuestion::Scry { .. } => "scry",
-                    EffectChoiceQuestion::Surveil { .. } => "surveil",
-                    EffectChoiceQuestion::Discard { .. } => "discard_cards",
-                })
+            state.pending_effect_choice().and_then(|pending| {
+                match &pending.question {
+                    EffectChoiceQuestion::SearchLibrary { .. } => Some("search_library"),
+                    EffectChoiceQuestion::Scry { .. } => Some("scry"),
+                    EffectChoiceQuestion::Surveil { .. } => Some("surveil"),
+                    EffectChoiceQuestion::Discard { .. } => Some("discard_cards"),
+                    // PB-DX28: CR 115.10's resolution-time untargeted object choice
+                    // predates and sits outside the decision-point audit's fixed
+                    // §3.1 taxonomy (`decision_site_walk.rs::ROWS`, 22 rows sourced
+                    // from `docs/audits/decision-point-audit.md`) -- it is a NEW
+                    // primitive, not one of that audit's rows. Recorded explicitly
+                    // as "no row" here, mirroring `BlockingDecision::CleanupDiscard`
+                    // above, rather than silently forcing a 23rd row into a table
+                    // this batch does not own. Extending the audit itself (if
+                    // warranted) is a separate task's call to make.
+                    EffectChoiceQuestion::ChooseObject { .. } => None,
+                }
+            })
         }
     }
 }

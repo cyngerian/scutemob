@@ -288,6 +288,7 @@ pub fn handle_activate_ability(
                 defending_player: None,
                 source_transformed_this_resolution: false,
                 effect_choice_gate_closed: false,
+                chosen_objects: Vec::new(),
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(

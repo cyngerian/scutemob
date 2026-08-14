@@ -1329,11 +1329,11 @@ use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
 use crate::cards::card_definition::ManaRestriction;
 use crate::cards::card_definition::{
-    AbilityDefinition, ActivationZone, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount,
-    EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, ManaSourceFilter, ModeSelection,
-    PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetOwner, TargetRequirement,
-    TimingRestriction, TokenSpec, TriggerCondition, TriggerZone, TypeLine, WheelDisposal,
-    WheelDraw, ZoneTarget,
+    AbilityDefinition, ActivationZone, ChoiceZone, Condition, ContinuousEffectDef, Cost, Effect,
+    EffectAmount, EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, ManaSourceFilter,
+    ModeSelection, PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetOwner,
+    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TriggerZone, TypeLine,
+    WheelDisposal, WheelDraw, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
 use blake3::Hasher;
@@ -3492,6 +3492,17 @@ impl HashInto for EffectChoiceQuestion {
                 hand.hash_into(hasher);
                 count.hash_into(hasher);
             }
+            // PB-DX28: ChooseObject — discriminant 4.
+            EffectChoiceQuestion::ChooseObject {
+                candidates,
+                count,
+                up_to,
+            } => {
+                4u8.hash_into(hasher);
+                candidates.hash_into(hasher);
+                count.hash_into(hasher);
+                up_to.hash_into(hasher);
+            }
         }
     }
 }
@@ -3514,6 +3525,11 @@ impl HashInto for EffectChoiceAnswer {
             }
             EffectChoiceAnswer::Discard { chosen } => {
                 3u8.hash_into(hasher);
+                chosen.hash_into(hasher);
+            }
+            // PB-DX28: ChooseObject — discriminant 4.
+            EffectChoiceAnswer::ChooseObject { chosen } => {
+                4u8.hash_into(hasher);
                 chosen.hash_into(hasher);
             }
         }
@@ -6125,6 +6141,28 @@ impl HashInto for EffectTarget {
             EffectTarget::AttackTarget => 11u8.hash_into(hasher),
             // PB-DX28: DamagedPlayer — the player dealt combat damage — discriminant 12
             EffectTarget::DamagedPlayer => 12u8.hash_into(hasher),
+            // PB-DX28: ChosenObject — a resolution-time untargeted choice (CR 115.10) —
+            // discriminant 13
+            EffectTarget::ChosenObject {
+                zone,
+                filter,
+                count,
+                up_to,
+            } => {
+                13u8.hash_into(hasher);
+                zone.hash_into(hasher);
+                filter.hash_into(hasher);
+                count.hash_into(hasher);
+                up_to.hash_into(hasher);
+            }
+        }
+    }
+}
+impl HashInto for ChoiceZone {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ChoiceZone::Battlefield => 0u8.hash_into(hasher),
+            ChoiceZone::YourGraveyard => 1u8.hash_into(hasher),
         }
     }
 }

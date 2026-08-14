@@ -2624,6 +2624,45 @@ pub enum EffectTarget {
     /// resolver — `TriggeringCreature`/`EquippedCreature`/`LastCreatedPermanent` all
     /// resolve to the empty set rather than falling back to `Controller`).
     DamagedPlayer,
+    /// CR 115.10: an object chosen **on resolution, without targeting**.
+    ///
+    /// A spell or ability targets only where its text says "target". A printed
+    /// "return a land you control to its owner's hand" therefore (a) is
+    /// unaffected by hexproof / shroud / protection / "can't be the target of",
+    /// and (b) has no CR 608.2b fizzle window, because nothing was chosen when
+    /// the ability went on the stack — the choice is made from whatever matches
+    /// the filter AT RESOLUTION.
+    ///
+    /// Resolved through the CR 608.2d suspend-and-replay channel
+    /// (`EffectChoiceQuestion::ChooseObject`) and banked on
+    /// `EffectContext::chosen_objects`, keyed **by this variant's own value**
+    /// (`PartialEq`/`Eq`) — deliberate: `azorius_chancery` names the same
+    /// `ChosenObject` twice in one effect (`MoveZone.target` and
+    /// `MoveZone.to.Hand.owner = PlayerTarget::OwnerOf(ChosenObject)`) and both
+    /// must denote the SAME chosen land. The cost of keying by value is that two
+    /// structurally identical `ChosenObject`s in one resolution that were meant
+    /// to be two separate choices would collapse into one; no corpus def does
+    /// that (pinned by `pb_dx28_chosen_object_roster::R3`).
+    ChosenObject {
+        zone: ChoiceZone,
+        filter: Box<TargetFilter>,
+        /// How many objects the chooser picks. `up_to == false` means exactly
+        /// this many *if that many exist* (CR 608.2 "as much as possible").
+        count: u32,
+        up_to: bool,
+    },
+}
+/// PB-DX28: CR 115.10 / CR 608.2 — which zone an untargeted resolution-time
+/// choice ([`EffectTarget::ChosenObject`]) draws its candidates from.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChoiceZone {
+    /// Permanents on the battlefield (CR 400.1). Phased-out permanents are
+    /// excluded (CR 702.26b), matching every other battlefield enumeration in
+    /// this file (`EffectTarget::AllPermanents`/`AllCreatures`/
+    /// `AllPermanentsMatching`).
+    Battlefield,
+    /// Cards in the CHOOSING player's graveyard (CR 404.1). "your graveyard".
+    YourGraveyard,
 }
 /// How an effect identifies a player.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

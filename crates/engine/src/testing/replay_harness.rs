@@ -1162,6 +1162,25 @@ pub fn translate_player_action(
                         crate::state::EffectChoiceAnswer::Discard { chosen }
                     }
                 }
+                // PB-DX28 (CR 115.10): a resolution-time UNTARGETED object
+                // choice. Unlike the four arms above, `candidates` names
+                // PUBLIC objects (battlefield permanents / graveyard cards),
+                // so no hidden-zone caveat applies -- named the same way
+                // `ManaSource.card` is.
+                crate::state::EffectChoiceQuestion::ChooseObject { candidates, .. } => {
+                    if spec.chosen.is_empty() {
+                        crate::effects::default_effect_choice_answer(&entry.question)
+                    } else {
+                        let mut remaining = candidates.clone();
+                        let mut chosen = Vec::new();
+                        for name in &spec.chosen {
+                            let id = find_named_among(state, &remaining, name)?;
+                            remaining.retain(|x| *x != id);
+                            chosen.push(id);
+                        }
+                        crate::state::EffectChoiceAnswer::ChooseObject { chosen }
+                    }
+                }
             };
             Some(Command::AnswerEffectChoice {
                 player,

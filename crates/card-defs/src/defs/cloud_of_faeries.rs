@@ -20,27 +20,26 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // CR 601.2c / card_definition.rs:2799-2822: UpToN contributes its declared
-            // targets at consecutive indices starting where the prior requirement's
-            // indices end. This is the only requirement here, so declared lands occupy
-            // indices 0..2; an undeclared slot resolves to a no-op via
-            // resolve_effect_target_list returning empty (CR 608.2b).
+            // CR 115.10 (PB-DX28): "untap up to two lands" is printed with no
+            // "target" — a resolution-time UNTARGETED choice, not a declared target
+            // (no `TargetRequirement::UpToN` slot). Note: no "you control" in the
+            // printed text either, so any land is eligible, not just this player's.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::Sequence(vec![
-                    Effect::UntapPermanent {
-                        target: EffectTarget::DeclaredTarget { index: 0 },
+                effect: Effect::UntapPermanent {
+                    target: EffectTarget::ChosenObject {
+                        zone: ChoiceZone::Battlefield,
+                        filter: Box::new(TargetFilter {
+                            has_card_type: Some(CardType::Land),
+                            ..Default::default()
+                        }),
+                        count: 2,
+                        up_to: true,
                     },
-                    Effect::UntapPermanent {
-                        target: EffectTarget::DeclaredTarget { index: 1 },
-                    },
-                ]),
+                },
                 intervening_if: None,
-                targets: vec![TargetRequirement::UpToN {
-                    count: 2,
-                    inner: Box::new(TargetRequirement::TargetLand),
-                }],
+                targets: vec![],
                 modes: None,
                 trigger_zone: None,
             },

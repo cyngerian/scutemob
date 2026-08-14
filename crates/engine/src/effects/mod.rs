@@ -20,9 +20,9 @@
 //! and reduces life for players. Death from lethal damage is handled by SBAs
 //! AFTER the effect resolves — the caller (resolution.rs) runs SBA checks.
 use crate::cards::card_definition::{
-    Condition, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget, LibraryPosition,
-    ManaRestriction, PlayerTarget, TargetController, TargetFilter, TargetOwner, WheelDisposal,
-    WheelDraw, ZoneTarget,
+    ChoiceZone, Condition, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget,
+    LibraryPosition, ManaRestriction, PlayerTarget, TargetController, TargetFilter, TargetOwner,
+    WheelDisposal, WheelDraw, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageTarget, GameEvent};
 use crate::state::error::GameStateError;
@@ -213,6 +213,16 @@ pub struct EffectContext {
     /// Deliberately on the context, not on `GameState`: it never crosses a
     /// command boundary.
     pub effect_choice_gate_closed: bool,
+    /// PB-DX28: CR 115.10 -- answers to this resolution's untargeted object
+    /// choices, keyed by the `EffectTarget::ChosenObject` value that asked
+    /// (deliberately keyed BY VALUE -- see that variant's doc). Populated by
+    /// `resolve_pending_object_choices` before the effect that carries the
+    /// `ChosenObject` runs; read by `resolve_effect_target_list_indexed`'s
+    /// `ChosenObject` arm.
+    ///
+    /// NOT hashed and NOT on the wire -- `EffectContext` is per-resolution
+    /// scratch, same as `sacrificed_creature_lki`/`sacrifice_fired` above.
+    pub chosen_objects: Vec<(EffectTarget, Vec<ObjectId>)>,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -247,6 +257,7 @@ impl EffectContext {
             defending_player: None,
             source_transformed_this_resolution: false,
             effect_choice_gate_closed: false,
+            chosen_objects: Vec::new(),
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -286,6 +297,7 @@ impl EffectContext {
             defending_player: None,
             source_transformed_this_resolution: false,
             effect_choice_gate_closed: false,
+            chosen_objects: Vec::new(),
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -428,6 +440,17 @@ pub fn default_effect_choice_answer(q: &EffectChoiceQuestion) -> EffectChoiceAns
         },
         EffectChoiceQuestion::Discard { hand, count } => EffectChoiceAnswer::Discard {
             chosen: hand.iter().take(*count as usize).copied().collect(),
+        },
+        // PB-DX28: CR 115.10 / CR 608.2 "as much as possible" -- the deterministic
+        // recovery of the pre-batch auto-pick. Note this arm is rarely reached in
+        // practice: `resolve_pending_object_choices`'s determined-answer
+        // short-circuit already banks this SAME set (`candidates.is_empty()` or
+        // `!up_to && candidates.len() <= count`) without ever asking, so a real
+        // question only reaches a caller when `up_to` or `candidates.len() > count`.
+        EffectChoiceQuestion::ChooseObject {
+            candidates, count, ..
+        } => EffectChoiceAnswer::ChooseObject {
+            chosen: candidates.iter().take(*count as usize).copied().collect(),
         },
     }
 }
@@ -593,6 +616,201 @@ fn ask_or_consume_effect_choice(
     });
     None
 }
+/// PB-DX28: CR 115.10 -- does `id` satisfy `filter`, for a resolution-time
+/// UNTARGETED choice?
+///
+/// **Deliberately NOT `casting::validate_object_satisfies_requirement` /
+/// `casting::validate_targets_inner` / `rules::queries::legal_targets_per_slot`.**
+/// Those apply full CR 115 targeting legality -- hexproof, shroud, protection,
+/// "can't be the target of" -- which is precisely the defect `OOS-DX4-6` names:
+/// a spell or ability targets only where its text says "target" (CR 115.10), and
+/// "return a land you control to its owner's hand" does not say "target". A
+/// hexproofed/shrouded/protected land IS a legal answer here.
+///
+/// Applies the characteristic axes via `matches_filter`, then every runtime axis
+/// `matches_filter` cannot see -- each documented at its own declaration in
+/// `card_definition.rs` as "silently ignored by `matches_filter()`":
+/// `controller`, `owner` (PB-DX28 §2), `exclude_self`, `is_token`/`is_nontoken`,
+/// `is_tapped`/`is_untapped`, `is_attacking`/`is_blocking`, `has_counter_type`,
+/// `has_chosen_subtype`/`exclude_chosen_subtype`.
+///
+/// **Fails CLOSED** on `max_cmc_amount`/`min_cmc_amount`: those are
+/// `EffectContext`-resolved (`Effect::SearchLibrary`/`LookAtTopThenPlace` are
+/// the only executors that hold the right `ctx` shape for them) and are NOT
+/// supported here. A filter that sets either is rejected outright rather than
+/// silently ignored -- `pb_dx28_chosen_object_roster::R2` pins the supported
+/// axis set so a filter using an unsupported one is caught at author time, not
+/// discovered by an over-wide answer space in production.
+fn filter_matches_object_untargeted(
+    state: &GameState,
+    ctx: &EffectContext,
+    id: ObjectId,
+    filter: &TargetFilter,
+    chooser: PlayerId,
+    self_id: Option<ObjectId>,
+) -> bool {
+    if filter.max_cmc_amount.is_some() || filter.min_cmc_amount.is_some() {
+        return false;
+    }
+    // SR-25: every caller passes an `id` freshly drawn from `state.objects`
+    // (the `resolve_pending_object_choices` candidate walk), so absence here
+    // is an engine bug, not a legal fizzle -- `expect_object`, not a bare
+    // `.objects.get(`.
+    let Some(obj) = state.expect_object(id) else {
+        return false;
+    };
+    let chars = crate::rules::layers::expect_characteristics(state, id);
+    if !matches_filter(&chars, filter) {
+        return false;
+    }
+    if !check_has_counter_type(obj, filter) {
+        return false;
+    }
+    if !check_chosen_subtype_filter(state, ctx, filter, &chars) {
+        return false;
+    }
+    let passes_controller = match filter.controller {
+        TargetController::Any => true,
+        TargetController::You => obj.controller == chooser,
+        TargetController::Opponent => obj.controller != chooser,
+        // Meaningless for a resolution-time choice (no cast, no damaged-player
+        // context) -- reject, mirroring `casting.rs`'s convention for a spell
+        // cast from hand.
+        TargetController::DamagedPlayer => false,
+    };
+    let passes_owner = match filter.owner {
+        TargetOwner::Any => true,
+        TargetOwner::You => obj.owner == chooser,
+        TargetOwner::Opponent => obj.owner != chooser,
+    };
+    let passes_self = !filter.exclude_self || self_id != Some(id);
+    let passes_token = !filter.is_token || obj.is_token;
+    let passes_nontoken = !filter.is_nontoken || !obj.is_token;
+    let passes_tapped = !filter.is_tapped || obj.status.tapped;
+    let passes_untapped = !filter.is_untapped || !obj.status.tapped;
+    let passes_combat_role = match (filter.is_attacking, filter.is_blocking) {
+        (false, false) => true,
+        (true, false) => state
+            .combat
+            .as_ref()
+            .is_some_and(|c| c.attackers.contains_key(&id)),
+        (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(id)),
+        (true, true) => state
+            .combat
+            .as_ref()
+            .is_some_and(|c| c.attackers.contains_key(&id) || c.is_blocking(id)),
+    };
+    passes_controller
+        && passes_owner
+        && passes_self
+        && passes_token
+        && passes_nontoken
+        && passes_tapped
+        && passes_untapped
+        && passes_combat_role
+}
+/// PB-DX28: CR 115.10 -- resolve any resolution-time UNTARGETED object choice
+/// `effect` carries, banking the answer on `ctx.chosen_objects` before `effect`
+/// itself runs. Called at the top of `execute_effect_inner`, for EVERY effect
+/// (a no-op `true` for the vast majority that carry no `ChosenObject`).
+///
+/// Returns `false` when the ask suspended the resolution -- the caller must
+/// return immediately and apply NOTHING, exactly like every other CR 608.2d
+/// ask in this file (see `ask_or_consume_effect_choice`'s own doc).
+///
+/// **Supported effects** (the whole corpus population, PB-DX28 plan §0.1):
+/// `Effect::MoveZone { target, .. }`, `Effect::AddCounter { target, .. }`,
+/// `Effect::UntapPermanent { target }`. Any OTHER effect carrying a
+/// `ChosenObject` is a no-op here (never banked) and will hit the fail-closed
+/// `debug_assert` in `resolve_effect_target_list_indexed`'s `ChosenObject` arm
+/// when it tries to resolve it -- deliberately loud, not a silent miss.
+fn resolve_pending_object_choices(
+    state: &mut GameState,
+    effect: &Effect,
+    ctx: &mut EffectContext,
+) -> bool {
+    let target = match effect {
+        Effect::MoveZone { target, .. } => target,
+        Effect::AddCounter { target, .. } => target,
+        Effect::UntapPermanent { target } => target,
+        _ => return true,
+    };
+    let EffectTarget::ChosenObject {
+        zone,
+        filter,
+        count,
+        up_to,
+    } = target
+    else {
+        return true;
+    };
+    // Already banked by an earlier pass of THIS resolution (or by an earlier
+    // effect in the same `Sequence` naming the identical `ChosenObject` value,
+    // e.g. a Karoo's `MoveZone.target` and `Hand.owner = OwnerOf(ChosenObject)`
+    // -- see that variant's own doc on being keyed by value).
+    if ctx.chosen_objects.iter().any(|(t, _)| t == target) {
+        return true;
+    }
+    // `state.objects` is an `im::OrdMap`, so this iteration is already in
+    // ascending `ObjectId` order -- the same convention every other
+    // `EffectChoiceQuestion` candidate list in this file documents.
+    let candidates: Vec<ObjectId> = state
+        .objects
+        .iter()
+        .filter(|(&id, obj)| {
+            let in_zone = match zone {
+                ChoiceZone::Battlefield => obj.zone == ZoneId::Battlefield && obj.is_phased_in(),
+                ChoiceZone::YourGraveyard => obj.zone == ZoneId::Graveyard(ctx.controller),
+            };
+            in_zone
+                && filter_matches_object_untargeted(
+                    state,
+                    ctx,
+                    id,
+                    filter,
+                    ctx.controller,
+                    Some(ctx.source),
+                )
+        })
+        .map(|(&id, _)| id)
+        .collect();
+    let n = *count as usize;
+    // CR 601.2c's principle (the same argument `Effect::DiscardCards` makes at
+    // `n == 0 || n >= hand.len()`): when the answer space admits exactly ONE
+    // legal SET, the announcement is DETERMINED and there is nothing to ask.
+    // Without this a one-land Karoo would cost a round trip on every ETB.
+    let determined = if candidates.is_empty() {
+        Some(Vec::new())
+    } else if !up_to && candidates.len() <= n {
+        Some(candidates.clone())
+    } else {
+        None
+    };
+    let chosen = if let Some(d) = determined {
+        d
+    } else {
+        let question = EffectChoiceQuestion::ChooseObject {
+            candidates: candidates.clone(),
+            count: *count,
+            up_to: *up_to,
+        };
+        match ask_or_consume_effect_choice(state, ctx, ctx.controller, question) {
+            Some(EffectChoiceAnswer::ChooseObject { chosen }) => chosen,
+            Some(other) => {
+                debug_assert!(
+                    false,
+                    "CR 608.2d: variant mismatch answering a ChooseObject: {other:?}"
+                );
+                candidates.iter().take(n).copied().collect()
+            }
+            // Suspended. Apply NOTHING -- the wrapper rolls the whole
+            // resolution back.
+            None => return false,
+        }
+    };
+    ctx.chosen_objects.push((target.clone(), chosen));
+    true
+}
 /// CR 608.2d (PB-DP9): how many resolution-time choices one resolution may bank.
 ///
 /// A ceiling, not a game rule: no real card comes close (k is 1 or 2 across the
@@ -670,6 +888,9 @@ pub fn handle_answer_effect_choice(
         ) | (
             EffectChoiceQuestion::Discard { .. },
             EffectChoiceAnswer::Discard { .. }
+        ) | (
+            EffectChoiceQuestion::ChooseObject { .. },
+            EffectChoiceAnswer::ChooseObject { .. }
         )
     );
     if !variants_agree {
@@ -740,6 +961,50 @@ pub fn handle_answer_effect_choice(
                 if !hand.contains(id) {
                     return Err(GameStateError::InvalidCommand(format!(
                         "CR 701.9b: {id:?} is not in the hand this effect is discarding from"
+                    )));
+                }
+                seen.push(*id);
+            }
+        }
+        (
+            EffectChoiceQuestion::ChooseObject {
+                candidates,
+                count,
+                up_to,
+            },
+            EffectChoiceAnswer::ChooseObject { chosen },
+        ) => {
+            // PB-DX28: CR 115.10 / CR 608.2 -- no duplicates, every id drawn
+            // from the question's own candidates, and the count matches the
+            // question's shape: exactly `min(count, candidates.len())` when
+            // `!up_to` (CR 608.2 "as much as possible"), `<= count` when
+            // `up_to`.
+            let expected = (*count as usize).min(candidates.len());
+            if *up_to {
+                if chosen.len() > *count as usize {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "CR 115.10 / CR 608.2: this choice picks UP TO {count}; the answer \
+                         names {}",
+                        chosen.len()
+                    )));
+                }
+            } else if chosen.len() != expected {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "CR 115.10 / CR 608.2: this choice picks exactly {expected} object(s) \
+                     (as much as possible, of {count} wanted); the answer names {}",
+                    chosen.len()
+                )));
+            }
+            let mut seen: Vec<ObjectId> = Vec::with_capacity(chosen.len());
+            for id in chosen {
+                if seen.contains(id) {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "CR 115.10: {id:?} is named more than once"
+                    )));
+                }
+                if !candidates.contains(id) {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "CR 115.10: {id:?} is not among the objects this choice offered"
                     )));
                 }
                 seen.push(*id);
@@ -897,6 +1162,16 @@ fn execute_effect_inner(
     ctx: &mut EffectContext,
     events: &mut Vec<GameEvent>,
 ) {
+    // PB-DX28 (CR 115.10): resolve any resolution-time UNTARGETED object choice
+    // this effect carries BEFORE the effect itself runs. Suspends (returns
+    // `false`) exactly like every other CR 608.2d ask in this file -- the
+    // caller must apply NOTHING and let the wrapper roll the whole resolution
+    // back. `Effect::Sequence`/`Conditional`/`ForEach`/`Repeat` need no arm of
+    // their own here: they each call `execute_effect_inner` per child, so this
+    // pre-pass runs again at each child's own granularity.
+    if !resolve_pending_object_choices(state, effect, ctx) {
+        return;
+    }
     match effect {
         // ── Damage & Life ──────────────────────────────────────────────────
         Effect::DealDamage {
@@ -4279,6 +4554,10 @@ fn execute_effect_inner(
                             // CR 605.4a (PB-DP9): inherited, so a mana ability's
                             // gate is not lost when `ForEach` builds a sub-context.
                             effect_choice_gate_closed: ctx.effect_choice_gate_closed,
+                            // PB-DX28: inherited, so a `ChosenObject` banked by an
+                            // outer effect stays visible inside the per-object
+                            // sub-context `ForEach` builds.
+                            chosen_objects: ctx.chosen_objects.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                         // CR 608.2d (PB-DP9): see `Effect::Sequence`. This is
@@ -4329,6 +4608,10 @@ fn execute_effect_inner(
                             // CR 605.4a (PB-DP9): inherited, so a mana ability's
                             // gate is not lost when `ForEach` builds a sub-context.
                             effect_choice_gate_closed: ctx.effect_choice_gate_closed,
+                            // PB-DX28: inherited, so a `ChosenObject` banked by an
+                            // outer effect stays visible inside the per-object
+                            // sub-context `ForEach` builds.
+                            chosen_objects: ctx.chosen_objects.clone(),
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                         // CR 608.2d (PB-DP9): see `Effect::Sequence`.
@@ -7874,6 +8157,37 @@ fn resolve_effect_target_list_indexed(
                 vec![]
             }
         }
+        // PB-DX28 (CR 115.10): the resolution-time UNTARGETED choice banked by
+        // `resolve_pending_object_choices` before this effect ran (it always
+        // runs first in the SAME `execute_effect_inner` call, so there is no
+        // window for the banked ids to go stale between the bank and this
+        // read — the `state.objects.contains_key` filter is defensive, the
+        // same convention `LastCreatedPermanent`/`TriggeringCreature` use
+        // above).
+        //
+        // Fails CLOSED (empty) when nothing is banked for this exact value.
+        // Reaching that is an ENGINE BUG (SR-4), not a legal CR 608.2b fizzle:
+        // `pb_dx28_chosen_object_roster::R1`/`R3` pin the exact set of card
+        // defs that use this variant, and every one resolves through one of
+        // the three effects `resolve_pending_object_choices` covers.
+        EffectTarget::ChosenObject { .. } => {
+            match ctx.chosen_objects.iter().find(|(t, _)| t == target) {
+                Some((_, ids)) => ids
+                    .iter()
+                    .filter(|id| state.objects.contains_key(id))
+                    .map(|&id| (None, ResolvedTarget::Object(id)))
+                    .collect(),
+                None => {
+                    debug_assert!(
+                        false,
+                        "PB-DX28 (CR 115.10): EffectTarget::ChosenObject {target:?} was \
+                         resolved with no banked answer -- resolve_pending_object_choices \
+                         did not cover this effect's position"
+                    );
+                    vec![]
+                }
+            }
+        }
     }
 }
 /// Resolve a `PlayerTarget` into a list of `PlayerId`s.
@@ -10553,6 +10867,7 @@ pub fn check_static_condition(
                 defending_player: None,
                 source_transformed_this_resolution: false,
                 effect_choice_gate_closed: false,
+                chosen_objects: Vec::new(),
             };
             check_condition(state, condition, &ctx)
         }

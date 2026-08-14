@@ -35,6 +35,7 @@ mod pb_dx25b_announced_target_roster;
 mod pb_dx25c_retarget_roster;
 mod pb_dx26_attach_keyword_roster;
 mod pb_dx27_stale_blocker_notes;
+mod pb_dx28_chosen_object_roster;
 mod pb_dx42a_continuous_condition_roster;
 mod pb_dx5_continuous_effect_roster;
 mod pb_dx6_turn_face_up_and_attack_tax_roster;
