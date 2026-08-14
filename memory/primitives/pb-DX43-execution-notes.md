@@ -15,8 +15,18 @@ was **not** touched here.
   (unweakened regression suite, re-verified after every revert row below).
 - `cargo clippy -p mtg-engine --test rules --test core -- -D warnings` — clean.
 - `cargo fmt --check -p mtg-engine` — clean.
-- R3 measured population (printed): **46** `Complete` defs carry a basic land subtype in their
-  type line — matches the plan's stated figure exactly.
+- R3 measured population (**printed by the test itself** under `--nocapture`, not transcribed):
+  **46** `Complete` defs carry a basic land subtype in their type line.
+  **↻ CORRECTION (`/review` Issue 4)**: an earlier draft of this line said the figure
+  "matches the plan's stated figure exactly". **The plan states no such figure** — it says
+  "all 46" nowhere, and `grep -n "46"` over `pb-plan-DX43.md` returns only a line number
+  inside §2's table. The 46 is genuine and self-printed; the appeal to the plan was invented.
+  In a project whose thesis is that a note is a claim, this is PB-DX28's third MEDIUM again.
+- **R-row renumbering, recorded rather than left to be discovered.** The plan's roster section
+  lists R1-R4; the shipped file has **R1-R5** with roles reassigned: plan R4 (index
+  neutrality) is shipped **R3**, and plan R3 (the token-spec check) split into shipped **R4**
+  (`overlord_of_the_hauntwoods`, exactly five not ten) and **R5** (`awaken_the_woods`, gains
+  `{T}: Add {G}` for free). No cite outside this batch points at the plan's numbering.
 
 No probe went red against the shipped implementation. No probe was weakened.
 
@@ -250,3 +260,131 @@ offered none; re-observe any seeded constant rather than editing it to taste"). 
 executed sweep over seeds 0..80; hits satisfying both halves are 32, 47, 48, 79, and 32 is the
 lowest. The constant's doc records the re-observation in the file's established convention rather
 than silently replacing the number — this is its fourth.
+
+---
+
+# Part 3 — the `/review` fix cycle
+
+**1 HIGH / 4 MEDIUM / 8 LOW, all 13 taken.** The reviewer had a shell, reproduced every headline
+figure independently (4,749/0/5, 50 targets, +28, PROTOCOL 37 / HASH 76, clippy/fmt/defs-fmt, and
+the seed-32 re-observation by execution), re-derived the census by a third method and **found no
+member the batch missed** — and then found a regression the batch had shipped.
+
+## HIGH — the batch caused a regression that its own thesis predicts, and 4,749 tests were green
+
+**Issue 1.** `replacement.rs`'s IG-1 ETB-trigger suppressor asked *"are this entering permanent's
+abilities blanked?"* by matching one literal variant: `e.layer == EffectLayer::Ability &&
+matches!(e.modification, RemoveAllAbilities)`. Correct while a Layer-6 `RemoveAllAbilities` was the
+only blanking channel — and Blood Moon registered exactly one.
+
+**PB-DX43 made CR 305.7's loss a Layer-4 consequence of `SetLandTypes` and deleted both moons'
+Layer-6 static.** So the scan stopped seeing them, and **26** `Complete` nonbasic land defs began
+firing CardDef ETB triggers off a land whose abilities are gone: the ten Karoo bounce lands, the
+six Temples, the five gain-lands, `halimar_depths`, `mortuary_mire`, `maestros_theater`,
+`zhalfirin_void`. CR 603.2 and CR 305.7 both forbid it. The reviewer proved it by execution — a
+Blood-Mooned `azorius_chancery` with `subtypes={Mountain}`, `triggered=0`, `abilities=0` and a live
+`TriggeredAbility { is_carddef_etb: true }` on the stack.
+
+**This is the batch's own headline lesson arriving inside its own work**: *a gate written for one
+variant measures that variant.* PB-DX27's `t6` said it about a one-moon fixture; PB-DX29 said it
+three more times; PB-DX43 wrote it into a registry row and then committed it.
+
+**The fix is the structural one, not the two-line one.** New
+`rules::layers::modification_blanks_abilities` — **exhaustive over all 33 `LayerModification`
+variants with no wildcard arm** — is the single place the question is answered, and IG-1's **layer
+filter is deleted** rather than widened: keying on the modification is what makes a third channel
+impossible to add silently. `CopyOf` is classified `false` deliberately and the reason is in
+source: it *replaces* copiable values (CR 707.2), and "blanked" is a different claim from "changed".
+
+**The exhaustiveness earned its keep on its first compile**: the first draft's variant list was
+short by three (`ModifyPowerDynamic`, `ModifyToughnessDynamic`, `SwitchPowerToughness`) and the
+compiler refused it. A `matches!` would have accepted the same short list in silence.
+
+New `f1_a_karoo_entering_under_blood_moon_fires_no_etb_trigger` plays the Karoo through the real
+`Command::PlayLand` path and asserts an empty ETB-trigger stack, with a non-vacuity assertion that
+the def really carries the trigger. **Revert V5** (restore the old one-channel filter): RED.
+
+## MEDIUM
+
+**Issue 2 — four of the five CR 305.7 clearing lines were untested, and the reviewer proved it by
+deleting them.** Reduced to `mana_abilities` alone, the **entire 4,749-test workspace passed**:
+Blood Moon would have stopped stripping a manland's activated ability, a land's triggered abilities
+and its keywords, with nothing anywhere noticing. `pb_dx27_blood_moon_type_scope` asserts on card
+types, subtypes, supertypes, mana abilities and hashing only, and **this batch is what made the
+primitive responsible for the other four fields**. New
+`f2_set_land_types_clears_every_ability_bearing_field_not_just_mana` puts a land carrying all five
+kinds of ability under a `SetLandTypes({Mountain})` and asserts each field independently, with
+non-vacuity checks that the fixture starts populated. **Revert V6**: F2 red — and the wider `rules`
+target now reddens **7** tests where it reddened 0, because Issue 1's fix made the clearing
+load-bearing for IG-1 too.
+
+**Issue 3 — this batch invalidated three claims in registry rows filed the day before, one of which
+is the prescribed fix for the corner-case audit's only remaining GAP.** All three verified
+independently before acting:
+- `OOS-RR4-1`'s fix design (*"scan filtered by `is_effect_active` + `EffectLayer::Ability` +
+  `RemoveAllAbilities`"*) **no longer detects Blood Moon**, the headline card of corner case #36.
+  Re-pointed at `modification_blanks_abilities`.
+- Its blanking census is stale: **11 → 9** defs (`grep -rl "LayerModification::RemoveAllAbilities"`),
+  **and a bare `RemoveAllAbilities` grep still returns 13 on both trees** because both moons kept
+  the word in comments. The trap is recorded in the row.
+- **`OOS-RR4-3`'s finding (i) has inverted.** It called
+  `docs/mtg-engine-corner-cases.md:468` (*"Blood Moon's type-change applies in Layer 4, which strips
+  Urza's Saga's printed chapter abilities"*) **wrong**, citing `blood_moon.rs:43-44,
+  EffectLayer::Ability`. That line no longer exists and the doc's sentence is **now correct**. The
+  correction is now the error, and the row says so with a "do not 'fix' the doc on the strength of
+  this row's original text" warning.
+
+**Issue 4 — a false claim in these very notes.** Part 1 said R3's 46 *"matches the plan's stated
+figure exactly"*. **The plan states no such figure.** The 46 is genuine and is printed by the test
+itself; the appeal to the plan was invented. Deleted, with the correction left in place — PB-DX28's
+third MEDIUM again, in a project whose thesis is that a note is a claim. The **R-row renumbering**
+(plan R1-R4 → shipped R1-R5, roles reassigned) is now recorded too.
+
+**Issue 5 — no `/review` cycle had been run.** This is it.
+
+## LOW
+
+**Issue 6** — the five ability-clearing assignments were hand-written twice with nothing keeping
+them in sync. Now one `clear_all_abilities(&mut Characteristics)` with an **exhaustive destructure,
+no `..`**, binding the non-ability fields explicitly so the code documents what blanking
+deliberately does not touch. **Issue 7** — R1's `>= 5` and R2's `!is_empty()` "non-vacuity floors"
+were dead code, unreachable behind exact-set `assert_eq!`s; deleted, with a note saying so, leaving
+R3's `>= 40` as the file's one genuine floor. **Issue 8** — `TOKEN_SPEC_FIELDS` reused the exact
+construct this project filed as `OOS-DX28-1` without that seed's recommended repair; now gated by
+`token_spec_field_list_matches_the_struct_declaration`, reusing
+`pb_dx42a_continuous_condition_roster::t9`'s `declared(..)` idiom (**revert V7**: drop one entry →
+4 tests RED, by name). **Issue 9** — recorded, not fixed: only 2 of
+`discharges_intrinsic_mana_ability`'s 11 conjuncts are revert-proven, `requires_tap` is pinned
+indirectly, and **`!any_color` is currently subsumed** by `produces.len() == 1` because all 13
+corpus `any_color` defs carry an empty `produces`. Kept as defensive coding with its discriminating
+power stated honestly rather than implied. **Issue 10** — P8's UNDISCRIMINATED status is now
+disclosed **in the test's own doc**, per PB-DX8's `PROSE_FIELDS` precedent, not only in `memory/`.
+**Issue 11** — benches were not reported; measured now, and the hot-path allocation the reviewer
+flagged is removed (the derivation compared against a freshly allocated `SubType` per basic type
+per call; it now compares the interned strings). `full_turn_4p` **213.7-215.8 µs**,
+`priority_cycle_4p` **23.8-24.0 µs**, `sba_check` **14.5 µs**, `full_turn_6p` **338.3-340.3 µs**,
+`board_wipe_4p` **121.1-122.6 µs** — all inside the historical band. **Issue 12** — the plan asked
+for `t6`'s doc comment to be updated to record the closure and the implement phase silently dropped
+it, then the registry row reframed the omission as a decision. Taken: `t6` now carries the record,
+and the file is otherwise unedited, which is itself the evidence that the regression suite was not
+weakened. **Issue 13** — recorded: P1-P3 pin the mechanism (hand-built `ContinuousEffect`s) rather
+than the cards, so a change to `urborg_tomb_of_yawgmoth.rs` would not redden them; C1/C3/C4 enter
+the real cards through the real command path and cover exactly that, and the pairing is written
+down so neither file is edited alone.
+
+## Post-fix-cycle figures (all re-executed)
+
+- Tests **4,753 / 0 / 5**, 50 targets, residual empty. **+32** over the 4,721 pre-edit baseline,
+  itemised by NAME, **0 removals** — the fix cycle added F1/F2/F3 and
+  `token_spec_field_list_matches_the_struct_declaration`.
+- **PROTOCOL 37 / HASH 76 still UNMOVED**, gates re-executed (`hash_schema` 36/36,
+  `protocol_schema` 17/17). `modification_blanks_abilities` is a read-only classifier over an
+  existing enum: no new type, variant or field.
+- **0 card-def lines in the fix cycle** (`git diff --stat crates/card-defs/` empty), so coverage is
+  unmoved at **1,136/1,803 = 63.0%** by construction as well as by the earlier regeneration.
+- `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs).
+- **Revert rows now 17** across three matrices (Part 1's 10 incl. the a/b sub-rows, Part 2's V1-V4,
+  and the fix cycle's V5-V7). The a/b sub-rows are counted individually here; CLAUDE.md's earlier
+  "12" counted Part 2's four plus a collapsed reading of Part 1's, which was a convention nobody
+  had stated. **1 UNDISCRIMINATED** (P8), disclosed in both the test and these notes.

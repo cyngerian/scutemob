@@ -1637,8 +1637,13 @@ fn derive_intrinsic_land_mana_abilities(chars: &mut Characteristics) {
         return;
     }
     for (name, color) in crate::state::types::BASIC_LAND_TYPES {
-        let st = SubType(name.to_string());
-        if !chars.subtypes.contains(&st) {
+        // Compare the interned strings directly rather than allocating a `SubType` per basic type
+        // per call (`/review` Issue 11). This runs for EVERY land on EVERY
+        // `calculate_characteristics` call, which is the hottest path in the layer walk; the
+        // first draft allocated up to five `String`s each time to build throwaway lookup keys.
+        // `OrdSet::contains` would be O(log n) against ~1-2 subtypes, so the linear scan is not a
+        // regression at these sizes and it allocates nothing.
+        if !chars.subtypes.iter().any(|st| st.0 == name) {
             continue;
         }
         let already_present = chars
@@ -1691,6 +1696,134 @@ fn discharges_intrinsic_mana_ability(ma: &ManaAbility, color: ManaColor) -> bool
         && produces.len() == 1
         && produces.get(&color).copied() == Some(1)
 }
+
+/// Blank every ability-bearing field of `chars` — the operation CR 305.7's *"It loses
+/// all abilities generated from its rules text, its old land types, and any copiable
+/// effects affecting that land"* and `LayerModification::RemoveAllAbilities` both
+/// perform.
+///
+/// **Written as an exhaustive destructure with no `..` rest pattern on purpose**
+/// (PB-DX43 `/review` Issue 6, the SR-5 idiom this file already uses for
+/// [`discharges_intrinsic_mana_ability`]). Before this existed the same five
+/// assignments were hand-written twice, in the `SetLandTypes` and
+/// `RemoveAllAbilities` arms, with nothing keeping them in sync: a sixth
+/// ability-bearing field on `Characteristics` would have been added to one copy and
+/// silently missed by the other. Now a new field is a compile error here until
+/// someone decides whether blanking should clear it.
+///
+/// The non-ability fields are bound and explicitly dropped rather than elided, so the
+/// destructure documents what blanking deliberately does NOT touch (CR 613.1f removes
+/// abilities; it does not touch types, colours or P/T).
+fn clear_all_abilities(chars: &mut Characteristics) {
+    let Characteristics {
+        // Ability-bearing — cleared.
+        keywords,
+        mana_abilities,
+        activated_abilities,
+        triggered_abilities,
+        abilities,
+        // Deliberately untouched by an ability blank.
+        name: _,
+        mana_cost: _,
+        colors: _,
+        color_indicator: _,
+        supertypes: _,
+        card_types: _,
+        subtypes: _,
+        rules_text: _,
+        power: _,
+        toughness: _,
+        loyalty: _,
+        defense: _,
+    } = chars;
+    *keywords = OrdSet::new();
+    *mana_abilities = imbl::Vector::new();
+    *activated_abilities = Vec::new();
+    *triggered_abilities = Vec::new();
+    *abilities = imbl::Vector::new();
+}
+
+/// Does a `SetLandTypes` payload name at least one of CR 305.6's five basic land
+/// types? This is CR 305.7's own stated precondition — *"If an effect sets a land's
+/// subtype to one or more of the **basic** land types"* — so a payload naming only
+/// nonbasic land types (Gate, Cave, Desert, ...) sets the type without triggering
+/// either the ability loss or any intrinsic mana grant.
+fn set_land_types_payload_is_basic(new_types: &OrdSet<SubType>) -> bool {
+    new_types
+        .iter()
+        .any(|st| crate::state::types::basic_land_type_mana_color(st).is_some())
+}
+
+/// Does `modification` blank an object's abilities? **Exhaustive over every
+/// `LayerModification` variant with no wildcard arm** — adding a 31st variant is a
+/// compile error here until someone classifies it.
+///
+/// # Why this function exists (PB-DX43 `/review` Issue 1, a HIGH)
+///
+/// Before PB-DX43 there was exactly one way to blank a permanent's abilities — a
+/// Layer-6 `RemoveAllAbilities` — so every consumer that needed to ask "are this
+/// object's abilities gone?" could and did match that one variant literally. PB-DX43
+/// added a **second** channel: CR 305.7's loss, performed by the Layer-4
+/// `SetLandTypes` arm when its payload is basic. `replacement.rs`'s IG-1 ETB-trigger
+/// suppressor was still matching the first channel only, so deleting Blood Moon's and
+/// Magus of the Moon's Layer-6 static — correct in itself — silently re-enabled the
+/// CardDef ETB triggers of **26** nonbasic land defs entering under either moon (the
+/// ten Karoo bounce lands, the six Temples, the five gain-lands, and others), with the
+/// whole test suite green.
+///
+/// That is this batch's own thesis arriving inside its own work: **a gate written for
+/// one variant measures that variant.** The fix is not to add a second `matches!` at
+/// the one call site but to encode the question once, exhaustively, so the next
+/// channel cannot be added without every consumer being forced to notice.
+///
+/// CR 603.2 is why IG-1 cares: a triggered ability only exists to trigger if the
+/// object has it, and an object whose abilities are blanked has none.
+pub fn modification_blanks_abilities(modification: &LayerModification) -> bool {
+    match modification {
+        // Channel 1 (CR 613.1f, Layer 6): the explicit ability wipe.
+        LayerModification::RemoveAllAbilities => true,
+        // Channel 2 (CR 305.7, Layer 4): setting a land's subtype to one or more BASIC
+        // land types makes it lose the abilities from its rules text and old land
+        // types. A nonbasic payload does not (CR 305.7's own precondition).
+        LayerModification::SetLandTypes(new_types) => set_land_types_payload_is_basic(new_types),
+        // Everything else leaves at least some ability intact. `CopyOf` is deliberately
+        // NOT a blanking channel: it REPLACES the copiable values wholesale (CR 707.2),
+        // and the copy may well have abilities of its own — "blanked" is a different
+        // claim from "changed".
+        LayerModification::CopyOf(_)
+        | LayerModification::SetController(_)
+        | LayerModification::SetTypeLine { .. }
+        | LayerModification::AddCardTypes(_)
+        | LayerModification::RemoveCardTypes(_)
+        | LayerModification::AddSubtypes(_)
+        | LayerModification::LoseAllSubtypes
+        | LayerModification::RemoveSuperType(_)
+        | LayerModification::AddAllCreatureTypes
+        | LayerModification::SetCreatureTypes(_)
+        | LayerModification::SetCardTypes(_)
+        | LayerModification::SetColors(_)
+        | LayerModification::AddColors(_)
+        | LayerModification::BecomeColorless
+        | LayerModification::AddKeyword(_)
+        | LayerModification::AddKeywords(_)
+        | LayerModification::RemoveKeyword(_)
+        | LayerModification::AddActivatedAbility(_)
+        | LayerModification::AddManaAbility(_)
+        | LayerModification::SetPtViaCda { .. }
+        | LayerModification::SetPtDynamic { .. }
+        | LayerModification::SetPtToManaValue
+        | LayerModification::SetPowerToughness { .. }
+        | LayerModification::SetBothDynamic { .. }
+        | LayerModification::ModifyPower(_)
+        | LayerModification::ModifyToughness(_)
+        | LayerModification::ModifyBoth(_)
+        | LayerModification::ModifyBothDynamic { .. }
+        | LayerModification::ModifyPowerDynamic { .. }
+        | LayerModification::ModifyToughnessDynamic { .. }
+        | LayerModification::SwitchPowerToughness => false,
+    }
+}
+
 /// Apply a single layer modification to the given characteristics.
 ///
 /// `state` is needed for Layer 1 copy effects to look up the target object's
@@ -1897,17 +2030,8 @@ fn apply_layer_modification(
                 kept.insert(s.clone());
             }
             chars.subtypes = kept;
-            let sets_a_basic_type = new_types.iter().any(|st| {
-                crate::state::types::BASIC_LAND_TYPES
-                    .iter()
-                    .any(|(name, _)| *name == st.0)
-            });
-            if sets_a_basic_type {
-                chars.keywords = OrdSet::new();
-                chars.mana_abilities = imbl::Vector::new();
-                chars.activated_abilities = Vec::new();
-                chars.triggered_abilities = Vec::new();
-                chars.abilities = imbl::Vector::new();
+            if set_land_types_payload_is_basic(new_types) {
+                clear_all_abilities(chars);
             }
         }
         // Layer 5: Color-changing
@@ -1935,11 +2059,7 @@ fn apply_layer_modification(
             // Removes all static, activated, triggered, and keyword abilities.
             // The continuous effect itself persists (CR 611.2d — effects from removed
             // abilities continue if they were already in effect).
-            chars.keywords = OrdSet::new();
-            chars.mana_abilities = imbl::Vector::new();
-            chars.activated_abilities = Vec::new();
-            chars.triggered_abilities = Vec::new();
-            chars.abilities = imbl::Vector::new();
+            clear_all_abilities(chars);
         }
         LayerModification::RemoveKeyword(kw) => {
             chars.keywords.remove(kw);

@@ -444,6 +444,28 @@ fn t5_ancient_dens_original_white_mana_ability_is_removed() {
 /// about the grant being idempotent. Catching that needs a two-moon fixture; the clean
 /// fix is the CR 305.6 intrinsic derivation `OOS-DX27-1` describes, which is idempotent
 /// by construction and would let both defs drop the explicit grant.
+///
+/// **↻ 2026-08-14 — that is exactly what happened. PB-DX43 (`scutemob-213`) shipped the
+/// derivation and closed both `OOS-DX27-1` and `OOS-DX27-10`.** The paragraph above is kept
+/// verbatim as the record of a prediction that came true, not deleted. What changed underneath
+/// this test, and why it still passes unedited:
+///
+/// - Blood Moon no longer authors `AddManaAbility` at all. The `{T}: Add {R}` this test asserts
+///   is now the CR 305.6 **intrinsic** ability of an object with the land card type and the
+///   Mountain subtype, derived at the end of the Layer-4 pass by
+///   `rules::layers::derive_intrinsic_land_mana_abilities`.
+/// - Blood Moon no longer authors a Layer-6 `RemoveAllAbilities` either. Ancient Den's printed
+///   `{T}: Add {W}` (T5) is now removed by the `SetLandTypes` arm itself, because CR 305.7's
+///   ability loss is a consequence of the type-SETTING event and therefore belongs to Layer 4
+///   (CR 613.1d), not to a companion Layer-6 static.
+/// - So "exactly one mana ability" is now a statement about **idempotence** rather than about
+///   timestamp ordering, and it holds on a two-moon board as well. The two-moon fixture this
+///   comment asked for exists twice: `pb_dx43_intrinsic_land_mana::p4` (characteristics) and
+///   `pb_dx43_intrinsic_mana_channel::c6b` (offer layer + solver, where `OOS-DX27-10`'s filed
+///   symptom actually lived).
+///
+/// **This file is deliberately unedited** apart from this note — an untouched regression suite
+/// passing across a primitive change is stronger evidence than an adjusted one.
 #[test]
 fn t6_ancient_den_gains_exactly_the_granted_tap_add_red_ability() {
     let blood_moon = mtg_engine::cards::defs::blood_moon::card();

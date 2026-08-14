@@ -170,15 +170,17 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-08-14, PB-DX43)**: **4,749 / 0 / 5** full-workspace on branch
-  `scutemob-213` (+28 over the **4,721** baseline, measured on this branch BEFORE any edit and
-  reproducing PB-DX29's close pin exactly), `--workspace --no-fail-fast` to a file, **50**
+- **Tests (delta 2026-08-14, PB-DX43 + `/review` fix cycle)**: **4,753 / 0 / 5** full-workspace on
+  branch `scutemob-213` (+32 over the **4,721** baseline, measured on this branch BEFORE any edit
+  and reproducing PB-DX29's close pin exactly), `--workspace --no-fail-fast` to a file, **50**
   result-producing targets (49 → 50: one new simulator test binary), residual list empty.
-  **Delta itemised by test NAME with ZERO removals**, by set-diffing the two run logs: **13** in
-  the new `crates/engine/tests/rules/pb_dx43_intrinsic_land_mana.rs` (P1-P13), **8** in the new
-  `crates/simulator/tests/pb_dx43_intrinsic_mana_channel.rs` (C1-C6b, the real-activation-path
-  probes), **5** in the new `crates/engine/tests/core/pb_dx43_land_type_roster.rs` (R1-R5), and
-  **2** in `crates/card-types`' new `state::types::basic_land_types_tests`.
+  **Delta itemised by test NAME with ZERO removals**, by set-diffing the two run logs: **16** in
+  the new `crates/engine/tests/rules/pb_dx43_intrinsic_land_mana.rs` (P1-P13 + the fix cycle's
+  F1-F3), **8** in the new `crates/simulator/tests/pb_dx43_intrinsic_mana_channel.rs` (C1-C6b, the
+  real-activation-path probes), **6** in the new
+  `crates/engine/tests/core/pb_dx43_land_type_roster.rs` (R1-R5 + the fix cycle's
+  fingerprint-vs-declaration gate), and **2** in `crates/card-types`' new
+  `state::types::basic_land_types_tests`.
   **PROTOCOL 37 / HASH 76 both UNMOVED**, gate-executed (`hash_schema` 36/36, `protocol_schema`
   17/17) — the derivation adds no type, no variant and no field, and `hash.rs` hashes **base**
   `obj.characteristics` rather than the resolved value, which is the same reason `AddManaAbility`
@@ -195,9 +197,13 @@
   with no production line outside the engine, because each one already read layer-resolved
   characteristics; that was measured before the design was chosen, not asserted after.
   `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
-  `tools/check-defs-fmt.sh` clean (1,803 defs). **12 revert rows executed** across the two
-  matrices; **1 honestly UNDISCRIMINATED** (`p8`, CR 708.2a face-down — no line this batch owns
-  can break it, because the face-down blank runs before the layer loop starts).
+  `tools/check-defs-fmt.sh` clean (1,803 defs). **17 revert rows executed** across three matrices;
+  **1 honestly UNDISCRIMINATED** (`p8`, CR 708.2a face-down — no line this batch owns can break it,
+  because the face-down blank runs before the layer loop starts), disclosed in the test itself and
+  not only in `memory/`. Benches within the historical band (`/review` Issue 11, which noted the
+  change adds work to the hot layer walk): `full_turn_4p` **213.7-215.8 µs**, `priority_cycle_4p`
+  **23.8-24.0 µs**, `sba_check` **14.5 µs** — and the per-call `SubType` allocation the reviewer
+  flagged is gone, the derivation now comparing interned strings.
 - **Tests (delta 2026-08-14, PB-DX29 + `/review` fix cycle)**: **4,721 / 0 / 5** full-workspace on
   branch `scutemob-211` (+87 over the **4,634** baseline, which was measured on this branch BEFORE
   any edit and reproduced PB-DX28's close pin exactly), `--workspace --no-fail-fast` to a file,
@@ -585,7 +591,33 @@
   assertion about a non-priority player is **structurally vacuous**, since `StubProvider` returns
   an empty list for them — written as a `== 0` expectation it would have passed forever
   (`OOS-DX43-7`).
-  Tests **4,749 / 0 / 5** (+28 over the 4,721 pre-edit baseline, itemised by NAME, **0 removals**,
+  **The `/review` found 1 HIGH / 4 MEDIUM / 8 LOW and all 13 were taken — and the HIGH was this
+  batch committing its own headline lesson.** *A gate written for one variant measures that
+  variant*: `replacement.rs`'s IG-1 ETB-trigger suppressor asked "are this permanent's abilities
+  blanked?" by matching one literal variant (`EffectLayer::Ability` + `RemoveAllAbilities`), which
+  was correct while that was the only blanking channel. This batch added a **second** channel and
+  deleted the moons' Layer-6 static, so the scan stopped seeing them and **26** `Complete` nonbasic
+  land defs — the ten Karoos, the six Temples, the five gain-lands — began firing CardDef ETB
+  triggers off a land with no abilities, **with all 4,749 tests green**. Fixed structurally, not
+  locally: new `rules::layers::modification_blanks_abilities`, exhaustive over all 33
+  `LayerModification` variants with **no wildcard arm**, and IG-1's layer filter **deleted** rather
+  than widened — keying on the modification is what makes a third channel impossible to add
+  silently. **The exhaustiveness earned its keep on its first compile**: the first draft's variant
+  list was short by three and the compiler refused it, where a `matches!` would have accepted the
+  same short list in silence. The reviewer also **deleted four of the five CR 305.7 clearing lines
+  and the entire workspace stayed green** (now `f2`, and the wider `rules` target reddens 7 tests);
+  found **three claims this batch invalidated in registry rows filed the day before**, including
+  `OOS-RR4-3`'s finding (i), whose correction of `corner-cases.md:468` **has inverted** — the cite
+  it rested on no longer exists and the sentence it called wrong is now right; and caught **a false
+  claim in the batch's own execution notes** ("matches the plan's stated figure exactly" — the plan
+  states no such figure). Also taken: one `clear_all_abilities` with an exhaustive destructure
+  replacing two hand-written copies; two **dead** non-vacuity floors deleted (unreachable behind
+  exact-set `assert_eq!`s); `TOKEN_SPEC_FIELDS` gated against the struct declaration, applying the
+  repair `OOS-DX28-1` recommends and this batch had reused the fragile construct without; P8's
+  UNDISCRIMINATED status disclosed in the test itself; benches measured; and the plan deliverable
+  the implement phase silently dropped (updating `t6`'s doc) taken rather than reframed as a
+  decision.
+  Tests **4,753 / 0 / 5** (+32 over the 4,721 pre-edit baseline, itemised by NAME, **0 removals**,
   50 targets); coverage unmoved **1,136/1,803 = 63.0%**, **0 flips**, proven by regeneration;
   **PROTOCOL 37 / HASH 76 both gate-executed and UNMOVED**, as the plan predicted in writing before
   any code change. `crates/view-model` and `crates/simulator/src` are **0 lines** — every consumer

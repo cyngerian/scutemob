@@ -161,12 +161,11 @@ fn r1_payload_derived_conferring_population_is_pinned() {
          pb_dx43_intrinsic_land_mana.rs. If it SHRANK, a card def lost its conferring static -- \
          re-check the def."
     );
-    assert!(
-        actual.len() >= 5,
-        "non-vacuity floor: the payload walk found only {} conferring defs, below the 5 \
-         measured at HEAD -- the structural walk has gone vacuous.",
-        actual.len()
-    );
+    // NOTE (`/review` Issue 7): a `>= 5` floor here would be DEAD CODE. The `assert_eq!` above
+    // already pins an exact 5-element set, so any walk that went vacuous fails there first and a
+    // trailing floor can never be the assertion that fires. The first draft carried one; it was
+    // deleted rather than left to read as evidence it was not. The genuine non-vacuity guard in
+    // this file is R3's `>= 40`, which sits alone with no equality assert in front of it.
 }
 
 // ── R2: the inverse (TokenSpec) population ───────────────────────────────────────────────────
@@ -276,12 +275,12 @@ fn r2_inverse_token_spec_population_is_pinned() {
          see -- if it grew, name the new member and check whether its TokenSpec's mana_abilities \
          already discharge the intrinsic (R5's shape) or need it (R4's shape)."
     );
-    assert!(
-        !actual.is_empty(),
-        "non-vacuity floor: the inverse walk found ZERO TokenSpec-granting defs, below the 2 \
-         measured at HEAD -- the structural walk has gone vacuous (a field added to TokenSpec \
-         would desync TOKEN_SPEC_FIELDS and make is_token_spec_node match nothing)."
-    );
+    // NOTE (`/review` Issue 7): the `!actual.is_empty()` floor the first draft carried here was
+    // dead for the same reason as R1's -- unreachable behind an exact 2-element `assert_eq!`.
+    // The desync hazard it described (a field added to `TokenSpec` making `is_token_spec_node`
+    // match nothing) is real and is now guarded properly by
+    // `token_spec_field_list_matches_the_struct_declaration` below, which compares the constant
+    // against the struct's own source rather than hoping a downstream count notices.
 }
 
 // ── R3: ability-index neutrality (OOS-DX26-3) ────────────────────────────────────────────────
@@ -495,5 +494,79 @@ fn r5_forest_dryad_token_gains_tap_add_green_for_free() {
         imbl::ordmap! { ManaColor::Green => 1 },
         "the derived ability must produce exactly {{G}}: {:?}",
         chars.mana_abilities
+    );
+}
+
+// ── Fix-cycle gate (PB-DX43 `/review` Issue 8) ────────────────────────────────────────────────
+
+/// `TOKEN_SPEC_FIELDS` must equal `pub struct TokenSpec`'s own declared field set.
+///
+/// **Why this exists.** `is_token_spec_node` classifies a JSON node by EXACT field-set equality
+/// against that hand-maintained constant, short-circuiting on a length mismatch. That is
+/// byte-for-byte the construct this project already filed as `OOS-DX28-1`: *"a gate that reports
+/// green while checking nothing the moment its subject grows a field."* Add one field to
+/// `TokenSpec` and the fingerprint matches **nothing** — R2, R4 and R5 would then walk an empty
+/// set and pass vacuously, reporting that the inverse census is clean while examining zero defs.
+///
+/// The first draft of this file shipped the fragile construct **and** the seed's recommended
+/// repair was not applied, which the batch's own `/review` flagged. This is that repair, reusing
+/// `pb_dx42a_continuous_condition_roster.rs::t9`'s `declared(..)` closure: read the struct
+/// declaration out of the source and compare field NAMES, so a desync fails **by name** with an
+/// actionable message rather than by silent vacuity.
+///
+/// **Revert to watch red**: delete any single entry from `TOKEN_SPEC_FIELDS`, or add a field to
+/// `pub struct TokenSpec`.
+#[test]
+fn token_spec_field_list_matches_the_struct_declaration() {
+    let src = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(std::path::Path::parent)
+            .expect("engine manifest dir is <workspace>/crates/engine")
+            .join("crates/card-types/src/cards/card_definition.rs"),
+    )
+    .expect("card_definition.rs must be readable");
+
+    let at = src
+        .find("pub struct TokenSpec {")
+        .expect("pub struct TokenSpec not found in card_definition.rs");
+    let body_start = src[at..].find('{').expect("brace") + at + 1;
+    let mut depth = 1usize;
+    let mut end = body_start;
+    for (i, ch) in src[body_start..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = body_start + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let declared: BTreeSet<String> = src[body_start..end]
+        .lines()
+        .map(|l| l.split("//").next().unwrap_or("").trim())
+        .filter_map(|l| l.strip_prefix("pub "))
+        .filter_map(|l| l.split(':').next())
+        .map(|n| n.trim().to_string())
+        .filter(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+        .collect();
+
+    assert!(
+        !declared.is_empty(),
+        "the struct-declaration parser found no fields — it has broken, and this gate would \
+         otherwise pass vacuously exactly like the construct it exists to protect"
+    );
+
+    let pinned: BTreeSet<String> = TOKEN_SPEC_FIELDS.iter().map(|s| s.to_string()).collect();
+    assert_eq!(
+        pinned, declared,
+        "TOKEN_SPEC_FIELDS has desynced from `pub struct TokenSpec`. `is_token_spec_node` matches \
+         nodes by EXACT field set, so a desynced fingerprint matches NOTHING and R2/R4/R5 go \
+         vacuous while staying green (OOS-DX28-1's class). Update the constant to the declared \
+         set, then re-derive R2's expected membership."
     );
 }

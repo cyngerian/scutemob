@@ -551,6 +551,17 @@ fn p7_earlier_timestamped_layer_six_grant_survives_blood_moons_layer_four_cleari
 /// `subtypes` with `{}` BEFORE the layer loop even starts, so `derive_intrinsic_land_mana_
 /// abilities`'s "has the Land card type" guard is never satisfied. D6's "falls out for free"
 /// claim, asserted rather than assumed.
+///
+/// **This probe is honestly UNDISCRIMINATED by anything this batch owns** (`/review` Issue 10,
+/// disclosed here and not only in `memory/` — PB-DX8's `PROSE_FIELDS` precedent puts the
+/// disclosure where a reader of the test will find it). No revert of
+/// `derive_intrinsic_land_mana_abilities`, `discharges_intrinsic_mana_ability` or the
+/// `SetLandTypes` arm can make it fail, because the CR 708.2a face-down blank runs in
+/// `calculate_characteristics` **before the layer loop starts** and leaves
+/// `card_types == {Creature}` with `subtypes == {}` — so the derivation's own Land gate is
+/// never even reached. It is a standing regression guard for a property this batch inherited
+/// rather than earned: it would redden if a future change moved the derivation ahead of the
+/// blank, or made the blank stop clearing subtypes.
 #[test]
 fn p8_face_down_swamp_derives_nothing() {
     let swamp = mtg_engine::cards::defs::swamp::card();
@@ -861,5 +872,294 @@ fn p13_nonbasic_set_land_types_payload_does_not_trigger_cr_305_7_clearing_or_der
         Some(1),
         "the surviving ability must be the original Blue one: {:?}",
         chars.mana_abilities
+    );
+}
+
+// ── Fix-cycle probes (PB-DX43 `/review`) ──────────────────────────────────────────────────────
+
+/// **F1 — `/review` Issue 1 (HIGH), the regression this batch caused and then closed.**
+///
+/// CR 603.2: a triggered ability can only trigger if the object actually has it. CR 305.7: a land
+/// whose subtype is set to a basic land type "loses all abilities generated from its rules text".
+/// So a Karoo bounce land entering the battlefield under Blood Moon must NOT fire its printed
+/// "When this land enters, return a land you control to its owner's hand" trigger.
+///
+/// **What went wrong, and why the whole suite stayed green.** `replacement.rs`'s IG-1 suppressor
+/// asked "are this entering permanent's abilities blanked?" by matching one literal variant —
+/// `e.layer == EffectLayer::Ability && matches!(e.modification, RemoveAllAbilities)`. That was
+/// correct while a Layer-6 `RemoveAllAbilities` was the only blanking channel, and Blood Moon
+/// registered exactly one. PB-DX43 moved CR 305.7's loss into the **Layer-4** `SetLandTypes` arm
+/// and deleted the moons' Layer-6 static — so the scan stopped seeing them, and **26** `Complete`
+/// nonbasic land defs (the ten Karoos, the six Temples, the five gain-lands, `halimar_depths`,
+/// `mortuary_mire`, `maestros_theater`, `zhalfirin_void`) began firing CardDef ETB triggers off a
+/// land with no abilities. Found by the batch's own `/review`, by execution.
+///
+/// **This is the batch's own thesis arriving inside its own work**: *a gate written for one
+/// variant measures that variant.* The fix is not a second `matches!` at the call site but
+/// `layers::modification_blanks_abilities` — exhaustive over `LayerModification` with no wildcard
+/// arm, so a third channel cannot be added without every consumer being forced to classify it.
+/// (That exhaustiveness earned its keep on its first compile: the first draft's variant list was
+/// short by three and the compiler said so.)
+///
+/// **Revert to watch red**: restore the old filter pair in `replacement.rs` (`e.layer ==
+/// EffectLayer::Ability` + `matches!(.., RemoveAllAbilities)`).
+#[test]
+fn f1_a_karoo_entering_under_blood_moon_fires_no_etb_trigger() {
+    let blood_moon = mtg_engine::cards::defs::blood_moon::card();
+    let karoo = mtg_engine::cards::defs::azorius_chancery::card();
+    let all_defs = defs_of(&[&blood_moon, &karoo]);
+    let registry = CardRegistry::new(vec![blood_moon.clone(), karoo.clone()]);
+    let p1 = p(1);
+
+    // Non-vacuity, asserted rather than assumed: the def really does carry a CardDef ETB trigger,
+    // or "no trigger fired" would be true for an uninteresting reason.
+    assert!(
+        karoo.abilities.iter().any(|a| matches!(
+            a,
+            mtg_engine::AbilityDefinition::Triggered {
+                trigger_condition: mtg_engine::TriggerCondition::WhenEntersBattlefield,
+                ..
+            }
+        )),
+        "Azorius Chancery must carry a WhenEntersBattlefield CardDef trigger for this probe to \
+         mean anything: {:?}",
+        karoo.abilities
+    );
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p(2))
+        .with_registry(registry)
+        .object(card_spec(
+            p1,
+            "Blood Moon",
+            "blood-moon",
+            ZoneId::Hand(p1),
+            &all_defs,
+        ))
+        .object(card_spec(
+            p1,
+            "Azorius Chancery",
+            "azorius-chancery",
+            ZoneId::Hand(p1),
+            &all_defs,
+        ))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let state = cast_and_resolve_2r(state, p1, "Blood Moon", &[p1, p(2)]);
+
+    // Play the Karoo from hand through the real special-action path (CR 305.1), which is what
+    // runs the ETB replacement/trigger machinery IG-1 lives in.
+    let mut state = state;
+    state.turn_mut().priority_holder = Some(p1);
+    let karoo_id = find_object(&state, "Azorius Chancery");
+    let (state, _events) = process_command(
+        state,
+        Command::PlayLand {
+            player: p1,
+            card: karoo_id,
+        },
+    )
+    .expect("playing the Karoo should be legal");
+
+    // The land really is Blood-Mooned — otherwise the absence of a trigger proves nothing.
+    let land_id = find_object(&state, "Azorius Chancery");
+    let chars = calculate_characteristics(&state, land_id).unwrap();
+    assert!(
+        chars.subtypes.contains(&SubType("Mountain".to_string())),
+        "the Karoo must actually be under Blood Moon: {:?}",
+        chars.subtypes
+    );
+    assert!(
+        chars.triggered_abilities.is_empty(),
+        "CR 305.7: its rules-text abilities are gone: {:?}",
+        chars.triggered_abilities
+    );
+
+    let etb_triggers: Vec<_> = state
+        .stack_objects()
+        .iter()
+        .filter(|so| {
+            matches!(
+                so.kind,
+                mtg_engine::StackObjectKind::TriggeredAbility {
+                    is_carddef_etb: true,
+                    ..
+                }
+            )
+        })
+        .collect();
+    assert!(
+        etb_triggers.is_empty(),
+        "CR 603.2 + CR 305.7: a land whose abilities are blanked has no ETB trigger to put on the \
+         stack. Pre-fix this was one TriggeredAbility entry and every test in the workspace was \
+         green: {etb_triggers:?}"
+    );
+}
+
+/// **F2 — `/review` Issue 2 (MEDIUM). The four CR 305.7 clearing lines nobody was testing.**
+///
+/// The reviewer deleted four of the five field-clears from the `SetLandTypes` arm — leaving only
+/// `mana_abilities` — and ran the **entire 4,749-test workspace**: exit 0, zero failures. Blood
+/// Moon would have stopped stripping a manland's activated ability, a land's triggered abilities
+/// and its keywords, and nothing anywhere would have noticed. `pb_dx27_blood_moon_type_scope`'s
+/// t1-t9 assert on card types, subtypes, supertypes, mana abilities and hashing only, and this
+/// batch is what made the primitive responsible for the other four fields.
+///
+/// So this probe puts a nonbasic land carrying **all five** kinds of ability under a
+/// `SetLandTypes({Mountain})` and asserts each field independently, with a per-field message.
+///
+/// **Revert to watch red**: delete any ONE of the five assignments in `clear_all_abilities`.
+#[test]
+fn f2_set_land_types_clears_every_ability_bearing_field_not_just_mana() {
+    let p1 = p(1);
+    let mut spec = ObjectSpec::land(p1, "Kitchen Sink Land")
+        .with_mana_ability(ManaAbility::tap_for(ManaColor::White))
+        .with_keyword(mtg_engine::KeywordAbility::Hexproof);
+    spec.activated_abilities = vec![mtg_engine::ActivatedAbility {
+        description: "{T}: Draw a card.".to_string(),
+        effect: Some(mtg_engine::Effect::DrawCards {
+            player: mtg_engine::PlayerTarget::Controller,
+            count: mtg_engine::EffectAmount::Fixed(1),
+        }),
+        ..Default::default()
+    }];
+    spec.triggered_abilities = vec![mtg_engine::TriggeredAbilityDef {
+        trigger_on: mtg_engine::TriggerEvent::SelfEntersBattlefield,
+        description: "When this land enters, draw a card.".to_string(),
+        effect: Some(mtg_engine::Effect::DrawCards {
+            player: mtg_engine::PlayerTarget::Controller,
+            count: mtg_engine::EffectAmount::Fixed(1),
+        }),
+        intervening_if: None,
+        etb_filter: None,
+        death_filter: None,
+        combat_damage_filter: None,
+        triggering_creature_filter: None,
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
+        targets: vec![],
+    }];
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .object(spec)
+        .add_continuous_effect(set_land_types_effect(1, 10, "Mountain"))
+        .build()
+        .unwrap();
+
+    let land_id = find_object(&state, "Kitchen Sink Land");
+
+    // Non-vacuity: without the effect, every field is populated. A probe that asserted only
+    // "empty afterwards" could pass on a fixture that never had anything to clear.
+    let base = state
+        .objects()
+        .get(&land_id)
+        .unwrap()
+        .characteristics
+        .clone();
+    assert!(
+        !base.keywords.is_empty(),
+        "fixture must start with a keyword"
+    );
+    assert!(
+        !base.activated_abilities.is_empty(),
+        "fixture must start with an activated ability"
+    );
+    assert!(
+        !base.triggered_abilities.is_empty(),
+        "fixture must start with a triggered ability"
+    );
+    assert!(
+        !base.mana_abilities.is_empty(),
+        "fixture must start with a mana ability"
+    );
+
+    let chars = calculate_characteristics(&state, land_id).unwrap();
+
+    assert!(
+        chars.keywords.is_empty(),
+        "CR 305.7: keywords must be cleared: {:?}",
+        chars.keywords
+    );
+    assert!(
+        chars.activated_abilities.is_empty(),
+        "CR 305.7: activated abilities must be cleared: {:?}",
+        chars.activated_abilities
+    );
+    assert!(
+        chars.triggered_abilities.is_empty(),
+        "CR 305.7: triggered abilities must be cleared: {:?}",
+        chars.triggered_abilities
+    );
+    assert!(
+        chars.abilities.is_empty(),
+        "CR 305.7: static ability instances must be cleared: {:?}",
+        chars.abilities
+    );
+    // The printed {W} is gone and exactly the derived {R} remains — the fifth field, and the one
+    // the pre-fix suite did cover.
+    assert_eq!(
+        chars.mana_abilities.len(),
+        1,
+        "exactly the derived {{T}}: Add {{R}} remains: {:?}",
+        chars.mana_abilities
+    );
+    assert_eq!(
+        chars
+            .mana_abilities
+            .front()
+            .unwrap()
+            .produces
+            .get(&ManaColor::Red)
+            .copied(),
+        Some(1),
+        "and it is Red, not the printed White"
+    );
+}
+
+/// **F3 — `modification_blanks_abilities` is the two-channel query, and both channels are live.**
+///
+/// A unit-level pin on the classifier itself, so the two channels are asserted by name rather
+/// than only through their consumers. The nonbasic-payload case is the CR 305.7 precondition
+/// (`SetLandTypes({Gate})` sets a land type without triggering the loss), and the `AddSubtypes`
+/// case is the near-miss: adding a basic land type is NOT setting one, so it blanks nothing.
+#[test]
+fn f3_modification_blanks_abilities_recognises_both_channels_and_no_others() {
+    use mtg_engine::rules::layers::modification_blanks_abilities;
+
+    assert!(
+        modification_blanks_abilities(&LayerModification::RemoveAllAbilities),
+        "channel 1: the explicit Layer-6 wipe"
+    );
+    assert!(
+        modification_blanks_abilities(&LayerModification::SetLandTypes(imbl::OrdSet::unit(
+            SubType("Mountain".to_string())
+        ))),
+        "channel 2: CR 305.7's loss, on a BASIC payload"
+    );
+    assert!(
+        !modification_blanks_abilities(&LayerModification::SetLandTypes(imbl::OrdSet::unit(
+            SubType("Gate".to_string())
+        ))),
+        "CR 305.7's precondition is 'one or more of the BASIC land types' — a Gate payload sets a \
+         land type without the loss"
+    );
+    assert!(
+        !modification_blanks_abilities(&LayerModification::AddSubtypes(imbl::OrdSet::unit(
+            SubType("Swamp".to_string())
+        ))),
+        "ADDING a basic land type (Urborg) is not SETTING one — CR 305.7's last clause keeps the \
+         land's rules text"
+    );
+    assert!(
+        !modification_blanks_abilities(&LayerModification::AddKeyword(
+            mtg_engine::KeywordAbility::Flying
+        )),
+        "an ordinary Layer-6 grant blanks nothing"
     );
 }
