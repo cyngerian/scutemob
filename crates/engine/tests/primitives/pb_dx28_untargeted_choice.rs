@@ -21,6 +21,24 @@
 //! resolution time (the choice is re-derived from `state` at the moment
 //! `execute_effect` runs, so this is not a simplification of the property being
 //! tested -- it is the property).
+//!
+//! # Coverage bound, stated rather than left to be inferred from silence
+//!
+//! The PB-DX28 `/review` cycle (finding 6, LOW) noted that direction 2 is proven
+//! **structurally and by state-shape modelling, not end to end**: no probe drives
+//! a Karoo trigger onto the real stack, removes the would-be-chosen land with a
+//! spell in response, and then observes a land still returning. What IS proven:
+//! `t8` shows the trigger reaches the stack carrying ZERO declared targets, so
+//! CR 603.3d's removal and CR 608.2b's fizzle have nothing to act on -- the
+//! defect is unreachable by construction, not merely unobserved -- and `t3`/`t4`/
+//! `t7` show the candidate set is derived from the board as it stands when
+//! `execute_effect` runs. `t9` drives the full validated `Command` path but
+//! exercises no removal.
+//!
+//! The missing piece needs a real removal spell cast in response by a second
+//! seat, which needs a synthetic instant in the registry plus mana; it was judged
+//! not worth inventing a half-fixture for, and is filed as `OOS-DX28-10` so the
+//! gap is a row rather than an omission.
 
 use mtg_engine::effects::{execute_effect, execute_effect_answering, EffectContext};
 use mtg_engine::{

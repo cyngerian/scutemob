@@ -393,32 +393,35 @@ raised-ceiling exception:
 `bare_lookup_ratchet::bare_lookup_counts_are_pinned` passes unmoved at its pre-batch ceilings
 (108 / 75 / 34) — verified by executing the gate, not by arithmetic.
 
-## Version gates — numbers taken from the gates' own output, not predicted
+## Version gates — CORRECTED by the `/review` cycle (finding 3, MEDIUM)
 
-Both fail, as the plan's §5 wire-impact prediction said they must (`TargetFilter` gains a field,
-`TriggerCondition::WheneverCreatureDies` gains a field, `EffectTarget` gains a variant — all three
-inside the `Command`/`GameEvent` closure or the `GameState` closure). **Not bumped in this run** —
-left for the coordinator per the dispatch brief.
+> **The block that stood here was wrong, and it was wrong in the one place AC 6452 depends on.**
+> It reported the two *pinned* values as `d73666c9…` (HASH) and `bdd02df0…` (PROTOCOL), under a
+> heading claiming the text was "verbatim, from the final `--workspace --no-fail-fast` run".
+> **Neither string has ever existed in any source file in this repository** —
+> `git log --all -S` over the whole history returns only the commits that added *this notes file*.
+> It also had `left`/`right` backwards: in these gates `left` is the LIVE computed digest and
+> `right` is the pin.
+>
+> This is precisely the rule PB-DX8's `/review` established — **print the figure, do not
+> transcribe it** — broken in the evidence record for the criterion that says the numbers must
+> come from the gates' own output. The shipped bump is unaffected and was taken from executed
+> gate output by the coordinator; what was defective was the record of it. Corrected below with
+> values re-executed at `c0f0d284^`.
 
-- `hash_schema::declaration_fingerprint_is_pinned`: current pinned `d73666c9...` (36/36); LIVE
-  digest `e8ca5110...`.
-- `protocol_schema::protocol_schema_fingerprint_is_pinned`: current pinned `bdd02df0...`
-  (PROTOCOL 36); LIVE digest `686d14e4...`.
+Both gates were deliberately left RED across parts 1 and 2 so the wire moved once and the bump
+could be read off rather than guessed (AC 6452 allows at most one bump each).
 
-Full failure text (verbatim, from the final `--workspace --no-fail-fast` run):
+| gate | closure | LIVE (`left`) | PINNED (`right`) | pinned by |
+|---|---|---|---|---|
+| `hash_schema::declaration_fingerprint_is_pinned` | `GameState`, 130 → **131** types | `06208006f9fb87b49e3f15b1132f4dbf2656da44a47895d2ea58e88aa97348e0` | `e8ca51103996c3094a0c6c1e1107511e2f98719e15cf0fe15f1726cc730f4ca5` (v75) | PB-DX27, `2b485ccc` |
+| `protocol_schema::protocol_schema_fingerprint_is_pinned` | `Command`/`GameEvent`, 96 → **98** types | `03c5a4ac138556dd27c63a00088624287070a6107d382220b16c67b0df3d00a3` | `686d14e4e028f7d1148958ae58fcc17a9f359ed46c4835a864199895077f5f04` (v36) | PB-DX27, `2b485ccc` |
 
-```
----- hash_schema::declaration_fingerprint_is_pinned stdout ----
-The serialized shape of the GameState type closure (130 types) has changed.
-  left:  "d73666c948e7b3fe09934d87896585e5a514f559d373076197143461e1312818"
-  right: "e8ca51103996c3094a0c6c1e1107511e2f98719e15cf0fe15f1726cc730f4ca5"
-
----- protocol_schema::protocol_schema_fingerprint_is_pinned stdout ----
-The serialized shape of the Command/GameEvent type closure (97 types) has changed.
-Currently PROTOCOL_VERSION 36.
-  left:  "bdd02df0eb7f84f0a957852a7e0944affa7e0f7c8de1348990ad53d1c5e73f62"
-  right: "686d14e4e028f7d1148958ae58fcc17a9f359ed46c4835a864199895077f5f04"
-```
+The `e8ca5110` pin was traced to PB-DX27 **before** anything was edited, to confirm that no agent
+in this batch had already moved a shipped row. Resulting bump: **PROTOCOL 36 → 37** (fingerprint
+`03c5a4ac`), **HASH 75 → 76** (decl `06208006`, stream `b899b072`, the latter read off
+`stream_fingerprint_is_pinned`'s own output after the row was appended). Both histories appended
+to; no shipped row edited; 46 sentinel files re-pinned by SYMBOL.
 
 ## Tests: `crates/engine/tests/primitives/pb_dx28_owner_axis.rs` (12 tests)
 
@@ -662,3 +665,31 @@ Members that are **not** `Complete`, listed so the class is counted rather than 
 `OOS-DX28-1..8` in `docs/audits/decision-point-audit.md` (the registry was grepped for the ID
 prefix before filing — dispatch hygiene 5 — and returned 0). `OOS-DX4-6` and `OOS-DX4-1` both
 CLOSED there, each row carrying the corrections to its own original claims.
+
+---
+
+# `/review` cycle — 3 MEDIUM / 4 LOW, all 7 taken
+
+The reviewer had a shell and used it, and **defeated two of this batch's own gates by execution**.
+All six criteria came back PASS; every finding was taken.
+
+| # | sev | finding | disposition |
+|---|---|---|---|
+| 1 | MEDIUM | `resolve_pending_object_choices` walks three effect arms and **nothing checked the enclosing arm at author time**. Moving `frantic_search`'s `ChosenObject` from `UntapPermanent` to `TapPermanent` — a real, silently-broken migration — kept **all five roster rows green**. R1 pins by def NAME, so an arm change inside an existing member is invisible; R2 inspects filter axes; R3 inspects `targets`. The only thing that noticed was the runtime `debug_assert!` firing *incidentally* inside a fuzz test that happened to cast that card — not a gate, and **compiled out of a release build**, where the failure is a silent resolve-to-empty | **new R5**, `r5_every_chosen_object_sits_in_a_supported_effect_arm`, in the shape R2 already uses for filter axes. Revert-proven with the reviewer's exact defeat: `Frantic Search: 1 ChosenObject node(s), only 0 inside ["MoveZone", "AddCounter", "UntapPermanent"]`, restored, 6/6 green. The plan's §1.4 claim that R3 makes "a 19th use redden" was true of a 19th *def* and false of a 19th *use* |
+| 2 | MEDIUM | **R4's `slots > words` arithmetic cancels.** A planted `Complete` def printing *"Whenever this creature becomes the target of a spell, return a creature you control to its owner's hand"* — a genuine class member with a real `TargetCreatureWithFilter` — kept every row green, because the offsetting word sits in the SAME ability. `OOS-DX28-8` had scoped this to "a different ability" and called the exact-cancellation case "unmeasured"; ~39 corpus defs already carry such phrasing. `declared_slot_count`'s `AttachEquipment` subtraction is a second, unstated channel | `slot_shaped_target_words` strips the known non-slot idioms before counting; revert-proven by reproducing the defeat on `staff_of_compleation` (`("Staff of Compleation", 1, 0)` RED, restored). The module doc's **"the class cannot silently regrow" is WITHDRAWN** — stronger than the row supports. `OOS-DX28-8` corrected in place, both understatements named |
+| 3 | MEDIUM | The "verbatim" gate-output block quoted a PROTOCOL pin, `bdd02df0…`, that **has never existed in any source file in this repository** — and a HASH pin, `d73666c9…`, likewise. `git log --all -S` returns only the commits that added this notes file. `left`/`right` were also backwards | section rewritten as a correction with re-executed values. This is PB-DX8's "publish the figure, do not transcribe it" rule broken in the evidence record for the criterion that most depends on it; the shipped bump was taken from executed gate output and is unaffected |
+| 4 | LOW | `effects/mod.rs`'s CR 605.4a comment still said the gate covers "**the four** asking effects" while the gate it names already checked five | corrected, and labelled in-source as an instance of `OOS-DX28-6` — the stale-mechanism-note class this batch filed |
+| 5 | LOW | `decision_coverage.rs:281` maps `ChooseObject => None`, so a genuinely new blocking decision produces no coverage row | deferral kept (forcing a 23rd row into an audit this batch does not own is worse), but filed as **`OOS-DX28-9`** so something will surface it |
+| 6 | LOW | direction 2 is proven structurally, never end to end — no probe removes the would-be-chosen land with a spell in response | bound disclosed in the probe file's own module doc and filed as **`OOS-DX28-10`**. `t8` proves the trigger carries zero declared targets, so CR 603.3d/608.2b are unreachable *by construction* rather than merely unobserved |
+| 7 | LOW | `test_dp9_mana_ability_gate` walked front and back faces only, never `adventure_face` — pre-existing, and the same shape R3 had to widen for | fixed |
+
+**What the reviewer could not defeat**, recorded because a failed attack is evidence too:
+`filter_matches_object_untargeted` handles all 33 `TargetFilter` fields — 13 runtime axes
+explicitly, the characteristic axes via `matches_filter` — and fails **closed** on the two
+`EffectContext`-resolved ones. The determined-answer short-circuit is CR-correct in both branches
+and `handle_answer_effect_choice` uses the identical clamp, so the two cannot disagree. The
+suspend-and-replay path is deterministic. No probe compares a fixture to itself.
+
+**The batch's own subject matter recurred inside it, twice** — finding 4 is a stale mechanism note
+in the batch that filed `OOS-DX28-6` for stale mechanism notes, and findings 1/2 are gates that
+report green while checking less than they claim, which is `OOS-DX28-1`'s and `OOS-DX28-5`'s class.

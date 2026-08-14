@@ -549,9 +549,16 @@ fn ask_or_consume_effect_choice(
         // swallowed failure (SR-4). The obligation this branch skips (offering
         // the choice) is discharged instead by
         // `tests/primitives/pb_dp9_effect_choice.rs::test_dp9_mana_ability_gate`,
-        // which asserts no `Complete` card def puts one of the four asking
-        // effects (SearchLibrary, Scry, Surveil, DiscardCards) inside a mana
-        // ability. If that assertion ever reddens, this branch has become live
+        // which asserts no `Complete` card def puts one of the FIVE asking
+        // channels inside a mana ability: `Effect::SearchLibrary`, `Scry`,
+        // `Surveil`, `DiscardCards`, and -- since PB-DX28 -- the CR 115.10
+        // untargeted choice, keyed on `EffectTarget::ChosenObject` because its
+        // carriers (`MoveZone`/`AddCounter`/`UntapPermanent`) are far too
+        // generic to serve as needles. (This sentence said "the four asking
+        // effects" for the whole of PB-DX28's implement phase, while the gate
+        // it describes already checked five -- caught by the batch's own
+        // `/review`, and an instance of `OOS-DX28-6`, the class that seed was
+        // filed for.) If that assertion ever reddens, this branch has become live
         // and the card in question needs a rules decision, not a silent
         // default.
         return Some(default_effect_choice_answer(&question));

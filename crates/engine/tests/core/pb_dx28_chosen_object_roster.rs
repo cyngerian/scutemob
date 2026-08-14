@@ -14,9 +14,24 @@
 //!   REAL printed target and stays).
 //! * **R4** — inverse axis: no `Complete` def still pairs a declared
 //!   `TargetRequirement` slot count strictly greater than its oracle text's
-//!   `"target"` word count, outside a named allowlist of the REFUTED rows in
-//!   `pb-plan-DX28.md` §0.1. This is the census, frozen, so the class cannot
-//!   silently regrow.
+//!   SLOT-SHAPED `"target"` word count, outside a named allowlist of the
+//!   REFUTED rows in `pb-plan-DX28.md` §0.1.
+//! * **R5** — every `ChosenObject` in the corpus sits in an effect arm the
+//!   pre-pass actually walks. Added by the `/review` cycle, which defeated
+//!   R1–R4 by moving one to an unsupported arm and staying green.
+//!
+//! **What R4 does NOT promise.** An earlier draft of this doc said "this is the
+//! census, frozen, so the class cannot silently regrow". That is stronger than
+//! the row supports and the claim is withdrawn. R4 is a SUBTRACTION of two
+//! counts, so any `"target"` word that is not a slot declaration cancels a real
+//! slot — the `/review` defeated it with a single sentence ("becomes the target
+//! of a spell") in the SAME ability. `slot_shaped_target_words` now strips the
+//! known non-slot idioms, which raises precision and does not change the shape
+//! of the argument: an idiom not on that list still cancels, and
+//! `declared_slot_count`'s `AttachEquipment` subtraction is a second, structural
+//! cancellation channel that can mask a real slot on any Equipment. R4 is a
+//! ratchet against the KNOWN population regrowing, not a proof that the class is
+//! empty. The honest statement of the bound is `OOS-DX28-8`.
 //!
 //! Reuses `decision_site_walk.rs`'s canonical JSON walk (`find_variant_nodes`,
 //! `def_contains_variant`, `PROSE_FIELDS`, `is_effectively_complete`) rather
@@ -384,6 +399,60 @@ fn declared_slot_count(json: &Value) -> usize {
     n
 }
 
+/// The number of `"target"` occurrences in `text` that could plausibly be a
+/// DECLARED TARGET SLOT, i.e. the "…N target creature…" shape.
+///
+/// **Added by the PB-DX28 `/review` cycle (finding 2, MEDIUM), which defeated
+/// R4 by execution.** The reviewer planted a `Complete` def printing *"Whenever
+/// this creature becomes the target of a spell, return a creature you control to
+/// its owner's hand."* — a genuine `OOS-DX4-6` member, authored as a real
+/// `TargetCreatureWithFilter` — and R4 stayed GREEN, because the bare
+/// `matches("target")` count was 1 and the slot count was 1, so the arithmetic
+/// cancelled. Deleting only the offsetting phrase turned R4 red, which is what
+/// proves the cancellation was the whole mechanism.
+///
+/// The cancelling word does **not** have to be in a different ability, which is
+/// what `OOS-DX28-8` originally said; a single sentence can supply both. Roughly
+/// 39 corpus defs carry `"becomes the target of"` / `"can't be the target of"` /
+/// a bare `"targets"`, so the exposure is real rather than theoretical.
+///
+/// The fix is to strip the idioms in which `"target"` is NOT a slot declaration
+/// before counting. This is a precision improvement, not a proof: an idiom not
+/// on this list still cancels, and the list is a human judgement per phrase with
+/// nothing behind it — the same standing caveat `filter_states_a_quality`'s
+/// exclusion list carries. `OOS-DX28-8` records the residual.
+fn slot_shaped_target_words(text: &str) -> usize {
+    let mut t = text.to_lowercase();
+    // Order matters: the longer forms first, so a shorter one cannot consume
+    // half of a longer one and leave a fragment that still matches "target".
+    for idiom in [
+        "becomes the target of",
+        "become the target of",
+        "becomes a target of",
+        "can't be the target of",
+        "cannot be the target of",
+        "can't become the target of",
+        "the target of",
+        "a target of",
+        "new target",
+        "change the target",
+        "changes the target",
+    ] {
+        t = t.replace(idiom, " ");
+    }
+    // A standalone "targets" is a VERB ("whenever a spell targets …") or the
+    // plural noun ("its targets"), never the "N target X" slot shape — which is
+    // always singular. Word-bounded so "targets" inside a longer token is left
+    // alone.
+    let mut out = 0usize;
+    for word in t.split(|c: char| !c.is_ascii_alphabetic()) {
+        if word == "target" {
+            out += 1;
+        }
+    }
+    out
+}
+
 #[test]
 fn r4_inverse_axis_no_new_untargeted_choice_class_member() {
     let mut violations: Vec<(String, usize, usize)> = Vec::new();
@@ -412,7 +481,7 @@ fn r4_inverse_axis_no_new_untargeted_choice_class_member() {
             combined_text.push('\n');
             combined_text.push_str(&face.oracle_text);
         }
-        let words = combined_text.to_lowercase().matches("target").count();
+        let words = slot_shaped_target_words(&combined_text);
         if slots > words {
             violations.push((def.name.clone(), slots, words));
         }
@@ -444,4 +513,101 @@ fn r4_refuted_allowlist_entries_are_all_real_complete_defs() {
              -- stale entry"
         );
     }
+}
+
+// ── R5: every ChosenObject sits in an effect arm the pre-pass supports ───────
+
+/// The `Effect` arms `effects::resolve_pending_object_choices` actually walks.
+///
+/// **This list is the whole safety of the channel.** `EffectTarget::ChosenObject`
+/// is banked by a pre-pass that matches only these arms; reaching
+/// `resolve_effect_target_list_indexed` with nothing banked resolves to the EMPTY
+/// set behind a `debug_assert!`, which is compiled OUT in release. So a
+/// `ChosenObject` authored into any other arm is a silent no-op in a release
+/// build — the effect simply does nothing, with no panic and no diagnostic.
+const SUPPORTED_ARMS: &[&str] = &["MoveZone", "AddCounter", "UntapPermanent"];
+
+/// Count occurrences of `key` as a map key anywhere in `v`.
+fn count_key_occurrences(v: &Value, key: &str) -> usize {
+    match v {
+        Value::Object(map) => map
+            .iter()
+            .map(|(k, child)| usize::from(k == key) + count_key_occurrences(child, key))
+            .sum(),
+        Value::Array(items) => items.iter().map(|i| count_key_occurrences(i, key)).sum(),
+        _ => 0,
+    }
+}
+
+/// **Added by the PB-DX28 `/review` cycle (finding 1, MEDIUM), which defeated
+/// R1–R4 by execution.**
+///
+/// The reviewer changed `frantic_search.rs`'s `Effect::UntapPermanent` to
+/// `Effect::TapPermanent`, keeping the identical `ChosenObject` value — a real,
+/// silently-broken migration — and **all five existing rows stayed green**. R1
+/// pins by def NAME, so an arm change inside an existing member is invisible to
+/// it; R2 inspects filter axes; R3 inspects `targets.is_empty()`. The only thing
+/// in the whole workspace that noticed was the runtime `debug_assert!` firing
+/// incidentally inside a fuzz test that happened to cast that card — which is
+/// not a gate, and is absent from a release build entirely.
+///
+/// The plan's §1.4 claim that R3 makes "a 19th use redden so the author must
+/// confirm the arm is supported" was therefore true of a 19th *def* and false of
+/// a 19th *use* or an arm change within an existing one. This row closes that
+/// gap, in the shape R2 already uses for filter axes: assert the count of
+/// `ChosenObject` nodes reachable inside supported arms equals the corpus-wide
+/// count.
+///
+/// **Stated residual**: this is subtree containment, so a supported arm that
+/// NESTED an unsupported one would mask it. None of the three has a nested
+/// `Effect` field (`MoveZone { target, to, controller_override }`,
+/// `AddCounter { target, counter, count }`, `UntapPermanent { target }` — read
+/// from the enum, not assumed), so the two readings coincide today. If a
+/// supported arm ever gains a nested `Effect`, this row needs a path-aware walk.
+#[test]
+fn r5_every_chosen_object_sits_in_a_supported_effect_arm() {
+    let mut total = 0usize;
+    let mut supported = 0usize;
+    let mut offenders: Vec<String> = Vec::new();
+
+    for def in all_cards() {
+        if !def_contains_variant(&def, "ChosenObject") {
+            continue;
+        }
+        let json = serde_json::to_value(&def).expect("CardDefinition serializes");
+        let def_total = count_key_occurrences(&json, "ChosenObject");
+        let def_supported: usize = SUPPORTED_ARMS
+            .iter()
+            .flat_map(|arm| find_variant_nodes(&json, arm))
+            .map(|node| count_key_occurrences(node, "ChosenObject"))
+            .sum();
+        if def_supported != def_total {
+            offenders.push(format!(
+                "{}: {def_total} ChosenObject node(s), only {def_supported} inside {SUPPORTED_ARMS:?}",
+                def.name
+            ));
+        }
+        total += def_total;
+        supported += def_supported;
+    }
+
+    assert!(
+        offenders.is_empty(),
+        "a ChosenObject is authored in an effect arm `resolve_pending_object_choices` does \
+         NOT walk. It will resolve to the EMPTY set in release, silently -- the debug_assert \
+         that catches it in a debug build is compiled out. Either add the arm to the pre-pass \
+         (and to SUPPORTED_ARMS here) or author the effect differently.\n  {}",
+        offenders.join("\n  ")
+    );
+    // Non-vacuity floors, in BOTH directions: the row must be counting something,
+    // and the two counts must be equal for a reason other than both being zero.
+    assert!(
+        total >= 18,
+        "non-vacuity: the corpus carries at least one ChosenObject per migrated member \
+         (>= 18 members, several naming it twice); counted {total}"
+    );
+    assert_eq!(
+        supported, total,
+        "the per-def loop and the running totals must agree"
+    );
 }

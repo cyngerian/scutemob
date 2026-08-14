@@ -2539,8 +2539,16 @@ fn test_dp9_mana_ability_gate() {
     // a scry inside a coin flip would not have been found.
     let mut offenders: Vec<String> = Vec::new();
     for def in mtg_card_defs::all_cards() {
+        // PB-DX28 `/review` finding 7: `adventure_face` was never walked, so an
+        // Adventure half's mana trigger was invisible to this gate. Pre-existing,
+        // and the same shape this batch's own R4 had to widen for -- a face whose
+        // abilities the walk could not see. No corpus def exercises it today; the
+        // point is that the day one does, this gate sees it.
         let mut faces = vec![&def.abilities];
         if let Some(f) = def.back_face.as_ref() {
+            faces.push(&f.abilities);
+        }
+        if let Some(f) = def.adventure_face.as_ref() {
             faces.push(&f.abilities);
         }
         for abilities in faces {
