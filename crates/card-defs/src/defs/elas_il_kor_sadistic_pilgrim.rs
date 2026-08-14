@@ -49,6 +49,7 @@ Whenever another creature you control dies, each opponent loses 1 life."
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
+                    owner: None,
                     exclude_self: true,
                     nontoken_only: false,
                     filter: None,

@@ -51,6 +51,7 @@ pub fn card() -> CardDefinition {
                 // approximation; matches the corpus convention (athreos, fecundity).
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
+                    owner: None,
                     exclude_self: true,
                     nontoken_only: false,
                     filter: None,
