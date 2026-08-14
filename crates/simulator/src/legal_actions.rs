@@ -2695,7 +2695,7 @@ fn build_additional_cost_plan(
         // proven, and the rider turns on for real the day `casting.rs` learns CR
         // 702.102d. Filed as `OOS-DX29-12`; found by the batch's own test author, not
         // by the plan.
-        && !fused_right_half_declares_targets(&def)
+        && !fused_right_half_declares_targets(def)
     {
         markers.push(MarkerCostOption {
             kind: MarkerCostKind::Fuse,
