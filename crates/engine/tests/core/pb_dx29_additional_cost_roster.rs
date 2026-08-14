@@ -33,7 +33,13 @@
 //!   found, and why the fix was the formatter rather than a narrower gate).
 //! * **R4** — the DECK-LEGAL population per kind, pinned. This is the number that says
 //!   what a human can actually lose today, and PB-DX29's own scope decisions rest on it.
+//! * **R2m** — the same marker/cost equality for Mutate, stated separately because its
+//!   failure mode is milder (a marker-only mutate def is never OFFERED rather than
+//!   offered and refused).
 //! * **R5** — non-vacuity floors for all of the above.
+//! * **R6** — `ui2_additional_cost_roster::r5`'s stage-order premise, re-measured across
+//!   every kind. It does not hold, and R6 prints the offenders rather than asserting an
+//!   absence that is not true.
 //!
 //! What membership asserts, and does NOT (PB-DX4's `BASELINE` lesson, same wording):
 //! membership means only that this def declares this specific shape. It says nothing
@@ -66,6 +72,10 @@ use std::collections::BTreeSet;
 /// marker, and the predicate that recognises its cost-bearing `AbilityDefinition`.
 type CostKindRow = (&'static str, KeywordAbility, fn(&AbilityDefinition) -> bool);
 
+/// The eight keyword-carried additional-cost kinds. See the block above the type alias
+/// for why Mutate, Assist, Retrace, Jump-Start and Collect Evidence are deliberately
+/// absent — that rationale documents THIS table and was attached to the alias by an
+/// accident of ordering (review L8).
 const KEYWORD_CARRIED_COSTS: &[CostKindRow] = &[
     ("Squad", KeywordAbility::Squad, |a| {
         matches!(a, AbilityDefinition::Squad { .. })
@@ -299,17 +309,48 @@ fn r2m_mutate_marker_and_mutate_cost_declare_the_same_defs() {
 fn r3_every_declared_additional_cost_is_renderable_and_bounded() {
     let defs = mtg_engine::all_cards();
     let costs = declared_costs(&defs);
-    // Non-vacuity for the formatter's new arms: at least one corpus cost must actually
-    // carry a hybrid or Phyrexian pip, or "the formatter renders them" is an untested
-    // claim about an unreachable branch. `brokkos_apex_of_forever` is that def; if it
-    // ever leaves the corpus, this floor says so instead of going quiet.
+    // **The floor this test used to carry was a lie, and the review caught it.**
+    //
+    // It asserted that at least one declared cost carries a hybrid or Phyrexian pip, and
+    // claimed that proved `format_mana_cost_compact`'s new CR 107.4e/107.4f arms "are
+    // still being handed the shapes it was taught". They are not. The only corpus costs
+    // carrying such a pip are `MutateCost`s (`brokkos_apex_of_forever`,
+    // `necropanther`, `nethroi_apex_of_death`), and a `MutateCost` reaches **none** of
+    // that formatter's five call sites — every one of them is a Squad, count or marker
+    // view. Measured: of the six RENDERED kinds, zero carry a hybrid, a Phyrexian or an
+    // `{X}`.
+    //
+    // So the floor was satisfied by a value the formatter never sees, and its failure
+    // message named a single def when three carry the shape. That is this file's own
+    // thesis — a check that measures something other than what it claims — landing
+    // inside the gate written to fix it.
+    //
+    // What is asserted instead is the honest pair: the formatter's new arms are
+    // **unexercised by any rendered def today** (so their correctness rests on
+    // `format_mana_cost_compact`'s own unit tests, which PB-DX29's fix cycle added, not
+    // on the corpus), and the day a rendered kind acquires one of those pips this test
+    // says so rather than going quiet.
+    let rendered_with_exotic_pips: Vec<&(String, &'static str, ManaCost)> = costs
+        .iter()
+        .filter(|(_, kind, _)| *kind != "MutateCost")
+        .filter(|(_, _, c)| !c.hybrid.is_empty() || !c.phyrexian.is_empty() || c.x_count > 0)
+        .collect();
+    println!(
+        "PB-DX29 R3 rendered costs carrying a hybrid/Phyrexian/{{X}} pip:          {rendered_with_exotic_pips:?}"
+    );
+    assert!(
+        rendered_with_exotic_pips.is_empty(),
+        "a RENDERED additional cost now carries a hybrid, Phyrexian or {{X}} pip.          `view.rs::format_mana_cost_compact` can render all three (PB-DX29), so this is not a          display bug -- but two things that were previously unreachable become live together:          `legal_actions::repeated_cost_max_count` bounds N through `ManaCost::mana_value`,          which resolves a hybrid pip to its LARGEST component (CR 202.3f, `OOS-DX29-10`), and          `casting.rs` adds no hybrid/Phyrexian/`x_count` to any rider but Fuse, so the pip is          charged as FREE (`OOS-DX29-4`). Those two seeds must be closed together before this          card ships: {rendered_with_exotic_pips:?}"
+    );
+    // Non-vacuity for the walk itself: the MutateCost exclusion above must not be the
+    // thing making the assertion pass. Three corpus mutate costs carry a hybrid pip.
     assert!(
         costs
             .iter()
-            .any(|(_, _, c)| !c.hybrid.is_empty() || !c.phyrexian.is_empty()),
-        "no declared additional cost carries a hybrid or Phyrexian pip, so \
-         `view.rs::format_mana_cost_compact`'s CR 107.4e/107.4f arms are unexercised by any \
-         real def. Either the corpus lost `brokkos_apex_of_forever` or the walk is broken."
+            .filter(|(_, kind, _)| *kind == "MutateCost")
+            .any(|(_, _, c)| !c.hybrid.is_empty()),
+        "the walk finds no hybrid pip anywhere, not even on a `MutateCost` -- `declared_costs` \
+         has stopped finding costs, and the assertion above passes vacuously"
     );
     for (name, kind, cost) in &costs {
         if matches!(*kind, "Squad" | "Replicate") {

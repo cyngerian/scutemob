@@ -3087,3 +3087,88 @@ pub fn display_name(player: PlayerId, player_names: &HashMap<PlayerId, String>) 
         .cloned()
         .unwrap_or_else(|| format!("player_{}", player.0))
 }
+
+#[cfg(test)]
+mod format_mana_cost_compact_tests {
+    use super::*;
+    use mtg_engine::{HybridMana, ManaColor, PhyrexianMana};
+
+    /// PB-DX29 `/review` M3 — CR 107.3 / 107.4a / 107.4e / 107.4f.
+    ///
+    /// # Why these exist
+    ///
+    /// `format_mana_cost_compact` had **no test anywhere** — five call sites, zero
+    /// assertions — and PB-DX29 taught it three new symbol families. The roster gate's
+    /// non-vacuity floor was supposed to keep those arms honest, and the review proved
+    /// it could not: the only corpus costs carrying a hybrid pip are `MutateCost`s,
+    /// which this formatter is never handed. **A floor satisfied by a value the function
+    /// never sees is not a floor**, so the correctness of the new arms rests here
+    /// instead, on direct assertions rather than on the corpus happening to contain the
+    /// right shape.
+    ///
+    /// The order is the printed one: `{X}`, then generic, then WUBRG, then `{C}`, then
+    /// hybrid, then Phyrexian.
+    #[test]
+    fn every_symbol_family_renders_in_the_printed_order() {
+        let cost = ManaCost {
+            generic: 2,
+            white: 1,
+            blue: 1,
+            black: 1,
+            red: 1,
+            green: 1,
+            colorless: 1,
+            x_count: 1,
+            hybrid: vec![
+                HybridMana::ColorColor(ManaColor::Blue, ManaColor::Black),
+                HybridMana::GenericColor(ManaColor::White),
+            ],
+            phyrexian: vec![
+                PhyrexianMana::Single(ManaColor::Green),
+                PhyrexianMana::Hybrid(ManaColor::Red, ManaColor::White),
+            ],
+        };
+        assert_eq!(
+            format_mana_cost_compact(&cost),
+            "{X}{2}{W}{U}{B}{R}{G}{C}{U/B}{2/W}{G/P}{R/W/P}"
+        );
+    }
+
+    /// CR 107.4e/107.4f in isolation — the two families PB-DX29 added, each alone, so a
+    /// regression in one cannot be masked by the other being present.
+    #[test]
+    fn hybrid_and_phyrexian_render_alone() {
+        let hybrid = ManaCost {
+            hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::White)],
+            ..Default::default()
+        };
+        assert_eq!(format_mana_cost_compact(&hybrid), "{G/W}");
+        let phyrexian = ManaCost {
+            phyrexian: vec![PhyrexianMana::Single(ManaColor::Blue)],
+            ..Default::default()
+        };
+        assert_eq!(format_mana_cost_compact(&phyrexian), "{U/P}");
+    }
+
+    /// **The exact cost that reddened this batch's own R3 on its first run**, rendered.
+    /// `brokkos_apex_of_forever`'s mutate cost is `{2}{G}{G}{U/B}`; before PB-DX29 this
+    /// function would have printed `{2}{G}{G}` and told a human the cost was one pip
+    /// cheaper than it is.
+    #[test]
+    fn the_cost_that_reddened_r3_renders_in_full() {
+        let brokkos = ManaCost {
+            generic: 2,
+            green: 2,
+            hybrid: vec![HybridMana::ColorColor(ManaColor::Blue, ManaColor::Black)],
+            ..Default::default()
+        };
+        assert_eq!(format_mana_cost_compact(&brokkos), "{2}{G}{G}{U/B}");
+    }
+
+    /// A zero cost still renders as `{0}` rather than as the empty string — the
+    /// pre-existing behaviour, pinned so the new arms cannot have moved it.
+    #[test]
+    fn a_zero_cost_still_renders_as_zero() {
+        assert_eq!(format_mana_cost_compact(&ManaCost::default()), "{0}");
+    }
+}

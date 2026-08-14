@@ -274,9 +274,13 @@ pub fn action_to_command_with_params(
     action: &LegalAction,
     params: &ActionParams,
 ) -> Result<Command, ParamError> {
-    // Exactly nine `LegalAction` variants have a parameterization channel — the six
+    // Exactly TEN `LegalAction` variants have a parameterization channel — the six
     // CR 601.2b-601.2h announcement arms, plus (UI-1) the three blocking-decision
-    // arms whose answer used to be baked into the `LegalAction` itself. For every
+    // arms whose answer used to be baked into the `LegalAction` itself, plus (PB-DX29)
+    // `ActivateLoyaltyAbility`. **This comment said "nine" for the whole of PB-DX29's
+    // implement phase, directly above a ten-arm list** — the exact staleness that
+    // batch's own `OOS-DX29-8` was filed about, one screen from where it filed it.
+    // Caught by the `/review` (M5). For every
     // other action, an announced param means the client and the pending decision
     // disagree about what is being answered — refuse rather than silently discard it.
     // `auto_tap` is excluded (see `first_announced_field`).
@@ -676,7 +680,7 @@ pub fn action_to_command_with_params(
         }),
         // PB-DX23 (CR 702.52a): the choice lives entirely in the `LegalAction`
         // itself — there is no params channel, so this arm stays OUTSIDE the
-        // nine-arm allowlist above and any param announced alongside it is
+        // ten-arm allowlist above and any param announced alongside it is
         // refused with `ParamError::UnsupportedParam` rather than silently
         // discarded. "Absent means accept the default" does not arise here: the
         // nearest thing to a default is the decline (`card: None`), which is a

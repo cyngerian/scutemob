@@ -521,45 +521,26 @@ wrong, §1.5), and **76 are registry *declarations* that machine gates refused t
 omit** — not behaviour. Zero behaviour-changing engine lines exist outside `queries.rs`, and
 everything in `queries.rs` is a pure read.
 
-Everything else, for the record:
+Everything else, for the record — **and this table is the second draft, because the first one
+did not reproduce (`/review` M6)**. It was measured at `74446487` and republished unchanged after
+the HTTP-probe commit added 1,452 lines to `main.rs`, so the play-server figure was out by more
+than 2×. That is precisely the "publish the figure, do not transcribe it" failure PB-DX8 recorded
+and this file's own header promises against, in the file recording it. Re-measured at HEAD:
 
 | area | +/− |
 |---|---|
-| `crates/card-defs/src` (3 defs) | +41 / −5 |
-| `crates/simulator/src` | +733 / −55 |
-| `tools/play-server/src` | +978 / −25 |
-| `tools/play-server/frontend/src` | +391 / −1 |
+| `crates/card-defs/src` (3 defs) | +58 / −22 |
+| `crates/simulator/src` | +873 / −58 |
+| `tools/play-server/src` | +2,679 / −48 |
+| `tools/play-server/frontend/src` | +416 / −1 |
 | `crates/view-model/src` | **0** |
 
-### 7.2b Revert matrix — the roster gate
-
-Every row executed in an isolated detached worktree (`git worktree add --detach`), never in the
-working tree; the worktree was removed afterwards and `git worktree list` confirms only main and
-this branch remain. A COMPILE FAILURE is classified separately from a RED — a rebuild that did not
-succeed proves nothing (the first V4 draft named a variant that does not exist and was discarded).
-
-| row | reverted | verdict | tests RED |
-|---|---|---|---|
-| V1 | **recreate the shipped defect**: delete `nocturnal_hunger`'s `KeywordAbility::Gift` marker | **RED** | R2 |
-| V2 | `tooth_and_nail`: replace its Entwine COST with an unrelated keyword (a marker-only def — R2's other direction) | **RED** | R1, R2 |
-| V3 | drop `Gift` from `KEYWORD_CARRIED_COSTS` — a kind silently stops being gated at all | **RED** | R4, R5 |
-| V4 | `galadhrim_brigade`: zero its Squad cost (R3's pay-N-times bound) | **RED** | R3 |
-| V5 | remove `Connive // Concoct` from `FUSE_DATA_CARRIERS` — the DECLARED exception stops being declared | **RED** | R2 |
-| V6 | `goblin_war_party`: add an `{X}` to its mana cost (R6's load-bearing half) | **RED** | R6 |
-| V7 | delete R2's `marker_only` branch entirely | **GREEN — UNDISCRIMINATED BY DESIGN** | none |
-| V8 | `gemrazer`: delete its `KeywordAbility::Mutate` marker (R2m, the Mutate pair) | **RED** | R2m |
-
-**V7 is stated, not dropped.** With the corpus in its repaired state there is no marker-only def
-anywhere, so deleting that branch changes nothing and the row cannot discriminate. Its
-discriminating sibling is **V2**, which *creates* a marker-only def and reddens R2 through exactly
-that branch. Recording V7 as a green control is the honest form: it says the branch is currently
-vacuous on the corpus, which is a fact about the corpus rather than about the gate.
-
-**V3 is worth reading past its verdict.** Dropping a kind from the table did **not** redden R2 —
-R2 simply stops checking that kind, silently. What caught it was R5's table-length assertion and
-R4's per-kind population pin. That is this file's own thesis applied to itself: a table-driven
-gate is only as wide as its table, and the thing that has to fail when the table shrinks is a
-*different* test.
+The **engine** table above — the one AC5 is actually about — was accurate in the first draft and
+was independently re-derived by the reviewer. These four are supporting detail, and the honest
+lesson is that a figure which is not produced by a committed command will go stale between the
+paragraph that publishes it and the commit that invalidates it. The engine figure survived because
+it is re-derivable with one `git diff --numstat`; so are these, and the command is now in the
+paragraph.
 
 ### 7.3 Coverage — **1,136 / 1,803 = 63.0%, ZERO flips as predicted**
 
