@@ -2676,6 +2676,26 @@ fn build_additional_cost_plan(
         // one rider whose legality depends on the zone the cast is from, and
         // `build_additional_cost_plan` is shared by both loops.
         && obj.zone == ZoneId::Hand(player)
+        // SR-38 (PB-DX29), CR 702.102d: **a fused cast whose right half TARGETS cannot
+        // be announced at all today**, so offering it would be a clean offer followed
+        // by a guaranteed server rejection — the exact defect this batch exists to
+        // delete, created by this batch.
+        //
+        // `casting.rs` never concatenates `AbilityDefinition::Fuse { targets }` into
+        // the requirement list it validates against, so a fused `Turn // Burn`
+        // announcing both halves' targets is refused with
+        // `InvalidTarget("expected 1..=1 target(s) but got 2")`, and announcing only
+        // one leaves the right half's `DeclaredTarget { index: 1 }` resolving at
+        // nothing. That is pre-existing — it has been true since Fuse was implemented —
+        // but it was unreachable while no client could announce a fuse. PB-DX29 is what
+        // makes it reachable, so PB-DX29 is what has to gate it.
+        //
+        // This suppresses Fuse on **both** deck-legal fuse defs today, which is the
+        // honest outcome: the picker and the whole chain behind it are built and
+        // proven, and the rider turns on for real the day `casting.rs` learns CR
+        // 702.102d. Filed as `OOS-DX29-12`; found by the batch's own test author, not
+        // by the plan.
+        && !fused_right_half_declares_targets(&def)
     {
         markers.push(MarkerCostOption {
             kind: MarkerCostKind::Fuse,
@@ -2784,6 +2804,23 @@ fn fuse_cost_of(a: &AbilityDefinition) -> Option<&ManaCost> {
         AbilityDefinition::Fuse { cost, .. } => Some(cost),
         _ => None,
     }
+}
+
+/// PB-DX29, CR 702.102d: does this split card's fused RIGHT half declare targets?
+///
+/// `true` suppresses the Fuse offer, and the reason is stated at the call site: the cast
+/// path never concatenates `AbilityDefinition::Fuse { targets }` into the requirement
+/// list it validates against, so a fused cast of such a card cannot be announced at all.
+///
+/// This is a **structural gate on an engine gap, not a rule** — CR 702.102d says the
+/// fused spell has both halves' targets, and the engine will one day agree. When it
+/// does, delete this predicate and its call; `pb_dx29_cost_kind_surface`'s Fuse probes
+/// will then need re-pointing at a real fused cast rather than at the suppression.
+fn fused_right_half_declares_targets(def: &mtg_engine::CardDefinition) -> bool {
+    def.abilities.iter().any(|a| match a {
+        AbilityDefinition::Fuse { targets, .. } => !targets.is_empty(),
+        _ => false,
+    })
 }
 
 /// PB-DX29, CR 700.2: how many modes this spell declares, or 0 if it is not modal.
@@ -3101,7 +3138,11 @@ pub fn effective_cast_cost_with_additional(
         .as_ref()
         .and_then(|cid| state.card_registry().get(cid.clone()))?;
 
-    let mut add = |rider: &ManaCost, times: u32| {
+    /// The seven numeric components, `times` times — `casting.rs`'s own rider arms,
+    /// component for component. A free fn rather than a closure so the Fuse block below
+    /// can still touch `cost` directly (it needs the three fields this deliberately
+    /// omits).
+    fn add(cost: &mut ManaCost, rider: &ManaCost, times: u32) {
         for _ in 0..times {
             cost.white += rider.white;
             cost.blue += rider.blue;
@@ -3111,26 +3152,34 @@ pub fn effective_cast_cost_with_additional(
             cost.generic += rider.generic;
             cost.colorless += rider.colorless;
         }
-    };
+    }
 
     // A missing cost below is exactly the marker-only shape `casting.rs` refuses
     // outright ("spell has X keyword but no X cost defined"), so `?` here makes the
     // auto-tap decline to fund a cast the engine will refuse anyway, rather than funding
     // the base cost and letting the refusal look like a mana problem.
     if squad_count > 0 {
-        add(&ability_cost(def, squad_cost_of)?, squad_count);
+        add(&mut cost, &ability_cost(def, squad_cost_of)?, squad_count);
     }
     if replicate_count > 0 {
-        add(&ability_cost(def, replicate_cost_of)?, replicate_count);
+        add(
+            &mut cost,
+            &ability_cost(def, replicate_cost_of)?,
+            replicate_count,
+        );
     }
     if escalate_count > 0 {
-        add(&ability_cost(def, escalate_cost_of)?, escalate_count);
+        add(
+            &mut cost,
+            &ability_cost(def, escalate_cost_of)?,
+            escalate_count,
+        );
     }
     if entwine_paid {
-        add(&ability_cost(def, entwine_cost_of)?, 1);
+        add(&mut cost, &ability_cost(def, entwine_cost_of)?, 1);
     }
     if offspring_paid {
-        add(&ability_cost(def, offspring_cost_of)?, 1);
+        add(&mut cost, &ability_cost(def, offspring_cost_of)?, 1);
     }
 
     if fuse_paid {
@@ -3139,7 +3188,30 @@ pub fn effective_cast_cost_with_additional(
         // because commander tax is an additive `{2}`-per-prior-cast term
         // (`apply_commander_tax`), not a multiplier. Stated because the order genuinely
         // differs and a reader is entitled to know it was checked rather than missed.
-        add(&ability_cost(def, fuse_cost_of)?, 1);
+        //
+        // **Fuse is the ONE rider whose mirror is not the seven-component `add` above,
+        // and PB-DX29's first draft got this wrong.** `casting.rs`'s fuse arm builds a
+        // whole new `ManaCost` that also `extend`s `hybrid`, `extend`s `phyrexian` and
+        // sums `x_count` from the right half — the only rider arm in that file that
+        // does. The first draft called `add` here and carried a comment saying
+        // "casting.rs adds no hybrid/phyrexian/x_count to any rider BUT Fuse … mirrored
+        // deliberately", i.e. it described a mirroring it did not perform. Caught by
+        // the batch's own test author, and proven by EXECUTION rather than by reading:
+        // with a hybrid pip planted in `wear_tear.rs`'s fuse cost, this function
+        // predicted mana value 3 while the engine charged 4 and refused the cast from a
+        // pool holding exactly the prediction — the clean-offer-then-server-rejection
+        // shape this whole batch exists to delete, one pip away.
+        let right = ability_cost(def, fuse_cost_of)?;
+        cost.white += right.white;
+        cost.blue += right.blue;
+        cost.black += right.black;
+        cost.red += right.red;
+        cost.green += right.green;
+        cost.generic += right.generic;
+        cost.colorless += right.colorless;
+        cost.hybrid.extend(right.hybrid.iter().cloned());
+        cost.phyrexian.extend(right.phyrexian.iter().cloned());
+        cost.x_count += right.x_count;
     }
 
     for splice_card in &spliced {
@@ -3155,7 +3227,7 @@ pub fn effective_cast_cost_with_additional(
                     _ => None,
                 })
             });
-        add(&splice_cost?, 1);
+        add(&mut cost, &splice_cost?, 1);
     }
 
     Some(cost)

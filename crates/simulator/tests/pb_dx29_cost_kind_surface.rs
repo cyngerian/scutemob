@@ -448,11 +448,32 @@ fn p1d_offspring_is_offered_with_its_printed_cost() {
     );
 }
 
-/// **P1e** — CR 702.102a/b. Fuse is offered with **no** cost of its own, and that `None`
-/// is a claim rather than an omission: a fused spell's cost is the two halves SUMMED, so
-/// there is no separate fuse cost to display and a client rendering `{0}` would be lying.
+/// **P1e** — CR 702.102a/b/d, **inverted after the offer was suppressed, and the
+/// inversion is the finding.**
+///
+/// This test originally asserted that Fuse IS offered from hand, with `cost: None`
+/// (CR 702.102b: a fused spell's cost is the two halves summed, so there is no separate
+/// fuse cost and a client rendering `{0}` would be lying). It passed.
+///
+/// It should not have. `casting.rs` never concatenates `AbilityDefinition::Fuse
+/// { targets }` into the requirement list it validates against, so a fused
+/// `Turn // Burn` announcing both halves' targets is refused with
+/// `InvalidTarget("expected 1..=1 target(s) but got 2")` and announcing one leaves the
+/// right half's `DeclaredTarget { index: 1 }` resolving at nothing (CR 702.102d). The
+/// gap is **pre-existing** — it has been true since Fuse was implemented — and was
+/// unreachable while no client could announce a fuse at all. **PB-DX29 is what makes it
+/// reachable, so PB-DX29 is what gates it**: `fused_right_half_declares_targets`
+/// suppresses the offer, and both deck-legal fuse defs are covered by that suppression
+/// today. Filed as `OOS-DX29-12`.
+///
+/// So this now asserts the SUPPRESSION, plus the two facts that make it a gate on an
+/// engine gap rather than a claim that Fuse is unimplementable: the def really does
+/// carry a fuse cost, and the cost arithmetic for it is correct and covered (`c2e`).
+///
+/// **When `casting.rs` learns CR 702.102d, this test must be re-pointed at a real fused
+/// cast** — not deleted. The suppression predicate's own doc says the same.
 #[test]
-fn p1e_fuse_is_offered_from_hand_with_no_separate_cost() {
+fn p1e_fuse_is_suppressed_while_its_right_half_targets_cannot_be_announced() {
     let defs = defs_by_name();
     let state = GameStateBuilder::new()
         .add_player(P1)
@@ -474,12 +495,47 @@ fn p1e_fuse_is_offered_from_hand_with_no_separate_cost() {
     let card = id_of(&state, "Turn // Burn");
 
     let plan = cast_plan(&state, P1, card);
-    assert_eq!(plan.markers.len(), 1, "{:?}", plan.markers);
-    assert_eq!(plan.markers[0].kind, MarkerCostKind::Fuse);
+    assert!(
+        plan.markers.is_empty(),
+        "SR-38 / CR 702.102d: `Turn // Burn`'s right half (`Burn`) declares a target, and \
+         `casting.rs` cannot announce it, so a fused cast is a guaranteed \
+         `InvalidTarget` refusal. Offering it would be a clean offer followed by a server \
+         rejection -- the exact defect PB-DX29 exists to delete, created by PB-DX29. If \
+         this now finds a Fuse marker, `casting.rs` has learned CR 702.102d (good) or the \
+         suppression was deleted without it (bad) -- check which before updating this \
+         test. Offered: {:?}",
+        plan.markers
+    );
+
+    // Non-vacuity, in TWO directions, so the empty above is about the suppression and
+    // not about the fixture or the provider having quietly stopped working.
+    //
+    // (1) The def really does carry a fuse cost the provider would otherwise surface.
+    let fuse_targets: Vec<usize> = defs
+        .get("Turn // Burn")
+        .expect("corpus def")
+        .abilities
+        .iter()
+        .filter_map(|a| match a {
+            mtg_engine::AbilityDefinition::Fuse { targets, .. } => Some(targets.len()),
+            _ => None,
+        })
+        .collect();
     assert_eq!(
-        plan.markers[0].cost, None,
-        "CR 702.102b: the fused cost is the two halves summed; there is no separate fuse \
-         cost, and `Some(ManaCost::default())` would render as a free rider"
+        fuse_targets,
+        vec![1],
+        "precondition: the suppression must be firing on a REAL targeted right half. If \
+         this def stopped declaring `AbilityDefinition::Fuse` at all, the assertion above \
+         would pass for the wrong reason."
+    );
+    // (2) The same board still offers the plain (unfused) cast, so the provider is alive.
+    assert!(
+        StubProvider
+            .legal_actions(&state, P1)
+            .iter()
+            .any(|a| matches!(a, LegalAction::CastSpell { card: c, .. } if *c == card)),
+        "CR 702.102a: suppressing the FUSE rider must not suppress the cast itself -- \
+         either half of a split card is still castable on its own"
     );
 }
 
@@ -938,49 +994,75 @@ fn p3b_splice_is_suppressed_until_an_eligible_card_is_in_hand() {
 /// on the zone the cast is from, and `build_additional_cost_plan` is shared by the hand
 /// loop and the command-zone loop, so the clause has to live inside it.
 ///
-/// **A split instant cannot legally be a commander** (CR 903.3 wants a legendary
-/// creature), and this fixture does not pretend otherwise. It does not need to: the
-/// provider's command-zone loop gates on `commander_ids` and `can_cast_at_this_time`
-/// alone — never on commander legality, which `validate_deck` owns and which never runs
-/// here — so registering Turn // Burn as a commander drives the *real* code path the
-/// zone clause has to survive. Both halves are built from ONE closure so the only
-/// difference between them is the zone.
+/// # Why this uses a SYNTHETIC def, and why that is a finding rather than a convenience
+///
+/// The first version of this test used `Turn // Burn` from the corpus and asserted the
+/// offer is present from hand and absent from the command zone. It stopped working the
+/// moment PB-DX29 added its CR 702.102d suppression (see `p1e`): **every corpus fuse def
+/// has a targeted right half**, so the target suppression covers all of them and the
+/// zone clause is no longer independently observable on real cards.
+///
+/// Two properties in one predicate, one of which shadows the other, is exactly the shape
+/// that leaves a clause untested while its test passes. So the zone clause is exercised
+/// on a synthetic split card whose right half declares **no** targets — the target
+/// suppression cannot fire, and only the zone clause can decide the outcome. Both halves
+/// are built from ONE closure so the only difference between them is the zone.
+///
+/// A split instant cannot legally be a commander (CR 903.3 wants a legendary creature),
+/// and this fixture does not pretend otherwise. It does not need to: the provider's
+/// command-zone loop gates on `commander_ids` and `can_cast_at_this_time` alone — never
+/// on commander legality, which `validate_deck` owns and which never runs here — so this
+/// drives the real code path the zone clause has to survive.
 #[test]
 fn p4_fuse_is_offered_from_hand_and_never_from_the_command_zone() {
-    let defs = defs_by_name();
+    let def = synthetic_untargeted_fuse_def("PB-DX29 Untargeted Fuse");
+    let name = def.name.clone();
+    let card_id = def.card_id.clone();
+
     let build = |zone: ZoneId| {
+        let mut all = all_cards();
+        all.push(def.clone());
+        let registry = CardRegistry::new(all);
+        let mut defs = defs_by_name();
+        defs.insert(name.clone(), def.clone());
+        let spec = enrich_spec_from_def(
+            ObjectSpec::card(P1, &name)
+                .with_card_id(card_id.clone())
+                .in_zone(zone),
+            &defs,
+        );
         GameStateBuilder::new()
             .add_player(P1)
             .add_player(P2)
-            .with_registry(corpus_registry())
+            .with_registry(registry)
             .active_player(P1)
-            .player_commander(P1, corpus_card_id(&defs, "Turn // Burn"))
+            .player_commander(P1, card_id.clone())
             .player_mana(
                 P1,
                 ManaPool {
-                    blue: 1,
-                    red: 1,
-                    colorless: 3,
+                    colorless: 6,
                     ..Default::default()
                 },
             )
-            .object(corpus_object(&defs, P1, "Turn // Burn", zone))
+            .object(spec)
             .build()
             .expect("state builds")
     };
 
     let from_hand = build(ZoneId::Hand(P1));
-    let card = id_of(&from_hand, "Turn // Burn");
+    let card = id_of(&from_hand, &name);
     assert!(
         cast_plan(&from_hand, P1, card)
             .markers
             .iter()
             .any(|m| m.kind == MarkerCostKind::Fuse),
-        "CR 702.102a: a cast from hand may fuse"
+        "CR 702.102a: a cast from HAND may fuse. If this is empty, either the zone clause \
+         inverted or the CR 702.102d target suppression is firing on a right half that \
+         declares no targets."
     );
 
     let from_command = build(ZoneId::Command(P1));
-    let card = id_of(&from_command, "Turn // Burn");
+    let card = id_of(&from_command, &name);
     let plan = cast_plan(&from_command, P1, card);
     assert!(
         !plan.markers.iter().any(|m| m.kind == MarkerCostKind::Fuse),
@@ -988,6 +1070,46 @@ fn p4_fuse_is_offered_from_hand_and_never_from_the_command_zone() {
          command-zone offer must not carry it; got {:?}",
         plan.markers
     );
+}
+
+/// A split card whose fused right half declares **no** targets — the one shape that
+/// isolates CR 702.102a's zone clause from CR 702.102d's target suppression.
+///
+/// No corpus def has this shape (both deck-legal fuse defs target on the right), which is
+/// why it is synthesised rather than found. `p1e`'s non-vacuity check is what pins that
+/// corpus fact from the other side.
+fn synthetic_untargeted_fuse_def(name: &str) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(format!("pb-dx29-{}", name.to_lowercase().replace(' ', "-"))),
+        name: name.to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
+        types: mtg_engine::cards::helpers::types(&[CardType::Instant]),
+        oracle_text: "Do nothing. // Do nothing.".to_string(),
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Fuse),
+            AbilityDefinition::Fuse {
+                name: "Right Half".to_string(),
+                cost: ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                },
+                card_type: CardType::Instant,
+                effect: mtg_engine::Effect::Nothing,
+                // The whole point of this fixture.
+                targets: vec![],
+            },
+            AbilityDefinition::Spell {
+                effect: mtg_engine::Effect::Nothing,
+                targets: vec![],
+                modes: None,
+                cant_be_countered: false,
+            },
+        ],
+        ..Default::default()
+    }
 }
 
 /// **P5** — CR 702.56a. `repeated_cost_max_count` is a genuine affordability bound for

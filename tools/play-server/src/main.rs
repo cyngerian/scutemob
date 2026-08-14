@@ -10720,4 +10720,724 @@ mod tests {
             after_hand
         );
     }
+
+    // ── PB-DX29 (OOS-UI2-4): the cost-kind surface ────────────────────────────
+    //
+    // UI-2 surfaced 2 of `AdditionalCost`'s 15 variants to the browser. PB-DX29
+    // added seven — Replicate, EscalateModes, Entwine, Fuse, Offspring, Gift and
+    // Splice — across `legal_actions.rs` (the plan), `view.rs` (the DTOs),
+    // `CostPicker.svelte` (the widgets) and `api.rs` (the 400 boundary).
+    //
+    // Group 1 below unit-tests that boundary, in the UI-2 / SIM-6 style
+    // (`test_ui2_validate_additional_cost_params_rejects_*`,
+    // `test_sim6_validate_*`): a hand-built `AdditionalCostPlan` plus a hand-built
+    // `ActionParamsDto`, no HTTP and no game state, so each check is exercised in
+    // isolation from whatever a real drive happens to reach. Group 2 drives the
+    // whole chain over HTTP against a real `LocalGame`.
+    //
+    // The three PB-DX29 code paths are deliberately all covered: `counts`
+    // (`count_option`), `markers` (`has_marker`), and the two bespoke arms
+    // (`gift.eligible` / `splice.eligible` + CR 702.47b).
+
+    /// PB-DX29: a `CastSpell` action carrying `plan` verbatim.
+    ///
+    /// [`ui2_cast_spell_action_with_costs`]'s shape with the plan handed in rather
+    /// than built inline, because these probes need plans that DIFFER in which
+    /// family they offer — "the offer never carried this kind" is half of what
+    /// `validate_additional_cost_params` checks, and it cannot be exercised by a
+    /// fixture that always offers everything.
+    fn dx29_cast_action(
+        plan: mtg_simulator::legal_actions::AdditionalCostPlan,
+    ) -> mtg_simulator::LegalAction {
+        mtg_simulator::LegalAction::CastSpell {
+            card: mtg_engine::ObjectId(1),
+            from_zone: mtg_engine::ZoneId::Hand(mtg_engine::PlayerId(1)),
+            additional_costs: plan,
+        }
+    }
+
+    /// PB-DX29: the seat a [`dx29_full_plan`] gift may name.
+    const DX29_GIFT_SEAT: mtg_engine::PlayerId = mtg_engine::PlayerId(2);
+    /// PB-DX29: a seat NO plan here offers — the out-of-set gift answer.
+    const DX29_FOREIGN_SEAT: mtg_engine::PlayerId = mtg_engine::PlayerId(7);
+    /// PB-DX29: the two cards a [`dx29_full_plan`] splice may name.
+    const DX29_SPLICE_A: mtg_engine::ObjectId = mtg_engine::ObjectId(20);
+    const DX29_SPLICE_B: mtg_engine::ObjectId = mtg_engine::ObjectId(21);
+    /// PB-DX29: a card NO plan here offers — the out-of-set splice answer.
+    const DX29_FOREIGN_CARD: mtg_engine::ObjectId = mtg_engine::ObjectId(999);
+    /// PB-DX29: [`dx29_full_plan`]'s Replicate ceiling.
+    const DX29_REPLICATE_MAX: u32 = 2;
+    /// PB-DX29: [`dx29_full_plan`]'s Escalate ceiling. Deliberately DIFFERENT from
+    /// [`DX29_REPLICATE_MAX`], so a check that read the wrong `counts` entry — the
+    /// exact failure `count_option`'s `kind` lookup exists to prevent — shows up as
+    /// a wrong bound rather than a coincidence.
+    const DX29_ESCALATE_MAX: u32 = 1;
+
+    /// PB-DX29: a plan offering one of EVERY family this batch surfaced at once.
+    ///
+    /// No real spell carries all seven (Fuse needs a split card, Splice needs a
+    /// matching subtype in hand, Gift is its own keyword), and that is fine: this is
+    /// a unit fixture for a function whose whole job is to compare an ANSWER against
+    /// a PLAN. Offering everything makes the happy path below discriminating —
+    /// every arm is reached with a legal value and must not fire — which a
+    /// one-family fixture cannot do.
+    fn dx29_full_plan() -> mtg_simulator::legal_actions::AdditionalCostPlan {
+        use mtg_simulator::legal_actions::{
+            CountCostKind, CountCostOption, GiftCostOption, MarkerCostKind, MarkerCostOption,
+            SpliceCostOption,
+        };
+        mtg_simulator::legal_actions::AdditionalCostPlan {
+            counts: vec![
+                CountCostOption {
+                    kind: CountCostKind::Replicate,
+                    cost: mtg_engine::ManaCost {
+                        generic: 1,
+                        blue: 1,
+                        ..Default::default()
+                    },
+                    max_count: DX29_REPLICATE_MAX,
+                },
+                CountCostOption {
+                    kind: CountCostKind::Escalate,
+                    cost: mtg_engine::ManaCost {
+                        generic: 1,
+                        red: 1,
+                        ..Default::default()
+                    },
+                    max_count: DX29_ESCALATE_MAX,
+                },
+            ],
+            markers: vec![
+                MarkerCostOption {
+                    kind: MarkerCostKind::Entwine,
+                    cost: Some(mtg_engine::ManaCost {
+                        generic: 2,
+                        red: 1,
+                        ..Default::default()
+                    }),
+                },
+                MarkerCostOption {
+                    kind: MarkerCostKind::Fuse,
+                    // CR 702.102b: no separate fuse cost — see `MarkerCostOption::cost`.
+                    cost: None,
+                },
+                MarkerCostOption {
+                    kind: MarkerCostKind::Offspring,
+                    cost: Some(mtg_engine::ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
+                },
+            ],
+            gift: Some(GiftCostOption {
+                gift_type: mtg_engine::cards::card_definition::GiftType::Card,
+                eligible: vec![DX29_GIFT_SEAT],
+            }),
+            splice: Some(SpliceCostOption {
+                eligible: vec![DX29_SPLICE_A, DX29_SPLICE_B],
+            }),
+            ..Default::default()
+        }
+    }
+
+    /// PB-DX29: an announcement of `costs` against [`dx29_full_plan`].
+    fn dx29_params(costs: Vec<mtg_engine::AdditionalCost>) -> crate::view::ActionParamsDto {
+        crate::view::ActionParamsDto {
+            additional_costs: costs,
+            ..Default::default()
+        }
+    }
+
+    /// PB-DX29: assert that `costs` is refused 400 `bad_params` against `plan`.
+    fn dx29_expect_400(
+        plan: mtg_simulator::legal_actions::AdditionalCostPlan,
+        costs: Vec<mtg_engine::AdditionalCost>,
+        why: &str,
+    ) {
+        let action = dx29_cast_action(plan);
+        let params = dx29_params(costs);
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err(&format!("must be refused: {why}"));
+        assert_eq!(err.status, StatusCode::BAD_REQUEST, "{why}");
+        assert_eq!(err.body.kind, "bad_params", "{why}");
+    }
+
+    /// **T1 — CR 702.56a: a Replicate count above the offered `max_count` is 400.**
+    ///
+    /// The Squad shape (`test_ui2_validate_additional_cost_params_rejects_squad_over_max_count`)
+    /// on the first of the two `counts` kinds.
+    #[test]
+    fn test_dx29_validate_rejects_replicate_over_max_count() {
+        dx29_expect_400(
+            dx29_full_plan(),
+            vec![mtg_engine::AdditionalCost::Replicate {
+                count: DX29_REPLICATE_MAX + 1,
+            }],
+            "CR 702.56a: a replicate count above what the offer vouched for",
+        );
+    }
+
+    /// **T2 — CR 702.120a: an Escalate count above the offered `max_count` is 400.**
+    ///
+    /// The other `counts` kind, and it is not a duplicate of T1: `count_option`
+    /// looks the bound up BY KIND, and the two fixture bounds differ
+    /// ([`DX29_ESCALATE_MAX`] < [`DX29_REPLICATE_MAX`]), so an implementation that
+    /// read the first `counts` entry regardless of kind would accept this value.
+    #[test]
+    fn test_dx29_validate_rejects_escalate_over_max_count() {
+        dx29_expect_400(
+            dx29_full_plan(),
+            vec![mtg_engine::AdditionalCost::EscalateModes {
+                count: DX29_ESCALATE_MAX + 1,
+            }],
+            "CR 702.120a: more additional modes than the offer vouched for",
+        );
+    }
+
+    /// **T3 — CR 702.56a: a Replicate on a plan whose `counts` is empty is 400.**
+    ///
+    /// The `counts` half of the "a kind the offer never carried" check.
+    #[test]
+    fn test_dx29_validate_rejects_replicate_when_no_count_rider_was_offered() {
+        let plan = mtg_simulator::legal_actions::AdditionalCostPlan {
+            counts: Vec::new(),
+            ..dx29_full_plan()
+        };
+        dx29_expect_400(
+            plan,
+            vec![mtg_engine::AdditionalCost::Replicate { count: 1 }],
+            "CR 702.56a: replicate announced against a plan offering no count rider",
+        );
+    }
+
+    /// **T4 — CR 702.42a: an Entwine on a plan whose `markers` is empty is 400.**
+    ///
+    /// The `markers` half — a different code path (`has_marker`, not
+    /// `count_option`), which is why it is checked separately rather than assumed
+    /// to follow from T3.
+    #[test]
+    fn test_dx29_validate_rejects_entwine_when_no_marker_rider_was_offered() {
+        let plan = mtg_simulator::legal_actions::AdditionalCostPlan {
+            markers: Vec::new(),
+            ..dx29_full_plan()
+        };
+        dx29_expect_400(
+            plan,
+            vec![mtg_engine::AdditionalCost::Entwine],
+            "CR 702.42a: entwine announced against a plan offering no marker rider",
+        );
+    }
+
+    /// **T4b — CR 702.175a: an Offspring against a plan carrying only OTHER markers
+    /// is 400.**
+    ///
+    /// `has_marker` is a per-kind lookup, and T4 (an empty `markers`) could not tell
+    /// a per-kind lookup from a bare `!markers.is_empty()`. Here Entwine and Fuse
+    /// are both on offer and Offspring is not, so only a per-kind check can refuse
+    /// it.
+    #[test]
+    fn test_dx29_validate_rejects_offspring_when_only_other_markers_were_offered() {
+        use mtg_simulator::legal_actions::{MarkerCostKind, MarkerCostOption};
+        let plan = mtg_simulator::legal_actions::AdditionalCostPlan {
+            markers: vec![
+                MarkerCostOption {
+                    kind: MarkerCostKind::Entwine,
+                    cost: Some(mtg_engine::ManaCost {
+                        generic: 2,
+                        red: 1,
+                        ..Default::default()
+                    }),
+                },
+                MarkerCostOption {
+                    kind: MarkerCostKind::Fuse,
+                    cost: None,
+                },
+            ],
+            ..dx29_full_plan()
+        };
+        dx29_expect_400(
+            plan,
+            vec![mtg_engine::AdditionalCost::Offspring],
+            "CR 702.175a: offspring is not among the markers this offer carried",
+        );
+    }
+
+    /// **T5 — CR 702.174a: a Gift on a plan with no gift is 400.**
+    ///
+    /// The third code path. Gift is the only additional cost whose answer is a
+    /// `PlayerId`, so nothing about T3/T4 covers it.
+    #[test]
+    fn test_dx29_validate_rejects_gift_when_none_was_offered() {
+        let plan = mtg_simulator::legal_actions::AdditionalCostPlan {
+            gift: None,
+            ..dx29_full_plan()
+        };
+        dx29_expect_400(
+            plan,
+            vec![mtg_engine::AdditionalCost::Gift {
+                opponent: DX29_GIFT_SEAT,
+            }],
+            "CR 702.174a: gift announced against a plan that has no gift to give",
+        );
+    }
+
+    /// **T6 — CR 702.174a: a Gift naming a seat outside `eligible` is 400.**
+    ///
+    /// The gift analogue of UI-2's out-of-set sacrifice id. `casting.rs` accepts any
+    /// OTHER player still in the game; a seat this offer never listed is an
+    /// announcement the response never made.
+    #[test]
+    fn test_dx29_validate_rejects_gift_naming_a_seat_outside_eligible() {
+        dx29_expect_400(
+            dx29_full_plan(),
+            vec![mtg_engine::AdditionalCost::Gift {
+                opponent: DX29_FOREIGN_SEAT,
+            }],
+            "CR 702.174a: a seat this gift never offered",
+        );
+    }
+
+    /// **T7 — CR 702.47a: a Splice naming a card outside `eligible` is 400.**
+    ///
+    /// The list-valued arm's membership half. The other entry in the same list is
+    /// legal, so this cannot pass or fail for want of a well-formed list.
+    #[test]
+    fn test_dx29_validate_rejects_splice_of_a_card_outside_eligible() {
+        dx29_expect_400(
+            dx29_full_plan(),
+            vec![mtg_engine::AdditionalCost::Splice {
+                cards: vec![DX29_SPLICE_A, DX29_FOREIGN_CARD],
+            }],
+            "CR 702.47a: a card this splice offer never accepted",
+        );
+    }
+
+    /// **T8 — CR 702.47b: a Splice naming the SAME card twice is 400.**
+    ///
+    /// "one or more OTHER cards" — each may be spliced once. Both ids here are
+    /// eligible and the list is well-formed, so only the duplicate-within-the-list
+    /// check can refuse it; that distinguishes this from T7.
+    #[test]
+    fn test_dx29_validate_rejects_splicing_the_same_card_twice() {
+        dx29_expect_400(
+            dx29_full_plan(),
+            vec![mtg_engine::AdditionalCost::Splice {
+                cards: vec![DX29_SPLICE_A, DX29_SPLICE_A],
+            }],
+            "CR 702.47b: the same card spliced twice",
+        );
+    }
+
+    /// **T9 — a DUPLICATE `Replicate` entry is 400 (the `DUPLICABLE_COST_KINDS`
+    /// table).**
+    ///
+    /// UI-2's argument, one kind over: `casting.rs`'s destructuring loop is
+    /// `replicate_count = *count`, a plain assignment, so the LAST entry wins and
+    /// the first is dropped with no error and no diagnostic. **Both counts here are
+    /// within `max_count`**, so the per-entry bound check of T1 cannot be what
+    /// rejects this — only the table-driven duplicate check can.
+    #[test]
+    fn test_dx29_validate_rejects_a_duplicate_replicate_entry() {
+        dx29_expect_400(
+            dx29_full_plan(),
+            vec![
+                mtg_engine::AdditionalCost::Replicate { count: 2 },
+                mtg_engine::AdditionalCost::Replicate { count: 1 },
+            ],
+            "CR 702.56a: two replicate announcements, both individually in bounds",
+        );
+    }
+
+    /// **T10 — a DUPLICATE `Entwine` entry is 400.**
+    ///
+    /// The unit-variant half of the same table. It matters on its own because
+    /// `Entwine` carries no payload at all: a duplicate detector keyed on the
+    /// announced VALUE rather than the discriminant would see two identical,
+    /// individually-legal answers and wave them through — and the offer still only
+    /// ever made one such announcement.
+    #[test]
+    fn test_dx29_validate_rejects_a_duplicate_entwine_entry() {
+        dx29_expect_400(
+            dx29_full_plan(),
+            vec![
+                mtg_engine::AdditionalCost::Entwine,
+                mtg_engine::AdditionalCost::Entwine,
+            ],
+            "CR 702.42a: two entwine announcements",
+        );
+    }
+
+    /// **T11 — a DUPLICATE `Gift` naming two DIFFERENT seats is 400.**
+    ///
+    /// The reason the table matches the discriminant and not the payload, stated as
+    /// a test: two gifts naming different opponents is exactly the ambiguity being
+    /// refused, and both seats here are eligible, so the `eligible` check of T6
+    /// cannot be what fires.
+    #[test]
+    fn test_dx29_validate_rejects_two_gifts_naming_different_eligible_seats() {
+        let other = mtg_engine::PlayerId(3);
+        let plan = mtg_simulator::legal_actions::AdditionalCostPlan {
+            gift: Some(mtg_simulator::legal_actions::GiftCostOption {
+                gift_type: mtg_engine::cards::card_definition::GiftType::Card,
+                eligible: vec![DX29_GIFT_SEAT, other],
+            }),
+            ..dx29_full_plan()
+        };
+        dx29_expect_400(
+            plan,
+            vec![
+                mtg_engine::AdditionalCost::Gift {
+                    opponent: DX29_GIFT_SEAT,
+                },
+                mtg_engine::AdditionalCost::Gift { opponent: other },
+            ],
+            "CR 702.174a: two gifts naming two different eligible seats",
+        );
+    }
+
+    /// **T12 — the discriminating happy path: one legal answer of EVERY PB-DX29
+    /// family at once is ACCEPTED.**
+    ///
+    /// Without this, T1-T11 prove only that the function refuses things; they cannot
+    /// distinguish a correct boundary from one that refuses every PB-DX29 kind
+    /// outright (which is what the pre-batch code did, by falling through to the
+    /// engine's 422). Every arm added by this batch is reached here with a value the
+    /// offer vouched for, and none of them may fire.
+    ///
+    /// CR 702.56a / 702.120a / 702.42a / 702.102a / 702.175a / 702.174a / 702.47a.
+    #[test]
+    fn test_dx29_validate_accepts_one_legal_answer_of_every_family() {
+        let action = dx29_cast_action(dx29_full_plan());
+        let params = dx29_params(vec![
+            mtg_engine::AdditionalCost::Replicate {
+                count: DX29_REPLICATE_MAX,
+            },
+            mtg_engine::AdditionalCost::EscalateModes {
+                count: DX29_ESCALATE_MAX,
+            },
+            mtg_engine::AdditionalCost::Entwine,
+            mtg_engine::AdditionalCost::Fuse,
+            mtg_engine::AdditionalCost::Offspring,
+            mtg_engine::AdditionalCost::Gift {
+                opponent: DX29_GIFT_SEAT,
+            },
+            mtg_engine::AdditionalCost::Splice {
+                cards: vec![DX29_SPLICE_A, DX29_SPLICE_B],
+            },
+        ]);
+        api::validate_additional_cost_params(&action, &params).expect(
+            "one in-bounds answer of every offered family must be accepted -- \
+             otherwise the 400 boundary is a blanket refusal, not a check",
+        );
+    }
+
+    /// **T13 — `count: 0` is a legal answer, not a decline the boundary may refuse.**
+    ///
+    /// `CountCostOption::max_count`'s own doc says zero is a legal value and does not
+    /// suppress the offer (CR 702.56a "any number of times" includes zero). Pinned
+    /// separately from T12 because a bound check written as `>= max_count` or a
+    /// presence check written as "an announced rider must be paid" would both pass
+    /// T12 and fail here.
+    #[test]
+    fn test_dx29_validate_accepts_a_zero_count_rider() {
+        let action = dx29_cast_action(dx29_full_plan());
+        let params = dx29_params(vec![
+            mtg_engine::AdditionalCost::Replicate { count: 0 },
+            mtg_engine::AdditionalCost::EscalateModes { count: 0 },
+        ]);
+        api::validate_additional_cost_params(&action, &params)
+            .expect("CR 702.56a: paying a rider zero times is legal");
+    }
+
+    /// **T14 — the wire shape this batch exists to document: a MARKER template is a
+    /// bare JSON STRING, a COUNT template is an object with one key.**
+    ///
+    /// `AdditionalCost::Entwine` / `::Fuse` / `::Offspring` are Rust **unit**
+    /// variants, and serde's externally-tagged encoding renders a unit variant as
+    /// `"Entwine"`, never `{"Entwine": {}}`. So `MarkerCostView` carries no `*_key`
+    /// and the `fillTemplate` idiom every other cost picker uses — clone the object,
+    /// write the field the server named — has nothing to write into and would throw
+    /// on `Object.keys(entry)[0]`. Same shape-of-JSON trap PB-DP10 measured on
+    /// `Effect::Proliferate`.
+    ///
+    /// Asserted here rather than left in prose because it is invisible in Rust: the
+    /// two families are the same enum and the same `Serialize` derive, and only the
+    /// rendered value tells them apart.
+    #[test]
+    fn test_dx29_marker_templates_are_bare_json_strings_and_count_templates_are_not() {
+        for (variant, expected) in [
+            (mtg_engine::AdditionalCost::Entwine, "Entwine"),
+            (mtg_engine::AdditionalCost::Fuse, "Fuse"),
+            (mtg_engine::AdditionalCost::Offspring, "Offspring"),
+        ] {
+            let wire = serde_json::to_value(&variant).expect("AdditionalCost serializes");
+            assert!(
+                wire.is_string(),
+                "{expected} must serialize as a bare JSON string, got {wire}"
+            );
+            assert_eq!(wire, json!(expected));
+            assert!(
+                wire.as_object().is_none(),
+                "{expected} must NOT be an object -- the picker's \
+                 `Object.keys(entry)[0]` fill idiom would throw on it"
+            );
+        }
+
+        // The contrast, in the same test so the two conventions cannot drift apart
+        // unnoticed: a count rider IS an object with exactly one named key, which is
+        // why `CountCostView` carries `count_key` and `MarkerCostView` carries no key
+        // at all.
+        assert_eq!(
+            serde_json::to_value(mtg_engine::AdditionalCost::Replicate { count: 0 })
+                .expect("serializes"),
+            json!({"Replicate": {"count": 0}})
+        );
+        assert_eq!(
+            serde_json::to_value(mtg_engine::AdditionalCost::EscalateModes { count: 0 })
+                .expect("serializes"),
+            json!({"EscalateModes": {"count": 0}})
+        );
+        assert_eq!(
+            serde_json::to_value(mtg_engine::AdditionalCost::Gift {
+                opponent: DX29_GIFT_SEAT
+            })
+            .expect("serializes"),
+            json!({"Gift": {"opponent": DX29_GIFT_SEAT.0}})
+        );
+        assert_eq!(
+            serde_json::to_value(mtg_engine::AdditionalCost::Splice { cards: vec![] })
+                .expect("serializes"),
+            json!({"Splice": {"cards": []}})
+        );
+    }
+
+    // ── PB-DX29 group 2: Replicate, end to end over HTTP ──────────────────────
+    //
+    // The UI-2 stage-5 pattern verbatim (`ui2_install` / `ui2_deck_with` / the drive
+    // loop / `post_json` / reading results back BY NAME), with an Island deck instead
+    // of a Forest one because the subject card is blue.
+
+    /// `{3}{U}{U}{U}`, Legendary Creature — Wizard 3/4, `Completeness::Complete` by
+    /// derive (`crates/card-defs/src/defs/arcanis_the_omnipotent.rs`). Mono-blue, so
+    /// CR 903.5c colour identity admits an Island deck and a blue spell; verified to
+    /// be a legendary creature (CR 903.3) by reading the def, not assumed — and
+    /// `session::new_game` runs the real `validate_deck`, so an illegal commander
+    /// would fail this fixture's install rather than pass silently.
+    ///
+    /// It is also the most expensive `Complete` mono-blue legend in the corpus (6
+    /// mana), enumerated over `crates/card-defs/src/defs` rather than guessed:
+    /// Nezahal is `known_wrong` and Azami/Alandra/Tetsuko are `inert`, so none of
+    /// them is deck-legal at all.
+    const DX29_COMMANDER: &str = "arcanis-the-omnipotent";
+
+    /// `{1}{U}`, Sorcery, `Completeness::Complete` by derive
+    /// (`crates/card-defs/src/defs/train_of_thought.rs`). Replicate `{1}{U}`, "Draw a
+    /// card." — the cheapest Replicate card in the corpus and the one whose result is
+    /// most directly observable: each payment copies the spell, and each copy draws,
+    /// so N is readable straight off the library count.
+    const DX29_REPLICATE_SPELL: &str = "train-of-thought";
+    /// [`DX29_REPLICATE_SPELL`]'s rendered `CardDefinition.name` — the offer's label
+    /// and every by-name lookup are keyed on this, never on the kebab-case `CardId`
+    /// ([`UI2_ELF_A_NAME`]'s distinction).
+    const DX29_REPLICATE_SPELL_NAME: &str = "Train of Thought";
+
+    /// CR 903.5c: [`DX29_COMMANDER`] plus 99 Islands, with `overrides` written over
+    /// the named positions. The Island twin of [`ui2_deck_with`] — a separate builder
+    /// rather than a parameter on that one, because that function is UI-2's and is
+    /// cited by name in four of its docs.
+    fn dx29_island_deck_with(overrides: &[(usize, &str)]) -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = (0..99).map(|_| CardId("island".to_string())).collect();
+        for (index, card) in overrides {
+            main_deck[*index] = CardId(card.to_string());
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX29_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// All-Island deck (plus commander) — the harmless opponent-seat fixture, the
+    /// role [`ui2_forest_only_deck`] plays for UI-2. No spell in it at all, so the bot
+    /// can only ever play lands and pass.
+    fn dx29_island_only_deck() -> mtg_simulator::DeckConfig {
+        dx29_island_deck_with(&[])
+    }
+
+    /// The probe fixture: [`DX29_REPLICATE_SPELL`] at position 0, Island everywhere
+    /// else.
+    ///
+    /// Position 0 is in the opening hand, and [`UI2_SEED`]'s pin is what says so —
+    /// it applies unchanged here even though the deck's CONTENT is entirely
+    /// different, because `SliceRandom::shuffle` permutes INDICES and depends only on
+    /// the rng stream and the slice LENGTH, never on what sits at each index. This
+    /// fixture is installed through [`ui2_install`], which seeds at [`UI2_SEED`], and
+    /// is a 99-card `Fixed` deck like every UI-2 stage-5 fixture, so the pinned
+    /// opening positions `{0, 1, 19, 39, 50, 53, 70}` still hold; only position 0 is
+    /// needed.
+    fn dx29_train_of_thought_deck() -> mtg_simulator::DeckConfig {
+        dx29_island_deck_with(&[(0, DX29_REPLICATE_SPELL)])
+    }
+
+    /// **CR 702.56a — Replicate, offered, refused when over-paid, and PAID TWICE over
+    /// HTTP.** The PB-DX29 end-to-end probe: `legal_actions.rs`'s plan →
+    /// `view.rs`'s `counts` DTO → the 400 boundary → `params.rs` → `casting.rs` →
+    /// three cards drawn.
+    ///
+    /// Structured exactly as [`test_ui2_squad_paying_twice_produces_two_token_copies_over_http`],
+    /// for the same reasons: the offer is read first (so the descriptor itself is
+    /// checked, not just the outcome), an ILLEGAL answer is submitted first and must
+    /// 400 `bad_params`, and the real answer is NON-DEFAULT — `count = max_count = 2`
+    /// — because a decline (`count = 0`, or an empty `additional_costs`) is
+    /// indistinguishable from a client that sent nothing at all.
+    ///
+    /// `count = 2` rather than 1 for the reason that probe gives: 2 discriminates
+    /// "the count is read" from "the count is a boolean".
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx29_replicate_is_offered_and_paid_twice_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+        let state = shared_state();
+        ui2_install(
+            &state,
+            dx29_train_of_thought_deck(),
+            dx29_island_only_deck(),
+        );
+
+        // 6 Islands: base {1}{U} (MV 2) + 2 x Replicate {1}{U} (MV 2) = 6, exactly.
+        let view = ui2_drive_playing_lands(&state, 6, UI2_LAND_DRIVE_MAX_STEPS).await;
+        let cast_label = format!("Cast {DX29_REPLICATE_SPELL_NAME}");
+        let action = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["kind"] == "CastSpell" && a["label"] == cast_label.as_str())
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!("{DX29_REPLICATE_SPELL_NAME} must be offered once 6 Islands are out: {view}")
+            });
+        let index = action["index"].as_u64().expect("index is a number");
+
+        // ── the descriptor ────────────────────────────────────────────────────
+        let costs = &action["costs"];
+        assert!(
+            !costs.is_null(),
+            "a Replicate spell must carry a costs descriptor: {action}"
+        );
+        assert_eq!(costs["answer_field"], "additional_costs");
+        assert!(
+            costs["sacrifice"].is_null() && costs["squad"].is_null(),
+            "Train of Thought has neither of UI-2's two kinds: {costs}"
+        );
+        // The "always serialized, empty when there is nothing to ask" convention
+        // (`AdditionalCostsView::counts`' own doc): `markers` must be an empty ARRAY
+        // here, not absent and not null, or a client has two presence conventions to
+        // learn in one struct.
+        assert_eq!(
+            costs["markers"].as_array().map(|a| a.len()),
+            Some(0),
+            "markers must be present-and-empty, not absent: {costs}"
+        );
+        assert!(costs["gift"].is_null(), "{costs}");
+        assert!(costs["splice"].is_null(), "{costs}");
+
+        let counts = costs["counts"].as_array().expect("counts is an array");
+        assert_eq!(counts.len(), 1, "exactly one count rider: {counts:?}");
+        let replicate = &counts[0];
+        assert_eq!(
+            replicate["kind"], "Replicate",
+            "the mechanic's PRINTED name, not the wire tag"
+        );
+        // The printing: Train of Thought prints "Replicate {1}{U}", and
+        // `format_mana_cost_compact` emits the generic component first.
+        assert_eq!(replicate["cost_label"], "{1}{U}");
+        assert_eq!(replicate["count_key"], "count");
+        assert_eq!(replicate["template"], json!({"Replicate": {"count": 0}}));
+        let max_count = replicate["max_count"]
+            .as_u64()
+            .expect("max_count is a number");
+        assert_eq!(
+            max_count, 2,
+            "6 mana available, base cost 2, Replicate {{1}}{{U}} (MV 2) per payment \
+             -> exactly 2 affordable: {replicate}"
+        );
+
+        let wire_seq = seq(&view);
+
+        // ── the illegal answer: over the offer's OWN max_count ────────────────
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {"additional_costs": [{"Replicate": {"count": max_count + 1}}]}
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+        assert_eq!(refused["kind"], "bad_params", "{refused}");
+
+        // ── the real, NON-DEFAULT answer ──────────────────────────────────────
+        let library_before = ui1_library(&state).len();
+        let graveyard_before = ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1));
+        assert!(
+            graveyard_before.is_empty(),
+            "sanity: nothing has resolved yet: {graveyard_before:?}"
+        );
+
+        let (status, after_cast) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {"additional_costs": [{"Replicate": {"count": max_count}}]}
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after_cast}");
+
+        // The replicate trigger (CR 702.56b, "When you cast this spell, copy it for
+        // each time you paid its replicate cost") goes on the stack ABOVE the spell,
+        // so the copies exist and resolve before the original does. The drain loop
+        // runs until the whole stack is empty.
+        ui2_drain_stack(&state, after_cast, 60).await;
+
+        // ── the result, read out of band ──────────────────────────────────────
+        //
+        // CR 702.56b: 2 payments -> 2 copies, each of which draws (CR 707.10: a copy
+        // of a spell is put onto the stack and resolves like the spell), plus the
+        // original's own draw = 3.
+        let library_after = ui1_library(&state).len();
+        assert_eq!(
+            library_after,
+            library_before - 3,
+            "CR 702.56a/702.56b: 2 replicate payments produce 2 copies, and each copy \
+             plus the original draws one card. A client whose count was dropped would \
+             have drawn 1; a count read as a boolean would have drawn 2."
+        );
+
+        // BY NAME (CR 400.7): the resolved sorcery itself is in the graveyard exactly
+        // once -- the copies cease to exist on resolution (CR 707.10a) rather than
+        // being put anywhere, so a graveyard holding three would mean the engine had
+        // moved real cards.
+        let graveyard_after = ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1));
+        assert_eq!(
+            graveyard_after
+                .iter()
+                .filter(|n| n.as_str() == DX29_REPLICATE_SPELL_NAME)
+                .count(),
+            1,
+            "the real card resolves to the graveyard once; its copies cease to exist: \
+             {graveyard_after:?}"
+        );
+
+        assert_eq!(
+            ui2_mana_pool_total(&state, p1),
+            0,
+            "all 6 available mana must have been spent -- base {{1}}{{U}} plus 2x \
+             Replicate {{1}}{{U}}; a leftover pool would mean the rider was announced \
+             and never charged"
+        );
+    }
 }

@@ -951,7 +951,7 @@ pub(crate) fn validate_additional_cost_params(
             }
             AdditionalCost::Entwine if !has_marker(plan, MarkerCostKind::Entwine) => {
                 return Err(bad(
-                    "CR 702.42a: this spell has no entwine cost to pay".to_string(),
+                    "CR 702.42a: this spell has no entwine cost to pay".to_string()
                 ));
             }
             AdditionalCost::Fuse if !has_marker(plan, MarkerCostKind::Fuse) => {
@@ -963,7 +963,7 @@ pub(crate) fn validate_additional_cost_params(
             }
             AdditionalCost::Offspring if !has_marker(plan, MarkerCostKind::Offspring) => {
                 return Err(bad(
-                    "CR 702.175a: this spell has no offspring cost to pay".to_string(),
+                    "CR 702.175a: this spell has no offspring cost to pay".to_string()
                 ));
             }
             AdditionalCost::Gift { opponent } => {
