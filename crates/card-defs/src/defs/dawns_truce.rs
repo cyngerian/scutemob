@@ -34,13 +34,14 @@ pub fn card() -> CardDefinition {
             // TODO: Hexproof + conditional indestructible not easily expressible.
         ],
         completeness: Completeness::partial(
-            "Spell effect unimplemented: hexproof-for-you-and-your-permanents plus the \
-             conditional indestructible rider are not expressible together. The GIFT half is \
-             now authored (PB-DX29) — the note's former claim that this def 'carries only the \
-             Gift keyword marker with no cost AbilityDefinition' is no longer true. Remaining \
-             primitives needed: Effect::GrantPlayerProtection (effects/mod.rs), \
+            "Spell effect unimplemented: the hexproof-for-you-and-your-permanents clause and its \
+             conditional indestructible rider are not authored. The GIFT half IS authored now \
+             (PB-DX29) — this note's former claim that the def 'carries only the Gift keyword \
+             marker with no cost AbilityDefinition' was made stale by that repair and is \
+             corrected here. Primitives exist: Effect::GrantPlayerProtection (effects/mod.rs), \
              ApplyContinuousEffect + AddKeyword + EffectFilter::ControlledBy, branched on \
-             Condition::GiftWasGiven.",
+             Condition::GiftWasGiven — so this may well be an AUTHORABLE def rather than a \
+             blocked one, filed as OOS-DX29-* rather than asserted either way here.",
         ),
         ..Default::default()
     }

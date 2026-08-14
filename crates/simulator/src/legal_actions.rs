@@ -11,8 +11,9 @@ use mtg_engine::{
     CardType, CounterType, EffectChoiceAnswer, EffectChoiceQuestion, EffectDuration, FaceDownKind,
     FlashGrantFilter, GameObject, GameRestriction, GameState, HybridMana, HybridManaPayment,
     KeywordAbility, ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, SpellAdditionalCost,
-    Step, Target, TriggerTargetOption, TurnFaceUpMethod, ZoneId,
+    Step, SubType, Target, TriggerTargetOption, TurnFaceUpMethod, ZoneId,
 };
+use mtg_engine::cards::card_definition::GiftType;
 
 /// CR 118.8 / CR 601.2b (UI-2): the additional costs a `CastSpell` offer must or may
 /// pay. Built by the provider, consumed by `params.rs` (for the bot default) and by
@@ -25,6 +26,115 @@ pub struct AdditionalCostPlan {
     /// CR 702.157: the OPTIONAL squad cost, when the spell has
     /// `AbilityDefinition::Squad { cost }`. `None` for every other spell.
     pub squad: Option<SquadCostOption>,
+    /// PB-DX29, CR 702.56a / CR 702.120a: the OPTIONAL pay-N-times riders — Replicate
+    /// and Escalate. A `Vec` rather than two `Option`s because they are the same shape
+    /// end to end (provider descriptor, wire DTO, picker widget, validation arm), and
+    /// a third such cost should be a table entry rather than a fourth field nobody
+    /// remembers to thread through seven links. Empty for almost every spell.
+    pub counts: Vec<CountCostOption>,
+    /// PB-DX29, CR 702.42a / CR 702.102a / CR 702.175a: the OPTIONAL pay-or-not riders
+    /// — Entwine, Fuse and Offspring. Same `Vec` argument as [`Self::counts`].
+    pub markers: Vec<MarkerCostOption>,
+    /// PB-DX29, CR 702.174a: the OPTIONAL gift, when the spell has
+    /// `AbilityDefinition::Gift { gift_type }`. The "cost" is naming an opponent; there
+    /// is no mana component at all.
+    pub gift: Option<GiftCostOption>,
+    /// PB-DX29, CR 702.47a: the OPTIONAL splice, when this player holds at least one
+    /// card that may be spliced onto this spell.
+    pub splice: Option<SpliceCostOption>,
+}
+
+/// PB-DX29: which pay-N-times rider a [`CountCostOption`] describes.
+///
+/// The variant is carried rather than inferred, because the two differ in what N
+/// *means* (Replicate: extra copies of the spell; Escalate: extra MODES beyond the
+/// first) and a picker that labelled them identically would be lying about one of them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CountCostKind {
+    /// CR 702.56a — pay the replicate cost any number of times; each payment copies the
+    /// spell on resolution.
+    Replicate,
+    /// CR 702.120a — pay the escalate cost once per ADDITIONAL mode chosen beyond the
+    /// first.
+    Escalate,
+}
+
+/// PB-DX29: which pay-or-not rider a [`MarkerCostOption`] describes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MarkerCostKind {
+    /// CR 702.42a — pay the entwine cost to choose ALL modes.
+    Entwine,
+    /// CR 702.102a — pay both halves of a split card together.
+    Fuse,
+    /// CR 702.175a — pay the offspring cost to create a 1/1 token copy on entry.
+    Offspring,
+}
+
+/// PB-DX29, CR 702.56a / CR 702.120a: a rider paid a chosen number of times.
+///
+/// Structurally the Squad shape ([`SquadCostOption`]), generalised. UI-2 built
+/// `max_count` for Squad and nothing analogous for Replicate even though the two are
+/// the same mechanic — an SR-38 asymmetry between structurally identical costs. This
+/// type removes it.
+#[derive(Clone, Debug)]
+pub struct CountCostOption {
+    pub kind: CountCostKind,
+    /// The engine's own per-payment cost, verbatim — for labelling only. The engine's
+    /// arithmetic decides what is actually charged.
+    pub cost: ManaCost,
+    /// The largest N this player can currently afford, or — for Escalate — the smaller
+    /// of that and the number of ADDITIONAL modes the spell has. **Zero is a legal
+    /// value and does NOT suppress the offer**: every rider here is optional (CR
+    /// 702.56a / 702.120a "any number of times" includes zero), exactly like Squad.
+    pub max_count: u32,
+}
+
+/// PB-DX29, CR 702.42a / CR 702.102a / CR 702.175a: a rider that is simply paid or not.
+#[derive(Clone, Debug)]
+pub struct MarkerCostOption {
+    pub kind: MarkerCostKind,
+    /// The printed cost, when the mechanic has one of its own.
+    ///
+    /// **`None` for Fuse and that is not an omission**: CR 702.102b makes a fused
+    /// spell's cost the two halves' costs SUMMED (`casting.rs` adds the right half's
+    /// cost to the left half's), so there is no separate "fuse cost" to display. A
+    /// client must label it as such rather than rendering `{0}`.
+    pub cost: Option<ManaCost>,
+}
+
+/// PB-DX29, CR 702.174a: the offer's gift descriptor.
+///
+/// The gift has **no mana component**. Naming the opponent IS the cost, which makes it
+/// the only additional cost in the enum whose answer is a `PlayerId`.
+#[derive(Clone, Debug)]
+pub struct GiftCostOption {
+    /// What the chosen player receives (CR 702.174d-i) — for labelling only.
+    pub gift_type: GiftType,
+    /// The opponents `casting.rs`'s own gate will accept: every OTHER player still in
+    /// the game. **Never empty** — an empty set suppresses the offer, though in a
+    /// multiplayer game reaching that state means everyone else has already lost.
+    pub eligible: Vec<PlayerId>,
+}
+
+/// PB-DX29, CR 702.47a: the offer's splice descriptor.
+///
+/// # There is deliberately no affordability bound here, unlike Squad and Replicate
+///
+/// `casting.rs` sums **each** spliced card's own cost onto the spell, so bounding the
+/// affordable set would be a subset-sum over `eligible` rather than the monotone `1..N`
+/// walk [`squad_max_count`] can do — the cost does not increase uniformly, because each
+/// card costs a different amount. The engine refuses an unaffordable splice with
+/// `InsufficientMana`. This descriptor is therefore a **legality** floor and not an
+/// affordability one, and that is stated here rather than left for a reader to infer
+/// from an absent field.
+#[derive(Clone, Debug)]
+pub struct SpliceCostOption {
+    /// Cards in this player's hand that `casting.rs`'s own splice gate will accept for
+    /// THIS spell: they carry `KeywordAbility::Splice`, they declare
+    /// `AbilityDefinition::Splice { onto_subtype, .. }`, that subtype is on the spell
+    /// being cast, and they are not the card being cast. **Never empty** — an empty set
+    /// means the splice half of the offer is `None`.
+    pub eligible: Vec<ObjectId>,
 }
 
 /// CR 118.8 (UI-2 §1.1): the offer's required-sacrifice descriptor.
@@ -2439,7 +2549,274 @@ fn build_additional_cost_plan(
             SquadCostOption { cost, max_count }
         });
 
-    AdditionalCostPlan { sacrifice, squad }
+    // ── PB-DX29 (`OOS-UI2-4`): the seven remaining cast-side kinds a client can
+    // actually reach ────────────────────────────────────────────────────────────────
+    //
+    // Every one is detected on the COST-CARRYING `AbilityDefinition` variant for the
+    // same reason Squad is, and every one ALSO requires the `KeywordAbility` presence
+    // marker, because `casting.rs` gates on the marker BEFORE it looks the cost up.
+    // Detecting on only one of the two is what made `nocturnal_hunger`'s printed Gift
+    // unpayable while nothing anywhere was red; `core::pb_dx29_additional_cost_roster`
+    // R2 now gates both directions for all eight kinds, so a def with one half of the
+    // pair fails a test rather than silently losing its rider.
+    //
+    // The marker read goes through `calculate_characteristics` rather than
+    // `def.abilities`, because that is the read `casting.rs` makes
+    // (`chars.keywords.contains(&KeywordAbility::X)`) — a continuous effect that
+    // granted or removed one of these keywords would move the cast gate, and an offer
+    // derived from the printed def would then disagree with it.
+    let chars = mtg_engine::calculate_characteristics(state, obj.id);
+    let has_keyword = |k: &KeywordAbility| -> bool {
+        chars
+            .as_ref()
+            .is_some_and(|c| c.keywords.iter().any(|have| have == k))
+    };
+
+    let mut counts: Vec<CountCostOption> = Vec::new();
+    if has_keyword(&KeywordAbility::Replicate) {
+        if let Some(cost) = ability_cost(&def, replicate_cost_of) {
+            // CR 702.56a: "any number of times". Bounded exactly the way Squad is —
+            // `squad_max_count` is not Squad-specific, it walks `n = 1..` against
+            // `effective_cast_cost_with_additional`, and PB-DX29 generalised that
+            // function's per-payment cost argument so both riders share one walk.
+            let max_count = repeated_cost_max_count(state, player, obj.id, &cost, |n| {
+                AdditionalCost::Replicate { count: n }
+            });
+            counts.push(CountCostOption {
+                kind: CountCostKind::Replicate,
+                cost,
+                max_count,
+            });
+        }
+    }
+    if has_keyword(&KeywordAbility::Escalate) {
+        if let Some(cost) = ability_cost(&def, escalate_cost_of) {
+            // CR 702.120a: N is the number of ADDITIONAL modes beyond the first, so the
+            // ceiling is `modes.len() - 1` regardless of how much mana is available —
+            // `casting.rs` clamps a larger announcement to the mode count, and offering
+            // a number the engine will silently clamp is an offer that means nothing.
+            // `casting.rs` also REQUIRES a modal spell for escalate ("Escalate is a
+            // static ability of modal spells"), so a non-modal escalate def yields no
+            // offer at all rather than an offer capped at 0.
+            let extra_modes = spell_mode_count(&def).saturating_sub(1) as u32;
+            if extra_modes > 0 {
+                let affordable = repeated_cost_max_count(state, player, obj.id, &cost, |n| {
+                    AdditionalCost::EscalateModes { count: n }
+                });
+                counts.push(CountCostOption {
+                    kind: CountCostKind::Escalate,
+                    cost,
+                    max_count: affordable.min(extra_modes),
+                });
+            }
+        }
+    }
+
+    let mut markers: Vec<MarkerCostOption> = Vec::new();
+    if has_keyword(&KeywordAbility::Entwine) {
+        if let Some(cost) = ability_cost(&def, entwine_cost_of) {
+            markers.push(MarkerCostOption {
+                kind: MarkerCostKind::Entwine,
+                cost: Some(cost),
+            });
+        }
+    }
+    if has_keyword(&KeywordAbility::Offspring) {
+        if let Some(cost) = ability_cost(&def, offspring_cost_of) {
+            markers.push(MarkerCostOption {
+                kind: MarkerCostKind::Offspring,
+                cost: Some(cost),
+            });
+        }
+    }
+    if has_keyword(&KeywordAbility::Fuse)
+        && def
+            .abilities
+            .iter()
+            .any(|a| matches!(a, AbilityDefinition::Fuse { .. }))
+        // CR 702.102a: "from your hand". `casting.rs` refuses a fused cast from
+        // anywhere else, so the command-zone cast loop must not offer it — this is the
+        // one rider whose legality depends on the zone the cast is from, and
+        // `build_additional_cost_plan` is shared by both loops.
+        && obj.zone == ZoneId::Hand(player)
+    {
+        markers.push(MarkerCostOption {
+            kind: MarkerCostKind::Fuse,
+            // CR 702.102b: the fused cost is the two halves SUMMED; there is no separate
+            // fuse cost to show. See the field's own doc.
+            cost: None,
+        });
+    }
+
+    // CR 702.174a: naming an opponent IS the cost; there is no mana component.
+    // `casting.rs` accepts any OTHER player still in the game, so this mirrors that and
+    // nothing else.
+    let gift = if has_keyword(&KeywordAbility::Gift) {
+        def.abilities
+            .iter()
+            .find_map(|a| match a {
+                AbilityDefinition::Gift { gift_type } => Some(gift_type.clone()),
+                _ => None,
+            })
+            .and_then(|gift_type| {
+                let eligible: Vec<PlayerId> = state
+                    .active_players()
+                    .into_iter()
+                    .filter(|p| *p != player)
+                    .collect();
+                // SR-38: an empty set is no offer. Reaching it means every opponent has
+                // already lost, so this is a floor rather than a live case.
+                (!eligible.is_empty()).then_some(GiftCostOption {
+                    gift_type,
+                    eligible,
+                })
+            })
+    } else {
+        None
+    };
+
+    let splice = {
+        let eligible = eligible_splice_cards(state, player, &def, obj.id);
+        // SR-38: no eligible card in hand means no splice offer at all, rather than an
+        // offer whose every answer `casting.rs` refuses.
+        (!eligible.is_empty()).then_some(SpliceCostOption { eligible })
+    };
+
+    AdditionalCostPlan {
+        sacrifice,
+        squad,
+        counts,
+        markers,
+        gift,
+        splice,
+    }
+}
+
+/// PB-DX29: the `ManaCost` carried by the first ability matching `pick`, cloned.
+///
+/// One helper rather than six copies of the same `find_map`, and deliberately reading
+/// the REGISTRY def rather than layer-resolved characteristics: `casting.rs`'s own
+/// `get_replicate_cost` / `get_entwine_cost` / `get_escalate_cost` /
+/// `get_offspring_cost` / `get_splice_info` / `get_squad_cost` are all private registry
+/// reads of exactly this shape, so mirroring them here is what keeps the offer and the
+/// charge one arithmetic. (The keyword PRESENCE check is layer-resolved, because
+/// `casting.rs` reads that half from `chars` — the two halves genuinely differ.)
+fn ability_cost(
+    def: &mtg_engine::CardDefinition,
+    pick: fn(&AbilityDefinition) -> Option<&ManaCost>,
+) -> Option<ManaCost> {
+    def.abilities.iter().find_map(pick).cloned()
+}
+
+// The five per-kind pickers, named once so the OFFER (`build_additional_cost_plan`) and
+// the CHARGE (`effective_cast_cost_with_additional`) read the same field. Two copies of
+// a `find_map` that agree today is the drift class `OOS-RS-2` names.
+fn squad_cost_of(a: &AbilityDefinition) -> Option<&ManaCost> {
+    match a {
+        AbilityDefinition::Squad { cost } => Some(cost),
+        _ => None,
+    }
+}
+fn replicate_cost_of(a: &AbilityDefinition) -> Option<&ManaCost> {
+    match a {
+        AbilityDefinition::Replicate { cost } => Some(cost),
+        _ => None,
+    }
+}
+fn escalate_cost_of(a: &AbilityDefinition) -> Option<&ManaCost> {
+    match a {
+        AbilityDefinition::Escalate { cost } => Some(cost),
+        _ => None,
+    }
+}
+fn entwine_cost_of(a: &AbilityDefinition) -> Option<&ManaCost> {
+    match a {
+        AbilityDefinition::Entwine { cost } => Some(cost),
+        _ => None,
+    }
+}
+fn offspring_cost_of(a: &AbilityDefinition) -> Option<&ManaCost> {
+    match a {
+        AbilityDefinition::Offspring { cost } => Some(cost),
+        _ => None,
+    }
+}
+/// CR 702.102b — the RIGHT half's printed cost, which is what fusing adds.
+fn fuse_cost_of(a: &AbilityDefinition) -> Option<&ManaCost> {
+    match a {
+        AbilityDefinition::Fuse { cost, .. } => Some(cost),
+        _ => None,
+    }
+}
+
+/// PB-DX29, CR 700.2: how many modes this spell declares, or 0 if it is not modal.
+fn spell_mode_count(def: &mtg_engine::CardDefinition) -> usize {
+    def.abilities
+        .iter()
+        .find_map(|a| match a {
+            AbilityDefinition::Spell { modes, .. } => modes.as_ref().map(|m| m.modes.len()),
+            _ => None,
+        })
+        .unwrap_or(0)
+}
+
+/// PB-DX29, CR 702.47a/b: the cards in `player`'s hand that may be spliced onto `card`.
+///
+/// **Every clause mirrors `casting.rs`'s own splice gate, in its order**, and the
+/// mirroring is the point (SR-38): an offer this function makes must be one the engine
+/// accepts. The gate is two-sided and easy to get half-right —
+///
+/// * the SPLICE card must carry `KeywordAbility::Splice` and declare
+///   `AbilityDefinition::Splice { onto_subtype, .. }`;
+/// * the SPELL BEING CAST must carry that `onto_subtype` — and it needs no keyword of
+///   its own, which is the asymmetry a reader most often misses;
+/// * the splice card must be in `Hand(player)` and must not be the card being cast
+///   (CR 702.47b's "other cards").
+///
+/// Duplicate-rejection (CR 702.47b) is a property of a SUBMISSION, not of the eligible
+/// set, so it is not applied here; `api.rs` and the engine both reject a repeat.
+fn eligible_splice_cards(
+    state: &GameState,
+    player: PlayerId,
+    spell_def: &mtg_engine::CardDefinition,
+    card: ObjectId,
+) -> Vec<ObjectId> {
+    // The subtypes of the spell being cast, layer-resolved for the same reason the
+    // keyword reads above are: a continuous effect could add the Arcane subtype.
+    let spell_subtypes: Vec<SubType> = mtg_engine::calculate_characteristics(state, card)
+        .map(|c| c.subtypes.iter().cloned().collect())
+        .unwrap_or_else(|| spell_def.types.subtypes.iter().cloned().collect());
+    if spell_subtypes.is_empty() {
+        return Vec::new();
+    }
+    state
+        .objects_in_zone(&ZoneId::Hand(player))
+        .into_iter()
+        .filter(|obj| obj.id != card)
+        .filter(|obj| {
+            let Some(def) = obj
+                .card_id
+                .as_ref()
+                .and_then(|cid| state.card_registry().get(cid.clone()))
+            else {
+                return false;
+            };
+            let has_marker = def
+                .abilities
+                .iter()
+                .any(|a| matches!(a, AbilityDefinition::Keyword(KeywordAbility::Splice)));
+            if !has_marker {
+                return false;
+            }
+            def.abilities.iter().any(|a| match a {
+                AbilityDefinition::Splice { onto_subtype, .. } => {
+                    spell_subtypes.contains(onto_subtype)
+                }
+                _ => false,
+            })
+        })
+        .map(|obj| obj.id)
+        .collect()
 }
 
 /// CR 702.157a (UI-2 §1.4): the largest N this player can currently afford on top
@@ -2476,7 +2853,34 @@ fn squad_max_count(
     card: ObjectId,
     squad_cost: &ManaCost,
 ) -> u32 {
-    let squad_mv = squad_cost.mana_value();
+    repeated_cost_max_count(state, player, card, squad_cost, |n| AdditionalCost::Squad {
+        count: n,
+    })
+}
+
+/// PB-DX29: [`squad_max_count`] generalised — the largest N this player can afford of a
+/// pay-N-times rider, whichever rider it is.
+///
+/// The body is `squad_max_count`'s verbatim, with the announcement it probes handed in
+/// as `announce` instead of hard-coded. **The generalisation is not cosmetic**: UI-2
+/// built this bound for Squad and nothing analogous for Replicate, even though the two
+/// are the same mechanic with different resolution behaviour — an SR-38 asymmetry
+/// between structurally identical costs, and one this batch would have inherited by
+/// writing a second copy.
+///
+/// Every property `squad_max_count`'s own doc states still holds and is not restated
+/// here: the genuine (over-estimating) upper bound, the monotone `1..N` walk that can
+/// stop at the first unaffordable N, the `can_afford` under-report against what the
+/// ENGINE would accept from a hand-built command (`OOS-UI2-3`), and the 0 return for a
+/// zero-mana-value rider.
+fn repeated_cost_max_count(
+    state: &GameState,
+    player: PlayerId,
+    card: ObjectId,
+    rider_cost: &ManaCost,
+    announce: fn(u32) -> AdditionalCost,
+) -> u32 {
+    let squad_mv = rider_cost.mana_value();
     if squad_mv == 0 {
         return 0;
     }
@@ -2524,7 +2928,7 @@ fn squad_max_count(
 
     let mut max_count = 0;
     for n in 1..=upper_bound {
-        let announced = [AdditionalCost::Squad { count: n }];
+        let announced = [announce(n)];
         let Some(candidate_cost) =
             effective_cast_cost_with_additional(state, player, card, &announced)
         else {
@@ -2577,38 +2981,146 @@ pub fn effective_cast_cost_with_additional(
     // announcement the offer never made. The two are complementary rather than
     // redundant: this one keeps the ARITHMETIC honest for every caller (a bot, the
     // TUI, a test) and that one keeps the AMBIGUITY out of the HTTP surface.
-    let squad_count = additional_costs
+    // ── PB-DX29: the same last-wins read, for every OTHER mana-bearing rider ────────
+    //
+    // **This half is not an enhancement, it is the thing that stops PB-DX29 from
+    // shipping a new 422.** `LocalGame::auto_tap_commands_for` funds a cast by asking
+    // THIS function what the cast will cost. Before PB-DX29 it answered Squad and
+    // nothing else, which was correct while Squad was the only rider a client could
+    // announce. The moment Replicate / Escalate / Entwine / Offspring / Fuse / Splice
+    // became announceable, an unextended version would have tapped for the BASE cost,
+    // let the human announce the rider, and watched the engine refuse the whole cast
+    // with `InsufficientMana` — an offer the client made and the server rejected, which
+    // is precisely the SR-38 shape UI-2 and SIM-6 exist to delete.
+    //
+    // Every arm mirrors `casting.rs`'s own arithmetic clause for clause:
+    // * **last-wins, never summed**, because `casting.rs`'s destructuring loop is a
+    //   plain assignment for every scalar (`replicate_count = *count;` etc.);
+    // * the seven numeric components only. `casting.rs` adds `white..colorless` and
+    //   **not** `hybrid`, `phyrexian` or `x_count` for any rider except Fuse. That is
+    //   arguably an engine defect — a hybrid Replicate cost would be charged as free —
+    //   but it is the engine's behaviour, and a provider that "corrected" it here would
+    //   over-tap and then fail to spend the surplus. Mirrored deliberately, filed as a
+    //   seed rather than diverged from. (`core::pb_dx29_additional_cost_roster` R3 pins
+    //   that no corpus def carries such a cost, so the divergence is unreachable today.)
+    // * Gift adds nothing: naming an opponent IS its cost (CR 702.174a).
+    let last_count = |pick: fn(&AdditionalCost) -> Option<u32>| -> u32 {
+        additional_costs
+            .iter()
+            .filter_map(pick)
+            .next_back()
+            .unwrap_or(0)
+    };
+    let squad_count = last_count(|ac| match ac {
+        AdditionalCost::Squad { count } => Some(*count),
+        _ => None,
+    });
+    let replicate_count = last_count(|ac| match ac {
+        AdditionalCost::Replicate { count } => Some(*count),
+        _ => None,
+    });
+    let escalate_count = last_count(|ac| match ac {
+        AdditionalCost::EscalateModes { count } => Some(*count),
+        _ => None,
+    });
+    let entwine_paid = additional_costs
+        .iter()
+        .any(|ac| matches!(ac, AdditionalCost::Entwine));
+    let offspring_paid = additional_costs
+        .iter()
+        .any(|ac| matches!(ac, AdditionalCost::Offspring));
+    let fuse_paid = additional_costs
+        .iter()
+        .any(|ac| matches!(ac, AdditionalCost::Fuse));
+    // CR 702.47b: splice is a LIST and every entry is charged, so this one really is a
+    // sum rather than a last-wins — matching `casting.rs`'s own `for splice_card_id in
+    // &splice_cards` loop, which pushes each card's cost onto the running total.
+    let spliced: Vec<ObjectId> = additional_costs
         .iter()
         .filter_map(|ac| match ac {
-            AdditionalCost::Squad { count } => Some(*count),
+            AdditionalCost::Splice { cards } => Some(cards.clone()),
             _ => None,
         })
-        .next_back();
-    if let Some(count) = squad_count.filter(|c| *c > 0) {
-        let obj = state.object(card).ok()?;
-        let squad_cost = obj
+        .next_back()
+        .unwrap_or_default();
+
+    if squad_count == 0
+        && replicate_count == 0
+        && escalate_count == 0
+        && !entwine_paid
+        && !offspring_paid
+        && !fuse_paid
+        && spliced.is_empty()
+    {
+        // Identity for every cast that announces no mana-bearing rider — which is every
+        // bot cast and, before PB-DX29, every cast in the tree.
+        return Some(cost);
+    }
+
+    let def = state
+        .object(card)
+        .ok()?
+        .card_id
+        .as_ref()
+        .and_then(|cid| state.card_registry().get(cid.clone()))?;
+
+    let mut add = |rider: &ManaCost, times: u32| {
+        for _ in 0..times {
+            cost.white += rider.white;
+            cost.blue += rider.blue;
+            cost.black += rider.black;
+            cost.red += rider.red;
+            cost.green += rider.green;
+            cost.generic += rider.generic;
+            cost.colorless += rider.colorless;
+        }
+    };
+
+    // A missing cost below is exactly the marker-only shape `casting.rs` refuses
+    // outright ("spell has X keyword but no X cost defined"), so `?` here makes the
+    // auto-tap decline to fund a cast the engine will refuse anyway, rather than funding
+    // the base cost and letting the refusal look like a mana problem.
+    if squad_count > 0 {
+        add(&ability_cost(&def, squad_cost_of)?, squad_count);
+    }
+    if replicate_count > 0 {
+        add(&ability_cost(&def, replicate_cost_of)?, replicate_count);
+    }
+    if escalate_count > 0 {
+        add(&ability_cost(&def, escalate_cost_of)?, escalate_count);
+    }
+    if entwine_paid {
+        add(&ability_cost(&def, entwine_cost_of)?, 1);
+    }
+    if offspring_paid {
+        add(&ability_cost(&def, offspring_cost_of)?, 1);
+    }
+
+    if fuse_paid {
+        // CR 702.102b: the fused cost is the two halves summed. `casting.rs` adds the
+        // right half BEFORE commander tax while this adds it after — the totals agree,
+        // because commander tax is an additive `{2}`-per-prior-cast term
+        // (`apply_commander_tax`), not a multiplier. Stated because the order genuinely
+        // differs and a reader is entitled to know it was checked rather than missed.
+        add(&ability_cost(&def, fuse_cost_of)?, 1);
+    }
+
+    for splice_card in &spliced {
+        let splice_cost = state
+            .object(*splice_card)
+            .ok()?
             .card_id
             .as_ref()
             .and_then(|cid| state.card_registry().get(cid.clone()))
-            .and_then(|def| {
-                def.abilities.iter().find_map(|a| {
-                    if let AbilityDefinition::Squad { cost } = a {
-                        Some(cost.clone())
-                    } else {
-                        None
-                    }
+            .and_then(|d| {
+                d.abilities.iter().find_map(|a| match a {
+                    AbilityDefinition::Splice { cost, .. } => Some(cost.clone()),
+                    _ => None,
                 })
-            })?;
-        for _ in 0..count {
-            cost.white += squad_cost.white;
-            cost.blue += squad_cost.blue;
-            cost.black += squad_cost.black;
-            cost.red += squad_cost.red;
-            cost.green += squad_cost.green;
-            cost.generic += squad_cost.generic;
-            cost.colorless += squad_cost.colorless;
-        }
+            });
+        add(&splice_cost?, 1);
     }
+
     Some(cost)
 }
 
