@@ -20,8 +20,15 @@
 //! * **R4** -- every Squad def's cost is **non-zero** and carries **no hybrid or
 //!   Phyrexian pip**. Non-zero: `legal_actions.rs::squad_max_count` returns 0 for a
 //!   zero mana value, because the affordability walk would otherwise be unbounded.
-//!   No hybrid/Phyrexian: `tools/play-server/src/view.rs::format_mana_cost_compact`
-//!   renders neither, so such a cost would DISPLAY as cheaper than it is.
+//!   No hybrid/Phyrexian: **this half's original reason is CLOSED** -- it was that
+//!   `view.rs::format_mana_cost_compact` rendered neither pip kind, and PB-DX29 taught
+//!   it both (CR 107.4e/107.4f) plus `{X}` (CR 107.3). The assertion is KEPT as a
+//!   surprise-detector on the Squad roster rather than deleted, but a failure now means
+//!   "a Squad cost got more complicated, go look", not "the label will lie".
+//!   The way that limitation surfaced is worth reading:
+//!   `core::pb_dx29_additional_cost_roster::r3`'s doc records it. This gate could never
+//!   have found it, because the counter-example (`brokkos_apex_of_forever`, a HYBRID
+//!   mutate cost) was in the corpus the whole time and is not a Squad def.
 //! * **R5** -- no def declares an additional cost (sacrifice or Squad) together with
 //!   an `{X}` or a modal spell ability. This is the premise the frontend's picker
 //!   ordering rests on: CR 601.2b's own internal order is modes -> additional costs
@@ -215,6 +222,12 @@ fn r3b_squad_marker_and_squad_cost_declare_the_same_defs() {
 }
 
 /// R4 -- every Squad cost is non-zero, and carries no hybrid or Phyrexian pip.
+///
+/// The hybrid/Phyrexian half's original justification is closed (PB-DX29 taught the
+/// formatter both pip kinds); see this file's module doc. Kept as a surprise-detector.
+/// The failure message below is corrected in place rather than left asserting a
+/// limitation that no longer exists -- a gate whose reason has gone stale tells the next
+/// reader to fix the wrong thing, which is `OOS-CARDS2-8`'s class in a test file.
 #[test]
 fn r4_every_squad_cost_is_nonzero_and_has_no_hybrid_or_phyrexian_pip() {
     let defs = mtg_engine::all_cards();
@@ -230,10 +243,13 @@ fn r4_every_squad_cost_is_nonzero_and_has_no_hybrid_or_phyrexian_pip() {
         );
         assert!(
             cost.hybrid.is_empty() && cost.phyrexian.is_empty(),
-            "{}: `tools/play-server/src/view.rs::format_mana_cost_compact` renders neither \
-             hybrid nor Phyrexian pips, so this squad cost would DISPLAY to the human as \
-             strictly cheaper than it is. Teach that formatter both pip kinds before \
-             authoring this card. cost: {cost:?}",
+            "{}: this Squad cost carries a hybrid or Phyrexian pip. \
+             `view.rs::format_mana_cost_compact` CAN render both since PB-DX29, so this is no \
+             longer a display bug -- but a Squad cost is paid N times and \
+             `legal_actions.rs::repeated_cost_max_count` bounds N through \
+             `ManaCost::mana_value`, which resolves a hybrid pip to its LARGEST component \
+             (CR 202.3f). Confirm the offered max_count is the one the payment path will \
+             accept before pinning this card. cost: {cost:?}",
             def.name
         );
     }

@@ -267,14 +267,18 @@ fn test_dx29_t1_loyalty_target_requirements_are_the_declared_targets_per_index()
 
 // ── T2: total, never panics ───────────────────────────────────────────────────
 
-/// CR 606.3 — T2. Every degenerate argument yields `vec![]` / `false` rather than a
-/// panic: an out-of-range `ability_index`, a non-planeswalker object, an object with
-/// no `card_id`, and an `ObjectId` that names nothing at all.
+/// CR 606.3 — T2. Every degenerate argument on a LIVE object yields `vec![]` /
+/// `false` rather than a panic: an out-of-range `ability_index` (including
+/// `usize::MAX`), a non-planeswalker card, and an object with no `card_id` at all.
+///
+/// The fourth degenerate case the queries' own docs promise — an `ObjectId` that
+/// names nothing — is **not** covered here because it does not hold; see
+/// `test_dx29_t2b_...`.
 ///
 /// **Revert to watch red**: replace the `let Some(..) else { return vec![] }` chain
 /// in either query with `.unwrap()`, or `.nth(ability_index).cloned().unwrap()`.
 #[test]
-fn test_dx29_t2_degenerate_arguments_return_empty_and_never_panic() {
+fn test_dx29_t2_degenerate_arguments_on_a_live_object_return_empty_and_never_panic() {
     let defs = load_defs();
     let p1 = p(1);
 
@@ -325,6 +329,43 @@ fn test_dx29_t2_degenerate_arguments_return_empty_and_never_panic() {
         "an object with no card_id resolves to no requirements"
     );
     assert!(!loyalty_ability_needs_x(&state, nameless, 0));
+}
+
+/// CR 400.7 / CR 606.3 — T2B, **pinned WRONG-WAY-ROUND**. Both new queries look their
+/// source object up with `GameState::expect_object`, whose contract is *"the caller has
+/// already established this id is live; a `None` here is an engine bug"* — it fires a
+/// `debug_assert!` and only degrades to `None` in release. So on a stale `ObjectId`
+/// (a planeswalker that died in response, the CR 400.7 case) these two functions
+/// **panic in a debug build**, while:
+///
+/// * their own rustdoc says *"Missing object, missing `card_id`, an unregistered card,
+///   or an out-of-range `ability_index` all yield `vec![]` — this function never panics
+///   and never unwraps"*, and
+/// * `queries.rs`'s module doc calls the whole file a read-only **advisory** surface for
+///   UI/simulator callers, and
+/// * every other lookup in `queries.rs` avoids `expect_object` — the sibling
+///   `ability_target_requirements` goes through `calculate_characteristics`, which
+///   returns a quiet `None`. `expect_object` appears in this file at exactly two sites,
+///   both added by PB-DX29.
+///
+/// Not reachable through the three shipped call sites today (`view.rs`, `targeting.rs`
+/// and `legal_actions.rs` all pass an id enumerated from live state in the same
+/// breath), so this is a documentation-vs-behaviour defect on a `pub` re-exported
+/// function rather than a live game bug — recorded here rather than fixed, because the
+/// engine source is out of this task's scope.
+///
+/// **This test reddens when the defect is fixed.** That is deliberate: the fixer must
+/// come here, delete the `debug_assertions` branch, and restore the plain
+/// `assert!(...is_empty())` that the docs already promise.
+#[test]
+fn test_dx29_t2b_an_unknown_object_id_panics_in_debug_instead_of_the_documented_empty() {
+    let defs = load_defs();
+    let state = main_phase_state(vec![planeswalker_on_battlefield(
+        p(1),
+        "Sarkhan Vol",
+        4,
+        &defs,
+    )]);
 
     // An id that names nothing. `next_object_id` is monotone, so a value above every
     // live id is guaranteed absent.
@@ -341,11 +382,32 @@ fn test_dx29_t2_degenerate_arguments_return_empty_and_never_panic() {
         state.objects().get(&unknown).is_none(),
         "precondition: the probe id must really be absent"
     );
-    assert!(
-        loyalty_ability_target_requirements(&state, unknown, 0).is_empty(),
-        "an unknown ObjectId yields no requirements"
-    );
-    assert!(!loyalty_ability_needs_x(&state, unknown, 0));
+
+    if cfg!(debug_assertions) {
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let requirements =
+            std::panic::catch_unwind(|| loyalty_ability_target_requirements(&state, unknown, 0));
+        let needs_x = std::panic::catch_unwind(|| loyalty_ability_needs_x(&state, unknown, 0));
+        std::panic::set_hook(hook);
+
+        assert!(
+            requirements.is_err(),
+            "PB-DX29 DEFECT PIN: `loyalty_ability_target_requirements` is documented to \
+             yield vec![] for a missing object, and `expect_object` makes it panic in \
+             debug instead. If this now returns Ok, the defect is FIXED -- delete this \
+             test's `debug_assertions` branch and assert the documented empty result."
+        );
+        assert!(
+            needs_x.is_err(),
+            "PB-DX29 DEFECT PIN: same for `loyalty_ability_needs_x`."
+        );
+    } else {
+        // Release: `debug_assert!` is compiled out and `expect_object` degrades to
+        // `None`, so the documented contract holds.
+        assert!(loyalty_ability_target_requirements(&state, unknown, 0).is_empty());
+        assert!(!loyalty_ability_needs_x(&state, unknown, 0));
+    }
 }
 
 // ── T3: the two index spaces are different ────────────────────────────────────
@@ -500,11 +562,7 @@ fn test_dx29_t4_needs_x_is_true_exactly_for_minus_x() {
         .collect();
     assert_eq!(
         chandra_costs,
-        vec![
-            LoyaltyCost::Plus(1),
-            LoyaltyCost::Zero,
-            LoyaltyCost::MinusX
-        ],
+        vec![LoyaltyCost::Plus(1), LoyaltyCost::Zero, LoyaltyCost::MinusX],
         "precondition: Chandra's loyalty costs, in filtered order"
     );
     assert!(

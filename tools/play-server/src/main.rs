@@ -5902,6 +5902,7 @@ mod tests {
                     },
                     max_count: squad_max_count,
                 }),
+                ..Default::default()
             },
         }
     }
@@ -5976,6 +5977,7 @@ mod tests {
                     default: eligible_id,
                 }),
                 squad: None,
+                ..Default::default()
             },
         };
         let params = crate::view::ActionParamsDto {

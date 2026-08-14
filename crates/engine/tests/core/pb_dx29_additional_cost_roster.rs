@@ -27,9 +27,10 @@
 //!   costs must be looked at by a human.
 //! * **R2** — for every kind, `{defs with the marker} == {defs with the cost}`, both
 //!   directions, with one declared exception (see [`FUSE_DATA_CARRIERS`]).
-//! * **R3** — every mana cost carried by one of these abilities is renderable by
-//!   `tools/play-server/src/view.rs::format_mana_cost_compact`, which emits neither
-//!   hybrid nor Phyrexian pips (UI-2's R4, generalised past Squad).
+//! * **R3** — every pay-N-times cost is bounded, plus a non-vacuity floor on the
+//!   hybrid/Phyrexian shapes `view.rs::format_mana_cost_compact` was taught to render
+//!   (UI-2's R4, generalised past Squad — see that test's own doc for what widening it
+//!   found, and why the fix was the formatter rather than a narrower gate).
 //! * **R4** — the DECK-LEGAL population per kind, pinned. This is the number that says
 //!   what a human can actually lose today, and PB-DX29's own scope decisions rest on it.
 //! * **R5** — non-vacuity floors for all of the above.
@@ -161,12 +162,18 @@ fn r1_keyword_carried_cost_rosters_are_pinned() {
     let expected: &[(&str, &[&str])] = &[
         ("Squad", &["Galadhrim Brigade", "Ultramarines Honour Guard"]),
         ("Replicate", &["Train of Thought"]),
-        ("Entwine", &["Goblin War Party", "Promise of Power", "Tooth and Nail"]),
+        (
+            "Entwine",
+            &["Goblin War Party", "Promise of Power", "Tooth and Nail"],
+        ),
         ("Escalate", &["Blessed Alliance", "Collective Resistance"]),
         ("Splice", &["Glacial Ray"]),
         ("Offspring", &["Flowerfoot Swordmaster"]),
         ("Gift", &["Dawn's Truce", "Nocturnal Hunger"]),
-        ("Fuse", &["Connive // Concoct", "Turn // Burn", "Wear // Tear"]),
+        (
+            "Fuse",
+            &["Connive // Concoct", "Turn // Burn", "Wear // Tear"],
+        ),
     ];
     for (label, keyword, is_cost) in KEYWORD_CARRIED_COSTS {
         let found = defs_with_cost(&defs, *is_cost);
@@ -248,9 +255,7 @@ fn r2_every_keyword_carried_cost_declares_its_marker_and_its_cost() {
 fn r2m_mutate_marker_and_mutate_cost_declare_the_same_defs() {
     let defs = mtg_engine::all_cards();
     let marker = defs_with_marker(&defs, &KeywordAbility::Mutate);
-    let cost = defs_with_cost(&defs, |a| {
-        matches!(a, AbilityDefinition::MutateCost { .. })
-    });
+    let cost = defs_with_cost(&defs, |a| matches!(a, AbilityDefinition::MutateCost { .. }));
     assert_eq!(
         marker, cost,
         "the Mutate marker set and the `AbilityDefinition::MutateCost` set disagree. A \
@@ -261,29 +266,48 @@ fn r2m_mutate_marker_and_mutate_cost_declare_the_same_defs() {
     );
 }
 
-/// R3 — every declared additional-cost `ManaCost` is renderable by the browser.
+/// R3 — every pay-N-times additional cost is BOUNDED, and the hybrid/Phyrexian premise
+/// UI-2 pinned for Squad is recorded as **closed** rather than silently widened.
 ///
-/// `tools/play-server/src/view.rs::format_mana_cost_compact` renders the generic
-/// component and the coloured pips and **neither hybrid nor Phyrexian**, so a cost
-/// carrying either would DISPLAY to the human as strictly cheaper than it is. UI-2's R4
-/// asserted this for Squad alone; PB-DX29 renders six more kinds through the same
-/// formatter, so the premise has to hold for all of them.
+/// # The history, because it is the point of this gate rather than a footnote
+///
+/// UI-2 wrote `ui2_additional_cost_roster::r4` asserting that no def in the corpus has a
+/// hybrid or Phyrexian **Squad** cost, because `view.rs::format_mana_cost_compact`
+/// rendered neither and such a cost would have displayed as strictly cheaper than it is.
+/// Its own comment promised the gate would "fail loudly the day one is authored".
+///
+/// PB-DX29 widened that assertion past Squad and it went red immediately, on
+/// `brokkos_apex_of_forever`'s `{2}{G}{G}{U/B}` mutate cost — a counter-example the
+/// corpus had carried the entire time, invisible because the gate was scoped to the one
+/// kind its author was building. **A gate written for one variant measures that
+/// variant**, which is this file's whole thesis, arriving a second time.
+///
+/// The fix was the formatter, not a narrower gate: it now renders CR 107.4e hybrid,
+/// CR 107.4f Phyrexian and CR 107.3 `{X}`. So this test no longer asserts absence — it
+/// asserts the pay-N-times BOUND, and leaves a non-vacuity check that the formatter is
+/// still being handed the shapes it was taught.
 ///
 /// Zero mana value is checked for Squad and Replicate ONLY: both are "pay N times" costs
-/// whose `max_count` walk (`legal_actions.rs::squad_max_count` and its Replicate sibling)
-/// is unbounded at zero. Entwine / Escalate / Offspring are paid at most once, so a free
-/// one is merely unusual, not a hang.
+/// whose `max_count` walk (`legal_actions.rs::repeated_cost_max_count`) is unbounded at
+/// zero. Entwine / Escalate / Offspring / Fuse are paid at most once, so a free one is
+/// merely unusual, not a hang.
 #[test]
 fn r3_every_declared_additional_cost_is_renderable_and_bounded() {
     let defs = mtg_engine::all_cards();
     let costs = declared_costs(&defs);
+    // Non-vacuity for the formatter's new arms: at least one corpus cost must actually
+    // carry a hybrid or Phyrexian pip, or "the formatter renders them" is an untested
+    // claim about an unreachable branch. `brokkos_apex_of_forever` is that def; if it
+    // ever leaves the corpus, this floor says so instead of going quiet.
+    assert!(
+        costs
+            .iter()
+            .any(|(_, _, c)| !c.hybrid.is_empty() || !c.phyrexian.is_empty()),
+        "no declared additional cost carries a hybrid or Phyrexian pip, so \
+         `view.rs::format_mana_cost_compact`'s CR 107.4e/107.4f arms are unexercised by any \
+         real def. Either the corpus lost `brokkos_apex_of_forever` or the walk is broken."
+    );
     for (name, kind, cost) in &costs {
-        assert!(
-            cost.hybrid.is_empty() && cost.phyrexian.is_empty(),
-            "{name} ({kind}): `format_mana_cost_compact` renders neither hybrid nor Phyrexian \
-             pips, so this cost would DISPLAY to the human as strictly cheaper than it is. Teach \
-             that formatter both pip kinds before authoring this card. cost: {cost:?}"
-        );
         if matches!(*kind, "Squad" | "Replicate") {
             assert!(
                 cost.mana_value() > 0,

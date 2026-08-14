@@ -224,9 +224,9 @@ pub fn loyalty_ability_target_requirements(
     def.abilities
         .iter()
         .filter_map(|a| match a {
-            crate::cards::card_definition::AbilityDefinition::LoyaltyAbility { targets, .. } => {
-                Some(targets)
-            }
+            crate::cards::card_definition::AbilityDefinition::LoyaltyAbility {
+                targets, ..
+            } => Some(targets),
             _ => None,
         })
         .nth(ability_index)

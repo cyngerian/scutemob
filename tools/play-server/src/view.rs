@@ -45,8 +45,8 @@ use std::collections::HashMap;
 
 use mtg_engine::{
     AbilityDefinition, AdditionalCost, AttackTarget, Effect, EffectChoiceAnswer,
-    EffectChoiceQuestion, GameState, ManaCost, ModeSelection, ObjectId, PlayerId,
-    SpellAdditionalCost, Target, TargetRequirement,
+    EffectChoiceQuestion, GameState, HybridMana, ManaColor, ManaCost, ModeSelection, ObjectId,
+    PhyrexianMana, PlayerId, SpellAdditionalCost, Target, TargetRequirement,
 };
 use mtg_simulator::{
     ActionParams, DecisionKind, GameResult, HaltReason, LegalAction, PendingDecision,
@@ -1838,14 +1838,29 @@ fn sacrifice_prompt(requirement: &SpellAdditionalCost) -> String {
 /// and fixing it is out of this batch's scope, but a label a human reads next to a
 /// printed card must match the printing.
 ///
-/// **Known limitation, inherited from the TUI copy and pinned rather than
-/// assumed**: `ManaCost::hybrid` and `ManaCost::phyrexian` are not rendered, so a
-/// Squad cost carrying either would display as strictly cheaper than it is. That is
-/// not merely unlikely today -- `core::ui2_additional_cost_roster` R4 asserts that
-/// no def in the corpus has a hybrid or Phyrexian Squad cost, so the gate fails
-/// loudly the day one is authored rather than this label quietly lying.
+/// **The hybrid / Phyrexian / `{X}` limitation is CLOSED as of PB-DX29, and the way it
+/// surfaced is worth keeping.** This function used to render the seven plain components
+/// and nothing else, so a cost carrying a hybrid pip, a Phyrexian pip or an `{X}`
+/// displayed as strictly cheaper than it is. UI-2 knew, and pinned the premise with
+/// `core::ui2_additional_cost_roster` R4 — "no def in the corpus has a hybrid or
+/// Phyrexian **Squad** cost, so the gate fails loudly the day one is authored".
+///
+/// The day arrived on a **different cost kind**. PB-DX29 renders six more kinds through
+/// this same formatter, and its `core::pb_dx29_additional_cost_roster` R3 — the same
+/// assertion widened past Squad — went red on its first run against
+/// `brokkos_apex_of_forever`, whose mutate cost is `{2}{G}{G}{U/B}`. A gate scoped to
+/// one kind measures that kind; the corpus had carried the counter-example the whole
+/// time. Rendering all three forms is the fix, rather than narrowing the gate back.
+///
+/// CR 107.4e (`{W/U}`, `{2/W}`), CR 107.4f (`{W/P}`, `{G/W/P}`), CR 107.3 (`{X}`).
+/// Symbol ORDER follows the printed convention: `{X}` first, then generic, then the
+/// coloured pips in WUBRG order, then `{C}`, then the hybrid and Phyrexian pips.
 fn format_mana_cost_compact(cost: &ManaCost) -> String {
     let mut parts = Vec::new();
+    // CR 107.3: `{X}` is printed before the rest of the cost.
+    for _ in 0..cost.x_count {
+        parts.push("{X}".to_string());
+    }
     if cost.generic > 0 {
         parts.push(format!("{{{}}}", cost.generic));
     }
@@ -1867,10 +1882,43 @@ fn format_mana_cost_compact(cost: &ManaCost) -> String {
     for _ in 0..cost.colorless {
         parts.push("{C}".to_string());
     }
+    // CR 107.4e: a hybrid pip is either of two colours, or a colour or two generic.
+    for pip in &cost.hybrid {
+        parts.push(match pip {
+            HybridMana::ColorColor(a, b) => {
+                format!("{{{}/{}}}", mana_color_symbol(a), mana_color_symbol(b))
+            }
+            HybridMana::GenericColor(c) => format!("{{2/{}}}", mana_color_symbol(c)),
+        });
+    }
+    // CR 107.4f: a Phyrexian pip is its colour(s) or 2 life.
+    for pip in &cost.phyrexian {
+        parts.push(match pip {
+            PhyrexianMana::Single(c) => format!("{{{}/P}}", mana_color_symbol(c)),
+            PhyrexianMana::Hybrid(a, b) => {
+                format!("{{{}/{}/P}}", mana_color_symbol(a), mana_color_symbol(b))
+            }
+        });
+    }
     if parts.is_empty() {
         "{0}".to_string()
     } else {
         parts.join("")
+    }
+}
+
+/// The single printed letter for a mana colour (CR 107.4a).
+///
+/// Exhaustive with **no wildcard arm**: a new `ManaColor` variant must be given a symbol
+/// here or the crate stops compiling, rather than silently rendering as something else.
+fn mana_color_symbol(color: &ManaColor) -> &'static str {
+    match color {
+        ManaColor::White => "W",
+        ManaColor::Blue => "U",
+        ManaColor::Black => "B",
+        ManaColor::Red => "R",
+        ManaColor::Green => "G",
+        ManaColor::Colorless => "C",
     }
 }
 
