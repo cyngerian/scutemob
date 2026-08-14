@@ -5387,6 +5387,53 @@ behaviourally identical.
 
 ## Last Handoff
 
+**Date**: 2026-08-13..14 (oversight session #9 — v3 closed out at rank 13, v4 re-rank, v4 rank 1)
+**Workstream**: W6 correctness queue (v3 → v4)
+**Task**: `scutemob-209` (PB-DX27, merge `bd0a9743`) + `scutemob-210` (PB-DX28, `2bdc3533`) +
+`scutemob-211` (PB-DX29, `08c9ef1e`) + `scutemob-212` (v4 re-rank, `1d54f122`) + `scutemob-213`
+(PB-DX43, `ba83116a`) + `scutemob-214` (worker-tab skill adoption, `19b81255`, PARTIAL — still
+`in_progress`). Each dispatch → monitor → collect, one worker at a time, each user-approved.
+
+**Completed**:
+- **PB-DX27/28/29 shipped** (v3 ranks 11/12/13 — v3 queue COMPLETE): stale-blocker-note sweep +
+  wrong-oracle register + rider OOS-ADJ-7; `TargetFilter` owner axis + choose-on-resolution
+  channel; params.rs loyalty allowlist + all cost-kind surfaces. Details in each Worker Handoff.
+- **SEED RE-RANK v4 shipped** (`memory/primitives/seed-rerank-2026-08-14.md` §4 authoritative,
+  41 entries; 208 post-v3 seed IDs censused, 61 unrowed; PB-DX42b re-decided on corrected
+  grounds; Blood Moon/Urza's Saga flag discharged as OOS-RR4-1/-2/-3).
+- **PB-DX43 shipped** (v4 rank 1): CR 305.6/305.7 intrinsic mana derivation — Urborg/Yavimaya/
+  Dryad live again; moons deleted their hand-authored grants. Tests **4,753 / 0 / 5**;
+  PROTOCOL **37** / HASH **76**; coverage 63.0%.
+- **PB-DX28 ran through a mid-batch system reboot** cleanly: disclosed non-compiling WIP
+  checkpoint + `pb-DX28-RESUME.md`; the pattern worked and is worth reusing.
+- User directive recorded (auto-memory `project_authoring_resumption_gate`): **no rush back to
+  authoring** — work the v4 queue until everything is in place; surface the option, user decides.
+- `scutemob-214` (ESM-agent-filed): dispatch/crew skills now launch via `esm worker-tab`
+  (custom worker prompt preserved verbatim via `--prompt`); criteria 6518/6519 satisfied.
+
+**Not done / deferred**:
+- `scutemob-214` criterion 6520 — live split-tab verification — lands at the next real
+  `/dispatch` (PB-DX44); the task stays `in_progress` deliberately.
+
+**Next session candidates**:
+- **Dispatch PB-DX44** (v4 rank 2, the casts you cannot make) — first use of the new
+  `worker-tab` launch; verify + satisfy 6520 and transition `scutemob-214` to done at that point.
+- Then DX15a (rank 3), DX45 (rank 4 — the costless-"may" channel, the big authoring unlock),
+  DX47 probe (rank 5).
+
+**Hazards** (carrying forward):
+- **LAN DNS blips**: `tower` (the dnsmasq host itself) intermittently fails to resolve;
+  monitors are IP-pinned (`ESM_URL=http://192.168.1.223:8765`) with a 5-failure quiet
+  threshold. Worker-side esm calls still use the name; if a worker reports connection
+  errors, pin the same way.
+- One completeness flip re-deals every seeded fixture — budget TWO reconciliation passes
+  (PB-DX27's lesson, reconfirmed by DX28/DX43 cycles).
+- `esm update --force` would clobber the customized dispatch skill — never run it here.
+
+**Commit prefix used**: `scutemob-N:` (workers) / `merge:` / `chore:` (collect chores + flag)
+
+## Previous Handoff (preserved for chain context)
+
 **Date**: 2026-08-11..12 (oversight session #8 — three-batch queue run, v3 ranks 8/9/10)
 **Workstream**: W6 correctness queue (v3)
 **Task**: `scutemob-206` (PB-DX26, merge `1f2ec5d3`) + `scutemob-207` (PB-DX7, merge
@@ -5459,7 +5506,7 @@ in sequence, single worker at a time, each dispatch explicitly user-approved.
 `merge:` + `chore:` (collect reconciliations, eot)
 
 
-## Previous Handoff (preserved for chain context)
+## Prior Handoff (oversight #7 — two user-approved queue inserts, ranks 7b + 7c)
 
 **Date**: 2026-08-06 (oversight session #7 — two user-approved queue inserts, ranks 7b + 7c)
 **Workstream**: W6 correctness queue (v3)
