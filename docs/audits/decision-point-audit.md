@@ -1446,8 +1446,26 @@ seeds land **here**, in the suite's own binding spec. Same role §1c plays for t
 >   external cites and was already closed, exactly as the note recommended;
 > * the **loyalty** seed keeps the bare number and is written **`OOS-M11-10(loyalty)`** in its own
 >   row title, and it is now **CLOSED** by PB-DX29;
-> * **every remaining bare `OOS-M11-10` cite therefore means the loyalty seed**, which is what the
->   note below already said they all meant — so no external cite needed rewriting, and none was.
+> * **every remaining bare `OOS-M11-10` cite means the loyalty seed** — and that is true only
+>   because PB-DX29's own `/review` fix cycle **made** it true. The first draft of this paragraph
+>   asserted it as an already-existing fact and said "no external cite needed rewriting, and none
+>   was". **That was wrong, and it was wrong in the direction that matters**: the reviewer
+>   measured **31** bare `OOS-M11-10` cites in `.rs` files, of which **30 meant the EQUIP seed** —
+>   17 card-def comments of the form `// CARDS-1 (OOS-M11-10) / CR 702.6a: "Equip {N}" …`, 5 in
+>   `cards1_equip_target_roster.rs`, 3 in `cards1_equip_target_repair.rs` and 5 in
+>   `tools/play-server/src/main.rs`, four of them **live test-failure strings** that would have
+>   printed an ID naming no registry row. Before the renumbering a bare cite was *ambiguous*;
+>   after it, ~40 cites were *wrong*, and this note told the next reader they were right.
+>   **All 30 are now rewritten to `OOS-M11-10E`**, the 3 pre-existing `OOS-M11-10(equip)` cites
+>   with them, and `engine.rs`'s single loyalty-meaning cite is disambiguated in place — 34
+>   `OOS-M11-10E` cites, 0 bare ones.
+> * **The historical note's premise was also inverted, and re-measuring it is what should have
+>   preceded the renumbering.** It says the equip seed "has the fewer external cites"; that was
+>   written on 2026-08-02, *before* CARDS-1 authored 17 card-def comments naming it, and the
+>   reviewer's count at HEAD is roughly 52 equip-meaning against 32 loyalty-meaning. The
+>   renumbering was therefore the *more* expensive direction, not the cheaper one. It is kept —
+>   the equip seed is closed and its ID now says so, and the rewrite is mechanical and done — but
+>   the cheapness argument it was chosen on does not hold, and a reader should not inherit it.
 >   `crates/simulator/src/params.rs`'s in-source comment is rewritten anyway, because that arm is
 >   what this batch changed.
 >

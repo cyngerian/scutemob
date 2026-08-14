@@ -67,7 +67,7 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 timing_restriction: Some(TimingRestriction::SorcerySpeed),
-                // CARDS-1 (OOS-M11-10) / CR 702.6a: "Equip {1}" means "[Cost]: Attach this
+                // CARDS-1 (OOS-M11-10E) / CR 702.6a: "Equip {1}" means "[Cost]: Attach this
                 // permanent to target creature you control." The printed line was MCP-verified
                 // as plain "Equip {1}" -- no CR 702.6c quality restriction -- so the requirement is
                 // the unmodified 702.6a one. Authoring it is what makes the target announceable:

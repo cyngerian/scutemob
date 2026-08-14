@@ -1,4 +1,4 @@
-//! CARDS-1 (OOS-M11-10): equip activations silently fizzle when the ability
+//! CARDS-1 (OOS-M11-10E): equip activations silently fizzle when the ability
 //! declares zero `TargetRequirement`s.
 //!
 //! Chain (verified by symbol, not by claim):
@@ -177,7 +177,7 @@ fn setup_skullclamp_scenario() -> (GameState, ObjectId, ObjectId, ObjectId, Play
     // Without this, Skullclamp's two `AbilityDefinition::Static` entries (+1 power,
     // -1 toughness, both `EffectFilter::AttachedCreature`) would never be in
     // `state.continuous_effects`, and T3's layer-resolved P/T assertion would fail
-    // for a reason unrelated to OOS-M11-10 -- mirrors `equip.rs`'s
+    // for a reason unrelated to OOS-M11-10E -- mirrors `equip.rs`'s
     // `test_equip_grants_keywords_via_layer_system`, which manually injects the
     // equivalent `ContinuousEffect` for its synthetic equipment.
     let skullclamp_card_id = state
@@ -465,7 +465,7 @@ fn t4_skullclamp_opponent_creature_rejected_post_fix() {
 /// populate `ActionOptionView.target_slots`) must report Skullclamp's equip slot
 /// once the def declares it, and the per-slot candidate list must be scoped to
 /// creatures the activating player controls -- this is the assertion that would
-/// have caught "the picker never asks" (the browser-path half of OOS-M11-10).
+/// have caught "the picker never asks" (the browser-path half of OOS-M11-10E).
 #[test]
 fn t5_engine_query_reports_slot_and_candidates_scoped_to_controller() {
     let (state, skullclamp_id, p1_creature_id, p2_creature_id, p1, _p2) =

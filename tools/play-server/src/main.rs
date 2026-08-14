@@ -1972,7 +1972,7 @@ mod tests {
         assert_eq!((sum_min, sum_max), (min as u64, max as u64));
     }
 
-    // ── CARDS-1 (OOS-M11-10) ────────────────────────────────────────────────────
+    // ── CARDS-1 (OOS-M11-10E) ────────────────────────────────────────────────────
 
     /// Build a minimal `GameState`: Skullclamp on the battlefield under `p1`, plus
     /// one creature `p1` controls and one `p2` controls, `p1` holding priority
@@ -2046,7 +2046,7 @@ mod tests {
         (state, skullclamp_id, p1_creature_id, p2_creature_id, p1, p2)
     }
 
-    /// **CARDS-1 (OOS-M11-10), browser-path half.** Engine coverage already
+    /// **CARDS-1 (OOS-M11-10E), browser-path half.** Engine coverage already
     /// proves `mtg_engine::ability_target_requirements` reports Skullclamp's
     /// equip slot once its def declares it
     /// (`crates/engine/tests/primitives/cards1_equip_target_repair.rs` T5). This
@@ -2124,7 +2124,7 @@ mod tests {
         assert_eq!(action["kind"], "ActivateAbility");
         assert_eq!(action["object_id"].as_u64(), Some(skullclamp_id.0));
 
-        // Regression floor for OOS-M11-10 itself: this is the assertion that
+        // Regression floor for OOS-M11-10E itself: this is the assertion that
         // would have caught the original defect at the layer the playtest
         // actually observed it. With the pre-fix `targets: vec![]`,
         // `target_slots` here is empty and the picker never asks.
@@ -2134,7 +2134,7 @@ mod tests {
         assert_eq!(
             target_slots.len(),
             1,
-            "OOS-M11-10: Skullclamp's ActivateAbility option must carry exactly one target \
+            "OOS-M11-10E: Skullclamp's ActivateAbility option must carry exactly one target \
              slot once the def declares its TargetRequirement -- an empty target_slots is \
              exactly the wire shape of the silent-fizzle defect (the picker never asks, the \
              activation validates with zero declared targets, and the attach never happens). \
@@ -2149,7 +2149,7 @@ mod tests {
         // trivially against an empty list.
         assert!(
             !candidates.is_empty(),
-            "OOS-M11-10: the slot's candidate list must be non-empty -- Skullclamp's own \
+            "OOS-M11-10E: the slot's candidate list must be non-empty -- Skullclamp's own \
              controller (p1) controls a legal creature target"
         );
 

@@ -1,7 +1,7 @@
 //! PB-DX26 (`OOS-CARDS1-3` + `OOS-CARDS1-1`) roster sweep — **the attach surface,
 //! one link earlier than CARDS-1's target-slot repair.**
 //!
-//! CARDS-1 (`OOS-M11-10(equip)`) closed "the picker never asks for a target" by
+//! CARDS-1 (`OOS-M11-10E`) closed "the picker never asks for a target" by
 //! authoring CR 702.6a's `TargetRequirement` into the 17 defs that already had an
 //! `AbilityDefinition::Activated { effect: Effect::AttachEquipment, .. }`. This
 //! file gates the link **before** that one: `state/keyword_registry.rs`'s `K::Equip`

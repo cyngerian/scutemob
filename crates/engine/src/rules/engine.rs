@@ -3765,7 +3765,10 @@ fn handle_activate_loyalty_ability(
     });
     // ENG-2 (A13, CR 606.1 -> 602.2b): announce the loyalty ability's targets, if
     // any -- this is the single most visible targeted action in a Commander game
-    // after spells, and OOS-M11-10 territory (recon §1.6(b)).
+    // after spells, and `OOS-M11-10(loyalty)` territory (recon §1.6(b)). That seed is
+    // CLOSED by PB-DX29, which made the targets announceable in the first place; the
+    // bare ID is disambiguated here because PB-DX29 renumbered the equip seed to
+    // `OOS-M11-10E` and a bare cite is no longer self-explanatory.
     super::events::push_target_announcement(state, &mut events, player, source, stack_id);
     Ok(events)
 }
