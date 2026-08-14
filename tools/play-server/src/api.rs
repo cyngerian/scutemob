@@ -691,16 +691,34 @@ fn validate_decision_params(
 /// response the client is holding*, with no game state needed to see it — this
 /// crate's own definition of a 400.
 ///
-/// # Only two of `AdditionalCost`'s sixteen variants are surfaced
+/// # Nine of `AdditionalCost`'s FIFTEEN variants are surfaced
 ///
-/// UI-2 renders a picker for exactly `Sacrifice` and `Squad`
-/// ([`crate::view::AdditionalCostsView`]). Every other variant — Kicker,
-/// Replicate, Offspring, Escalate, Splice, Entwine, Gift, Assist, Escape,
-/// Collect Evidence, and the rest — falls through to `Ok(())` here and is
-/// judged, if at all, by the **engine's** 422. This function can only speak
-/// authoritatively about the two kinds it renders an offer for; claiming to
-/// validate the rest would be a check written against no offer (the same
-/// "known limitation" this batch's own plan states rather than papers over).
+/// **The count in this heading was wrong until PB-DX29 and the correction is worth
+/// keeping**: the enum has **15** variants, not sixteen, and Kicker is not one of them
+/// (it is `CastSpellData.kicker_times`). UI-2's own count was off by one and its list
+/// named a variant that does not exist.
+///
+/// UI-2 rendered a picker for `Sacrifice` and `Squad`. PB-DX29 added `Replicate`,
+/// `EscalateModes`, `Entwine`, `Fuse`, `Offspring`, `Gift` and `Splice`, so this
+/// function now speaks for **nine**.
+///
+/// The remaining six fall through to `Ok(())` and are judged, if at all, by the
+/// **engine's** 422 — and every one of them has a stated reason rather than being
+/// residue:
+///
+/// * `Mutate` — carried per-ACTION (`LegalAction::CastWithMutate`), not announced here.
+/// * `Assist` — deliberately NOT surfaced: CR 702.132a needs the assisting player's
+///   agreement and no cross-seat decision machinery exists, so a picker would let one
+///   human spend another's floating mana without asking.
+/// * `CollectEvidenceExile` — reachable but has zero deck-legal members, and is the
+///   only kind whose mandatory/optional status is a per-def flag.
+/// * `Discard` (Retrace / Jump-Start), `EscapeExile`, `ExileFromHand` — **unreachable
+///   by construction**: `StubProvider`'s cast loops walk Hand and Command zone only
+///   (no graveyard), and `params.rs` hard-codes `alt_cost: None`.
+///
+/// The rule this function still obeys is unchanged: it can only speak authoritatively
+/// about kinds it renders an offer for. A check written against no offer is a check
+/// against nothing.
 ///
 /// `pub(crate)` rather than private: unit-tested directly from the crate's
 /// `tests` module (`main.rs`), which is a sibling module and cannot see a plain
@@ -711,6 +729,7 @@ pub(crate) fn validate_additional_cost_params(
     params: &crate::view::ActionParamsDto,
 ) -> Result<(), ApiFailure> {
     use mtg_engine::AdditionalCost;
+    use mtg_simulator::legal_actions::{CountCostKind, MarkerCostKind};
     use mtg_simulator::LegalAction;
 
     let bad = |message: String| ApiFailure::new(StatusCode::BAD_REQUEST, "bad_params", message);
@@ -834,6 +853,27 @@ pub(crate) fn validate_additional_cost_params(
         )));
     }
 
+    // PB-DX29: the same at-most-one rule for the seven kinds this batch surfaced, and
+    // for the same reason — `casting.rs`'s destructuring loop is a plain assignment for
+    // every one of them, so a second entry silently overwrites the first with no error
+    // and no diagnostic. Table-driven so a kind cannot be added to the offer and
+    // forgotten here; the discriminant is matched rather than the payload, because two
+    // `Gift`s naming DIFFERENT opponents is exactly the ambiguity being refused.
+    for (label, cr, is_kind) in DUPLICABLE_COST_KINDS {
+        let n = params
+            .additional_costs
+            .iter()
+            .filter(|c| is_kind(c))
+            .count();
+        if n > 1 {
+            return Err(bad(format!(
+                "{cr}: announce the {label} cost once, not {n} times; the engine's own \
+                 destructuring loop assigns rather than accumulates, so it would silently \
+                 apply only the last"
+            )));
+        }
+    }
+
     for cost in &params.additional_costs {
         match cost {
             // CR 118.8: exactly one id, and it must be among the permanents this
@@ -876,11 +916,163 @@ pub(crate) fn validate_additional_cost_params(
                     )));
                 }
             }
-            // Every other `AdditionalCost` variant: see the doc comment above.
+            // ── PB-DX29: the seven kinds this batch surfaced ──────────────────
+            //
+            // Each check is the same shape as Squad's: the OFFER must have carried this
+            // kind, and the answer must be within what the offer said. Nothing is
+            // re-derived — every bound is read off the plan the same response carried.
+            AdditionalCost::Replicate { count } => {
+                let Some(opt) = count_option(plan, CountCostKind::Replicate) else {
+                    return Err(bad(
+                        "CR 702.56a: this spell has no replicate cost to pay".to_string()
+                    ));
+                };
+                if *count > opt.max_count {
+                    return Err(bad(format!(
+                        "CR 702.56a: at most {} replicate payment(s) are affordable right now, \
+                         got {count}",
+                        opt.max_count
+                    )));
+                }
+            }
+            AdditionalCost::EscalateModes { count } => {
+                let Some(opt) = count_option(plan, CountCostKind::Escalate) else {
+                    return Err(bad(
+                        "CR 702.120a: this spell has no escalate cost to pay".to_string()
+                    ));
+                };
+                if *count > opt.max_count {
+                    return Err(bad(format!(
+                        "CR 702.120a: at most {} additional mode(s) are affordable right now, \
+                         got {count}",
+                        opt.max_count
+                    )));
+                }
+            }
+            AdditionalCost::Entwine => {
+                if !has_marker(plan, MarkerCostKind::Entwine) {
+                    return Err(bad(
+                        "CR 702.42a: this spell has no entwine cost to pay".to_string()
+                    ));
+                }
+            }
+            AdditionalCost::Fuse => {
+                if !has_marker(plan, MarkerCostKind::Fuse) {
+                    return Err(bad(
+                        "CR 702.102a: this spell cannot be fused from here -- fuse requires both \
+                         halves and a cast from HAND"
+                            .to_string(),
+                    ));
+                }
+            }
+            AdditionalCost::Offspring => {
+                if !has_marker(plan, MarkerCostKind::Offspring) {
+                    return Err(bad(
+                        "CR 702.175a: this spell has no offspring cost to pay".to_string()
+                    ));
+                }
+            }
+            AdditionalCost::Gift { opponent } => {
+                let Some(gift) = plan.gift.as_ref() else {
+                    return Err(bad(
+                        "CR 702.174a: this spell has no gift to give".to_string()
+                    ));
+                };
+                if !gift.eligible.contains(opponent) {
+                    return Err(bad(format!(
+                        "player {} is not among the opponents this gift offered (CR 702.174a); \
+                         this decision offered {:?}",
+                        opponent.0,
+                        gift.eligible.iter().map(|p| p.0).collect::<Vec<_>>()
+                    )));
+                }
+            }
+            AdditionalCost::Splice { cards } => {
+                let Some(splice) = plan.splice.as_ref() else {
+                    return Err(bad(
+                        "CR 702.47a: no card in your hand can be spliced onto this spell"
+                            .to_string(),
+                    ));
+                };
+                for card in cards {
+                    if !splice.eligible.contains(card) {
+                        return Err(bad(format!(
+                            "card {} is not among the cards this splice offer accepted \
+                             (CR 702.47a); this decision offered {:?}",
+                            card.0,
+                            splice.eligible.iter().map(|o| o.0).collect::<Vec<_>>()
+                        )));
+                    }
+                }
+                // CR 702.47b: "one or more OTHER cards" -- each may be spliced once. The
+                // engine refuses a repeat too, but as a 422; a list containing the same
+                // id twice is wrong against the offer itself.
+                let mut seen: std::collections::BTreeSet<mtg_engine::ObjectId> =
+                    std::collections::BTreeSet::new();
+                for card in cards {
+                    if !seen.insert(*card) {
+                        return Err(bad(format!(
+                            "CR 702.47b: card {} is spliced twice; each card may be spliced at \
+                             most once",
+                            card.0
+                        )));
+                    }
+                }
+            }
+            // The remaining six variants: see the doc comment above, which states a
+            // reason for each rather than leaving them as residue.
             _ => {}
         }
     }
     Ok(())
+}
+
+/// PB-DX29: the cost kinds whose second entry silently overwrites the first.
+///
+/// `Sacrifice` and `Squad` are checked above with their own bespoke messages (UI-2
+/// wrote those and they name the first-wins/last-wins asymmetry); this table covers the
+/// seven PB-DX29 added. `Mutate` and the unreachable kinds are absent because no offer
+/// carries them, so "the offer never made this announcement" is not a claim this
+/// function is entitled to make about them.
+#[allow(clippy::type_complexity)]
+const DUPLICABLE_COST_KINDS: &[(&str, &str, fn(&mtg_engine::AdditionalCost) -> bool)] = &[
+    ("replicate", "CR 702.56a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Replicate { .. })
+    }),
+    ("escalate", "CR 702.120a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::EscalateModes { .. })
+    }),
+    ("entwine", "CR 702.42a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Entwine)
+    }),
+    ("fuse", "CR 702.102a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Fuse)
+    }),
+    ("offspring", "CR 702.175a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Offspring)
+    }),
+    ("gift", "CR 702.174a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Gift { .. })
+    }),
+    ("splice", "CR 702.47a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Splice { .. })
+    }),
+];
+
+/// PB-DX29: the plan's descriptor for a pay-N-times rider, if it offered one.
+fn count_option(
+    plan: &mtg_simulator::legal_actions::AdditionalCostPlan,
+    kind: mtg_simulator::legal_actions::CountCostKind,
+) -> Option<&mtg_simulator::legal_actions::CountCostOption> {
+    plan.counts.iter().find(|c| c.kind == kind)
+}
+
+/// PB-DX29: did the plan offer this pay-or-not rider?
+fn has_marker(
+    plan: &mtg_simulator::legal_actions::AdditionalCostPlan,
+    kind: mtg_simulator::legal_actions::MarkerCostKind,
+) -> bool {
+    plan.markers.iter().any(|m| m.kind == kind)
 }
 
 /// CR 701.22a / CR 701.25a: the two piles must PARTITION `whole` — same multiset,

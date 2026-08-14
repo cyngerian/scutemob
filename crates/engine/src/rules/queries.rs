@@ -212,7 +212,13 @@ pub fn loyalty_ability_target_requirements(
     source: ObjectId,
     ability_index: usize,
 ) -> Vec<TargetRequirement> {
-    let Some(obj) = state.expect_object(source) else {
+    // NOT `expect_object`: that is the impossible-absence lookup (`state::diagnostics`),
+    // which fires a `debug_assert!` and degrades to `None` only in release. Every
+    // function in this module promises never to panic, and this one is called with an
+    // `ObjectId` a client chose — a CR 400.7-retired id from a stale UI is an ordinary
+    // input here, not an engine bug. The first draft used `expect_object` and the
+    // batch's own test author caught the contradiction against this doc.
+    let Some(obj) = state.objects().get(&source) else {
         return vec![];
     };
     let Some(card_id) = obj.card_id.clone() else {
@@ -245,7 +251,8 @@ pub fn loyalty_ability_target_requirements(
 /// function's doc for why this is not the activated-ability index space.
 pub fn loyalty_ability_needs_x(state: &GameState, source: ObjectId, ability_index: usize) -> bool {
     use crate::cards::card_definition::{AbilityDefinition, LoyaltyCost};
-    let Some(obj) = state.expect_object(source) else {
+    // See `loyalty_ability_target_requirements` for why this is not `expect_object`.
+    let Some(obj) = state.objects().get(&source) else {
         return false;
     };
     let Some(card_id) = obj.card_id.clone() else {

@@ -331,34 +331,38 @@ fn test_dx29_t2_degenerate_arguments_on_a_live_object_return_empty_and_never_pan
     assert!(!loyalty_ability_needs_x(&state, nameless, 0));
 }
 
-/// CR 400.7 / CR 606.3 — T2B, **pinned WRONG-WAY-ROUND**. Both new queries look their
-/// source object up with `GameState::expect_object`, whose contract is *"the caller has
-/// already established this id is live; a `None` here is an engine bug"* — it fires a
-/// `debug_assert!` and only degrades to `None` in release. So on a stale `ObjectId`
-/// (a planeswalker that died in response, the CR 400.7 case) these two functions
-/// **panic in a debug build**, while:
+/// CR 400.7 / CR 606.3 — T2B. A stale `ObjectId` yields the documented empty answer in
+/// **both** profiles, and this test exists because it did not when it was written.
 ///
-/// * their own rustdoc says *"Missing object, missing `card_id`, an unregistered card,
-///   or an out-of-range `ability_index` all yield `vec![]` — this function never panics
-///   and never unwraps"*, and
+/// # The history, kept because the shape recurs
+///
+/// PB-DX29's first draft looked the source object up with `GameState::expect_object`,
+/// whose contract is *"the caller has already established this id is live; a `None` here
+/// is an engine bug"* — it fires a `debug_assert!` and only degrades to `None` in
+/// release. So on a CR 400.7-retired id (a planeswalker that died in response) both
+/// queries **panicked in a debug build**, while:
+///
+/// * their own rustdoc promised *"Missing object, missing `card_id`, an unregistered
+///   card, or an out-of-range `ability_index` all yield `vec![]` — this function never
+///   panics and never unwraps"*;
 /// * `queries.rs`'s module doc calls the whole file a read-only **advisory** surface for
-///   UI/simulator callers, and
-/// * every other lookup in `queries.rs` avoids `expect_object` — the sibling
-///   `ability_target_requirements` goes through `calculate_characteristics`, which
-///   returns a quiet `None`. `expect_object` appears in this file at exactly two sites,
-///   both added by PB-DX29.
+///   UI/simulator callers, i.e. callers holding ids a human clicked;
+/// * every other lookup in `queries.rs` avoided `expect_object` — the sibling
+///   `ability_target_requirements` goes through `calculate_characteristics`, a quiet
+///   `None`. `expect_object` appeared in that file at exactly two sites, both new.
 ///
-/// Not reachable through the three shipped call sites today (`view.rs`, `targeting.rs`
-/// and `legal_actions.rs` all pass an id enumerated from live state in the same
-/// breath), so this is a documentation-vs-behaviour defect on a `pub` re-exported
-/// function rather than a live game bug — recorded here rather than fixed, because the
-/// engine source is out of this task's scope.
+/// It was never reachable through the three shipped call sites (`view.rs`,
+/// `targeting.rs` and `legal_actions.rs` all pass an id enumerated from live state in
+/// the same breath), so it was a documentation-vs-behaviour defect on a `pub`,
+/// `lib.rs`-re-exported function rather than a live game bug. Fixed by reading
+/// `state.objects().get(&source)` directly. **The generalisable half is why an
+/// "impossible absence" helper is the wrong tool in a query module at all**: what is
+/// impossible for an engine-internal caller is ordinary input for a UI one.
 ///
-/// **This test reddens when the defect is fixed.** That is deliberate: the fixer must
-/// come here, delete the `debug_assertions` branch, and restore the plain
-/// `assert!(...is_empty())` that the docs already promise.
+/// This test asserts the CONTRACT, in both profiles, so a future `expect_object`
+/// creeping back in fails in debug and the release path stays covered too.
 #[test]
-fn test_dx29_t2b_an_unknown_object_id_panics_in_debug_instead_of_the_documented_empty() {
+fn test_dx29_t2b_an_unknown_object_id_yields_the_documented_empty_answer() {
     let defs = load_defs();
     let state = main_phase_state(vec![planeswalker_on_battlefield(
         p(1),
@@ -382,32 +386,26 @@ fn test_dx29_t2b_an_unknown_object_id_panics_in_debug_instead_of_the_documented_
         state.objects().get(&unknown).is_none(),
         "precondition: the probe id must really be absent"
     );
+    // Non-vacuity: a LIVE id on the same board returns something, so the empties below
+    // are about the missing id and not about the queries having stopped working.
+    let sarkhan = find_object(&state, "Sarkhan Vol");
+    assert!(
+        !loyalty_ability_target_requirements(&state, sarkhan, 1).is_empty(),
+        "precondition: a live planeswalker's targeted loyalty index must be non-empty"
+    );
 
-    if cfg!(debug_assertions) {
-        let hook = std::panic::take_hook();
-        std::panic::set_hook(Box::new(|_| {}));
-        let requirements =
-            std::panic::catch_unwind(|| loyalty_ability_target_requirements(&state, unknown, 0));
-        let needs_x = std::panic::catch_unwind(|| loyalty_ability_needs_x(&state, unknown, 0));
-        std::panic::set_hook(hook);
-
-        assert!(
-            requirements.is_err(),
-            "PB-DX29 DEFECT PIN: `loyalty_ability_target_requirements` is documented to \
-             yield vec![] for a missing object, and `expect_object` makes it panic in \
-             debug instead. If this now returns Ok, the defect is FIXED -- delete this \
-             test's `debug_assertions` branch and assert the documented empty result."
-        );
-        assert!(
-            needs_x.is_err(),
-            "PB-DX29 DEFECT PIN: same for `loyalty_ability_needs_x`."
-        );
-    } else {
-        // Release: `debug_assert!` is compiled out and `expect_object` degrades to
-        // `None`, so the documented contract holds.
-        assert!(loyalty_ability_target_requirements(&state, unknown, 0).is_empty());
-        assert!(!loyalty_ability_needs_x(&state, unknown, 0));
-    }
+    assert!(
+        loyalty_ability_target_requirements(&state, unknown, 0).is_empty(),
+        "CR 400.7: a retired ObjectId must yield the documented empty requirement list, \
+         in every profile. If this PANICS in a debug build, an `expect_object`-style \
+         impossible-absence lookup has come back into `queries.rs` -- that helper fires a \
+         `debug_assert!` and is the wrong tool in an advisory query surface whose callers \
+         hold ids a human clicked."
+    );
+    assert!(
+        !loyalty_ability_needs_x(&state, unknown, 0),
+        "CR 400.7: same for `loyalty_ability_needs_x` -- see the message above."
+    );
 }
 
 // ── T3: the two index spaces are different ────────────────────────────────────

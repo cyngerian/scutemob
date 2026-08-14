@@ -244,15 +244,27 @@ impl std::error::Error for ParamError {}
 /// verbatim except where a `LegalAction` variant honours `params` (`CastSpell`,
 /// `TapForMana`'s validation, `ActivateAbility`, `DeclareAttackers`,
 /// `DeclareBlockers`, `KeepHand`, and — added by UI-1 — `DiscardToHandSize`,
-/// `ChooseTriggerTargets`, `AnswerEffectChoice`). Every other arm is an identical
+/// `ChooseTriggerTargets`, `AnswerEffectChoice`, and — added by PB-DX29 —
+/// `ActivateLoyaltyAbility`). Every other arm is an identical
 /// port, and announcing any param on one of them is rejected with
 /// `ParamError::UnsupportedParam` rather than silently discarded.
 ///
 /// Residual, deliberately not guarded: a param announced on a *consuming* arm that
 /// that arm does not read (e.g. `attackers` alongside a `CastSpell`) is still
-/// ignored. The nine consuming arms would each need their own field allowlist to
+/// ignored. The **ten** consuming arms would each need their own field allowlist to
 /// catch that, and the failure mode is far less confusing than a wholly unread
 /// `targets` — the action being answered is still the one the client picked.
+///
+/// **PB-DX29 grew that residual from nine arms to ten, and the trade is worth naming
+/// rather than leaving for a reader to notice.** Joining the allowlist is what makes
+/// `first_announced_field` stop running for an arm, so `ActionParams { attackers, .. }`
+/// on an `ActivateLoyaltyAbility` used to be a loud `UnsupportedParam("attackers")` and
+/// is now an `Ok` with the field silently dropped. That is strictly the better trade —
+/// the alternative was refusing the `targets` and `x_value` the arm now genuinely reads,
+/// which made four `Complete` planeswalkers unusable — but it is a real widening of a
+/// known residual, not a free win. Pinned wrong-way-round by
+/// `crates/simulator/tests/pb_dx29_loyalty_channel.rs::test_dx29_s3b_*`, whose
+/// non-vacuity half proves a param on a NON-allowlisted arm is still refused.
 /// `tools/play-server`'s `api.rs` closes the half of this that a browser client can
 /// actually hit, by checking a submitted answer against the candidate lists the
 /// same response carried before `submit` is ever called.

@@ -43,11 +43,13 @@
 
 use std::collections::HashMap;
 
+use mtg_engine::cards::card_definition::GiftType;
 use mtg_engine::{
     AbilityDefinition, AdditionalCost, AttackTarget, Effect, EffectChoiceAnswer,
     EffectChoiceQuestion, GameState, HybridMana, ManaColor, ManaCost, ModeSelection, ObjectId,
     PhyrexianMana, PlayerId, SpellAdditionalCost, Target, TargetRequirement,
 };
+use mtg_simulator::legal_actions::{CountCostKind, MarkerCostKind};
 use mtg_simulator::{
     ActionParams, DecisionKind, GameResult, HaltReason, LegalAction, PendingDecision,
 };
@@ -260,6 +262,125 @@ pub struct AdditionalCostsView {
     /// CR 602.2 / CR 111.10g (SIM-6): present when the ACTIVATED ABILITY's cost
     /// includes "Discard a card".
     pub activation_discard: Option<ActivationChoiceView>,
+    /// PB-DX29, CR 702.56a / CR 702.120a: the SPELL's pay-N-times riders — Replicate
+    /// and Escalate. A list rather than two more `Option` fields, because the two are
+    /// the same widget with a different label; a third such rider is a provider table
+    /// entry, not a seventh field for a client to learn.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub counts: Vec<CountCostView>,
+    /// PB-DX29, CR 702.42a / CR 702.102a / CR 702.175a: the SPELL's pay-or-not riders —
+    /// Entwine, Fuse and Offspring. Same argument as [`Self::counts`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub markers: Vec<MarkerCostView>,
+    /// PB-DX29, CR 702.174a: present when the SPELL has Gift.
+    pub gift: Option<GiftCostView>,
+    /// PB-DX29, CR 702.47a: present when this player holds a card that may be spliced
+    /// onto this spell.
+    pub splice: Option<SpliceCostView>,
+}
+
+/// PB-DX29, CR 702.56a / CR 702.120a: a rider paid a chosen number of times.
+///
+/// The [`SquadCostView`] shape, generalised — same `template` + `count_key`
+/// template-copying idiom, so the client fills one named field of a cloned object and
+/// never has to know the externally-tagged encoding of `AdditionalCost`.
+#[derive(Debug, Serialize)]
+pub struct CountCostView {
+    /// `"Replicate"` or `"Escalate"` — the mechanic's printed name, for the label. Sent
+    /// rather than derived from `template`'s tag, because the tag is
+    /// `"EscalateModes"` and no printed card says that.
+    pub kind: String,
+    pub prompt: String,
+    /// Compact MTG notation (`{1}{U}`), rendered server-side by
+    /// [`format_mana_cost_compact`].
+    pub cost_label: String,
+    /// The largest N the provider will vouch for. `0` means "offerable but not payable
+    /// right now"; every rider here is optional, so declining is always legal.
+    pub max_count: u32,
+    /// `Replicate { count: 0 }` / `EscalateModes { count: 0 }` — see
+    /// [`SacrificeCostView::template`] for why this is sent verbatim.
+    pub template: AdditionalCost,
+    /// The key inside `template`'s single variant object the chosen count goes in —
+    /// `"count"` for both.
+    pub count_key: String,
+}
+
+/// PB-DX29, CR 702.42a / CR 702.102a / CR 702.175a: a rider that is simply paid or not.
+///
+/// # This one deliberately has NO `*_key`, and the reason is a wire fact worth stating
+///
+/// `AdditionalCost::Entwine`, `::Fuse` and `::Offspring` are **unit** variants, and
+/// serde's externally-tagged encoding serialises a unit variant as a bare JSON
+/// **string** (`"Entwine"`), not as an object with one key. So the `fillTemplate` idiom
+/// every other cost picker uses — clone the object, write the field the server named —
+/// has nothing to write into and would crash on `Object.keys(entry)[0]`.
+///
+/// The answer here IS the template: include it verbatim to pay, omit it to decline.
+/// That is the same shape-of-JSON trap PB-DP10 measured on `Effect::Proliferate`, where
+/// every prior gate's serde walk matched object keys only and was structurally blind to
+/// a unit variant. Recording it here so the next author does not rediscover it from a
+/// `DataCloneError` in a browser.
+#[derive(Debug, Serialize)]
+pub struct MarkerCostView {
+    /// `"Entwine"`, `"Fuse"` or `"Offspring"`.
+    pub kind: String,
+    pub prompt: String,
+    /// Compact MTG notation, or `None` for Fuse — CR 702.102b makes a fused spell's
+    /// cost the two halves SUMMED, so there is no separate fuse cost to show and
+    /// rendering `{0}` would be a lie. The client must say so in words instead.
+    pub cost_label: Option<String>,
+    /// The whole answer, verbatim: a bare `"Entwine"` / `"Fuse"` / `"Offspring"` string.
+    pub template: AdditionalCost,
+}
+
+/// PB-DX29, CR 702.174a: the offer's Gift descriptor.
+///
+/// The only additional cost whose answer is a `PlayerId`. There is no mana component at
+/// all — naming an opponent IS the cost.
+#[derive(Debug, Serialize)]
+pub struct GiftCostView {
+    pub prompt: String,
+    /// What the chosen player receives (CR 702.174d-i), as printed text.
+    pub gift_label: String,
+    /// Every other player still in the game, from the provider's own eligible set.
+    /// Player identities are public (Architecture Invariant 7 is about hidden ZONES),
+    /// so these carry display names.
+    pub candidates: Vec<PlayerOptionView>,
+    /// `Gift { opponent: <first eligible> }` — see [`SacrificeCostView::template`].
+    pub template: AdditionalCost,
+    /// The key inside `template`'s single variant object the chosen seat goes in —
+    /// `"opponent"`.
+    pub player_key: String,
+}
+
+/// PB-DX29: one seat a [`GiftCostView`] may name.
+#[derive(Debug, Serialize)]
+pub struct PlayerOptionView {
+    pub id: u64,
+    pub label: String,
+}
+
+/// PB-DX29, CR 702.47a: the offer's Splice descriptor.
+///
+/// The answer is a LIST of card ids, so this is the first cost picker that is
+/// genuinely multi-select rather than pick-one. There is deliberately **no `default`**:
+/// splice is optional and the empty list is the decline, so pre-selecting anything
+/// would spend a human's mana for them.
+#[derive(Debug, Serialize)]
+pub struct SpliceCostView {
+    pub prompt: String,
+    /// Cards in this seat's own hand that `casting.rs`'s splice gate will accept for
+    /// this spell, from the provider's own eligible set. Labelled through [`NameIndex`]
+    /// for the same reason [`ActivationChoiceView::candidates`] is: these are cards in
+    /// the ACTING seat's own hand (CR 108.4 / Architecture Invariant 7), and this view
+    /// is built from the seat-redacted `StateViewModel`, so a card another seat holds
+    /// could not be labelled here even if the provider offered it.
+    pub candidates: Vec<CardOptionView>,
+    /// `Splice { cards: [] }` — see [`SacrificeCostView::template`].
+    pub template: AdditionalCost,
+    /// The key inside `template`'s single variant object the chosen ids go in —
+    /// `"cards"`.
+    pub ids_key: String,
 }
 
 /// CR 602.2 (SIM-6): one object-naming component of an activated ability's cost.
@@ -1654,7 +1775,11 @@ fn order_options(action: &LegalAction, names: &NameIndex) -> Option<OrderBlocker
 /// Every candidate is labelled through [`NameIndex`], never through
 /// [`question_card_label`] -- see [`SacrificeCostView::candidates`]'s doc for why
 /// the two channels must not be confused here.
-fn additional_costs_view(action: &LegalAction, names: &NameIndex) -> Option<AdditionalCostsView> {
+fn additional_costs_view(
+    action: &LegalAction,
+    names: &NameIndex,
+    player_names: &HashMap<PlayerId, String>,
+) -> Option<AdditionalCostsView> {
     // CR 602.2 (SIM-6, triage G4): the ACTIVATION arm. This early return used to be
     // `let LegalAction::CastSpell { .. } else { return None }`, which is precisely
     // why the browser never rendered a cost picker for Yahenni or Altar of
@@ -1675,7 +1800,16 @@ fn additional_costs_view(action: &LegalAction, names: &NameIndex) -> Option<Addi
     else {
         return None;
     };
-    if plan.sacrifice.is_none() && plan.squad.is_none() {
+    if plan.sacrifice.is_none()
+        && plan.squad.is_none()
+        // PB-DX29: the four new families join the same "is there anything to ask?"
+        // test. Forgetting one here is invisible — the picker simply never opens and
+        // the rider is silently lost, which is `OOS-UI2-4`'s exact symptom.
+        && plan.counts.is_empty()
+        && plan.markers.is_empty()
+        && plan.gift.is_none()
+        && plan.splice.is_none()
+    {
         return None;
     }
 
@@ -1709,6 +1843,106 @@ fn additional_costs_view(action: &LegalAction, names: &NameIndex) -> Option<Addi
         count_key: "count".to_string(),
     });
 
+    // PB-DX29 — the four new families. Every label is display text; every JUDGMENT
+    // (what is eligible, what N is affordable, whether the rider exists at all) is the
+    // provider's, read verbatim from the plan and never re-derived here.
+    let counts: Vec<CountCostView> = plan
+        .counts
+        .iter()
+        .map(|c| match c.kind {
+            CountCostKind::Replicate => CountCostView {
+                kind: "Replicate".to_string(),
+                prompt: "Pay the replicate cost any number of times to copy this spell \
+                         (CR 702.56a)"
+                    .to_string(),
+                cost_label: format_mana_cost_compact(&c.cost),
+                max_count: c.max_count,
+                template: AdditionalCost::Replicate { count: 0 },
+                count_key: "count".to_string(),
+            },
+            CountCostKind::Escalate => CountCostView {
+                kind: "Escalate".to_string(),
+                prompt: "Pay the escalate cost once for each mode beyond the first \
+                         (CR 702.120a)"
+                    .to_string(),
+                cost_label: format_mana_cost_compact(&c.cost),
+                max_count: c.max_count,
+                template: AdditionalCost::EscalateModes { count: 0 },
+                count_key: "count".to_string(),
+            },
+        })
+        .collect();
+
+    let markers: Vec<MarkerCostView> = plan
+        .markers
+        .iter()
+        .map(|m| match m.kind {
+            MarkerCostKind::Entwine => MarkerCostView {
+                kind: "Entwine".to_string(),
+                prompt: "Pay the entwine cost to choose all modes (CR 702.42a)".to_string(),
+                cost_label: m.cost.as_ref().map(format_mana_cost_compact),
+                template: AdditionalCost::Entwine,
+            },
+            MarkerCostKind::Fuse => MarkerCostView {
+                kind: "Fuse".to_string(),
+                prompt: "Cast both halves of this split card, paying both costs \
+                         (CR 702.102a)"
+                    .to_string(),
+                // Deliberately `None`: CR 702.102b makes the cost the two halves
+                // summed, so there is no separate figure and `{0}` would be a lie.
+                cost_label: None,
+                template: AdditionalCost::Fuse,
+            },
+            MarkerCostKind::Offspring => MarkerCostView {
+                kind: "Offspring".to_string(),
+                prompt: "Pay the offspring cost to create a 1/1 token copy when this \
+                         creature enters (CR 702.175a)"
+                    .to_string(),
+                cost_label: m.cost.as_ref().map(format_mana_cost_compact),
+                template: AdditionalCost::Offspring,
+            },
+        })
+        .collect();
+
+    let gift = plan.gift.as_ref().and_then(|g| {
+        // The provider guarantees a non-empty eligible set, but a template needs a
+        // concrete seat and an `expect` here would be a panic in a request handler.
+        let first = g.eligible.first().copied()?;
+        Some(GiftCostView {
+            prompt: format!(
+                "Promise an opponent {} as you cast this spell (CR 702.174a)",
+                gift_label(&g.gift_type)
+            ),
+            gift_label: gift_label(&g.gift_type),
+            candidates: g
+                .eligible
+                .iter()
+                .map(|p| PlayerOptionView {
+                    id: p.0,
+                    label: display_name(*p, player_names),
+                })
+                .collect(),
+            template: AdditionalCost::Gift { opponent: first },
+            player_key: "opponent".to_string(),
+        })
+    });
+
+    let splice = plan.splice.as_ref().map(|s| SpliceCostView {
+        prompt: "Splice cards from your hand onto this spell, paying each one's splice \
+                 cost (CR 702.47a)"
+            .to_string(),
+        candidates: s
+            .eligible
+            .iter()
+            .map(|id| CardOptionView {
+                id: id.0,
+                label: names.label(*id),
+            })
+            .collect(),
+        template: AdditionalCost::Splice { cards: vec![] },
+        ids_key: "cards".to_string(),
+    });
+
     Some(AdditionalCostsView {
         answer_field: "additional_costs".to_string(),
         prompt: "This spell has an additional cost to cast (CR 118.8 / CR 702.157)".to_string(),
@@ -1716,7 +1950,26 @@ fn additional_costs_view(action: &LegalAction, names: &NameIndex) -> Option<Addi
         squad,
         activation_sacrifice: None,
         activation_discard: None,
+        counts,
+        markers,
+        gift,
+        splice,
     })
+}
+
+/// PB-DX29, CR 702.174d-i: the printed name of what a gift's chosen player receives.
+///
+/// Exhaustive with **no wildcard arm**: a new `GiftType` must be labelled here or the
+/// crate stops compiling, rather than being rendered as something else.
+fn gift_label(gift_type: &GiftType) -> String {
+    match gift_type {
+        GiftType::Food => "a Food".to_string(),
+        GiftType::Card => "a card".to_string(),
+        GiftType::TappedFish => "a tapped Fish".to_string(),
+        GiftType::Treasure => "a Treasure".to_string(),
+        GiftType::Octopus => "an Octopus".to_string(),
+        GiftType::ExtraTurn => "an extra turn".to_string(),
+    }
 }
 
 /// CR 602.2 (SIM-6): render an `ActivateAbility` option's non-mana cost
@@ -1769,6 +2022,15 @@ fn activation_costs_view(
         squad: None,
         activation_sacrifice,
         activation_discard,
+        // PB-DX29: all four are CAST-side riders (CR 601.2b). An activated ability's
+        // cost is a `Command::ActivateAbility` scalar and never an `AdditionalCost`, so
+        // these are structurally empty here rather than merely unpopulated — spelled
+        // out because the two block families sharing one struct is the thing a reader
+        // most easily mistakes for an omission.
+        counts: Vec::new(),
+        markers: Vec::new(),
+        gift: None,
+        splice: None,
     })
 }
 
@@ -2590,7 +2852,7 @@ fn action_option_view(
         block,
         order: order_options(action, names),
         decision: blocking_decision_view(action, player, state, names, player_names),
-        costs: additional_costs_view(action, names),
+        costs: additional_costs_view(action, names, player_names),
     }
 }
 

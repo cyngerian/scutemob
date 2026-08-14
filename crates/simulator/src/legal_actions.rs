@@ -5,6 +5,7 @@
 //! without deep engine knowledge — enough to play games, but misses edge
 //! cases that a full engine implementation would catch.
 
+use mtg_engine::cards::card_definition::GiftType;
 use mtg_engine::state::game_object::SacrificeFilter;
 use mtg_engine::{
     apply_commander_tax, AbilityDefinition, ActivatedAbility, AdditionalCost, AttackTarget,
@@ -13,7 +14,6 @@ use mtg_engine::{
     KeywordAbility, ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, SpellAdditionalCost,
     Step, SubType, Target, TriggerTargetOption, TurnFaceUpMethod, ZoneId,
 };
-use mtg_engine::cards::card_definition::GiftType;
 
 /// CR 118.8 / CR 601.2b (UI-2): the additional costs a `CastSpell` offer must or may
 /// pay. Built by the provider, consumed by `params.rs` (for the bot default) and by
@@ -2392,7 +2392,8 @@ fn loyalty_ability_is_offerable(
     source: ObjectId,
     ability_index: usize,
 ) -> bool {
-    let requirements = mtg_engine::loyalty_ability_target_requirements(state, source, ability_index);
+    let requirements =
+        mtg_engine::loyalty_ability_target_requirements(state, source, ability_index);
     if requirements.is_empty() {
         return true;
     }
