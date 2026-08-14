@@ -28,6 +28,7 @@ pub use card_definition::{
     EffectAmount, EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, MeldPair,
     ModeSelection, PlayerTarget, SelfActivatedCostReduction, SelfCostReduction, SoulbondGrant,
     SpellAdditionalCost, SpellCostFilter, SpellCostModifier, TargetController, TargetFilter,
-    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
+    TargetOwner, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine,
+    ZoneTarget,
 };
 pub use registry::{CardRegistry, RegistryError};

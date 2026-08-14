@@ -136,6 +136,8 @@ fn death_trigger_draw_subtype(subtype: &str) -> TriggeredAbilityDef {
             controller_opponent: false,
             exclude_self: false,
             nontoken_only: false,
+            owner_you: false,
+            owner_opponent: false,
         }),
         combat_damage_filter: None,
         triggering_creature_filter: Some(TargetFilter {

@@ -88,7 +88,16 @@ use std::collections::BTreeSet;
 const CONTINUOUS_EFFECT_DEF_FIELDS: &[&str] =
     &["condition", "duration", "filter", "layer", "modification"];
 
-/// `TargetFilter`'s serialized field set (`card_definition.rs:3047-3250`), 32 fields.
+/// `TargetFilter`'s serialized field set (`card_definition.rs:3047-3293`), 33 fields.
+///
+/// PB-DX28 added `owner` (CR 108.3 ownership scope, `TargetFilter.owner: TargetOwner`)
+/// as the 33rd field. Before this addition axis 2 (this file's independent structural
+/// derivation, `subtree_contains_target_filter`) matched by EXACT field-set equality
+/// (`object_field_set_equals`), so the addition silently changed every `TargetFilter`
+/// node's serialized shape and made axis 2 match NOTHING corpus-wide — reproduced by
+/// `t6_two_axes_agree_on_the_conditioned_population` going from `{(Indomitable
+/// Archangel, ...), (The World Tree, ...)}` vs itself to that set vs `{}` the moment
+/// `owner` existed on the type, with zero card-def or condition-dispatch code touched.
 const TARGET_FILTER_FIELDS: &[&str] = &[
     "max_power",
     "min_power",
@@ -122,6 +131,7 @@ const TARGET_FILTER_FIELDS: &[&str] = &[
     "exclude_chosen_subtype",
     "has_counter_type",
     "exclude_self",
+    "owner",
 ];
 
 /// Does `v`'s key set equal `fields` exactly (as a SET, not an ordered match -- JSON

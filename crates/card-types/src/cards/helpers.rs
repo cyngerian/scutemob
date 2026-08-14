@@ -10,8 +10,8 @@ pub use super::card_definition::{
     LibraryPosition, LoyaltyCost, ManaRestriction, ManaSourceFilter, MeldPair, ModeSelection,
     PlayerTarget, SelfActivatedCostReduction, SelfCostReduction, SoulbondGrant,
     SpellAdditionalCost, SpellCostFilter, SpellCostModifier, TargetController, TargetFilter,
-    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TriggerZone, TypeLine,
-    WheelDisposal, WheelDraw, ZoneTarget,
+    TargetOwner, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TriggerZone,
+    TypeLine, WheelDisposal, WheelDraw, ZoneTarget,
 };
 pub use crate::state::continuous_effect::{
     EffectDuration, EffectFilter, EffectLayer, LayerModification,

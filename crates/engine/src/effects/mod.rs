@@ -21,8 +21,8 @@
 //! AFTER the effect resolves — the caller (resolution.rs) runs SBA checks.
 use crate::cards::card_definition::{
     Condition, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget, LibraryPosition,
-    ManaRestriction, PlayerTarget, TargetController, TargetFilter, WheelDisposal, WheelDraw,
-    ZoneTarget,
+    ManaRestriction, PlayerTarget, TargetController, TargetFilter, TargetOwner, WheelDisposal,
+    WheelDraw, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageTarget, GameEvent};
 use crate::state::error::GameStateError;
@@ -491,6 +491,11 @@ fn filter_states_a_quality(filter: &TargetFilter) -> bool {
     qualities.is_blocking = false;
     qualities.is_tapped = false;
     qualities.is_untapped = false;
+    // PB-DX28: ownership (CR 108.3) is a runtime board property, not a
+    // CR 701.23b "stated quality" — a card in a library has an owner, but the
+    // axis this function backs (CR 701.23b "the chosen card has [quality]")
+    // narrows nothing there.
+    qualities.owner = TargetOwner::default();
     qualities != TargetFilter::default()
 }
 /// CR 608.2d (PB-DP9): ask `player` a resolution-time question, or consume the
@@ -7851,6 +7856,22 @@ fn resolve_effect_target_list_indexed(
                     }
                     _ => vec![],
                 },
+            }
+        }
+        // PB-DX28 (CR 510.3a): The player dealt combat damage in the triggering
+        // event. Mirrors `PlayerTarget::DamagedPlayer`'s source
+        // (`ctx.damaged_player`), but resolves to the EMPTY set rather than
+        // falling back to `ctx.controller` when absent — matching every other
+        // single-player `EffectTarget` arm in this resolver.
+        EffectTarget::DamagedPlayer => {
+            if let Some(dp) = ctx.damaged_player {
+                if state.expect_player(dp).is_some_and(|ps| !ps.has_lost) {
+                    vec![(None, ResolvedTarget::Player(dp))]
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
             }
         }
     }

@@ -14,8 +14,9 @@ use crate::{
     CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Condition, Cost,
     DeathTriggerFilter, Designations, ETBTriggerFilter, Effect, EffectAmount, GameState,
     GameStateBuilder, GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ObjectId,
-    ObjectSpec, PlayerId, PlayerTarget, Step, TargetController, TargetFilter, TargetRequirement,
-    TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
+    ObjectSpec, PlayerId, PlayerTarget, Step, TargetController, TargetFilter, TargetOwner,
+    TargetRequirement, TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef,
+    ZoneId,
 };
 use imbl::OrdMap;
 /// Replay harness helpers — extracted from `crates/engine/tests/script_replay.rs`
@@ -3326,6 +3327,7 @@ fn build_face_triggered_abilities(abilities: &[&AbilityDefinition]) -> Vec<Trigg
                     exclude_self,
                     nontoken_only,
                     filter,
+                    owner,
                 },
             effect,
             once_per_turn,
@@ -3339,6 +3341,11 @@ fn build_face_triggered_abilities(abilities: &[&AbilityDefinition]) -> Vec<Trigg
                 controller_opponent: matches!(controller, Some(TargetController::Opponent)),
                 exclude_self: *exclude_self,
                 nontoken_only: *nontoken_only,
+                // PB-DX28 (CR 108.3 / CR 404.3): forward the DSL owner scope to the
+                // runtime filter's two bools (module-dependency-direction gotcha,
+                // see DeathTriggerFilter's doc comment).
+                owner_you: matches!(owner, Some(TargetOwner::You)),
+                owner_opponent: matches!(owner, Some(TargetOwner::Opponent)),
             };
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,

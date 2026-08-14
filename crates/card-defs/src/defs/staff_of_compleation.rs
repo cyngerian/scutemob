@@ -27,23 +27,21 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     cant_be_regenerated: false,
                 },
-                // PB-DX4 (2026-08-01, OOS-DP10-8 triage): printed text is "Destroy target
-                // permanent YOU OWN" (ownership, CR 108.3), authored here as
-                // `TargetController::You` (control, CR 109.4). The two diverge in BOTH
-                // directions under any control-change effect: a permanent you own but an
-                // opponent controls (Mind Control) is wrongly an ILLEGAL target, and one you
-                // control but do not own is wrongly a LEGAL one.
-                //
-                // `TargetFilter` has no owner axis at all, so this is not authorable today.
-                // Deliberately NOT demoted, and NOT because the deviation is acceptable: this
-                // is a corpus-wide approximation class (see `nether_traitor.rs`, whose own note
-                // names `athreos` and `fecundity` as further instances), and demoting exactly
-                // the members that happen to sit in PB-DP10's 97-def BASELINE would
-                // misrepresent a class as a handful of cards. Filed as OOS-DX4-1: enumerate
-                // every `Complete` def approximating an ownership clause with
-                // `TargetController::You`, then decide the whole class at once.
+                // PB-DX28 (closes OOS-DX4-1): printed text is "Destroy target permanent
+                // YOU OWN" (CR 108.3 ownership), previously approximated here as
+                // `TargetController::You` (CR 109.4 control) because `TargetFilter` had
+                // no owner axis at all. The two diverge in BOTH directions under any
+                // control-change effect: a permanent you own but an opponent controls
+                // (Mind Control) was wrongly ILLEGAL, and one you control but do not own
+                // was wrongly LEGAL. `TargetFilter.owner: TargetOwner` now exists
+                // (enforced at `casting::validate_object_satisfies_requirement` and the
+                // triggered-ability auto-target picker), so this is authored as the
+                // printed clause directly. `controller: TargetController::You` is
+                // REMOVED, not kept alongside — it was the approximation, and keeping it
+                // would make the card strictly narrower than printed (an owned-but-
+                // opponent-controlled permanent must remain a legal target).
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
-                    controller: TargetController::You,
+                    owner: TargetOwner::You,
                     ..Default::default()
                 })],
                 timing_restriction: None,

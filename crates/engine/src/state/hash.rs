@@ -1331,7 +1331,7 @@ use crate::cards::card_definition::ManaRestriction;
 use crate::cards::card_definition::{
     AbilityDefinition, ActivationZone, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount,
     EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, ManaSourceFilter, ModeSelection,
-    PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetRequirement,
+    PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetOwner, TargetRequirement,
     TimingRestriction, TokenSpec, TriggerCondition, TriggerZone, TypeLine, WheelDisposal,
     WheelDraw, ZoneTarget,
 };
@@ -3905,6 +3905,9 @@ impl HashInto for DeathTriggerFilter {
         self.controller_opponent.hash_into(hasher);
         self.exclude_self.hash_into(hasher);
         self.nontoken_only.hash_into(hasher);
+        // PB-DX28: CR 108.3 / 404.3 ownership scope on the dying creature.
+        self.owner_you.hash_into(hasher);
+        self.owner_opponent.hash_into(hasher);
     }
 }
 impl HashInto for TriggeredAbilityDef {
@@ -5966,6 +5969,15 @@ impl HashInto for TargetController {
         }
     }
 }
+impl HashInto for TargetOwner {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            TargetOwner::Any => 0u8.hash_into(hasher),
+            TargetOwner::You => 1u8.hash_into(hasher),
+            TargetOwner::Opponent => 2u8.hash_into(hasher),
+        }
+    }
+}
 impl HashInto for TargetFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.max_power.hash_into(hasher);
@@ -6006,6 +6018,8 @@ impl HashInto for TargetFilter {
         self.max_cmc_amount.hash_into(hasher);
         // PB-OS8: runtime-computed min mana value cap (CR 202.3/608.2h).
         self.min_cmc_amount.hash_into(hasher);
+        // PB-DX28: CR 108.3 ownership scope (distinct from `controller`).
+        self.owner.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {
@@ -6109,6 +6123,8 @@ impl HashInto for EffectTarget {
             EffectTarget::EquippedCreature => 10u8.hash_into(hasher),
             // PB-EF3: AttackTarget — the player/planeswalker the attacker is/was attacking — discriminant 11
             EffectTarget::AttackTarget => 11u8.hash_into(hasher),
+            // PB-DX28: DamagedPlayer — the player dealt combat damage — discriminant 12
+            EffectTarget::DamagedPlayer => 12u8.hash_into(hasher),
         }
     }
 }
@@ -6366,6 +6382,7 @@ impl HashInto for TriggerCondition {
                 exclude_self,
                 nontoken_only,
                 filter,
+                owner,
             } => {
                 7u8.hash_into(hasher);
                 controller.hash_into(hasher);
@@ -6373,6 +6390,8 @@ impl HashInto for TriggerCondition {
                 nontoken_only.hash_into(hasher);
                 // PB-N: hash the new subtype/color/type filter field
                 filter.hash_into(hasher);
+                // PB-DX28: CR 108.3 / 404.3 ownership scope on the dying creature.
+                owner.hash_into(hasher);
             }
             TriggerCondition::WheneverCreatureEntersBattlefield {
                 filter,
