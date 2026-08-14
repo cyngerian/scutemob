@@ -77,12 +77,18 @@ wrong).
 **Totals: 10 REFUTED · 3 REFUTED-PARTIAL · 30 CONFIRMED · 9 STALE-WORDING · 3 clean.**
 (Rows exceed 46 because several defs carry more than one gap claim.)
 
-### 2.1 REFUTED and repaired — 10 defs
+### 2.1 REFUTED and repaired — 12 rows, 10 of them `REPAIRED_BY_PB_DX27`
+
+The heading of this table's first draft said "10 defs" while listing 12 rows — corrected by
+the `/review` (its Issue 11). The 10 is right for `REPAIRED_BY_PB_DX27` in the gate; the two
+extras (`the_world_tree`, `encroaching_dragonstorm`) are the `REVIEWED_CONTRAST_MENTIONS`,
+which were repaired *and* still legitimately name a live type while asserting a missing
+field on it.
 
 | def | the false claim | what shipped | marker |
 |---|---|---|---|
-| `chord_of_calling` | "`max_cmc` should be XValue" (as a gap) | `TargetFilter.max_cmc_amount = EffectAmount::XValue` | `partial` → **`Complete`** |
-| `green_suns_zenith` | identical claim, + a phantom oracle clause | same, + phantom clause removed | `partial` → **`Complete`** |
+| `chord_of_calling` | "`max_cmc` should be XValue" (as a gap) | `TargetFilter.max_cmc_amount = EffectAmount::XValue`, **plus an explicit `Effect::Shuffle`** (fix cycle) | `partial` → **`Complete`** |
+| `green_suns_zenith` | identical claim, + a phantom oracle clause | same, + phantom clause removed, + explicit `Effect::Shuffle` (fix cycle) | `partial` → **`partial`** (promoted by the implement phase, **demoted back by the review** — §9) |
 | `reconnaissance` | "`Effect::RemoveFromCombat` does not exist" | `Sequence[RemoveFromCombat, UntapPermanent]` | `inert` → **`Complete`** |
 | `wight_of_the_reliquary` | "`Cost::Sacrifice` has no another/exclude-self" | `Cost::Sequence[Tap, Sacrifice{exclude_self}]` | `partial` → **`Complete`** |
 | `chandra_flamecaller` | "`EffectAmount::HandSize` not in DSL" | `Effect::WheelHand{Discard, ThatMany}` + `DrawCards(1)` | `partial` → **`Complete`** |
@@ -210,9 +216,14 @@ already-shipped `SetCreatureTypes`, consuming `ALL_LAND_TYPES` (`types.rs:1890`)
    keeps its `Creature` card type *and* its `Dryad` creature subtype while `Forest` becomes
    `Mountain`. The filing's own §7 admitted "no systematic pass was made over the corpus's
    other `SetTypeLine` uses" — the inverse census cost one grep and found the third member.
-2. **The ruling's third sentence was implemented nowhere.** `ALL_LAND_TYPES` having **zero
-   users outside its own declaration** is the proof that no CR 305.6 intrinsic-mana
-   derivation exists, so a Blood-Mooned land previously lost every ability and gained
+2. **The ruling's third sentence was implemented nowhere.** No CR 305.6 intrinsic-mana
+   derivation exists anywhere in the engine — verified by direct search over
+   `crates/engine/src` and `crates/card-types/src`, and corroborated by the CARDS-2 audit
+   from the other direction (`lonely_sandbar` and `windbrisk_heights` author explicit
+   `{T}: Add` lines *because* nothing derives them). **Corrected by this batch's own
+   `/review`**: the first draft argued from `ALL_LAND_TYPES` having "zero users outside its
+   own declaration", which is false — `correlated_card_types()` (`types.rs:1962`) reads it.
+   Right conclusion, wrong proof, in a batch whose thesis is that a note is a claim. So a Blood-Mooned land previously lost every ability and gained
    nothing — it could not tap for red at all. Now authored as a third Layer-6 static ordered
    after `RemoveAllAbilities`. The general class is `OOS-DX27-1`.
 3. **The brief predicted "expected wire impact NONE" and the gate refuted it.**
@@ -353,3 +364,63 @@ second cost), so the ability count moves to 39 while the def count correctly sta
 - The **357** opaque gap notes are the cheapest standing rider available to any future
   card-def batch: every note rewritten to name its primitive moves one def out of the blind
   spot and into the machine-checkable population.
+
+---
+
+## 9. The `/review` fix cycle — 1 HIGH / 5 MEDIUM / 6 LOW, all 12 taken
+
+The reviewer had a shell and used it: it rebuilt the census derivation independently in
+Python (reproducing **107** and **357** exactly), re-executed both fingerprint gates, and
+planted **11 stale-note shapes** into a clean def to try to defeat the new gate.
+
+**The HIGH is this batch committing its own subject matter, and it is the sharpest finding
+of the cycle.** `chord_of_calling` and `green_suns_zenith` were promoted to deck-legal
+`Complete` with their printed **"then shuffle"** clause unauthored. `Effect::SearchLibrary`
+has no post-search shuffle — its only shuffle is the `shuffle_before_placing` branch
+(`effects/mod.rs:3839-3844`), which is the Vampiric-Tutor *shuffle-then-put-on-top* pattern.
+And `eldritch_evolution.rs:12-14`, **the very precedent both defs cite**, says so in-source:
+
+> "then shuffle" is modeled explicitly with `Effect::Shuffle` … rather than relying on the
+> `SearchLibrary` executor's `shuffle_before_placing` flag, which only shuffles BEFORE
+> placing.
+
+So the batch cited a file as precedent and omitted the one thing that file's comment exists
+to warn about — §3.3's own lesson ("a primitive existing is not the same as a primitive
+working") reproduced inside the batch that wrote it. Both defs now carry an explicit
+`Effect::Shuffle`.
+
+**And the fix uncovered a second, worse one.** Checking whether `green_suns_zenith`'s
+*other* clause held revealed that `self_shuffle_on_resolution` does not shuffle at all: it
+picks `ZoneId::Library(owner)` and plain-moves the card there, with
+`resolution.rs:2023-2025` stating the deviation in its own comment ("deterministic library
+placement (top of library)"). `nexus_of_fate` is the flag's only other user and is
+**`partial`** for exactly that reason. `green_suns_zenith` claiming `Complete` on the
+identical mechanism is **the same outlier shape this batch demoted `qarsi_sadist` for** —
+so it is **demoted back to `partial`**, and the coverage delta drops from +4 to **+3**.
+
+Two failures of the same kind in one batch, on the two defs it promoted, is the honest
+headline: **a promotion to `Complete` is a claim that every printed clause is authored, and
+this batch verified that claim by reading rather than by executing.** Which is precisely
+why the reviewer's Issue 2 matters.
+
+| # | sev | finding | disposition |
+|---|---|---|---|
+| 1 | HIGH | "then shuffle" unauthored on two defs promoted to `Complete` | **TAKEN** — explicit `Effect::Shuffle` on both; `green_suns_zenith` additionally **demoted to `partial`** for its second clause |
+| 2 | MED | the three criterion-3 headline defs had **zero** behavioural coverage — which is why #1 shipped | **TAKEN** — new `primitives/pb_dx27_headline_defs.rs`, including a `LibraryShuffled` probe that would have caught #1 |
+| 3 | MED | the gate's calibration table publishes 24/403 while its own constants are 107/357 | **TAKEN** — table re-measured against the shipped code; the reporter now prints all three rows so it cannot rot again |
+| 4 | MED | **74 defs** carry gap prose naming a live identifier reachable only by an out-of-set phrase (`blocked on` 53, `blocker` 23, `unimplemented` 9); invisible to BOTH ratchets and unstated | **TAKEN** — stated as a second recall bound with the measured figure, and given its own downward-only ratchet |
+| 5 | LOW | ratchets are per-def, so a def already in the 107 or the 357 is a free-write zone (464 defs, 25.7%) | **TAKEN** — quantified in the module doc |
+| 6 | MED | no `/review` artifact; CLAUDE.md and `workstream-state.md` untouched | **TAKEN** — this section, plus both coordination files |
+| 7 | MED | merge hazard: `main` advanced by `afd4a72f` (Blood Moon + Urza's Saga flag); the habitual "take the worker's richer `workstream-state.md`" would DELETE it | **TAKEN** — called out in the handoff as a collect-time instruction |
+| 8 | LOW | "`ALL_LAND_TYPES` had zero users" is **false** (`correlated_card_types()` reads it) and was asserted as *the proof* in three places | **TAKEN** — corrected in all three; the conclusion was re-verified by direct search and stands. Right conclusion, wrong proof, in a batch whose thesis is that a note is a claim |
+| 9 | LOW | `hash.rs` v75 row cites `t_set_land_types_is_hashed`; the test is `t9_...` | **TAKEN** |
+| 10 | LOW | the rider test's module doc asserts "PROTOCOL_VERSION unmoved" — the batch's own headline correction | **TAKEN** |
+| 11 | LOW | §2.1 heading says 10 defs, table has 12 rows | **TAKEN** |
+| 12 | LOW | two moons on the battlefield stack two `{T}: Add {R}` grants (`AddManaAbility` is `push_back`); CR 305.7 gives one intrinsic ability regardless | **TAKEN** — filed as `OOS-DX27-10`, and t6 is noted as structurally unable to see it |
+
+**What the reviewer could NOT defeat, which is worth recording as much as what it could**:
+`/* */` block comments are caught (PB-DX8's defeated gate does not recur here); and every
+identifier-shape variation it tried — an unlisted type prefix, a bare identifier with no
+`::`, a spaced `Effect :: X`, a lowercase member, a needle and identifier on different
+lines — falls into R3's opaque count and reddens. The one real escape is phrasing, which is
+finding 4 and is now bounded and ratcheted.

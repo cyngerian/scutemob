@@ -29,18 +29,30 @@ pub fn card() -> CardDefinition {
                 // birthing_ritual. PB-DX27 (2026-08-13): the previous
                 // `// TODO: max_cmc should be XValue` claimed a DSL gap that had already
                 // closed — the field shipped with PB-EF10.
-                effect: Effect::SearchLibrary {
-                    filter: TargetFilter {
-                        has_card_type: Some(CardType::Creature),
-                        max_cmc_amount: Some(Box::new(EffectAmount::XValue)),
-                        ..Default::default()
+                // PB-DX27 /review (HIGH): "then shuffle" is a SEPARATE printed clause and
+                // must be authored explicitly. `Effect::SearchLibrary`'s only shuffle is
+                // the `shuffle_before_placing` branch (`effects/mod.rs:3839-3844`), which
+                // is the Vampiric-Tutor "shuffle THEN put on top" pattern — it does not
+                // shuffle after placing. `eldritch_evolution.rs:12-14` states exactly this
+                // in-source, and the first draft of this def cited that file as precedent
+                // while omitting the one thing its comment warns about.
+                effect: Effect::Sequence(vec![
+                    Effect::SearchLibrary {
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            max_cmc_amount: Some(Box::new(EffectAmount::XValue)),
+                            ..Default::default()
+                        },
+                        destination: ZoneTarget::Battlefield { tapped: false },
+                        reveal: false,
+                        player: PlayerTarget::Controller,
+                        also_search_graveyard: false,
+                        shuffle_before_placing: false,
                     },
-                    destination: ZoneTarget::Battlefield { tapped: false },
-                    reveal: false,
-                    player: PlayerTarget::Controller,
-                    also_search_graveyard: false,
-                    shuffle_before_placing: false,
-                },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
+                ]),
                 targets: vec![],
                 modes: None,
                 cant_be_countered: false,

@@ -1289,7 +1289,7 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // v69/v72/v73/v74-style version-sentinel-byte-only case, not the v70/v71
         // payload-bytes case; the new variant's own bytes are exercised only by
         // the direct `HashInto` unit test in
-        // `pb_dx27_blood_moon_type_scope.rs::t_set_land_types_is_hashed`, not by
+        // `pb_dx27_blood_moon_type_scope.rs::t9_set_land_types_is_hashed`, not by
         // this stream fixture.
         decl_fingerprint: "e8ca51103996c3094a0c6c1e1107511e2f98719e15cf0fe15f1726cc730f4ca5",
         stream_fingerprint: "ad5233842ddb7e75c785b3a44b20979364528f64160e34df662d1b4b8b643714",

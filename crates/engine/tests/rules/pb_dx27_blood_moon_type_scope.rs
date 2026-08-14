@@ -14,8 +14,16 @@
 //! `SetCardTypes` (PB-AC7).
 //!
 //! Hash: `HASH_SCHEMA_VERSION` bumped 74 -> 75 (new `LayerModification` variant,
-//! arm tag `32u8`). `PROTOCOL_VERSION` unmoved (`LayerModification` is not in the
-//! SR-8 wire closure).
+//! arm tag `32u8`). **`PROTOCOL_VERSION` 35 -> 36.**
+//!
+//! An earlier draft of this line said PROTOCOL was unmoved because
+//! "`LayerModification` is not in the SR-8 wire closure". That was wrong, and it is
+//! the batch's most instructive correction: `ContinuousEffectDef.modification` is a
+//! sibling of `filter` and `duration`, both of which have been reachable from the
+//! `Command`/`GameEvent` closure since v14/v22, so `LayerModification` is squarely on
+//! the wire. The dispatch brief predicted "expected wire impact NONE" and
+//! `protocol_schema_fingerprint_is_pinned` refuted it. Both fingerprints here were
+//! taken from the gates' own output; neither was predicted.
 
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::hash::HashInto;
@@ -426,6 +434,16 @@ fn t5_ancient_dens_original_white_mana_ability_is_removed() {
 /// gain the ability '{T}: Add {R}.'" Ancient Den must end up with EXACTLY one mana
 /// ability, the granted `{T}: Add {R}` — proving both the removal (T5) and the
 /// grant survive together, in the right order.
+///
+/// **What this probe structurally cannot see** (`OOS-DX27-10`, filed by PB-DX27's own
+/// `/review`): the fixture puts ONE Blood Moon on the battlefield. `apply_layer_
+/// modification`'s `AddManaAbility` arm is append-only (`layers.rs:1782-1783`), and
+/// `magus_of_the_moon` carries the same unconditional grant, so with BOTH in play every
+/// nonbasic land carries the ability twice — where CR 305.7 gives it once however many
+/// effects set the type. "Exactly one" here is a statement about a one-moon board, not
+/// about the grant being idempotent. Catching that needs a two-moon fixture; the clean
+/// fix is the CR 305.6 intrinsic derivation `OOS-DX27-1` describes, which is idempotent
+/// by construction and would let both defs drop the explicit grant.
 #[test]
 fn t6_ancient_den_gains_exactly_the_granted_tap_add_red_ability() {
     let blood_moon = mtg_engine::cards::defs::blood_moon::card();

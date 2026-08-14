@@ -167,19 +167,22 @@ const DSL_TYPE_PREFIXES: &[&str] = &[
 /// second ("simplified: we round down") and the second without the first (a note on
 /// an `inert` def that never claims to match anything).
 ///
-/// **Calibrated by measurement, not by taste** (PB-DX27, 2026-08-13). Three
-/// candidate sets were run over the corpus and scored by the size of the population
-/// they hand a human to review:
+/// **Calibrated by measurement, not by taste** (PB-DX27, 2026-08-13). Three candidate
+/// sets were run over the corpus and scored by the size of the population they hand a
+/// human to review; set **C** — assertive negation plus `lacks` / `has no` — ships.
 ///
-/// | set | needles | defs naming a LIVE identifier | opaque gap notes |
-/// |---|---|---:|---:|
-/// | A | the seed memo's three (`dsl gap`, `blocker`, `does not exist`) | 10 | 240 |
-/// | B | assertive negation only | 18 | 349 |
-/// | **C** | **B + `lacks` / `has no`** | **24** | **403** |
+/// **The scores are NOT transcribed here, and that is deliberate.** The first draft of
+/// this doc published a table of per-set figures which did not reproduce against the
+/// shipped code — they came from a scratch Python approximation of this module written
+/// during calibration, exactly the mistake [`t_derivation_report`] exists to prevent and
+/// which PB-DX8 had already made once. A reviewer caught it. Rather than publish a
+/// better-transcribed number, the numbers now come from the code: run
+/// `cargo test --test core pb_dx27_stale_blocker_notes -- --nocapture` and read
+/// `t_derivation_report`, which prints every population this file reasons about.
 ///
-/// C is shipped. A is too narrow — `blocker` is a *label* ("the surviving blocker
-/// is…") rather than an assertion, so it drags in prose that names live identifiers
-/// while missing the two phrasings the corpus actually uses for a capability gap:
+/// A is too narrow — `blocker` is a *label* ("the surviving blocker is…") rather than an
+/// assertion, so it drags in prose that names live identifiers while missing the two
+/// phrasings the corpus actually uses for a capability gap:
 /// `ashaya_soul_of_the_wild` writes "EffectFilter **has no** nontoken-exclusion
 /// variant" and `skrevls_hive` writes "EffectFilter::CreaturesYouControl **lacks** a
 /// keyword filter". Neither is reachable from set A or B.
@@ -207,6 +210,34 @@ const GAP_NEEDLES: &[&str] = &[
     "no variant",
     "lacks",
     "has no",
+];
+
+/// Gap phrasings deliberately EXCLUDED from [`GAP_NEEDLES`], kept here so the second
+/// recall bound has a measurement instead of a sentence.
+///
+/// **This is the gate's real blind spot, and it was found by a reviewer rather than by
+/// the author.** The module doc originally stated exactly one bound — "a note that names
+/// no identifier at all" ([`gap_prose_without_a_named_identifier_is_measured`]). But a
+/// note can name an identifier, assert it is missing, and still be invisible to both
+/// ratchets, simply by phrasing the assertion outside the shipped needle set: `blocked
+/// on`, `blocker`, `unimplemented`, `not implemented`, `is missing from the DSL`, `would
+/// need`. Two defs in this population literally record their own note as stale in prose
+/// (`baron_bertram_graywater`, `demolition_field`) and neither ratchet can see them.
+///
+/// These phrasings are excluded from the primary set for a stated precision reason — they
+/// are labels and design prose rather than assertions, and including them costs far more
+/// noise than signal. That trade-off is defensible. Leaving its cost unmeasured was not,
+/// so the population gets its own downward-only ratchet below.
+const OUT_OF_SET_GAP_NEEDLES: &[&str] = &[
+    "blocked on",
+    "blocker",
+    "unimplemented",
+    "not implemented",
+    "no primitive",
+    "not supported",
+    "unsupported",
+    "would need",
+    "is missing",
 ];
 
 // ── the frozen population ─────────────────────────────────────────────────────
@@ -496,6 +527,90 @@ fn asserts_a_gap(text: &str) -> bool {
     GAP_NEEDLES.iter().any(|n| low.contains(n))
 }
 
+fn asserts_a_gap_out_of_set(text: &str) -> bool {
+    let low = text.to_lowercase();
+    OUT_OF_SET_GAP_NEEDLES.iter().any(|n| low.contains(n))
+}
+
+/// Defs reachable ONLY by [`OUT_OF_SET_GAP_NEEDLES`] — they name a live identifier inside
+/// a gap assertion the primary needle set does not phrase-match, and they are therefore
+/// invisible to both R1 and R3.
+fn defs_naming_a_live_identifier_out_of_set_only() -> Vec<(String, BTreeSet<String>)> {
+    let blob = dsl_source_blob();
+    let primary: BTreeSet<String> = defs_naming_a_live_identifier()
+        .into_iter()
+        .map(|(f, _)| f)
+        .collect();
+    let mut out = Vec::new();
+    for path in def_paths() {
+        let name = path
+            .file_name()
+            .expect("path has a file name")
+            .to_string_lossy()
+            .to_string();
+        if primary.contains(&name) {
+            continue;
+        }
+        let src = fs::read_to_string(&path).expect("def source must be readable");
+        let mut live: BTreeSet<String> = BTreeSet::new();
+        for unit in prose_units(&src) {
+            if !asserts_a_gap_out_of_set(&unit.text) {
+                continue;
+            }
+            for m in dsl_mentions(&unit.text) {
+                if blob.contains(&m) {
+                    live.insert(m);
+                }
+            }
+        }
+        if !live.is_empty() {
+            out.push((name, live));
+        }
+    }
+    out
+}
+
+/// Defs that assert a gap in [`GAP_NEEDLES`]'s vocabulary while naming NO DSL identifier
+/// at all — the population this gate structurally cannot speak about.
+fn opaque_gap_note_defs() -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    for path in def_paths() {
+        let src = fs::read_to_string(&path).expect("def source must be readable");
+        let mut asserts = false;
+        let mut names_any = false;
+        for unit in prose_units(&src) {
+            if asserts_a_gap(&unit.text) {
+                asserts = true;
+                if !dsl_mentions(&unit.text).is_empty() {
+                    names_any = true;
+                }
+            }
+        }
+        if asserts && !names_any {
+            out.insert(
+                path.file_name()
+                    .expect("path has a file name")
+                    .to_string_lossy()
+                    .to_string(),
+            );
+        }
+    }
+    out
+}
+
+/// Every card-def path, sorted. Extracted so the walks in this file cannot drift.
+fn def_paths() -> Vec<PathBuf> {
+    let mut entries: Vec<PathBuf> = fs::read_dir(defs_dir())
+        .expect("card-defs/src/defs must be readable")
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|e| e == "rs"))
+        .filter(|p| p.file_name().is_some_and(|n| n != "mod.rs"))
+        .collect();
+    entries.sort();
+    entries
+}
+
 /// Every `Type::Member` mention in `text` whose `Type` is a DSL type.
 fn dsl_mentions(text: &str) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
@@ -762,31 +877,7 @@ fn every_reviewed_contrast_row_is_still_found() {
 /// name their primitive. It does not certify anything about the defs it counts.
 #[test]
 fn gap_prose_without_a_named_identifier_is_measured() {
-    let mut opaque = 0usize;
-    let mut entries: Vec<PathBuf> = fs::read_dir(defs_dir())
-        .expect("card-defs/src/defs must be readable")
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.extension().is_some_and(|e| e == "rs"))
-        .filter(|p| p.file_name().is_some_and(|n| n != "mod.rs"))
-        .collect();
-    entries.sort();
-    for path in entries {
-        let src = fs::read_to_string(&path).expect("def source must be readable");
-        let mut asserts = false;
-        let mut names_any = false;
-        for unit in prose_units(&src) {
-            if asserts_a_gap(&unit.text) {
-                asserts = true;
-                if !dsl_mentions(&unit.text).is_empty() {
-                    names_any = true;
-                }
-            }
-        }
-        if asserts && !names_any {
-            opaque += 1;
-        }
-    }
+    let opaque = opaque_gap_note_defs().len();
     assert!(
         opaque <= OPAQUE_GAP_NOTE_CEILING,
         "{opaque} card defs assert a DSL gap without naming any DSL identifier, above the \
@@ -812,6 +903,20 @@ fn gap_prose_without_a_named_identifier_is_measured() {
 /// the machine-checkable population.
 const OPAQUE_GAP_NOTE_CEILING: usize = 357;
 
+/// Ceiling for R4, the SECOND recall bound. Downward-only.
+///
+/// Set from the gate's own output at the PB-DX27 `/review` fix cycle (2026-08-13) — see
+/// [`t_derivation_report`], which prints it rather than leaving it to be transcribed.
+///
+/// **74**, and worth recording how that number was arrived at. The reviewer measured 74
+/// from an independent replica; the author's own scratch replica said 10; this Rust
+/// implementation, run as the gate, says **74**. The reviewer's figure was right and the
+/// author's replica was the faulty one — which is the second time in this batch that a
+/// number computed outside the shipped code disagreed with it, and the reason both this
+/// ceiling and every other population here are now printed by [`t_derivation_report`]
+/// instead of being transcribed into a comment.
+const OUT_OF_SET_LIVE_MENTION_CEILING: usize = 74;
+
 /// A non-test reporter, run as a test so the numbers are PRINTED rather than
 /// transcribed into a comment that will rot.
 ///
@@ -832,12 +937,75 @@ fn t_derivation_report() {
         );
     }
     println!("  ratchet ceiling: {LIVE_IDENTIFIER_MENTION_CEILING}");
+    let out_of_set = defs_naming_a_live_identifier_out_of_set_only();
     println!(
-        "  REPAIRED_BY_PB_DX27 rows: {} (each proven ABSENT from the set above)",
+        "  out-of-set-phrasing live mentions (R4, ceiling {OUT_OF_SET_LIVE_MENTION_CEILING}): {}",
+        out_of_set.len()
+    );
+    for (f, live) in &out_of_set {
+        println!(
+            "    {f}: {}",
+            live.iter().cloned().collect::<Vec<_>>().join(", ")
+        );
+    }
+    // The share of the corpus NO ratchet in this file can speak about. R1/R3/R4 are all
+    // POPULATION counts, so adding a stale note to a def already inside one of them moves
+    // no number at all — the per-def blind spot the /review asked to be quantified.
+    let total = def_paths().len();
+    let mut covered: BTreeSet<String> = found.iter().map(|(f, _)| f.clone()).collect();
+    covered.extend(out_of_set.iter().map(|(f, _)| f.clone()));
+    covered.extend(opaque_gap_note_defs());
+    println!(
+        "  corpus {total} defs: {} counted by some ratchet here, {} ({:.1}%) counted by \
+         NONE — a def in neither set can gain a stale note without moving any number",
+        covered.len(),
+        total - covered.len(),
+        100.0 * (total - covered.len()) as f64 / total as f64
+    );
+    println!(
+        "  REPAIRED_BY_PB_DX27 rows: {} (each proven ABSENT from the primary set above)",
         REPAIRED_BY_PB_DX27.len()
     );
     println!(
         "  REVIEWED_CONTRAST_MENTIONS rows: {}",
         REVIEWED_CONTRAST_MENTIONS.len()
+    );
+}
+
+/// R4 — the SECOND recall bound, measured rather than described.
+///
+/// A gap note that names an identifier can still evade R1 and R3 by phrasing the
+/// assertion outside [`GAP_NEEDLES`]. Found by the PB-DX27 `/review`, which planted 11
+/// stale-note shapes into a clean def and established that `/* */` block comments and
+/// every identifier-shape variation it tried ARE caught, while phrasing is the one real
+/// escape. This ratchet bounds that escape instead of leaving it unstated.
+///
+/// Like R1 this is a **population** bound and certifies nothing about any individual def.
+#[test]
+fn out_of_set_phrasings_are_bounded() {
+    let found = defs_naming_a_live_identifier_out_of_set_only();
+    assert!(
+        found.len() <= OUT_OF_SET_LIVE_MENTION_CEILING,
+        "{} card defs name a LIVE identifier inside a gap assertion phrased OUTSIDE \
+         GAP_NEEDLES, above the ratchet of {OUT_OF_SET_LIVE_MENTION_CEILING}. These are \
+         invisible to R1 and R3 — this gate's second recall bound. Prefer rewording the \
+         new note into the primary vocabulary (`does not exist`, `not expressible`, `no \
+         such`, `lacks`, `has no`) so R1 can see it; raise this ceiling only with a stated \
+         reason.\n\n  {}",
+        found.len(),
+        found
+            .iter()
+            .map(|(f, live)| format!(
+                "{f} — {}",
+                live.iter().cloned().collect::<Vec<_>>().join(", ")
+            ))
+            .collect::<Vec<_>>()
+            .join("\n  ")
+    );
+    assert!(
+        !found.is_empty(),
+        "0 out-of-set live mentions — either the corpus became fully compliant (lower the \
+         ceiling and say so) or `asserts_a_gap_out_of_set`/`dsl_mentions` has stopped \
+         matching and this ratchet is vacuous"
     );
 }
