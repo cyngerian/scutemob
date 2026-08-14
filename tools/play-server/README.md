@@ -967,22 +967,46 @@ repeated here so this README does not claim more than the implementation does.
     the fixture rule it turns on (`$state()`-wrap the template, or the harness
     passes green against this exact bug), and four known-good seed→card→flow tuples.
 
-18. **Only 2 of `AdditionalCost`'s 16 variants are surfaced (UI-2).**
-    `ActionOptionView.costs` describes a required **sacrifice** (CR 118.8) and an
-    optional **Squad** cost (CR 702.157a) and nothing else. **Scoped to `CastSpell`
-    alone** — an `ActivateAbility`'s own CR 602.2 costs are a separate channel that
-    SIM-6 added (`activation_sacrifice` / `activation_discard`, answered by the
-    scalar `cost_sacrifice_target` / `cost_discard_card` params rather than by the
-    `additional_costs` array, because an activation cost never becomes an
-    `AdditionalCost`). Kicker, Replicate,
-    Offspring, Escalate, Splice, Entwine, Fuse, Gift, Assist, Escape, Collect
-    Evidence, Discard, ExileFromHand and Mutate are all still invisible to the
-    offer, so an **optional** one is silently lost and a **mandatory** one is still
-    a 422 on a card whose cast the server offered. `validate_additional_cost_params`
-    deliberately lets those fourteen fall through to the engine's 422 rather than
-    pretending to check them — it can only speak for what it renders an offer for.
-    The request wire already carries all sixteen, so each is a provider + view +
-    picker addition with no engine or wire change. Seed **OOS-UI2-4**.
+18. **6 of `AdditionalCost`'s 15 variants are still unsurfaced (PB-DX29 — was 13 of
+    15; and the enum has FIFTEEN variants, not sixteen).**
+    UI-2 shipped a required **sacrifice** (CR 118.8) and an optional **Squad** cost
+    (CR 702.157a). PB-DX29 added **Replicate** (CR 702.56a), **Escalate**
+    (CR 702.120a), **Entwine** (CR 702.42a), **Fuse** (CR 702.102a), **Offspring**
+    (CR 702.175a), **Gift** (CR 702.174a) and **Splice** (CR 702.47a), so
+    `ActionOptionView.costs` now carries nine kinds across four families —
+    `sacrifice`, `squad`, `counts[]`, `markers[]`, `gift`, `splice`. Still **scoped
+    to `CastSpell` alone**: an `ActivateAbility`'s own CR 602.2 costs are the
+    separate channel SIM-6 added (`activation_sacrifice` / `activation_discard`,
+    answered by the scalar `cost_sacrifice_target` / `cost_discard_card` params
+    rather than by the `additional_costs` array, because an activation cost never
+    becomes an `AdditionalCost`).
+
+    **This entry's own count was wrong in two ways and both corrections are worth
+    keeping**: the enum has 15 variants, and **Kicker was never one of them** (it is
+    `CastSpellData.kicker_times`), so the original list named a member that does not
+    exist. And "13 of 15 are invisible" was arithmetically right and materially
+    misleading — four of the thirteen had **no deck-legal member at all**.
+
+    The six that remain each have a stated reason rather than being residue:
+    **Mutate** is carried per-ACTION (`LegalAction::CastWithMutate`), and its real
+    lost choice is `on_top`, which CR 702.140c makes a *resolution-time* decision
+    (`OOS-DX29-2`); **Assist** is deliberately withheld, because CR 702.132a needs
+    the assisting player's agreement and no cross-seat decision machinery exists, so
+    a picker would let one human spend another's floating mana without asking
+    (`OOS-DX29-1`); **CollectEvidence** is reachable but has zero deck-legal members
+    and no `KeywordAbility` twin, so SR-5's registry cannot see it (`OOS-DX29-5`);
+    and **Discard** (Retrace / Jump-Start), **EscapeExile** and **ExileFromHand** are
+    *unreachable by construction* — `StubProvider`'s cast loops walk Hand and Command
+    zone only, and `params.rs` hard-codes `alt_cost: None` (`OOS-DX29-3`).
+    `validate_additional_cost_params` still speaks only for what it renders an offer
+    for, which is now nine kinds rather than two. Seed **OOS-UI2-4** — **CLOSED**.
+
+    **The link this entry's original "a provider + view + picker addition with no
+    engine or wire change" left out**: `legal_actions::effective_cast_cost_with_
+    additional` read **Squad and nothing else**, and it is what
+    `LocalGame::auto_tap_commands_for` asks how much mana to tap. Adding the pickers
+    without extending it would have tapped the base cost, accepted the human's
+    announcement, and let the engine refuse the cast with `InsufficientMana`.
 
 19. **The required-sacrifice default is applied to *any* unparameterised
     submission, including the TUI's (UI-2).**
