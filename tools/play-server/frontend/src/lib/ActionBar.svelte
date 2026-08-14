@@ -113,15 +113,22 @@
    * in any game this engine can deal. If R5 ever fails, this is the paragraph to
    * re-read: the fix is to split `ValuePrompt`, not to reorder the chain.
    *
-   * **PB-DX29 makes that premise doubtful and the client cannot fix it.** Escalate
-   * (CR 702.120a) and Entwine (CR 702.42a) are additional costs on MODAL spells by
-   * definition, so a card carrying either satisfies "an additional cost together
-   * with modes" the moment one is authored. R5's roster names Sacrifice and Squad
-   * only, so it will stay green while the situation it was written to detect is
-   * live. The stage order still happens to be right — modes are announced in
-   * `ValuePrompt` (stage 1) BEFORE this stage, which is CR 601.2b's printed order —
-   * but `{X}` rides in the same panel and would then be announced too early. Filed
-   * for the engine side rather than papered over here.
+   * **PB-DX29 measured that premise and it is already FALSE — R5 just cannot see
+   * it.** Escalate (CR 702.120a) and Entwine (CR 702.42a) are additional costs on
+   * MODAL spells by definition, and **five corpus defs carry one today**
+   * (`Goblin War Party`, `Promise of Power`, `Tooth and Nail`, `Blessed Alliance`,
+   * `Collective Resistance`). R5's roster walks Sacrifice and Squad only, so it
+   * reports a clean board while the situation it was written to detect is live.
+   *
+   * The stage order is nevertheless still right, and the reason is worth having in
+   * one place: the inversion R5 guards against has two halves, and only one of them
+   * matters. Modes are announced in `ValuePrompt` (stage 1) BEFORE this stage, which
+   * is CR 601.2b's own printed order — so modes-vs-costs is fine. `{X}` rides in the
+   * same panel and WOULD be announced too early — and **zero** corpus defs pair an
+   * additional cost with an `{X}`, measured by
+   * `core::pb_dx29_additional_cost_roster::r6`, which prints the modal offenders
+   * rather than asserting an absence that is not true and pins the `{X}` half at 0.
+   * If R6's `{X}` assertion ever fails, split `ValuePrompt` so X follows this stage.
    *
    * # Why the decision stage is numbered 0 and checked first
    *
