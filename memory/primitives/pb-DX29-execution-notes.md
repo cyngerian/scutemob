@@ -509,14 +509,15 @@ the same reason: `LegalAction` is a simulator type, not an engine one.
 
 | file | +/− | what |
 |---|---|---|
-| `rules/queries.rs` | **+99 / −0** | the two new read-only queries |
-| `lib.rs` | +2 / −2 | their re-export |
+| `rules/queries.rs` | **+135 / −0** | the **three** read-only queries (the third, `loyalty_ability_cost`, added by the `/review` fix cycle — see §8.4) |
+| `lib.rs` | +3 / −2 | their re-export |
+| `rules/engine.rs` | +4 / −1 | one comment, disambiguating a renumbered seed ID (§8.1 H2) |
 | `state/ability_definition_registry.rs` | +43 / −5 | **SR-5's sibling gate forced these** — 7 variants gained the simulator as a handling site, and `A::LoyaltyAbility` gained `rules/queries.rs` |
 | `state/keyword_registry.rs` | +33 / −4 | **SR-5 forced these** — 7 keywords gained the simulator as a handling site |
-| **total** | **+177 / −11** | |
+| **total** | **+218 / −12** | |
 
 Reported rather than hidden, per the acceptance criterion's own instruction. The honest reading:
-**101 lines are the new query surface** (the thing the seed's "no engine change" prediction got
+**138 lines are the new query surface** (the thing the seed's "no engine change" prediction got
 wrong, §1.5), and **76 are registry *declarations* that machine gates refused to let the batch
 omit** — not behaviour. Zero behaviour-changing engine lines exist outside `queries.rs`, and
 everything in `queries.rs` is a pure read.
@@ -527,13 +528,16 @@ the HTTP-probe commit added 1,452 lines to `main.rs`, so the play-server figure 
 than 2×. That is precisely the "publish the figure, do not transcribe it" failure PB-DX8 recorded
 and this file's own header promises against, in the file recording it. Re-measured at HEAD:
 
-| area | +/− |
+| area | +/− (at close, after the `/review` fix cycle) |
 |---|---|
 | `crates/card-defs/src` (3 defs) | +58 / −22 |
-| `crates/simulator/src` | +873 / −58 |
-| `tools/play-server/src` | +2,679 / −48 |
-| `tools/play-server/frontend/src` | +416 / −1 |
+| `crates/simulator/src` | +909 / −61 |
+| `tools/play-server/src` | +2,846 / −51 |
+| `tools/play-server/frontend/src` | +432 / −1 |
 | `crates/view-model/src` | **0** |
+
+Re-derive with:
+`git diff --numstat main..HEAD -- crates/simulator/src tools/play-server/src tools/play-server/frontend/src crates/card-defs/src crates/view-model/src`
 
 The **engine** table above — the one AC5 is actually about — was accurate in the first draft and
 was independently re-derived by the reviewer. These four are supporting detail, and the honest
@@ -632,3 +636,24 @@ Worth recording, because both are the batch's own subject matter recurring insid
   `test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places` went red on the spot —
   correctly, since a new raw read there is a hidden-information channel no other Invariant-7 gate
   can see. Moved to `rules::queries::loyalty_ability_cost`, which keeps the pin at three.
+
+### 8.5 Re-measured at close, after the fix cycle
+
+Every figure in §7 was re-derived at HEAD after the 19 findings landed. All of it reproduces; the
+two that moved, moved for stated reasons.
+
+| | at §7 | at close |
+|---|---|---|
+| tests | 4,713 / 0 / 5 | **4,721 / 0 / 5** (+87 over baseline by name, still **0 removals**) |
+| result-producing targets | 49 | 49 |
+| PROTOCOL / HASH | 37 / 76 | **37 / 76**, gate-executed again (`hash_schema` 36/36, `protocol_schema` 17/17) |
+| coverage | 1,136 / 1,803 = 63.0%, 0 flips | **unchanged**, regenerated again, churn reverted |
+| engine + card-types lines | +177 / −11 | **+218 / −12** |
+
+The +8 tests are the fix cycle's own: 3 in the play-server (`/review` H1, M1, M2 probes), 4 in the
+new `format_mana_cost_compact_tests` (M3), and 1 roster gate (**R7**, L10). The engine delta grew
+by the third query and one comment — and it is worth saying plainly that **the direction of travel
+on the "0 engine lines" prediction was consistently outward**: the batch predicted zero, shipped
+177, and closed at 218. Every one of those lines is a read-only query, a registry declaration a
+gate demanded, or a comment; none changes behaviour. But a prediction that was wrong at the
+implement phase did not become right by the fix cycle, and the honest record is the final number.

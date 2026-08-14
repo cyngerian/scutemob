@@ -154,18 +154,20 @@
   the five had a registry row before this batch wrote one) — ranks **1-11 are all shipped**,
   so **next dispatch: PB-DX28** (rank 12). Coverage **62.8% → 63.0%** (1,133 → **1,136**);
   PROTOCOL **35 → 36** / HASH **74 → 75**, both gate-computed. Filed **OOS-DX27-1..10**.
-- **Tests (delta 2026-08-14, PB-DX29 + fix cycle)**: **4,713 / 0 / 5** full-workspace on branch
-  `scutemob-211` (+79 over the **4,634** baseline, which was measured on this branch BEFORE any
-  edit and reproduced PB-DX28's close pin exactly), `--workspace --no-fail-fast` to a file,
+- **Tests (delta 2026-08-14, PB-DX29 + `/review` fix cycle)**: **4,721 / 0 / 5** full-workspace on
+  branch `scutemob-211` (+87 over the **4,634** baseline, which was measured on this branch BEFORE
+  any edit and reproduced PB-DX28's close pin exactly), `--workspace --no-fail-fast` to a file,
   **49** result-producing targets (46 → 49: three new test binaries), residual list empty.
   **Delta itemised by test NAME with ZERO removals**, by set-diffing the two run logs: **29** in
-  the new `crates/simulator/tests/pb_dx29_cost_kind_surface.rs` (P/C/E groups), **21** in
+  the new `crates/simulator/tests/pb_dx29_cost_kind_surface.rs` (P/C/E groups), **24** in
   `tools/play-server/src/main.rs`'s `#[cfg(test)]` module (14 unit tests of the 400 boundary, 2
-  wire-shape pins, 2 full HTTP drives, 2 frontend source gates, 1 inverted deviation pin), **11**
-  in the new `crates/engine/tests/primitives/pb_dx29_loyalty_target_surface.rs`, **8** in the new
-  `crates/simulator/tests/pb_dx29_loyalty_channel.rs`, **7** in the new
-  `crates/engine/tests/core/pb_dx29_additional_cost_roster.rs` (R1-R6 + R2m), and **3** in the new
-  `crates/simulator/tests/pb_dx29_mutate_on_top.rs`.
+  wire-shape pins, 2 full HTTP drives, 2 frontend source gates, 1 inverted deviation pin, 3 from
+  the fix cycle), **11** in the new
+  `crates/engine/tests/primitives/pb_dx29_loyalty_target_surface.rs`, **8** in the new
+  `crates/simulator/tests/pb_dx29_loyalty_channel.rs`, **8** in the new
+  `crates/engine/tests/core/pb_dx29_additional_cost_roster.rs` (R1-R7 + R2m), **4** in `view.rs`'s
+  new `format_mana_cost_compact_tests` (the function had **none** despite five call sites), and
+  **3** in the new `crates/simulator/tests/pb_dx29_mutate_on_top.rs`.
   **PROTOCOL 37 / HASH 76 both UNMOVED**, gate-executed (`hash_schema` 36/36, `protocol_schema`
   17/17) — nothing added is a type in the `Command`/`GameEvent`/`Effect`/`Characteristics`
   closure, and `LegalAction::CastWithMutate` gaining a field is not a wire change because
@@ -174,12 +176,16 @@
   reverted — proven by regeneration rather than by an empty card-defs diff, because three defs
   were edited and the shortcut was unavailable.
   **Engine lines are NOT zero and the brief predicted zero** — `git diff --numstat` over
-  `crates/engine/src` + `crates/card-types/src` is **+177 / −11**, of which **101** are the new
-  read-only query surface (`rules/queries.rs` + its re-export) and **76** are registry
-  *declarations* that SR-5's keyword gate and its ability-definition sibling refused to let the
-  batch omit. Zero behaviour-changing engine lines outside `queries.rs`; `crates/view-model` is
-  **0**. `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `crates/engine/src` + `crates/card-types/src` is **+218 / −12**, of which **138** are the new
+  read-only query surface (`rules/queries.rs`' three functions + their re-export), **76** are
+  registry *declarations* that SR-5's keyword gate and its ability-definition sibling refused to
+  let the batch omit, and **4** are one comment in `engine.rs` disambiguating a renumbered seed
+  ID. Zero behaviour-changing engine lines anywhere; `crates/view-model` is **0**.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
   `tools/check-defs-fmt.sh` clean (1,803 defs), `npm run build` green on the frontend.
+  **`/review`: 2 HIGH / 6 MEDIUM / 11 LOW, all 19 taken** — the reviewer had a shell, reproduced
+  every figure above independently (its own test-NAME set was byte-identical), and found no second
+  divergence in the two mirrors this batch flagged hardest.
 - **Tests (delta 2026-08-14, PB-DX28 + fix cycle)**: **4,634 / 0 / 5** full-workspace on branch
   `scutemob-210` (+29 over the **4,605** baseline, which was **re-measured at `c5b9e459` in a
   scratch worktree** after a mid-batch reboot destroyed the original log — it reproduced the
@@ -550,7 +556,9 @@
   predicted zero — **+177 / −11**, of which 101 are the new read-only query surface and 76 are
   registry *declarations* two gates refused to let the batch omit. Refusal-channel A/B **105 → 105
   with an empty diff**, reported as proof of **bot-path neutrality** rather than of nothing
-  happening. Filed **OOS-DX29-1..17**. Full record:
+  happening. **`/review` 2 HIGH / 6 MEDIUM / 11 LOW, all 19 taken** — the two HIGHs were a Splice
+  offer with no affordability bound that 422'd after a clean offer, and a renumbering that
+  orphaned 30 in-source cites under a note asserting it had not. Filed **OOS-DX29-1..17**. Full record:
   `memory/primitives/pb-DX29-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-08-14 — **PB-DX28 SHIPPED** (`scutemob-210`; v3 queue rank 12 —
   **OOS-DX4-6** and **OOS-DX4-1** both CLOSED). **A spell targets only where it says "target"**
