@@ -233,3 +233,106 @@ cannot currently make:
 Building pickers for these would produce code that cannot be verified end to end with a
 non-default answer — the project's own acceptance standard since UI-4 — so they are deferred with
 the enabling work named (a graveyard cast loop and an `alt_cost` channel) rather than half-built.
+
+---
+
+## 4. What shipped
+
+### 4.1 Part A — the loyalty channel (`OOS-M11-10(loyalty)`)
+
+| link | change |
+|---|---|
+| `crates/engine/src/rules/queries.rs` | **new** `loyalty_ability_target_requirements` + `loyalty_ability_needs_x`, re-exported from `lib.rs` |
+| `crates/simulator/src/params.rs` | `ActivateLoyaltyAbility` joins the allowlist (nine arms → **ten**); the arm forwards `targets` and `x_value` |
+| `crates/simulator/src/targeting.rs` | loyalty arms in `target_query_source` **and** `action_target_requirements` — the **bot** path |
+| `crates/simulator/src/legal_actions.rs` | **new** `loyalty_ability_is_offerable` — SR-38 suppression of an offer whose mandatory slot has no candidate |
+| `tools/play-server/src/view.rs` | loyalty arms in `action_target_requirements`, `target_query_source` **and** `action_needs_x` |
+| `tools/play-server/frontend/` | **zero production lines** — the `'value'` and `'targets'` stages are gated on `option.needs_x` / the slot list, not on the action kind |
+
+**`x_value: 0` maps to `None`, not `Some(0)`.** The engine reads `x_value.unwrap_or(0)`, so the two
+are behaviourally identical to it — but `Command` is serialized into the replay log and the
+journal, so `Some(0)` would change every bot-driven loyalty activation's recorded bytes for no
+behavioural gain. This mapping keeps a default-params bot producing the byte-identical
+pre-PB-DX29 command, and no recorded seed moves.
+
+### 4.2 Part B — the cost-kind surface (`OOS-UI2-4`)
+
+Seven kinds added across the seven-link chain (provider → view DTO → picker → stage → POST →
+400 gate → params → engine): **Replicate, EscalateModes, Entwine, Fuse, Offspring, Gift, Splice**.
+
+**The link the seed row does not name is the one that mattered.**
+`legal_actions::effective_cast_cost_with_additional` read **Squad and nothing else**, and it is
+the function `LocalGame::auto_tap_commands_for` asks how much mana to tap. Shipping the pickers
+without extending it would have tapped the base cost, accepted the human's announcement, and let
+the engine refuse the whole cast with `InsufficientMana` — **this batch would have created the
+exact SR-38 defect it was dispatched to remove.** Every arm now mirrors `casting.rs` clause for
+clause: last-wins for the scalars (its destructuring loop is a plain assignment), a real sum for
+Splice (its own loop is), the seven numeric components only, and nothing at all for Gift.
+
+`squad_max_count` → `repeated_cost_max_count`, closing UI-2's asymmetry: it built an
+affordability bound for Squad and nothing analogous for the structurally identical Replicate.
+
+### 4.3 Card-def repairs — three, all comment-and-declaration, **0 completeness flips**
+
+| def | repair | completeness |
+|---|---|---|
+| `nocturnal_hunger` | added the missing `KeywordAbility::Gift` marker | `Complete` before and after — **the repair flips nothing because the def was already deck-legal and already wrong** |
+| `tooth_and_nail` | authored the printed `Entwine {2}` (was marker-only) | stays `partial` on its unrelated "up to two" search blocker |
+| `dawns_truce` | authored `AbilityDefinition::Gift { GiftType::Card }` (was marker-only) | stays `partial`; its note corrected |
+
+`connive_concoct` was flagged by the census and is **REFUTED by its own in-source comment**: it
+carries `AbilityDefinition::Fuse` without the marker *deliberately*, as the data carrier for a
+split card's right half. Recorded as a named exception in the new gate rather than "fixed".
+
+---
+
+## 5. What the machine gates caught, and what that cost
+
+Four independent gates fired on this batch's own work. Every one was right.
+
+| gate | what it caught |
+|---|---|
+| **SR-5 keyword registry** | seven keywords gained `crates/simulator/src/legal_actions.rs` as a handling site. The same gate caught PB-DX20 (`queries.rs` is an Enchant site) and PB-DX23 (`queries.rs` is a Dredge site); this is its third consecutive catch. |
+| **`ability_definition_registry`** | seven `AbilityDefinition` variants gained the same site, **plus `A::LoyaltyAbility` gaining `rules/queries.rs`** — which the keyword gate could not see, because a loyalty ability is not a keyword. |
+| **`pb_dx27_stale_blocker_notes`** | **this batch's own `dawns_truce` note.** The rewrite moved its phrasing from OUTSIDE the `GAP_NEEDLES` vocabulary ("unimplemented") to inside it ("not expressible"), so a note that had always named live identifiers became newly visible and the ratchet went 107 → 108. Reworded to restore the prior classification honestly, with the possibility that the def is now **authorable** recorded in the note itself (`OOS-DX29-7`) rather than resolved by a phrasing change. |
+| **`pb_dx29_additional_cost_roster` R3** (this batch's own new gate) | `brokkos_apex_of_forever`'s `{2}{G}{G}{U/B}` mutate cost, against a formatter that rendered neither hybrid nor Phyrexian pips. See §6. |
+
+### 5.1 The gate that found the thing its own author's predecessor promised it would
+
+UI-2 wrote `ui2_additional_cost_roster::r4` asserting that no def in the corpus has a hybrid or
+Phyrexian **Squad** cost, because `view.rs::format_mana_cost_compact` rendered neither and such a
+cost would display as strictly cheaper than it is. Its comment promised the gate would "fail
+loudly the day one is authored".
+
+PB-DX29's R3 is that assertion widened past Squad, and it went red on its **first run** — on
+`brokkos_apex_of_forever`, a counter-example the corpus had carried the whole time. The day had
+already arrived, on a different cost kind, and the Squad-scoped gate could not see it.
+
+**A gate written for one variant measures that variant.** That is this batch's thesis (it is why
+R2 exists at all, after `nocturnal_hunger` reproduced `galadhrim_brigade`'s defect one enum
+variant over) and it arrived a second time inside the batch's own work. The fix is the formatter
+— it now renders CR 107.4e hybrid, CR 107.4f Phyrexian and CR 107.3 `{X}` — not a narrower gate,
+and UI-2's own R4 doc and failure message are corrected in place rather than left asserting a
+limitation that no longer exists.
+
+### 5.2 Two defects in part A, found by the batch's own test author
+
+Both were in code committed before the tests were written, both were reported rather than worked
+around, and both were taken.
+
+**F1 (MEDIUM) — the new queries panicked in debug, contradicting their own rustdoc.** Both used
+`GameState::expect_object`, the *impossible-absence* lookup (`state::diagnostics`), which fires a
+`debug_assert!` and degrades to `None` only in release. Their doc promised "never panics";
+`queries.rs`'s module doc calls the whole file a read-only **advisory** surface for UI callers;
+and every other lookup in that file avoids it. **What is impossible for an engine-internal caller
+is ordinary input for a UI one** — a CR 400.7-retired id from a stale browser is not an engine
+bug. Fixed to `state.objects().get(&source)`. The test was pinned wrong-way-round and is now
+inverted to assert the contract in **both** profiles.
+
+**F2 (LOW) — the fix widened a declared residual and the doc recording it went stale in the same
+commit.** Joining the allowlist is what makes `first_announced_field` stop running for an arm, so
+`ActionParams { attackers, .. }` on an `ActivateLoyaltyAbility` was a loud
+`UnsupportedParam("attackers")` before and is an `Ok` with the field dropped after. The trade is
+right — the alternative was refusing the `targets` and `x_value` that arm now genuinely reads —
+but it moves `params.rs`' own "nine consuming arms" residual to **ten**, and that doc still said
+nine. Corrected, and filed as `OOS-DX29-8`.
