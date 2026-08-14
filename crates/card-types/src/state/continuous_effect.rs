@@ -351,6 +351,22 @@ pub enum LayerModification {
     /// an `Equipment` subtype (Artifact survives) but drops a `Shrine` subtype
     /// (Enchantment is removed).
     SetCardTypes(OrdSet<CardType>),
+    /// Layer 4 (CR 205.1a): SETS the object's LAND subtypes to exactly this set,
+    /// removing all prior land-type subtypes but PRESERVING card types, supertypes,
+    /// and non-land subtypes (creature/artifact/enchantment/planeswalker/spell types).
+    /// Companion to `SetCreatureTypes`/`SetCardTypes` — same "SET one correlated
+    /// subset, leave the rest alone" idiom, this time keyed off `ALL_LAND_TYPES`
+    /// instead of `ALL_CREATURE_TYPES`.
+    ///
+    /// Used by "[nonbasic] lands are Mountains"-style effects (Blood Moon, Magus of
+    /// the Moon — CR 305.7/613.1b/f via `EffectFilter::AllNonbasicLands`) per the
+    /// 2020-08-07 ruling: "This effect doesn't affect names or supertypes ... will
+    /// lose any other land types ... will gain the land type Mountain." Distinct
+    /// from `SetTypeLine`, which (wrongly, for this class of card) replaces card
+    /// types too — an artifact land or creature land under `SetTypeLine` silently
+    /// loses its Artifact/Creature card type, which the printed card never says
+    /// (OOS-ADJ-7).
+    SetLandTypes(OrdSet<SubType>),
     // --- Layer 5: Color-changing ---
     /// Replaces all colors with the given set.
     SetColors(OrdSet<Color>),

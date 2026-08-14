@@ -778,6 +778,38 @@
 ///   and never mutated after (the v70 `affected_set` argument, the opposite
 ///   of PB-DP9's excluded fields).
 ///
+/// - 75: PB-DX27 rider (2026-08-13, `OOS-ADJ-7` -- Blood Moon/Magus of the Moon
+///   were silently stripping the Artifact/Creature card type from artifact/
+///   creature lands): `LayerModification` gains a new `SetLandTypes(OrdSet<
+///   SubType>)` variant (arm tag `32u8`, the first unused tag after
+///   `SetCardTypes`'s 31), reachable from `GameState` via
+///   `continuous_effects: Vector<ContinuousEffect>` (`ContinuousEffect.
+///   modification: LayerModification`). `decl_fingerprint` MOVES (new enum
+///   variant in the `GameState` serde closure). `stream_fingerprint` moves per
+///   the v40 mechanism only (`HASH_SCHEMA_VERSION` is the stream's first byte)
+///   -- `canonical_fixture()` cannot populate `continuous_effects`
+///   (`tests/core/hash_schema.rs`'s five named exclusions), so this is the
+///   v69/v72/v73/v74 version-sentinel-byte-only case, not the v70/v71
+///   payload-bytes case; the new variant's own bytes are exercised only by the
+///   direct `HashInto` unit test in
+///   `pb_dx27_blood_moon_type_scope.rs::t9_set_land_types_is_hashed`, not by
+///   this stream fixture. **`PROTOCOL_VERSION` DOES move (35 -> 36) --
+///   corrected after the gate disagreed with the first draft of this note,
+///   which had claimed UNMOVED.** `LayerModification` is reachable via
+///   `Effect::ApplyContinuousEffect(ContinuousEffectDef)` -> the card DSL
+///   closure: `ContinuousEffectDef.modification: LayerModification` is a
+///   sibling field of `filter: EffectFilter`/`duration: EffectDuration` on the
+///   SAME struct the v22 `PROTOCOL_VERSION` history note (`protocol.rs`)
+///   already established is reachable in full once one field is scanned --
+///   the exact "HASH-only-predicted, turned out to also be PROTOCOL" mistake
+///   the v32 note there names. See `protocol.rs`'s `- 36:` History line for
+///   the full account.
+///   `loop_detection.rs:144-146` folds the whole `ContinuousEffect` via
+///   `ce.hash_into` already (same mechanism noted at v74), so the new variant
+///   enters `compute_mandatory_state_hash` automatically -- no new CR 104.4b
+///   false-negative risk, since `LayerModification`'s payload is fixed at the
+///   effect's creation and never mutated afterward.
+///
 /// **PB-DX7 follow-up correction (2026-08-11) — NOT a version bump, and NOT
 /// an edit to any row above; the history stays append-only and no shipped
 /// row above is rewritten.** Several rows in this history, and many more
@@ -804,7 +836,7 @@
 /// header comment for why, settled by an executed pairwise-distinctness
 /// experiment (`effect_colliding_variant_digests_are_pairwise_distinct`),
 /// not argued.
-pub const HASH_SCHEMA_VERSION: u8 = 74;
+pub const HASH_SCHEMA_VERSION: u8 = 75;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1244,6 +1276,23 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // not by this stream fixture.
         decl_fingerprint: "5932f456da9fee25c8e860182a33fd0eb505de36239bcdddd057cb4f2a1c6886",
         stream_fingerprint: "1c9d95dec982ed385d6c3dfaf41c8f62ec734978ffd5ecb6503a36b07c13b806",
+    },
+    HashSchemaEpoch {
+        version: 75,
+        // PB-DX27 rider (2026-08-13, `OOS-ADJ-7`): `LayerModification::SetLandTypes`
+        // added, reached from `GameState` only via
+        // `continuous_effects: Vector<ContinuousEffect>`. decl_fingerprint MOVES
+        // (new enum variant in the GameState serde closure). stream_fingerprint
+        // moves per the v40 mechanism (HASH_SCHEMA_VERSION is the stream's first
+        // byte) -- `canonical_fixture()` cannot populate `continuous_effects` (one
+        // of its five named exclusions), so this is the
+        // v69/v72/v73/v74-style version-sentinel-byte-only case, not the v70/v71
+        // payload-bytes case; the new variant's own bytes are exercised only by
+        // the direct `HashInto` unit test in
+        // `pb_dx27_blood_moon_type_scope.rs::t9_set_land_types_is_hashed`, not by
+        // this stream fixture.
+        decl_fingerprint: "e8ca51103996c3094a0c6c1e1107511e2f98719e15cf0fe15f1726cc730f4ca5",
+        stream_fingerprint: "ad5233842ddb7e75c785b3a44b20979364528f64160e34df662d1b4b8b643714",
     },
 ];
 
@@ -2778,6 +2827,13 @@ impl HashInto for LayerModification {
             LayerModification::SetCardTypes(types) => {
                 31u8.hash_into(hasher);
                 types.hash_into(hasher);
+            }
+            // SetLandTypes (discriminant 32) -- OOS-ADJ-7 (PB-DX27 rider): Layer 4
+            // CR 205.1a set-land-types-only, leaving card_types/supertypes/non-land
+            // subtypes untouched. Companion to SetCreatureTypes/SetCardTypes.
+            LayerModification::SetLandTypes(subtypes) => {
+                32u8.hash_into(hasher);
+                subtypes.hash_into(hasher);
             }
         }
     }

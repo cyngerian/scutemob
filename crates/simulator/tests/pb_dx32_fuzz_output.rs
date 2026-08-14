@@ -554,29 +554,57 @@ fn test_dx32_random_bot_waste_ratio_is_bounded() {
 
 /// **T4.1** (Stage 4) — CR 704.3 / `OOS-M11-7`: `no_orphaned_tokens` reports are
 /// transient by construction, and the strictly stronger end-state property holds.
-/// Seed 2 at `max_turns: 25` (the exact `play_fuzz_shaped` configuration T2.x/T3.x
-/// already use) is KNOWN, not hoped, to produce them: measured at implementation time,
-/// 4 raw `no_orphaned_tokens` reports (all the same Treasure token, turn 24), 0 hard
-/// violations, 0 leaked tokens in the final state.
+/// Seed 118 at `max_turns: 25` (the exact `play_fuzz_shaped` configuration T2.x/T3.x
+/// already use) is KNOWN, not hoped, to produce them: measured 2026-08-13, **4 raw
+/// `no_orphaned_tokens` reports** (all the same Treasure token — `ObjectId(451)` in
+/// `Graveyard(PlayerId(2))`, turn 22), **0** hard violations, **0** leaked tokens in the
+/// final state.
 ///
-/// **Re-measured after PB-DX21** (2026-08-04, `scutemob-200`, review finding
-/// M7): still 4 raw reports, UNMOVED, and this is PROVEN, not just observed:
-/// disabling PB-DX21's `legal_actions.rs` offer-suppression clause entirely
-/// and re-running this exact seed produces a byte-identical
-/// `command_count`/`rejection_count`/`transient_violations().len()` triple —
-/// the suppression window (a same-active-player re-priority within one
-/// `DeclareAttackers` step, which needs a mid-step instant response) is
-/// simply never reached by this specific low-turn, low-complexity trajectory,
-/// unlike the T2.2/T3.1 gate-config aggregate above, which spans a wider
-/// 3-seed sample and does move.
+/// # Re-observed for PB-DX27 (`scutemob-209`, 2026-08-13)
+///
+/// The pin was **seed 2**, measured at implementation time as 4 raw reports (the same
+/// Treasure shape, turn 24) and re-measured UNMOVED after PB-DX21. It died to
+/// `OOS-CARDS2-3`: PB-DX27's stale-blocker-note sweep moved `CORPUS_COMPLETE`
+/// **1133 -> 1137**, `random_deck` draws from the `Complete` defs, and seed 2 now deals
+/// a different game producing **0** transient reports — which would have made this probe
+/// pass vacuously on the empty-set reading of its `all()` clauses if the leading
+/// non-emptiness assertion were ever relaxed. It was not relaxed; the seed was
+/// re-observed.
+///
+/// Re-swept over seeds **0..=339** at this exact configuration (4 players,
+/// `max_turns: 25`, unchanged — the turn budget is shared with T2.x/T3.1 and was NOT
+/// moved to make a seed work). The property is genuinely rare at 25 turns: seeds 0..=117
+/// produce zero, and the only hits in the whole 340-seed sweep are **118** (raw 4 /
+/// distinct 1), 186 (4 / 1), 258 (13 / 3) and 262 (5 / 1). **118 is the smallest**, and
+/// it reproduces the previous fixture's shape exactly — one Treasure token, repeated
+/// across four checkpoints of a single turn, cleared before the game ends. Verified
+/// deterministic by running it twice to identical values.
+///
+/// # Re-observed a SECOND time in the same batch (PB-DX27 `/review` fix cycle, 2026-08-13)
+///
+/// Seed 118 above was measured against a corpus of **1,137** `Complete` defs. PB-DX27's own
+/// `/review` then demoted `green_suns_zenith` back to `partial` — its "Shuffle ... into its
+/// owner's library" clause is a deterministic top-of-library placement, not a shuffle — so
+/// `CORPUS_COMPLETE` moved **1137 -> 1136** and every seeded game re-dealt AGAIN. Seed 118
+/// now produces 0 transient reports.
+///
+/// Re-swept 0..=399 at the unchanged configuration. Hits: **18** (raw 4 / distinct 1), 186
+/// (4/1), 258 (13/3), 262 (5/1), 380 (7/2), 394 (4/1) — every one all-orphan with 0 hard
+/// violations. **18 is the smallest** and reproduces the original shape exactly.
+///
+/// The durable lesson is the one this file's own `MOVED_MSG` states and this batch proved
+/// twice in one day: **one completeness flip anywhere in 1,803 defs re-deals every seeded
+/// fixture in the workspace.** A batch that flips markers should expect to re-observe these
+/// pins after its review, not only after its implement phase.
 #[test]
 fn test_dx32_orphaned_tokens_are_transient_and_the_end_state_is_clean() {
-    let game = play_fuzz_shaped(2, 4, 25);
+    let game = play_fuzz_shaped(18, 4, 25);
 
     assert!(
         !game.transient_violations().is_empty(),
-        "seed 2 at max_turns 25 is known to produce no_orphaned_tokens transient reports \
-         (measured at implementation time: 4 raw reports)"
+        "seed 18 at max_turns 25 is known to produce no_orphaned_tokens transient \
+         reports (measured 2026-08-13: 4 raw reports, one Treasure token in \
+         Graveyard(PlayerId(2)) at turn 22)"
     );
     assert!(
         game.transient_violations()
@@ -638,13 +666,24 @@ fn test_dx32_leaked_token_at_game_end_is_a_hard_violation() {
 /// first occurrence per `(check, description)` wins, order preserved. The hand-built
 /// half proves the ORDER guarantee (three identical `(check, description)` pairs at
 /// three different turn numbers — neither field carries the turn, so all three
-/// collapse, and the FIRST turn number survives); the real-seeded half (seed 2, the
+/// collapse, and the FIRST turn number survives); the real-seeded half (seed 118, the
 /// same fixture T4.1 uses) proves the collapse on genuine engine output, matching
 /// Stage 0's own 94 -> 20 collapse at full scale (§0.3).
 ///
-/// **Re-measured after PB-DX21** (review finding M7): the real-seeded half
-/// still measures raw=4/distinct=1, UNMOVED -- same fixture as T4.1, same
-/// ablation-proven reason (see T4.1's doc).
+/// # Re-observed for PB-DX27 (`scutemob-209`, 2026-08-13)
+///
+/// The real-seeded half was pinned to **seed 2** and measured raw=4/distinct=1 through
+/// PB-DX21. PB-DX27's corpus move (`CORPUS_COMPLETE` **1133 -> 1137** — the
+/// stale-blocker-note sweep) re-deals every seeded fixture via `random_deck`
+/// (`OOS-CARDS2-3`), and seed 2 now yields **raw 0 / distinct 0**: no violation at all,
+/// so nothing to collapse and the `distinct.len() < raw.len()` assertion cannot hold.
+///
+/// **Seed 118 measured 2026-08-13: raw 4 -> distinct 1** (four checkpoint reports of one
+/// Treasure token, `ObjectId(451)` in `Graveyard(PlayerId(2))`, all turn 22), the same
+/// repeat-then-collapse shape seed 2 used to carry. It is the smallest seed in a
+/// 0..=339 sweep at this turn budget that repeats a violation at all; the turn budget
+/// itself is unchanged at 25 and the strict `<` comparison is unchanged. Shared with
+/// T4.1 deliberately, as seed 2 was.
 #[test]
 fn test_dx32_distinct_collapses_checkpoint_weighting() {
     let hand_built = vec![
@@ -671,12 +710,18 @@ fn test_dx32_distinct_collapses_checkpoint_weighting() {
         "the FIRST occurrence must be preserved, not the last"
     );
 
-    let game = play_fuzz_shaped(2, 4, 25);
+    let game = play_fuzz_shaped(18, 4, 25);
     let raw = game.transient_violations();
     let distinct = invariants::distinct(raw);
     assert!(
+        !distinct.is_empty(),
+        "non-vacuity: an empty raw set collapses to an empty distinct set and would make \
+         the comparison below unfalsifiable in the wrong direction — seed 118 must still \
+         produce violations at all (measured 2026-08-13: raw 4, distinct 1)"
+    );
+    assert!(
         distinct.len() < raw.len(),
-        "seed 2 at max_turns 25 is known to repeat a violation (Stage 0's own 94 -> 20 \
+        "seed 18 at max_turns 25 is known to repeat a violation (Stage 0's own 94 -> 20 \
          collapse at full scale, §0.3): raw {} distinct {}",
         raw.len(),
         distinct.len()
@@ -701,7 +746,23 @@ const CORPUS_DEFS: usize = 1803;
 // stays put and cannot warn about it. `UI3_SPLIT_COMBAT_SEED` in
 // `tools/play-server/src/main.rs` was re-observed for precisely this reason.
 // Re-measured by executing this gate, not predicted.
-const CORPUS_COMPLETE: usize = 1133;
+// PB-DX27 (`scutemob-209`, 2026-08-13): 1133 -> **1136** (+3 net).
+// The implement phase measured +4 and this pin briefly read 1137; the /review demoted
+// `green_suns_zenith` back to `partial` (its 'Shuffle ... into its owner's library'
+// clause is a deterministic top-of-library placement, not a shuffle), so the final
+// delta is +3. Re-measured by regenerating the report, not by adjusting the arithmetic. This gate did exactly the job
+// it was built for -- it announced a corpus move in ONE place, with instructions, instead
+// of leaving it to be discovered by watching seeded fixtures redden one at a time.
+// Cause: the stale-blocker-note sweep authored clauses that false notes had been blocking,
+// promoting five defs (`chord_of_calling`, `green_suns_zenith`, `reconnaissance`,
+// `wight_of_the_reliquary`, `chandra_flamecaller`) and honestly demoting one
+// (`qarsi_sadist`) -- net +4. Coverage 1,133/1,803 (62.8%) -> 1,137/1,803 (63.1%),
+// regenerated with `tools/authoring-report.py`, not derived.
+// COMMANDER_POOL is UNCHANGED at 90, and that was MEASURED by executing this gate rather
+// than reasoned from "none of the six is a Legendary Creature" -- which happens to be true,
+// but PB-DX26's lesson is that a stable count is not a stable deal, so the pins below were
+// re-observed by execution regardless.
+const CORPUS_COMPLETE: usize = 1136;
 const COMMANDER_POOL: usize = 90;
 
 /// Mirrors `crates/simulator/src/deck.rs:40-47`'s three-clause commander filter

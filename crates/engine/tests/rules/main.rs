@@ -32,6 +32,7 @@ mod modal_triggers;
 mod monarch;
 mod partner_variants;
 mod partner_with;
+mod pb_dx27_blood_moon_type_scope;
 mod phasing;
 mod planeswalker;
 mod protection;

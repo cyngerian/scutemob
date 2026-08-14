@@ -155,8 +155,10 @@ const BASELINE_FINGERPRINT: &str =
 // tail) joined the frozen prefix when version 34 shipped.
 // ENG-2 (2026-08-02): re-pinned on the 34→35 bump — version 34 (the former
 // tail) joined the frozen prefix when version 35 shipped.
+// PB-DX27 rider (2026-08-13): re-pinned on the 35→36 bump — version 35 (the
+// former tail) joined the frozen prefix when version 36 shipped.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
-    "6159cc05cda2ce25edf6d140bf3f27f4ffb0206db791429a1dd955f29c52dbf8";
+    "4124e29af34a222f2857dd35fc0983ebd54440e3944f7097d57f06cabff71033";
 
 /// The `PROTOCOL_HISTORY` row pinning the current `PROTOCOL_VERSION`.
 fn current_epoch() -> ProtocolEpoch {
@@ -875,7 +877,7 @@ fn protocol_schema_fingerprint_is_pinned() {
 #[test]
 fn protocol_version_sentinel() {
     assert_eq!(
-        PROTOCOL_VERSION, 35,
+        PROTOCOL_VERSION, 36,
         "PROTOCOL_VERSION changed. Update this sentinel and the History list in \
          rules/protocol.rs. If you bumped it *without* protocol_schema_fingerprint_is_pinned \
          failing, the wire shape did not change — make sure the bump is a deliberate semantic \

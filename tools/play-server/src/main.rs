@@ -446,7 +446,20 @@ mod tests {
     /// the wrong reason, since a player IS a legal target for it. So the sweep checks that the
     /// engine actually ACCEPTS the cast, and the spell must be one a player cannot be a legal
     /// target of. Dispatch is `{W}` "Tap target creature" (CR 601.2c).
-    const TARGETED_SPELL: &str = "Cast Dispatch";
+    ///
+    /// PB-DX27 (2026-08-13, `scutemob-209`): **Dispatch -> Cyclonic Rift**, and [`TARGET_SEED`]
+    /// 13 -> 16 with it. The batch flipped 6 completeness markers (net +4, the `Complete`-def
+    /// count 1,133 -> 1,137), which moves `deck.rs::random_deck`'s commander pool and re-deals
+    /// every seat — the completeness channel this doc's sibling pins already describe. At seed
+    /// 13 the re-dealt board reaches only `Goblin War Strike`, whose candidates are all
+    /// **players**, which broke `test_target_option_labels_are_seat_redacted` (nothing to
+    /// cross-check) and `test_x_value_is_forwarded_to_cast_spell_data` (a `Target::Player`
+    /// where the assertion wants a `Target::Object`). Cyclonic Rift is `{1}{U}` "Return target
+    /// nonland permanent to its owner's hand" (CR 601.2c) — a player is not a permanent, so the
+    /// caller's `422 invalid target` still fires for the reason it names. Measured at seed 16,
+    /// not reasoned to: 4 object candidates, all cross-checkable against the redacted view, and
+    /// the cast is ACCEPTED (200) with an object target rather than refused for mana.
+    const TARGETED_SPELL: &str = "Cast Cyclonic Rift";
 
     /// Drive the seed-pinned opening until the human is offered a **targeted**
     /// spell.
@@ -581,16 +594,28 @@ mod tests {
         // their cards do not have), and that re-dealt every seat AGAIN — this time through the
         // channel the old comment did anticipate. Both channels are real; neither is the whole
         // rule.
+        // PB-DX27 (2026-08-13, `scutemob-209`): re-derived a third time, through the
+        // completeness-marker channel this time. The batch flipped markers (net **+3**; the
+        // `Complete`-def count moved 1,133 -> 1,136), `deck.rs::random_deck` draws its
+        // commander from the `Complete` pool and fills by colour identity, and a different
+        // index into `rng.random_range(0..commanders.len())` re-picked every seat. Read off
+        // a real run at SEED with the corpus at that count; not reasoned to.
+        //
+        // And then re-observed a FOURTH time in the same batch, which is the point worth
+        // carrying: PB-DX27's own `/review` demoted `green_suns_zenith` back to `partial`,
+        // moving the count 1,137 -> 1,136 and re-dealing every seat again. One marker flip
+        // anywhere in 1,803 defs invalidates this pin. Do not hand-edit it to match a diff;
+        // re-run and read the hand off the run.
         assert_eq!(
             own_names,
             vec![
-                "Helm of the Host",
-                "Solemn Simulacrum",
-                "Simic Signet",
-                "Fierce Empath",
-                "Master Biomancer",
+                "Hedron Archive",
+                "Sol Ring",
+                "Simic Initiate",
+                "Farseek",
+                "Marwyn, the Nurturer",
                 "Cankerbloom",
-                "Momentous Fall",
+                "Molimo, Maro-Sorcerer",
             ]
         );
 
@@ -1100,10 +1125,11 @@ mod tests {
     /// and demonstrates the first alongside it, at the same `seq`, so the two are
     /// told apart by observation rather than by argument.
     ///
-    /// [`TARGETED_SPELL`] is Dispatch, "tap target creature" (CR 601.2c); a player is
-    /// not a creature, so `handle_cast_spell`'s target validation refuses it with
-    /// `GameStateError::InvalidTarget`. (This paragraph named Dispel for two batches after
-    /// the constant had moved on — it is derived from the constant now, not restated.)
+    /// [`TARGETED_SPELL`] is Cyclonic Rift, "return target nonland permanent to its owner's
+    /// hand" (CR 601.2c); a player is not a permanent, so `handle_cast_spell`'s target
+    /// validation refuses it with `GameStateError::InvalidTarget`. (This paragraph named
+    /// Dispel for two batches after the constant had moved on, and then Dispatch after
+    /// PB-DX27 moved it again — it is derived from the constant now, not restated.)
     #[tokio::test(flavor = "multi_thread")]
     async fn test_post_action_illegal_target_returns_422() {
         let state = shared_state();
@@ -1248,10 +1274,13 @@ mod tests {
         // pin above, is a function of the whole card corpus — commander pool and
         // colour identities, not just the completeness markers — so ANY card-def
         // batch can re-deal it. CARDS-2, 2026-08-02: 14 -> 18, re-read off a real
-        // run; see the exact-hand pin for the mechanism.)
+        // run; see the exact-hand pin for the mechanism. PB-DX27, 2026-08-13: 18 -> 20,
+        // re-read off a real run — that batch flipped 6 completeness markers, net +4, moving
+        // the `Complete`-def count 1,133 -> 1,137 and so the commander pool `random_deck`
+        // indexes into, which re-deals every seat.)
         assert_eq!(
             secrets.len(),
-            18,
+            20,
             "guard against a vacuous pass: {secrets:?}"
         );
 
@@ -1605,7 +1634,34 @@ mod tests {
     // doubling, not a SIM-2 defect and not reachable through anything this batch wrote:
     // filed as **OOS-SIM2-5**. It is recorded here because "seed 1 panics" would otherwise
     // look like a property of this fixture rather than of the engine.
-    const TARGET_SEED: u64 = 13;
+    //
+    // PB-DX27 (2026-08-13, `scutemob-209`): 13 -> 16, the third re-derivation, and by the
+    // completeness channel this time — the batch flipped 6 markers (net +4; the `Complete`-def
+    // count 1,133 -> 1,137), so `random_deck`'s commander pool changed length AND membership and
+    // every seeded seat re-dealt. Swept `seed` in 0..47 with a throwaway probe (since deleted)
+    // reporting FOUR properties per seed, because this constant serves SIX tests: (P1) which
+    // targeted `CastSpell` labels are offered and whether their candidates are objects or
+    // players, for [`TARGETED_SPELL`]; (P2) a target slot with >= 2 candidates, for
+    // `test_action_option_target_slots_match_engine_query`; (P4) at the `option_with_targets(v, 1)`
+    // stop, how many object labels are cross-checkable against the seat-redacted view, for
+    // `test_target_option_labels_are_seat_redacted`; (P5) after tapping five sources, whether the
+    // cast is still offered, whether candidate 0 is an OBJECT, and whether the engine ACCEPTS it,
+    // for `test_x_value_is_forwarded_to_cast_spell_data`.
+    //
+    // Seed 13 failed P4 and P5 together, and for one cause: its only targeted cast is
+    // `Goblin War Strike`, whose four candidates are all PLAYERS. P4 collected 0 object ids and
+    // hit its own "vacuous" guard; P5 got a `Target::Player(1)` where it asserts
+    // `Target::Object`. Both are the guards doing their job, not drift to be tuned around.
+    //
+    // Every seed below 16 fails at least one property, so 16 is the smallest that serves all
+    // six — measured, not assumed: 0/1/2/4/5/9/11/12 never reach a targeted cast at all inside
+    // `S7_MAX_STEPS`; 3/6/7/8 reach one but never five untapped sources beside it; 10/14 are
+    // OFFERED the cast and then refused "player does not have enough mana to pay the cost" once
+    // five sources are tapped (OOS-CARDS2-9/F4 again, on two more seeds); 13 is the pair above;
+    // and 15 reaches `Red Elemental Blast`, which wants 2 targets where the fixture announces 1.
+    // Confirmed by RUNNING all six tests at 16 — the SIM-2 precedent, which is stricter than a
+    // property sweep because it asserts the fixtures rather than their preconditions.
+    const TARGET_SEED: u64 = 16;
 
     /// How many decisions the drivers below will answer before giving up. Chosen
     /// well above the observed cost of the slowest fixture (the X-value one needs
@@ -2330,7 +2386,22 @@ mod tests {
     /// it from the count. And the seed must satisfy BOTH halves of the test (the
     /// split AND a declared blocker), which is a second filter this doc did not
     /// mention before PB-DX26 hit it.
-    const UI3_SPLIT_COMBAT_SEED: u64 = 26;
+    ///
+    /// *Third re-observation* — **PB-DX27 (`scutemob-209`, 2026-08-13): 26 -> 28.** This
+    /// time the count did move: the batch flipped 6 completeness markers, net +4, taking
+    /// the `Complete`-def count 1,133 -> 1,137, so `random_deck`'s commander pool changed
+    /// both length and membership and every seeded seat re-dealt. Seed 26 lost its split
+    /// outright — it now declares a single attacker, `[(442, "Bot-2")]`, which is exactly
+    /// the silent downgrade the assertion below exists to refuse.
+    ///
+    /// Fresh sweep over `seed` ∈ 0..56 (throwaway probe: drive each seed to its first
+    /// attack offer, declare `attacker[i] -> defender[i % defenders]`, then pass up to 40
+    /// times looking for an assigned blocker; probe deleted). **Seven seeds split** — 13,
+    /// 21, 28, 32, 35, 37, 48 — and of those only **28, 32 and 48** also reach a declared
+    /// blocker; every other seed in the range offers exactly one eligible attacker. 28 is
+    /// the lowest. Measured at 28: 2 attackers across 2 distinct defenders, blockers
+    /// exercised.
+    const UI3_SPLIT_COMBAT_SEED: u64 = 28;
 
     /// **UI-3 AC 6006**: after attackers are declared, the seat payload says
     /// **which attacker is attacking which defending player**, and after blockers

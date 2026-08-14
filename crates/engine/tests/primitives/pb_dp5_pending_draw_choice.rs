@@ -1243,13 +1243,13 @@ fn test_dp5_wire_version_sentinels() {
     // in the suite; it moves on the next wire/hash-affecting PB too.
     assert_eq!(
         mtg_engine::HASH_SCHEMA_VERSION,
-        74u8,
-        "HASH_SCHEMA_VERSION live sentinel -- moved 72->73 by PB-DX21 (CombatState \
-         gains attackers_declared), unrelated to this batch"
+        75u8,
+        "HASH_SCHEMA_VERSION live sentinel -- moved 74->75 by the PB-DX27 rider \
+         (LayerModification::SetLandTypes), unrelated to this batch"
     );
     assert_eq!(
         mtg_engine::PROTOCOL_VERSION,
-        35,
+        36,
         "PROTOCOL_VERSION live sentinel"
     );
 }

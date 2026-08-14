@@ -427,6 +427,57 @@ const ALLOWLIST: &[(&str, &str)] = &[
         "\"Effect::WheelHand fixes the previous approximation\" — describes a \
          now-corrected approximation; the current implementation is faithful.",
     ),
+    // ── PB-DX27 (`scutemob-209`, 2026-08-13), OOS-CARDS2-8 / OOS-RR3-2 ──
+    //
+    // Five defs whose prose describes a blocker claim that PB-DX27 REFUTED and
+    // REPAIRED. The matched needles are all inside a historical sentence recording
+    // that a previous note was wrong — the `hazorets_monument` / `reforge_the_soul`
+    // shape, one step further: those describe a superseded *modeling*, these describe
+    // a superseded *gap claim*.
+    //
+    // The record is deliberately kept rather than deleted, and that is the whole
+    // point of the batch: the reason these notes went stale is that nobody revisits a
+    // blocker claim when the primitive lands, so the file now says in-place that the
+    // claim was checked and found false. `greater_good.rs` is the corpus's existing
+    // model for this and sits in RECORDED_BASELINE for the same reason.
+    (
+        "chord_of_calling",
+        "\"claimed a DSL gap that had already closed\" — historical record of the \
+         refuted `// TODO: max_cmc should be XValue`. TargetFilter.max_cmc_amount \
+         shipped with PB-EF10; the clause is now authored and the def is Complete. \
+         Describes a repaired claim, not a live deviation.",
+    ),
+    // `green_suns_zenith` was listed here by the implement phase and is REMOVED by the
+    // /review fix cycle: it is no longer `Complete`, so the deviation scan (which only
+    // examines unmarked defs) never reaches it, and `every_allowlist_entry_is_live_and_
+    // necessary` correctly fails on a row that has stopped doing anything. Its second
+    // printed clause turned out to be unauthored — `self_shuffle_on_resolution` places
+    // deterministically on top of the library rather than shuffling — so it carries a
+    // `partial` marker now and needs no exemption.
+    (
+        "wight_of_the_reliquary",
+        "\"Cost::SacrificeAnother does not exist\" survives only as the record of a \
+         refuted claim: TargetFilter.exclude_self is lowered onto the activation cost \
+         (replay_harness.rs) and CR 109.1-enforced (rules/abilities.rs), so the \
+         ability is authored and the def is Complete.",
+    ),
+    (
+        "chandra_flamecaller",
+        "\"EffectAmount::HandSize not in DSL\" survives as a record with its own \
+         correction: the identifier DOES exist and was still the WRONG primitive — a \
+         naive DiscardCards{HandSize}+DrawCards{HandSize} reads 0 (effects/mod.rs \
+         says so in-source), which is why Effect::WheelHand exists. Authored with \
+         WheelHand; Complete. Also removed an activatable Effect::Nothing loyalty \
+         ability (W5 wrong game state).",
+    ),
+    (
+        "voldaren_epicure",
+        "the prose records that this def shipped Complete and deck-legal while \
+         SILENTLY DROPPING its first printed sentence (\"it deals 1 damage to each \
+         opponent\"), and that the damage half was always expressible via \
+         EffectTarget::EachOpponent. The clause is now authored; the def stays \
+         Complete. OOS-CARDS2-10.",
+    ),
     (
         "fiery_islet",
         "\"the 'or' is modeled as two separate activated abilities, one per color\" \
@@ -1241,9 +1292,23 @@ fn the_marker_detector_is_not_vacuous() {
     // RECORDED_BASELINE entry, but touches zero card-def files, so MARKER_FRAGMENTS'
     // own count cannot move from this batch. RE-MEASURED DIRECTLY, not assumed: `all_cards()`
     // reports 1,133 Complete / 670 non-Complete of 1,803, matching PB-DX26's figure exactly.
+    // PB-DX27 (2026-08-13, `scutemob-209`): threshold 670 -> **666**, and this is a
+    // LOWERING, which every previous entry in this comment block avoided having to make.
+    // Cause is reason (2) in the assertion message below, not a detector bug: the batch
+    // refuted stale blocker notes and authored the clauses they had been blocking, so five
+    // defs were promoted to `Complete` (`chord_of_calling`, `green_suns_zenith`,
+    // `reconnaissance`, `wight_of_the_reliquary`, `chandra_flamecaller`) and one was
+    // honestly demoted (`qarsi_sadist`, whose second printed clause needs a
+    // `TriggerCondition::WhenThisExploitsACreature` that does not exist) -- net -4.
+    // RE-MEASURED DIRECTLY, not derived, as this comment block's own rule requires:
+    // `tools/authoring-report.py` regenerated against the live corpus reports
+    // **1,137 Complete / 666 non-Complete of 1,803 (63.1%)**, up from 1,133 / 670 (62.8%).
+    // Note for the next reader: a FALLING marked-count is the healthy direction here only
+    // because the promotions are repairs. PB-DX26's entry above records the opposite lesson
+    // -- a stable count is not evidence that nothing changed -- and both are true.
     assert!(
-        marked >= 670,
-        "marker detector matched {marked} files; expected >= 670. This assertion has NO \
+        marked >= 666,
+        "marker detector matched {marked} files; expected >= 666. This assertion has NO \
          margin (see the comment above) and can fail for two different reasons: (1) \
          MARKER_FRAGMENTS stopped matching (a detector bug -- the gate would then spuriously \
          flag marked defs) or, far more likely on an ordinary day, (2) a ROUTINE Complete \

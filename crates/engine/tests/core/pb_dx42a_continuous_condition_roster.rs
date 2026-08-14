@@ -462,14 +462,59 @@ fn axis1_layer_querying_pinned_set(roster: &Roster) -> BTreeSet<(String, String)
 /// the failure message states BOTH legal exits (adjudication §5.1's own requirement) --
 /// see `t8_failure_message_names_both_exits` for the proof that the message text
 /// actually contains them.
+/// **PB-DX27 (`scutemob-209`, 2026-08-13) took exit (b): the population GREW, 1 -> 2.**
+///
+/// This gate shipped as PB-DX8's `PB-DX42a` rider, and `OOS-ADJ-2` is the seed that
+/// justified it — *"nothing gates the size of the corpus population carrying a
+/// layer-querying `ContinuousEffectDef.condition`. It is 1 today. A new conditional
+/// static passes `no_condition_evaluator_resolves_characteristics_directly` and
+/// silently joins the deviation."* That is exactly what happened, on the gate's first
+/// real event, and it was NOT silent.
+///
+/// The new member is **The World Tree**, whose printed "As long as you control six or
+/// more lands, lands you control have '{T}: Add one mana of any color.'" PB-DX27
+/// authored from the def's own `Completeness` note recipe (`OOS-CARDS2-11`). Its
+/// condition is `YouControlNOrMoreWithFilter { count: 6, filter: has_card_type: Land }`
+/// — the *same variant* as Indomitable Archangel's, so exit (a) is not available: it
+/// reaches `characteristics_for_condition` through the identical
+/// `check_static_condition` arm and joins the CR 613.1d deviation.
+///
+/// **Consequences, named here rather than absorbed** (the exit's own requirement):
+///
+/// - `docs/audits/mtg-characteristics-recursion-adjudication.md` §5.2 ranks **PB-DX42b
+///   at 13 on a measured population of exactly 1**. That premise is now false. The rank
+///   argument must be recomputed against a population of **2**; filed as `OOS-DX27-9`.
+/// - The adjudication's §2.3 supply-side measurement ("live-wrong on 7 deck-legal
+///   `Complete` pairs") was computed for the Archangel's filter, which reads the
+///   **Artifact** card type. The World Tree's filter reads the **Land** card type, so
+///   the pair census does not carry over — a fresh supply measurement is owed against
+///   whatever moves `Land`, and §7 of that document already states the 7 is "a floor
+///   for its own filter, and the filter is narrow".
+/// - Direction of the new deviation: base characteristics inside the layer walk means a
+///   permanent that *becomes* a land in Layer 4 is **under-counted** by The World Tree,
+///   and one that stops being a land is over-counted. Note that PB-DX27's own Blood Moon
+///   fix (`OOS-ADJ-7`) makes the commonest interaction *more* correct, not less: a
+///   Blood-Mooned nonbasic land keeps every card type it had, so it is still a Land and
+///   still counts.
+///
+/// Authoring the clause was preferred to leaving it blocked because the def's blocker
+/// note claimed a DSL gap that did not exist, which is the class PB-DX27 exists to
+/// close. Growing a known, gated, ranked deviation by one named member is a smaller
+/// debt than leaving a printed ability unimplemented behind a false note.
 #[test]
 fn t5_layer_querying_set_is_pinned() {
     let roster = build_roster();
     let actual = axis1_layer_querying_pinned_set(&roster);
-    let expected: BTreeSet<(String, String)> = [(
-        "Indomitable Archangel".to_string(),
-        "YouControlNOrMoreWithFilter".to_string(),
-    )]
+    let expected: BTreeSet<(String, String)> = [
+        (
+            "Indomitable Archangel".to_string(),
+            "YouControlNOrMoreWithFilter".to_string(),
+        ),
+        (
+            "The World Tree".to_string(),
+            "YouControlNOrMoreWithFilter".to_string(),
+        ),
+    ]
     .into_iter()
     .collect();
 

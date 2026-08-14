@@ -55,16 +55,46 @@ pub fn card() -> CardDefinition {
                 ]),
                 targets: vec![],
             },
-            // ENGINE-BLOCKED: −2 creates a 1/1 blue Ninja token with "This token can't be
-            // blocked." TokenSpec carries keywords only, and unblockable is a static ability,
-            // not a keyword. Left UNAUTHORED rather than declared as a LoyaltyAbility with
-            // Effect::Nothing — that shape let a player pay 2 loyalty for no effect, which is
-            // wrong game state.
-            // ENGINE-BLOCKED: −7 emblem with combat damage → search library. Not expressible.
+            // −2: "Create a 1/1 blue Ninja creature token with 'This token can't be blocked.'"
+            // The claimed blocker is FALSE at HEAD: KeywordAbility::CantBeBlocked is a real
+            // variant (types.rs:503-507, enforced in rules/combat.rs::handle_declare_blockers)
+            // and TokenSpec.keywords: OrdSet<KeywordAbility> (card_definition.rs:3990) carries
+            // it directly — no static-ability plumbing needed, the printed clause IS a
+            // rules-text keyword on the token. Precedent: basri_ket.rs's +1/-6 LoyaltyAbility
+            // -> CreateToken shape.
+            AbilityDefinition::LoyaltyAbility {
+                cost: LoyaltyCost::Minus(2),
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Ninja".to_string(),
+                        power: 1,
+                        toughness: 1,
+                        colors: [Color::Blue].into_iter().collect(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Ninja".to_string())].into_iter().collect(),
+                        keywords: [KeywordAbility::CantBeBlocked].into_iter().collect(),
+                        count: EffectAmount::Fixed(1),
+                        ..Default::default()
+                    },
+                },
+                targets: vec![],
+            },
+            // ENGINE-BLOCKED: −7 emblem with combat damage -> search library. `Effect::CreateEmblem`
+            // and `TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer` both exist, BUT
+            // `collect_emblem_triggers_for_event` (abilities.rs:7197) is called from exactly six
+            // sites — turn_actions.rs:356/362/821/1981, abilities.rs:3754/3760 — and NONE is a
+            // combat-damage dispatch site. Authoring this ships a 7-loyalty ability that silently
+            // does nothing, worse than the honest omission. Genuinely blocked on emblem-trigger
+            // dispatch at the combat-damage site, not on Effect::CreateEmblem itself.
         ],
         completeness: Completeness::partial(
-            "'if Kaito Shizuki entered this turn, he phases out' — needs an entered-this-turn \
-             condition on an end-step trigger plus...",
+            "-2 (CR 701.15a-style token grant, oracle-verified) is authored. Still blocked: the \
+             end-step phase-out clause ('if Kaito entered this turn, he phases out') needs an \
+             entered-this-turn Condition on an end-step trigger plus a self-phase-out effect — \
+             KeywordAbility::Phasing is a static untap-step ability (types.rs:1303-1316), not \
+             this. The -7 emblem is blocked on emblem-trigger dispatch not covering the \
+             combat-damage site (collect_emblem_triggers_for_event, abilities.rs:7197 — six call \
+             sites, none combat-damage).",
         ),
         ..Default::default()
     }

@@ -12,8 +12,13 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose an opponent. You and that player each search your libraries for a \
-                      card, then shuffle and put that card on top."
+        // PB-DX27 (2026-08-13), OOS-CARDS2-10: the previous text described DIFFERENT PLAYERS
+        // and an UNTARGETED choice — "Choose an opponent. You and that player each search"
+        // for a printed "Choose two target players. Each of them searches". The printed card
+        // can target the caster and any two players; it is not a you-plus-opponent effect.
+        // Replaced with the MCP-verified printed text.
+        oracle_text: "Choose two target players. Each of them searches their library for a card, \
+                      then shuffles and puts that card on top."
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // "You search" part — the opponent search needs player choice (M10).

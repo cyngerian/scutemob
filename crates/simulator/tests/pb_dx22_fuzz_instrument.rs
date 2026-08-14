@@ -164,22 +164,36 @@ fn test_dx22_build_fuzz_state_produces_the_fuzzers_table() {
 ///
 /// Every structural probe in this file builds seed 1, and no seat of seed 1 has a
 /// colourless commander — so the CR 903.5c padding arm the paragraph above is *written
-/// for* was never actually exercised by any probe. **Seed 8 seat `PlayerId(3)` draws
+/// for* was never actually exercised by any probe. **Seed 50 seat `PlayerId(2)` draws
 /// `rograkh-son-of-rohgahh`**, whose colour identity is empty, so its 99 cards are
-/// colourless nonlands and lands rather than ~34 basics. The seed was found by
-/// enumeration over seeds 1..=120 (hits: 8, 50, 73, 119 — all the same commander, which
-/// is the only `Complete` colourless legendary creature in the pool); 8 is used because
-/// it is the first.
+/// colourless nonlands and lands rather than ~34 basics.
 ///
 /// The test asserts that this arm was really taken, so the seed silently ceasing to draw
 /// a colourless commander reddens rather than quietly reverting the coverage.
+///
+/// # Re-observed for PB-DX27 (`scutemob-209`, 2026-08-13)
+///
+/// The previous pin was **seed 8 seat `PlayerId(3)`**, and it died the ordinary
+/// `OOS-CARDS2-3` death: PB-DX27's stale-blocker-note sweep moved `CORPUS_COMPLETE`
+/// **1133 -> 1137**, `deck.rs::random_deck` draws its commander from the `Complete`
+/// defs, and so every seat of every seed deals a different game. Seed 8 now draws four
+/// coloured commanders and `colourless_seats_seen` fell to 0.
+///
+/// Re-swept by enumeration over seeds 1..=200 at this exact 4-player configuration
+/// (hits: **50**, 73, 119, 128, 132, 145, 163, 175, 182, 200 — all the same commander,
+/// still the only `Complete` colourless legendary creature in the pool, re-measured by
+/// filtering `all_cards()` rather than assumed). **50 is used because it is the
+/// smallest.** Measured at seed 50: seat 1 `lightning-army-of-one` [W,R], seat 2
+/// `rograkh-son-of-rohgahh` **[]**, seat 3 `olivia-voldaren` [B,R], seat 4
+/// `toski-bearer-of-secrets` [G] — exactly one colourless seat, so the exact-count
+/// non-vacuity assertion below is preserved as an equality, not relaxed to a floor.
 #[test]
 fn test_dx22_libraries_are_shuffled_cr_103_3() {
     let (cards, registry) = pool();
 
     // (seed, how many seats must have a colourless commander)
     let mut colourless_seats_seen = 0usize;
-    for seed in [1u64, 8] {
+    for seed in [1u64, 50] {
         let setup = built(seed, &cards, &registry);
 
         for (i, pid) in seats(PLAYERS).into_iter().enumerate() {
@@ -222,7 +236,7 @@ fn test_dx22_libraries_are_shuffled_cr_103_3() {
 
     assert_eq!(
         colourless_seats_seen, 1,
-        "non-vacuity: seed 8 seat PlayerId(3) must still draw a colourless commander, \
+        "non-vacuity: seed 50 seat PlayerId(2) must still draw a colourless commander, \
          or the CR 903.5c padding arm (deck.rs's `basics.is_empty()` branch) is once \
          again unexercised by every probe in this file"
     );
@@ -964,9 +978,37 @@ fn test_dx22_cr_903_10a_commander_damage_is_recorded_on_the_fuzz_build() {
 /// `build_fuzz_state`, with the same per-seat bot seeding. It asserts the census is
 /// populated in every dimension the summary prints and that PB-DX22's own claims are
 /// consistent with it.
+///
+/// # Re-observed for PB-DX27 (`scutemob-209`, 2026-08-13)
+///
+/// `SEED` was **1**, and PB-DX27's corpus move killed it — the stale-blocker-note sweep
+/// took `CORPUS_COMPLETE` **1133 -> 1137**, `deck.rs::random_deck` draws its commander
+/// and its colour-identity pool from the `Complete` defs, so every seeded fixture in the
+/// workspace deals a different game (`OOS-CARDS2-3`, announced by
+/// `pb_dx32_fuzz_output.rs::test_dx32_fuzz_deck_pool_size_is_pinned`). Seed 1 now plays
+/// out as `spell_casts: 9, first_spell_cast_turn: Some(25), lands_played: 25,
+/// commander_casts_from_command_zone: **0**` — a CR 903.8 census that is vacuous in
+/// exactly the dimension this probe exists to gate.
+///
+/// Re-swept over seeds 0..=60 at this exact configuration (4 players, `MAX_TURNS` 60,
+/// unchanged). **Seed 0 is the smallest that satisfies EVERY assertion below**, not just
+/// the commander one, and the whole tally was MEASURED by executing the sweep, twice, to
+/// the same values:
+///
+/// ```text
+/// MechanicsTally { spell_casts: 16, first_spell_cast_turn: Some(5),
+///   first_library_spell_cast_turn: Some(5), lands_played: 24,
+///   first_land_played_turn: Some(2), commander_casts_from_command_zone: 1,
+///   first_commander_cast_turn: Some(38), commander_returns_to_command_zone: 0,
+///   commander_zone_redirects: 0, seats_dealt_commander_damage: 2,
+///   max_commander_damage: 10 }
+/// ```
+///
+/// No assertion was weakened to accommodate the move: the same six gates that ran
+/// against seed 1 run against seed 0.
 #[test]
 fn test_dx22_the_fuzzers_mechanics_census_is_not_vacuous() {
-    const SEED: u64 = 1;
+    const SEED: u64 = 0;
     const MAX_TURNS: u32 = 60;
     let (cards, registry) = pool();
     let setup = built(SEED, &cards, &registry);

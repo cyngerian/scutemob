@@ -14,8 +14,15 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Halfling", "Citizen"]),
-        oracle_text: "{T}: Add {G}. If this mana is spent to cast a legendary spell, that spell \
-                      can't be countered."
+        // PB-DX27 (2026-08-13), OOS-CARDS2-10: the previous text INVENTED "{T}: Add {G}".
+        // The card prints TWO separate mana abilities — an unrestricted "{T}: Add {C}" and a
+        // restricted any-colour one. This matters beyond text: colour identity is computed
+        // from mana production, so a green source that should be colourless changes what
+        // `random_deck` builds (OOS-CARDS2-3). The def is `partial`, and `random_deck`
+        // filters on `is_complete()`, so no deal moves today — but the text was the trap.
+        // Replaced with the MCP-verified printed text.
+        oracle_text: "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast \
+                      a legendary spell, and that spell can't be countered."
             .to_string(),
         power: Some(1),
         toughness: Some(2),
