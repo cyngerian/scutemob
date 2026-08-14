@@ -2153,7 +2153,6 @@ pub fn queue_carddef_etb_triggers(
             .continuous_effects
             .iter()
             .filter(|e| layers::is_effect_active(state, e))
-            .filter(|e| layers::modification_blanks_abilities(&e.modification))
             .any(|e| {
                 // Check if this effect's filter applies to new_id.
                 // We need base characteristics to evaluate filter predicates.
@@ -2169,7 +2168,11 @@ pub fn queue_carddef_etb_triggers(
                     .fizzle_object(new_id)
                     .map(|o| o.characteristics.clone())
                     .unwrap_or_default();
-                layers::effect_applies_to_object(state, e, new_id, obj_zone, &chars)
+                // The blanking classification needs the same `chars` the filter is evaluated
+                // against, because CR 305.7 is scoped to lands — so it is asked here rather
+                // than in a `.filter` above.
+                layers::modification_blanks_abilities(&e.modification, &chars)
+                    && layers::effect_applies_to_object(state, e, new_id, obj_zone, &chars)
             });
         if abilities_removed {
             return Vec::new();

@@ -1755,8 +1755,11 @@ fn set_land_types_payload_is_basic(new_types: &OrdSet<SubType>) -> bool {
 }
 
 /// Does `modification` blank an object's abilities? **Exhaustive over every
-/// `LayerModification` variant with no wildcard arm** — adding a 31st variant is a
-/// compile error here until someone classifies it.
+/// `LayerModification` variant with no wildcard arm** — the enum has **33** variants (2
+/// classified `true`, 31 `false`), so adding a 34th is a compile error here until someone
+/// classifies it. (The first draft of this line said "31st", counting only the `false`
+/// arm's list — `/review` N5. The count is stated because it is checkable, and it was
+/// wrong the first time.)
 ///
 /// # Why this function exists (PB-DX43 `/review` Issue 1, a HIGH)
 ///
@@ -1778,18 +1781,49 @@ fn set_land_types_payload_is_basic(new_types: &OrdSet<SubType>) -> bool {
 ///
 /// CR 603.2 is why IG-1 cares: a triggered ability only exists to trigger if the
 /// object has it, and an object whose abilities are blanked has none.
-pub fn modification_blanks_abilities(modification: &LayerModification) -> bool {
+///
+/// `chars` is the object the modification would apply to. It is a parameter because CR
+/// 305.7 is scoped to **lands** — a modification alone cannot answer the question, and an
+/// earlier draft that tried (checking only the payload) would have had this function tell
+/// IG-1 to suppress a non-land's ETB triggers while the layer walk correctly declined to
+/// blank it (`/review` N4). Callers pass whatever characteristics they are reasoning
+/// about: the layer walk passes the in-flight `chars`, IG-1 passes the entering object's
+/// base characteristics (the same basis it evaluates the effect's filter against).
+pub fn modification_blanks_abilities(
+    modification: &LayerModification,
+    chars: &Characteristics,
+) -> bool {
     match modification {
         // Channel 1 (CR 613.1f, Layer 6): the explicit ability wipe.
         LayerModification::RemoveAllAbilities => true,
         // Channel 2 (CR 305.7, Layer 4): setting a land's subtype to one or more BASIC
         // land types makes it lose the abilities from its rules text and old land
         // types. A nonbasic payload does not (CR 305.7's own precondition).
-        LayerModification::SetLandTypes(new_types) => set_land_types_payload_is_basic(new_types),
-        // Everything else leaves at least some ability intact. `CopyOf` is deliberately
-        // NOT a blanking channel: it REPLACES the copiable values wholesale (CR 707.2),
-        // and the copy may well have abilities of its own — "blanked" is a different
-        // claim from "changed".
+        LayerModification::SetLandTypes(new_types) => {
+            // Both conjuncts, because CR 305.7 opens "If an effect sets **a land's** subtype to
+            // one or more of the **basic** land types". `chars` is why this function takes the
+            // object at all: a modification alone cannot answer a rule that is scoped to lands.
+            chars.card_types.contains(&CardType::Land) && set_land_types_payload_is_basic(new_types)
+        }
+        // Everything else leaves at least some ability intact **as this engine implements
+        // it today** — that is a claim about the code, not about the CR, and one arm below
+        // is a known gated residual (see `SetTypeLine`).
+        //
+        // `CopyOf` is deliberately NOT a blanking channel: it REPLACES the copiable values
+        // wholesale (CR 707.2), and the copy may well have abilities of its own — "blanked"
+        // is a different claim from "changed". Whether the copy source happens to have no
+        // abilities is a property of the RESULT, not of the modification.
+        //
+        // **`SetTypeLine` is a third CR 305.7 channel, half-implemented** (`/review` N3).
+        // Its arm sets `supertypes`/`card_types`/`subtypes` and clears nothing, so a
+        // payload naming a basic land subtype would gain the CR 305.6 intrinsic mana
+        // ability — `derive_intrinsic_land_mana_abilities` reads the FINAL subtype set and
+        // cannot tell which arm produced it — while skipping CR 305.7's ability loss. It is
+        // classified `false` here because that is what the arm actually does; the honest
+        // fix is to make the arm perform the loss, not to lie here. **Zero corpus members
+        // today**, and `core::pb_dx43_land_type_roster` R1 walks the `SetTypeLine` axis and
+        // pins the conferring population by name, so a new member reddens R1 rather than
+        // arriving silently.
         LayerModification::CopyOf(_)
         | LayerModification::SetController(_)
         | LayerModification::SetTypeLine { .. }
@@ -2030,7 +2064,11 @@ fn apply_layer_modification(
                 kept.insert(s.clone());
             }
             chars.subtypes = kept;
-            if set_land_types_payload_is_basic(new_types) {
+            // CR 305.7's ability loss, delegated to the SAME predicate `replacement.rs`'s IG-1
+            // asks (`/review` N4). Restating the conjuncts here instead would put the rule in two
+            // places and let them drift — which is the defect the shared predicate was created to
+            // fix one review round earlier.
+            if modification_blanks_abilities(modification, chars) {
                 clear_all_abilities(chars);
             }
         }

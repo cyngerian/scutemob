@@ -1012,7 +1012,20 @@ fn f1_a_karoo_entering_under_blood_moon_fires_no_etb_trigger() {
 /// So this probe puts a nonbasic land carrying **all five** kinds of ability under a
 /// `SetLandTypes({Mountain})` and asserts each field independently, with a per-field message.
 ///
-/// **Revert to watch red**: delete any ONE of the five assignments in `clear_all_abilities`.
+/// **Revert to watch red**: delete any one of the **four live** assignments in
+/// `clear_all_abilities` — `keywords` (6 tests red), `activated_abilities` (**this probe alone**,
+/// which is exactly the hole the `/review` reported), `triggered_abilities` (2 red), or
+/// `mana_abilities`.
+///
+/// **The fifth, `abilities`, is untestable by construction and the first draft of this line
+/// claimed otherwise** (`/review` N1). `Characteristics.abilities: Vector<AbilityInstance>` is a
+/// documented placeholder: its only writers in the whole engine are `builder.rs`'s
+/// `Vector::new()` and two wholesale copies in `copy.rs`/`layers.rs`. **Nothing ever puts an
+/// `AbilityInstance` into it**, so `chars.abilities.is_empty()` is true in every fixture, the
+/// assertion below can never discriminate, and the non-vacuity block deliberately omits it
+/// because it *cannot* be satisfied. The assertion is kept as a standing guard for the day the
+/// field gains a producer; deleting its clear is a **compile error** anyway (`-D warnings` on the
+/// unused binding), which is a stronger guard than this test could be.
 #[test]
 fn f2_set_land_types_clears_every_ability_bearing_field_not_just_mana() {
     let p1 = p(1);
@@ -1096,6 +1109,9 @@ fn f2_set_land_types_clears_every_ability_bearing_field_not_just_mana() {
         "CR 305.7: triggered abilities must be cleared: {:?}",
         chars.triggered_abilities
     );
+    // NOTE: this assertion cannot discriminate today — see the doc comment. `abilities` has no
+    // producer anywhere in the engine, so it is empty in every fixture. Kept as a standing guard,
+    // stated as such rather than counted as evidence.
     assert!(
         chars.abilities.is_empty(),
         "CR 305.7: static ability instances must be cleared: {:?}",
@@ -1132,34 +1148,62 @@ fn f2_set_land_types_clears_every_ability_bearing_field_not_just_mana() {
 fn f3_modification_blanks_abilities_recognises_both_channels_and_no_others() {
     use mtg_engine::rules::layers::modification_blanks_abilities;
 
+    // CR 305.7 is scoped to lands, so the classifier takes the object it would apply to.
+    let land = mtg_engine::Characteristics {
+        card_types: imbl::OrdSet::unit(CardType::Land),
+        ..Default::default()
+    };
+    let not_a_land = mtg_engine::Characteristics {
+        card_types: imbl::OrdSet::unit(CardType::Creature),
+        ..Default::default()
+    };
+
     assert!(
-        modification_blanks_abilities(&LayerModification::RemoveAllAbilities),
+        modification_blanks_abilities(&LayerModification::RemoveAllAbilities, &land),
         "channel 1: the explicit Layer-6 wipe"
     );
     assert!(
-        modification_blanks_abilities(&LayerModification::SetLandTypes(imbl::OrdSet::unit(
-            SubType("Mountain".to_string())
-        ))),
+        modification_blanks_abilities(
+            &LayerModification::SetLandTypes(imbl::OrdSet::unit(SubType("Mountain".to_string()))),
+            &land
+        ),
         "channel 2: CR 305.7's loss, on a BASIC payload"
     );
     assert!(
-        !modification_blanks_abilities(&LayerModification::SetLandTypes(imbl::OrdSet::unit(
-            SubType("Gate".to_string())
-        ))),
+        !modification_blanks_abilities(
+            &LayerModification::SetLandTypes(imbl::OrdSet::unit(SubType("Gate".to_string()))),
+            &land
+        ),
         "CR 305.7's precondition is 'one or more of the BASIC land types' — a Gate payload sets a \
          land type without the loss"
     );
     assert!(
-        !modification_blanks_abilities(&LayerModification::AddSubtypes(imbl::OrdSet::unit(
-            SubType("Swamp".to_string())
-        ))),
+        !modification_blanks_abilities(
+            &LayerModification::AddSubtypes(imbl::OrdSet::unit(SubType("Swamp".to_string()))),
+            &land
+        ),
         "ADDING a basic land type (Urborg) is not SETTING one — CR 305.7's last clause keeps the \
          land's rules text"
     );
     assert!(
-        !modification_blanks_abilities(&LayerModification::AddKeyword(
-            mtg_engine::KeywordAbility::Flying
-        )),
+        !modification_blanks_abilities(
+            &LayerModification::AddKeyword(mtg_engine::KeywordAbility::Flying),
+            &land
+        ),
         "an ordinary Layer-6 grant blanks nothing"
+    );
+    // CR 305.7 is about "a land's subtype" — the same payload on a non-land blanks nothing
+    // (`/review` N4). `RemoveAllAbilities` is unconditional and must still fire, or the guard
+    // would have been added to the wrong channel.
+    assert!(
+        !modification_blanks_abilities(
+            &LayerModification::SetLandTypes(imbl::OrdSet::unit(SubType("Mountain".to_string()))),
+            &not_a_land
+        ),
+        "CR 305.7 is scoped to lands — a basic SetLandTypes payload on a non-land blanks nothing"
+    );
+    assert!(
+        modification_blanks_abilities(&LayerModification::RemoveAllAbilities, &not_a_land),
+        "CR 613.1f's wipe is NOT land-scoped — Humility blanks a creature just fine"
     );
 }

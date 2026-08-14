@@ -363,7 +363,12 @@ disclosed **in the test's own doc**, per PB-DX8's `PROSE_FIELDS` precedent, not 
 flagged is removed (the derivation compared against a freshly allocated `SubType` per basic type
 per call; it now compares the interned strings). `full_turn_4p` **213.7-215.8 µs**,
 `priority_cycle_4p` **23.8-24.0 µs**, `sba_check` **14.5 µs**, `full_turn_6p` **338.3-340.3 µs**,
-`board_wipe_4p` **121.1-122.6 µs** — all inside the historical band. **Issue 12** — the plan asked
+`board_wipe_4p` **121.1-122.6 µs** — all inside the historical band. **↻ These are ONE RUN, not a
+delta** (`/review` N, re-review of Issue 11): the reviewer measured the same commit at
+`full_turn_4p` **220.5-223.1 µs** against its own pre-fix **218.4-220.4 µs** — within noise, and
+above my figures. Both sets are inside the band, so *no regression* is supportable and *an
+improvement* is not. The allocation removal is real in the code; it is not demonstrated in the
+numbers, and the notes should not have implied otherwise. **Issue 12** — the plan asked
 for `t6`'s doc comment to be updated to record the closure and the implement phase silently dropped
 it, then the registry row reframed the omission as a decision. Taken: `t6` now carries the record,
 and the file is otherwise unedited, which is itself the evidence that the regression suite was not
@@ -388,3 +393,69 @@ down so neither file is edited alone.
   and the fix cycle's V5-V7). The a/b sub-rows are counted individually here; CLAUDE.md's earlier
   "12" counted Part 2's four plus a collapsed reading of Part 1's, which was a convention nobody
   had stated. **1 UNDISCRIMINATED** (P8), disclosed in both the test and these notes.
+
+## Part 3b — the re-review round (5 further findings, all taken)
+
+The reviewer was sent back to verify the fix cycle adversarially rather than to accept it. It
+**re-ran its original HIGH repro verbatim** and confirmed the `TriggeredAbility { is_carddef_etb:
+true }` entry is gone, then proved discrimination by restoring the old filter and watching `f1` go
+red. It also checked completeness: `grep -rn RemoveAllAbilities` over `crates/engine/src`,
+`crates/simulator/src`, `crates/view-model/src` and `tools/` leaves **zero** remaining behavioural
+matchers, and the five CR 714 Saga sites never matched it at all (they read the printed def), so
+nothing else was broken by the channel change. It found five further things:
+
+- **N1 (MEDIUM) — F2's fifth assertion is vacuous and its doc made a false revert claim.** The
+  reviewer mutated each clear individually: `keywords` → 6 red, `activated_abilities` → **F2 alone
+  red** (exactly the hole Issue 2 reported), `triggered_abilities` → 2 red, **`abilities` → all 582
+  green**. Cause: `Characteristics.abilities` is a documented placeholder whose only writers are a
+  `Vector::new()` and two wholesale copies — **nothing ever puts an `AbilityInstance` into it**, so
+  the assertion cannot discriminate and F2's non-vacuity block correctly omits it. The doc now says
+  "any one of the four **live** assignments" and states the fifth as untestable-by-construction.
+  This also **de-rates the original Issue 2**: three live holes, not four. (Deleting a clear
+  outright is now a compile error anyway — a stronger guard than the test.)
+- **N2 (MEDIUM, pre-existing) — the IG-1 fix closed triggers and left ETB *replacements* open.** A
+  Blood-Mooned Karoo no longer bounces a land but **still enters tapped**, and so does one under a
+  plain Layer-6 `RemoveAllAbilities` — measured on **both** channels, so it is explicitly not a
+  PB-DX43 regression. CR 614.1c makes enters-tapped a replacement, which is why it slipped a check
+  written for triggers. Filed **`OOS-DX43-8`**, not fixed: it is a second subsystem and the batch
+  has no replacement-path probe.
+- **N3 (LOW, latent) — `SetTypeLine` is a third CR 305.7 channel, half-implemented.** Its arm
+  clears nothing, so a basic payload would grant the CR 305.6 intrinsic while skipping the loss.
+  Classified `false` deliberately (that is what the arm does; lying here would put IG-1 out of step
+  with the layer walk). Zero corpus members, and R1 walks the `SetTypeLine` axis and pins the
+  population by name so a new member reddens it. Residual now stated in the function's own comment
+  — the reviewer's point was that the `false` arm's blanket sentence was a claim about the
+  implementation dressed as a claim about the CR — and filed as **`OOS-DX43-9`**.
+- **N4 (LOW) — the CR 305.7 clearing had no `Land` guard while the derivation did.** CR 305.7 opens
+  *"If an effect sets **a land's** subtype"*. The first fix added the conjunct to the layer-walk arm
+  only, which **created an asymmetry**: `modification_blanks_abilities` still answered from the
+  modification alone, so IG-1 would have suppressed a non-land's ETB triggers while the layer walk
+  correctly declined to blank it. Fixed properly by giving the classifier the object's
+  `Characteristics`, so the rule lives in **one** place and both consumers ask it — the layer-walk
+  arm now calls the classifier rather than restating its conjuncts. F3 gained two assertions: a
+  basic `SetLandTypes` on a non-land blanks nothing, and `RemoveAllAbilities` still does (it is not
+  land-scoped — Humility blanks a creature fine), so the guard is proven to be on the right channel.
+- **N5 (LOW, doc) — the new function's own doc said "31st variant"; `LayerModification` has 33.**
+  The cheapest possible instance of this batch's thesis. Corrected to 33 (2 `true` / 31 `false`),
+  with the miscount recorded rather than quietly overwritten.
+
+**And a correction the reviewer made to my own numbers**: the bench figures in Part 3 were reported
+in a way that implied an improvement. They do not reproduce — the reviewer measured the same commit
+at `full_turn_4p` 220.5-223.1 µs against its own pre-fix 218.4-220.4 µs, i.e. within noise and
+*above* mine. Both sets are inside the historical band, so **"no regression" is supportable and "an
+improvement" is not**; both `CLAUDE.md` and these notes now label the figures as one run rather than
+as a delta. The allocation removal is real in the code and is not claimed in the numbers.
+
+**Verdicts on the two questions put to the reviewer directly.** Deleting IG-1's layer filter widens
+nothing live and is *more* faithful than the old filter: all 9 remaining defs constructing
+`RemoveAllAbilities` declare `EffectLayer::Ability`, the one non-`Ability` construction is a
+synthetic roster value never registered into a `GameState`, and `apply_layer_modification` applies
+the modification at whatever layer the effect declares — so keying on the layer was the accident.
+`CopyOf => false` is right: CR 707.2 *replaces* copiable values, and whether the copy source has
+abilities is a property of the result, not of the modification.
+
+**Post-re-review figures (re-executed):** tests **4,753 / 0 / 5**, 50 targets, +32 by NAME, 0
+removals. PROTOCOL **37** / HASH **76** unmoved (`hash_schema` 36/36, `protocol_schema` 17/17).
+`clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+`tools/check-defs-fmt.sh` clean (1,803 defs). 0 card-def lines, coverage unmoved at 63.0%.
+**Seeds now `OOS-DX43-1..9`.**

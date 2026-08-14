@@ -202,8 +202,12 @@
   because the face-down blank runs before the layer loop starts), disclosed in the test itself and
   not only in `memory/`. Benches within the historical band (`/review` Issue 11, which noted the
   change adds work to the hot layer walk): `full_turn_4p` **213.7-215.8 µs**, `priority_cycle_4p`
-  **23.8-24.0 µs**, `sba_check` **14.5 µs** — and the per-call `SubType` allocation the reviewer
-  flagged is gone, the derivation now comparing interned strings.
+  **23.8-24.0 µs**, `sba_check` **14.5 µs** on one run. **Stated as one run, not as a delta** —
+  the re-review measured the same commit at `full_turn_4p` **220.5-223.1 µs** against its own
+  pre-fix **218.4-220.4 µs**, i.e. within noise. Both sets sit inside the historical band, so the
+  supportable claim is *no regression*; the per-call `SubType` allocation the reviewer flagged is
+  genuinely gone (the derivation now compares interned strings) but **the improvement is not
+  demonstrated by measurement** and is not claimed.
 - **Tests (delta 2026-08-14, PB-DX29 + `/review` fix cycle)**: **4,721 / 0 / 5** full-workspace on
   branch `scutemob-211` (+87 over the **4,634** baseline, which was measured on this branch BEFORE
   any edit and reproduced PB-DX28's close pin exactly), `--workspace --no-fail-fast` to a file,
