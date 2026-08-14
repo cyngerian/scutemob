@@ -554,3 +554,81 @@ The zero is not luck. `nocturnal_hunger` was **already** `Complete` and deck-leg
 printed Gift was unpayable — which is the whole point of `OOS-UI2-4`'s class — so repairing it
 moves nothing; and `tooth_and_nail` and `dawns_truce` stay `partial` on blockers this batch did
 not touch.
+
+---
+
+## 8. The `/review` cycle — 2 HIGH / 6 MEDIUM / 11 LOW, **all 19 taken**
+
+The reviewer had a shell and used it. It independently re-ran the full suite (its own
+test-NAME set came back **byte-identical** to §7's), re-derived the engine line counts, re-ran
+the coverage regeneration and the two fingerprint gates, and verified by hand the two things this
+file flagged hardest — `effective_cast_cost_with_additional` against `casting.rs` arm by arm, and
+the loyalty queries against `handle_activate_loyalty_ability` — **finding no second divergence**
+in either. It also confirmed all 17 seed filings are non-duplicates, IDs contiguous, and that only
+the loyalty half of `OOS-M11-10` was closed.
+
+### 8.1 The two HIGHs
+
+| | finding | disposition |
+|---|---|---|
+| **H1** | **Splice is offered with no affordability bound, accepted at the 400 boundary, and 422'd by the engine — on two deck-legal `Complete` cards.** Executed: `Reach Through Mists` + `Glacial Ray` with one blue mana produced the offer, passed validation, and returned `422 InsufficientMana`. `SpliceCostOption`'s doc gives a real reason not to publish a bound in the OFFER (a subset-sum over `eligible`); **it is not a reason to skip the check at the BOUNDARY**, where the chosen list is known. | **TAKEN.** The boundary now checks the **whole announced vector**, not each rider — which closes a second gap in the same move (two riders each affordable alone, unaffordable together; latent, no corpus def carries two). Needed `&GameState` threaded into `validate_additional_cost_params`, which its call site already held. Fails **open** when a cost cannot be computed: an uncomputable cost is not evidence of unaffordability. |
+| **H2** | **The `OOS-M11-10` renumbering orphaned 30 in-source citations, and the resolution note asserted the exact opposite** — *"no external cite needed rewriting, and none was."* Measured: **31** bare cites in `.rs` files, **30 meaning the EQUIP seed** (17 card-def comments CARDS-1 authored, 5 in the roster gate, 3 in the repair probes, 5 in the play-server), four of them **live test-failure strings** that would print an ID naming no registry row. | **TAKEN.** All 30 rewritten to `OOS-M11-10E`, the 3 pre-existing `(equip)` forms with them, `engine.rs`'s one loyalty-meaning cite disambiguated: **34 `E` cites, 0 bare**. And the historical note's premise — that equip "has the fewer external cites" — is **inverted** (~52 equip vs ~32 loyalty at HEAD; it was written before CARDS-1 authored 17 of them), so the renumbering was the *more* expensive direction. Kept, and the note now says so instead of passing the cheapness argument on. |
+
+### 8.2 The six MEDIUMs
+
+* **M1 — `_ => {}` was a default-ALLOW, and this file's own doc claimed not-surfacing was the
+  mitigation.** It closes the picker; it does not close the wire. Executed: a raw POST cast
+  Huddle Up with an `Assist` entry, the boundary passed it and the engine **accepted**, moving
+  another seat's mana pool 5 → 3 without that seat being asked (CR 702.132a). Now **six named
+  arms**, so a sixteenth variant is a compile error rather than a silent forward.
+* **M2 — the loyalty `{X}` channel this batch OPENED was unbounded above the engine.** `x_value`
+  was hard-coded `None` before PB-DX29; the batch made it announceable, told the client
+  `needs_x`, rendered a bare number input with no ceiling, and bounded nothing — while building
+  `max_count` for counts and `affordable` for markers. Executed: X = 9 on `chandra_flamecaller`
+  (4 loyalty) reached the engine and came back 422. Bounded at the 400 boundary by CR 606.6.
+* **M3 — R3's non-vacuity floor was satisfied by a cost the formatter is never handed.** The only
+  corpus costs carrying a hybrid pip are `MutateCost`s, which reach **none** of
+  `format_mana_cost_compact`'s five call sites. **A floor satisfied by a value the function never
+  sees is not a floor** — this file's own thesis, inside the gate written to fix it. R3 now
+  asserts the honest pair and names the two seeds that go live together if a rendered kind ever
+  acquires such a pip. The formatter also had **no test anywhere**; four direct ones added.
+* **M4 — the `OOS-DX29-2` row files as OPEN a defect this same branch closed three commits
+  later**, and the loyalty row's correction (3) cited the wrong disposition *and* the wrong seed
+  ID. Both corrected; what survives of that seed is the CR 702.140c timing and `copy.rs`'s
+  propagation allowlist.
+* **M5 — `params.rs` still said "nine arms" in two places, directly above a ten-arm allowlist** —
+  the exact staleness `OOS-DX29-8` was filed about, one screen from where it filed it.
+* **M6 — §7.2's per-area line table did not reproduce.** Measured at one commit and republished
+  unchanged after the HTTP-probe commit added 1,452 lines, so the play-server figure was out by
+  more than 2×. **The "publish the figure, do not transcribe it" failure PB-DX8 recorded, in the
+  file recording it.** Re-measured, with the command in the paragraph. The engine table — the one
+  AC5 is about — was accurate and the reviewer re-derived it.
+
+### 8.3 The eleven LOWs, all taken
+
+L1 "nine kinds surfaced" now says which are **reachable** (6 of 9; Fuse is suppressed on 100% of
+its corpus members). L2 the seed count disagreed three ways. L3 the marker 400 collapsed "no such
+rider" and "not payable" into one message. L4 four places asserted a serde attribute that does not
+exist — one of them a source **gate's** own failure message. L5 the mutate index-order comment
+overclaimed (target-major, so only the first pair is stable). L6 the "every one requires the
+marker" comment is false of Squad. L7 the splice card's keyword was read printed while
+`casting.rs` reads it layer-resolved — the **over-offer** direction, an SR-38 violation. L8 the
+gate index omitted R2m and R6. L9 loyalty abilities were labelled by bare index — three
+indistinguishable buttons on the card the batch exists to make usable. L10 nothing pinned
+`AdditionalCost` at 15 variants; new **R7** does, and requires each variant to be surfaced *or*
+deferred-with-a-reason. L11 two docs called the stage order "harmless" while `OOS-DX29-11` says
+the two channels are never reconciled.
+
+### 8.4 Two of the fixes were caught by gates before shipping
+
+Worth recording, because both are the batch's own subject matter recurring inside its own repair:
+
+* **M1's first draft made every legal marker answer a 400.** The three marker arms are `if
+  !marker_is_affordable(..)` **guards**, so a marker the plan *did* offer fell through them and
+  into the new catch-all. Caught by
+  `test_dx29_validate_accepts_one_legal_answer_of_every_family`, which exists precisely so a
+  blanket refusal cannot masquerade as a check.
+* **L9's first draft opened a new raw `GameState` read in `view.rs`** and
+  `test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places` went red on the spot —
+  correctly, since a new raw read there is a hidden-information channel no other Invariant-7 gate
+  can see. Moved to `rules::queries::loyalty_ability_cost`, which keeps the pin at three.
