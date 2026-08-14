@@ -135,8 +135,24 @@ must be expanded against **its own filing document**, because with 29% of the po
 registry has no authority to arbitrate a range. That is how `OOS-SIM6-6` was found outside
 CLAUDE.md's "`OOS-SIM6-1..5`", and how the W6 row's "`OOS-DX29-1..14`" was found to be 17.
 
+**`/review`: 0 HIGH / 3 MEDIUM / 5 LOW, all 8 taken.** The reviewer had a shell and used it — it
+re-ran the census command and reproduced **488 / 79 / 196 / 213 / 208** exactly, checked the §1b
+ledger in **both** dimensions, byte-diffed the ordering rule against v2 and v3 and confirmed it
+**verbatim**, executed `pb_dx42a_continuous_condition_roster` (10/10, printing every §2.2 figure),
+and confirmed the doc-only diff empty. All six criteria PASS. **Every published aggregate
+reproduced and four item-level traces were short**, which is the durable half: §6 promised a
+registry correction to `OOS-SIM6-3`, **which has no registry row** — this task's own 29%-unrowed
+finding biting inside its own fix list; §1b claimed all 45 queue candidates appear in §4 and three
+did not; §5 said 63 parked seeds and enumerated 47; and §6 omitted an edit the branch had made. All
+fixed, plus a self-found one the reviewer did not raise — §0's "~45 repairs" had no derivation, and
+it is **53**, a sum of band-1 row populations with overlaps not deduplicated. Two unescaped-pipe
+registry rows were escaped and **ten further pre-existing ones named by line rather than swept into
+a re-rank's diff**. *An arithmetic that checks out is not an enumeration that checks out, and only
+the enumeration survives being handed to a dispatcher.*
+
 **Full record**: `memory/primitives/seed-rerank-2026-08-14.md` (§1 census, §2 chain-verification,
-§3 standing rows + the PB-DX42b re-decision, §4 the queue, §5 parked, §6 source-doc edits).
+§3 standing rows + the PB-DX42b re-decision, §4 the queue, §5 parked, §6 source-doc edits + the
+fix-cycle table).
 
 ---
 
