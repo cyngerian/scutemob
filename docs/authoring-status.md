@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-12 01:48 UTC  
-**Git:** `3d5db7b2` on `feat/pb-dx26-the-equip-surface-one-link-earlier-21-equipment-defs`  
+**Generated:** 2026-08-14 01:05 UTC  
+**Git:** `2cbd5996` on `feat/pb-dx27-stale-blocker-note-sweep-wrong-oracle-register-oos-c`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,18 +25,18 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.8% | 1,133 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.1% | 1,137 | +4 |
 | With TODO markers | 519 | · |
-| Empty `abilities: vec![]` placeholders | 151 | · |
-| Total TODO lines across all defs | 933 | -5 |
+| Empty `abilities: vec![]` placeholders | 147 | -4 |
+| Total TODO lines across all defs | 918 | -15 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 33 |
+| last 7 days | 0 | 44 |
 | last 30 days | 57 | 1,772 |
-| last 90 days | 57 | 2,954 |
+| last 90 days | 57 | 2,946 |
 | last 1 year | 1,830 | 3,369 |
 
 ## Bonus defs outside the plan
@@ -67,16 +67,16 @@ are blocked on engine primitives.
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 88 | 84 | 15 |
-| `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
-| `token-create` | 148 / 155 | 95% | 86 | 46 | 16 |
+| `draw` | 164 / 169 | 97% | 78 | 70 | 16 |
+| `token-create` | 148 / 155 | 95% | 87 | 46 | 15 |
 | `land-etb-tapped` | 138 / 138 | 100% | 115 | 23 | 0 |
-| `other` | 108 / 131 | 82% | 69 | 31 | 8 |
+| `other` | 108 / 131 | 82% | 72 | 29 | 7 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 65 | 26 | 1 |
 | `body-only` | 64 / 70 | 91% | 38 | 10 | 16 |
 | `removal-destroy` | 56 / 56 | 100% | 35 | 17 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 25 | 19 | 5 |
-| `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
+| `land-fetch` | 45 / 45 | 100% | 28 | 13 | 4 |
 | `attack-trigger` | 19 / 34 | 56% | 16 | 2 | 1 |
 | `death-trigger` | 34 / 34 | 100% | 20 | 9 | 5 |
 | `mana-artifact` | 34 / 34 | 100% | 22 | 10 | 2 |
@@ -171,17 +171,17 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 577 | +2 |
-| DSL gap (unspecified) | 117 | -5 |
+| OTHER (unclassified) | 565 | -12 |
+| DSL gap (unspecified) | 118 | +1 |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 15 | · |
 | replacement effect missing | 14 | · |
 | Cost::* missing variant | 13 | · |
-| EffectAmount::* missing variant | 12 | · |
-| sacrifice as cost | 11 | · |
+| EffectAmount::* missing variant | 11 | -1 |
 | combat-damage-to-player trigger | 10 | · |
 | interactive / hidden-info choice | 10 | · |
+| sacrifice as cost | 8 | -3 |
 | can't / must block-attack | 7 | · |
 | can't be countered | 7 | · |
 | opponent-action trigger | 7 | · |
@@ -201,47 +201,57 @@ _…and 26 more buckets totaling 44 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 577 
+Showing 12 of 565 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-blood_tribute: // TODO: Kicker cost "tap a Vampire" is non-mana kicker.
-curse_of_opulence: // TODO: "Whenever enchanted player is attacked" trigger not in DSL.
+blood_seeker: // TODO: "that player" — effect should target the entering creature's controller specifically,
+curiosity: // TODO(PB-37): approximation — oracle says "an opponent" but
 everflowing_chalice: // TODO: "This artifact enters with a charge counter on it for each time it was kicked." —
-glimmer_lens: // TODO: the attack trigger only — "For Mirrodin!" is expressible and unauthored
-jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
-marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
-out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
-sakashimas_student: // TODO: "enter as a copy of any creature, except it's also a Ninja" — needs
+glimmer_lens: // TODO: still genuinely blocked — "Whenever equipped creature and at least one other
+jeskas_will: // TODO: Mode 1 needs mana-scaled-by-opponent-hand-count.
+mardu_ascendancy: // TODO: Nontoken filter not yet in DSL for attack triggers — over-triggers on token
+overwhelming_stampede: // TODO: Spell effect — grant trample and +X/+X to all creatures you control until end
+sarkhan_fireblood: // TODO: Optional discard-then-draw not in DSL. Using Nothing to avoid free draw.
 sorin_imperious_bloodlord: // TODO: "You may sacrifice a Vampire. When you do, [effects]" — optional sacrifice
-teferis_protection: // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
-tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
+teferi_temporal_archmage: // TODO: Emblem creation for "activate loyalty at instant speed" not in DSL.
+tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale with the number of
 ```
 
 ## ⚠ Completeness-marker drift
 
-13 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+19 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `birchlore_rangers` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `braided_net` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `chord_of_calling` — marked Complete but has a TODO / ENGINE-BLOCKED comment
 - `contaminant_grafter` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `emeria_the_sky_ruin` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `encroaching_dragonstorm` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `grateful_apparition` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `green_suns_zenith` — marked Complete but has a TODO / ENGINE-BLOCKED comment
 - `hullbreaker_horror` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `marisi_breaker_of_the_coil` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `qarsi_sadist` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `shambling_ghast` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `the_reaver_cleaver` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `thrasios_triton_hero` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `vampire_gourmand` — marked partial but has no TODO / ENGINE-BLOCKED comment
 
 ## Recent card-touching commits
 
 ```
+2b485ccc scutemob-209: PB-DX27 rider OOS-ADJ-7 — Blood Moon strips land types, never card types
+f1b81bfe scutemob-209: PB-DX27 sweep repairs — 4 stale blocker notes verified and closed
+3390b6a9 scutemob-209: PB-DX27 sweep-repairs batch B — 5 stale blocker notes refuted and closed
+429928d5 scutemob-209: PB-DX27 — wrong-oracle register (OOS-CARDS2-10) + the three OOS-CARDS2-11 headline items
 3d5db7b2 scutemob-206: PB-DX26 fix cycle — all 18 review findings taken (1 HIGH / 6 MEDIUM / 11 LOW)
 72ad0f93 scutemob-206: PB-DX26 — the equip surface, one link earlier
 32373601 scutemob-205: PB-DX25c fix cycle — take all 22 review findings (0 HIGH / 5 MEDIUM / 17 LOW)
@@ -263,10 +273,6 @@ a2fef7cd scutemob-178: UI-2 stage 1/2 — provider builds an AdditionalCostPlan;
 0abb41db scutemob-181: CARDS-2 second fix cycle — the batch's own worst moment, documented
 50f26048 scutemob-181: CARDS-2 fix cycle — the reviewer found the sharpest thing in the batch
 b76ef319 scutemob-181: CARDS-2 — SR-37 docs, two honest demotions, seeds, close-out
-b7a46cb3 scutemob-181: CARDS-2 — repair all 45 printed-field mismatches; gate green
-99d54ed5 scutemob-179: CARDS-1 — author the CR 702.6a equip target into all 17 equip defs (OOS-M11-10)
-869f09d6 scutemob-168: PB-DX4 fix cycle — 2 HIGH / 5 MEDIUM / 6 LOW from pb-review-DX4.md, all 13 applied
-e658c9d8 scutemob-168: PB-DX4 — triage the 97-entry decision BASELINE against oracle text (OOS-DP10-8)
 ```
 
 ## Missing card-defs sidecar

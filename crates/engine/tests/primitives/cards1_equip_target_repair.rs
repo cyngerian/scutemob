@@ -535,14 +535,25 @@ fn t6_non_vacuity_floors() {
     let roster = equip_activated_attach_equipment_roster(&defs);
     assert!(
         !roster.is_empty(),
-        "the AttachEquipment-carrying Activated-ability roster must be non-empty (38 \
+        "the AttachEquipment-carrying Activated-ability roster must be non-empty (39 \
          expected -- see core/cards1_equip_target_roster.rs R1)"
     );
+    // PB-DX27 (`scutemob-209`, 2026-08-13): 38 -> 39, and the re-pin is worth explaining
+    // because the two gates' "38" turn out to have meant different things.
+    // `equip_activated_attach_equipment_roster` pushes `def.name` once per MATCHING
+    // ABILITY, so it is an ability count; `core::cards1_equip_target_roster` R1 builds a
+    // SET of names, so it is a def count. They agreed at 38 only because every equip def
+    // happened to carry exactly one equip ability. `blackblade_reforged` now carries two
+    // -- CR 702.6c makes "Equip legendary creature {3}" a SEPARATE activated ability from
+    // its Equip {7}, not a second cost on one ability -- so this count moves to 39 while
+    // R1 correctly stays at 38. A coincidence between two numbers is not an invariant.
     assert_eq!(
         roster.len(),
-        38,
-        "expected exactly 38 members (CARDS-1's 17 + PB-DX26's 21 formerly marker-only \
-         defs), found {}",
+        39,
+        "expected exactly 39 equip ABILITIES (CARDS-1's 17 + PB-DX26's 21 formerly \
+         marker-only defs + PB-DX27's second blackblade_reforged equip ability); note this \
+         is an ability count, unlike core::cards1_equip_target_roster R1's def count of 38. \
+         Found {}",
         roster.len()
     );
 }

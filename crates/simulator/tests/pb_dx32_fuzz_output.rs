@@ -701,7 +701,19 @@ const CORPUS_DEFS: usize = 1803;
 // stays put and cannot warn about it. `UI3_SPLIT_COMBAT_SEED` in
 // `tools/play-server/src/main.rs` was re-observed for precisely this reason.
 // Re-measured by executing this gate, not predicted.
-const CORPUS_COMPLETE: usize = 1133;
+// PB-DX27 (`scutemob-209`, 2026-08-13): 1133 -> **1137**. This gate did exactly the job
+// it was built for -- it announced a corpus move in ONE place, with instructions, instead
+// of leaving it to be discovered by watching seeded fixtures redden one at a time.
+// Cause: the stale-blocker-note sweep authored clauses that false notes had been blocking,
+// promoting five defs (`chord_of_calling`, `green_suns_zenith`, `reconnaissance`,
+// `wight_of_the_reliquary`, `chandra_flamecaller`) and honestly demoting one
+// (`qarsi_sadist`) -- net +4. Coverage 1,133/1,803 (62.8%) -> 1,137/1,803 (63.1%),
+// regenerated with `tools/authoring-report.py`, not derived.
+// COMMANDER_POOL is UNCHANGED at 90, and that was MEASURED by executing this gate rather
+// than reasoned from "none of the six is a Legendary Creature" -- which happens to be true,
+// but PB-DX26's lesson is that a stable count is not a stable deal, so the pins below were
+// re-observed by execution regardless.
+const CORPUS_COMPLETE: usize = 1137;
 const COMMANDER_POOL: usize = 90;
 
 /// Mirrors `crates/simulator/src/deck.rs:40-47`'s three-clause commander filter
