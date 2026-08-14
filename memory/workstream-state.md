@@ -323,6 +323,29 @@ naming no identifier at all. R4 is the review's second bound at **74**.
   ordering against it). PB-DX27's OOS-ADJ-7 rider (Blood Moon vs artifact lands) is adjacent
   but does NOT touch this. No OOS seed filed — this flag is the record until the re-rank rows
   it (registry grep per dispatch hygiene 5 at that point).
+  - **✅ DISCHARGED 2026-08-14 by the seed re-rank v4 (`scutemob-212`).** Rowed as
+    **`OOS-RR4-1`** (the engine half), **`OOS-RR4-2`** (the card half) and **`OOS-RR4-3`**
+    (the doc-rot cluster) in `docs/audits/decision-point-audit.md` §8.1 — grep-confirmed
+    absent first, per dispatch hygiene 5 — and both work pieces are ranked in
+    `memory/primitives/seed-rerank-2026-08-14.md` §4. **The flag was right that this is a
+    live latent engine defect and wrong in four particulars**, each corrected in the rows
+    rather than carried: it is the audit's **only** remaining GAP, not one of four (35
+    COVERED / 1 GAP, measured); the "missing" gains-an-ability primitive **exists and has
+    four corpus users** (the def's own compiled note says so while its header TODO denies
+    it — PB-DX27's shape exactly), and the two real blockers are a `TokenSpec` CDA and a
+    printed-mana-cost predicate, neither of them Saga work; the Saga site list is **five
+    behavioural sites, not two** (the ETB lore counter at `replacement.rs:2012-2015` and
+    the chapter-trigger enumeration at `:2078` are both missing from the flag, so a fix to
+    the named two ships a Saga that still takes its ETB counter and still fires chapter I);
+    and "route through layer-resolved abilities" **cannot be written as stated**, because
+    `AbilityDefinition::SagaChapter` is never lowered into `Characteristics` — the shipped
+    precedent is IG-1's continuous-effect scan at `replacement.rs:2131-2147`, which hits
+    this exact wall and says so in-source. Two additions the flag did not have: a **second
+    blanking channel** (CR 708.2a face-down, which the Saga sites do not check though
+    `queue_carddef_etb_triggers` in the same subsystem does), and the measurement that the
+    **famous pair is not deck-legal** (`urzas_saga` is `partial`) while **two other pairs
+    are** — so the engine half is live today without the card half, and the card half is
+    what makes the famous case testable. See v4 §1g.
 
 ## Worker Handoff (PB-DX8, `scutemob-208`) — a gate can only see the vocabulary it was given
 
