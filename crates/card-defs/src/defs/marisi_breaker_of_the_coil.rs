@@ -3,9 +3,10 @@
 // Whenever a creature you control deals combat damage to a player, goad each creature
 // that player controls.
 //
-// TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
-// TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
-//   not in DSL. Deferred to PB-37.
+// Clause 2 (goad) is authored below (CR 701.15a, CR 510.3a) — see the Triggered ability.
+// Clause 1 ("Your opponents can't cast spells during combat") stays UNAUTHORED: it needs a
+// phase-scoped GameRestriction and all 11 `GameRestriction` variants (stubs.rs:558-612) are
+// turn- or count-scoped only, none phase-scoped. Genuinely blocked, not a stale claim.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -31,15 +32,34 @@ pub fn card() -> CardDefinition {
         power: Some(5),
         toughness: Some(4),
         abilities: vec![
-            // TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
-            // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's
-            //   creatures requires TargetController::DamagedPlayer support. Deferred to PB-37.
+            // CR 510.3a / CR 701.15a: "Whenever a creature you control deals combat damage to a
+            // player, goad each creature that player controls." DamagedPlayer scopes both the
+            // trigger's per-creature firing and the goad target set to the specific player dealt
+            // damage (multiplayer-exact — mirrors throat_slitter.rs / balefire_dragon.rs).
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition:
+                    TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                        filter: None,
+                    },
+                effect: Effect::Goad {
+                    target: EffectTarget::AllPermanentsMatching(Box::new(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        controller: TargetController::DamagedPlayer,
+                        ..Default::default()
+                    })),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::inert(
-            "Blocked on clause 1 only: 'Your opponents can't cast spells during combat' needs a \
-             phase-scoped GameRestriction (all 11 variants are turn/count-scoped). STALE: the \
-             goad clause's TargetController::DamagedPlayer blocker shipped in PB-D and \
-             PlayerTarget::DamagedPlayer resolves via ctx.damaged_player.",
+        completeness: Completeness::partial(
+            "Clause 2 (goad, CR 701.15a) is authored. Blocked on clause 1 only: 'Your opponents \
+             can't cast spells during combat' needs a phase-scoped GameRestriction, and all 11 \
+             GameRestriction variants (stubs.rs:558-612) are turn- or count-scoped, none \
+             phase-scoped.",
         ),
         ..Default::default()
     }
