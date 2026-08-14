@@ -21,6 +21,19 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Entwine),
+            // CR 702.42a: the printed "Entwine {2}". Added by PB-DX29 — this def was
+            // marker-only, and `casting.rs`'s entwine block needs BOTH: it gates on the
+            // marker and then calls `get_entwine_cost`, which reads THIS variant, so a
+            // marker-only def refuses every announced `AdditionalCost::Entwine` with
+            // "spell does not have entwine (CR 702.42a)". The def stays `partial` for
+            // its own unrelated blocker (below); this repair makes its entwine payable
+            // rather than complete.
+            AbilityDefinition::Entwine {
+                cost: ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                },
+            },
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![]),
                 targets: vec![],
