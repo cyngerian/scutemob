@@ -80,34 +80,18 @@ test -f "{worktree_abs}/.esm/crew.md" && echo ok || { echo "crew.md missing"; ex
 test -d "{worktree_abs}/.claude/agents" && echo ok || { echo "agents dir missing"; exit 1; }
 ```
 
-Test kitty availability:
+Launch via the `esm worker-tab` CLI command (esm-21) in crew mode — it opens a split
+kitty tab (crew coordinator left, live glance pane right) and handles tab titling
+(`crew: {task_id}`), cwd verification, retry, and a manual-instructions fallback when
+kitty remote control is unavailable. The stock crew-mode prompt is correct for this
+project, so no `--prompt` override is needed:
+
 ```bash
-kitty @ ls >/dev/null 2>&1
+esm worker-tab {task_id} "{worktree_abs}" --mode crew
 ```
 
-Launch:
-```bash
-kitty @ launch --type=tab --tab-title "crew: {task_id}" --keep-focus --cwd "{worktree_abs}" -- bash -c 'export PATH="$HOME/.local/bin:$PATH" ESM_API_KEY="'"$ESM_API_KEY"'" ESM_URL="'"$ESM_URL"'"; claude --model opus[1m] --dangerously-skip-permissions "Read .esm/crew.md and follow its instructions. Coordinate the crew to implement the task. Do not edit files yourself — delegate all work to the agents listed in .esm/crew.md."; exec bash'
-```
-
-Confirm cwd post-launch:
-```bash
-kitty @ ls | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); [print(w['id'], t.get('title'), w.get('cwd')) for o in d for t in o.get('tabs',[]) for w in t.get('windows',[]) if 'crew: {task_id}' in (t.get('title','')+w.get('title',''))]"
-```
-
-If cwd is wrong: `kitty @ close-window --match id:<id>` and retry.
-
-If `kitty @` is unavailable, fall back to reporting the manual launch command:
-```
-cd {worktree_abs} && claude --model opus[1m] --dangerously-skip-permissions "Read .esm/crew.md and follow its instructions..."
-```
-
-Notes on the launch command:
-- `--type=tab` opens a new tab; does not affect existing layouts.
-- `--keep-focus` prevents the new tab from stealing focus.
-- `--tab-title "crew: ..."` distinguishes crew tabs from `worker: ...` tabs for dispatched workers.
-- The prompt is passed as a positional argument (not `-p`) for interactive streaming.
-- `; exec bash` keeps the tab open after Claude exits.
+Check the command's JSON output: `cwd_verified` must be `true`. If it reports kitty
+remote control unavailable, relay its manual launch instructions to the user.
 
 ### Step 9 — Report
 
