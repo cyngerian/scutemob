@@ -1045,9 +1045,6 @@ const DUPLICABLE_COST_KINDS: &[(&str, &str, fn(&mtg_engine::AdditionalCost) -> b
     ("offspring", "CR 702.175a", |c| {
         matches!(c, mtg_engine::AdditionalCost::Offspring)
     }),
-    ("gift", "CR 702.174a", |c| {
-        matches!(c, mtg_engine::AdditionalCost::Gift { .. })
-    }),
     ("splice", "CR 702.47a", |c| {
         matches!(c, mtg_engine::AdditionalCost::Splice { .. })
     }),

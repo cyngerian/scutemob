@@ -364,6 +364,50 @@ So the stage-order inversion is modes-vs-costs — which is CR 601.2b's *own* or
 harmless — and never `{X}`-vs-costs, which is the half that would be wrong. R5 is kept unchanged
 with its narrowness stated at the test, rather than widened into a failure.
 
+### 5.4 The batch committed its own subject matter, and only execution caught it
+
+Found by the cost-kind test author, proven by running the code rather than reading it.
+
+`effective_cast_cost_with_additional`'s new Fuse arm called the shared seven-component `add`
+helper, under a comment reading *"`casting.rs` adds `white..colorless` and **not** `hybrid`,
+`phyrexian` or `x_count` for any rider **except Fuse** … Mirrored deliberately"*.
+
+**The comment described a mirroring the code did not perform.** `casting.rs`'s fuse arm is the one
+rider arm in that file that builds a whole new `ManaCost`, `extend`ing `hybrid`, `extend`ing
+`phyrexian` and summing `x_count` from the right half. The seven-component helper mirrors every
+*other* arm exactly and mirrors Fuse not at all.
+
+Measured, not argued: with `HybridMana::ColorColor(White, Blue)` planted in `wear_tear.rs`'s fuse
+cost in a scratch worktree, the provider predicted mana value **3** while the engine charged **4**
+and returned `Err(InsufficientMana)` from a pool holding exactly the prediction. That is the
+clean-offer-then-server-rejection shape **this entire batch exists to delete**, one pip away, in
+the function the batch added to prevent it — under a comment claiming the opposite.
+
+Unreachable today (no corpus fuse cost carries any of the three), and the walk that says so is
+`c2g`, with a non-vacuity floor. Fixed by taking the mirror properly; the `add` helper became a
+free function so the Fuse block can reach the three fields it deliberately omits.
+
+### 5.5 A picker for a cast that cannot be announced — gated rather than shipped
+
+The same author then found that `casting.rs` **never concatenates `AbilityDefinition::Fuse
+{ targets }`** into the requirement list it validates against. A fused `Turn // Burn` announcing
+both halves' targets is refused with `InvalidTarget("expected 1..=1 target(s) but got 2")`;
+announcing one leaves the right half's `DeclaredTarget { index: 1 }` resolving at nothing
+(CR 702.102d).
+
+That gap is **pre-existing** — true since Fuse was implemented — and was unreachable while no
+client could announce a fuse at all. **PB-DX29's picker is what makes it reachable**, so PB-DX29
+is what gates it: `fused_right_half_declares_targets` suppresses the Fuse offer while the right
+half targets, which today covers **both** deck-legal fuse defs. The whole chain is built and
+proven; the rider turns on for real the day `casting.rs` learns CR 702.102d (`OOS-DX29-12`).
+
+**Two consequences in the tests, both worth reading.** `p1e` is **inverted** to assert the
+suppression, with two-way non-vacuity (the def really does carry a fuse cost; the plain cast is
+still offered). And `p4` — the CR 702.102a "from your hand" clause — had to **synthesise** a def
+with an untargeted right half, because no corpus fuse def has one: the zone clause and the target
+clause shadow each other on every real card, which is exactly the shape that leaves a clause
+untested while its test passes.
+
 ---
 
 ## 6. The refusal channel, after — and the honest reading of an unmoved number
