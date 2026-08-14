@@ -555,6 +555,7 @@ pub fn action_to_command_with_params(
         LegalAction::CastWithMutate {
             card,
             mutate_target,
+            on_top,
         } => Ok(Command::CastSpell(Box::new(CastSpellData {
             player,
             card: *card,
@@ -568,9 +569,16 @@ pub fn action_to_command_with_params(
             modes_chosen: legal_actions::spell_default_modes(state, *card),
             x_value: 0,
             face_down_kind: None,
+            // CR 702.140a (PB-DX29): the caster's own choice, forwarded from the
+            // action. This used to be hard-coded `true`, so no client in the tree
+            // could mutate UNDER — and CR 702.140e makes the topmost card supply the
+            // merged permanent's name, cost, colours, types and P/T, so the two are
+            // genuinely different permanents. `legal_actions.rs` emits one action per
+            // (target, on_top) pair; see that field's doc for why the choice lives in
+            // the action rather than in `params`.
             additional_costs: vec![AdditionalCost::Mutate {
                 target: *mutate_target,
-                on_top: true,
+                on_top: *on_top,
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],

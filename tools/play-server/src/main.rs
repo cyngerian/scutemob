@@ -7616,6 +7616,352 @@ mod tests {
         );
     }
 
+    /// PB-DX29 — the balanced-brace body of the JS function whose header text is
+    /// `header`, taken from raw Svelte/JS source.
+    ///
+    /// **Raw text, deliberately not [`code_only`].** That helper is a Rust lexer:
+    /// on a `.svelte` file it blanks every single-quoted JS string as though it
+    /// were a char literal, and every HTML attribute value with it — which is the
+    /// same reason [`test_frontend_search_picker_looks_wider_than_it_picks`] reads
+    /// raw text and picks needles that cannot occur in prose. Both callers here do
+    /// the same, and each needle below was checked against the file's comments
+    /// before being used.
+    ///
+    /// **Residual, stated rather than glossed**: this is a brace counter, not a JS
+    /// parser. A `{` or `}` inside a string literal or a comment within the body
+    /// would desynchronise it. So the callers assert the SHAPE of the slice it
+    /// returns — that it closes on a brace and contains the function's own emit
+    /// call — instead of trusting the walk.
+    fn js_function_body<'a>(source: &'a str, header: &str) -> &'a str {
+        let start = source
+            .find(header)
+            .unwrap_or_else(|| panic!("`{header}` does not appear in this file at all"));
+        let open = start
+            + source[start..]
+                .find('{')
+                .unwrap_or_else(|| panic!("`{header}` has no opening brace"));
+        let bytes = source.as_bytes();
+        let mut depth = 0i32;
+        for (i, byte) in bytes.iter().enumerate().skip(open) {
+            match byte {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return &source[open..=i];
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!("`{header}` has unbalanced braces");
+    }
+
+    /// PB-DX29 — the first argument of every CALL to `CostPicker`'s template
+    /// filler, in source order. The declaration is not a call and is skipped.
+    fn template_filler_arguments(source: &str) -> Vec<String> {
+        const NEEDLE: &str = "fillTemplate(";
+        let mut args = Vec::new();
+        for (idx, _) in source.match_indices(NEEDLE) {
+            if source[..idx].ends_with("function ") {
+                continue;
+            }
+            let rest = &source[idx + NEEDLE.len()..];
+            let end = rest
+                .find(',')
+                .expect("every template-filler call takes three arguments");
+            args.push(rest[..end].trim().to_string());
+        }
+        args
+    }
+
+    /// **PB-DX29 — the cost picker must answer every family the offer can carry.**
+    ///
+    /// `AdditionalCostsView` grew from two cast-side families (CR 118.8 sacrifice,
+    /// CR 702.157a Squad) to six: `counts` (Replicate CR 702.56a / Escalate
+    /// CR 702.120a), `markers` (Entwine CR 702.42a / Fuse CR 702.102a / Offspring
+    /// CR 702.175a), `gift` (CR 702.174a) and `splice` (CR 702.47a).
+    ///
+    /// # The defect this exists to prevent
+    ///
+    /// A family dropped from the answer builder is **silent in both directions**.
+    /// The picker still opens (the stage gate is `option.costs`, not the family),
+    /// the widget may even still render, Confirm still works, and the server
+    /// happily accepts an `additional_costs` array with that entry missing —
+    /// because every one of these riders is optional and an absent entry IS the
+    /// legal decline. The human pays no mana and gets no replicate copy, no gift,
+    /// no spliced text, with nothing anywhere saying so. That is `OOS-UI2-4`'s
+    /// symptom exactly, and it is the reason this is a per-family gate rather than
+    /// one "the picker handles costs" assertion.
+    ///
+    /// Two layers are pinned, because either alone leaves the hole open: the
+    /// component's own `confirm()` must reference each family, and `ActionBar` must
+    /// actually pass each one down. A prop that is never threaded is a family that
+    /// is always `null`, and every check inside the component would be vacuously
+    /// green.
+    ///
+    /// Source-level for the standing reason — there is no frontend test harness
+    /// (plan §8 R7).
+    #[test]
+    fn test_frontend_cost_picker_answers_every_cost_family() {
+        let frontend_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&frontend_src, &mut sources);
+        let text_of = |name: &str| -> &str {
+            sources
+                .iter()
+                .find(|(p, _)| p.ends_with(name))
+                .map(|(_, t)| t.as_str())
+                .unwrap_or_else(|| panic!("{name} is in the frontend walk"))
+        };
+
+        let picker = text_of("CostPicker.svelte");
+        let body = js_function_body(picker, "function confirm()");
+
+        // The slice really is the emit path and not some earlier brace — see
+        // `js_function_body`'s residual note.
+        assert!(
+            body.ends_with('}') && body.contains("onConfirm?.("),
+            "the extracted `confirm()` body does not end at a closing brace or does not \
+             contain the emit call, so the walk read the wrong region and every assertion \
+             below would be about the wrong text"
+        );
+        assert!(
+            body.len() > 800,
+            "the extracted `confirm()` body is only {} bytes — that is too short to be the \
+             six-family answer builder, so this gate is checking a stub",
+            body.len()
+        );
+
+        // Each family, by the two identifiers it cannot be answered without: the
+        // template it contributes and the key (or, for the unit-variant markers,
+        // the template itself) that carries the human's answer.
+        for (family, cr, needles) in [
+            (
+                "sacrifice",
+                "CR 118.8",
+                ["sacrifice.template", "sacrifice.ids_key"],
+            ),
+            (
+                "squad",
+                "CR 702.157a",
+                ["squad.template", "squad.count_key"],
+            ),
+            (
+                "counts",
+                "CR 702.56a / CR 702.120a",
+                ["countList", "count.count_key"],
+            ),
+            (
+                "markers",
+                "CR 702.42a / CR 702.102a / CR 702.175a",
+                ["markerList", "marker.template"],
+            ),
+            ("gift", "CR 702.174a", ["gift.template", "gift.player_key"]),
+            (
+                "splice",
+                "CR 702.47a",
+                ["splice.template", "splice.ids_key"],
+            ),
+        ] {
+            for needle in needles {
+                assert!(
+                    body.contains(needle),
+                    "`CostPicker.confirm()` never mentions {needle:?}, so the {family} family \
+                     ({cr}) contributes nothing to the answer. The server ACCEPTS that — every \
+                     one of these riders is optional and an absent entry is the legal decline — \
+                     so the human simply loses the cost with no error anywhere."
+                );
+            }
+        }
+
+        // The decline semantics, which are the other half of "answered". An entry
+        // contributed at zero/empty would be a payment of nothing rather than a
+        // decline, and would stop a fully-declined answer being byte-identical to a
+        // plain cast.
+        for (rule, needle) in [
+            ("a count of 0 declines the rider", "if (n <= 0) continue;"),
+            ("an unchecked marker is not paid", "markerPaid[i] !== true"),
+            ("no seat picked means no gift", "giftPicked !== null"),
+            (
+                "an empty splice list is a decline",
+                "splicePicked.length > 0",
+            ),
+        ] {
+            assert!(
+                body.contains(needle),
+                "`CostPicker.confirm()` lost the rule that {rule} (expected {needle:?}). \
+                 Declining every optional rider must produce the same bytes as a plain cast."
+            );
+        }
+
+        // `giftPicked !== null` and never a truth test: `PlayerId(0)` is a real seat
+        // and is falsy in JS. Same class as `ObjectId::SENTINEL` serialising as `0`,
+        // which UI-4's review found leaving Confirm live over an empty candidate set.
+        assert!(
+            !body.contains("if (gift && giftPicked)"),
+            "the gift contribution is gated on a truth test; seat 0 is a real player and is \
+             falsy, so the first seat at the table could never be promised a gift"
+        );
+
+        // The props exist, default to the empty answer, and survive a `null`. Both
+        // list families are `skip_serializing_if = Vec::is_empty` server-side, so
+        // they arrive ABSENT on almost every cast.
+        for decl in [
+            "counts = []",
+            "markers = []",
+            "gift = null",
+            "splice = null",
+        ] {
+            assert!(
+                picker.contains(decl),
+                "`CostPicker` does not declare the prop {decl:?} with its declining default"
+            );
+        }
+        for derived in ["$derived(counts ?? [])", "$derived(markers ?? [])"] {
+            assert!(
+                picker.contains(derived),
+                "`CostPicker` must derive its list families from the props with {derived:?} — \
+                 `counts` and `markers` are omitted from the payload when empty"
+            );
+        }
+
+        // And `ActionBar` really passes each one down. A family checked inside a
+        // component it is never given is a vacuously green check.
+        let action_bar = text_of("ActionBar.svelte");
+        for prop in [
+            "counts={activeOption.costs.counts}",
+            "markers={activeOption.costs.markers}",
+            "gift={activeOption.costs.gift}",
+            "splice={activeOption.costs.splice}",
+        ] {
+            assert!(
+                action_bar.contains(prop),
+                "`ActionBar` never threads {prop:?} into `CostPicker`, so that family is always \
+                 `null` in the component and every check above is vacuous for it"
+            );
+        }
+
+        // Non-vacuity of the matcher itself, by execution against a synthetic
+        // one-family builder rather than by argument.
+        let synthetic = "{ entries.push(fillTemplate(sacrifice.template, sacrifice.ids_key, \
+                         [chosenId])); onConfirm?.(); }";
+        assert!(
+            !synthetic.contains("splice.template") && !synthetic.contains("markerList"),
+            "the per-family needles above would not have caught a builder that answers only \
+             the sacrifice"
+        );
+    }
+
+    /// **PB-DX29 — a marker cost is a bare JSON string and must never be filled in
+    /// like an object.**
+    ///
+    /// # The wire fact
+    ///
+    /// `AdditionalCost::Entwine`, `::Fuse` and `::Offspring` are Rust **unit**
+    /// variants. Serde's externally-tagged encoding serialises a unit variant as a
+    /// bare string — `"Entwine"` — not as `{"Entwine": {…}}`. Every other cost
+    /// family in this client is answered by the clone-and-write-one-field idiom
+    /// (`fillTemplate`), and that idiom is *structurally wrong* on a string: it
+    /// reads `Object.keys(template)[0]`, which on a string yields the character
+    /// index `"0"`, and then assigns into a primitive. The result is either a throw
+    /// out of the click handler — UI-4's dead-Confirm symptom, from a new cause —
+    /// or a corrupted entry the server 400s.
+    ///
+    /// It is the same shape-of-JSON trap PB-DP10 measured on `Effect::Proliferate`,
+    /// where a serde walk that matched object keys only was structurally blind to a
+    /// unit variant.
+    ///
+    /// # What is pinned
+    ///
+    /// 1. The client checks that a marker template really is a string, and reports
+    ///    through `onError` when it is not — a server-side encoding change is a
+    ///    thing to report, not to coerce.
+    /// 2. The SET of first arguments handed to the template filler is exactly the
+    ///    five families that have a fillable object template. That is an exhaustive
+    ///    pin rather than a "no marker" ban on purpose: a seventh family added to
+    ///    the offer must be classified here — object or unit — instead of joining
+    ///    whichever branch happened to compile.
+    /// 3. The markers really are contributed, verbatim. A gate that only forbade
+    ///    the wrong call would stay green on a picker that dropped the family
+    ///    entirely, which is the sibling gate's subject.
+    #[test]
+    fn test_frontend_cost_picker_never_fills_a_unit_variant_marker_template() {
+        let frontend_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&frontend_src, &mut sources);
+        let picker = sources
+            .iter()
+            .find(|(p, _)| p.ends_with("CostPicker.svelte"))
+            .map(|(_, t)| t.as_str())
+            .expect("CostPicker.svelte is in the frontend walk");
+
+        // (1) The guard. Counted, not merely found: this is raw text, so a doc
+        //     comment quoting the check would otherwise make the gate vacuous.
+        const GUARD: &str = "typeof marker.template !== 'string'";
+        assert_eq!(
+            picker.matches(GUARD).count(),
+            1,
+            "`CostPicker` must contain exactly one {GUARD:?} — the executable guard, and no \
+             prose copy of it. A marker cost arrives as a bare JSON string (serde's unit-variant \
+             encoding); anything else is a server change to report through `onError`, not to \
+             paper over."
+        );
+
+        // (2) Every template-filler call site, classified by exhaustion.
+        let args = template_filler_arguments(picker);
+        let seen: BTreeSet<&str> = args.iter().map(String::as_str).collect();
+        let expected: BTreeSet<&str> = [
+            "sacrifice.template",
+            "squad.template",
+            "count.template",
+            "gift.template",
+            "splice.template",
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(
+            seen, expected,
+            "the set of templates handed to `fillTemplate` changed. That function clones an \
+             OBJECT and writes one named key; a unit-variant cost (Entwine / Fuse / Offspring) \
+             is a bare string and has no key to write, so passing one here reads a character \
+             index as the variant name and assigns into a primitive. Add the new family to this \
+             list only after deciding which encoding it has."
+        );
+        assert_eq!(
+            args.len(),
+            5,
+            "expected exactly five template-filler call sites, one per object-shaped family; \
+             found {args:?}"
+        );
+        for arg in &args {
+            assert!(
+                !arg.starts_with("marker"),
+                "{arg:?} is a marker template being passed to `fillTemplate` — see this test's \
+                 doc comment; that is the exact unit-variant trap it exists to prevent"
+            );
+        }
+
+        // (3) The markers are still contributed, verbatim and proxy-safely.
+        let body = js_function_body(picker, "function confirm()");
+        assert!(
+            body.contains("entries.push(plainClone(marker.template));"),
+            "a paid marker must be pushed verbatim (through `plainClone`, per UI-4). Without \
+             this, banning the wrong call would be satisfied by dropping the family."
+        );
+
+        // Non-vacuity: the parser saw real call sites and skipped the declaration.
+        assert!(
+            picker.contains("function fillTemplate("),
+            "`CostPicker` no longer declares `fillTemplate`; this gate's parser is keyed on that \
+             name and would silently see zero call sites"
+        );
+    }
+
     /// **UI-6: the search picker LOOKS at the whole library and PICKS only from
     /// `candidates`** (G9, CR 701.23a / SR-38).
     ///

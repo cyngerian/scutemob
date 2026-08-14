@@ -266,11 +266,14 @@ pub struct AdditionalCostsView {
     /// and Escalate. A list rather than two more `Option` fields, because the two are
     /// the same widget with a different label; a third such rider is a provider table
     /// entry, not a seventh field for a client to learn.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    ///
+    /// **Always serialized, empty when there is nothing to ask.** An earlier draft
+    /// carried `skip_serializing_if = "Vec::is_empty"`, which made these two fields
+    /// ABSENT while every sibling was `null` — two presence conventions in one struct,
+    /// which is a trap for the next client rather than a saving of six bytes.
     pub counts: Vec<CountCostView>,
     /// PB-DX29, CR 702.42a / CR 702.102a / CR 702.175a: the SPELL's pay-or-not riders —
     /// Entwine, Fuse and Offspring. Same argument as [`Self::counts`].
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub markers: Vec<MarkerCostView>,
     /// PB-DX29, CR 702.174a: present when the SPELL has Gift.
     pub gift: Option<GiftCostView>,
@@ -1432,10 +1435,20 @@ fn action_label(action: &LegalAction, names: &NameIndex) -> String {
             format!("Bloodrush {} onto {}", card(*c), card(*target))
         }
         LegalAction::SaddleMount { mount, .. } => format!("Saddle {}", card(*mount)),
+        // CR 702.140a/e (PB-DX29): the two halves of the pair must be
+        // DISTINGUISHABLE in the list, or the human is offered the same button twice
+        // and the choice is invisible. "Over"/"under" rather than the field name,
+        // because that is how the printed card and every player says it.
         LegalAction::CastWithMutate {
             card: c,
             mutate_target,
-        } => format!("Mutate {} onto {}", card(*c), card(*mutate_target)),
+            on_top,
+        } => format!(
+            "Mutate {} {} {}",
+            card(*c),
+            if *on_top { "over" } else { "under" },
+            card(*mutate_target)
+        ),
         LegalAction::TurnFaceUp { permanent, .. } => format!("Turn {} face up", card(*permanent)),
         LegalAction::ActivateLoyaltyAbility {
             source,
@@ -1800,18 +1813,12 @@ fn additional_costs_view(
     else {
         return None;
     };
-    if plan.sacrifice.is_none()
-        && plan.squad.is_none()
-        // PB-DX29: the four new families join the same "is there anything to ask?"
-        // test. Forgetting one here is invisible — the picker simply never opens and
-        // the rider is silently lost, which is `OOS-UI2-4`'s exact symptom.
-        && plan.counts.is_empty()
-        && plan.markers.is_empty()
-        && plan.gift.is_none()
-        && plan.splice.is_none()
-    {
-        return None;
-    }
+    // PB-DX29: the presence test is deliberately NOT here any more. It used to read the
+    // PLAN and return early, which is one fact away from what the client needs: the plan
+    // can carry a `gift` whose builder below then yields `None` (an empty eligible set
+    // has no seat to put in the template), and the panel would open with a prompt and
+    // nothing to answer. The test now runs on the BUILT views, at the bottom of this
+    // function — one place, reading the same values the wire will carry.
 
     let sacrifice = plan.sacrifice.as_ref().map(|sac| SacrificeCostView {
         prompt: sacrifice_prompt(&sac.requirement),
@@ -1943,9 +1950,27 @@ fn additional_costs_view(
         ids_key: "cards".to_string(),
     });
 
+    // PB-DX29: "is there anything to ask?", asked of the BUILT views rather than of the
+    // plan. Forgetting a family here is invisible — the picker simply never opens and the
+    // rider is silently lost, which is `OOS-UI2-4`'s exact symptom, so the list is
+    // exhaustive over every field the struct carries on the cast side.
+    if sacrifice.is_none()
+        && squad.is_none()
+        && counts.is_empty()
+        && markers.is_empty()
+        && gift.is_none()
+        && splice.is_none()
+    {
+        return None;
+    }
+
     Some(AdditionalCostsView {
         answer_field: "additional_costs".to_string(),
-        prompt: "This spell has an additional cost to cast (CR 118.8 / CR 702.157)".to_string(),
+        // PB-DX29: the CR citation names what is actually being asked. The old text
+        // hard-coded "CR 118.8 / CR 702.157" for every cast, which after this batch would
+        // have cited a required sacrifice and Squad on a spell whose only rider is
+        // Replicate, Gift or Splice — two rules that have nothing to do with it.
+        prompt: cast_cost_prompt(&sacrifice, &squad, &counts, &markers, &gift, &splice),
         sacrifice,
         squad,
         activation_sacrifice: None,
@@ -1955,6 +1980,56 @@ fn additional_costs_view(
         gift,
         splice,
     })
+}
+
+/// PB-DX29: the panel header, naming the rules the offer on screen actually invokes.
+///
+/// Display text only. Every per-rider block carries its own precise prompt and CR cite;
+/// this is the one-line summary above them, and its whole job is not to cite a rule the
+/// human is not being asked about.
+#[allow(clippy::too_many_arguments)]
+fn cast_cost_prompt(
+    sacrifice: &Option<SacrificeCostView>,
+    squad: &Option<SquadCostView>,
+    counts: &[CountCostView],
+    markers: &[MarkerCostView],
+    gift: &Option<GiftCostView>,
+    splice: &Option<SpliceCostView>,
+) -> String {
+    let mut cites: Vec<&str> = Vec::new();
+    if sacrifice.is_some() {
+        cites.push("CR 118.8");
+    }
+    if squad.is_some() {
+        cites.push("CR 702.157a");
+    }
+    for c in counts {
+        cites.push(match c.kind.as_str() {
+            "Replicate" => "CR 702.56a",
+            _ => "CR 702.120a",
+        });
+    }
+    for m in markers {
+        cites.push(match m.kind.as_str() {
+            "Entwine" => "CR 702.42a",
+            "Fuse" => "CR 702.102a",
+            _ => "CR 702.175a",
+        });
+    }
+    if gift.is_some() {
+        cites.push("CR 702.174a");
+    }
+    if splice.is_some() {
+        cites.push("CR 702.47a");
+    }
+    // A required sacrifice is the only one of these a player cannot decline, so the
+    // header says "must" only when one is present.
+    let verb = if sacrifice.is_some() {
+        "This spell has an additional cost to cast"
+    } else {
+        "This spell has optional additional costs you may pay"
+    };
+    format!("{verb} ({})", cites.join(" / "))
 }
 
 /// PB-DX29, CR 702.174d-i: the printed name of what a gift's chosen player receives.

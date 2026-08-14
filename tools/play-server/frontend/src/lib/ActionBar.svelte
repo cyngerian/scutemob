@@ -68,7 +68,11 @@
    *                          here beyond passing the two new blocks through — the
    *                          missing half was on the server, where
    *                          `additional_costs_view` early-returned for anything
-   *                          that was not a `CastSpell`.
+   *                          that was not a `CastSpell`. PB-DX29 added four more
+   *                          CAST families to the same panel — `counts`
+   *                          (Replicate/Escalate), `markers`
+   *                          (Entwine/Fuse/Offspring), `gift` and `splice` — and
+   *                          again needed nothing here but the props.
    *   3. `TargetPicker`    — iff the resolved slot list is non-empty. For a
    *                          per-mode-targeting card (`ModeOptionView.target_slots`
    *                          non-empty on at least one mode) the slots are the
@@ -108,6 +112,16 @@
    * with an `{X}` or modes, so the sub-ordering inside 601.2b is not observable
    * in any game this engine can deal. If R5 ever fails, this is the paragraph to
    * re-read: the fix is to split `ValuePrompt`, not to reorder the chain.
+   *
+   * **PB-DX29 makes that premise doubtful and the client cannot fix it.** Escalate
+   * (CR 702.120a) and Entwine (CR 702.42a) are additional costs on MODAL spells by
+   * definition, so a card carrying either satisfies "an additional cost together
+   * with modes" the moment one is authored. R5's roster names Sacrifice and Squad
+   * only, so it will stay green while the situation it was written to detect is
+   * live. The stage order still happens to be right — modes are announced in
+   * `ValuePrompt` (stage 1) BEFORE this stage, which is CR 601.2b's printed order —
+   * but `{X}` rides in the same panel and would then be announced too early. Filed
+   * for the engine side rather than papered over here.
    *
    * # Why the decision stage is numbered 0 and checked first
    *
@@ -930,6 +944,10 @@
         prompt={activeOption.costs.prompt}
         sacrifice={activeOption.costs.sacrifice}
         squad={activeOption.costs.squad}
+        counts={activeOption.costs.counts}
+        markers={activeOption.costs.markers}
+        gift={activeOption.costs.gift}
+        splice={activeOption.costs.splice}
         activationSacrifice={activeOption.costs.activation_sacrifice}
         activationDiscard={activeOption.costs.activation_discard}
         answerField={activeOption.costs.answer_field}

@@ -392,3 +392,79 @@ fn r5_rosters_are_not_vacuous() {
         "R3's `declared_costs` walk returns nothing, so R3 passes vacuously"
     );
 }
+
+/// R6 — **`ui2_additional_cost_roster::r5`'s premise, re-measured across all eight kinds,
+/// and it does NOT hold.**
+///
+/// R5 asserts that no def declares an additional cost together with an `{X}` or a modal
+/// spell ability, and `ActionBar.svelte`'s stage order rests on it: CR 601.2b's own
+/// internal order is modes → additional costs → `{X}`, while the client bundles modes and
+/// `{X}` into one `ValuePrompt` stage that runs BEFORE the cost stage. R5 walks
+/// `spell_additional_costs` and Squad only.
+///
+/// **Escalate (CR 702.120a) and Entwine (CR 702.42a) are additional costs on modal spells
+/// by definition** — `casting.rs` REQUIRES a modal spell for escalate in so many words
+/// ("Escalate is a static ability of modal spells"), and entwine's whole function is
+/// "choose all modes". So R5 stays green while the condition it was written to detect is
+/// live, for the same reason `r3b` stayed green while `nocturnal_hunger` was broken: the
+/// walk is narrower than the claim.
+///
+/// This test PRINTS the offenders rather than asserting their absence, because their
+/// absence is not true and asserting it would be a lie that happens to pass. What it
+/// asserts instead is the thing that actually matters to the client: **that the offenders
+/// are exactly the modal-cost kinds and carry no `{X}`**, so the stage-order inversion is
+/// modes-vs-costs (harmless: the client announces modes first, which is CR 601.2b's own
+/// order) and never `{X}`-vs-costs (the half that would be wrong).
+#[test]
+fn r6_the_stage_order_premise_is_re_measured_across_every_kind() {
+    let defs = mtg_engine::all_cards();
+    let mut modal: Vec<(String, &str)> = Vec::new();
+    let mut with_x: Vec<(String, &str)> = Vec::new();
+    for (label, _keyword, is_cost) in KEYWORD_CARRIED_COSTS {
+        for def in defs.iter().filter(|d| d.abilities.iter().any(*is_cost)) {
+            let has_x = def
+                .mana_cost
+                .as_ref()
+                .map(|c| c.x_count > 0)
+                .unwrap_or(false);
+            let has_modes = def.abilities.iter().any(|a| match a {
+                AbilityDefinition::Spell { modes, .. } => modes.is_some(),
+                _ => false,
+            });
+            if has_modes {
+                modal.push((def.name.clone(), label));
+            }
+            if has_x {
+                with_x.push((def.name.clone(), label));
+            }
+        }
+    }
+    println!("PB-DX29 R6 modal additional-cost defs: {modal:?}");
+    println!("PB-DX29 R6 {{X}} additional-cost defs: {with_x:?}");
+
+    // The half that must stay empty. `ActionBar` runs `ValuePrompt` (modes AND `{X}`)
+    // before `CostPicker`, which puts `{X}` on the WRONG side of CR 601.2b's order. A
+    // def needing both an additional cost and an `{X}` would be announced with its `{X}`
+    // fixed before its cost is chosen.
+    assert!(
+        with_x.is_empty(),
+        "these defs declare BOTH a keyword-carried additional cost and an `{{X}}`. \
+         `ActionBar.svelte` runs its `ValuePrompt` (modes + X) stage BEFORE the `CostPicker` \
+         stage, so the `{{X}}` is announced before the cost is chosen -- the wrong side of CR \
+         601.2b's modes -> costs -> X order. Split `ValuePrompt` so X follows the cost stage \
+         before authoring these: {with_x:?}"
+    );
+
+    // The half that is NOT empty, pinned by kind rather than asserted away.
+    let kinds: BTreeSet<&str> = modal.iter().map(|(_, k)| *k).collect();
+    let expected: BTreeSet<&str> = ["Entwine", "Escalate"].into_iter().collect();
+    assert_eq!(
+        kinds, expected,
+        "R6: the modal additional-cost kinds are Entwine (CR 702.42a, 'choose all modes') and \
+         Escalate (CR 702.120a, 'pay per additional mode') and should be exactly those two -- \
+         both are modal BY DEFINITION, which is why `ui2_additional_cost_roster::r5`'s \
+         Squad-and-sacrifice walk reports a clean board while this condition is live. A THIRD \
+         kind appearing here means a non-modal mechanic acquired a modal def, and the client's \
+         modes-before-costs ordering needs re-checking for it.\nFound: {modal:?}"
+    );
+}

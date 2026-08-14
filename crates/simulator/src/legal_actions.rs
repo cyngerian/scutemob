@@ -323,6 +323,35 @@ pub enum LegalAction {
         card: ObjectId,
         /// A non-Human creature the caster owns on the battlefield.
         mutate_target: ObjectId,
+        /// CR 702.140a — **the caster's choice**: does the mutating card go on TOP of
+        /// the target creature, or under it?
+        ///
+        /// It is not decoration. CR 702.140e makes the **topmost** card supply the
+        /// merged permanent's non-ability characteristics — name, mana cost, colours,
+        /// types and power/toughness — so "on top" and "under" produce genuinely
+        /// different permanents from the same two cards.
+        ///
+        /// # Why this lives in the ACTION rather than in `ActionParams`
+        ///
+        /// PB-DX29. `params.rs` hard-coded `on_top: true` and `CastWithMutate` carried
+        /// no channel for it, so **no client in the tree could ever mutate under**.
+        /// Carrying it here means the provider emits one action per
+        /// `(target, on_top)` pair, exactly as it already emits one per target — the
+        /// `PayEcho` / `ChooseDredge` / `ActivateBloodrush` idiom this codebase has
+        /// already ruled correct for a choice that is fully determined at offer time
+        /// (PB-DX23 §3). It needs no new params field, no new wire shape, and no
+        /// picker: the choice IS the button.
+        ///
+        /// # The CR deviation this does NOT fix, stated rather than implied
+        ///
+        /// CR 702.140c makes this a decision taken **as the spell resolves**, and the
+        /// engine captures it at ANNOUNCEMENT (`casting.rs` binds it into the
+        /// `AdditionalCost` and `resolution.rs` reads it back off the stack object).
+        /// Offering the choice here does not move that timing — it makes a choice the
+        /// engine already asks at the wrong moment *answerable* instead of hard-coded.
+        /// The timing itself is `OOS-DX29-2` and needs a resolution-time
+        /// `EffectChoiceQuestion` on PB-DX28's suspend-and-replay channel.
+        on_top: bool,
     },
     /// CR 702.37e / CR 702.168b / CR 701.40b / CR 701.58b: Turn a face-down permanent
     /// face up. This is a special action (no stack, no priority needed beyond having it).
@@ -1557,12 +1586,19 @@ impl LegalActionProvider for StubProvider {
                         continue;
                     }
 
-                    // Emit one action per valid mutate target.
+                    // CR 702.140a (PB-DX29): one action per valid mutate target × the
+                    // caster's on-top/under choice. `on_top: true` is emitted FIRST so
+                    // the pre-PB-DX29 behaviour — which hard-coded `true` — is still
+                    // the lower index of each pair, which keeps an index-choosing bot
+                    // taking the same action it used to for the same board.
                     for &target in &non_human_own {
-                        actions.push(LegalAction::CastWithMutate {
-                            card: obj.id,
-                            mutate_target: target,
-                        });
+                        for on_top in [true, false] {
+                            actions.push(LegalAction::CastWithMutate {
+                                card: obj.id,
+                                mutate_target: target,
+                                on_top,
+                            });
+                        }
                     }
                 }
             }
@@ -2575,7 +2611,7 @@ fn build_additional_cost_plan(
 
     let mut counts: Vec<CountCostOption> = Vec::new();
     if has_keyword(&KeywordAbility::Replicate) {
-        if let Some(cost) = ability_cost(&def, replicate_cost_of) {
+        if let Some(cost) = ability_cost(def, replicate_cost_of) {
             // CR 702.56a: "any number of times". Bounded exactly the way Squad is —
             // `squad_max_count` is not Squad-specific, it walks `n = 1..` against
             // `effective_cast_cost_with_additional`, and PB-DX29 generalised that
@@ -2591,7 +2627,7 @@ fn build_additional_cost_plan(
         }
     }
     if has_keyword(&KeywordAbility::Escalate) {
-        if let Some(cost) = ability_cost(&def, escalate_cost_of) {
+        if let Some(cost) = ability_cost(def, escalate_cost_of) {
             // CR 702.120a: N is the number of ADDITIONAL modes beyond the first, so the
             // ceiling is `modes.len() - 1` regardless of how much mana is available —
             // `casting.rs` clamps a larger announcement to the mode count, and offering
@@ -2599,7 +2635,7 @@ fn build_additional_cost_plan(
             // `casting.rs` also REQUIRES a modal spell for escalate ("Escalate is a
             // static ability of modal spells"), so a non-modal escalate def yields no
             // offer at all rather than an offer capped at 0.
-            let extra_modes = spell_mode_count(&def).saturating_sub(1) as u32;
+            let extra_modes = spell_mode_count(def).saturating_sub(1) as u32;
             if extra_modes > 0 {
                 let affordable = repeated_cost_max_count(state, player, obj.id, &cost, |n| {
                     AdditionalCost::EscalateModes { count: n }
@@ -2615,7 +2651,7 @@ fn build_additional_cost_plan(
 
     let mut markers: Vec<MarkerCostOption> = Vec::new();
     if has_keyword(&KeywordAbility::Entwine) {
-        if let Some(cost) = ability_cost(&def, entwine_cost_of) {
+        if let Some(cost) = ability_cost(def, entwine_cost_of) {
             markers.push(MarkerCostOption {
                 kind: MarkerCostKind::Entwine,
                 cost: Some(cost),
@@ -2623,7 +2659,7 @@ fn build_additional_cost_plan(
         }
     }
     if has_keyword(&KeywordAbility::Offspring) {
-        if let Some(cost) = ability_cost(&def, offspring_cost_of) {
+        if let Some(cost) = ability_cost(def, offspring_cost_of) {
             markers.push(MarkerCostOption {
                 kind: MarkerCostKind::Offspring,
                 cost: Some(cost),
@@ -2677,7 +2713,7 @@ fn build_additional_cost_plan(
     };
 
     let splice = {
-        let eligible = eligible_splice_cards(state, player, &def, obj.id);
+        let eligible = eligible_splice_cards(state, player, def, obj.id);
         // SR-38: no eligible card in hand means no splice offer at all, rather than an
         // offer whose every answer `casting.rs` refuses.
         (!eligible.is_empty()).then_some(SpliceCostOption { eligible })
@@ -3082,19 +3118,19 @@ pub fn effective_cast_cost_with_additional(
     // auto-tap decline to fund a cast the engine will refuse anyway, rather than funding
     // the base cost and letting the refusal look like a mana problem.
     if squad_count > 0 {
-        add(&ability_cost(&def, squad_cost_of)?, squad_count);
+        add(&ability_cost(def, squad_cost_of)?, squad_count);
     }
     if replicate_count > 0 {
-        add(&ability_cost(&def, replicate_cost_of)?, replicate_count);
+        add(&ability_cost(def, replicate_cost_of)?, replicate_count);
     }
     if escalate_count > 0 {
-        add(&ability_cost(&def, escalate_cost_of)?, escalate_count);
+        add(&ability_cost(def, escalate_cost_of)?, escalate_count);
     }
     if entwine_paid {
-        add(&ability_cost(&def, entwine_cost_of)?, 1);
+        add(&ability_cost(def, entwine_cost_of)?, 1);
     }
     if offspring_paid {
-        add(&ability_cost(&def, offspring_cost_of)?, 1);
+        add(&ability_cost(def, offspring_cost_of)?, 1);
     }
 
     if fuse_paid {
@@ -3103,7 +3139,7 @@ pub fn effective_cast_cost_with_additional(
         // because commander tax is an additive `{2}`-per-prior-cast term
         // (`apply_commander_tax`), not a multiplier. Stated because the order genuinely
         // differs and a reader is entitled to know it was checked rather than missed.
-        add(&ability_cost(&def, fuse_cost_of)?, 1);
+        add(&ability_cost(def, fuse_cost_of)?, 1);
     }
 
     for splice_card in &spliced {
