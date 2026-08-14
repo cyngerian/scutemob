@@ -5825,3 +5825,64 @@ rows shipped)**; every row ✅-marked in `memory/playtest-triage-2026-08-02b.md`
   demote the older bullet to Prior.
 
 **Commit prefix used**: `scutemob-N:` (workers) / `merge:` / `chore:`
+
+---
+
+## PB-DX28 handoff (`scutemob-210`, 2026-08-14) — the untargeted-choice class + the owner axis
+
+**Shipped**: `OOS-DX4-6` and `OOS-DX4-1` both CLOSED. v3 queue rank 12. Tests **4,634 / 0 / 5**,
+coverage **1,136/1,803 = 63.0%** (0 flips), **PROTOCOL 36 → 37 / HASH 75 → 76**.
+Filed **OOS-DX28-1..10**.
+
+**What shipped**
+
+* `EffectTarget::ChosenObject { zone: ChoiceZone, filter, count, up_to }` — a choose-on-resolution
+  channel riding the existing CR 608.2d suspend-and-replay machinery as
+  `EffectChoiceQuestion::ChooseObject`. 18 `Complete` defs migrated.
+* `TargetFilter.owner: TargetOwner` (CR 108.3) and
+  `TriggerCondition::WheneverCreatureDies.owner`, distinct from CR 109.4 control.
+* `EffectTarget::DamagedPlayer`, repairing `sword_of_war_and_peace`.
+
+**Durable lessons, in the order they cost the most**
+
+1. **A census is a floor, including your own.** The plan's §0.1 enumerated 17 members by slot
+   arithmetic. The batch's own inverse gate then found an 18th (`Connive // Concoct`) *after* the
+   roster was pinned. The implement run proposed deferring it on scope-discipline grounds; that
+   was reversed, because closing a class while a known deck-legal `Complete` member keeps the
+   defective shape closes it on a false premise. **The reversal is what found the R3 hole** — the
+   walk enumerated `Triggered`/`Spell`/`Activated` and a split card's half is a `Fuse`, so R3
+   could not distinguish a migration it could not SEE from one that had not happened. That hole
+   was unreachable for as long as no member used the missing variant, so deferring would have
+   shipped it undetectable.
+2. **A subtraction-shaped gate cancels.** R4 compared declared slots against `"target"` word
+   count. One planted sentence — "becomes the target of a spell" — in the *same ability* supplied
+   both sides and kept every row green. ~39 corpus defs already carry such phrasing. Hardened by
+   stripping non-slot idioms, and the doc's "the class cannot silently regrow" was **withdrawn**
+   rather than left standing: it was stronger than the row supports.
+3. **A gate keyed on a def NAME cannot see a change *inside* that def.** Moving a `ChosenObject`
+   to an unsupported effect arm kept all five roster rows green; in release the failure is a
+   silent resolve-to-empty, because the `debug_assert` that catches it is compiled out. New R5.
+4. **Do not transcribe a measurement — print it.** The execution notes' "verbatim" gate output
+   quoted two fingerprints that `git log --all -S` proves have never existed in any source file
+   here. The shipped bump was fine; the *evidence* for it was fabricated, in the record for the
+   one criterion that says the numbers must come from the gates' own output. This is PB-DX8's
+   rule, broken one batch after it was written down.
+5. **A brief's enforcement-site list has now been short in six consecutive batches.** Here the
+   auto-target picker turned out to be two functions, not one.
+
+**Standing hazards for whoever takes the next batch**
+
+* **`OOS-DX28-1`**: a hand-maintained field-set fingerprint (`pb_dx42a`'s `TARGET_FILTER_FIELDS`)
+  goes blind corpus-wide on ANY `TargetFilter` field addition — no compile error, and a failure
+  message pointing nowhere near the cause. Nothing has enumerated how many such fingerprints
+  exist. **If your batch adds a field to a widely-reached struct, expect this class.**
+* **`OOS-DX28-9`**: `ChooseObject` produces no decision-coverage row, so the new decision point is
+  invisible to `decision_coverage.rs`.
+* **`OOS-DX28-10`**: direction 2 (no CR 608.2b fizzle) is proven structurally — `t8` shows the
+  trigger carries zero declared targets, so the defect is unreachable by construction — but never
+  end to end with a removal spell cast in response.
+* **The `[profile.fuzz]` seeds move.** 17 card defs changed shape, so per `OOS-CARDS2-3`'s
+  corpus→seed coupling any recorded fuzz seed from before this merge is re-dealt.
+* **Next dispatch is NOT mechanical.** The v3 memo's rank 13 is PB-DX42b, but `OOS-DX27-9`
+  already recorded that its rank premise (a layer-querying population of exactly 1) is false.
+  The order past rank 12 needs re-deciding, not reading off.

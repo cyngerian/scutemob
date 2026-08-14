@@ -52,7 +52,10 @@
   RECORDED OOS-DP10-9, shipped the PB-DX42a rider);
   PB-DX27 shipped `scutemob-209` 2026-08-13 (rank 11 — closed OOS-CARDS2-8/-10/-11, OOS-RR3-2
   and rider OOS-ADJ-7, all five registry-rowed for the first time; PROTOCOL 36 / HASH 75);
-  **next dispatch: PB-DX28** (rank 12);
+  PB-DX28 shipped `scutemob-210` 2026-08-14 (rank 12 — closed OOS-DX4-6 and OOS-DX4-1);
+  **next dispatch: coordinator's call** — the v3 memo's rank 13 is PB-DX42b, but
+  `OOS-DX27-9` already recorded that its rank premise (a layer-querying population of
+  exactly 1) is false, so the rank order past 12 needs re-deciding rather than reading off;
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -151,6 +154,25 @@
   the five had a registry row before this batch wrote one) — ranks **1-11 are all shipped**,
   so **next dispatch: PB-DX28** (rank 12). Coverage **62.8% → 63.0%** (1,133 → **1,136**);
   PROTOCOL **35 → 36** / HASH **74 → 75**, both gate-computed. Filed **OOS-DX27-1..10**.
+- **Tests (delta 2026-08-14, PB-DX28 + fix cycle)**: **4,634 / 0 / 5** full-workspace on branch
+  `scutemob-210` (+29 over the **4,605** baseline, which was **re-measured at `c5b9e459` in a
+  scratch worktree** after a mid-batch reboot destroyed the original log — it reproduced the
+  pre-reboot figure exactly, so the number is measured twice rather than remembered),
+  `--workspace --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
+  **Delta itemised by test NAME with zero removals**, by set-diffing the two run logs: 12 in the
+  new `crates/engine/tests/primitives/pb_dx28_owner_axis.rs`, 11 in the new
+  `crates/engine/tests/primitives/pb_dx28_untargeted_choice.rs`, and 6 in the new
+  `crates/engine/tests/core/pb_dx28_chosen_object_roster.rs`. **The two names that left the
+  PASSING set mid-batch were not removals** — `hash_schema` and `protocol_schema` moved from pass
+  to fail and back, deliberately, so the wire moved once and the bump could be read off.
+  **PROTOCOL 36 → 37 / HASH 75 → 76**, both taken from the failing gates' own output
+  (`hash_schema` 36/36, `protocol_schema` 17/17 after the bump). The PROTOCOL closure moves
+  **96 → 98** types — its first count change since v31 — because `ChoiceZone` and `TargetOwner`
+  are genuinely new members; `TargetFilter.owner` rides in on a struct reachable since v14, which
+  is the half a wire prediction from the engine types alone would have missed.
+  Coverage **1,136/1,803 = 63.0%** by regeneration, **0 flips** as predicted, self-dating churn
+  reverted. `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs).
 - **Tests (delta 2026-08-13, PB-DX27 + fix cycle)**: **4,605 / 0 / 5** full-workspace on branch
   `scutemob-209` (+44 over the **4,561** baseline measured on this branch BEFORE any edit),
   `--workspace --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
@@ -440,7 +462,49 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-13 — **PB-DX27 SHIPPED** (`scutemob-209`; v3 queue rank 11 —
+- **Last Updated**: 2026-08-14 — **PB-DX28 SHIPPED** (`scutemob-210`; v3 queue rank 12 —
+  **OOS-DX4-6** and **OOS-DX4-1** both CLOSED). **A spell targets only where it says "target"**
+  (CR 115.10), and 18 `Complete` deck-legal defs said no such thing while declaring a real
+  `TargetRequirement` anyway. Wrong in two directions: hexproof / shroud / protection wrongly
+  restricted the choice, and CR 608.2b fizzled the effect when the chosen permanent left in
+  response — which on the ten Karoo bounce lands is **an exploit in the controller's favour**
+  (respond by moving the chosen land, keep both). New `EffectTarget::ChosenObject` resolves on
+  the existing CR 608.2d suspend-and-replay channel as `EffectChoiceQuestion::ChooseObject`.
+  **Candidate derivation deliberately does NOT route through `validate_targets_inner` /
+  `validate_object_satisfies_requirement` / `legal_targets_per_slot`** — all three apply full
+  CR 115 targeting legality, which IS the defect.
+  **Both seeds' member lists were floors, and the batch proved its own census was one too.**
+  `OOS-DX4-6` said "two `Complete` defs"; the census found **18**, and then the batch's own
+  inverse gate found a **19th** (`Connive // Concoct`) *after* the roster had been pinned at 17.
+  It was migrated, not deferred: closing a class while a known deck-legal member keeps the
+  defective shape closes it on a false premise. That reversal paid for itself — it reddened R3,
+  whose walk enumerated only `Triggered`/`Spell`/`Activated` and therefore **could not see** a
+  split card's `Fuse` half, a hole that was unreachable for as long as no member used the
+  missing variant. `OOS-DX4-1` named four members; **two survive** (`staff_of_compleation`,
+  `nether_traitor`) and the refutations matter more than the members: **the six mutate defs are
+  clean** (CR 702.140a ownership is enforced open-coded in `casting.rs`, outside `TargetFilter`),
+  and **`fecundity` is not a member though `nether_traitor`'s own note said it was** — its gap is
+  `ControllerOf(TriggeringCreature)`, a *controller* gap, exactly as its own marker note already
+  said.
+  **The plan's enforcement-site list was short, again**: `rules::abilities`' auto-target picker
+  is **two** functions — the predicate and the enumerator — and fixing only the first would have
+  left the offer layer wrong while validation was right. Also repaired
+  `sword_of_war_and_peace`, whose comment claimed `ctx.damaged_player` resolution while the code
+  read a declared target, so in a 4-player game the Sword could damage the **wrong seat**.
+  **The `/review` found 3 MEDIUM / 4 LOW, all 7 taken, and defeated two of the batch's own
+  gates by execution**: a `ChosenObject` moved to an unsupported effect arm kept all five roster
+  rows green (silent resolve-to-empty in release, since the `debug_assert` is compiled out —
+  closed by a new R5); and R4's `slots > words` census **cancels**, defeated by one planted
+  sentence in the SAME ability, so its "the class cannot silently regrow" claim is WITHDRAWN.
+  The third MEDIUM is the batch's own record: the execution notes' "verbatim" gate output quoted
+  two fingerprints **that have never existed in any source file in this repository** — PB-DX8's
+  "publish the figure, do not transcribe it" rule broken in the evidence for the very criterion
+  that depends on it. Tests **4,634** (+29, itemised by name, 0 removals); coverage unmoved at
+  **1,136/1,803 = 63.0%**, 0 flips; **PROTOCOL 36 → 37 / HASH 75 → 76**, both from the gates'
+  own output, with the PROTOCOL closure moving **96 → 98** types — its first count change since
+  v31. Filed **OOS-DX28-1..10**. Full handoff: `memory/workstream-state.md`; census, revert
+  matrices and the review table: `memory/primitives/pb-DX28-execution-notes.md`.
+- **Prior**: 2026-08-13 — **PB-DX27 SHIPPED** (`scutemob-209`; v3 queue rank 11 —
   **OOS-CARDS2-8**, **OOS-CARDS2-10**, **OOS-CARDS2-11**, **OOS-RR3-2** and the rider
   **OOS-ADJ-7** all FILED *and* CLOSED). **A blocker note is a claim, and nothing had ever
   re-checked one.** `OOS-DX3-1`'s closure called the corpus-wide re-check "a cheap standing
