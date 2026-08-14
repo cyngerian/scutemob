@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-14 01:05 UTC  
-**Git:** `2cbd5996` on `feat/pb-dx27-stale-blocker-note-sweep-wrong-oracle-register-oos-c`  
+**Generated:** 2026-08-14 01:58 UTC  
+**Git:** `0720f0a0` on `feat/pb-dx27-stale-blocker-note-sweep-wrong-oracle-register-oos-c`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.1% | 1,137 | +4 |
-| With TODO markers | 519 | · |
-| Empty `abilities: vec![]` placeholders | 147 | -4 |
-| Total TODO lines across all defs | 918 | -15 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,136 | -1 |
+| With TODO markers | 520 | +1 |
+| Empty `abilities: vec![]` placeholders | 147 | · |
+| Total TODO lines across all defs | 918 | · |
 
 ## Authoring activity (git, by window)
 
@@ -70,7 +70,7 @@ are blocked on engine primitives.
 | `draw` | 164 / 169 | 97% | 78 | 70 | 16 |
 | `token-create` | 148 / 155 | 95% | 87 | 46 | 15 |
 | `land-etb-tapped` | 138 / 138 | 100% | 115 | 23 | 0 |
-| `other` | 108 / 131 | 82% | 72 | 29 | 7 |
+| `other` | 108 / 131 | 82% | 71 | 30 | 7 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 65 | 26 | 1 |
 | `body-only` | 64 / 70 | 91% | 38 | 10 | 16 |
@@ -171,17 +171,17 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 565 | -12 |
-| DSL gap (unspecified) | 118 | +1 |
+| OTHER (unclassified) | 565 | · |
+| DSL gap (unspecified) | 118 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 15 | · |
 | replacement effect missing | 14 | · |
 | Cost::* missing variant | 13 | · |
-| EffectAmount::* missing variant | 11 | -1 |
+| EffectAmount::* missing variant | 11 | · |
 | combat-damage-to-player trigger | 10 | · |
 | interactive / hidden-info choice | 10 | · |
-| sacrifice as cost | 8 | -3 |
+| sacrifice as cost | 8 | · |
 | can't / must block-attack | 7 | · |
 | can't be countered | 7 | · |
 | opponent-action trigger | 7 | · |
@@ -223,7 +223,7 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 
 ## ⚠ Completeness-marker drift
 
-19 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+18 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `birchlore_rangers` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -234,7 +234,6 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 - `emeria_the_sky_ruin` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `encroaching_dragonstorm` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `grateful_apparition` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `green_suns_zenith` — marked Complete but has a TODO / ENGINE-BLOCKED comment
 - `hullbreaker_horror` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `marisi_breaker_of_the_coil` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -248,6 +247,7 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 ## Recent card-touching commits
 
 ```
+0720f0a0 scutemob-209: PB-DX27 fix cycle — the HIGH, and six doc/gate corrections
 2b485ccc scutemob-209: PB-DX27 rider OOS-ADJ-7 — Blood Moon strips land types, never card types
 f1b81bfe scutemob-209: PB-DX27 sweep repairs — 4 stale blocker notes verified and closed
 3390b6a9 scutemob-209: PB-DX27 sweep-repairs batch B — 5 stale blocker notes refuted and closed
@@ -272,7 +272,6 @@ a2fef7cd scutemob-178: UI-2 stage 1/2 — provider builds an AdditionalCostPlan;
 23b75885 scutemob-181: CARDS-2 third fix cycle — merge SIM-1, add R8, close the reviewer's list
 0abb41db scutemob-181: CARDS-2 second fix cycle — the batch's own worst moment, documented
 50f26048 scutemob-181: CARDS-2 fix cycle — the reviewer found the sharpest thing in the batch
-b76ef319 scutemob-181: CARDS-2 — SR-37 docs, two honest demotions, seeds, close-out
 ```
 
 ## Missing card-defs sidecar

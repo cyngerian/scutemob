@@ -579,13 +579,30 @@ fn test_dx32_random_bot_waste_ratio_is_bounded() {
 /// it reproduces the previous fixture's shape exactly — one Treasure token, repeated
 /// across four checkpoints of a single turn, cleared before the game ends. Verified
 /// deterministic by running it twice to identical values.
+///
+/// # Re-observed a SECOND time in the same batch (PB-DX27 `/review` fix cycle, 2026-08-13)
+///
+/// Seed 118 above was measured against a corpus of **1,137** `Complete` defs. PB-DX27's own
+/// `/review` then demoted `green_suns_zenith` back to `partial` — its "Shuffle ... into its
+/// owner's library" clause is a deterministic top-of-library placement, not a shuffle — so
+/// `CORPUS_COMPLETE` moved **1137 -> 1136** and every seeded game re-dealt AGAIN. Seed 118
+/// now produces 0 transient reports.
+///
+/// Re-swept 0..=399 at the unchanged configuration. Hits: **18** (raw 4 / distinct 1), 186
+/// (4/1), 258 (13/3), 262 (5/1), 380 (7/2), 394 (4/1) — every one all-orphan with 0 hard
+/// violations. **18 is the smallest** and reproduces the original shape exactly.
+///
+/// The durable lesson is the one this file's own `MOVED_MSG` states and this batch proved
+/// twice in one day: **one completeness flip anywhere in 1,803 defs re-deals every seeded
+/// fixture in the workspace.** A batch that flips markers should expect to re-observe these
+/// pins after its review, not only after its implement phase.
 #[test]
 fn test_dx32_orphaned_tokens_are_transient_and_the_end_state_is_clean() {
-    let game = play_fuzz_shaped(118, 4, 25);
+    let game = play_fuzz_shaped(18, 4, 25);
 
     assert!(
         !game.transient_violations().is_empty(),
-        "seed 118 at max_turns 25 is known to produce no_orphaned_tokens transient \
+        "seed 18 at max_turns 25 is known to produce no_orphaned_tokens transient \
          reports (measured 2026-08-13: 4 raw reports, one Treasure token in \
          Graveyard(PlayerId(2)) at turn 22)"
     );
@@ -693,7 +710,7 @@ fn test_dx32_distinct_collapses_checkpoint_weighting() {
         "the FIRST occurrence must be preserved, not the last"
     );
 
-    let game = play_fuzz_shaped(118, 4, 25);
+    let game = play_fuzz_shaped(18, 4, 25);
     let raw = game.transient_violations();
     let distinct = invariants::distinct(raw);
     assert!(
@@ -704,7 +721,7 @@ fn test_dx32_distinct_collapses_checkpoint_weighting() {
     );
     assert!(
         distinct.len() < raw.len(),
-        "seed 118 at max_turns 25 is known to repeat a violation (Stage 0's own 94 -> 20 \
+        "seed 18 at max_turns 25 is known to repeat a violation (Stage 0's own 94 -> 20 \
          collapse at full scale, §0.3): raw {} distinct {}",
         raw.len(),
         distinct.len()
@@ -729,7 +746,11 @@ const CORPUS_DEFS: usize = 1803;
 // stays put and cannot warn about it. `UI3_SPLIT_COMBAT_SEED` in
 // `tools/play-server/src/main.rs` was re-observed for precisely this reason.
 // Re-measured by executing this gate, not predicted.
-// PB-DX27 (`scutemob-209`, 2026-08-13): 1133 -> **1137**. This gate did exactly the job
+// PB-DX27 (`scutemob-209`, 2026-08-13): 1133 -> **1136** (+3 net).
+// The implement phase measured +4 and this pin briefly read 1137; the /review demoted
+// `green_suns_zenith` back to `partial` (its 'Shuffle ... into its owner's library'
+// clause is a deterministic top-of-library placement, not a shuffle), so the final
+// delta is +3. Re-measured by regenerating the report, not by adjusting the arithmetic. This gate did exactly the job
 // it was built for -- it announced a corpus move in ONE place, with instructions, instead
 // of leaving it to be discovered by watching seeded fixtures redden one at a time.
 // Cause: the stale-blocker-note sweep authored clauses that false notes had been blocking,
@@ -741,7 +762,7 @@ const CORPUS_DEFS: usize = 1803;
 // than reasoned from "none of the six is a Legendary Creature" -- which happens to be true,
 // but PB-DX26's lesson is that a stable count is not a stable deal, so the pins below were
 // re-observed by execution regardless.
-const CORPUS_COMPLETE: usize = 1137;
+const CORPUS_COMPLETE: usize = 1136;
 const COMMANDER_POOL: usize = 90;
 
 /// Mirrors `crates/simulator/src/deck.rs:40-47`'s three-clause commander filter

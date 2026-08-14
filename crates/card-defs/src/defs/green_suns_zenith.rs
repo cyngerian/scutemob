@@ -82,10 +82,10 @@ pub fn card() -> CardDefinition {
         completeness: Completeness::partial(
             "Clause 2 only: 'Shuffle Green Sun's Zenith into its owner's library' is a \
              deterministic TOP-of-library placement, not a shuffle — resolution.rs:2023-2025 \
-             documents the deviation in-source, and nexus_of_fate (the flag's only other \
-             user) is partial for the same reason. Clause 1 (the X-capped green creature \
-             tutor + 'then shuffle') is fully authored: TargetFilter.max_cmc_amount = \
-             EffectAmount::XValue plus an explicit Effect::Shuffle.",
+             documents the deviation in-source, and nexus_of_fate (the flag's only other user) is \
+             partial for the same reason. Clause 1 (the X-capped green creature tutor + 'then \
+             shuffle') is fully authored: TargetFilter.max_cmc_amount = EffectAmount::XValue plus \
+             an explicit Effect::Shuffle.",
         ),
         self_shuffle_on_resolution: true,
         ..Default::default()

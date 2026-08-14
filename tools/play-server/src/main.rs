@@ -595,21 +595,27 @@ mod tests {
         // channel the old comment did anticipate. Both channels are real; neither is the whole
         // rule.
         // PB-DX27 (2026-08-13, `scutemob-209`): re-derived a third time, through the
-        // completeness-marker channel this time. The batch flipped 6 markers (net +4; the
-        // `Complete`-def count moved 1,133 -> 1,137), `deck.rs::random_deck` draws its
-        // commander from the `Complete` pool and fills by colour identity, and a longer
+        // completeness-marker channel this time. The batch flipped markers (net **+3**; the
+        // `Complete`-def count moved 1,133 -> 1,136), `deck.rs::random_deck` draws its
+        // commander from the `Complete` pool and fills by colour identity, and a different
         // index into `rng.random_range(0..commanders.len())` re-picked every seat. Read off
         // a real run at SEED with the corpus at that count; not reasoned to.
+        //
+        // And then re-observed a FOURTH time in the same batch, which is the point worth
+        // carrying: PB-DX27's own `/review` demoted `green_suns_zenith` back to `partial`,
+        // moving the count 1,137 -> 1,136 and re-dealing every seat again. One marker flip
+        // anywhere in 1,803 defs invalidates this pin. Do not hand-edit it to match a diff;
+        // re-run and read the hand off the run.
         assert_eq!(
             own_names,
             vec![
-                "Hazoret's Monument",
-                "Slither Blade",
-                "Signal Pest",
+                "Hedron Archive",
+                "Sol Ring",
+                "Simic Initiate",
                 "Farseek",
-                "Marchesa's Emissary",
+                "Marwyn, the Nurturer",
                 "Cankerbloom",
-                "Mobilize",
+                "Molimo, Maro-Sorcerer",
             ]
         );
 

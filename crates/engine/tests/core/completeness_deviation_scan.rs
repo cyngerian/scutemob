@@ -447,13 +447,13 @@ const ALLOWLIST: &[(&str, &str)] = &[
          shipped with PB-EF10; the clause is now authored and the def is Complete. \
          Describes a repaired claim, not a live deviation.",
     ),
-    (
-        "green_suns_zenith",
-        "same historical record as chord_of_calling, plus a note that the trailing \
-         \"instead of putting it anywhere else\" was a PHANTOM CLAUSE removed from \
-         oracle_text (MCP-verified against the printed card). Both clauses authored; \
-         Complete.",
-    ),
+    // `green_suns_zenith` was listed here by the implement phase and is REMOVED by the
+    // /review fix cycle: it is no longer `Complete`, so the deviation scan (which only
+    // examines unmarked defs) never reaches it, and `every_allowlist_entry_is_live_and_
+    // necessary` correctly fails on a row that has stopped doing anything. Its second
+    // printed clause turned out to be unauthored — `self_shuffle_on_resolution` places
+    // deterministically on top of the library rather than shuffling — so it carries a
+    // `partial` marker now and needs no exemption.
     (
         "wight_of_the_reliquary",
         "\"Cost::SacrificeAnother does not exist\" survives only as the record of a \
