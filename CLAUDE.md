@@ -550,7 +550,7 @@
   predicted zero — **+177 / −11**, of which 101 are the new read-only query surface and 76 are
   registry *declarations* two gates refused to let the batch omit. Refusal-channel A/B **105 → 105
   with an empty diff**, reported as proof of **bot-path neutrality** rather than of nothing
-  happening. Filed **OOS-DX29-1..14**. Full record:
+  happening. Filed **OOS-DX29-1..17**. Full record:
   `memory/primitives/pb-DX29-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-08-14 — **PB-DX28 SHIPPED** (`scutemob-210`; v3 queue rank 12 —
   **OOS-DX4-6** and **OOS-DX4-1** both CLOSED). **A spell targets only where it says "target"**

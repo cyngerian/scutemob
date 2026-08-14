@@ -130,6 +130,18 @@
    * rather than asserting an absence that is not true and pins the `{X}` half at 0.
    * If R6's `{X}` assertion ever fails, split `ValuePrompt` so X follows this stage.
    *
+   * **"Harmless" here means the ORDER is harmless, not that modes and costs are
+   * reconciled — and they are not** (`OOS-DX29-11`, `/review` L11). This client
+   * announces `modes_chosen` in stage 1 and an escalate COUNT in stage 2, and
+   * `casting.rs` cross-checks neither: it derives the mode count from
+   * `EscalateModes` only when `modes_chosen` is empty, and validates a non-empty
+   * `modes_chosen` against `min_modes`/`max_modes` without ever looking at the
+   * count. Read literally, three modes announced with count 0 pays nothing extra.
+   * Unreachable today (both corpus escalate defs are `partial`, pinned at 0
+   * deck-legal by that roster's R4) and not fixable from here — the client needs
+   * either a server-derived count or a stated `count == modes_chosen.length - 1`
+   * invariant enforced at the 400 boundary.
+   *
    * # Why the decision stage is numbered 0 and checked first
    *
    * Not because CR orders it before `{X}` announcement — the two never co-occur.

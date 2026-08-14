@@ -460,6 +460,14 @@ fn r5_rosters_are_not_vacuous() {
 /// are exactly the modal-cost kinds and carry no `{X}`**, so the stage-order inversion is
 /// modes-vs-costs (harmless: the client announces modes first, which is CR 601.2b's own
 /// order) and never `{X}`-vs-costs (the half that would be wrong).
+///
+/// **"Harmless" is a claim about the ORDER and nothing else** (`/review` L11). The two
+/// channels are never RECONCILED: `casting.rs` derives its mode count from
+/// `EscalateModes` only when `modes_chosen` is empty and never cross-checks the two, so a
+/// cast announcing three modes with `count: 0` pays nothing extra — `OOS-DX29-11`, filed
+/// by this batch, and unreachable today only because both escalate defs are `partial`
+/// (R4 pins that at 0). A reader who takes "harmless" from this doc and stops has the
+/// wrong impression, so it is bounded here rather than left to the seed.
 #[test]
 fn r6_the_stage_order_premise_is_re_measured_across_every_kind() {
     let defs = mtg_engine::all_cards();
@@ -511,5 +519,129 @@ fn r6_the_stage_order_premise_is_re_measured_across_every_kind() {
          Squad-and-sacrifice walk reports a clean board while this condition is live. A THIRD \
          kind appearing here means a non-modal mechanic acquired a modal def, and the client's \
          modes-before-costs ordering needs re-checking for it.\nFound: {modal:?}"
+    );
+}
+
+/// R7 — **the enum itself is pinned at 15 variants, and PB-DX29's own `/review` (L10)
+/// is why.**
+///
+/// Every other gate in this file walks a *table*: R5 pins `KEYWORD_CARRIED_COSTS` at 8
+/// so a kind cannot silently leave, and R1/R4 pin the corpus per kind. **None of them
+/// can see a SIXTEENTH `AdditionalCost` variant arriving**, and that is precisely
+/// `OOS-UI2-4`'s class: a cost kind that exists, is announceable on the wire
+/// (`ActionParamsDto.additional_costs` deserializes the whole enum), and has no picker,
+/// no `validate_additional_cost_params` arm, and no roster row — invisible until a human
+/// loses a rider or eats a 422.
+///
+/// `protocol_schema_fingerprint_is_pinned` would go red, because `AdditionalCost` is in
+/// the `Command` closure — but it names a **wire** change and says nothing about a
+/// missing picker, and a batch adding a variant would bump the fingerprint as a matter
+/// of course and move on. This test is the one that says "and now go build the client
+/// half".
+///
+/// The count is derived by `serde`-round-tripping a hand-written list of every variant,
+/// so the test cannot drift from the enum by construction: a new variant makes the
+/// exhaustive `match` below a compile error before this assertion is ever reached.
+#[test]
+fn r7_additional_cost_has_exactly_fifteen_variants() {
+    use mtg_engine::{AdditionalCost, ObjectId, PlayerId};
+    // Exhaustive with NO wildcard: a sixteenth variant is a compile error here.
+    fn name_of(cost: &AdditionalCost) -> &'static str {
+        match cost {
+            AdditionalCost::Sacrifice { .. } => "Sacrifice",
+            AdditionalCost::Discard(_) => "Discard",
+            AdditionalCost::EscapeExile { .. } => "EscapeExile",
+            AdditionalCost::CollectEvidenceExile { .. } => "CollectEvidenceExile",
+            AdditionalCost::Assist { .. } => "Assist",
+            AdditionalCost::Replicate { .. } => "Replicate",
+            AdditionalCost::Squad { .. } => "Squad",
+            AdditionalCost::EscalateModes { .. } => "EscalateModes",
+            AdditionalCost::Splice { .. } => "Splice",
+            AdditionalCost::Entwine => "Entwine",
+            AdditionalCost::Fuse => "Fuse",
+            AdditionalCost::Offspring => "Offspring",
+            AdditionalCost::Gift { .. } => "Gift",
+            AdditionalCost::Mutate { .. } => "Mutate",
+            AdditionalCost::ExileFromHand { .. } => "ExileFromHand",
+        }
+    }
+    let all = [
+        AdditionalCost::Sacrifice {
+            ids: vec![],
+            lki: vec![],
+        },
+        AdditionalCost::Discard(vec![]),
+        AdditionalCost::EscapeExile { cards: vec![] },
+        AdditionalCost::CollectEvidenceExile { cards: vec![] },
+        AdditionalCost::Assist {
+            player: PlayerId(1),
+            amount: 0,
+        },
+        AdditionalCost::Replicate { count: 0 },
+        AdditionalCost::Squad { count: 0 },
+        AdditionalCost::EscalateModes { count: 0 },
+        AdditionalCost::Splice { cards: vec![] },
+        AdditionalCost::Entwine,
+        AdditionalCost::Fuse,
+        AdditionalCost::Offspring,
+        AdditionalCost::Gift {
+            opponent: PlayerId(2),
+        },
+        AdditionalCost::Mutate {
+            target: ObjectId(1),
+            on_top: true,
+        },
+        AdditionalCost::ExileFromHand { card: ObjectId(1) },
+    ];
+    let names: BTreeSet<&str> = all.iter().map(name_of).collect();
+    assert_eq!(
+        names.len(),
+        15,
+        "the hand-written variant list has a duplicate — it must name each variant once"
+    );
+    println!("PB-DX29 R7 AdditionalCost variants: {names:?}");
+
+    // The nine PB-DX29 (and UI-2) surfaced kinds, and the six deferred ones, named. A
+    // sixteenth variant lands in NEITHER list and the assertion below says so.
+    let surfaced: BTreeSet<&str> = [
+        "Sacrifice",
+        "Squad",
+        "Replicate",
+        "EscalateModes",
+        "Entwine",
+        "Fuse",
+        "Offspring",
+        "Gift",
+        "Splice",
+    ]
+    .into_iter()
+    .collect();
+    let deferred: BTreeSet<&str> = [
+        "Assist",
+        "Mutate",
+        "Discard",
+        "EscapeExile",
+        "CollectEvidenceExile",
+        "ExileFromHand",
+    ]
+    .into_iter()
+    .collect();
+    let accounted: BTreeSet<&str> = surfaced.union(&deferred).copied().collect();
+    assert_eq!(
+        names, accounted,
+        "an `AdditionalCost` variant is neither surfaced nor deferred-with-a-reason. That is \
+         `OOS-UI2-4`'s exact class: a cost kind on the wire with no picker, no \
+         `validate_additional_cost_params` arm and no roster row, invisible until a human \
+         loses a rider or eats a 422. Add it to `tools/play-server` (provider + view + picker \
+         + 400 arm), or add it to the deferred list here WITH a reason and a seed row -- and \
+         either way update `crates/simulator/src/legal_actions.rs`'s plan and \
+         `api.rs::cost_kind_name`, both of which are exhaustive and will have already refused \
+         to compile.\nvariants: {names:?}\naccounted: {accounted:?}"
+    );
+    assert_eq!(surfaced.len(), 9, "PB-DX29 surfaces nine kinds");
+    assert_eq!(
+        deferred.len(),
+        6,
+        "six are deferred with a stated reason each"
     );
 }

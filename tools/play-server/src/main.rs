@@ -8115,9 +8115,17 @@ mod tests {
              falsy, so the first seat at the table could never be promised a gift"
         );
 
-        // The props exist, default to the empty answer, and survive a `null`. Both
-        // list families are `skip_serializing_if = Vec::is_empty` server-side, so
-        // they arrive ABSENT on almost every cast.
+        // The props exist, default to the empty answer, and survive a `null`.
+        //
+        // **This comment used to say the two list families are
+        // `skip_serializing_if = Vec::is_empty` server-side and "arrive ABSENT on
+        // almost every cast". That attribute does not exist** — `view.rs` carries no
+        // `skip_serializing_if` on `counts` or `markers`, and its own doc records that
+        // an earlier draft's was removed, because two presence conventions in one
+        // struct is a trap for the next client. A gate resting on a false premise is
+        // still a gate resting on a false premise even when what it asserts is true
+        // (PB-DX29 `/review` L4). The defaults below are asserted because they are
+        // correct defensive practice, not because the field is ever absent.
         for decl in [
             "counts = []",
             "markers = []",

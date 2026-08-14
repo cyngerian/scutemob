@@ -240,6 +240,42 @@ pub fn loyalty_ability_target_requirements(
         .unwrap_or_default()
 }
 
+/// CR 606.4 — the printed loyalty COST of the ability at `ability_index`.
+///
+/// Added by PB-DX29's `/review` fix cycle (L9): the browser labelled a planeswalker's
+/// abilities `"Loyalty ability 0/1/2 of Chandra, Flamecaller"` — three indistinguishable
+/// buttons on the very card the batch was dispatched to make usable — and the cost is
+/// what a player actually says out loud.
+///
+/// **It lives here rather than in `tools/play-server` for a reason the batch's own
+/// Invariant-7 gate supplied**: formatting the label client-side needed a raw
+/// `state.card_registry()` read inside `view.rs`, and
+/// `test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places` immediately went
+/// red — correctly, since a new raw `GameState` read in that file is a new
+/// hidden-information channel no other Invariant-7 gate can see. Returning the COST and
+/// letting the view format it keeps that pin at three and puts the registry read beside
+/// the two loyalty queries that already make it.
+///
+/// Indexing is [`loyalty_ability_target_requirements`]' — see that function's doc for why
+/// this is not the activated-ability index space.
+pub fn loyalty_ability_cost(
+    state: &GameState,
+    source: ObjectId,
+    ability_index: usize,
+) -> Option<crate::cards::card_definition::LoyaltyCost> {
+    use crate::cards::card_definition::AbilityDefinition;
+    let obj = state.objects().get(&source)?;
+    let card_id = obj.card_id.clone()?;
+    let def = state.card_registry().get(card_id)?;
+    def.abilities
+        .iter()
+        .filter_map(|a| match a {
+            AbilityDefinition::LoyaltyAbility { cost, .. } => Some(cost.clone()),
+            _ => None,
+        })
+        .nth(ability_index)
+}
+
 /// CR 606.4 / CR 107.3m — does this loyalty ability's cost carry an `{X}`?
 ///
 /// `LoyaltyCost::MinusX` is the only variant whose paid amount is the activator's choice

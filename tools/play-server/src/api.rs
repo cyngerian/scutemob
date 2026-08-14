@@ -952,22 +952,28 @@ pub(crate) fn validate_additional_cost_params(
                 }
             }
             AdditionalCost::Entwine if !marker_is_affordable(plan, MarkerCostKind::Entwine) => {
-                return Err(bad(
-                    "CR 702.42a: this spell has no entwine cost to pay".to_string()
-                ));
+                return Err(bad(marker_refusal(
+                    "entwine",
+                    "CR 702.42a",
+                    plan,
+                    MarkerCostKind::Entwine,
+                )));
             }
             AdditionalCost::Fuse if !marker_is_affordable(plan, MarkerCostKind::Fuse) => {
-                return Err(bad(
-                    "CR 702.102a/b: this decision offered no PAYABLE fuse — fuse requires both halves \
-                     and a cast from HAND, and its cost is the two halves summed, which this \
-                     board may not be able to afford"
-                        .to_string(),
-                ));
+                return Err(bad(marker_refusal(
+                    "fuse",
+                    "CR 702.102a/b",
+                    plan,
+                    MarkerCostKind::Fuse,
+                )));
             }
             AdditionalCost::Offspring if !marker_is_affordable(plan, MarkerCostKind::Offspring) => {
-                return Err(bad(
-                    "CR 702.175a: this spell has no offspring cost to pay".to_string()
-                ));
+                return Err(bad(marker_refusal(
+                    "offspring",
+                    "CR 702.175a",
+                    plan,
+                    MarkerCostKind::Offspring,
+                )));
             }
             AdditionalCost::Gift { opponent } => {
                 let Some(gift) = plan.gift.as_ref() else {
@@ -1188,6 +1194,35 @@ pub(crate) fn validate_loyalty_x_value(
         ));
     }
     Ok(())
+}
+
+/// PB-DX29 `/review` L3: say WHICH of the two things went wrong.
+///
+/// `marker_is_affordable` folds two questions into one boolean — "did the plan offer this
+/// rider at all?" and "did it say the rider is payable?" — which is right for the guard
+/// and wrong for the message. The first draft told a human casting Goblin War Party with
+/// four Mountains that *"this spell has no entwine cost to pay"*, on a card that plainly
+/// prints Entwine {2}{R}. Behaviour right, diagnosis wrong — and a 400's whole job is to
+/// name the part of the payload the client is holding that its answer contradicts.
+fn marker_refusal(
+    word: &str,
+    cr: &str,
+    plan: &mtg_simulator::legal_actions::AdditionalCostPlan,
+    kind: mtg_simulator::legal_actions::MarkerCostKind,
+) -> String {
+    if plan.markers.iter().any(|m| m.kind == kind) {
+        format!(
+            "{cr}: this spell's {word} cost is not payable right now -- this decision offered \
+             it and marked it unaffordable on top of the spell's own cost. Tap more mana, or \
+             cast without it"
+        )
+    } else {
+        format!(
+            "{cr}: this decision offered no {word} cost to pay -- this spell has none, or (for \
+             fuse, CR 702.102a/d) it cannot be fused from this zone or with a targeted right \
+             half"
+        )
+    }
 }
 
 /// PB-DX29 `/review` M1: the printed name of a cost kind, for the default-deny message.

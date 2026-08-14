@@ -1613,10 +1613,20 @@ impl LegalActionProvider for StubProvider {
                     }
 
                     // CR 702.140a (PB-DX29): one action per valid mutate target × the
-                    // caster's on-top/under choice. `on_top: true` is emitted FIRST so
-                    // the pre-PB-DX29 behaviour — which hard-coded `true` — is still
-                    // the lower index of each pair, which keeps an index-choosing bot
-                    // taking the same action it used to for the same board.
+                    // caster's on-top/under choice, target-major.
+                    //
+                    // `on_top: true` is emitted FIRST of each pair, so the pre-PB-DX29
+                    // behaviour — which hard-coded `true` — is the lower index of the
+                    // pair. **That is weaker than it first reads, and the `/review`
+                    // (L5) caught the overclaim**: because the loop is target-MAJOR,
+                    // index stability against the pre-batch offer holds for the FIRST
+                    // target only; with two or more legal hosts every later target's
+                    // index shifts by one per preceding target. Nothing in the tree
+                    // broke (the full suite is green and no seeded fixture reaches a
+                    // mutate cast), and an index-choosing bot picking a *different*
+                    // legal mutate is a strategy difference rather than an illegality —
+                    // but the guarantee is "the first pair is stable", not "every bot
+                    // reproduces its old command".
                     for &target in &non_human_own {
                         for on_top in [true, false] {
                             actions.push(LegalAction::CastWithMutate {
@@ -2622,6 +2632,14 @@ fn build_additional_cost_plan(
     // Every one is detected on the COST-CARRYING `AbilityDefinition` variant for the
     // same reason Squad is, and every one ALSO requires the `KeywordAbility` presence
     // marker, because `casting.rs` gates on the marker BEFORE it looks the cost up.
+    //
+    // **Squad itself does NOT do the marker half, and this comment used to imply it
+    // did** (`/review` L6). UI-2's Squad arm detects on `AbilityDefinition::Squad`
+    // alone; it is left as UI-2 wrote it rather than "corrected", because changing a
+    // shipped offer's detection is a behaviour change outside this batch's scope and
+    // `core::pb_dx29_additional_cost_roster` **R2** pins the two sets equal for Squad
+    // along with the other seven — so the asymmetry is latent by gate rather than by
+    // luck. Stated here so the next reader does not infer a symmetry the code lacks.
     // Detecting on only one of the two is what made `nocturnal_hunger`'s printed Gift
     // unpayable while nothing anywhere was red; `core::pb_dx29_additional_cost_roster`
     // R2 now gates both directions for all eight kinds, so a def with one half of the
@@ -2939,10 +2957,21 @@ fn eligible_splice_cards(
             else {
                 return false;
             };
-            let has_marker = def
-                .abilities
-                .iter()
-                .any(|a| matches!(a, AbilityDefinition::Keyword(KeywordAbility::Splice)));
+            // CR 702.47a: the SPLICE CARD's own keyword, read **layer-resolved**, because
+            // `casting.rs`'s splice gate reads it that way (`expect_characteristics`).
+            // The first draft read `def.abilities` — the printed list — which over-offers
+            // a card whose Splice a continuous effect has removed, and that direction is
+            // an SR-38 violation: an offer the engine would refuse (`/review` L7).
+            // Practically unreachable (nothing in the corpus removes Splice), and fixed
+            // anyway, because "unreachable" is a fact about today's corpus and
+            // "mirrors the gate" is a property of the code.
+            let has_marker = mtg_engine::calculate_characteristics(state, obj.id)
+                .map(|c| c.keywords.iter().any(|k| *k == KeywordAbility::Splice))
+                .unwrap_or_else(|| {
+                    def.abilities
+                        .iter()
+                        .any(|a| matches!(a, AbilityDefinition::Keyword(KeywordAbility::Splice)))
+                });
             if !has_marker {
                 return false;
             }

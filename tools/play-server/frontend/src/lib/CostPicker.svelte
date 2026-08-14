@@ -20,10 +20,11 @@
    *   counts (CountCostView[]) — PB-DX29. `{kind, prompt, cost_label,
    *                          max_count, template, count_key}` per entry, one per
    *                          pay-N-times rider (Replicate CR 702.56a, Escalate
-   *                          CR 702.120a). Absent from the payload when empty —
-   *                          `view.rs` skips the field — so the default matters.
+   *                          CR 702.120a). Always present, `[]` when there is
+   *                          nothing to ask; the default below is belt-and-braces.
    *   markers (MarkerCostView[]) — PB-DX29. `{kind, prompt, cost_label,
-   *                          template}` per entry, one per pay-or-not rider
+   *                          cost_label, affordable, template}` per entry, one per
+   *                          pay-or-not rider
    *                          (Entwine CR 702.42a, Fuse CR 702.102a, Offspring
    *                          CR 702.175a). See "the marker templates are not
    *                          objects" below — this family is answered
@@ -223,9 +224,12 @@
    * PB-DX29 — the four new families, as lists the markup and the answer builder
    * both walk, so a rendered widget and a contributed entry cannot get out of step.
    *
-   * `counts` and `markers` are `#[serde(skip_serializing_if = "Vec::is_empty")]`
-   * server-side, so they are ABSENT rather than `[]` on the overwhelming majority
-   * of casts. The prop default covers `undefined`; `?? []` covers a future `null`.
+   * `counts` and `markers` are **always serialized** server-side and arrive as `[]`
+   * when there is nothing to ask — `view.rs` deliberately carries no
+   * `skip_serializing_if` on them, because two presence conventions in one struct
+   * (absent for the lists, `null` for the options) is a trap for the next client.
+   * An earlier draft of this comment said the opposite; the defaults below are kept
+   * regardless, so a future server that DID skip them, or sent `null`, still works.
    */
   const countList = $derived(counts ?? []);
   const markerList = $derived(markers ?? []);

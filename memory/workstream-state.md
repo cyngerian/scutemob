@@ -24,7 +24,7 @@
 
 **Shipped**: v3 queue **rank 13**. `OOS-M11-10(loyalty)` + `OOS-UI2-4` **both CLOSED**; the
 **OOS-M11-10 ID collision RESOLVED** (the closed equip seed renumbered `OOS-M11-10E`), which that
-note itself had deferred to "whichever task next touches `params.rs`". Filed **OOS-DX29-1..14**.
+note itself had deferred to "whichever task next touches `params.rs`". Filed **OOS-DX29-1..17**.
 
 **Read this first, because it is the thing the brief could not have told you.** Both halves of
 this batch were framed as "the `Command` fields already exist, so this is a routing change". Both

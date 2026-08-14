@@ -1412,7 +1412,7 @@ fn action_object(action: &LegalAction) -> Option<ObjectId> {
 }
 
 /// Human-readable label, rendered from the seat-redacted [`NameIndex`] only.
-fn action_label(action: &LegalAction, names: &NameIndex) -> String {
+fn action_label(action: &LegalAction, names: &NameIndex, state: &GameState) -> String {
     let card = |id: ObjectId| names.label(id);
     match action {
         LegalAction::PassPriority => "Pass priority".to_string(),
@@ -1463,10 +1463,25 @@ fn action_label(action: &LegalAction, names: &NameIndex) -> String {
             card(*mutate_target)
         ),
         LegalAction::TurnFaceUp { permanent, .. } => format!("Turn {} face up", card(*permanent)),
+        // CR 606.4 / CR 107.3m (PB-DX29 `/review` L9): name the loyalty COST, not the
+        // slot index. Chandra has three loyalty abilities and the old label rendered
+        // them as "Loyalty ability 0/1/2 of Chandra, Flamecaller" — three
+        // indistinguishable buttons on the very card this batch was dispatched to make
+        // usable. The batch filed the analogous modal-label opacity as `OOS-DX29-16`
+        // arguing "this batch is what makes modal spells routinely clickable"; the
+        // identical argument applies here and was missed.
+        //
+        // The cost is what a player says out loud ("Chandra plus one"), it is what the
+        // printed card shows, and it is available from the same registry read the
+        // engine's own handler makes. The index is kept as a disambiguator, because two
+        // abilities may share a cost and the index is what the `Command` carries.
         LegalAction::ActivateLoyaltyAbility {
             source,
             ability_index,
-        } => format!("Loyalty ability {ability_index} of {}", card(*source)),
+        } => match loyalty_cost_label(state, *source, *ability_index) {
+            Some(cost) => format!("{cost}: ability {ability_index} of {}", card(*source)),
+            None => format!("Loyalty ability {ability_index} of {}", card(*source)),
+        },
         LegalAction::CastMorphFaceDown { card: c, .. } => {
             format!("Cast {} face down", card(*c))
         }
@@ -1511,6 +1526,27 @@ fn pay_verb(pay: bool) -> &'static str {
     } else {
         "Decline"
     }
+}
+
+/// CR 606.4 / CR 107.3m (PB-DX29 `/review` L9): the printed loyalty cost — `+1`, `−3`,
+/// `0`, `−X` — of the loyalty ability at `ability_index`, as display text.
+///
+/// **The registry read lives in the ENGINE, not here**, and the batch's own Invariant-7
+/// gate is why: a first draft did the lookup in this file and
+/// `test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places` went red on the
+/// spot. A new raw `GameState` read in `view.rs` is a new hidden-information channel that
+/// no other Invariant-7 gate can see, and the pin exists precisely so one cannot arrive
+/// unnoticed. `mtg_engine::loyalty_ability_cost` returns the cost; this formats it.
+///
+/// The minus sign is U+2212 (−), matching the printed card rather than an ASCII hyphen.
+fn loyalty_cost_label(state: &GameState, source: ObjectId, ability_index: usize) -> Option<String> {
+    use mtg_engine::cards::card_definition::LoyaltyCost;
+    mtg_engine::loyalty_ability_cost(state, source, ability_index).map(|cost| match cost {
+        LoyaltyCost::Plus(n) => format!("+{n}"),
+        LoyaltyCost::Minus(n) => format!("\u{2212}{n}"),
+        LoyaltyCost::Zero => "0".to_string(),
+        LoyaltyCost::MinusX => "\u{2212}X".to_string(),
+    })
 }
 
 /// CR 107.3 / 601.2b: does this action need an `x_value`?
@@ -2930,7 +2966,7 @@ fn action_option_view(
     ActionOptionView {
         index,
         kind: action_kind(action).to_string(),
-        label: action_label(action, names),
+        label: action_label(action, names, state),
         object_id: action_object(action).map(|id| id.0),
         target_slots,
         target_min,
