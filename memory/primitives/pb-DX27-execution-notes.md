@@ -287,8 +287,10 @@ paired *negative*-direction probes stay green under a single-ability revert and 
 
 ## 6. Corpus movement, and the four gates that announced it
 
-**Coverage 1,133/1,803 (62.8%) → 1,137/1,803 (63.1%)**, regenerated with
-`tools/authoring-report.py`, not derived. Net **+4**: five promotions, one honest demotion.
+**Coverage 1,133/1,803 (62.8%) → 1,136/1,803 (63.0%)**, regenerated with
+`tools/authoring-report.py`, not derived. Net **+3**: four promotions, two honest
+demotions. (The implement phase measured +4 / 1,137; the `/review` demoted
+`green_suns_zenith` back — §9 — and the corpus was reconciled a second time.)
 Inside the brief's "~4-8 flips" estimate — worth recording only because PB-DX26's estimate
 was wrong in both directions and the lesson there was that *a card-yield estimate counting
 defs to REPAIR measures the wrong thing*. Here it happened to land, and the reason is that
@@ -297,11 +299,11 @@ repair really does flip.
 
 | gate | moved | why |
 |---|---|---|
-| `completeness_deviation_scan` marker floor | 670 → **666** | a LOWERING — every prior entry in that comment block avoided having to make one |
+| `completeness_deviation_scan` marker floor | 670 → **666**, then **667** after the demotion | a LOWERING — every prior entry in that comment block avoided having to make one |
 | `completeness_deviation_scan` ALLOWLIST | +5 entries | the promoted defs carry **historical** prose about the refuted claim; the `hazorets_monument`/`reforge_the_soul` shape one step further |
 | `pb_dx42a_continuous_condition_roster` t5 | 1 → **2** | exit (b) — see §6.1 |
 | `cards1_equip_target_repair` t6 | 38 → **39** | see §6.2 |
-| `pb_dx32_fuzz_output` `CORPUS_COMPLETE` | 1133 → **1137** | `COMMANDER_POOL` measured unchanged at 90 by executing the gate, not reasoned |
+| `pb_dx32_fuzz_output` `CORPUS_COMPLETE` | 1133 → **1136** | `COMMANDER_POOL` measured unchanged at 90 by executing the gate, not reasoned |
 
 ### 6.1 `OOS-ADJ-2` came true on its own gate's first real event
 
@@ -424,3 +426,36 @@ identifier-shape variation it tried — an unlisted type prefix, a bare identifi
 `::`, a spaced `Effect :: X`, a lowercase member, a needle and identifier on different
 lines — falls into R3's opaque count and reddens. The one real escape is phrasing, which is
 finding 4 and is now bounded and ratcheted.
+
+### 9.1 The corpus was reconciled TWICE, and that is the batch's cheapest durable lesson
+
+The implement phase re-observed **nine** seeded fixtures after its +4 completeness move
+(4 simulator, 5 play-server), each by an executed sweep. The `/review` then demoted
+`green_suns_zenith`, the count went **1,137 → 1,136**, and **every seeded fixture in the
+workspace re-dealt again** — the `pb_dx32` orphaned-token pair needed a fresh 0..=399
+sweep (118 → **18**) and the play-server opening hand had to be read off a new run.
+
+`random_deck` draws its commander from the `Complete` pool and fills by colour identity,
+so **one marker flip anywhere in 1,803 defs invalidates every seeded pin in the
+repository.** The operational consequence, now written into the fixtures themselves: a
+marker-flipping batch must expect to re-observe its seeded pins **after its review**, not
+only after its implement phase. Budget for two passes, not one.
+
+### 9.2 Final numbers
+
+| | baseline | final |
+|---|---:|---:|
+| tests | 4,561 / 0 / 5 | **4,605 / 0 / 5** (46 targets, +44 by name, **0 removals**) |
+| coverage | 1,133/1,803 = 62.8% | **1,136/1,803 = 63.0%** |
+| PROTOCOL | 35 | **36** (gate-computed) |
+| HASH | 74 | **75** (gate-computed) |
+
+New tests by file: `pb_dx27_blood_moon_type_scope` 9, `pb_dx27_headline_defs` 9,
+`pb_dx27_stale_blocker_notes` 7, `pb_dx27_stale_blocker_repairs` 9,
+`pb_dx27_sweep_repairs_b` 10.
+
+Coverage flips, named: **UP** `chord_of_calling`, `reconnaissance`,
+`wight_of_the_reliquary`, `chandra_flamecaller`. **DOWN** `qarsi_sadist` (no
+`TriggerCondition::WhenThisExploitsACreature`), and `green_suns_zenith` — which the
+implement phase had promoted and the review demoted, the batch's own outlier-`Complete`
+pattern recurring inside it.
