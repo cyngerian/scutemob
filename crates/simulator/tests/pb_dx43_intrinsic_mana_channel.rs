@@ -275,7 +275,7 @@ fn drive_to_tap_offer<P: LegalActionProvider>(
                 let pass = d
                     .actions
                     .iter()
-                    .position(|a| matches!(a, LegalAction::PassPriority { .. }))
+                    .position(|a| matches!(a, LegalAction::PassPriority))
                     .expect("a priority window always offers PassPriority");
                 game.submit(
                     d.seq,
@@ -581,11 +581,13 @@ fn awaken_the_woods_token_spec() -> TokenSpec {
         .find(|d| d.name == "Awaken the Woods")
         .expect("Awaken the Woods has a def");
     for ability in &def.abilities {
-        if let AbilityDefinition::Spell { effect, .. } = ability {
-            if let Effect::Repeat { effect, .. } = effect {
-                if let Effect::CreateToken { spec } = effect.as_ref() {
-                    return spec.clone();
-                }
+        if let AbilityDefinition::Spell {
+            effect: Effect::Repeat { effect, .. },
+            ..
+        } = ability
+        {
+            if let Effect::CreateToken { spec } = effect.as_ref() {
+                return spec.clone();
             }
         }
     }
