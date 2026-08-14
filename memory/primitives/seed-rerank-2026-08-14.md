@@ -114,8 +114,12 @@ Six things. Five are verification findings; one is a ranking finding.
 **The ranking convention is unchanged** and is quoted verbatim in §4. **Honest discounted yield
 across the new entries**: ~3-6 clean completeness flips (`OOS-RR4-2`, `OOS-DX26-6`+`OOS-DX27-4`
 and `OOS-DX8-1`+`-3` carry nearly all of them, and two of those three are *behind an engine fix*,
-not behind authoring), correctness repairs on **~45** already-`Complete` deck-legal cards, and
-three instrument repairs whose value is that they stop a green suite from lying.
+not behind authoring), correctness repairs on **53 already-`Complete` deck-legal cards** — and that figure is a **sum of
+the band-1 rows' measured populations with overlaps NOT deduplicated**, not a distinct-def count:
+3 (rank 1) + 7 (2) + 15 (3) + 11 (4) + 3 (6) + 1 (7) + 6 (8) + 1 (9) + 1 (12) + 1 (13) + 1 (14) +
+1 (15) + 1 (16) + 2 (17). **PB-DX47's 18 are excluded** because they are unconfirmed until its
+probe runs; including them takes it past 70. And three instrument repairs whose value is that
+they stop a green suite from lying.
 
 ---
 
@@ -288,7 +292,8 @@ tells you not to trust.
 | `UI6` | 6 | 0 | 3 | 0 | 3 | 0 |
 | **total** | **208** | **25** | **45** | **32** | **63** | **43** |
 
-**The 45 queue candidates, listed so §4 can be checked against them** — `OOS-` prefixes dropped:
+**The 45 queue candidates, listed so §4 can be checked against them** — every one is placed in §4, either as a ranked row, as a named rider, or in the "Deliberately NOT ranked" list with its reason.
+ — `OOS-` prefixes dropped:
 `DX19-2`, `DX20-10`, `DX21-1`, `DX21-2`, `DX21-4`, `DX21-7`, `DX22-8`, `DX24-4`, `DX24-9`,
 `DX25-1`, `DX25b-1`, `DX25c-6`, `DX26-3`, `DX26-6`, `DX26-8`, `DX27-1`, `DX27-2`, `DX27-4`,
 `DX27-5`, `DX28-1`, `DX28-5`, `DX28-6`, `DX29-1`, `DX29-2`, `DX29-3`, `DX29-9`, `DX29-12`,
@@ -325,7 +330,7 @@ offer-suppression filter worth **1 of 166** refusals at filing; at HEAD it is wo
 | **`OOS-DX26-6` + `OOS-DX27-4`** | DX26-6's remaining card yield is **not** DSL work: two of its three claimed flips (`blackblade_reforged`, and `empyrial_plate` raising the analogue) are blocked on **one engine bug** — `resolve_cda_amount` resolving the controller from the *equipped creature* rather than the effect's controller (CR 108.5/611.2c), which is exactly `OOS-DX27-4`. `crown_of_skemfar` is the second def naming it. One fix, two rows. | `layers.rs:1862-1867`, repeated `:1881-1886`, `:1896-1901` |
 | **`OOS-DX8-1` + `OOS-DX8-3`** | DX8-3's "72 effectively-`Complete` defs print a you-may nothing expresses" **is** DX8-1's `may` channel, exactly — re-derived from the `BASELINE` const body as `may` 72 / `up_to` 10 / `choose` 2. Separately they build the same worklist twice. | §2.7 |
 | **`OOS-ENG2-1` + `OOS-ENG2-2`** | One mechanism (`PermanentTargeted` emitted at 3 of 12 announcement sites), one population (3 deck-legal `Complete` Ward defs). ENG2-2 is ENG2-1's site census, not a second finding. | §2.5 |
-| **`OOS-DX20-10` + `OOS-DX20-5`** | Both need the same new `EnchantFilter` field. `kayas_ghostform` additionally needs `controller: You`, which the same edit supplies. | prose in §2.12 |
+| **`OOS-DX20-10` + `OOS-DX20-5`** | Both need the same new `EnchantFilter` field. `kayas_ghostform` additionally needs `controller: You`, which the same edit supplies. | §4 rank 9, which carries the three-site fix census |
 | **`OOS-DX32-1` + `OOS-DX22-8` + `OOS-FB1-1`** | The two live fuzz violations cannot be *diagnosed* without the crash artefact, and `bin/fuzzer.rs:328` is literally `command_history: Vec::new()`. FB1-1 is their **prerequisite**, not a separate row. | §2.8 |
 
 ### 1e. NOT queue work — design records a class column will mislead you into ranking
@@ -776,7 +781,7 @@ The reasoning, in the order the evidence forced it:
 **Three corrections applied to the source rows themselves rather than only recorded here** (§6):
 `OOS-DX27-9`'s registry row gains the deck-legal-vs-total distinction and loses its "the rank
 premise is false" framing; `OOS-DX28-1`'s row gains the `t9`-covers-the-wrong-struct finding; and
-`OOS-ADJ-2` is recorded **not discharged** in the adjudication's §6 rather than being left to read
+`OOS-ADJ-2` is recorded **PARTIALLY DISCHARGED and re-scoped** in the adjudication's §6 rather than left to read
 as closed by the rider that cites it.
 
 **Not re-decided, and stated so it is not mistaken for an omission**: the adjudication's
@@ -958,7 +963,7 @@ guess and the dispatcher should treat gate-computing it as part of stage 0.
 | **8** | **PB-DX50** | the mutate surface: target legality and CR 702.140c timing | **OOS-DX25-1** (re-classified latent → partly live) + **OOS-DX29-2** | **CORRECTNESS — 6 deck-legal `Complete` mutate defs, newly human-reachable** | 0 flips; mutate target validation (`casting.rs:1306-1364`) checks zone, creature-ness, non-Human and owner **and nothing else** — no shroud, no protection — while PB-DX29 just made mutate fully reachable from the browser | **PROTOCOL + HASH** (MED) — the timing half needs an `EffectChoiceQuestion` variant; the legality half may be routing only |
 | **9** | **PB-DX20b** | `EnchantFilter` has no OR over card types | **OOS-DX20-10** (self-labelled HIGH) + **OOS-DX20-5** | **CORRECTNESS — 1 deck-legal `Complete` (`imprisoned_in_the_moon`), human-reachable since PB-DX20** | 0 flips; +1 `partial` unblocked (`kayas_ghostform`) | **PROTOCOL + HASH** (HIGH) — `EnchantTarget` is hashed (`hash.rs:1591`) and `KeywordAbility` is a named closure root. **Cheaper than the row implies**: `TargetFilter.has_card_types` already exists and `enchant_target_to_requirement` already uses it; three sites |
 | **10** | **PB-DX18** *(standing, v3 rank 14)* | the trust boundary on ungated commands | **OOS-DP2-7** + **-4** + **-8** + **OOS-DX2-4** + **OOS-DX2-1** + **OOS-M11-5** | correctness (gated) + hygiene | 0 flips; **`OOS-M11-5` got cheaper *and* worse** — its in-source justification is stale (PB-DX20 answered it) and its blast radius reaches Ward on 3 deck-legal `Complete` defs | **HASH only** (HIGH) — `GameState` is in `CLOSURE_MUST_NOT_CONTAIN`. Cost up: the PRNG pin now re-deals **18+** committed seeded fixtures |
-| **11** | **PB-DX51** | CR 508.8 / 506.4 — "put onto the battlefield attacking" and the declaration bookkeeping | **OOS-DX21-4** + **OOS-DX21-5** (rider) | correctness (engine-wide, pre-existing) | 0 flips | **HASH** (MED) — needs a third combat-state field |
+| **11** | **PB-DX51** | CR 508.8 / 506.4 — "put onto the battlefield attacking", the declaration bookkeeping, and the offer layer that disagrees with it | **OOS-DX21-4** + **OOS-DX21-5** (rider) + **OOS-DX21-2** *(SR-38 offer soundness on the same surface; all three of its cites drifted 250-300 lines — offer `legal_actions.rs:1227-1259`, attacker suppression `:1182`, reject `combat.rs:1149`)* | correctness (engine-wide, pre-existing) + offer soundness | 0 flips | **HASH** (MED) — needs a third combat-state field |
 | **12** | **PB-DX35** *(standing, v3 rank 22)* | modal trigger targets + the inert `optional` | **OOS-DX4-2** + **OOS-DX4-5** | correctness + card yield | **2 real flips** (`shambling_ghast`, `hullbreaker_horror`) **+ 1 live-wrong deck-legal `Complete` repaired** (`retreat_to_kazandu`); DX4-5's 5 are already `Complete` → 0 flips there, in-place repair | DX4-2 none-if-registry / both-if-lowered (MED); **DX4-5 now none** (HIGH) — PB-DX28 built the channel |
 | **13** | **PB-DX36** *(standing, v3 rank 23)* | `WhenDealsDamage` + the dead `combat_only` arm | **OOS-CARDS2-6** *(no registry row — file one first)* | **CORRECTNESS — worse than filed**: `combat_only` is read **only by the hasher**, so `true` and `false` are behaviourally identical | **1 flip** (`exalted_angel`), not "1-2 + family"; repairs `sigil_of_sleep` (deck-legal `Complete`, marker-less, silently drops a printed trigger) | **both** (HIGH) — via `EffectAmount`; `TriggerCondition` is **off-wire**, which the v3 row had backwards |
 | **14** | **PB-DX52** | Bolt Bend's printed "or ability" half is unreachable | **OOS-DX25b-1** + **OOS-DX25b-5** (rider) | correctness — 1 deck-legal `Complete` | 0 flips | **PROTOCOL + HASH** (HIGH) — needs a target id space for ability stack entries that does not exist |
@@ -968,7 +973,7 @@ guess and the dispatcher should treat gate-computing it as part of stage 0.
 | **18** | **PB-DX42b** *(standing, re-decided in §3.1 — NOT carried)* | CR 613.1d layer-bounded condition queries | **OOS-ADJ-1** ≡ **OOS-DX19-2** (+ **OOS-DX19-1** residue) | **CORRECTNESS — 7 deck-legal `Complete` pairs, every one needing a conjunction** | 0 flips | **none** (HIGH) expected — gate-execute both. **Preconditions**: re-word `OOS-DX19-2` per `OOS-ADJ-3` (a cross-layer bounding problem framed as a CR 613.8b fixpoint — a worker taking it literally builds the wrong thing); and if PB-DX9 has shipped, re-measure the supply census first |
 | **19** | **PB-DX55** | the whole bot/human refusal surface, which is now exactly three seeds | **OOS-SIM6-3** (76 of 105) + **OOS-SIM5-3** (27) + **OOS-SIM5-5** (2) | **GATE INTEGRITY / AGENCY — and it is the shipped alpha's own 422** | 0 flips; **100% of the measured refusal surface**, residue zero. A human's mana-cost activation in the browser still 422s | **none** (HIGH) — simulator-internal. Cite correction: `local_game.rs:738` → **`:1111-1114`** |
 | **20** | **PB-DX56** | make the two live fuzz violations diagnosable, then diagnose them | **OOS-FB1-1** *(prerequisite)* → **OOS-DX32-1** (84, 79.2% of HARD) + **OOS-DX22-8** (22, doubled) | **GATE INTEGRITY** — `--stop-on-error` halts on an undiagnosed class | 0 flips | **none** (HIGH) |
-| **21** | **PB-DX57** | the gate-widening cluster — five gates that report success while checking less than they claim | **OOS-DX28-1** + **OOS-DX28-5** + the **PB-DX42a widening** (`t7` 1→8 variants, `t9`'s missing `TargetFilter` half) + **OOS-DX26-3** + **OOS-DX21-7** | **GATE INTEGRITY** | 0 flips; ~8 lines for the DX42a half alone, which is what makes PB-DX42b's premise actually gated (§2.3) | **none** (HIGH) — test-only |
+| **21** | **PB-DX57** | the gate-widening cluster — six gates that report success while checking less than they claim | **OOS-DX28-1** + **OOS-DX28-5** + **OOS-ADJ-2** *(the PB-DX42a widening: `t7` 1→8 variants, `t9`'s missing `TargetFilter` half — §2.3)* + **OOS-DX26-3** + **OOS-DX21-7** + **OOS-DX28-6** *(census first: no gate exists for the "an in-def comment asserts a resolution mechanism the code does not use" shape, and PB-DX27's blocker-note sweep does not cover it; population UNMEASURED, so stage 0 is the census)* | **GATE INTEGRITY** | 0 flips; ~8 lines for the DX42a half alone, which is what makes PB-DX42b's premise actually gated (§2.3) | **none** (HIGH) — test-only |
 | **22** | **PB-DX9** *(standing, v3 rank 15)* | multi-card search + the inert-field family | **OOS-DP9-3** (+DP9-2/-4/-9, **DP10-5 ≡ OOS-DX4-5**) | capability / card yield | **2 flips** (`tooth_and_nail`, `buried_alive`) — and see sequencing constraint 2: this row is what promotes `the_world_tree` and moves PB-DX42b's premise | **PROTOCOL + HASH** (HIGH) |
 | **23** | **PB-DX38** *(standing, v3 rank 30 — promoted)* | the CR-citation rot sweep | **OOS-UI3-1** + **OOS-DX2-6** + **OOS-DX25-6** | doc hygiene (Architecture Invariant 8) | 0 flips; **10** wrong cites across 11 lines in `events.rs` (not 9), CR 726 **76 across 27 files**, CR 701.5-for-*counter* **333** occurrences of which 4 name a nonexistent `701.5g`, and a new mechanical derivation finds **206 candidate mismatches across 97 files** | **none** (HIGH) |
 | **24** | **PB-DX58** | one engine bug, three equip promotions | **OOS-DX27-4** + **OOS-DX26-6** *(merged — §1d)* | correctness + **card yield** | **the v3-era "3 flips with no new DSL" is refuted**: 0 flips with no new work, **2 flips behind one engine fix** (`resolve_cda_amount` resolving the controller from the *equipped creature*, CR 108.5/611.2c-wrong), 1 behind a new enum variant. The population is **11** non-`Complete` equip defs, not 10 | **none** (HIGH) — the fix reads the effect's controller, already available |
@@ -1003,7 +1008,7 @@ guess and the dispatcher should treat gate-computing it as part of stage 0.
 | **OOS-DX25-4**, **OOS-DX25b-4** | PB-DX52 / PB-DX54 | `SpellCountered` emitted for 2 of 25 ability kinds on both paths; `deflecting_swat`'s `must_change: false` deterministic no-op |
 | **OOS-DX20-3/-4/-6**, **OOS-DX26-2** | any card-def batch | aspirationally-wrong TODOs (two in `polymorphists_jest.rs`, not one) and `commanders_plate`'s genuinely-absent "is your commander" predicate — **`blackblade_reforged` is no longer a member**, PB-DX27 authored its CR 702.6c line |
 | **OOS-ENG1-6** | any `effects/mod.rs` batch | `Effect::MillCards` resolves its count `as usize` with no `.max(0)`, **nine lines above** `CreateToken`'s `raw_count.max(0)`. One line |
-| **OOS-ENG1-9** *(take fix (b))*, **OOS-G2-2**, **OOS-UI6-2**, **OOS-UI6-6** | any play-server batch | a name captured at ask time (wire-neutral; **6** deck-legal defs, not 4); the mulligan seed that makes every mulliganed game's bug report unreproducible; `all_cards` populated at one construction site with no roster gate; `library_look_cards` open-coding CR 121.1 |
+| **OOS-ENG1-9** *(take fix (b))*, **OOS-G2-2**, **OOS-UI6-2**, **OOS-UI6-5**, **OOS-UI6-6** | any play-server batch | a name captured at ask time (wire-neutral; **6** deck-legal defs, not 4); the mulligan seed that makes every mulliganed game's bug report unreproducible; `all_cards` populated at one construction site with no roster gate; **the Invariant-7 raw-read gate is still a 7-needle enumerated set** (`main.rs:5088-5145`) rather than type-level, so it can only see the channels someone thought of — `OOS-UI6-5`, and no PB-DX batch has touched it since UI-6; `library_look_cards` open-coding CR 121.1 |
 | **OOS-SIM6-1**, **OOS-SIM6-2**, **OOS-ENG2-9**, **OOS-DX23-3**, **OOS-DX23-6** | PB-DX55 / PB-DX33 | narrowing `flatten_cost_into`; two note-vs-code shapes; a superseded prose arm; the TUI dredge parity gap; `--all-targets` appearing only in CLAUDE.md narrative and in neither the runner agent's step nor the Milestone Checklist |
 
 **Deliberately NOT ranked, and the reason stated rather than left as an omission:**
@@ -1029,17 +1034,24 @@ guess and the dispatcher should treat gate-computing it as part of stage 0.
 
 ## 5. Parked — real, do not queue
 
-Sixty-three seeds. Grouped by the reason, because the reason is what a future reader needs.
+**Sixty-three seeds, and all sixty-three are named below** — because a verdict distribution whose
+PARKED bucket is not enumerable is not auditable, which is the standard §1b sets for itself.
+Grouped by the reason, since the reason is what a future reader needs.
 
-| group | items | why parked |
-|---|---|---|
-| **latent with a measured population of ZERO** | `OOS-DX20-1/-2/-8/-9`, `OOS-DX23-2/-8`, `OOS-DX24-3/-8`, `OOS-DX25-2`, `OOS-DX25b-2`, `OOS-DX25c-1/-2/-3/-4`, `OOS-DX26-1`, `OOS-DX28-3/-4`, `OOS-DX29-5/-16`, `OOS-DX22-4/-5/-6`, `OOS-SIM4-1/-3` | each was re-measured, not assumed. Re-rank the day the first member is authored. `OOS-DX22-4`'s population is 0 **by construction** (`random_deck`, its only caller, draws from the same `all_cards()` map); `OOS-SIM4-1`'s is 0 because the TUI has **no redeal call site at all** (`grep -rn redeal tools/tui/src/` finds only a pointer comment) |
-| **discharged by measurement rather than by a fix** | `OOS-SIM5-4` | it deferred an offer-suppression filter worth **1 of 166** refusals at filing; at HEAD it is worth **0 of 105** (§2.6), and its recorded blocker was already refuted in-source by `targeting.rs:83-91`. Parked with a *better* justification than it had when filed |
-| **milestone-scale, as their own filings say** | `OOS-G6-1` (36 defs / 27 `Complete` `AltCastAbility`; all 4 `CommanderFreeCast` defs `Complete` and un-free-castable), `OOS-G2-3` (`Command::TakeMulligan`/`KeepHand` unreachable — `builder.rs:62` defaults `turn_number: 1` and `.turn_number(0)` has **0 hits workspace-wide**), `OOS-UI5-4` (the R7 frontend harness, designed twice and built zero times) | not a PB-sized slot |
-| **M10a-shaped** | `OOS-UI3-2` + `OOS-UI3-4`, `OOS-UI6-1/-3/-4`, `OOS-ENG2-6/-7/-8` | need an engine-side "publicly revealed / revealed to whom" notion, or are TUI-surface items whose home is the M10 client work |
-| **structural residuals, disclosed at their own declaration** | `OOS-DX7-1` (9 `Effect` discriminant collisions across 18 variants; both ratchets green and **no 10th pair despite PROTOCOL moving 96 → 98**), `OOS-DX7-2`, `OOS-DX8-2/-4/-8`, `OOS-DX26-4/-5`, `OOS-ENG1-1/-2/-3/-7/-8/-10` | each is a stated bound, not a defect |
-| **inherited from v3 §5 unchanged** | `OOS-DX1-1`+`-2`, `OOS-DX5-4/-5`, `OOS-CARDS2-1/-2/-5`, `OOS-UI3-3`, and v3's own inheritance of v2's §5 in full | nothing in this census closes or re-activates any of them. Read v3 §5 for the per-item reason |
-| **the highest-count agency row, still unranked** | **`proliferate`** — **23** deck-legal `Complete` defs on PB-DP9's `AnswerEffectChoice` channel, confirmed four independent ways | agency restoration on otherwise-correct cards, with eighteen live-wrong entries above it. Carried forward for the third triage running, unchanged. **The registry's "25" (`:1209`) is a stale 2026-07-27 snapshot** that drifted *down* through CARDS-2's and PB-DX27's honest demotions |
+| group | items | n | why parked |
+|---|---|---:|---|
+| **latent with a measured population of ZERO** | `OOS-DX20-1`, `-2`, `-8`, `-9`; `OOS-DX22-4`, `-5`, `-6`; `OOS-DX23-2`, `-8`; `OOS-DX24-3`, `-8`; `OOS-DX25-2`; `OOS-DX25b-2`; `OOS-DX25c-1`, `-2`, `-3`, `-4`; `OOS-DX26-1`; `OOS-DX28-3`, `-4`; `OOS-DX29-5`, `-16`; `OOS-SIM4-1`, `-3` | 24 | each **re-measured**, not assumed. Re-rank the day the first member is authored. `OOS-DX22-4`'s population is 0 **by construction** (`random_deck`, its only caller, draws from the same `all_cards()` map); `OOS-SIM4-1`'s is 0 because the TUI has **no redeal call site at all** (`grep -rn redeal tools/tui/src/` finds only a pointer comment) |
+| **structural residuals, disclosed at their own declaration** | `OOS-DX7-1`, `-2`; `OOS-DX8-2`, `-4`, `-8`; `OOS-DX26-4`; `OOS-ENG1-1`, `-2`, `-3`, `-7`, `-8`, `-10` | 12 | each is a **stated bound**, not a defect. `OOS-DX7-1` is the sharpest: 9 `Effect` discriminant collisions across 18 variants, both ratchets green, and **no 10th pair has appeared despite PROTOCOL moving 96 → 98** |
+| **M10a-shaped — need an engine-side notion that does not exist yet** | `OOS-ENG2-6`, `-7`, `-8`; `OOS-UI6-1`, `-3`, `-4`; `OOS-UI5-1`, `-2` | 8 | a "publicly revealed / revealed to whom" notion, or TUI-surface items whose home is the M10 client work. (`OOS-UI3-2`/`-4` are the same class but are v3-census seeds, inherited below rather than counted here) |
+| **instrument, policy and coverage items with no live yield** | `OOS-FB1-4`, `-7`, `-8`; `OOS-SIM6-4`, `-5`, `-6`; `OOS-SIM5-2`; `OOS-DX23-4`; `OOS-DX24-5` | 9 | forage/sacrifice_self unmirrored, the TUI's missing picker, `x_value: 0` at offer time, `UpToN` slots announced empty by design, a bot **policy** preference that is not a correctness claim (`DX23-4`), and a probe that does not discriminate what its name says (`DX24-5`) — all latent with **0 measured traffic** |
+| **milestone-scale, as their own filings say** | `OOS-G6-1`, `OOS-G2-3`, `OOS-UI5-4`, `OOS-G10-1` | 4 | `G6-1`: 36 `AltCastAbility` defs / 27 `Complete`, and all 4 `CommanderFreeCast` defs are `Complete` and un-free-castable. `G2-3`: `Command::TakeMulligan`/`KeepHand` are unreachable — `builder.rs:62` defaults `turn_number: 1` and `.turn_number(0)` has **0 hits workspace-wide**. `UI5-4`: the R7 frontend harness, designed twice and built zero times. `G10-1`: the HTTP-fuzz instrument, proposed and never built |
+| **discharged by measurement rather than by a fix** | `OOS-SIM5-4`, `OOS-G5-3` *(the same deferral, filed under two IDs)* | 2 | it deferred an offer-suppression filter worth **1 of 166** refusals at filing; at HEAD it is worth **0 of 105** (§2.6), and its recorded blocker was already refuted in-source by `targeting.rs:83-91`. Parked with a **better** justification than it had when filed |
+| **re-scoped rather than acted on** | `OOS-DX27-9` | 1 | its "PB-DX42b's rank premise is false" headline does not hold on the deck-legal axis the rank used (§2.2); the row is corrected in place and the durable half is carried as a sequencing constraint on PB-DX9 |
+| **diagnosability only, no state effect** | `OOS-DX19-4` | 1 | the depth tripwire and saturation assert are still absent; the crash they would have diagnosed is closed |
+| **filed in execution notes as deferred LOWs** | `OOS-DX28-9`, `-10` | 2 | `ChooseObject` produces no decision-coverage row; the CR 608.2b fizzle direction is proven structurally rather than end-to-end |
+| **inherited from v3 §5 unchanged (not part of the 208)** | `OOS-DX1-1`+`-2`, `OOS-DX5-4`/`-5`, `OOS-CARDS2-1`/`-2`/`-5`, `OOS-UI3-2`/`-3`/`-4`, and v3's own inheritance of v2's §5 in full | — | nothing in this census closes or re-activates any of them. Read v3 §5 for the per-item reason |
+| **the highest-count agency row, still unranked (not part of the 208)** | **`proliferate`** | — | **23** deck-legal `Complete` defs on PB-DP9's `AnswerEffectChoice` channel, confirmed four independent ways. Agency restoration on otherwise-correct cards, with eighteen live-wrong entries above it; carried forward for the third triage running. **The registry's "25" (`:1209`) is a stale 2026-07-27 snapshot** that drifted *down* through CARDS-2's and PB-DX27's honest demotions — corrected in the row (§6) |
+| **total, from the 208** | | **63** | matches §1b's PARKED column exactly |
 
 **One count worth carrying forward for whoever next reads §5**: the still-auto-chosen union is **80**
 and was unmoved by PB-DX8, PB-DX28 and PB-DX29. The only parked row to leave the set since v3 is
@@ -1078,8 +1090,27 @@ honest one for a doc-only task.
      (`a878ca26`).
    - **`OOS-DP10-6`** — its `proliferate` figure of 25 is a stale 2026-07-27 snapshot; the measured
      value is **23**.
-   - **`OOS-SIM6-3`**, **`OOS-DX22-8`**, **`OOS-ENG1-1`**, **`OOS-ENG1-2`**, **`OOS-ENG1-9`**,
-     **`OOS-DX27-3`**, **`OOS-DX27-4`**, **`OOS-DX29-13`** — rotted line cites corrected (§2.10).
+   - **`OOS-DX22-8`**, **`OOS-DX32-1`**, **`OOS-ENG1-1`**, **`OOS-ENG1-2`**, **`OOS-ENG1-9`**,
+     **`OOS-DX27-3`**, **`OOS-DX27-4`**, **`OOS-DX29-13`** — rotted line cites corrected (§2.10);
+     `OOS-DX22-8` and `OOS-DX32-1` additionally carry their **re-measured** counts (22 and 84), a
+     note that the two moved in *opposite* directions, and the `OOS-FB1-1` prerequisite.
+   - **`OOS-SIM6-3`'s cite correction could NOT be applied to a row, because it has no row.**
+     Its filed cite `local_game.rs:738` is `:1111-1114` at HEAD and its filed figure "62 of 113"
+     is **76 of 105**, and both corrections live only in §2.6 and on §4 rank 19. **This is §1a's
+     29%-unrowed finding biting inside this task's own fix list**: a dispatcher who consults the
+     registry — the document `dispatch hygiene 5` names as ground truth — will read a dead cite
+     and a stale figure for the seed that is **72% of the entire measured refusal surface**.
+     Recorded here rather than silently dropped; filing the row is one line of PB-DX55's stage 0.
+   - **Markdown render**: the two rows this task edited that carried **unescaped `|` inside code
+     spans** (`OOS-DX32-1`'s `has_lost || has_conceded`, `OOS-DX29-13`'s `and_then(|cid| …)`) are
+     escaped, so they render as 4-cell rows again. **Ten further pre-existing rows have the same
+     defect and were NOT touched**, because this task has no mandate to edit rows it is not
+     correcting: registry lines **1140** (`OOS-DP5-1`), **1194** (`OOS-DP9-10`), **1198**
+     (`OOS-DP9-14`), **1230** (`OOS-DX4-1`), **1235** (`OOS-DX4-6`), **1236** (`OOS-M11-5`),
+     **1248** (`OOS-M11-6`), **1257** (`OOS-CARDS1-2`), **1357** (`OOS-DX24-5`), **1423**
+     (`OOS-DX29-2`). GFM does not protect pipes inside backticks; each renders as a 6- or 7-cell
+     row in a 4-column table. Recorded as a residual rather than silently swept — it is a
+     one-line-each rider for any batch that opens the registry.
 4. **`docs/audits/mtg-characteristics-recursion-adjudication.md`** — `OOS-ADJ-2` recorded
    **partially discharged and re-scoped to the seven unpinned variants** in §6, rather than being
    left to read as closed by the rider that cites it.
@@ -1094,6 +1125,38 @@ honest one for a doc-only task.
 grep-confirmed absent from the registry before filing (dispatch hygiene 5). They are rowed in
 `docs/audits/decision-point-audit.md` §8.1 rather than only in this memo — the `OOS-RR3-2`
 precedent, and the correction to v3's choice, since RR3-2 had to be retro-rowed by PB-DX27 anyway.
+
+### `/review` cycle — 0 HIGH / 3 MEDIUM / 5 LOW, all 8 taken
+
+The reviewer had a shell and used it: it re-ran the census command and reproduced
+**488 / 79 / 196 / 213 / 208** exactly, checked §1b's ledger in **both** dimensions (27 family rows
+against their `n`, five verdict columns against 25/45/32/63/43), byte-diffed the §4 ordering rule
+against v2 `:876-883` and v3 `:782-786` and confirmed it **verbatim**, executed
+`pb_dx42a_continuous_condition_roster` (10/10, printing 386 / 18 / 16 / 9 — every §2.2 figure
+reproducing), and confirmed `git diff --numstat main -- crates/ tools/` empty. All six criteria
+PASS. The eight defects it found are the item-level trace under the arithmetic, and every one is
+this document failing its own standard:
+
+| # | sev | finding | taken |
+|---|---|---|---|
+| 1 | MED | **§6 promised a registry correction to `OOS-SIM6-3`, which has no registry row** — contradicting §1a's own 29%-unrowed finding four hundred lines earlier | §6 rewritten to say the correction **could not** be applied and lives only in §2.6 and §4 rank 19, with the consequence stated: a dispatcher consulting the registry reads a dead cite and a stale figure for the seed that is **72% of the whole refusal surface** |
+| 2 | MED | **§1b claimed "every one appears in §4" and three of the 45 appeared nowhere** (`OOS-DX28-6`, `OOS-UI6-5`, `OOS-DX21-2`); `OOS-ADJ-2` was carried substantively but never named by ID | all four placed — `DX21-2` into rank 11 (same combat offer surface), `DX28-6` and `ADJ-2` into rank 21, `UI6-5` into the play-server rider row — and §1b's claim reworded to say *how* each is placed |
+| 3 | MED | **§5 said "sixty-three seeds" and enumerated 47** — sixteen PARKED seeds carried a ledger verdict and were named nowhere, so "every one of the 208 carries exactly one verdict" was not auditable for that bucket | §5 rewritten as a grouped table with an `n` column; **all 63 enumerated**, the column sums to 63, and the enumeration now matches §1b's PARKED column by construction |
+| 4 | LOW | §1d cited **`§2.12`, a section that does not exist** — the evidence cell for the `OOS-DX20-10` merge | repointed at §4 rank 9, which carries the three-site fix census |
+| 5 | LOW | §6 presented itself as the complete source-doc ledger and **omitted the `OOS-DX32-1` edit** this branch made | added, with its re-measured 84 / 79.2% figures |
+| 6 | LOW | two registry rows this task edited render as 6-cell rows — **unescaped `\|` inside code spans** | both escaped; **ten further pre-existing rows have the same defect and were deliberately NOT touched**, each named by line in §6 as a rider rather than swept into a re-rank's diff |
+| 7 | LOW | **three different verdict words for the same edit** — §3.1 said "stays OPEN", then "not discharged", while the shipped adjudication note says "PARTIALLY DISCHARGED, re-scoped" | unified on the shipped wording, so the memo and the source of record agree |
+| 8 | LOW | `seed-rerank-2026-08-02.md:17` still read **"This document is the authoritative primitive queue"**, scoped only by an adjacent banner | struck in place with the reason for striking rather than deleting: it is what the document said while PB-DX19..PB-DX29 were dispatched from it |
+
+**And one the reviewer did not raise, found while checking its arithmetic**: §0 published
+"correctness repairs on **~45** already-`Complete` deck-legal cards" with no derivation — the exact
+shape rule 1 of this document's own method forbids. It is **53**, and it is a *sum of band-1 row
+populations with overlaps not deduplicated*, which is now stated along with the per-rank addends
+and the fact that PB-DX47's unconfirmed 18 are excluded.
+
+**The pattern across 1, 2, 3 and 5 is one thing**: every published *aggregate* in this document
+reproduced, and four of its *item-level traces* were short. An arithmetic that checks out is not
+an enumeration that checks out, and only the enumeration survives being handed to a dispatcher.
 
 ### The census-integrity instruction for the next re-rank
 

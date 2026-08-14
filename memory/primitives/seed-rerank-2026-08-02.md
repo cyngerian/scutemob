@@ -17,7 +17,11 @@
 > in this document was edited by v4** — every correction v4 makes lives in v4 or in the registry
 > row itself, which is the same discipline this document applied to v2.
 >
-> **This document is the authoritative primitive queue.** It supersedes
+> ~~**This document is the authoritative primitive queue.**~~ **[SCOPED 2026-08-14: it was, until
+> v4. Its §1-§3 remain canonical; its §4 does not — see the banner above. The sentence is struck
+> rather than deleted because it is what the document said when PB-DX19..PB-DX29 were dispatched
+> from it, and a reader arriving mid-file needs the correction, not a silent rewrite.]**
+> It supersedes
 > `memory/primitives/seed-rerank-2026-07-27.md` §4 (the PB-DX1..DX18 queue) as the thing a
 > dispatcher reads to pick the next batch. The v2 document remains the canonical record of *why*
 > PB-DX1..DX18 exist and the canonical filing record for the seeds it triaged — its §1/§2/§3 are
