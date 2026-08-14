@@ -836,7 +836,7 @@
 /// header comment for why, settled by an executed pairwise-distinctness
 /// experiment (`effect_colliding_variant_digests_are_pairwise_distinct`),
 /// not argued.
-pub const HASH_SCHEMA_VERSION: u8 = 75;
+pub const HASH_SCHEMA_VERSION: u8 = 76;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1294,6 +1294,32 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         decl_fingerprint: "e8ca51103996c3094a0c6c1e1107511e2f98719e15cf0fe15f1726cc730f4ca5",
         stream_fingerprint: "ad5233842ddb7e75c785b3a44b20979364528f64160e34df662d1b4b8b643714",
     },
+    HashSchemaEpoch {
+        version: 76,
+        // PB-DX28 (2026-08-14, `OOS-DX4-6` + `OOS-DX4-1`): four declared shapes in
+        // the `GameState` serde closure move, and the closure's type count moves
+        // 130 -> 131. `EffectTarget` gains `ChosenObject { zone: ChoiceZone,
+        // filter: Box<TargetFilter>, count: u32, up_to: bool }` and
+        // `DamagedPlayer`; `TargetFilter` gains `owner: TargetOwner`;
+        // `TriggerCondition::WheneverCreatureDies` gains `owner:
+        // Option<TargetOwner>`; `EffectChoiceQuestion`/`EffectChoiceAnswer` each
+        // gain a fifth variant, `ChooseObject`. `ChoiceZone` and `TargetOwner` are
+        // the new closure members (+2 declared types, of which the count sees +1
+        // here vs +2 on the PROTOCOL side because `GameState`'s closure already
+        // reached one of them by a different route).
+        //
+        // stream_fingerprint MOVES for the v40 reason alone (HASH_SCHEMA_VERSION
+        // is the stream's first byte). `canonical_fixture()` populates none of the
+        // new shapes -- no `ChosenObject`, no non-default `TargetFilter.owner`, no
+        // `ChooseObject` question -- so this is the
+        // v69/v72/v73/v74/v75-style version-sentinel-byte-only case, NOT the
+        // v70/v71 payload-bytes case. The new variants' own bytes are exercised by
+        // the direct `HashInto` unit tests in
+        // `pb_dx28_owner_axis.rs` and `pb_dx28_untargeted_choice.rs`, not by this
+        // stream fixture.
+        decl_fingerprint: "06208006f9fb87b49e3f15b1132f4dbf2656da44a47895d2ea58e88aa97348e0",
+        stream_fingerprint: "b899b0721d3a27cbb37311a4bac048f4a6f207349e40ba5d1a80625464cb6b63",
+    },
 ];
 
 use super::combat::{AttackTarget, CombatState};
@@ -1329,11 +1355,11 @@ use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
 use crate::cards::card_definition::ManaRestriction;
 use crate::cards::card_definition::{
-    AbilityDefinition, ActivationZone, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount,
-    EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, ManaSourceFilter, ModeSelection,
-    PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetRequirement,
-    TimingRestriction, TokenSpec, TriggerCondition, TriggerZone, TypeLine, WheelDisposal,
-    WheelDraw, ZoneTarget,
+    AbilityDefinition, ActivationZone, ChoiceZone, Condition, ContinuousEffectDef, Cost, Effect,
+    EffectAmount, EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, ManaSourceFilter,
+    ModeSelection, PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetOwner,
+    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TriggerZone, TypeLine,
+    WheelDisposal, WheelDraw, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
 use blake3::Hasher;
@@ -3492,6 +3518,17 @@ impl HashInto for EffectChoiceQuestion {
                 hand.hash_into(hasher);
                 count.hash_into(hasher);
             }
+            // PB-DX28: ChooseObject — discriminant 4.
+            EffectChoiceQuestion::ChooseObject {
+                candidates,
+                count,
+                up_to,
+            } => {
+                4u8.hash_into(hasher);
+                candidates.hash_into(hasher);
+                count.hash_into(hasher);
+                up_to.hash_into(hasher);
+            }
         }
     }
 }
@@ -3514,6 +3551,11 @@ impl HashInto for EffectChoiceAnswer {
             }
             EffectChoiceAnswer::Discard { chosen } => {
                 3u8.hash_into(hasher);
+                chosen.hash_into(hasher);
+            }
+            // PB-DX28: ChooseObject — discriminant 4.
+            EffectChoiceAnswer::ChooseObject { chosen } => {
+                4u8.hash_into(hasher);
                 chosen.hash_into(hasher);
             }
         }
@@ -3905,6 +3947,9 @@ impl HashInto for DeathTriggerFilter {
         self.controller_opponent.hash_into(hasher);
         self.exclude_self.hash_into(hasher);
         self.nontoken_only.hash_into(hasher);
+        // PB-DX28: CR 108.3 / 404.3 ownership scope on the dying creature.
+        self.owner_you.hash_into(hasher);
+        self.owner_opponent.hash_into(hasher);
     }
 }
 impl HashInto for TriggeredAbilityDef {
@@ -5966,6 +6011,15 @@ impl HashInto for TargetController {
         }
     }
 }
+impl HashInto for TargetOwner {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            TargetOwner::Any => 0u8.hash_into(hasher),
+            TargetOwner::You => 1u8.hash_into(hasher),
+            TargetOwner::Opponent => 2u8.hash_into(hasher),
+        }
+    }
+}
 impl HashInto for TargetFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.max_power.hash_into(hasher);
@@ -6006,6 +6060,8 @@ impl HashInto for TargetFilter {
         self.max_cmc_amount.hash_into(hasher);
         // PB-OS8: runtime-computed min mana value cap (CR 202.3/608.2h).
         self.min_cmc_amount.hash_into(hasher);
+        // PB-DX28: CR 108.3 ownership scope (distinct from `controller`).
+        self.owner.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {
@@ -6109,6 +6165,30 @@ impl HashInto for EffectTarget {
             EffectTarget::EquippedCreature => 10u8.hash_into(hasher),
             // PB-EF3: AttackTarget — the player/planeswalker the attacker is/was attacking — discriminant 11
             EffectTarget::AttackTarget => 11u8.hash_into(hasher),
+            // PB-DX28: DamagedPlayer — the player dealt combat damage — discriminant 12
+            EffectTarget::DamagedPlayer => 12u8.hash_into(hasher),
+            // PB-DX28: ChosenObject — a resolution-time untargeted choice (CR 115.10) —
+            // discriminant 13
+            EffectTarget::ChosenObject {
+                zone,
+                filter,
+                count,
+                up_to,
+            } => {
+                13u8.hash_into(hasher);
+                zone.hash_into(hasher);
+                filter.hash_into(hasher);
+                count.hash_into(hasher);
+                up_to.hash_into(hasher);
+            }
+        }
+    }
+}
+impl HashInto for ChoiceZone {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ChoiceZone::Battlefield => 0u8.hash_into(hasher),
+            ChoiceZone::YourGraveyard => 1u8.hash_into(hasher),
         }
     }
 }
@@ -6366,6 +6446,7 @@ impl HashInto for TriggerCondition {
                 exclude_self,
                 nontoken_only,
                 filter,
+                owner,
             } => {
                 7u8.hash_into(hasher);
                 controller.hash_into(hasher);
@@ -6373,6 +6454,8 @@ impl HashInto for TriggerCondition {
                 nontoken_only.hash_into(hasher);
                 // PB-N: hash the new subtype/color/type filter field
                 filter.hash_into(hasher);
+                // PB-DX28: CR 108.3 / 404.3 ownership scope on the dying creature.
+                owner.hash_into(hasher);
             }
             TriggerCondition::WheneverCreatureEntersBattlefield {
                 filter,

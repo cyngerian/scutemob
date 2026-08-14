@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: None,
+                    owner: None,
                     exclude_self: false,
                     nontoken_only: false,
                     filter: None,

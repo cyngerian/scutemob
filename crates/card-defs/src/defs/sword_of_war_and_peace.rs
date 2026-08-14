@@ -52,21 +52,31 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
-            // deals damage to that player equal to cards in their hand; gain 1 life per card in
-            // your hand." DamagedPlayer resolves from ctx.damaged_player at resolution.
+            // CR 510.3a / CR 115.10 (PB-DX28): "Whenever equipped creature deals combat
+            // damage to a player, [this Equipment] deals damage to THAT PLAYER equal to
+            // cards in their hand; gain 1 life per card in your hand." This is
+            // DETERMINED, not targeted — "that player" is whoever the equipped
+            // creature just damaged, not a chosen target (CR 115.10 lists no "target"
+            // word in the printed text). The old comment already claimed
+            // `ctx.damaged_player` resolution while the code actually declared a
+            // `TargetPlayer` requirement and read `DeclaredTarget { index: 0 }` — the
+            // PB-DX27 stale-note class, live: in a 4-player game the CR 601.2c
+            // auto-target picker chose *a* player, so the Sword could damage the
+            // wrong seat. `EffectTarget::DamagedPlayer` / `PlayerTarget::DamagedPlayer`
+            // both resolve from `EffectContext::damaged_player`, so no `targets` slot
+            // is declared at all.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
                 effect: Effect::Sequence(vec![
                     Effect::DealDamage {
                         source: None,
-                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        target: EffectTarget::DamagedPlayer,
                         amount: EffectAmount::CardCount {
                             zone: ZoneTarget::Hand {
-                                owner: PlayerTarget::DeclaredTarget { index: 0 },
+                                owner: PlayerTarget::DamagedPlayer,
                             },
-                            player: PlayerTarget::DeclaredTarget { index: 0 },
+                            player: PlayerTarget::DamagedPlayer,
                             filter: None,
                         },
                     },
@@ -82,7 +92,7 @@ pub fn card() -> CardDefinition {
                     },
                 ]),
                 intervening_if: None,
-                targets: vec![TargetRequirement::TargetPlayer],
+                targets: vec![],
 
                 modes: None,
                 trigger_zone: None,

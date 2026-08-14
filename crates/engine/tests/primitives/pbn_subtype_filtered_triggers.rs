@@ -136,6 +136,8 @@ fn death_trigger_draw_subtype(subtype: &str) -> TriggeredAbilityDef {
             controller_opponent: false,
             exclude_self: false,
             nontoken_only: false,
+            owner_you: false,
+            owner_opponent: false,
         }),
         combat_damage_filter: None,
         triggering_creature_filter: Some(TargetFilter {
@@ -571,7 +573,7 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     //   CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
     // This assertion is updated to reflect the current sentinel value.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 75u8,
+        HASH_SCHEMA_VERSION, 76u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }

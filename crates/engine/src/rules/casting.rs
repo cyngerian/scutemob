@@ -22,7 +22,7 @@
 use super::events::GameEvent;
 use crate::cards::card_definition::{
     AbilityDefinition, Cost, CostModifierScope, SelfCostReduction, SpellAdditionalCost,
-    SpellCostFilter, TargetController, TargetFilter, TargetRequirement,
+    SpellCostFilter, TargetController, TargetFilter, TargetOwner, TargetRequirement,
 };
 use crate::rules::commander::apply_commander_tax;
 use crate::rules::layers::expect_characteristics;
@@ -6672,12 +6672,20 @@ fn validate_object_satisfies_requirement(
                 // PB-XA2: CR 701.21a — "target untapped X" reads !status.tapped.
                 let passes_untapped =
                     !filter.is_untapped || state.objects.get(&id).is_some_and(|o| !o.status.tapped);
+                // PB-DX28: CR 108.3 — ownership scope, distinct from `passes_controller`
+                // (CR 109.4). Runtime board property, not on `Characteristics`.
+                let passes_owner = match filter.owner {
+                    TargetOwner::Any => true,
+                    TargetOwner::You => obj.owner == caster,
+                    TargetOwner::Opponent => obj.owner != caster,
+                };
                 passes_filter
                     && passes_controller
                     && passes_self
                     && passes_combat_role
                     && passes_tapped
                     && passes_untapped
+                    && passes_owner
             }
         }
         TargetRequirement::TargetPermanentWithFilter(filter) => {
@@ -6716,12 +6724,19 @@ fn validate_object_satisfies_requirement(
                 // PB-XA2: CR 701.21a — untapped-state check.
                 let passes_untapped =
                     !filter.is_untapped || state.objects.get(&id).is_some_and(|o| !o.status.tapped);
+                // PB-DX28: CR 108.3 — ownership scope (same rationale as V1).
+                let passes_owner = match filter.owner {
+                    TargetOwner::Any => true,
+                    TargetOwner::You => obj.owner == caster,
+                    TargetOwner::Opponent => obj.owner != caster,
+                };
                 passes_filter
                     && passes_controller
                     && passes_self
                     && passes_combat_role
                     && passes_tapped
                     && passes_untapped
+                    && passes_owner
             }
         }
         // "target [type] card from your graveyard" — must be in caster's graveyard (CR 115.1).
@@ -6758,12 +6773,21 @@ fn validate_object_satisfies_requirement(
                 !filter.is_tapped || state.objects.get(&id).is_some_and(|o| o.status.tapped);
             let passes_untapped =
                 !filter.is_untapped || state.objects.get(&id).is_some_and(|o| !o.status.tapped);
+            // PB-DX28: CR 108.3 — ownership scope (same rationale as V1/V2). A
+            // graveyard card's `obj.owner` always equals its `ZoneId::Graveyard(pid)`
+            // pid, but the field is read directly to match the other three arms.
+            let passes_owner = match filter.owner {
+                TargetOwner::Any => true,
+                TargetOwner::You => obj.owner == caster,
+                TargetOwner::Opponent => obj.owner != caster,
+            };
             in_your_gy
                 && crate::effects::matches_filter(&chars, filter)
                 && passes_self
                 && passes_combat_role
                 && passes_tapped
                 && passes_untapped
+                && passes_owner
         }
         // "target [type] card from a graveyard" — any player's graveyard (CR 115.1).
         TargetRequirement::TargetCardInGraveyard(filter) => {
@@ -6789,12 +6813,19 @@ fn validate_object_satisfies_requirement(
                 !filter.is_tapped || state.objects.get(&id).is_some_and(|o| o.status.tapped);
             let passes_untapped =
                 !filter.is_untapped || state.objects.get(&id).is_some_and(|o| !o.status.tapped);
+            // PB-DX28: CR 108.3 — ownership scope (same rationale as V3).
+            let passes_owner = match filter.owner {
+                TargetOwner::Any => true,
+                TargetOwner::You => obj.owner == caster,
+                TargetOwner::Opponent => obj.owner != caster,
+            };
             in_any_gy
                 && crate::effects::matches_filter(&chars, filter)
                 && passes_self
                 && passes_combat_role
                 && passes_tapped
                 && passes_untapped
+                && passes_owner
         }
         // Player requirement — object target is illegal (CR 601.2c).
         TargetRequirement::TargetPlayer | TargetRequirement::TargetOpponent => false,

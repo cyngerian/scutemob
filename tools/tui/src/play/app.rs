@@ -644,6 +644,10 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
                 mtg_engine::EffectChoiceQuestion::Scry { .. } => "scry",
                 mtg_engine::EffectChoiceQuestion::Surveil { .. } => "surveil",
                 mtg_engine::EffectChoiceQuestion::Discard { .. } => "discard",
+                // PB-DX28 (CR 115.10): unlike the four arms above, this one names
+                // PUBLIC objects (battlefield permanents / graveyard cards), but
+                // the formatter stays uniform and prints the class label only.
+                mtg_engine::EffectChoiceQuestion::ChooseObject { .. } => "choose object",
             };
             format!("P{} must answer a {kind} (CR 608.2d) — press 'r'", player.0)
         }

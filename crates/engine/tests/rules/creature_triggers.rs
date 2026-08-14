@@ -71,6 +71,8 @@ fn death_trigger_you_draw(
             controller_opponent: matches!(controller, mtg_engine::TargetController::Opponent),
             exclude_self: false,
             nontoken_only: false,
+            owner_you: false,
+            owner_opponent: false,
         }),
         combat_damage_filter: None,
         triggering_creature_filter: None,

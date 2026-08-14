@@ -578,6 +578,35 @@ fn validate_decision_params(
                     }
                     Ok(())
                 }
+                // PB-DX28 (CR 115.10 / CR 608.2): every id drawn from `candidates`,
+                // no duplicates, exactly `min(count, candidates.len())` when
+                // `!up_to` ("as much as possible"), `<= count` when `up_to`.
+                (
+                    EffectChoiceQuestion::ChooseObject {
+                        candidates,
+                        count,
+                        up_to,
+                    },
+                    EffectChoiceAnswer::ChooseObject { chosen },
+                ) => {
+                    check_ids(chosen, candidates, "choose object", "CR 115.10").map_err(bad)?;
+                    let expected = (*count as usize).min(candidates.len());
+                    if *up_to {
+                        if chosen.len() > *count as usize {
+                            return Err(bad(format!(
+                                "CR 115.10 / CR 608.2: this choice picks UP TO {count}, got {}",
+                                chosen.len()
+                            )));
+                        }
+                    } else if chosen.len() != expected {
+                        return Err(bad(format!(
+                            "CR 115.10 / CR 608.2: this choice picks exactly {expected} \
+                             object(s) (as much as possible, of {count} wanted), got {}",
+                            chosen.len()
+                        )));
+                    }
+                    Ok(())
+                }
                 _ => Err(bad(format!(
                     "CR 608.2d: this decision asked a {} question; the answer given is a \
                      different kind",
@@ -916,6 +945,7 @@ fn question_kind(question: &mtg_engine::EffectChoiceQuestion) -> &'static str {
         EffectChoiceQuestion::Scry { .. } => "scry",
         EffectChoiceQuestion::Surveil { .. } => "surveil",
         EffectChoiceQuestion::Discard { .. } => "discard",
+        EffectChoiceQuestion::ChooseObject { .. } => "choose object",
     }
 }
 

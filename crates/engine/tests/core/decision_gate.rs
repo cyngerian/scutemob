@@ -1223,10 +1223,15 @@ fn canonical_walk_reproduces_pb_dp8_roster() {
         .filter(|d| (row.predicate)(&serde_json::to_value(d).unwrap()))
         .count();
     assert!(
-        count >= 74,
-        "triggered_targets has only {count} Complete defs, expected >= 74 (PB-DP8's \
-         enumerated number, corrected -1 by PB-DX3b for emeria_the_sky_ruin's marker fix and \
-         -2 by PB-DX4 for shambling_ghast's and hullbreaker_horror's)"
+        count >= 60,
+        "triggered_targets has only {count} Complete defs, expected >= 60 (was 74 after \
+         PB-DX3b's -1 and PB-DX4's -2; re-pinned DOWN by PB-DX28 §1 -- the 10 Karoos, \
+         shrieking_drake, whitemane_lion and sword_of_truth_and_justice's AddCounter trigger \
+         were migrated OFF a declared `TargetRequirement` onto `EffectTarget::ChosenObject` \
+         (CR 115.10: none of the seven printed clauses says \"target\"), so their Triggered \
+         abilities no longer carry a non-empty `targets` list and this predicate correctly \
+         stops counting them. 60 is the MEASURED count at this batch's HEAD, not back-derived \
+         arithmetically from 74)"
     );
 }
 

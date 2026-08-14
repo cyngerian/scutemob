@@ -760,6 +760,7 @@ fn synthetic_graveyard_watcher_def(
                 exclude_self: true,
                 nontoken_only,
                 filter,
+                owner: None,
             },
             effect: mtg_engine::Effect::DrawCards {
                 player: PlayerTarget::Controller,

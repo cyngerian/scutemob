@@ -412,7 +412,7 @@ fn test_spell_single_target_hash_discriminant() {
     use mtg_engine::state::hash::HashInto;
 
     assert_eq!(
-        HASH_SCHEMA_VERSION, 75u8,
+        HASH_SCHEMA_VERSION, 76u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this \
          assertion and the state/hash.rs history block together; the authoritative check \
          is the SR-17 machine gate in tests/core/hash_schema.rs."

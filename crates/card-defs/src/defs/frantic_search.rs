@@ -14,6 +14,8 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Draw two cards, then discard two cards. Untap up to three lands.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
+            // CR 115.10 (PB-DX28): "untap up to three lands" is printed with no
+            // "target" — a resolution-time UNTARGETED choice, not a declared target.
             effect: Effect::Sequence(vec![
                 Effect::DrawCards {
                     player: PlayerTarget::Controller,
@@ -23,22 +25,19 @@ pub fn card() -> CardDefinition {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(2),
                 },
-                // Only requirement here is UpToN{3}, so declared lands occupy indices
-                // 0..3 (card_definition.rs:2799-2822); an undeclared slot no-ops.
                 Effect::UntapPermanent {
-                    target: EffectTarget::DeclaredTarget { index: 0 },
-                },
-                Effect::UntapPermanent {
-                    target: EffectTarget::DeclaredTarget { index: 1 },
-                },
-                Effect::UntapPermanent {
-                    target: EffectTarget::DeclaredTarget { index: 2 },
+                    target: EffectTarget::ChosenObject {
+                        zone: ChoiceZone::Battlefield,
+                        filter: Box::new(TargetFilter {
+                            has_card_type: Some(CardType::Land),
+                            ..Default::default()
+                        }),
+                        count: 3,
+                        up_to: true,
+                    },
                 },
             ]),
-            targets: vec![TargetRequirement::UpToN {
-                count: 3,
-                inner: Box::new(TargetRequirement::TargetLand),
-            }],
+            targets: vec![],
             modes: None,
             cant_be_countered: false,
         }],

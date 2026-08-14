@@ -859,6 +859,7 @@
           prompt={currentDecision.prompt}
           candidates={currentShape.candidates}
           count={currentShape.count}
+          minCount={currentShape.min_count}
           defaults={currentShape.default}
           template={currentShape.template}
           chosenKey={currentShape.chosen_key}

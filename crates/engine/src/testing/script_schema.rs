@@ -656,6 +656,14 @@ pub struct EffectChoiceScriptAnswer {
     /// the unchosen cards stay in hand.
     #[serde(default)]
     pub discard: Vec<String>,
+    /// PB-DX28: CR 115.10 -- for a resolution-time UNTARGETED object choice
+    /// (`EffectChoiceQuestion::ChooseObject`), the objects to choose, named
+    /// (they are PUBLIC -- battlefield permanents or graveyard cards -- so a
+    /// name lookup is unambiguous the same way `ManaSource.card` is). Must be
+    /// a subset of the question's `candidates` with no duplicates; the
+    /// engine, not the script, decides the exact-count vs. up-to legality.
+    #[serde(default)]
+    pub chosen: Vec<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]

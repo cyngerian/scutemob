@@ -962,6 +962,26 @@ pub enum EffectChoiceQuestion {
     /// `default_discard_answer` recovers the pre-batch auto-pick by taking the
     /// first `count` entries.
     Discard { hand: Vec<ObjectId>, count: u32 },
+    /// PB-DX28: CR 115.10 / CR 608.2d — the objects a resolution-time
+    /// UNTARGETED choice may pick from, in ascending `ObjectId` order (the
+    /// order `state.objects`, an `OrdMap`, yields).
+    ///
+    /// Unlike the four variants above, this one names **public** information:
+    /// every id is a permanent on the battlefield or a card in a graveyard,
+    /// both public zones (CR 400.2/403.1). `PendingEffectChoice.player` still
+    /// addresses one seat, and `private_to()` still returns `Some(player)` —
+    /// the question is addressed to one seat, not hidden from the rest — but no
+    /// hidden information rides on this variant the way it does on
+    /// `SearchLibrary`/`Scry`/`Surveil`.
+    ChooseObject {
+        candidates: Vec<ObjectId>,
+        /// How many the chooser picks. See `EffectTarget::ChosenObject::count`.
+        count: u32,
+        /// `true` = "up to `count`" (CR 608.2, may choose fewer). `false` =
+        /// exactly `count`, clamped to `candidates.len()` when the answer space
+        /// is smaller (CR 608.2 "as much as possible").
+        up_to: bool,
+    },
 }
 /// CR 608.2d (PB-DP9): the player's answer to an [`EffectChoiceQuestion`].
 ///
@@ -1005,6 +1025,11 @@ pub enum EffectChoiceAnswer {
     /// time nothing has been discarded and the destination is not yet known.
     /// `chosen` names the act CR 701.9b actually gives the player.
     Discard { chosen: Vec<ObjectId> },
+    /// PB-DX28: CR 115.10 / CR 608.2d — the object(s) chosen from the
+    /// question's `candidates`. No duplicates; `chosen.len() == count` when
+    /// `!up_to` (clamped to `min(count, candidates.len())`), `<= count` when
+    /// `up_to` — see `handle_answer_effect_choice`'s per-variant legality.
+    ChooseObject { chosen: Vec<ObjectId> },
 }
 /// CR 608.2d (PB-DP9): the one resolution-time choice the engine is currently
 /// blocked on.

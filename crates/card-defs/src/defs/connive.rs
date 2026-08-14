@@ -58,23 +58,42 @@ pub fn card() -> CardDefinition {
                     ..Default::default()
                 },
                 card_type: CardType::Sorcery,
-                // CR 701.25: Surveil 3, then return a creature card from GY to battlefield.
+                // CR 701.25 / CR 115.10 (PB-DX28): Surveil 3, then return a creature card
+                // from GY to battlefield. The return clause prints NO "target", so it is a
+                // resolution-time UNTARGETED choice from the graveyard — the identical shape
+                // `takenuma_abandoned_mire` carries, and for the identical reason. Authored
+                // as a real `TargetCardInYourGraveyard` before this batch, which meant
+                // CR 608.2b fizzled the WHOLE half — surveil included — if the chosen card
+                // left the graveyard in response.
+                //
+                // This def is the 18th member of the `OOS-DX4-6` class and neither the
+                // plan's §0.1 census nor the seed named it: it was found by this batch's own
+                // R4 inverse-axis gate, after the roster had been pinned at 17. Migrated here
+                // rather than left for a later batch — the seed is being CLOSED here, and closing it while
+                // a known deck-legal `Complete` member stays on the old shape would close it
+                // on a false premise. The registry's member list is a floor (AC 6448), and
+                // that rule does not stop applying at the number a plan happened to write.
                 effect: Effect::Sequence(vec![
                     Effect::Surveil {
                         player: PlayerTarget::Controller,
                         count: EffectAmount::Fixed(3),
                     },
                     Effect::MoveZone {
-                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        target: EffectTarget::ChosenObject {
+                            zone: ChoiceZone::YourGraveyard,
+                            filter: Box::new(TargetFilter {
+                                has_card_type: Some(CardType::Creature),
+                                ..Default::default()
+                            }),
+                            count: 1,
+                            up_to: false,
+                        },
                         to: ZoneTarget::Battlefield { tapped: false },
                         // Concoct returns to battlefield "under your control" (implicit — your GY).
                         controller_override: None,
                     },
                 ]),
-                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
-                    has_card_type: Some(CardType::Creature),
-                    ..Default::default()
-                })],
+                targets: vec![],
             },
         ],
         ..Default::default()

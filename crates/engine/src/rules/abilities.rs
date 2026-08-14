@@ -288,6 +288,7 @@ pub fn handle_activate_ability(
                 defending_player: None,
                 source_transformed_this_resolution: false,
                 effect_choice_gate_closed: false,
+                chosen_objects: Vec::new(),
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
@@ -4957,8 +4958,13 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 {
                     let dying_obj_id = *new_grave_id;
                     let dying_controller = *death_controller;
-                    let dying_is_token =
-                        state.objects.get(&dying_obj_id).is_some_and(|o| o.is_token);
+                    // PB-DX28: one bare lookup feeds both `dying_is_token` and
+                    // `dying_owner` (ownership is invariant across the zone move, see
+                    // the `owner_you`/`owner_opponent` comment below) rather than a
+                    // second `.objects.get(&dying_obj_id)` site (SR-25 ratchet).
+                    let dying_obj_snapshot = state.objects.get(&dying_obj_id);
+                    let dying_is_token = dying_obj_snapshot.is_some_and(|o| o.is_token);
+                    let dying_owner = dying_obj_snapshot.map(|o| o.owner);
                     // Collect all battlefield permanents that have AnyCreatureDies triggers.
                     let candidate_ids: Vec<ObjectId> = state
                         .objects
@@ -4988,6 +4994,22 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 // controller_opponent: dying creature must be controlled by an opponent
                                 if df.controller_opponent && dying_controller == obj.controller {
                                     continue;
+                                }
+                                // PB-DX28 (CR 108.3 / CR 404.3): owner_you / owner_opponent —
+                                // ownership never changes across a zone move
+                                // (`move_object_to_zone` always carries
+                                // `owner: old_object.owner` forward), so the dying
+                                // creature's owner can be read directly off the
+                                // now-in-graveyard object (`dying_owner`, computed
+                                // above alongside `dying_is_token`); no pre-death
+                                // capture needed, unlike `controller` above.
+                                if df.owner_you || df.owner_opponent {
+                                    if df.owner_you && dying_owner != Some(obj.owner) {
+                                        continue;
+                                    }
+                                    if df.owner_opponent && dying_owner == Some(obj.owner) {
+                                        continue;
+                                    }
                                 }
                                 // exclude_self: dying creature must not be the trigger source
                                 if df.exclude_self && dying_obj_id == obj_id {
@@ -7270,7 +7292,7 @@ fn collect_graveyard_carddef_triggers(
     arrived_in_graveyard_this_batch: &std::collections::HashSet<ObjectId>,
 ) {
     use crate::cards::card_definition::{
-        AbilityDefinition, TargetController, TriggerCondition, TriggerZone,
+        AbilityDefinition, TargetController, TargetOwner, TriggerCondition, TriggerZone,
     };
     use crate::state::game_object::TriggerEvent;
     // Collect all graveyard object IDs first to avoid borrow issues.
@@ -7375,6 +7397,7 @@ fn collect_graveyard_carddef_triggers(
                         exclude_self,
                         nontoken_only,
                         filter,
+                        owner: owner_scope,
                     } => {
                         // CR 108.4a: a graveyard card has no controller; `owner` (its
                         // OWNER) stands in, mirroring the battlefield arm's
@@ -7390,6 +7413,23 @@ fn collect_graveyard_carddef_triggers(
                         // controller_you / controller_opponent: CR 108.4a, see above.
                         let controller_blocks = (controller_you && *death_controller != owner)
                             || (controller_opponent && *death_controller == owner);
+                        // PB-DX28 (CR 108.3 / CR 404.3): the `owner` DSL field, distinct
+                        // from `controller` above -- "whenever a creature you OWN dies"
+                        // (nether_traitor: "put into YOUR graveyard"). Ownership never
+                        // changes across a zone move (`move_object_to_zone` always
+                        // carries `owner: old_object.owner` forward), so the dying
+                        // creature's owner can be read directly off the now-in-graveyard
+                        // object at `new_grave_id` -- no pre-death capture is needed,
+                        // unlike `controller` which DOES reset on the move. A missing
+                        // `new_grave_id` is a rules-correct fizzle (the card left the
+                        // graveyard between the death event and this dispatch), so this
+                        // reuses `fizzle_object`, the same helper the `nontoken_only` /
+                        // `filter` checks a few lines below already use for the SAME id.
+                        let dying_owner = state.fizzle_object(*new_grave_id).map(|o| o.owner);
+                        let owner_you = matches!(owner_scope, Some(TargetOwner::You));
+                        let owner_opponent = matches!(owner_scope, Some(TargetOwner::Opponent));
+                        let owner_blocks = (owner_you && dying_owner != Some(owner))
+                            || (owner_opponent && dying_owner == Some(owner));
                         // exclude_self: CR 400.7 -- `obj_id` lives in the GRAVEYARD id
                         // space, so the comparison that can match is `new_grave_id`.
                         // `pre_death_id` is the battlefield id and can never equal a
@@ -7411,6 +7451,7 @@ fn collect_graveyard_carddef_triggers(
                         // DOES trigger).
                         let lookback_blocks = arrived_in_graveyard_this_batch.contains(&obj_id);
                         let matched = if controller_blocks
+                            || owner_blocks
                             || exclude_self_blocks
                             || nontoken_blocks
                             || lookback_blocks
@@ -7578,12 +7619,22 @@ fn trigger_battlefield_target_matches(
             // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
             let passes_tapped = !f.is_tapped || obj.status.tapped;
             let passes_untapped = !f.is_untapped || !obj.status.tapped;
+            // PB-DX28: CR 108.3 — ownership scope, mirrors `casting.rs`'s
+            // `passes_owner` ("you" = the ability's controller — `trigger.controller`).
+            let passes_owner = match f.owner {
+                crate::cards::card_definition::TargetOwner::Any => true,
+                crate::cards::card_definition::TargetOwner::You => obj.owner == trigger.controller,
+                crate::cards::card_definition::TargetOwner::Opponent => {
+                    obj.owner != trigger.controller
+                }
+            };
             passes
                 && ctrl_ok
                 && passes_self
                 && passes_combat_role
                 && passes_tapped
                 && passes_untapped
+                && passes_owner
         }
         TargetRequirement::TargetPermanentWithFilter(f) => {
             let passes = crate::effects::matches_filter(&chars, f);
@@ -7621,12 +7672,22 @@ fn trigger_battlefield_target_matches(
             // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
             let passes_tapped = !f.is_tapped || obj.status.tapped;
             let passes_untapped = !f.is_untapped || !obj.status.tapped;
+            // PB-DX28: CR 108.3 — ownership scope (same rationale as
+            // TargetCreatureWithFilter above).
+            let passes_owner = match f.owner {
+                crate::cards::card_definition::TargetOwner::Any => true,
+                crate::cards::card_definition::TargetOwner::You => obj.owner == trigger.controller,
+                crate::cards::card_definition::TargetOwner::Opponent => {
+                    obj.owner != trigger.controller
+                }
+            };
             passes
                 && ctrl_ok
                 && passes_self
                 && passes_combat_role
                 && passes_tapped
                 && passes_untapped
+                && passes_owner
         }
         // Player-only reqs are handled above — no objects.
         TargetRequirement::TargetPlayer | TargetRequirement::TargetOpponent => false,
@@ -7862,6 +7923,16 @@ pub(crate) fn trigger_target_candidates(
                         // PB-XA2: CR 701.20a / 701.21a — tapped/untapped state.
                         let tapped_ok = !filter.is_tapped || obj.status.tapped;
                         let untapped_ok = !filter.is_untapped || !obj.status.tapped;
+                        // PB-DX28: CR 108.3 — ownership scope ("you" = trigger.controller).
+                        let owner_ok = match filter.owner {
+                            crate::cards::card_definition::TargetOwner::Any => true,
+                            crate::cards::card_definition::TargetOwner::You => {
+                                obj.owner == trigger.controller
+                            }
+                            crate::cards::card_definition::TargetOwner::Opponent => {
+                                obj.owner != trigger.controller
+                            }
+                        };
                         obj.zone == controller_gy
                         && crate::effects::matches_filter(
                             &obj.characteristics,
@@ -7871,7 +7942,7 @@ pub(crate) fn trigger_target_candidates(
                         // Death triggers like Elderfang Ritualist scan the graveyard
                         // where the trigger source's post-death object lives.
                         && (!filter.exclude_self || obj.id != trigger.source)
-                        && role_ok && tapped_ok && untapped_ok
+                        && role_ok && tapped_ok && untapped_ok && owner_ok
                     })
                     .map(|(id, obj)| SpellTarget {
                         target: Target::Object(*id),
@@ -7901,11 +7972,21 @@ pub(crate) fn trigger_target_candidates(
                         // PB-XA2: CR 701.20a / 701.21a — tapped/untapped state.
                         let tapped_ok = !filter.is_tapped || obj.status.tapped;
                         let untapped_ok = !filter.is_untapped || !obj.status.tapped;
+                        // PB-DX28: CR 108.3 — ownership scope (same rationale as T1 above).
+                        let owner_ok = match filter.owner {
+                            crate::cards::card_definition::TargetOwner::Any => true,
+                            crate::cards::card_definition::TargetOwner::You => {
+                                obj.owner == trigger.controller
+                            }
+                            crate::cards::card_definition::TargetOwner::Opponent => {
+                                obj.owner != trigger.controller
+                            }
+                        };
                         matches!(obj.zone, ZoneId::Graveyard(_))
                         && crate::effects::matches_filter(&obj.characteristics, filter)
                         // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
                         && (!filter.exclude_self || obj.id != trigger.source)
-                        && role_ok && tapped_ok && untapped_ok
+                        && role_ok && tapped_ok && untapped_ok && owner_ok
                     })
                     .map(|(id, obj)| SpellTarget {
                         target: Target::Object(*id),

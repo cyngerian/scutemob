@@ -2515,11 +2515,12 @@ fn test_dp9_roster_enumeration() {
 ///
 /// A mana ability resolves immediately and OUTSIDE the stack, so there is no
 /// stack object to roll back to and PB-DP9's suspension cannot apply. The
-/// `EffectContext::effect_choice_gate_closed` flag makes the four arms take
-/// their deterministic default there instead.
+/// `EffectContext::effect_choice_gate_closed` flag makes the FIVE arms take
+/// their deterministic default there instead (PB-DX28 added the fifth,
+/// `ChooseObject`, CR 115.10's untargeted-choice channel).
 ///
 /// That branch skips an obligation (offering the choice), so this test is where
-/// the obligation is discharged: **no `Complete` card def puts one of the four
+/// the obligation is discharged: **no `Complete` card def puts one of the five
 /// asking effects inside a mana ability.** If this ever reddens, the branch has
 /// become live and the card needs a rules decision, not a silent default.
 ///
@@ -2538,8 +2539,16 @@ fn test_dp9_mana_ability_gate() {
     // a scry inside a coin flip would not have been found.
     let mut offenders: Vec<String> = Vec::new();
     for def in mtg_card_defs::all_cards() {
+        // PB-DX28 `/review` finding 7: `adventure_face` was never walked, so an
+        // Adventure half's mana trigger was invisible to this gate. Pre-existing,
+        // and the same shape this batch's own R4 had to widen for -- a face whose
+        // abilities the walk could not see. No corpus def exercises it today; the
+        // point is that the day one does, this gate sees it.
         let mut faces = vec![&def.abilities];
         if let Some(f) = def.back_face.as_ref() {
+            faces.push(&f.abilities);
+        }
+        if let Some(f) = def.adventure_face.as_ref() {
             faces.push(&f.abilities);
         }
         for abilities in faces {
@@ -2555,9 +2564,22 @@ fn test_dp9_mana_ability_gate() {
                     ) {
                         continue;
                     }
-                    let asks = ["SearchLibrary", "Scry", "Surveil", "DiscardCards"]
-                        .iter()
-                        .any(|v| roster::contains_variant(a, v));
+                    // PB-DX28: "ChosenObject" is the `EffectTarget::ChosenObject`
+                    // variant name -- the fifth asking channel's actual carrier
+                    // is one of MoveZone/AddCounter/UntapPermanent, which are
+                    // FAR too generic to use as a needle here (they appear
+                    // throughout the corpus with no choice attached), so this
+                    // gate keys on the channel-marking variant instead, exactly
+                    // as the other four key on their own asking Effect variant.
+                    let asks = [
+                        "SearchLibrary",
+                        "Scry",
+                        "Surveil",
+                        "DiscardCards",
+                        "ChosenObject",
+                    ]
+                    .iter()
+                    .any(|v| roster::contains_variant(a, v));
                     if asks {
                         offenders.push(def.name.clone());
                     }

@@ -511,6 +511,12 @@ pub enum AnswerShapeView {
     PickN {
         candidates: Vec<CardOptionView>,
         count: usize,
+        /// PB-DX28: the fewest the client may submit. `== count` for every
+        /// PRE-PB-DX28 use (CR 701.9b's discard is always exactly `count`) --
+        /// play-server-LOCAL, not a wire change; the engine's own `up_to` bool
+        /// lives on `EffectChoiceQuestion::ChooseObject`, this is just its DTO
+        /// projection. `0` for a PB-DX28 "up to `count`" choice.
+        min_count: usize,
         /// The key inside `template`'s single variant object that the chosen ids
         /// go in (`"chosen"`). See [`Self::Partition::template`].
         chosen_key: String,
@@ -2218,6 +2224,8 @@ fn blocking_decision_view(
                             // reason and blur what that gate is counting.
                             candidates,
                             count: *count as usize,
+                            // CR 701.9b's discard is always exactly `count`.
+                            min_count: *count as usize,
                             chosen_key: "chosen".to_string(),
                             template: answer.clone(),
                             default: match answer {
@@ -2229,6 +2237,46 @@ fn blocking_decision_view(
                         },
                     )
                 }
+                // PB-DX28 (CR 115.10): a resolution-time UNTARGETED object
+                // choice. Unlike the four arms above, `candidates` name PUBLIC
+                // objects (battlefield permanents / graveyard cards), so this
+                // goes through `question_cards` -- the SAME channel
+                // `SearchLibrary` above already uses, not a new raw
+                // `GameState` read (see `test_ui6_view_rs_reads_game_state_
+                // in_exactly_the_three_known_places`).
+                EffectChoiceQuestion::ChooseObject {
+                    candidates,
+                    count,
+                    up_to,
+                } => (
+                    "ChooseObject",
+                    format!(
+                        "{src}: choose {}{} (CR 115.10 -- not a targeted choice)",
+                        if *up_to {
+                            format!("up to {count}")
+                        } else {
+                            count.to_string()
+                        },
+                        if candidates.len() == 1 {
+                            " object"
+                        } else {
+                            " objects"
+                        }
+                    ),
+                    AnswerShapeView::PickN {
+                        candidates: question_cards(state, candidates),
+                        count: *count as usize,
+                        min_count: if *up_to { 0 } else { *count as usize },
+                        chosen_key: "chosen".to_string(),
+                        template: answer.clone(),
+                        default: match answer {
+                            EffectChoiceAnswer::ChooseObject { chosen } => {
+                                chosen.iter().map(|id| id.0).collect()
+                            }
+                            _ => Vec::new(),
+                        },
+                    },
+                ),
             };
             Some(BlockingDecisionView {
                 question: question_tag.to_string(),

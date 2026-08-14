@@ -70,6 +70,7 @@ fn make_ctx(state: &GameState, source: ObjectId) -> mtg_engine::effects::EffectC
         defending_player: None,
         source_transformed_this_resolution: false,
         effect_choice_gate_closed: false,
+        chosen_objects: Vec::new(),
     }
 }
 

@@ -51,7 +51,7 @@ use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::{
     all_cards, calculate_characteristics, enrich_spec_from_def, process_command, CardDefinition,
     Command, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, SpellTarget, Step,
-    SubType, Target, TargetRequirement, ZoneId,
+    SubType, Target, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -374,42 +374,71 @@ fn put_at_most_one_reveals_use_the_put_one_primitive() {
 // ── T5: Sword of Truth and Justice targets a creature YOU control ────────────
 
 #[test]
-/// **MCP: "put a +1/+1 counter on **a creature you control**, then proliferate."** The
-/// trigger declared a bare `TargetRequirement::TargetCreature`, so the counter could
-/// legally be placed on an opponent's creature — a strictly worse outcome the controller
-/// could be forced into by the engine's auto-target, and an illegal one by the printed
-/// card either way.
+/// **MCP: "put a +1/+1 counter on **a creature you control**, then proliferate."**
+///
+/// **Rewritten by PB-DX28 §1 -- pre-existing test, went RED on arrival, encoded a
+/// now-superseded fix.** This test used to assert a REAL declared
+/// `TargetRequirement::TargetCreatureWithFilter(controller: You)` -- PB-DX4's own
+/// fix for the controller axis (the def used to carry a bare `TargetCreature`,
+/// letting the counter land on an opponent's creature). That fix was itself
+/// CR-incomplete: the printed clause has NO "target" at all (CR 115.10), so a real
+/// `TargetRequirement` was ALWAYS wrong -- hexproof/shroud/protection wrongly
+/// restricted the choice, and CR 608.2b could fizzle the whole trigger (counter
+/// AND proliferate) if the chosen creature left in response (`OOS-DX4-6`).
+/// PB-DX28 migrates the def onto `EffectTarget::ChosenObject`, a resolution-time
+/// UNTARGETED choice, so `AbilityDefinition::Triggered.targets` is now empty by
+/// design and this test's old shape is vacuous. Rewritten to assert the NEW
+/// primitive's filter carries the SAME controller/self-exclusion facts PB-DX4
+/// established, on the `AddCounter` effect the trigger now carries them on.
 fn sword_of_truth_and_justice_targets_only_your_creature() {
     let def = card_def("Sword of Truth and Justice");
-    let targets = def
+    let filter = def
         .abilities
         .iter()
         .find_map(|a| match a {
-            mtg_engine::AbilityDefinition::Triggered { targets, .. } if !targets.is_empty() => {
-                Some(targets.clone())
+            mtg_engine::AbilityDefinition::Triggered { effect, .. } => {
+                chosen_object_filter_in_add_counter(effect)
             }
             _ => None,
         })
-        .expect("the combat-damage trigger declares a target");
+        .expect(
+            "the combat-damage trigger carries a ChosenObject choice on its AddCounter \
+             effect (CR 115.10, PB-DX28)",
+        );
 
-    assert_eq!(targets.len(), 1, "one target: 'a creature you control'");
-    match &targets[0] {
-        TargetRequirement::TargetCreatureWithFilter(filter) => {
-            assert!(
-                matches!(filter.controller, mtg_engine::TargetController::You),
-                "printed text is 'a creature YOU CONTROL'; got controller {:?}",
-                filter.controller
-            );
-            assert!(
-                !filter.exclude_self,
-                "printed text says 'a creature you control', not 'another' -- \
-                 exclude_self would wrongly bar the equipped creature itself"
-            );
-        }
-        other => panic!(
-            "expected TargetCreatureWithFilter(controller: You); a bare TargetCreature \
-             lets the counter land on an opponent's creature. Got {other:?}"
-        ),
+    assert_eq!(
+        filter.has_card_type,
+        Some(mtg_engine::CardType::Creature),
+        "printed text is 'a creature you control' -- the untargeted choice must still \
+         narrow to creatures now that there is no TargetCreatureWithFilter doing it \
+         implicitly"
+    );
+    assert!(
+        matches!(filter.controller, mtg_engine::TargetController::You),
+        "printed text is 'a creature YOU CONTROL'; got controller {:?}",
+        filter.controller
+    );
+    assert!(
+        !filter.exclude_self,
+        "printed text says 'a creature you control', not 'another' -- \
+         exclude_self would wrongly bar the equipped creature itself"
+    );
+}
+
+/// Find the `TargetFilter` inside an `EffectTarget::ChosenObject` carried on an
+/// `Effect::AddCounter` node, searching one level into `Effect::Sequence` (Sword
+/// of Truth and Justice's trigger is `Sequence([AddCounter, Proliferate])`).
+fn chosen_object_filter_in_add_counter(
+    effect: &mtg_engine::Effect,
+) -> Option<mtg_engine::TargetFilter> {
+    use mtg_engine::{CardEffectTarget, Effect};
+    match effect {
+        Effect::AddCounter {
+            target: CardEffectTarget::ChosenObject { filter, .. },
+            ..
+        } => Some((**filter).clone()),
+        Effect::Sequence(effects) => effects.iter().find_map(chosen_object_filter_in_add_counter),
+        _ => None,
     }
 }
 

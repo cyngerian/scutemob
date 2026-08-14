@@ -51,6 +51,7 @@ Whenever a creature an opponent controls dies, you gain 1 life."
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::You),
+                    owner: None,
                     exclude_self: false,
                     nontoken_only: false,
                     filter: None,
@@ -71,6 +72,7 @@ Whenever a creature an opponent controls dies, you gain 1 life."
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: Some(TargetController::Opponent),
+                    owner: None,
                     exclude_self: false,
                     nontoken_only: false,
                     filter: None,

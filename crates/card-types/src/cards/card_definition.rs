@@ -2612,6 +2612,57 @@ pub enum EffectTarget {
     /// Used by "deals N damage to the player or planeswalker it's attacking" (Hellrider,
     /// Raid Bombardment).
     AttackTarget,
+    /// PB-DX28: the `EffectTarget` mirror of `PlayerTarget::DamagedPlayer` (CR 510.3a).
+    /// Used by effects whose object-shaped field (e.g. `Effect::DealDamage.target`)
+    /// must resolve to "that player" from a combat-damage trigger context ("~ deals
+    /// damage to that player" — Sword of War and Peace) without going through a
+    /// declared target (CR 115.10: this is determined, not targeted).
+    ///
+    /// Resolved from `EffectContext::damaged_player` at
+    /// `resolve_effect_target_list_indexed` — empty when no damaged-player context
+    /// exists (mirrors every other single-player `EffectTarget` arm in that
+    /// resolver — `TriggeringCreature`/`EquippedCreature`/`LastCreatedPermanent` all
+    /// resolve to the empty set rather than falling back to `Controller`).
+    DamagedPlayer,
+    /// CR 115.10: an object chosen **on resolution, without targeting**.
+    ///
+    /// A spell or ability targets only where its text says "target". A printed
+    /// "return a land you control to its owner's hand" therefore (a) is
+    /// unaffected by hexproof / shroud / protection / "can't be the target of",
+    /// and (b) has no CR 608.2b fizzle window, because nothing was chosen when
+    /// the ability went on the stack — the choice is made from whatever matches
+    /// the filter AT RESOLUTION.
+    ///
+    /// Resolved through the CR 608.2d suspend-and-replay channel
+    /// (`EffectChoiceQuestion::ChooseObject`) and banked on
+    /// `EffectContext::chosen_objects`, keyed **by this variant's own value**
+    /// (`PartialEq`/`Eq`) — deliberate: `azorius_chancery` names the same
+    /// `ChosenObject` twice in one effect (`MoveZone.target` and
+    /// `MoveZone.to.Hand.owner = PlayerTarget::OwnerOf(ChosenObject)`) and both
+    /// must denote the SAME chosen land. The cost of keying by value is that two
+    /// structurally identical `ChosenObject`s in one resolution that were meant
+    /// to be two separate choices would collapse into one; no corpus def does
+    /// that (pinned by `pb_dx28_chosen_object_roster::R3`).
+    ChosenObject {
+        zone: ChoiceZone,
+        filter: Box<TargetFilter>,
+        /// How many objects the chooser picks. `up_to == false` means exactly
+        /// this many *if that many exist* (CR 608.2 "as much as possible").
+        count: u32,
+        up_to: bool,
+    },
+}
+/// PB-DX28: CR 115.10 / CR 608.2 — which zone an untargeted resolution-time
+/// choice ([`EffectTarget::ChosenObject`]) draws its candidates from.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChoiceZone {
+    /// Permanents on the battlefield (CR 400.1). Phased-out permanents are
+    /// excluded (CR 702.26b), matching every other battlefield enumeration in
+    /// this file (`EffectTarget::AllPermanents`/`AllCreatures`/
+    /// `AllPermanentsMatching`).
+    Battlefield,
+    /// Cards in the CHOOSING player's graveyard (CR 404.1). "your graveyard".
+    YourGraveyard,
 }
 /// How an effect identifies a player.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -3247,6 +3298,49 @@ pub struct TargetFilter {
     ///   `trigger.source` as the self_id.
     #[serde(default)]
     pub exclude_self: bool,
+    /// PB-DX28: CR 108.3 — whose OWNERSHIP the candidate must be under
+    /// ("destroy target permanent you own", "return target creature card an
+    /// opponent owns"). Distinct from `controller` (CR 109.4): the two diverge
+    /// only under a control-change effect (Control Magic, Mind Control, etc.) —
+    /// a permanent you own but no longer control still satisfies `owner: You`.
+    ///
+    /// NOTE: like `exclude_self` / `is_attacking`, `GameObject.owner` is a
+    /// runtime field, NOT a `Characteristics` property. It MUST be checked
+    /// explicitly at each call site that has the candidate's `GameObject`
+    /// available — it is silently ignored by `matches_filter()` (which takes
+    /// only `&Characteristics`).
+    ///
+    /// Enforced at:
+    /// - `casting::validate_object_satisfies_requirement` (declarative target
+    ///   validation, CR 601.2c) for TargetCreatureWithFilter,
+    ///   TargetPermanentWithFilter, TargetCardInYourGraveyard,
+    ///   TargetCardInGraveyard — same four sites as `exclude_self`.
+    /// - `abilities.rs`'s triggered-ability auto-target picker
+    ///   (`trigger_battlefield_target_matches` for the battlefield family,
+    ///   `trigger_target_candidates`'s two graveyard arms for the graveyard
+    ///   family).
+    /// - `queries::spell_target_requirements`'s consumers inherit this for
+    ///   free — they delegate to `casting::validate_targets_inner` /
+    ///   `validate_object_satisfies_requirement`, the same function the cast
+    ///   path uses (PB-DX20 made the offer layer and the cast path one
+    ///   arithmetic).
+    /// - deliberately EXCLUDED from `filter_states_a_quality`
+    ///   (`effects/mod.rs`) — ownership is a runtime board property, not a
+    ///   CR 701.23b "stated quality"; a card in a library has an owner, but
+    ///   the axis narrows nothing there.
+    #[serde(default)]
+    pub owner: TargetOwner,
+}
+/// PB-DX28: CR 108.3 — whose OWNERSHIP an object must be under. Distinct from
+/// [`TargetController`] (CR 109.4): the two diverge only under a
+/// control-change effect (a permanent's owner never changes; its controller
+/// can, e.g. Control Magic).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TargetOwner {
+    #[default]
+    Any,
+    You,
+    Opponent,
 }
 /// Whose control an object must be under for a target filter.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -3319,6 +3413,17 @@ pub enum TriggerCondition {
         /// by move_object_to_zone (CR 603.10a LKI). Default: None (no filter).
         #[serde(default)]
         filter: Option<TargetFilter>,
+        /// PB-DX28: CR 108.3 / CR 404.3 — "whenever a creature you OWN dies" (as
+        /// opposed to a creature you CONTROL dying; the two diverge under a
+        /// control-change effect). `Some(TargetOwner::You)` scopes to the
+        /// trigger source's owner (nether_traitor: "put into YOUR graveyard").
+        /// `None` = no ownership restriction. Lowered into
+        /// `DeathTriggerFilter::owner_you` / `owner_opponent` (two bools, not a
+        /// stored `TargetOwner`, mirroring `controller_you`/`controller_opponent`
+        /// — `state::game_object` cannot import `cards::card_definition` types,
+        /// see the module-dependency-direction gotcha).
+        #[serde(default)]
+        owner: Option<TargetOwner>,
     },
     /// "Whenever a creature enters the battlefield" (with optional filter).
     ///

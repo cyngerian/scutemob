@@ -24,10 +24,11 @@ pub use card_definition::Effect;
 pub use card_definition::{
     army_token_spec, blood_token_spec, clue_token_spec, food_token_spec, treasure_token_spec,
     zombie_decayed_token_spec, AbilityDefinition, AltCastDetails, CardDefinition, CardFace,
-    Completeness, Condition, ContinuousEffectDef, Cost, CostModifierScope, CraftMaterials,
-    EffectAmount, EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, MeldPair,
-    ModeSelection, PlayerTarget, SelfActivatedCostReduction, SelfCostReduction, SoulbondGrant,
-    SpellAdditionalCost, SpellCostFilter, SpellCostModifier, TargetController, TargetFilter,
-    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
+    ChoiceZone, Completeness, Condition, ContinuousEffectDef, Cost, CostModifierScope,
+    CraftMaterials, EffectAmount, EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost,
+    MeldPair, ModeSelection, PlayerTarget, SelfActivatedCostReduction, SelfCostReduction,
+    SoulbondGrant, SpellAdditionalCost, SpellCostFilter, SpellCostModifier, TargetController,
+    TargetFilter, TargetOwner, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition,
+    TypeLine, ZoneTarget,
 };
 pub use registry::{CardRegistry, RegistryError};

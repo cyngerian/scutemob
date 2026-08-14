@@ -372,7 +372,33 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   already established is reachable in full. The closure's type count is
 ///   unchanged (96); `LayerModification`'s declared shape moved, so the digest
 ///   moves.
-pub const PROTOCOL_VERSION: u32 = 36;
+/// - 37: PB-DX28 (2026-08-14, `OOS-DX4-6` + `OOS-DX4-1` — CR 115.10's untargeted
+///   resolution-time choice, and CR 108.3 ownership as an axis distinct from CR
+///   109.4 control). **Four declared shapes move and the closure's type count
+///   moves too, 96 -> 98** — the first count change since v31, so it is worth
+///   naming what is new rather than only what moved:
+///   * `EffectTarget` (card-DSL closure, reachable via `Effect`) gains
+///     `ChosenObject { zone: ChoiceZone, filter: Box<TargetFilter>, count: u32,
+///     up_to: bool }` and `DamagedPlayer`. **`ChoiceZone` is a NEW type in the
+///     closure** (+1).
+///   * `TargetFilter` gains `owner: TargetOwner`. **`TargetOwner` is a NEW type
+///     in the closure** (+1). `TargetFilter` itself has been reachable since
+///     v14 (`EffectFilter`) — this is a field addition to an existing member,
+///     the `- 27` shape, not a new root.
+///   * `TriggerCondition::WheneverCreatureDies` gains `owner:
+///     Option<TargetOwner>`; `Option<T>` adds no closure member.
+///   * `EffectChoiceQuestion`/`EffectChoiceAnswer` (in the closure since v31)
+///     each gain a fifth variant, `ChooseObject { candidates: Vec<ObjectId>,
+///     count: u32, up_to: bool }` / `ChooseObject { chosen: Vec<ObjectId> }` —
+///     exactly the `- 34` shape one variant later, and every field type is
+///     already present.
+///
+///   The v32/v36 lesson recurs and is worth restating rather than assuming
+///   learned: this batch's plan predicted the wire impact from the *engine*
+///   types it was adding and would have missed `TargetFilter.owner`, which
+///   rides into the closure on a struct made reachable many versions ago.
+///   Both numbers above are the gates' own output, not a prediction.
+pub const PROTOCOL_VERSION: u32 = 37;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -390,7 +416,7 @@ pub const PROTOCOL_VERSION: u32 = 36;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "686d14e4e028f7d1148958ae58fcc17a9f359ed46c4835a864199895077f5f04";
+    "03c5a4ac138556dd27c63a00088624287070a6107d382220b16c67b0df3d00a3";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -665,6 +691,16 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // SetLandTypes, reachable via ContinuousEffectDef (see the `- 36:`
         // History line above). Closure type count unchanged (96).
         fingerprint: "686d14e4e028f7d1148958ae58fcc17a9f359ed46c4835a864199895077f5f04",
+    },
+    ProtocolEpoch {
+        version: 37,
+        // PB-DX28 (2026-08-14, `OOS-DX4-6` + `OOS-DX4-1`): EffectTarget gains
+        // ChosenObject + DamagedPlayer, TargetFilter gains `owner`,
+        // WheneverCreatureDies gains `owner`, and EffectChoiceQuestion/Answer
+        // each gain a fifth variant (see the `- 37:` History line above).
+        // Closure type count 96 -> 98: ChoiceZone and TargetOwner are both NEW
+        // members. First count change since v31.
+        fingerprint: "03c5a4ac138556dd27c63a00088624287070a6107d382220b16c67b0df3d00a3",
     },
 ];
 
