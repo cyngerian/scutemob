@@ -16,15 +16,36 @@ pub fn card() -> CardDefinition {
                       deals combat damage.)"
             .to_string(),
         abilities: vec![
-            // TODO: DSL gap — {0} activated ability that removes a target attacking creature
-            // from combat (Effect::RemoveFromCombat) does not exist in the current DSL.
-            // The untap portion is expressible (Effect::UntapPermanent) but remove-from-combat
-            // is not.
+            // CR 506.4/506.4b/701.21 (PB-DX27, closing a stale blocker note): "{0}: Remove
+            // target attacking creature you control from combat and untap it." Both
+            // Effect::RemoveFromCombat and Effect::UntapPermanent exist and are paired in a
+            // Sequence, matching the thaumatic_compass.rs (Spires of Orazca) precedent — CR
+            // 506.4b means untapping alone would NOT remove the creature from combat, so both
+            // effects are required regardless of their relative order (the two mutations are
+            // independent of one another).
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost::default()),
+                effect: Effect::Sequence(vec![
+                    Effect::RemoveFromCombat {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    Effect::UntapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    is_attacking: true,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+                modes: None,
+            },
         ],
-        completeness: Completeness::inert(
-            "DSL gap — {0} activated ability that removes a target attacking creature from combat \
-             (Effect::RemoveFromCombat) does...",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

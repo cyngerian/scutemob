@@ -46,12 +46,27 @@ pub fn card() -> CardDefinition {
                 },
                 targets: vec![],
             },
-            // 0: Discard hand then draw that many + 1
-            // TODO: "Discard all cards then draw that many plus one" — EffectAmount::HandSize
-            // not in DSL.
+            // CR 701.9/121.1/121.2 (PB-DX27, stale blocker closed): "0: Discard all the
+            // cards in your hand, then draw that many cards plus one." EffectAmount::HandSize
+            // exists but is the wrong primitive here (effects/mod.rs:1353-1357: a naive
+            // DiscardCards{HandSize}+DrawCards{HandSize} reads 0 after the hand is already
+            // emptied). Effect::WheelHand snapshots the pre-disposal hand size and draws
+            // that many (shattered_perception.rs / incendiary_command.rs precedent); CR
+            // 121.2 makes "draw N+1" N+1 individual draws, so a trailing
+            // DrawCards{Fixed(1)} in the same Sequence supplies the "plus one".
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Zero,
-                effect: Effect::Nothing,
+                effect: Effect::Sequence(vec![
+                    Effect::WheelHand {
+                        player: PlayerTarget::Controller,
+                        disposal: WheelDisposal::Discard,
+                        draw: WheelDraw::ThatMany,
+                    },
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                ]),
                 targets: vec![],
             },
             // CR 606.4 / CR 107.3m: −X: Chandra deals X damage to each creature.
@@ -68,9 +83,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial(
-            "'Discard all cards then draw that many plus one' — EffectAmount::HandSize not in DSL",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }
