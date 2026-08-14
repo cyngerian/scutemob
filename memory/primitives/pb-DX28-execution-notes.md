@@ -587,3 +587,78 @@ argued is how an allowlist rots — this file's own `path_to_exile` precedent):
 | untargeted-choice class — "the printed choice is untargeted, but it is **modeled as** a real target requirement — an accepted **deviation**" | `azorius_chancery` | **RED**, `Offenders: ["azorius_chancery"]` |
 
 Both plants reverted; `completeness_deviation_scan` back to **12/12 green**.
+
+---
+
+# AC 6448 — the census, and its full disposition table
+
+Method, both axes, neither one a grep of the registry's member names:
+
+* **Axis A — slot arithmetic, `all_cards()` walk.** For every def, sum every declared
+  `TargetRequirement` slot across `Activated` / `Triggered` / `Spell` / `LoyaltyAbility` /
+  `SagaChapter` / `ClassLevel` and both extra faces, and compare against the number of `"target"`
+  occurrences in the combined oracle text (front + back + adventure). `slots > words` is the
+  candidate signal. 50 rows, 34 of them `Complete`.
+* **Axis B — inverse, printed text first.** Scan every def's printed oracle text for ownership
+  needles (`you own`, `opponent owns`, `owned by`, `into your graveyard`, `its owner controls`, …)
+  with **no reference to what the def declares**. 63 rows.
+
+Both are **floors**, and one of them was proven to be one *within this batch*: axis A missed
+`Connive // Concoct`, which the shipped R4 gate then found. The recall bound is filed as
+`OOS-DX28-8`.
+
+## Untargeted-choice class (`OOS-DX4-6`) — 18 `Complete` members + 1 player-axis sibling
+
+| # | def | printed clause (no "target" — CR 115.10) | was | now |
+|---|---|---|---|---|
+| 1-10 | the ten Karoos | "return **a land you control** to its owner's hand" | `TargetPermanentWithFilter(Land+You)` | `ChosenObject{Battlefield, Land+You, 1, false}` |
+| 11 | `cloud_of_faeries` | "untap **up to two lands**" | `UpToN{2, TargetLand}` + 2 `UntapPermanent` | one `UntapPermanent{ChosenObject{…,2,true}}` |
+| 12 | `frantic_search` | "untap **up to three lands**" | `UpToN{3}` + 3 `UntapPermanent` | one `UntapPermanent{ChosenObject{…,3,true}}` |
+| 13 | `rewind` | "Counter target spell. Untap **up to four lands**." | slot 0 `TargetSpell` + slot 1 `UpToN{4}` | slot 0 KEPT (a real printed target); slot 1 migrated |
+| 14 | `shrieking_drake` | "return **a creature you control**" | `TargetCreatureWithFilter(You)` | `ChosenObject{Battlefield, Creature+You, 1, false}` |
+| 15 | `whitemane_lion` | same | same | same |
+| 16 | `sword_of_truth_and_justice` | "put a +1/+1 counter on **a creature you control**" | `TargetCreatureWithFilter(You)` | `ChosenObject` on `AddCounter.target` |
+| 17 | `takenuma_abandoned_mire` | "return **a creature or planeswalker card from your graveyard**" | `TargetCardInYourGraveyard` | `ChosenObject{YourGraveyard, …}` |
+| 18 | `connive` (Concoct half) | "return **a creature card from your graveyard** to the battlefield" | `TargetCardInYourGraveyard` | `ChosenObject{YourGraveyard, …}` |
+| — | `sword_of_war_and_peace` | "deals damage to **that player**" | `TargetRequirement::TargetPlayer` | `EffectTarget::DamagedPlayer`, `targets: vec![]` |
+
+**Refuted** (axis A surfaced them; adjudication cleared each): every `Equip`-carrying Equipment —
+CR 702.6a's granted ability *does* say "target creature you control" and PB-DX26 authored it
+deliberately, so the printed line is only the cost; `curtains_call` ("Destroy **two** target
+creatures"), `huddle_up` ("**Two** target players"), `victimize` ("Choose **two** target creature
+cards") — one `"target"` word, two real slots; and the trigger halves of
+`sword_of_fire_and_ice` / `sword_of_light_and_shadow` / `sword_of_sinew_and_steel`, which genuinely
+print "target" / "any target".
+
+## Owner class (`OOS-DX4-1`) — 2 `Complete` members, and three refutations that matter more
+
+| def | printed clause | was | disposition |
+|---|---|---|---|
+| `staff_of_compleation` | "Destroy target permanent **you own**" (CR 108.3) | `TargetController::You` (CR 109.4) | REPAIRED — `owner: You`, and `controller: You` **removed** |
+| `nether_traitor` | "put **into your graveyard**" (CR 404.3) | `WheneverCreatureDies{controller: Some(You)}` | REPAIRED — `controller: None, owner: Some(You)` |
+
+Members that are **not** `Complete`, listed so the class is counted rather than the cards:
+`athreos_god_of_passage` (`partial`, and its own note already names this gap), `hellkite_courser`
+(`partial`), `maskwood_nexus` (`partial`), `mishra_claimed_by_gix` (`partial`),
+`leyline_of_the_void` (`known_wrong`).
+
+**REFUTED, and each refutation is load-bearing:**
+
+* **The six mutate defs** — `brokkos_apex_of_forever`, `gemrazer`, `sea_dasher_octopus`,
+  `necropanther` (all `Complete`), plus `mindleecher` and `nethroi_apex_of_death` — print "put it
+  over or under target non-Human creature **you own**" (CR 702.140a). Not members: `casting.rs`
+  checks `target_obj.owner != player` **open-coded**, outside `TargetFilter`. This is the largest
+  group the census found and it is entirely clean.
+* **`fecundity` is not a member, and `nether_traitor`'s own note said it was.** Its printed clause
+  is "**that creature's controller** may draw a card" — a controller gap
+  (`PlayerTarget::ControllerOf(TriggeringCreature)`), exactly as `fecundity.rs`'s own marker note
+  already said. The citation was wrong and is corrected in place; `fecundity.rs` itself is
+  untouched, because the error was in the def that cited it.
+* **`hanweir_battlements`** ("If you both **own and control** this land and …") — `Effect::Meld`
+  checks `obj.owner == controller && obj.controller == controller`. Correct today.
+
+## Seeds filed
+
+`OOS-DX28-1..8` in `docs/audits/decision-point-audit.md` (the registry was grepped for the ID
+prefix before filing — dispatch hygiene 5 — and returned 0). `OOS-DX4-6` and `OOS-DX4-1` both
+CLOSED there, each row carrying the corrections to its own original claims.
