@@ -68,8 +68,8 @@ pub fn card() -> CardDefinition {
                 //
                 // This def is the 18th member of the `OOS-DX4-6` class and neither the
                 // plan's §0.1 census nor the seed named it: it was found by this batch's own
-                // R4 inverse-axis gate, after the roster had been pinned at 17. Migrated
-                // rather than deferred — the seed is being CLOSED here, and closing it while
+                // R4 inverse-axis gate, after the roster had been pinned at 17. Migrated here
+                // rather than left for a later batch — the seed is being CLOSED here, and closing it while
                 // a known deck-legal `Complete` member stays on the old shape would close it
                 // on a false premise. The registry's member list is a floor (AC 6448), and
                 // that rule does not stop applying at the number a plan happened to write.

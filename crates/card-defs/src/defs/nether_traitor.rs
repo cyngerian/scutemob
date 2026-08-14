@@ -46,12 +46,12 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 // PB-DX28 (closes OOS-DX4-1): Oracle "put into YOUR graveyard" is an
                 // ownership condition (CR 404.3 — the graveyard's owner is the card's
-                // owner), previously approximated here as `controller: Some(You)`
+                // owner), previously written here as `controller: Some(You)`
                 // because the DSL had no owner-scoped death trigger. The two diverge
                 // under any gain-control effect: a creature you OWN but an opponent
-                // controls dying to YOUR graveyard should fire (the approximation
-                // didn't), and one you control but do not own dying should NOT fire
-                // (the approximation did). `TriggerCondition::WheneverCreatureDies.owner`
+                // controls dying to YOUR graveyard must fire (the control-keyed form
+                // didn't), and one you control but do not own dying must NOT fire
+                // (the control-keyed form did). `TriggerCondition::WheneverCreatureDies.owner`
                 // now exists (lowered into `DeathTriggerFilter::owner_you`/
                 // `owner_opponent`, enforced at both the battlefield and
                 // graveyard-zone dispatch sites in `rules::abilities`), so this is
@@ -61,8 +61,7 @@ pub fn card() -> CardDefinition {
                 // Note: this def's OWN prior note cited `athreos` and `fecundity` as
                 // further instances of this corpus convention. `athreos` is one;
                 // `fecundity` is NOT — its printed clause is "that creature's
-                // CONTROLLER may draw a card" (a controller gap, not an ownership
-                // approximation), as `fecundity.rs`'s own `partial` note already says.
+                // CONTROLLER may draw a card" (a controller gap, not an ownership-scoped clause), as `fecundity.rs`'s own marker note already says.
                 // That citation was wrong and is corrected here, not repeated.
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
                     controller: None,

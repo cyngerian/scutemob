@@ -497,14 +497,6 @@ const ALLOWLIST: &[(&str, &str)] = &[
          — same tainted_field.rs pattern, faithful decomposition, fully implemented \
          (SR-34 un-demoted from known_wrong).",
     ),
-    (
-        "nether_traitor",
-        "\"best available approximation\" for oracle \"put into YOUR graveyard\" (ownership, \
-         CR 404.3): the DSL has no owner-scoped death trigger, so this keys on controller = You, \
-         the corpus-standard expression (athreos, fecundity). Faithful in all play without \
-         gain-control of your own creatures; W-PB2 engine finding notes the residual. Not a real \
-         deviation — it is the only expression the DSL offers. (scutemob-95)",
-    ),
     // "sword_of_truth_and_justice"'s entry REMOVED (PB-DX28 §1): the untargeted-choice
     // channel this entry was allowlisting the ABSENCE of now exists
     // (`EffectTarget::ChosenObject`, CR 115.10), and the def's `AddCounter` was
@@ -514,20 +506,6 @@ const ALLOWLIST: &[(&str, &str)] = &[
     // instance is closed the same way, in the same batch. `OOS-DX4-6`'s remaining
     // scope is the census this batch's own roster gates (`pb_dx28_chosen_object_
     // roster.rs`) now stand in for.
-    (
-        "staff_of_compleation",
-        "\"corpus-wide approximation class\" for oracle \"Destroy target permanent YOU OWN\" \
-         (ownership, CR 108.3) authored as `TargetController::You` (control, CR 109.4). \
-         EXACTLY the `nether_traitor` case above and allowlisted for the same reason: \
-         `TargetFilter` has no owner axis at all, so controller is the only expression the \
-         DSL offers, and it is the corpus-standard one. Faithful in all play without a \
-         control-change effect. Added by PB-DX4's OOS-DP10-8 triage (`scutemob-168`), which \
-         found the deviation and wrote the note that trips this detector — the note is new, \
-         the deviation is not. Deliberately allowlisted rather than demoted so the class is \
-         decided as a class: OOS-DX4-1 asks how many `Complete` defs approximate an ownership \
-         clause this way, and demoting the two that happen to sit in PB-DP10's BASELINE would \
-         have reported a corpus class as a pair of cards. (scutemob-168)",
-    ),
     (
         "delver_of_secrets",
         "PB-OS6(a): \"upkeep trigger modeled as an unconditional AtBeginningOfYourUpkeep \

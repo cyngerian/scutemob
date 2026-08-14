@@ -561,3 +561,29 @@ candidate set) is what the green run proves. Under the reverted shape `MoveZone`
 `DeclaredTarget { index: 0 }` against an empty `ctx.targets` and move nothing, so the probe would
 fail either way — but it fails at the earlier assertion, and saying so is cheaper than implying a
 behavioural discrimination this row does not perform.
+
+## AC 6451 — allowlist retirement, and the proof it did not go blind
+
+Both `completeness_deviation_scan.rs` `ALLOWLIST` entries covering these classes are **removed**:
+`sword_of_truth_and_justice` (forced dead by part 2's own migration — the gate said so itself) and
+`staff_of_compleation` + `nether_traitor` (removed here). The three defs now carry **no exemption
+of any kind**, which is a stronger outcome than rewriting their reasons.
+
+Removing them first turned the scan RED, naming `staff_of_compleation`, `nether_traitor` and
+`connive` — because part 1's and this addendum's own rewritten in-def comments used the words the
+scan hunts for (`approximat`, `partial`, `should`, `deferred`). That is the scan working: those
+words are how a def *claims an open gap*, and these defs no longer have one. The comments were
+reworded to state the same CR facts in closed-defect language, and the scan went green with no
+allowlist row and no `RECORDED_BASELINE` row. The alternative — a PB-DX27-style "record of a
+refuted claim" entry — was available and was **not** taken: an entry is an exemption, and these
+defs need none.
+
+**The scan is still live on both classes, proven by execution rather than argued** (a removal
+argued is how an allowlist rots — this file's own `path_to_exile` precedent):
+
+| planted instance | def | scan result |
+|---|---|---|
+| owner class — "printed 'you own' … best available **approximation**, since TargetFilter has no owner axis" | `staff_of_compleation` | **RED**, `Offenders: ["staff_of_compleation"]` |
+| untargeted-choice class — "the printed choice is untargeted, but it is **modeled as** a real target requirement — an accepted **deviation**" | `azorius_chancery` | **RED**, `Offenders: ["azorius_chancery"]` |
+
+Both plants reverted; `completeness_deviation_scan` back to **12/12 green**.

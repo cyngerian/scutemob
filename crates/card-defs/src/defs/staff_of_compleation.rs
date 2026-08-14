@@ -28,7 +28,7 @@ pub fn card() -> CardDefinition {
                     cant_be_regenerated: false,
                 },
                 // PB-DX28 (closes OOS-DX4-1): printed text is "Destroy target permanent
-                // YOU OWN" (CR 108.3 ownership), previously approximated here as
+                // YOU OWN" (CR 108.3 ownership), previously written here as
                 // `TargetController::You` (CR 109.4 control) because `TargetFilter` had
                 // no owner axis at all. The two diverge in BOTH directions under any
                 // control-change effect: a permanent you own but an opponent controls
@@ -37,7 +37,7 @@ pub fn card() -> CardDefinition {
                 // (enforced at `casting::validate_object_satisfies_requirement` and the
                 // triggered-ability auto-target picker), so this is authored as the
                 // printed clause directly. `controller: TargetController::You` is
-                // REMOVED, not kept alongside — it was the approximation, and keeping it
+                // REMOVED, not kept alongside — it was the stand-in, and keeping it
                 // would make the card strictly narrower than printed (an owned-but-
                 // opponent-controlled permanent must remain a legal target).
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
