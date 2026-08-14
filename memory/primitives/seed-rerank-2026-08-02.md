@@ -2,7 +2,26 @@
 
 <!-- last_updated: 2026-08-02 -->
 
-> **This document is the authoritative primitive queue.** It supersedes
+> ## 🛑 SUPERSEDED — §4 ONLY (2026-08-14, `scutemob-212`)
+>
+> **This document's §4 queue is SUPERSEDED by
+> `memory/primitives/seed-rerank-2026-08-14.md` §4 (v4).** Its ranks **1-13 are all shipped**
+> (PB-DX19 through PB-DX29, fifteen batches across thirteen slots), and the order past 13 no longer
+> survives contact with HEAD: **five of its twenty-one standing wire cells were measured wrong**,
+> two populations were refuted outright, and **208** seeds were filed after this document's census
+> closed. Read v4 §4 to pick a batch; read this §4 only as history.
+>
+> **§1, §2 and §3 remain canonical.** They are the filing record for the 80 seeds this triage
+> censused and the record of *why* PB-DX7..PB-DX41 exist. v4 re-opens none of them; it consumes
+> them (its own census is defined as a set difference against §1a's Totals table). **No shipped row
+> in this document was edited by v4** — every correction v4 makes lives in v4 or in the registry
+> row itself, which is the same discipline this document applied to v2.
+>
+> ~~**This document is the authoritative primitive queue.**~~ **[SCOPED 2026-08-14: it was, until
+> v4. Its §1-§3 remain canonical; its §4 does not — see the banner above. The sentence is struck
+> rather than deleted because it is what the document said when PB-DX19..PB-DX29 were dispatched
+> from it, and a reader arriving mid-file needs the correction, not a silent rewrite.]**
+> It supersedes
 > `memory/primitives/seed-rerank-2026-07-27.md` §4 (the PB-DX1..DX18 queue) as the thing a
 > dispatcher reads to pick the next batch. The v2 document remains the canonical record of *why*
 > PB-DX1..DX18 exist and the canonical filing record for the seeds it triaged — its §1/§2/§3 are
@@ -691,6 +710,16 @@ treat a mismatch as a signal to stop.
 
 ## 4. The merged queue — **PB-DX7 .. PB-DX41** (AC 6034)
 
+> ## 🛑 SUPERSEDED 2026-08-14 by `memory/primitives/seed-rerank-2026-08-14.md` §4 (`scutemob-212`)
+>
+> **Do not dispatch from this table.** Ranks 1-13 shipped; the rest was re-verified against HEAD by
+> the v4 triage and moved. Specifically: rank **29 splits and is promoted** (two live sweeps on 5
+> and 10 deck-legal `Complete` defs); ranks 22, 23, 30, 33 and 35 move **up**; ranks 16, 17, 21, 25,
+> 27, 28, 31 and 32 move **down**; rank 27 is demoted to a **rider**; and **PB-DX42b is re-decided,
+> not carried** — `OOS-DX27-9`'s "the rank premise is false" does not hold on the deck-legal axis
+> the rank was computed from. Every row below keeps its **number and scope** in v4 unless v4's §3.2
+> corrected it, so existing cites still resolve.
+>
 > ### 🚦 READ THIS BEFORE CLAIMING ANYTHING
 >
 > **The PB-DX number is a stable label, NOT a rank.** PB-DX1..DX6 shipped. PB-DX7..DX18 keep their

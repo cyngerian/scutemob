@@ -769,6 +769,28 @@ Filed here for the collector to register in the canonical registry
 | **`OOS-ADJ-6`** | LOW | No mechanism forces a `Condition` variant, when it is added or when its evaluator gains a characteristics read, to declare which layer it requires. `Condition` has 52 variants; 11 reach a layer query today and the classification lives nowhere but this document. The natural home is the `KeywordAbility`/SR-5 pattern — an exhaustive classification whose omission is a compile error. |
 | **`OOS-ADJ-7`** | MEDIUM | `blood_moon.rs` and `magus_of_the_moon.rs` (both `Complete`) register `SetTypeLine { card_types: [Land], subtypes: [Mountain] }` over `AllNonbasicLands`, which **strips the Artifact card type**. The printed cards do not: the 2020-08-07 ruling says the effect *"doesn't affect names or supertypes"* and that nonbasic lands lose *"any other **land types** and abilities"* — subtypes, not card types. A Darksteel Citadel under Blood Moon is still an artifact. Live-wrong on 2 `Complete` defs against the corpus's 2 `Complete` artifact lands (`ancient_den`, `treasure_vault`). **Independent of the recursion work** — a card-def/`LayerModification` scope defect, and it should ride a card-def batch (PB-DX27), not PB-DX42b. Found only because §2.3's supply measurement was redone in both directions. |
 
+> **↻ `OOS-ADJ-2` — PARTIALLY DISCHARGED, re-scoped 2026-08-14 by the seed re-rank v4
+> (`scutemob-212`). Do not read the shipped PB-DX42a rider as closing it.** Two independent
+> verifications during that task reached **opposite** verdicts on the same gate, and reconciling
+> them is the finding. The gate genuinely works for what it covers: `t5_layer_querying_set_is_pinned`
+> (`crates/engine/tests/core/pb_dx42a_continuous_condition_roster.rs:514-537`) pins the population
+> **by name**, states both legal exits in its own failure text, and **fired on its first real
+> event** — PB-DX27's The World Tree forced exit (b) rather than joining silently, which is exactly
+> the hazard this seed predicted. But axis 1 (`:463-469`) filters on the **literal string**
+> `"YouControlNOrMoreWithFilter"`, and axis 2 requires a `TargetFilter` payload that **eight of the
+> eleven** layer-querying `Condition` variants do not carry (`ControlLandWithSubtypes`,
+> `ControlAtMostNOtherLands`, `ControlBasicLandsAtLeast`, `ControlAtLeastNOtherLands`,
+> `ControlAtLeastNOtherLandsWithSubtype`, `ControlLegendaryCreature`, `ControlCreatureWithSubtype`,
+> `OpponentControlsMoreLandsThanYou`). `t7` (`:618-633`) pins exactly **one** of the eight absent
+> and its own message explains why the structural signal cannot see it. **So the gate covers the
+> population as it exists and is blind to seven of the eleven ways it can grow** — *a gate written
+> for one variant measures that variant*, arriving at the gate written to close the seed that
+> predicted it. **Re-scoped to those seven unpinned variants.** The widening is ~5 lines (extend
+> `t7`'s pin to the eight-member set) plus 3 more beside `t9:732` for the `TargetFilter`
+> fingerprint half that `OOS-DX28-1` describes and that `t9` does **not** currently cover; carried
+> as a rider in the v4 queue (`memory/primitives/seed-rerank-2026-08-14.md` §4 rank 21), not as a
+> reason to move PB-DX42b. Full derivation of the eleven-variant set: v4 memo §2.2, §2.3.
+
 **Existing seeds this task touches, and how:**
 
 - **`OOS-DX19-2`** — merged into `OOS-ADJ-1`; its framing corrected by `OOS-ADJ-3`.

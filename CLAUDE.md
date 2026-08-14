@@ -55,10 +55,11 @@
   PB-DX28 shipped `scutemob-210` 2026-08-14 (rank 12 — closed OOS-DX4-6 and OOS-DX4-1);
   PB-DX29 shipped `scutemob-211` 2026-08-14 (rank 13 — closed OOS-M11-10(loyalty) and
   OOS-UI2-4; PB-DX42b was passed over, its rank premise recorded false by OOS-DX27-9);
-  **next dispatch: coordinator's call** — the table's rank 14 is PB-DX18, but a v4 re-rank
-  is due before much more reading-off: DX42b's premise is falsified, the Blood Moon/Urza's
-  Saga flag (workstream-state) awaits ranking, and OOS-DX27-1..10 + OOS-DX28-1..8 +
-  OOS-DX29-1..17 are all unranked;
+  **SEED RE-RANK v4 SHIPPED** (`scutemob-212`, 2026-08-14, doc-only) — the authoritative queue
+  is now `memory/primitives/seed-rerank-2026-08-14.md` §4; v3's §4 is banner'd SUPERSEDED
+  (its §1-§3 remain canonical). **Next dispatch: PB-DX43** (CR 305.6/305.7 intrinsic mana
+  abilities — OOS-DX27-1 + OOS-DX27-10, live-wrong on 3 deck-legal `Complete` format staples);
+  **not** PB-DX18, which sits at v4 rank 10;
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -157,6 +158,15 @@
   the five had a registry row before this batch wrote one) — ranks **1-11 are all shipped**,
   so **next dispatch: PB-DX28** (rank 12). Coverage **62.8% → 63.0%** (1,133 → **1,136**);
   PROTOCOL **35 → 36** / HASH **74 → 75**, both gate-computed. Filed **OOS-DX27-1..10**.
+  **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
+  one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
+  **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
+  **Next dispatch: PB-DX43.** Census: **208** post-v3 seed IDs by a published derivation rule
+  (2.6× v3's 80), of which **61 have no registry row** — plus 7 more behind standing rows, so the
+  registry's blind spot is **68**. Verdicts: 25 CLOSED / 45 QUEUE / 32 RIDER / 63 PARKED / 43
+  DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
+  does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
+  Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
 - **Tests (delta 2026-08-14, PB-DX29 + `/review` fix cycle)**: **4,721 / 0 / 5** full-workspace on
   branch `scutemob-211` (+87 over the **4,634** baseline, which was measured on this branch BEFORE
   any edit and reproduced PB-DX28's close pin exactly), `--workspace --no-fail-fast` to a file,
@@ -432,6 +442,8 @@
   2026-08-01, is `memory/m11-session-plan.md` (M11-local COMPLETE). The live plan is
   `docs/mtg-engine-roadmap.md` plus the PB-DX queue in `memory/primitives/seed-rerank-2026-08-02.md`
   §4 (v3; `seed-rerank-2026-07-27.md` §4 is SUPERSEDED, its §1-§3 still canonical).
+  **↻ 2026-08-14**: the live queue is now `memory/primitives/seed-rerank-2026-08-14.md` §4 (v4,
+  `scutemob-212`); v3's §4 joins v2's as SUPERSEDED, §1-§3 of both still canonical.
 
 ### Machine-enforced invariants (full text: `docs/engine-invariants.md`)
 
@@ -497,7 +509,52 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-14 — **PB-DX29 SHIPPED** (`scutemob-211`; v3 queue rank 13 —
+- **Last Updated**: 2026-08-14 — **SEED RE-RANK v4 SHIPPED** (`scutemob-212`, doc-only):
+  `memory/primitives/seed-rerank-2026-08-14.md` is the authoritative queue; v3's §4 is banner'd
+  SUPERSEDED (its §1-§3 stay canonical). **A census cutoff is a date on a document, and work does
+  not respect it.** Census **208** post-v3 seed IDs — 2.6× v3's 80, ~6× the brief's "~35+" — by a
+  published set-difference rule (`ALL 488 − V3 79 − LEGACY 196 = 213`, minus 5 that are not seeds:
+  a plan-only closed-on-arrival, a conditional that never fired, an explicitly rejected number, a
+  deliberately skipped number, and a renumbering). **v3 recorded this exact failure about v2 and
+  then reproduced it**: its census closed 2026-08-02, the day the adjudication and the whole
+  triage-2 successor run shipped. **61 of 208 — 29% — have no registry row**, and the registry is
+  what dispatch hygiene 5 calls ground truth; add the 7 behind standing rows and the blind spot is
+  **68**. The unrowed set is one era of work (`scutemob-186..194`) filed into handoff prose under a
+  convention nobody wrote down as a rule — `OOS-G1-1`'s note says a seed closed in its own batch
+  gets no row, which is fine for the nine such seeds and does not cover the ~50 that are OPEN.
+  **Rank 1 is a seed filed "latent" that is live-wrong on three deck-legal `Complete` format
+  staples**: `OOS-DX27-1`, no CR 305.6 intrinsic-mana-ability derivation, so `urborg_tomb_of_yawgmoth`,
+  `yavimaya_cradle_of_growth` and `dryad_of_the_ilysian_grove` grant a basic land type and no mana
+  ability ever follows — the `AddSubtypes` arm is three lines that touch `chars.subtypes` and
+  nothing else, and `swamp.rs:11-27` hand-authors `{T}: Add {B}` which CR 305.6 says it should not
+  need to. `OOS-DX27-10` closes for free inside it. **PB-DX42b re-decided, not carried**:
+  `OOS-DX27-9`'s "the rank premise is false" **does not hold on the axis the rank used** — the
+  total layer-querying population moved 1 → 2 but `the_world_tree` is `partial`, so the deck-legal
+  `Complete` population moved **1 → 1** and the 7 pairs are unmoved. The seed's durable half (the
+  supply census does not carry over to a `Land` filter) lands only when PB-DX9 promotes that def,
+  and that coupling is now written down. **Two independent verifications of this task reached
+  opposite verdicts on the same gate, and reconciling them is worth more than either**: `OOS-ADJ-2`
+  is **partially discharged** — PB-DX42a's gate pins the population by name and **fired on its
+  first real event**, and it is blind to **7 of the 11** layer-querying `Condition` variants,
+  because axis 1 filters on one literal variant name and axis 2 needs a `TargetFilter` eight of
+  them do not carry. *A gate written for one variant measures that variant*, arriving at the gate
+  written to close the seed that predicted it. **`OOS-DX24-9` ≡ `OOS-DX27-5`** — the same
+  `MayPayThenEffect` defect filed twice by two batches five days apart, neither row citing the
+  other, and **two independent passes both re-measured it at 11 deck-legal `Complete` defs**.
+  **Four silently-closed seeds** found by reading code (`OOS-SIM4-2`, `OOS-DX20-7`, `OOS-DX26-7`'s
+  class half, `OOS-DX7-3`), **none recorded anywhere**. **Five of twenty-one standing wire cells
+  were wrong** — two predict a bump and measure none, one "none" is unsafe, two omit a bump — so
+  every v4 wire cell now carries a confidence. **Two registry rows are WRONG rather than stale**,
+  and `OOS-UI2-5`'s would make PB-DX33 **create** the defect it describes: the TUI has never routed
+  a cast, so a human gets a refusal, not a silent default. **The user-directed Blood Moon / Urza's
+  Saga flag is DISCHARGED** as `OOS-RR4-1/-2/-3` — and the flag was refuted in four particulars,
+  including that the "missing" gains-an-ability primitive **exists with four corpus users** and
+  that the Saga site list is **five** behavioural sites, not two. Corner case #36 is the audit's
+  **only** remaining GAP (35 COVERED / 1 GAP, measured). Doc-only: `git diff --numstat` over
+  `crates/` and `tools/` is **empty**; tests **4,721**, coverage **63.0%**, PROTOCOL **37** /
+  HASH **76** all untouched **by construction**. Full memo:
+  `memory/primitives/seed-rerank-2026-08-14.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-08-14 — **PB-DX29 SHIPPED** (`scutemob-211`; v3 queue rank 13 —
   **OOS-M11-10(loyalty)** and **OOS-UI2-4** both CLOSED, and the **OOS-M11-10 ID collision
   RESOLVED**: that note deferred renumbering to "whichever task next touches `params.rs`", this is
   that task, and the closed equip seed is now **OOS-M11-10E**). **A choice you cannot express is a
@@ -1469,7 +1526,10 @@
   replay viewer), ~112 approved scripts, ~1934 harness tests, 6-player suite, 54 property invariants
 - `benches/`: criterion (priority_cycle_4p 23µs, sba_check 14µs, full_turn_4p 205µs)
 - `tools/replay-viewer/`: axum + Svelte 5, 5 API endpoints, 12 components, diff highlighting, keyboard nav
-- 36 corner cases: 32 COVERED, 4 GAP, 0 DEFERRED
+- 36 corner cases: **35 COVERED, 1 GAP, 0 DEFERRED** (re-measured 2026-08-14 by `scutemob-212`
+  from `docs/mtg-engine-corner-case-audit.md` itself — the previous "32 COVERED, 4 GAP" was stale
+  by three closures. The one remaining GAP is **#36, Blood Moon + Urza's Saga**, now seeded as
+  `OOS-RR4-1`/`-2`/`-3` and ranked in `memory/primitives/seed-rerank-2026-08-14.md` §4)
 
 ---
 
