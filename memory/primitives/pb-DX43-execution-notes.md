@@ -112,3 +112,141 @@ un-proven by reverting this batch's own lines."
   `Overlord of the Hauntwoods`.
 - R3 (printed-basic-land-subtype population): **46** `Complete` defs (`eprintln!`'d by the test
   itself under `--nocapture`), all ability-index-neutral.
+
+---
+
+# Part 2 — coordinator record (`scutemob-213`)
+
+Everything below was measured by the coordinating session: the census, the design decision, the
+third test file, and the batch-level gates. Written after Part 1 so the two do not contradict each
+other; where they disagree, Part 2 is later.
+
+## The census — the memo's 5 is a floor, and it is short by three
+
+The v4 memo (`memory/primitives/seed-rerank-2026-08-14.md` §2.1) publishes its derivation rule:
+scan `crates/card-defs/src/defs/*.rs` comment-stripped for a land-type-conferring
+`LayerModification` whose payload names a basic land subtype. **Re-run at HEAD it reproduces the
+memo exactly** — 6 hits, minus `awaken_the_ancient` (Mountain appears only in its `EnchantFilter`)
+= 5. Dispatch hygiene 6 says treat a known-site list as a floor, so a second axis was run.
+
+**The inverse axis starts from the printed card, not from the layer modification**, and finds
+three the payload rule structurally cannot see, because a token grants its types through a
+`TokenSpec` and never through a `LayerModification` at all:
+
+| def | shape | `Complete`? | disposition |
+|---|---|---|---|
+| `awaken_the_woods` | "Forest Dryad land" token, `mana_abilities: vec![]` | yes (`#[default]` derive) | **4th live-wrong def — fixed for free** (R5, C5) |
+| `overlord_of_the_hauntwoods` | Everywhere token: 5 basic subtypes **and** 5 hand-authored abilities | yes (explicit) | **3rd double-grant risk — proven not to double** (R4: exactly 5, not 10) |
+| `leyline_of_the_guildpact` | prints the clause, authors nothing | `Inert` | out of scope; filed `OOS-DX43-1` |
+
+So the class is **8 defs, not 5**. This is PB-DX26's lesson arriving again: *a roster derived from
+one declaration construct measures that construct.* Both axes are now standing roster rows (R1
+payload, R2 inverse) so neither half can silently regrow.
+
+## The design decision, and the thing that forced it
+
+CR 305.6's intrinsic ability is a consequence of the type change, so it belongs to **layer 4**
+(CR 613.1d) — which means a layer-6 ability removal must still be able to strip it (CR 613.1f).
+That is P9, and it is the probe that makes the placement decision real rather than stylistic.
+
+**That reading then forces a second conclusion the brief did not state.** Deleting only the moons'
+`AddManaAbility` — which is literally what criterion 6507 asks for — would have left each moon's
+own **layer-6 `RemoveAllAbilities`** wiping the **layer-4** derived ability. Blood Moon would have
+stopped working entirely, and `pb_dx27_blood_moon_type_scope::t6` would have caught it. So CR
+305.7's ability-LOSS half moved into the `SetLandTypes` primitive itself, conditioned on the
+payload containing a basic land type (CR 305.7's own precondition — P13 proves a `Gate` payload
+triggers neither the clearing nor any derivation), and both moons drop **two** statics apiece.
+
+**This closes a latent CR 305.7 violation nobody had filed.** The rule's final sentence is *"Note
+that this doesn't remove any abilities that were granted to the land by other effects."* A blanket
+**layer-6** `RemoveAllAbilities` is timestamp-ordered against every other layer-6 effect, so it
+could strip an earlier-timestamped grant from another source — Cryptolith Rite, Chromatic Lantern,
+The World Tree, Bootleggers' Stash and Wrenn and Realmbreaker all grant into
+`LandsYouControl`/`AllLands`. Moving the removal to layer 4 makes every layer-6 grant survive
+regardless of timestamp. That is **P7**, and it fails on the pre-PB-DX43 shape.
+
+## The basics decision (criterion 6508), decided by a gate rather than by taste
+
+**Keep** the hand-authored `{T}: Add` on `swamp.rs` et al.; make the derivation idempotent instead.
+
+1. `crates/engine/tests/core/effect_choose_gate.rs::every_complete_land_registers_each_printed_tap_mana_color`
+   compares a def's **oracle text** against its **`enrich_spec_from_def` lowering** — a pure
+   registry path with no `GameState` and no layers. Deleting a basic's printed ability makes it
+   report `missing {B}` and go red, **correctly**: a def that prints "{T}: Add {B}" and lowers
+   nothing is a def whose spec lies about the card. CR 305.6 says a Swamp does not *need* the
+   printed text; it does not say a Swamp that *has* it should stop declaring it.
+2. `Command::TapForMana.ability_index` is a **dense index** into `mana_abilities`
+   (`rules/command.rs:25-29`, consumed `rules/mana.rs:152-160`). Idempotence keeps the printed
+   ability at index 0; deletion would move every basic land's ability from base into a derived
+   append — the `OOS-DX26-3` hazard, on the most common object in the game.
+3. `rules/face.rs:115` and `rules/resolution.rs:891` **rebuild base `mana_abilities` from the
+   def** at every face change. A basic land declaring nothing would have an empty base vector there.
+
+Proven by R3 across all **46** `Complete` defs that print a basic land subtype: resolved
+`mana_abilities` equals the base spec's exactly — same length, same order, nothing added, no index
+moved. Independently, no such def carries a conditioned or costed mana ability, so D4's exclusion
+never fires on the live corpus (it is there for the case P12 constructs).
+
+## Revert matrix — `crates/simulator/tests/pb_dx43_intrinsic_mana_channel.rs` (8 probes)
+
+Each row: edit, run, capture, restore, confirm `git diff` empty against `HEAD`.
+
+| # | What was reverted | Tests observed RED | Restored? |
+|---|---|---|---|
+| V1 | `derive_intrinsic_land_mana_abilities` call disabled (`&& false` on the `EffectLayer::TypeChange` guard) | C1, C2, C3, C4, C5, C6b | yes |
+| V2 | idempotence dropped (`already_present` guard bypassed) | C1, C3, C4, C6 | yes |
+| V3 | `SetLandTypes`' CR 305.7 clearing disabled (`sets_a_basic_type && false`) | C6b | yes |
+| V4 | card-def revert: Dryad's filter widened `LandsYouControl` → `AllLands` | C4b | yes |
+
+**All 8 probes discriminate; 0 UNDISCRIMINATED.** C6 and C4b are invariance probes and are
+correctly green under V1 — they are discriminated by V2 and V4 respectively, which is why those
+two rows exist.
+
+## Two fixture defects this file found in itself, both worth carrying
+
+1. **`GameStateBuilder::build()` never registers static continuous effects.** Nothing does until a
+   permanent actually enters through `Command::PlayLand` (`rules/lands.rs`) or spell resolution.
+   A conferring permanent dropped straight onto the battlefield by the builder therefore registers
+   **no `ContinuousEffect` at all** — Urborg sat there conferring nothing and the first draft of
+   this file failed on all three staples **for a reason it did not describe**. That is the mirror
+   image of PB-DX25b's fixture, which made a probe *pass* by removing the only condition under
+   which the code was wrong. Fixed by entering the card through the real command path, which is
+   strictly stronger evidence: the probes now prove *play Urborg, THEN tap your Plains for `{B}`*.
+   Filed `OOS-DX43-6`. Note Part 1's P1-P3 take the other route — hand-built `ContinuousEffect`
+   fixtures mirroring each card's static — so the two files cover each other: Part 1 pins the
+   mechanism, Part 2 pins the real cards.
+2. **An offer-layer assertion about a player who does not hold priority is structurally vacuous.**
+   `StubProvider::legal_actions` returns nothing at all for such a player, so C4b's first draft
+   would have read 0 offers whatever the derivation did. It reads the mana solver instead, which
+   filters on `obj.controller` rather than on priority. Filed `OOS-DX43-7`.
+
+## Batch-level gates (all executed)
+
+- **Tests: 4,749 / 0 / 5** full-workspace (`--workspace --no-fail-fast` to a file), **50**
+  result-producing targets (49 → 50: the new simulator test binary), residual list empty.
+  **+28 over the 4,721 pre-edit baseline measured on this branch before any edit**, itemised by
+  test NAME by set-diffing the two run logs, with **ZERO removals**: 13 in
+  `rules/pb_dx43_intrinsic_land_mana.rs`, 8 in `simulator/tests/pb_dx43_intrinsic_mana_channel.rs`,
+  5 in `core/pb_dx43_land_type_roster.rs`, 2 in `card-types`' new `basic_land_types_tests`.
+- **PROTOCOL 37 / HASH 76 both UNMOVED**, gate-executed (`hash_schema` 36/36,
+  `protocol_schema` 17/17). The prediction was recorded in the plan (D7) **before** any code
+  change and held; the numbers here are read off the gates, not off the prediction.
+- **Coverage 1,136/1,803 = 63.0%, 0 flips**, proven by regenerating `tools/authoring-report.py`
+  and diffing: clean 1,136 / todo 520 / empty 147 all identical, every changed line self-dating
+  (timestamp, git SHA, recent-commit list, day-window counts). Churn reverted.
+- `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs).
+- `git diff --numstat` for the implementation commit: `layers.rs` +174/−2, `types.rs` +75/−0,
+  `blood_moon.rs` +33/−42, `magus_of_the_moon.rs` +25/−38, `tools/play-server/src/main.rs` +15/−1.
+  **`crates/view-model` and `crates/simulator/src` are both 0** — the derivation is reachable
+  through every consumer without a single production line outside the engine, because every one
+  of them already reads layer-resolved characteristics.
+
+## One seeded constant moved, and it was predicted
+
+`tools/play-server/src/main.rs`'s `UI3_SPLIT_COMBAT_SEED` **28 → 32**. The plan's own §7 point 6
+named this hazard in advance ("the derived ability makes lands offer a `TapForMana` where they
+offered none; re-observe any seeded constant rather than editing it to taste"). Re-observed by an
+executed sweep over seeds 0..80; hits satisfying both halves are 32, 47, 48, 79, and 32 is the
+lowest. The constant's doc records the re-observation in the file's established convention rather
+than silently replacing the number — this is its fourth.

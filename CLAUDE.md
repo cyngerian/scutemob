@@ -60,6 +60,8 @@
   (its §1-§3 remain canonical). **Next dispatch: PB-DX43** (CR 305.6/305.7 intrinsic mana
   abilities — OOS-DX27-1 + OOS-DX27-10, live-wrong on 3 deck-legal `Complete` format staples);
   **not** PB-DX18, which sits at v4 rank 10;
+  **↻ PB-DX43 SHIPPED** (`scutemob-213`, 2026-08-14; v4 rank 1 — **OOS-DX27-1** and
+  **OOS-DX27-10** both CLOSED). **Next dispatch: PB-DX44** (v4 rank 2).
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -161,12 +163,41 @@
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
-  **Next dispatch: PB-DX43.** Census: **208** post-v3 seed IDs by a published derivation rule
+  **Next dispatch: PB-DX43.** (**↻ SHIPPED `scutemob-213` 2026-08-14; next is PB-DX44.**)
+  Census: **208** post-v3 seed IDs by a published derivation rule
   (2.6× v3's 80), of which **61 have no registry row** — plus 7 more behind standing rows, so the
   registry's blind spot is **68**. Verdicts: 25 CLOSED / 45 QUEUE / 32 RIDER / 63 PARKED / 43
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-08-14, PB-DX43)**: **4,749 / 0 / 5** full-workspace on branch
+  `scutemob-213` (+28 over the **4,721** baseline, measured on this branch BEFORE any edit and
+  reproducing PB-DX29's close pin exactly), `--workspace --no-fail-fast` to a file, **50**
+  result-producing targets (49 → 50: one new simulator test binary), residual list empty.
+  **Delta itemised by test NAME with ZERO removals**, by set-diffing the two run logs: **13** in
+  the new `crates/engine/tests/rules/pb_dx43_intrinsic_land_mana.rs` (P1-P13), **8** in the new
+  `crates/simulator/tests/pb_dx43_intrinsic_mana_channel.rs` (C1-C6b, the real-activation-path
+  probes), **5** in the new `crates/engine/tests/core/pb_dx43_land_type_roster.rs` (R1-R5), and
+  **2** in `crates/card-types`' new `state::types::basic_land_types_tests`.
+  **PROTOCOL 37 / HASH 76 both UNMOVED**, gate-executed (`hash_schema` 36/36, `protocol_schema`
+  17/17) — the derivation adds no type, no variant and no field, and `hash.rs` hashes **base**
+  `obj.characteristics` rather than the resolved value, which is the same reason `AddManaAbility`
+  grants have never moved a state hash. Predicted in the plan (D7) before any code change and
+  gate-confirmed after; **no sentinel re-pin and no history row were owed**, and
+  `history_is_append_only` / `frozen_prefix_is_pinned` pass unchanged on both gates.
+  Coverage **1,136/1,803 = 63.0%** by regeneration, **0 flips** as predicted (clean 1,136 / todo
+  520 / empty 147 all identical), self-dating churn reverted.
+  **Engine lines**: `git diff --numstat` gives `rules/layers.rs` **+174 / −2**,
+  `card-types/src/state/types.rs` **+75 / −0**, `blood_moon.rs` **+33 / −42**,
+  `magus_of_the_moon.rs` **+25 / −38**, `tools/play-server/src/main.rs` **+15 / −1** (the
+  `UI3_SPLIT_COMBAT_SEED` re-observation, inside `#[cfg(test)]`). **`crates/view-model` and
+  `crates/simulator/src` are both 0** — the derived ability is reachable through every consumer
+  with no production line outside the engine, because each one already read layer-resolved
+  characteristics; that was measured before the design was chosen, not asserted after.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs). **12 revert rows executed** across the two
+  matrices; **1 honestly UNDISCRIMINATED** (`p8`, CR 708.2a face-down — no line this batch owns
+  can break it, because the face-down blank runs before the layer loop starts).
 - **Tests (delta 2026-08-14, PB-DX29 + `/review` fix cycle)**: **4,721 / 0 / 5** full-workspace on
   branch `scutemob-211` (+87 over the **4,634** baseline, which was measured on this branch BEFORE
   any edit and reproduced PB-DX28's close pin exactly), `--workspace --no-fail-fast` to a file,
@@ -509,7 +540,60 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-14 — **SEED RE-RANK v4 SHIPPED** (`scutemob-212`, doc-only):
+- **Last Updated**: 2026-08-14 — **PB-DX43 SHIPPED** (`scutemob-213`; v4 queue rank 1 —
+  **OOS-DX27-1** and **OOS-DX27-10** both CLOSED). **A rule the engine had never derived, on cards
+  that print no text for it.** CR 305.6 gives any object with the land card type and a basic land
+  type the intrinsic `{T}: Add [symbol]`; `Characteristics.mana_abilities` was written from four
+  kinds of site and **none read `chars.subtypes`**, so three deck-legal `Complete` format staples
+  under-delivered their entire printed text in the shipped browser game — every land under
+  `urborg_tomb_of_yawgmoth` produced nothing, likewise `yavimaya_cradle_of_growth` and
+  `dryad_of_the_ilysian_grove`. New `rules::layers::derive_intrinsic_land_mana_abilities` runs at
+  the **end of the layer-4 iteration**, reading the fully resolved subtype set.
+  **The layer placement is the batch, and it forced a second fix the brief did not scope.**
+  CR 305.6's intrinsic is a consequence of the type change (CR 613.1d), so a layer-6 removal must
+  still be able to strip it (CR 613.1f, pinned by `p9`). That reading makes "delete the moons'
+  mana grant" — literally what the criterion asked — **strictly worse than HEAD**: each moon's own
+  layer-6 `RemoveAllAbilities` would have wiped the layer-4 derived ability and **Blood Moon would
+  have stopped working entirely**. So CR 305.7's ability-LOSS half moved into the `SetLandTypes`
+  primitive, conditioned on its payload containing a basic land type (CR 305.7's own precondition;
+  `p13` proves a `Gate` payload triggers neither), and each moon dropped **two** statics, not one.
+  **That relocation closes a second, unfiled CR violation**: CR 305.7's last sentence forbids
+  removing abilities *granted by other effects*, and a blanket layer-6 removal is timestamp-ordered
+  against every other layer-6 effect, so it could strip an earlier grant from Cryptolith Rite,
+  Chromatic Lantern, The World Tree, Bootleggers' Stash or Wrenn and Realmbreaker (`p7`).
+  **The memo's census reproduced exactly and was still a floor short by three.** Its published rule
+  scans `LayerModification` payloads; a token confers through a `TokenSpec`, which that rule
+  structurally cannot see. An inverse axis over printed text found **`awaken_the_woods`** — a
+  **fourth live-wrong `Complete` def**, its "Forest Dryad land" token declaring
+  `mana_abilities: vec![]`, fixed for free — **`overlord_of_the_hauntwoods`** (a **third**
+  double-grant risk, its Everywhere token hand-authoring all five subtypes *and* all five
+  abilities, proven to resolve to 5 and not 10) and `leyline_of_the_guildpact` (`Inert`). The class
+  is **8 defs, not 5**. PB-DX26's lesson again: *a roster derived from one declaration construct
+  measures that construct* — both axes are now standing roster rows.
+  **The basics question was decided by a gate, not by taste**: basics KEEP their printed
+  `{T}: Add` and the derivation is idempotent instead, because
+  `every_complete_land_registers_each_printed_tap_mana_color` reads the **registry** lowering and
+  not the layer walk, and because `Command::TapForMana.ability_index` is a dense index that
+  deletion would move on the commonest object in the game (**OOS-DX26-3**). Index neutrality proven
+  across all **46** `Complete` defs printing a basic land subtype.
+  **Reachability was proven, not assumed** — the `kaito_shizuki` lesson that existence is never
+  sufficiency. 8 probes drive the human `LocalGame`/`HumanChoice` channel, the offer layer and the
+  mana solver, asserting mana in a pool or a `Command` the solver emitted. **Two fixture defects
+  surfaced there and both are filed**: `GameStateBuilder::build()` registers no static continuous
+  effects, so a conferring permanent placed straight on the battlefield confers **nothing** and the
+  first draft failed *for a reason it did not describe* (`OOS-DX43-6`); and an offer-layer
+  assertion about a non-priority player is **structurally vacuous**, since `StubProvider` returns
+  an empty list for them — written as a `== 0` expectation it would have passed forever
+  (`OOS-DX43-7`).
+  Tests **4,749 / 0 / 5** (+28 over the 4,721 pre-edit baseline, itemised by NAME, **0 removals**,
+  50 targets); coverage unmoved **1,136/1,803 = 63.0%**, **0 flips**, proven by regeneration;
+  **PROTOCOL 37 / HASH 76 both gate-executed and UNMOVED**, as the plan predicted in writing before
+  any code change. `crates/view-model` and `crates/simulator/src` are **0 lines** — every consumer
+  already read layer-resolved characteristics. One seeded constant moved and the plan predicted it
+  (`UI3_SPLIT_COMBAT_SEED` 28 → 32, re-observed by an executed sweep). Filed **OOS-DX43-1..7**.
+  Full record: `memory/primitives/pb-DX43-execution-notes.md`; handoff:
+  `memory/workstream-state.md`.
+- **Prior**: 2026-08-14 — **SEED RE-RANK v4 SHIPPED** (`scutemob-212`, doc-only):
   `memory/primitives/seed-rerank-2026-08-14.md` is the authoritative queue; v3's §4 is banner'd
   SUPERSEDED (its §1-§3 stay canonical). **A census cutoff is a date on a document, and work does
   not respect it.** Census **208** post-v3 seed IDs — 2.6× v3's 80, ~6× the brief's "~35+" — by a
