@@ -1897,6 +1897,32 @@ pub static ALL_LAND_TYPES: std::sync::LazyLock<imbl::OrdSet<SubType>> =
         ];
         types.iter().map(|s| SubType(s.to_string())).collect()
     });
+/// CR 305.6: "The basic land types are Plains, Island, Swamp, Mountain, and
+/// Forest. ... An object with the land card type and a basic land type has
+/// the intrinsic ability '{T}: Add [mana symbol],' even if the text box
+/// doesn't actually contain that text or the object has no text box. For
+/// Plains, [mana symbol] is {W}; for Islands, {U}; for Swamps, {B}; for
+/// Mountains, {R}; and for Forests, {G}." This is CR 305.6's own listed
+/// order, not alphabetical — `rules::layers::derive_intrinsic_land_mana_
+/// abilities` (PB-DX43) iterates it in this order so the derived-ability
+/// append order is documented and stable rather than incidentally dependent
+/// on `ALL_LAND_TYPES`'s `OrdSet` iteration order.
+pub const BASIC_LAND_TYPES: [(&str, ManaColor); 5] = [
+    ("Plains", ManaColor::White),
+    ("Island", ManaColor::Blue),
+    ("Swamp", ManaColor::Black),
+    ("Mountain", ManaColor::Red),
+    ("Forest", ManaColor::Green),
+];
+/// CR 305.6's mana symbol for a basic land subtype (`Some`), or `None` if
+/// `st` is not one of the five basic land types — a nonbasic land type
+/// (Gate, Cave, Desert, ...) carries no CR 305.6 intrinsic mana ability.
+pub fn basic_land_type_mana_color(st: &SubType) -> Option<ManaColor> {
+    BASIC_LAND_TYPES
+        .iter()
+        .find(|(name, _)| *name == st.0)
+        .map(|(_, color)| *color)
+}
 /// All planeswalker subtypes from CR 205.3j. Correlated card type:
 /// `CardType::Planeswalker`. (These are used for the legend rule / uniqueness,
 /// not gameplay type-checking, but are included for completeness of the CR
@@ -1978,4 +2004,53 @@ pub fn correlated_card_types(subtype: &SubType) -> Vec<CardType> {
         return vec![CardType::Battle];
     }
     Vec::new()
+}
+#[cfg(test)]
+mod basic_land_types_tests {
+    use super::*;
+
+    /// CR 305.6's five basic land types must all be recognized members of
+    /// `ALL_LAND_TYPES` (CR 205.3i) — the basic types are a subset of the
+    /// full land-type set, not a disjoint vocabulary.
+    #[test]
+    fn every_basic_land_type_is_a_member_of_all_land_types() {
+        for (name, _) in BASIC_LAND_TYPES {
+            let st = SubType(name.to_string());
+            assert!(
+                ALL_LAND_TYPES.contains(&st),
+                "{name} (a CR 305.6 basic land type) must be a member of ALL_LAND_TYPES"
+            );
+        }
+    }
+
+    /// `basic_land_type_mana_color` must return the correct CR 305.6 mana
+    /// symbol for each basic type, and `None` for a nonbasic land type.
+    #[test]
+    fn basic_land_type_mana_color_matches_cr_305_6() {
+        assert_eq!(
+            basic_land_type_mana_color(&SubType("Plains".to_string())),
+            Some(ManaColor::White)
+        );
+        assert_eq!(
+            basic_land_type_mana_color(&SubType("Island".to_string())),
+            Some(ManaColor::Blue)
+        );
+        assert_eq!(
+            basic_land_type_mana_color(&SubType("Swamp".to_string())),
+            Some(ManaColor::Black)
+        );
+        assert_eq!(
+            basic_land_type_mana_color(&SubType("Mountain".to_string())),
+            Some(ManaColor::Red)
+        );
+        assert_eq!(
+            basic_land_type_mana_color(&SubType("Forest".to_string())),
+            Some(ManaColor::Green)
+        );
+        assert_eq!(
+            basic_land_type_mana_color(&SubType("Gate".to_string())),
+            None,
+            "a nonbasic land type has no CR 305.6 intrinsic mana ability"
+        );
+    }
 }

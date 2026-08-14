@@ -13,9 +13,9 @@ use crate::state::{
     continuous_effect::{
         ContinuousEffect, EffectDuration, EffectFilter, EffectLayer, LayerModification,
     },
-    game_object::{Characteristics, Designations, GameObject, ObjectId},
+    game_object::{Characteristics, Designations, GameObject, ManaAbility, ObjectId},
     player::PlayerId,
-    types::{CardType, CounterType, KeywordAbility, SubType, SuperType},
+    types::{CardType, CounterType, KeywordAbility, ManaColor, SubType, SuperType},
     zone::ZoneId,
     GameState,
 };
@@ -474,6 +474,39 @@ pub fn calculate_characteristics(
                 mana_value,
                 object_id,
             );
+        }
+        // CR 305.6 / CR 613.1d / CR 613.1f (PB-DX43): derive each basic land
+        // type's intrinsic "{T}: Add [symbol]" mana ability now that every
+        // Layer-4 (TypeChange) effect for THIS iteration has been applied.
+        //
+        // Why here and not inside one of the `apply_layer_modification` arms
+        // above (e.g. `SetLandTypes`/`AddSubtypes`): the subtype set must be
+        // FULLY resolved before the derivation reads it. Urborg's
+        // `AddSubtypes(Swamp)` and Blood Moon's `SetLandTypes(Mountain)` are
+        // ordered against each other by the CR 613.8 `depends_on` arm below
+        // (`SetLandTypes` depends on a co-resident basic-type `AddSubtypes`),
+        // NOT by raw timestamp order. Deriving from `chars.subtypes` inside a
+        // single arm would read an INTERMEDIATE subtype set — whichever of the
+        // two effects that arm's own modification happens to run as — and
+        // re-open exactly the ordering dependency `depends_on` exists to
+        // settle. Running once, after the whole ordered Layer-4 list has been
+        // applied, guarantees the derivation always sees the final, dependency-
+        // resolved subtype set for this object.
+        //
+        // Why here and not after the ENTIRE 8-layer walk (i.e. outside this
+        // `for &layer in &layers_in_order` loop, past Layer 6/Ability): CR
+        // 613.1f puts ability-adding AND ability-removing effects in Layer 6,
+        // strictly after Layer 4. A Layer-6 ability-removal effect (Humility,
+        // Dress Down, `LayerModification::RemoveAllAbilities`) must be able to
+        // strip this intrinsic ability exactly as it strips every other one —
+        // that only works if the intrinsic has already been appended to
+        // `chars.mana_abilities` by the time Layer 6 runs. Deriving it here, at
+        // the close of Layer 4, keeps it subject to Layer 6 removal without any
+        // extra bookkeeping; deriving it after the whole walk would make it
+        // immune to Humility, which is CR-wrong (CR 613.1f applies after CR
+        // 305.6's layer-4 grant, not around it).
+        if layer == EffectLayer::TypeChange {
+            derive_intrinsic_land_mana_abilities(&mut chars);
         }
         // Layer 7c (PtModify): also apply counter P/T contributions (CR 613.4c).
         // Counters are not modeled as ContinuousEffects — they live on the GameObject.
@@ -1564,6 +1597,100 @@ mod pb_dx5_snapshot_tests {
     }
 }
 
+/// CR 305.6 / CR 613.1d (PB-DX43): derive the intrinsic "{T}: Add [symbol]"
+/// mana ability for every basic land type present in `chars.subtypes`, once
+/// this object's Layer-4 type-changing effects have all been applied for the
+/// current layer-walk iteration. See the call site (end of the Layer-4 pass
+/// inside `calculate_characteristics`) for why the derivation runs exactly
+/// there rather than post-walk or inside an individual `apply_layer_
+/// modification` arm.
+///
+/// No-op unless `chars.card_types` contains `CardType::Land` — CR 305.6 reads
+/// "An object with the land card type AND a basic land type has the intrinsic
+/// ability ...", both conjuncts required. Consequently a face-down permanent
+/// (`chars.card_types == {Creature}`, `chars.subtypes == {}` per CR 708.2a,
+/// set before the layer loop even starts) derives nothing.
+///
+/// For each of CR 305.6's five basic types, in CR 305.6's own listed order
+/// (`BASIC_LAND_TYPES`, not `OrdSet` iteration order), if the object carries
+/// that subtype and does not already carry a `ManaAbility` that discharges
+/// the intrinsic for that colour (`discharges_intrinsic_mana_ability`, D4),
+/// appends `ManaAbility::tap_for(color)`.
+///
+/// Idempotent by construction (PB-DX43 D3/D4). This is load-bearing, not a
+/// nicety, for three reasons: (1) it lets a basic land's own hand-authored
+/// `{T}: Add [symbol]` (`swamp.rs` et al.) coexist with the derivation
+/// without ever producing a second, duplicate ability — the printed ability
+/// keeps its original index (`Command::TapForMana.ability_index` stays a
+/// stable, dense index into `mana_abilities`), so no client's existing
+/// index-0 tap-for-mana command silently starts referring to a different
+/// ability; (2) it is what closes `OOS-DX27-10` (two "nonbasic lands are
+/// Mountains" sources on the same board, e.g. Blood Moon + Magus of the
+/// Moon) WITHOUT a `push_back` dedup guard at either card def — one
+/// derivation pass appends exactly one `{R}`, because the second pass finds
+/// the first pass's grant already discharging the intrinsic; (3) it means a
+/// land whose type is set to a basic type by TWO independent effects (e.g.
+/// Urborg AND the Dryad, both naming Swamp) still ends up with exactly one
+/// `{T}: Add {B}`, not two.
+fn derive_intrinsic_land_mana_abilities(chars: &mut Characteristics) {
+    if !chars.card_types.contains(&CardType::Land) {
+        return;
+    }
+    for (name, color) in crate::state::types::BASIC_LAND_TYPES {
+        let st = SubType(name.to_string());
+        if !chars.subtypes.contains(&st) {
+            continue;
+        }
+        let already_present = chars
+            .mana_abilities
+            .iter()
+            .any(|ma| discharges_intrinsic_mana_ability(ma, color));
+        if !already_present {
+            chars.mana_abilities.push_back(ManaAbility::tap_for(color));
+        }
+    }
+}
+/// PB-DX43 design decision D4: does an existing `ManaAbility` already
+/// discharge CR 305.6's intrinsic, unconditional "{T}: Add [color]" for
+/// `color`? An ability counts only if it is EXACTLY that ability and
+/// nothing more — written as an exhaustive struct destructure with **no**
+/// `..` rest pattern (the SR-5 idiom): a future field added to `ManaAbility`
+/// is a compile error here until someone decides whether it belongs in the
+/// predicate, rather than silently being ignored.
+///
+/// A conditioned (`activation_condition`) or costed (`life_cost`,
+/// `mana_cost`, `sacrifice_self`, `exile_self_from_hand`, `remove_counter`,
+/// `damage_to_controller`) ability does NOT discharge the intrinsic: CR
+/// 305.6's ability is unconditional and free, so a land with a restricted or
+/// costed "{T}: Add {B}" that becomes a Swamp genuinely gains a SECOND,
+/// unrestricted one.
+fn discharges_intrinsic_mana_ability(ma: &ManaAbility, color: ManaColor) -> bool {
+    let ManaAbility {
+        produces,
+        requires_tap,
+        sacrifice_self,
+        any_color,
+        damage_to_controller,
+        mana_cost,
+        life_cost,
+        scaled_amount,
+        activation_condition,
+        exile_self_from_hand,
+        remove_counter,
+    } = ma;
+    *requires_tap
+        && !*sacrifice_self
+        && !*any_color
+        && *damage_to_controller == 0
+        && mana_cost.is_none()
+        && *life_cost == 0
+        && scaled_amount.is_none()
+        && activation_condition.is_none()
+        && !*exile_self_from_hand
+        && remove_counter.is_none()
+        && produces.len() == 1
+        && produces.get(&color).copied() == Some(1)
+}
 /// Apply a single layer modification to the given characteristics.
 ///
 /// `state` is needed for Layer 1 copy effects to look up the target object's
@@ -1726,6 +1853,39 @@ fn apply_layer_modification(
         // are Mountains" effects (Blood Moon, Magus of the Moon — OOS-ADJ-7): the
         // printed cards change only land subtypes, never the Artifact/Creature card
         // type an artifact land or creature land (e.g. Ancient Den, Dryad Arbor) has.
+        //
+        // PB-DX43 / CR 305.7: "If an effect sets a land's subtype to one or more of
+        // the basic land types, the land no longer has its old land type. It loses
+        // all abilities generated from its rules text, its old land types, and any
+        // copiable effects affecting that land, and it gains the appropriate mana
+        // ability for each new basic land type. Note that this doesn't remove any
+        // abilities that were granted to the land by other effects." So: IFF
+        // `new_types` intersects the five BASIC land types (CR 305.7's own stated
+        // precondition — a hypothetical "becomes a Gate" `SetLandTypes` payload sets
+        // a land type WITHOUT this clause applying), this arm additionally clears
+        // `keywords`, `mana_abilities`, `activated_abilities`, `triggered_abilities`
+        // and `abilities` — the land's printed/rules-text abilities and whatever an
+        // earlier land-type change ("its old land types") had produced. The intrinsic
+        // mana ability for each new basic type is then supplied separately by
+        // `derive_intrinsic_land_mana_abilities`, run once per Layer-4 pass after
+        // every `apply_layer_modification` call in this layer (including this one)
+        // has completed — this is NOT the same claim as "leaves everything but
+        // `subtypes` untouched" the comment above made before PB-DX43.
+        //
+        // This removal belongs in LAYER 4, not a separate layer-6 static (the
+        // pre-PB-DX43 shape: one `RemoveAllAbilities` static per moon card in
+        // `blood_moon.rs`/`magus_of_the_moon.rs`): CR 305.7's loss is a direct
+        // consequence of the type-SETTING event itself, the same layer-4 event that
+        // replaces the land's old land type — CR 613.1d says layer 4 is where
+        // type-changing effects (and their direct consequences) apply. Doing it here
+        // rather than in a companion Layer-6 removal is also what makes the rule's
+        // OWN final sentence true: any Layer-6 ability GRANTED to the land by
+        // another effect (Cryptolith Rite, Chromatic Lantern, The World Tree, ...)
+        // is applied to `chars` by Layer 6 running strictly AFTER this Layer-4
+        // clearing, so it survives no matter its own timestamp — whereas a Layer-6
+        // `RemoveAllAbilities` static (timestamp-ordered against every other Layer-6
+        // effect) could instead strip an earlier-timestamped Layer-6 grant right
+        // along with the land's own abilities, which CR 305.7 explicitly forbids.
         LayerModification::SetLandTypes(new_types) => {
             let mut kept: OrdSet<SubType> = chars
                 .subtypes
@@ -1737,6 +1897,18 @@ fn apply_layer_modification(
                 kept.insert(s.clone());
             }
             chars.subtypes = kept;
+            let sets_a_basic_type = new_types.iter().any(|st| {
+                crate::state::types::BASIC_LAND_TYPES
+                    .iter()
+                    .any(|(name, _)| *name == st.0)
+            });
+            if sets_a_basic_type {
+                chars.keywords = OrdSet::new();
+                chars.mana_abilities = imbl::Vector::new();
+                chars.activated_abilities = Vec::new();
+                chars.triggered_abilities = Vec::new();
+                chars.abilities = imbl::Vector::new();
+            }
         }
         // Layer 5: Color-changing
         LayerModification::SetColors(colors) => {
