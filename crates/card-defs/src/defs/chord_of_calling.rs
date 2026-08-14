@@ -22,10 +22,17 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Convoke),
             AbilityDefinition::Spell {
-                // TODO: "mana value X or less" — max_cmc should be XValue.
+                // CR 202.3/608.2h: "mana value X or less" is the runtime cap
+                // `TargetFilter.max_cmc_amount`, resolved by the `Effect::SearchLibrary`
+                // executor (`effects/mod.rs:3707-3710`) against `ctx.x_value`
+                // (`effects/mod.rs:8264`). Precedents: eldritch_evolution, birthing_pod,
+                // birthing_ritual. PB-DX27 (2026-08-13): the previous
+                // `// TODO: max_cmc should be XValue` claimed a DSL gap that had already
+                // closed — the field shipped with PB-EF10.
                 effect: Effect::SearchLibrary {
                     filter: TargetFilter {
                         has_card_type: Some(CardType::Creature),
+                        max_cmc_amount: Some(Box::new(EffectAmount::XValue)),
                         ..Default::default()
                     },
                     destination: ZoneTarget::Battlefield { tapped: false },
@@ -39,7 +46,12 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("'mana value X or less' — max_cmc should be XValue"),
+        // PB-DX27: promoted from `partial`. Every printed clause is now authored —
+        // Convoke (KeywordAbility::Convoke, M6) and the X-capped creature tutor.
+        // Declared EXPLICITLY rather than left to the `#[default]` derive: OOS-RR3-1
+        // records that derive as a repeatedly-demonstrated silent-defect generator,
+        // so a promotion should be a ruling somebody made, not a field somebody deleted.
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

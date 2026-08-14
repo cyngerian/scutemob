@@ -14,8 +14,12 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "This spell costs {B}{B} less to cast if there are thirteen or more \
-                      creatures on the battlefield.\nEach player sacrifices a creature."
+        // PB-DX27 (2026-08-13), OOS-CARDS2-10: the previous text was wrong in TWO clauses —
+        // "costs {B}{B} less" for a printed ALTERNATIVE cost, and "a creature" for a printed
+        // "thirteen creatures". Replaced with the MCP-verified printed text.
+        oracle_text: "You may pay {B} rather than pay this spell's mana cost if there are \
+                      thirteen or more creatures on the battlefield.\nEach player sacrifices \
+                      thirteen creatures of their choice."
             .to_string(),
         abilities: vec![
             // TODO: Conditional cost reduction "{B}{B} less if 13+ creatures on the battlefield"

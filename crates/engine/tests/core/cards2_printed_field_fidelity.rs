@@ -1023,37 +1023,22 @@ const KNOWN_DIVERGENT_ORACLE_TEXT: &[(&str, &str)] = &[
         "ARTEFACT: Disturb DFC. The def's text covers the back face too; the fixture is face 0.",
     ),
     // — real defects, pre-existing, filed as OOS-CARDS2-10 —
-    (
-        "Qarsi Sadist",
-        "DEFECT: omits the whole second clause, 'When this creature exploits a creature, \
-         target opponent loses 2 life and you gain 2 life.' Only the Exploit reminder is there.",
-    ),
-    (
-        "Scheming Symmetry",
-        "DEFECT: 'Choose an opponent. You and that player each search' for a printed 'Choose \
-         two target players. Each of them searches' — different players, and untargeted.",
-    ),
-    (
-        "Voldaren Epicure",
-        "DEFECT: omits 'it deals 1 damage to each opponent'; only the Blood token survives.",
-    ),
-    (
-        "Blasphemous Edict",
-        "DEFECT: two wrong clauses — 'costs {B}{B} less' for a printed alternative cost 'you \
-         may pay {B} rather than pay this spell's mana cost', and 'sacrifices a creature' for \
-         a printed 'sacrifices THIRTEEN creatures'.",
-    ),
-    (
-        "Delighted Halfling",
-        "DEFECT: invents '{T}: Add {G}'. The card prints '{T}: Add {C}' plus a SEPARATE \
-         restricted any-colour ability. A green mana source that should produce colourless — \
-         and colour identity is computed from mana abilities, so this one also moves decks.",
-    ),
-    (
-        "Flare of Malice",
-        "DEFECT: already `known_wrong` — the text is a different card's. Kept here so the \
-         gate stays exact rather than special-casing non-Complete defs.",
-    ),
+    //
+    // ALL SIX REPAIRED AND DELETED by PB-DX27 (`scutemob-209`, 2026-08-13): Qarsi Sadist,
+    // Scheming Symmetry, Voldaren Epicure, Blasphemous Edict, Delighted Halfling and Flare
+    // of Malice each now carry their MCP-verified printed text, so the staleness assertion
+    // below (which requires every listed entry to still score < 50) would FAIL on them.
+    // That assertion is what forced the deletion — the register is a debt register, not a
+    // permanent exemption, and it did its job.
+    //
+    // Two of the six were `Complete` and deck-legal while under-delivering their printed
+    // text, so the repair went past the string in both cases: `voldaren_epicure` gained the
+    // dropped "it deals 1 damage to each opponent" clause and stays `Complete`;
+    // `qarsi_sadist` was DEMOTED to `partial`, because its missing clause needs a
+    // `TriggerCondition::WhenThisExploitsACreature` that does not exist.
+    //
+    // The three ARTEFACT entries above are deliberately UNTOUCHED — they are fixture
+    // shape, not def defects, and repairing a def cannot clear them.
 ];
 
 #[test]

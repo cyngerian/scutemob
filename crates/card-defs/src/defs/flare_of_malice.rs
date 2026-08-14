@@ -1,6 +1,10 @@
 // Flare of Malice — {2}{B}{B}, Instant
 // You may sacrifice a nontoken black creature rather than pay this spell's mana cost.
-// Target opponent sacrifices a nonland permanent and loses 2 life.
+// Each opponent sacrifices a creature or planeswalker with the greatest mana value
+// among creatures and planeswalkers they control.
+//
+// PB-DX27 (2026-08-13): this header repeated the same fictional second sentence as
+// `oracle_text` did. Both are now the printed text.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -13,8 +17,15 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Instant]),
+        // PB-DX27 (2026-08-13), OOS-CARDS2-10: the second sentence was a DIFFERENT CARD'S
+        // text ("Target opponent sacrifices a nonland permanent and loses 2 life"), and the
+        // def's abilities were authored FROM it. This is the exact input class that caused
+        // the `braided_net` three-invented-abilities incident. The abilities stay blocked
+        // and `known_wrong` (see the note); only the fiction is removed.
+        // Replaced with the MCP-verified printed text.
         oracle_text: "You may sacrifice a nontoken black creature rather than pay this spell's \
-                      mana cost.\nTarget opponent sacrifices a nonland permanent and loses 2 life."
+                      mana cost.\nEach opponent sacrifices a creature or planeswalker with the \
+                      greatest mana value among creatures and planeswalkers they control."
             .to_string(),
         abilities: vec![
             // TODO: Sacrifice-creature alt cost not in DSL.
