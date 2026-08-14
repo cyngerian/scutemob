@@ -357,7 +357,22 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   `TargetsAnnounced` (discriminant 132), reachable fields already in the
 ///   closure. The closure's type count is unchanged (96); `GameEvent`'s
 ///   declared shape moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 35;
+/// - 36: PB-DX27 rider (2026-08-13, `OOS-ADJ-7`): `LayerModification` (reachable
+///   via `Effect::ApplyContinuousEffect(ContinuousEffectDef)` -> the card DSL
+///   closure -- the SAME `ContinuousEffectDef` struct whose sibling fields
+///   `duration: EffectDuration` and `filter: EffectFilter` already put those two
+///   types in the closure at v14/v22; "the whole struct is reachable once one
+///   field is scanned", per the v22 correction above) gains a new variant,
+///   `SetLandTypes(OrdSet<SubType>)` (arm tag `32u8`). **This is a `HASH`-only-
+///   predicted change that turned out to also be `PROTOCOL`** -- the same
+///   mistake the v32 note names: `LayerModification` was assumed to be off the
+///   wire closure because it is a runtime/layer-system type, not a card-DSL
+///   type, but `ContinuousEffectDef.modification: LayerModification` is a
+///   sibling field of `filter`/`duration` on the SAME struct the v22 correction
+///   already established is reachable in full. The closure's type count is
+///   unchanged (96); `LayerModification`'s declared shape moved, so the digest
+///   moves.
+pub const PROTOCOL_VERSION: u32 = 36;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -375,7 +390,7 @@ pub const PROTOCOL_VERSION: u32 = 35;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "7a5fc4b0c7f2e116a6674051ffa7b3455416e45cceac7e54f06d2f44698b386b";
+    "686d14e4e028f7d1148958ae58fcc17a9f359ed46c4835a864199895077f5f04";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -643,6 +658,13 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // ENG-2 (2026-08-02, OOS-G7-1): GameEvent gains TargetsAnnounced (see the
         // `- 35:` History line above). Closure type count unchanged (96).
         fingerprint: "7a5fc4b0c7f2e116a6674051ffa7b3455416e45cceac7e54f06d2f44698b386b",
+    },
+    ProtocolEpoch {
+        version: 36,
+        // PB-DX27 rider (2026-08-13, `OOS-ADJ-7`): LayerModification gains
+        // SetLandTypes, reachable via ContinuousEffectDef (see the `- 36:`
+        // History line above). Closure type count unchanged (96).
+        fingerprint: "686d14e4e028f7d1148958ae58fcc17a9f359ed46c4835a864199895077f5f04",
     },
 ];
 

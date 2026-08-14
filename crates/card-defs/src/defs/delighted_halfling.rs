@@ -21,8 +21,8 @@ pub fn card() -> CardDefinition {
         // `random_deck` builds (OOS-CARDS2-3). The def is `partial`, and `random_deck`
         // filters on `is_complete()`, so no deal moves today — but the text was the trap.
         // Replaced with the MCP-verified printed text.
-        oracle_text: "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to \
-                      cast a legendary spell, and that spell can't be countered."
+        oracle_text: "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast \
+                      a legendary spell, and that spell can't be countered."
             .to_string(),
         power: Some(1),
         toughness: Some(2),

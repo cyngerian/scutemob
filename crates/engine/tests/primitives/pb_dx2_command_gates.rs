@@ -1545,21 +1545,24 @@ fn test_dx2_discharge_then_proceed_both_produce_events_in_one_call() {
 fn test_dx2_wire_version_sentinels() {
     assert_eq!(
         mtg_engine::HASH_SCHEMA_VERSION,
-        74u8,
+        75u8,
         "HASH_SCHEMA_VERSION live sentinel -- moved 70->71 by ENG-1 (effect-driven \
          discard, unrelated to this batch), 71->72 by ENG-2 (an announcement-time \
-         target event, also unrelated to this batch), and 72->73 by PB-DX21 \
-         (CombatState gains attackers_declared, also unrelated to this batch); this \
-         sentinel pins the LIVE version like every other scattered sentinel in the \
-         suite, not PB-DX2's own contribution"
+         target event, also unrelated to this batch), 72->73 by PB-DX21 \
+         (CombatState gains attackers_declared, also unrelated to this batch), and \
+         74->75 by the PB-DX27 rider (LayerModification::SetLandTypes, also \
+         unrelated to this batch); this sentinel pins the LIVE version like every \
+         other scattered sentinel in the suite, not PB-DX2's own contribution"
     );
     assert_eq!(
         mtg_engine::PROTOCOL_VERSION,
-        35u32,
+        36u32,
         "PROTOCOL_VERSION live sentinel -- moved 33->34 by ENG-1 (effect-driven \
-         discard) and 34->35 by ENG-2 (an announcement-time target event), both \
-         unrelated to this batch; this sentinel pins the LIVE version like every \
-         other scattered sentinel in the suite, not PB-DX2's own \
-         contribution -- PB-DX2 itself left it unmoved"
+         discard), 34->35 by ENG-2 (an announcement-time target event), and 35->36 \
+         by the PB-DX27 rider (LayerModification is reachable via \
+         ContinuousEffectDef in the wire closure), all unrelated to this batch; \
+         this sentinel pins the LIVE version like every other scattered sentinel \
+         in the suite, not PB-DX2's own contribution -- PB-DX2 itself left it \
+         unmoved"
     );
 }

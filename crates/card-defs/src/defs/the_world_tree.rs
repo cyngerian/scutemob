@@ -73,14 +73,13 @@ pub fn card() -> CardDefinition {
         completeness: Completeness::partial(
             "Blocked only on multi-card search: Effect::SearchLibrary has no count field \
              (card_definition.rs:1701-1719 — player/filter/reveal/destination/ \
-             shuffle_before_placing/also_search_graveyard, no count), so 'search for any \
-             number of God cards' is inexpressible. PB-DX27 (2026-08-13) IMPLEMENTED the \
-             six-lands static grant this note previously described as merely not-blocked; \
-             the stale inline TODO claiming a `count_threshold` gap is deleted. Known \
-             simplification carried by the grant: `ManaAbility.any_color` documents itself \
-             as defaulting to colourless until interactive colour choice exists \
-             (game_object.rs:342-346) — that is a pre-existing engine deviation shared with \
-             cryptolith_rite, not a new one here.",
+             shuffle_before_placing/also_search_graveyard, no count), so 'search for any number \
+             of God cards' is inexpressible. PB-DX27 (2026-08-13) IMPLEMENTED the six-lands \
+             static grant this note previously described as merely not-blocked; the stale inline \
+             TODO claiming a `count_threshold` gap is deleted. Known simplification carried by \
+             the grant: `ManaAbility.any_color` documents itself as defaulting to colourless \
+             until interactive colour choice exists (game_object.rs:342-346) — that is a \
+             pre-existing engine deviation shared with cryptolith_rite, not a new one here.",
         ),
         ..Default::default()
     }

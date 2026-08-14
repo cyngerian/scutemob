@@ -1718,6 +1718,26 @@ fn apply_layer_modification(
                 .cloned()
                 .collect();
         }
+        // CR 205.1a: SETS the LAND-type subtypes, replacing only the land-type subset
+        // of `subtypes` while preserving creature/artifact/enchantment/planeswalker/
+        // spell subtypes and (unlike `SetTypeLine`) leaving `card_types` and
+        // `supertypes` untouched entirely. Mirrors `SetCreatureTypes` above, keyed off
+        // `ALL_LAND_TYPES` instead of `ALL_CREATURE_TYPES`. Used by "[nonbasic] lands
+        // are Mountains" effects (Blood Moon, Magus of the Moon — OOS-ADJ-7): the
+        // printed cards change only land subtypes, never the Artifact/Creature card
+        // type an artifact land or creature land (e.g. Ancient Den, Dryad Arbor) has.
+        LayerModification::SetLandTypes(new_types) => {
+            let mut kept: OrdSet<SubType> = chars
+                .subtypes
+                .iter()
+                .filter(|st| !crate::state::types::ALL_LAND_TYPES.contains(*st))
+                .cloned()
+                .collect();
+            for s in new_types {
+                kept.insert(s.clone());
+            }
+            chars.subtypes = kept;
+        }
         // Layer 5: Color-changing
         LayerModification::SetColors(colors) => {
             chars.colors = colors.clone();
@@ -1978,11 +1998,13 @@ fn toposort_with_timestamp_fallback(mut effects: Vec<&ContinuousEffect>) -> Vec<
     // SR-30: this branch is UNREACHABLE under the engine's current `depends_on`
     // relation. Every dependency arm there is Layer 4 and has the shape
     // "`Set*` depends on `Add*`/`Set*`": only `SetTypeLine`/`SetCardTypes`/
-    // `SetCreatureTypes` ever appear as the dependent (`a`), and the only `Set`
-    // that appears as a dependency (`b`) is `SetCreatureTypes` (in the
-    // `SetCardTypes → SetCreatureTypes` arm), which itself depends only on
-    // `AddSubtypes`. `Add*` effects never depend on anything, so no directed
-    // cycle can form. The `no_dependency_cycle_is_constructible_from_current_relation`
+    // `SetCreatureTypes`/`SetLandTypes` (OOS-ADJ-7, PB-DX27 rider) ever appear as
+    // the dependent (`a`), and the only `Set` that appears as a dependency (`b`)
+    // is `SetCreatureTypes` (in the `SetCardTypes → SetCreatureTypes` arm), which
+    // itself depends only on `AddSubtypes`. `SetLandTypes` likewise depends only
+    // on `AddSubtypes`, never appears as a `b`. `Add*` effects never depend on
+    // anything, so no directed cycle can form. The
+    // `no_dependency_cycle_is_constructible_from_current_relation`
     // unit test below guards that premise: if a future arm makes the relation
     // symmetric, it fails and this `debug_assert` fires, forcing a real 613.8b
     // cycle test to be written. The release-build fallback below (emit the
@@ -2065,6 +2087,20 @@ fn depends_on(a: &ContinuousEffect, b: &ContinuousEffect) -> bool {
         (LayerModification::SetCreatureTypes(_), LayerModification::AddSubtypes(added)) => added
             .iter()
             .any(|st| crate::state::types::ALL_CREATURE_TYPES.contains(st)),
+        // OOS-ADJ-7 (PB-DX27 rider): `SetLandTypes` depends on a co-resident
+        // `AddSubtypes` IFF the added subtypes include at least one LAND type — the
+        // same payload-aware rule as the `SetCreatureTypes`/`AddSubtypes` arm above,
+        // now keyed off `ALL_LAND_TYPES`. This is the Blood Moon + Urborg dependency,
+        // re-derived for `SetLandTypes` now that Blood Moon/Magus of the Moon no
+        // longer use `SetTypeLine` (see the `(SetTypeLine, AddSubtypes)` arm above,
+        // which this replaces for those two cards): Urborg's `AddSubtypes(Swamp)`
+        // must apply BEFORE Blood Moon's `SetLandTypes(Mountain)` so Blood Moon's
+        // "SET" wins (result: Mountain, not Mountain+Swamp). Locked in by
+        // `t7_blood_moon_still_overrides_urborg_dependency` in
+        // `pb_dx27_blood_moon_type_scope.rs`.
+        (LayerModification::SetLandTypes(_), LayerModification::AddSubtypes(added)) => added
+            .iter()
+            .any(|st| crate::state::types::ALL_LAND_TYPES.contains(st)),
         // PB-AC7 review fix (M1, "additional coupling to H1"): once `SetCardTypes`
         // reads `chars.card_types` to decide which subtypes survive the CR 205.1a
         // correlated-subtype-removal clause, its OWN action (the subtype-filter it
@@ -2851,6 +2887,11 @@ mod dependency_cycle_guard_tests {
             LayerModification::SetCreatureTypes(subtypes(&["Zombie"])),
             // Omits Creature → `SetCardTypes → SetCreatureTypes` dependency fires.
             LayerModification::SetCardTypes(card_types(&[CardType::Artifact])),
+            // OOS-ADJ-7 (PB-DX27 rider): Swamp is a land type, so this fires the
+            // `SetLandTypes → AddSubtypes` arm (and, unconditionally, the
+            // `SetTypeLine → AddSubtypes` arm above already covers it too).
+            LayerModification::AddSubtypes(subtypes(&["Swamp"])),
+            LayerModification::SetLandTypes(subtypes(&["Mountain"])),
         ]
     }
 

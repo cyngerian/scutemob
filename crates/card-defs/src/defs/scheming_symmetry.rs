@@ -17,8 +17,8 @@ pub fn card() -> CardDefinition {
         // for a printed "Choose two target players. Each of them searches". The printed card
         // can target the caster and any two players; it is not a you-plus-opponent effect.
         // Replaced with the MCP-verified printed text.
-        oracle_text: "Choose two target players. Each of them searches their library for a \
-                      card, then shuffles and puts that card on top."
+        oracle_text: "Choose two target players. Each of them searches their library for a card, \
+                      then shuffles and puts that card on top."
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // "You search" part — the opponent search needs player choice (M10).
