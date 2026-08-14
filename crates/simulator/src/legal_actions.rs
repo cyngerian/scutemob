@@ -2201,7 +2201,11 @@ pub fn effective_cast_cost(
 /// `LocalGame::auto_tap_commands_for` uses to build the plan — so the gate and the
 /// plan cannot disagree (SR-38: never offer what the engine rejects, and its dual,
 /// never withhold what the engine accepts).
-fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) -> bool {
+/// **`pub` as of PB-DX29's `/review` fix cycle**: `tools/play-server`'s 400 boundary
+/// needs the same affordability answer the provider's own bounds use. Exposing THIS
+/// rather than letting the play-server re-derive one is the point — two affordability
+/// arithmetics that agree today are the `OOS-RS-2` drift class.
+pub fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) -> bool {
     if state.player(player).is_err() {
         return false;
     }

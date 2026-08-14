@@ -5881,6 +5881,280 @@ mod tests {
     /// (one eligible sacrifice candidate, a Squad option with `max_count`), for
     /// unit-testing `api::validate_additional_cost_params` without going through
     /// HTTP (that probe is a later stage — see this section's header comment).
+    /// PB-DX29 `/review` H1: a minimal two-player `GameState` for the
+    /// `validate_additional_cost_params` unit tests.
+    ///
+    /// These tests exercise the **400 boundary's own rules** — "this decision never
+    /// offered that", "that count exceeds the offer's own bound", "that card is not in
+    /// the eligible set" — none of which needs game state. The state argument exists for
+    /// the whole-answer affordability check, which deliberately **fails open** when it
+    /// cannot compute a cost: the synthetic `ObjectId(1)` these fixtures name is not in
+    /// this state, so that check abstains and each test still measures exactly the rule
+    /// it was written for. The affordability check has its own probes, on real boards.
+    fn dx29_empty_state() -> mtg_engine::GameState {
+        mtg_engine::GameStateBuilder::new()
+            .add_player(mtg_engine::PlayerId(1))
+            .add_player(mtg_engine::PlayerId(2))
+            .active_player(mtg_engine::PlayerId(1))
+            .build()
+            .expect("a two-player state with no objects must build")
+    }
+
+    /// PB-DX29 `/review`: a corpus-backed `GameState` for the three fix-cycle probes.
+    ///
+    /// `objects` is `(name, zone)`; each is enriched from its real def so keywords,
+    /// costs and subtypes are the corpus's rather than a fixture's invention.
+    fn dx29_corpus_state(
+        objects: &[(&str, mtg_engine::ZoneId)],
+        pool: mtg_engine::ManaPool,
+    ) -> mtg_engine::GameState {
+        let defs: std::collections::HashMap<String, mtg_engine::CardDefinition> =
+            mtg_engine::all_cards()
+                .into_iter()
+                .map(|d| (d.name.clone(), d))
+                .collect();
+        let mut builder = mtg_engine::GameStateBuilder::new()
+            .add_player(mtg_engine::PlayerId(1))
+            .add_player(mtg_engine::PlayerId(2))
+            .active_player(mtg_engine::PlayerId(1))
+            .at_step(mtg_engine::Step::PreCombatMain)
+            .with_registry(mtg_simulator::build_registry())
+            .player_mana(mtg_engine::PlayerId(1), pool);
+        for (name, zone) in objects {
+            let card_id = defs
+                .get(*name)
+                .unwrap_or_else(|| panic!("corpus def {name:?} not found"))
+                .card_id
+                .clone();
+            builder = builder.object(mtg_engine::enrich_spec_from_def(
+                mtg_engine::ObjectSpec::card(mtg_engine::PlayerId(1), name)
+                    .with_card_id(card_id)
+                    .in_zone(*zone),
+                &defs,
+            ));
+        }
+        builder.build().expect("PB-DX29 fixture must build")
+    }
+
+    fn dx29_object_named(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
+        state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == name)
+            .map(|(id, _)| *id)
+            .unwrap_or_else(|| panic!("object {name:?} not found"))
+    }
+
+    /// **PB-DX29 `/review` M1** — CR 702.132a and five siblings. Each of the six
+    /// `AdditionalCost` kinds this batch does NOT surface is refused at the 400 boundary
+    /// rather than forwarded to the engine.
+    ///
+    /// The review proved by execution that the previous `_ => {}` let an `Assist` through
+    /// and the engine ACCEPTED it, draining another seat's mana pool 5 -> 3 without that
+    /// seat being asked. The batch's own doc argued the kinds were safe because they are
+    /// "deliberately not surfaced" — which closes the picker and not the wire.
+    ///
+    /// All six are asserted, not just the one that was executed: the fix is one arm and
+    /// a partial test would leave five of them resting on the same refuted argument.
+    #[test]
+    fn test_dx29_every_unsurfaced_cost_kind_is_refused_at_the_400_boundary() {
+        let action = ui2_cast_spell_action_with_costs(
+            vec![mtg_engine::ObjectId(7)],
+            mtg_engine::ObjectId(7),
+            1,
+        );
+        let unsurfaced: Vec<(&str, mtg_engine::AdditionalCost)> = vec![
+            (
+                "Assist",
+                mtg_engine::AdditionalCost::Assist {
+                    player: mtg_engine::PlayerId(2),
+                    amount: 2,
+                },
+            ),
+            (
+                "Mutate",
+                mtg_engine::AdditionalCost::Mutate {
+                    target: mtg_engine::ObjectId(7),
+                    on_top: true,
+                },
+            ),
+            (
+                "Discard",
+                mtg_engine::AdditionalCost::Discard(vec![mtg_engine::ObjectId(7)]),
+            ),
+            (
+                "EscapeExile",
+                mtg_engine::AdditionalCost::EscapeExile {
+                    cards: vec![mtg_engine::ObjectId(7)],
+                },
+            ),
+            (
+                "CollectEvidenceExile",
+                mtg_engine::AdditionalCost::CollectEvidenceExile {
+                    cards: vec![mtg_engine::ObjectId(7)],
+                },
+            ),
+            (
+                "ExileFromHand",
+                mtg_engine::AdditionalCost::ExileFromHand {
+                    card: mtg_engine::ObjectId(7),
+                },
+            ),
+        ];
+        for (label, cost) in unsurfaced {
+            let err = api::validate_additional_cost_params(
+                &action,
+                &crate::view::ActionParamsDto {
+                    additional_costs: vec![cost],
+                    ..Default::default()
+                },
+                &dx29_empty_state(),
+                mtg_engine::PlayerId(1),
+            )
+            .expect_err(&format!(
+                "{label} is not surfaced by any picker, so an answer naming it is wrong \
+                 against the payload the client is holding -- it must be a 400 here, not a \
+                 forward to the engine. This is the arm that let an Assist drain another \
+                 seat's mana pool."
+            ));
+            assert_eq!(err.status, StatusCode::BAD_REQUEST, "{label}");
+            assert!(
+                err.body.error.contains(label),
+                "{label}: the refusal must NAME the kind, so a client can tell which entry \
+                 was wrong: {}",
+                err.body.error
+            );
+        }
+    }
+
+    /// **PB-DX29 `/review` H1** — CR 601.2f-h / CR 702.47a. An unaffordable SPLICE is
+    /// refused at the 400 boundary, and an affordable one is accepted.
+    ///
+    /// The review proved by execution that the shipped code offered the splice, accepted
+    /// the answer here, and let the engine return `422 InsufficientMana` — a clean offer
+    /// followed by a server rejection, one family over from the marker affordability the
+    /// batch had already fixed. `SpliceCostOption`'s doc gives a real reason not to
+    /// publish a bound in the OFFER (bounding it is a subset-sum over `eligible`); it is
+    /// not a reason to skip the check HERE, where the chosen list is known.
+    ///
+    /// Both directions on ONE board, so the refusal is provably about the mana and not
+    /// about the fixture.
+    #[test]
+    fn test_dx29_an_unaffordable_splice_is_refused_at_the_400_boundary() {
+        use mtg_engine::{ManaPool, ZoneId};
+        let p1 = mtg_engine::PlayerId(1);
+        let probe = |pool: ManaPool| {
+            let state = dx29_corpus_state(
+                &[
+                    ("Reach Through Mists", ZoneId::Hand(p1)),
+                    ("Glacial Ray", ZoneId::Hand(p1)),
+                ],
+                pool,
+            );
+            let spell = dx29_object_named(&state, "Reach Through Mists");
+            let splice_card = dx29_object_named(&state, "Glacial Ray");
+            let action = mtg_simulator::LegalAction::CastSpell {
+                card: spell,
+                from_zone: ZoneId::Hand(p1),
+                additional_costs: mtg_simulator::legal_actions::AdditionalCostPlan {
+                    splice: Some(mtg_simulator::legal_actions::SpliceCostOption {
+                        eligible: vec![splice_card],
+                    }),
+                    ..Default::default()
+                },
+            };
+            api::validate_additional_cost_params(
+                &action,
+                &crate::view::ActionParamsDto {
+                    additional_costs: vec![mtg_engine::AdditionalCost::Splice {
+                        cards: vec![splice_card],
+                    }],
+                    ..Default::default()
+                },
+                &state,
+                p1,
+            )
+        };
+
+        // {U} alone pays Reach Through Mists and not Glacial Ray's {1}{R} splice.
+        let err = probe(ManaPool {
+            blue: 1,
+            ..Default::default()
+        })
+        .expect_err(
+            "CR 601.2f-h: one blue mana cannot pay {U} plus a {1}{R} splice, so this must be \
+             a 400 naming the offer -- not a 422 from the engine after the server made the \
+             offer itself",
+        );
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+
+        // Discriminating control: the same board with the mana really available accepts.
+        // Without this the assertion above could pass on a blanket refusal.
+        probe(ManaPool {
+            blue: 1,
+            red: 1,
+            colorless: 1,
+            ..Default::default()
+        })
+        .expect("with {U} plus {1}{R} available the same splice must be ACCEPTED");
+    }
+
+    /// **PB-DX29 `/review` M2** — CR 606.6. An announced `{X}` above the planeswalker's
+    /// loyalty counters is refused at the 400 boundary, and one within them is accepted.
+    ///
+    /// `x_value` was hard-coded `None` before this batch, so it could not be
+    /// over-announced; PB-DX29 opened the channel and bounded nothing. The review
+    /// measured X = 9 on `chandra_flamecaller` (`Complete`, deck-legal, 4 loyalty)
+    /// reaching the engine and coming back as a 422.
+    #[test]
+    fn test_dx29_an_over_loyalty_x_value_is_refused_at_the_400_boundary() {
+        use mtg_engine::{CounterType, ManaPool, ZoneId};
+        let mut state = dx29_corpus_state(
+            &[("Chandra, Flamecaller", ZoneId::Battlefield)],
+            ManaPool::default(),
+        );
+        let chandra = dx29_object_named(&state, "Chandra, Flamecaller");
+        // CR 606.5b: a planeswalker enters with loyalty counters; the fixture sets them
+        // directly because no ETB replacement runs on a hand-built state.
+        state
+            .objects_mut()
+            .get_mut(&chandra)
+            .expect("just built")
+            .counters
+            .insert(CounterType::Loyalty, 4);
+
+        // Non-vacuity: index 2 really is the `-X` ability, from the engine's own query.
+        assert!(
+            mtg_engine::loyalty_ability_needs_x(&state, chandra, 2),
+            "precondition (CR 606.4/107.3m): Chandra's loyalty index 2 is the `-X` ability"
+        );
+
+        let probe = |x: u32| {
+            api::validate_loyalty_x_value(
+                &mtg_simulator::LegalAction::ActivateLoyaltyAbility {
+                    source: chandra,
+                    ability_index: 2,
+                },
+                &crate::view::ActionParamsDto {
+                    x_value: x,
+                    ..Default::default()
+                },
+                &state,
+            )
+        };
+
+        let err = probe(9).expect_err(
+            "CR 606.6: 4 loyalty counters cannot pay a -9. The engine refuses this too, but \
+             as a 422 -- and the client was handed an unbounded number input, so the offer \
+             invited the answer it then rejected",
+        );
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+
+        // Discriminating controls, both sides of the boundary.
+        probe(4).expect("X == the available counters is exactly payable (CR 606.6)");
+        probe(0).expect("X = 0 is always legal (CR 107.3m)");
+    }
+
     fn ui2_cast_spell_action_with_costs(
         eligible: Vec<mtg_engine::ObjectId>,
         default: mtg_engine::ObjectId,
@@ -5920,8 +6194,13 @@ mod tests {
             }],
             ..Default::default()
         };
-        let err = api::validate_additional_cost_params(&action, &params)
-            .expect_err("an id outside `eligible` must be refused");
+        let err = api::validate_additional_cost_params(
+            &action,
+            &params,
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect_err("an id outside `eligible` must be refused");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
         assert_eq!(err.body.kind, "bad_params");
     }
@@ -5940,8 +6219,13 @@ mod tests {
             }],
             ..Default::default()
         };
-        let err = api::validate_additional_cost_params(&action, &params)
-            .expect_err("two sacrifice ids must be refused");
+        let err = api::validate_additional_cost_params(
+            &action,
+            &params,
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect_err("two sacrifice ids must be refused");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
         assert_eq!(err.body.kind, "bad_params");
     }
@@ -5956,8 +6240,13 @@ mod tests {
             additional_costs: vec![mtg_engine::AdditionalCost::Squad { count: 3 }],
             ..Default::default()
         };
-        let err = api::validate_additional_cost_params(&action, &params)
-            .expect_err("a count above max_count must be refused");
+        let err = api::validate_additional_cost_params(
+            &action,
+            &params,
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect_err("a count above max_count must be refused");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
         assert_eq!(err.body.kind, "bad_params");
     }
@@ -5984,8 +6273,13 @@ mod tests {
             additional_costs: vec![mtg_engine::AdditionalCost::Squad { count: 1 }],
             ..Default::default()
         };
-        let err = api::validate_additional_cost_params(&action, &params)
-            .expect_err("Squad on an action offering none must be refused");
+        let err = api::validate_additional_cost_params(
+            &action,
+            &params,
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect_err("Squad on an action offering none must be refused");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
         assert_eq!(err.body.kind, "bad_params");
     }
@@ -6013,8 +6307,13 @@ mod tests {
             ],
             ..Default::default()
         };
-        let err = api::validate_additional_cost_params(&action, &params)
-            .expect_err("two Squad announcements must be refused, not silently resolved");
+        let err = api::validate_additional_cost_params(
+            &action,
+            &params,
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect_err("two Squad announcements must be refused, not silently resolved");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
         assert_eq!(err.body.kind, "bad_params");
     }
@@ -6045,8 +6344,13 @@ mod tests {
             ],
             ..Default::default()
         };
-        let err = api::validate_additional_cost_params(&action, &params)
-            .expect_err("two Sacrifice announcements must be refused");
+        let err = api::validate_additional_cost_params(
+            &action,
+            &params,
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect_err("two Sacrifice announcements must be refused");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
         assert_eq!(err.body.kind, "bad_params");
     }
@@ -6067,8 +6371,13 @@ mod tests {
             ],
             ..Default::default()
         };
-        api::validate_additional_cost_params(&action, &params)
-            .expect("a legal sacrifice id and an in-bound squad count must be accepted");
+        api::validate_additional_cost_params(
+            &action,
+            &params,
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect("a legal sacrifice id and an in-bound squad count must be accepted");
     }
 
     // ── UI-2 stage 5 (CR 118.8 / CR 702.157): additional-cost surfacing, end to
@@ -9550,8 +9859,13 @@ mod tests {
             cost_sacrifice_target: Some(mtg_engine::ObjectId(999)),
             ..Default::default()
         };
-        let err = api::validate_additional_cost_params(&action, &params)
-            .expect_err("an id outside `eligible` must be refused");
+        let err = api::validate_additional_cost_params(
+            &action,
+            &params,
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect_err("an id outside `eligible` must be refused");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
         assert_eq!(err.body.kind, "bad_params");
     }
@@ -9569,6 +9883,8 @@ mod tests {
                 cost_discard_card: Some(mtg_engine::ObjectId(999)),
                 ..Default::default()
             },
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
         )
         .expect_err("a card outside the offered hand must be refused");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
@@ -9580,6 +9896,8 @@ mod tests {
                 cost_discard_card: Some(in_hand),
                 ..Default::default()
             },
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
         )
         .expect("the offered card must be accepted");
     }
@@ -9598,6 +9916,8 @@ mod tests {
                 cost_discard_card: Some(eligible),
                 ..Default::default()
             },
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
         )
         .expect_err("this ability has no discard cost");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
@@ -9610,6 +9930,8 @@ mod tests {
                 cost_sacrifice_target: Some(eligible),
                 ..Default::default()
             },
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
         )
         .expect_err("an activation answer on a CastSpell decision is a 400");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
@@ -9628,6 +9950,8 @@ mod tests {
                 }],
                 ..Default::default()
             },
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
         )
         .expect_err("a spell's additional-cost array on an activation decision is a 400");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
@@ -9638,6 +9962,8 @@ mod tests {
         api::validate_additional_cost_params(
             &sacrifice_only,
             &crate::view::ActionParamsDto::default(),
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
         )
         .expect("an activation with no announced cost answer is accepted");
     }
@@ -10859,8 +11185,13 @@ mod tests {
     ) {
         let action = dx29_cast_action(plan);
         let params = dx29_params(costs);
-        let err = api::validate_additional_cost_params(&action, &params)
-            .expect_err(&format!("must be refused: {why}"));
+        let err = api::validate_additional_cost_params(
+            &action,
+            &params,
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect_err(&format!("must be refused: {why}"));
         assert_eq!(err.status, StatusCode::BAD_REQUEST, "{why}");
         assert_eq!(err.body.kind, "bad_params", "{why}");
     }
@@ -11130,7 +11461,13 @@ mod tests {
                 cards: vec![DX29_SPLICE_A, DX29_SPLICE_B],
             },
         ]);
-        api::validate_additional_cost_params(&action, &params).expect(
+        api::validate_additional_cost_params(
+            &action,
+            &params,
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect(
             "one in-bounds answer of every offered family must be accepted -- \
              otherwise the 400 boundary is a blanket refusal, not a check",
         );
@@ -11150,8 +11487,13 @@ mod tests {
             mtg_engine::AdditionalCost::Replicate { count: 0 },
             mtg_engine::AdditionalCost::EscalateModes { count: 0 },
         ]);
-        api::validate_additional_cost_params(&action, &params)
-            .expect("CR 702.56a: paying a rider zero times is legal");
+        api::validate_additional_cost_params(
+            &action,
+            &params,
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect("CR 702.56a: paying a rider zero times is legal");
     }
 
     /// **T14 — the wire shape this batch exists to document: a MARKER template is a
