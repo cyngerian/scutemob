@@ -949,19 +949,20 @@ pub(crate) fn validate_additional_cost_params(
                     )));
                 }
             }
-            AdditionalCost::Entwine if !has_marker(plan, MarkerCostKind::Entwine) => {
+            AdditionalCost::Entwine if !marker_is_affordable(plan, MarkerCostKind::Entwine) => {
                 return Err(bad(
                     "CR 702.42a: this spell has no entwine cost to pay".to_string()
                 ));
             }
-            AdditionalCost::Fuse if !has_marker(plan, MarkerCostKind::Fuse) => {
+            AdditionalCost::Fuse if !marker_is_affordable(plan, MarkerCostKind::Fuse) => {
                 return Err(bad(
-                    "CR 702.102a: this spell cannot be fused from here -- fuse requires both \
-                     halves and a cast from HAND"
+                    "CR 702.102a/b: this decision offered no PAYABLE fuse — fuse requires both halves \
+                     and a cast from HAND, and its cost is the two halves summed, which this \
+                     board may not be able to afford"
                         .to_string(),
                 ));
             }
-            AdditionalCost::Offspring if !has_marker(plan, MarkerCostKind::Offspring) => {
+            AdditionalCost::Offspring if !marker_is_affordable(plan, MarkerCostKind::Offspring) => {
                 return Err(bad(
                     "CR 702.175a: this spell has no offspring cost to pay".to_string()
                 ));
@@ -1061,12 +1062,23 @@ fn count_option(
     plan.counts.iter().find(|c| c.kind == kind)
 }
 
-/// PB-DX29: did the plan offer this pay-or-not rider?
-fn has_marker(
+/// PB-DX29: did the plan offer this pay-or-not rider, AND say it was payable?
+///
+/// **The affordability half is not decoration and its absence was a live defect.** A
+/// count rider is bounded by `max_count` and an over-count is a 400; a marker has no
+/// count, and the first draft checked presence alone. Measured: with the base cost
+/// affordable and the rider not, the offer carried a tickable Entwine and ticking it
+/// returned `422 "player does not have enough mana to pay the cost"` — a clean offer
+/// followed by a server rejection, on the batch that exists to delete them. Folding
+/// affordability in here turns that into a 400 that names the offer.
+///
+/// One function rather than a presence check plus a separate affordability check,
+/// because two call sites that must agree are the drift class `OOS-RS-2` names.
+fn marker_is_affordable(
     plan: &mtg_simulator::legal_actions::AdditionalCostPlan,
     kind: mtg_simulator::legal_actions::MarkerCostKind,
 ) -> bool {
-    plan.markers.iter().any(|m| m.kind == kind)
+    plan.markers.iter().any(|m| m.kind == kind && m.affordable)
 }
 
 /// CR 701.22a / CR 701.25a: the two piles must PARTITION `whole` — same multiset,

@@ -428,6 +428,11 @@
       for (let i = 0; i < markerList.length; i += 1) {
         const marker = markerList[i];
         if (markerPaid[i] !== true) continue;
+        // SR-38: never contribute a rider the server said is unpayable. The checkbox is
+        // disabled for these, so this is unreachable through the UI — it is here because
+        // a stale `markerPaid` entry (the server re-offering the same spell on a poorer
+        // board) would otherwise resurrect a tick the human can no longer act on.
+        if (marker.affordable === false) continue;
         if (typeof marker.template !== 'string') {
           onError?.(
             `the ${marker.kind} cost did not arrive as the bare tag this client can pay; ` +
@@ -633,15 +638,24 @@
         {/if}
       </div>
 
-      <label class="marker-row">
+      <!-- SR-38 (PB-DX29): `affordable: false` is the marker analogue of Squad's
+           `max_count: 0` — the rider stays VISIBLE with a stated reason rather than
+           vanishing, and the box is disabled so the human cannot send an answer the
+           server would refuse. `title` is not enough on a disabled control (it never
+           opens), which is UI-5's finding, so the reason is rendered as text. -->
+      <label class="marker-row" class:unpayable={entry.affordable === false}>
         <input
           type="checkbox"
-          disabled={disabled}
+          disabled={disabled || entry.affordable === false}
           checked={markerPaid[i] === true}
           onchange={() => toggleMarker(i)}
         />
         pay the {entry.kind} cost
       </label>
+      {#if entry.affordable === false}
+        <span class="squad-range">not payable right now — you cannot afford this rider on
+          top of the spell's own cost</span>
+      {/if}
     </div>
   {/each}
 
@@ -856,6 +870,10 @@
   }
 
   /* PB-DX29: the pay-or-not riders (Entwine / Fuse / Offspring). */
+  .marker-row.unpayable {
+    opacity: 0.55;
+  }
+
   .marker-row {
     display: flex;
     align-items: center;

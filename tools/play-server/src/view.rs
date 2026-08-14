@@ -332,6 +332,19 @@ pub struct MarkerCostView {
     /// cost the two halves SUMMED, so there is no separate fuse cost to show and
     /// rendering `{0}` would be a lie. The client must say so in words instead.
     pub cost_label: Option<String>,
+    /// SR-38: may this rider be TICKED right now?
+    ///
+    /// The marker analogue of [`SquadCostView::max_count`], and `false` is the analogue
+    /// of `max_count: 0` — the rider is shown, disabled, with its reason, rather than
+    /// hidden. `crate::api::validate_additional_cost_params` refuses a submission
+    /// against `false` with a **400**, so a client that ticks it anyway is told which
+    /// offer its answer contradicts instead of getting the engine's bare 422.
+    ///
+    /// PB-DX29's first draft had no such field, and the omission was live: the picker
+    /// rendered a tickable Entwine on a board that could not pay it, and ticking it
+    /// returned `422 "player does not have enough mana to pay the cost"` — a clean offer
+    /// followed by a server rejection, on the very batch that exists to delete them.
+    pub affordable: bool,
     /// The whole answer, verbatim: a bare `"Entwine"` / `"Fuse"` / `"Offspring"` string.
     pub template: AdditionalCost,
 }
@@ -1888,6 +1901,7 @@ fn additional_costs_view(
                 kind: "Entwine".to_string(),
                 prompt: "Pay the entwine cost to choose all modes (CR 702.42a)".to_string(),
                 cost_label: m.cost.as_ref().map(format_mana_cost_compact),
+                affordable: m.affordable,
                 template: AdditionalCost::Entwine,
             },
             MarkerCostKind::Fuse => MarkerCostView {
@@ -1898,6 +1912,7 @@ fn additional_costs_view(
                 // Deliberately `None`: CR 702.102b makes the cost the two halves
                 // summed, so there is no separate figure and `{0}` would be a lie.
                 cost_label: None,
+                affordable: m.affordable,
                 template: AdditionalCost::Fuse,
             },
             MarkerCostKind::Offspring => MarkerCostView {
@@ -1906,6 +1921,7 @@ fn additional_costs_view(
                          creature enters (CR 702.175a)"
                     .to_string(),
                 cost_label: m.cost.as_ref().map(format_mana_cost_compact),
+                affordable: m.affordable,
                 template: AdditionalCost::Offspring,
             },
         })

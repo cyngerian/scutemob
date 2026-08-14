@@ -100,6 +100,32 @@ pub struct MarkerCostOption {
     /// cost to the left half's), so there is no separate "fuse cost" to display. A
     /// client must label it as such rather than rendering `{0}`.
     pub cost: Option<ManaCost>,
+    /// SR-38: can this player actually pay it right now, on top of the spell's own
+    /// effective cost?
+    ///
+    /// # This field exists because PB-DX29's first draft did not have it, and that was
+    /// a live defect the batch's own HTTP-probe author measured
+    ///
+    /// [`CountCostOption`] bounds its rider with `max_count`, and `api.rs` refuses an
+    /// over-count with a **400**. A marker has no count to bound, and the first draft
+    /// therefore offered it unconditionally: with four Mountains on the board, Goblin
+    /// War Party's base `{3}{R}` is affordable and its Entwine `{2}{R}` is not, the
+    /// picker rendered the Entwine checkbox with nothing marking it unpayable, and
+    /// ticking it returned **`422 "player does not have enough mana to pay the cost"`**
+    /// — a clean offer followed by a server rejection, which is the exact SR-38 shape
+    /// this batch exists to delete, created by this batch.
+    ///
+    /// `false` does **not** suppress the offer, deliberately: the mirror is
+    /// `max_count: 0`, which still tells the human the rider exists and is not payable
+    /// *right now*. `api.rs` turns a submission against `affordable: false` into a 400,
+    /// so the refusal names the offer the answer contradicts instead of arriving from
+    /// the engine as a bare rejection.
+    ///
+    /// The arithmetic is `effective_cast_cost_with_additional` + `can_afford` — the
+    /// same pair [`repeated_cost_max_count`] walks — so it inherits that function's
+    /// stated under-report against what the ENGINE would accept from a hand-built
+    /// command (`OOS-UI2-3`), and no more.
+    pub affordable: bool,
 }
 
 /// PB-DX29, CR 702.174a: the offer's gift descriptor.
@@ -2652,17 +2678,23 @@ fn build_additional_cost_plan(
     let mut markers: Vec<MarkerCostOption> = Vec::new();
     if has_keyword(&KeywordAbility::Entwine) {
         if let Some(cost) = ability_cost(def, entwine_cost_of) {
+            let affordable =
+                marker_rider_is_affordable(state, player, obj.id, &AdditionalCost::Entwine);
             markers.push(MarkerCostOption {
                 kind: MarkerCostKind::Entwine,
                 cost: Some(cost),
+                affordable,
             });
         }
     }
     if has_keyword(&KeywordAbility::Offspring) {
         if let Some(cost) = ability_cost(def, offspring_cost_of) {
+            let affordable =
+                marker_rider_is_affordable(state, player, obj.id, &AdditionalCost::Offspring);
             markers.push(MarkerCostOption {
                 kind: MarkerCostKind::Offspring,
                 cost: Some(cost),
+                affordable,
             });
         }
     }
@@ -2702,6 +2734,11 @@ fn build_additional_cost_plan(
             // CR 702.102b: the fused cost is the two halves SUMMED; there is no separate
             // fuse cost to show. See the field's own doc.
             cost: None,
+            // ...and because there is no separate cost, affordability is decided against
+            // the SUMMED cost, which `effective_cast_cost_with_additional`'s Fuse arm
+            // computes. Same call as the other two markers; the difference is entirely
+            // inside that function.
+            affordable: marker_rider_is_affordable(state, player, obj.id, &AdditionalCost::Fuse),
         });
     }
 
@@ -2804,6 +2841,29 @@ fn fuse_cost_of(a: &AbilityDefinition) -> Option<&ManaCost> {
         AbilityDefinition::Fuse { cost, .. } => Some(cost),
         _ => None,
     }
+}
+
+/// PB-DX29 / SR-38: can `player` pay `rider` on top of `card`'s own effective cast cost?
+///
+/// The pay-or-not analogue of [`repeated_cost_max_count`]'s `n == 1` step, and it shares
+/// that function's two-part arithmetic exactly: the COST comes from
+/// [`effective_cast_cost_with_additional`] (the same function the auto-tap asks) and the
+/// AFFORDABILITY from `can_afford`. Nothing is re-derived here.
+///
+/// `false` marks the offer unpayable rather than withholding it — see
+/// [`MarkerCostOption::affordable`] for why, and for the defect that made this exist.
+///
+/// Returns `false` when the cost cannot be computed at all (a marker-only def, whose
+/// cost lookup yields `None`), which is the fail-closed direction: the engine would
+/// refuse such a cast outright.
+fn marker_rider_is_affordable(
+    state: &GameState,
+    player: PlayerId,
+    card: ObjectId,
+    rider: &AdditionalCost,
+) -> bool {
+    effective_cast_cost_with_additional(state, player, card, std::slice::from_ref(rider))
+        .is_some_and(|cost| can_afford(state, player, &cost))
 }
 
 /// PB-DX29, CR 702.102d: does this split card's fused RIGHT half declare targets?

@@ -10815,11 +10815,13 @@ mod tests {
                         red: 1,
                         ..Default::default()
                     }),
+                    affordable: true,
                 },
                 MarkerCostOption {
                     kind: MarkerCostKind::Fuse,
                     // CR 702.102b: no separate fuse cost — see `MarkerCostOption::cost`.
                     cost: None,
+                    affordable: true,
                 },
                 MarkerCostOption {
                     kind: MarkerCostKind::Offspring,
@@ -10827,6 +10829,7 @@ mod tests {
                         generic: 1,
                         ..Default::default()
                     }),
+                    affordable: true,
                 },
             ],
             gift: Some(GiftCostOption {
@@ -10947,10 +10950,12 @@ mod tests {
                         red: 1,
                         ..Default::default()
                     }),
+                    affordable: true,
                 },
                 MarkerCostOption {
                     kind: MarkerCostKind::Fuse,
                     cost: None,
+                    affordable: true,
                 },
             ],
             ..dx29_full_plan()
@@ -11211,6 +11216,53 @@ mod tests {
         );
     }
 
+    /// **T15 — the same wire fact one layer up: a rendered `MarkerCostView` carries
+    /// its whole answer in `template`, as a bare string, and names NO key.**
+    ///
+    /// T14 checks the enum; this checks the DTO the browser actually receives, which
+    /// is where the trap bites. Every other cost view tells the client which field of
+    /// a cloned template to fill (`count_key` / `ids_key` / `player_key`); a
+    /// `MarkerCostView` must not, because there is no object to fill — and a client
+    /// that went looking for one would find `undefined` rather than an error.
+    ///
+    /// CR 702.42a / CR 702.102a / CR 702.175a.
+    #[test]
+    fn test_dx29_rendered_marker_cost_view_is_a_keyless_bare_string_template() {
+        let view = crate::view::MarkerCostView {
+            kind: "Entwine".to_string(),
+            prompt: "Pay the entwine cost to choose all modes (CR 702.42a)".to_string(),
+            // CR 702.102b's `None` case is exercised by the Fuse row below.
+            cost_label: Some("{2}{R}".to_string()),
+            template: mtg_engine::AdditionalCost::Entwine,
+            affordable: true,
+        };
+        let wire = serde_json::to_value(&view).expect("MarkerCostView serializes");
+        assert!(
+            wire["template"].is_string(),
+            "the whole answer is the template, and it is a bare string: {wire}"
+        );
+        assert_eq!(wire["template"], json!("Entwine"));
+        for key in ["count_key", "ids_key", "player_key", "key", "field"] {
+            assert!(
+                wire.get(key).is_none(),
+                "a marker view must name no fill key ({key} present): {wire}"
+            );
+        }
+
+        // CR 702.102b: Fuse's `cost_label` is genuinely absent, not `{0}` — the fused
+        // cost is the two halves summed, so there is no separate figure to print.
+        let fuse = crate::view::MarkerCostView {
+            kind: "Fuse".to_string(),
+            prompt: "Cast both halves".to_string(),
+            cost_label: None,
+            template: mtg_engine::AdditionalCost::Fuse,
+            affordable: true,
+        };
+        let fuse_wire = serde_json::to_value(&fuse).expect("serializes");
+        assert!(fuse_wire["cost_label"].is_null(), "{fuse_wire}");
+        assert_eq!(fuse_wire["template"], json!("Fuse"));
+    }
+
     // ── PB-DX29 group 2: Replicate, end to end over HTTP ──────────────────────
     //
     // The UI-2 stage-5 pattern verbatim (`ui2_install` / `ui2_deck_with` / the drive
@@ -11439,5 +11491,337 @@ mod tests {
              Replicate {{1}}{{U}}; a leftover pool would mean the rider was announced \
              and never charged"
         );
+    }
+
+    // ── PB-DX29 group 2b: Entwine, end to end over HTTP ───────────────────────
+    //
+    // The Replicate probe above leaves `markers` EMPTY, so nothing in this crate had
+    // ever observed a marker entry on the real wire -- and the marker family is the
+    // one whose encoding is the trap this batch exists to document (T14/T15). This
+    // probe is what puts a bare-string template on an actual HTTP response.
+
+    /// `{4}{R}{R}`, Legendary Creature — Dragon 4/4, `Completeness::Complete` by
+    /// derive (`crates/card-defs/src/defs/lathliss_dragon_queen.rs`). Mono-red, so
+    /// CR 903.5c colour identity admits a Mountain deck and a red spell; the most
+    /// expensive `Complete` mono-red legend in the corpus, enumerated over the defs
+    /// directory rather than guessed. Its trigger is a battlefield ability and it is
+    /// never cast here, so it cannot perturb the board.
+    const DX29_RED_COMMANDER: &str = "lathliss-dragon-queen";
+
+    /// `{3}{R}`, Sorcery, Entwine `{2}{R}`, `Completeness::Complete` by derive
+    /// (`crates/card-defs/src/defs/goblin_war_party.rs`). Modal, `min_modes: 1,
+    /// max_modes: 1` — mode 0 creates three 1/1 red Goblin tokens, mode 1 gives
+    /// creatures you control +1/+1 and haste until end of turn. Paying entwine
+    /// (CR 702.42a) chooses BOTH, and because the modes execute in order the tokens
+    /// are on the battlefield in time to be pumped — which is what makes "did the
+    /// second mode run" readable off the board rather than argued from the cost.
+    const DX29_ENTWINE_SPELL: &str = "goblin-war-party";
+    const DX29_ENTWINE_SPELL_NAME: &str = "Goblin War Party";
+    /// The token mode 0 creates.
+    const DX29_GOBLIN_TOKEN_NAME: &str = "Goblin";
+
+    /// CR 903.5c: [`DX29_RED_COMMANDER`] plus 99 Mountains, `overrides` written over
+    /// the named positions. [`dx29_island_deck_with`]'s twin; see
+    /// [`dx29_train_of_thought_deck`] for why position 0 is in the opening hand.
+    fn dx29_mountain_deck_with(overrides: &[(usize, &str)]) -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = (0..99).map(|_| CardId("mountain".to_string())).collect();
+        for (index, card) in overrides {
+            main_deck[*index] = CardId(card.to_string());
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX29_RED_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// Out-of-band oracle: the LAYER-RESOLVED power of every battlefield permanent
+    /// `controller` controls whose rendered name is `name`.
+    ///
+    /// Layer-resolved rather than printed, deliberately: mode 1's `+1/+1` is a
+    /// continuous effect (CR 613.4c), so `obj.characteristics.power` would report the
+    /// printed 1 whether or not the mode ran, and the probe would pass either way.
+    fn dx29_resolved_powers_by_name(
+        state: &SharedState,
+        controller: mtg_engine::PlayerId,
+        name: &str,
+    ) -> Vec<i32> {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        let gs = session.game.state();
+        gs.zones()
+            .get(&mtg_engine::ZoneId::Battlefield)
+            .map(|z| z.object_ids())
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|id| {
+                let obj = gs.objects().get(&id)?;
+                if obj.controller != controller || obj.characteristics.name != name {
+                    return None;
+                }
+                let chars = mtg_engine::rules::layers::calculate_characteristics(gs, id)
+                    .unwrap_or_else(|| obj.characteristics.clone());
+                chars.power
+            })
+            .collect()
+    }
+
+    /// **CR 702.42a — Entwine, offered as a MARKER and PAID over HTTP.**
+    ///
+    /// The marker family's end-to-end probe, and the only place a bare-string
+    /// `template` reaches an actual HTTP response. Same three beats as the Replicate
+    /// probe: read the descriptor, submit an ILLEGAL answer and require 400
+    /// `bad_params`, then submit the NON-DEFAULT answer (checking the marker — the
+    /// decline here is literally sending nothing) and verify the board.
+    ///
+    /// The verification is deliberately two-sided, because either half alone is
+    /// ambiguous: three Goblin tokens prove mode 0 ran, and they prove nothing about
+    /// entwine, since mode 0 is also `spell_default_modes`' own fallback pick. The
+    /// tokens' layer-resolved POWER is what proves mode 1 ran as well — i.e. that
+    /// the marker was read (CR 702.42b: an entwined modal spell executes every mode).
+    ///
+    /// # The two halves are keyed on DIFFERENT things, and the revert matrix found it
+    ///
+    /// Row R20 set `casting.rs`'s `entwine_paid` to `false` expecting the tokens to
+    /// come back 1/1. They came back **2/2** and only the mana-pool assertion
+    /// reddened, because `resolution.rs` does not read that flag at all: it
+    /// re-derives the decision by scanning `stack_obj.additional_costs` for
+    /// `AdditionalCost::Entwine` (`resolution.rs`'s `stack_entwine_paid`). So the
+    /// CHARGE is decided by `casting.rs`'s validated flag and the EFFECT by an
+    /// independent rescan of the announced list. They agree today only because
+    /// `casting.rs` errors out before a stack object exists when the spell has no
+    /// entwine — a latent duplication, not a live defect, but the reason this probe
+    /// asserts the pool total AND the board rather than treating either as a proxy
+    /// for the other. Row R20b (`stack_entwine_paid && false`) is what actually
+    /// reddens the power assertion, at `got [1, 1, 1]`.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx29_entwine_is_offered_as_a_marker_and_paid_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+        let state = shared_state();
+        ui2_install(
+            &state,
+            dx29_mountain_deck_with(&[(0, DX29_ENTWINE_SPELL)]),
+            dx29_mountain_deck_with(&[]),
+        );
+
+        // 7 Mountains: base {3}{R} (MV 4) + Entwine {2}{R} (MV 3) = 7, exactly.
+        let view = ui2_drive_playing_lands(&state, 7, UI2_LAND_DRIVE_MAX_STEPS).await;
+        let cast_label = format!("Cast {DX29_ENTWINE_SPELL_NAME}");
+        let action = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["kind"] == "CastSpell" && a["label"] == cast_label.as_str())
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!("{DX29_ENTWINE_SPELL_NAME} must be offered with 7 Mountains out: {view}")
+            });
+        let index = action["index"].as_u64().expect("index is a number");
+
+        // ── the descriptor ────────────────────────────────────────────────────
+        let costs = &action["costs"];
+        assert!(
+            !costs.is_null(),
+            "an Entwine spell must carry a costs descriptor: {action}"
+        );
+        assert_eq!(costs["answer_field"], "additional_costs");
+        assert_eq!(
+            costs["counts"].as_array().map(|a| a.len()),
+            Some(0),
+            "Goblin War Party has no pay-N-times rider, and `counts` must still be \
+             present-and-empty: {costs}"
+        );
+        let markers = costs["markers"].as_array().expect("markers is an array");
+        assert_eq!(markers.len(), 1, "exactly one marker rider: {markers:?}");
+        let entwine = &markers[0];
+        assert_eq!(entwine["kind"], "Entwine");
+        // Goblin War Party prints "Entwine {2}{R}"; `format_mana_cost_compact` emits
+        // the generic component first.
+        assert_eq!(entwine["cost_label"], "{2}{R}");
+        // **The wire fact this batch exists to document, observed on a real HTTP
+        // response**: the template is a bare JSON STRING, because
+        // `AdditionalCost::Entwine` is a unit variant and serde's externally-tagged
+        // encoding renders unit variants as strings. A picker that cloned it and
+        // wrote `Object.keys(entry)[0]` would throw here.
+        assert_eq!(entwine["template"], json!("Entwine"));
+        assert!(
+            entwine["template"].is_string(),
+            "a marker template is a bare string, never an object: {entwine}"
+        );
+        assert!(
+            entwine.get("count_key").is_none() && entwine.get("ids_key").is_none(),
+            "a marker view names no fill key: {entwine}"
+        );
+
+        let wire_seq = seq(&view);
+
+        // ── the illegal answer: a marker this offer never carried ─────────────
+        //
+        // Fuse rather than a malformed Entwine, because it is the same wire SHAPE
+        // (a bare string in the same array) and differs only in being an
+        // announcement the offer never made — so the 400 cannot be attributed to
+        // the encoding.
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {"additional_costs": ["Fuse"]}
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+        assert_eq!(refused["kind"], "bad_params", "{refused}");
+
+        // ── the real, NON-DEFAULT answer ──────────────────────────────────────
+        assert!(
+            dx29_resolved_powers_by_name(&state, p1, DX29_GOBLIN_TOKEN_NAME).is_empty(),
+            "sanity: no Goblin token exists yet"
+        );
+        let (status, after_cast) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {"additional_costs": ["Entwine"]}
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after_cast}");
+
+        ui2_drain_stack(&state, after_cast, 60).await;
+
+        // ── the result, read out of band and BY NAME (CR 400.7) ───────────────
+        let powers = dx29_resolved_powers_by_name(&state, p1, DX29_GOBLIN_TOKEN_NAME);
+        assert_eq!(
+            powers.len(),
+            3,
+            "CR 702.42b: mode 0 creates three 1/1 red Goblin tokens. got {powers:?}"
+        );
+        assert!(
+            powers.iter().all(|p| *p == 2),
+            "CR 702.42b / CR 613.4c: entwine chooses BOTH modes, so mode 1's +1/+1 \
+             must also have applied -- a 1/1 here would mean only the default mode \
+             ran and the marker was announced but never read. got {powers:?}"
+        );
+
+        let graveyard = ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1));
+        assert!(
+            graveyard.contains(&DX29_ENTWINE_SPELL_NAME.to_string()),
+            "the resolved sorcery itself must be in the graveyard: {graveyard:?}"
+        );
+        assert_eq!(
+            ui2_mana_pool_total(&state, p1),
+            0,
+            "all 7 available mana must have been spent -- base {{3}}{{R}} plus \
+             Entwine {{2}}{{R}}; a leftover pool would mean the marker was announced \
+             and never charged"
+        );
+    }
+
+    /// **CR 702.42a / SR-38 — the INVERTED form of a deviation pin, and the inversion
+    /// happened inside the same batch.**
+    ///
+    /// This test was written wrong-way-round, asserting the behaviour PB-DX29's first
+    /// draft shipped: a marker rider offered with **no affordability bound**, so paying
+    /// an unaffordable one came back as a bare **422** from the engine. Its own message
+    /// instructed a successor batch to invert it. There was no successor — the defect was
+    /// this batch's own, so this batch fixed it and inverted the test.
+    ///
+    /// **Why it was wrong.** Every other mana-bearing rider carries a bound the client is
+    /// held to: `SquadCostOption::max_count` and `CountCostOption::max_count` (Replicate,
+    /// Escalate) come from `repeated_cost_max_count`, and
+    /// `validate_additional_cost_params` turns exceeding one into a 400 before any command
+    /// reaches the engine. `MarkerCostOption` had no such field, so Entwine / Offspring /
+    /// Fuse were offered whenever the spell's BASE cost was affordable.
+    ///
+    /// `SpliceCostOption` is still unbounded, and its own doc gives the reason: bounding it
+    /// is a subset-sum over `eligible`, because each spliced card costs a different amount.
+    /// **That reason does not extend to a marker** — each is a single yes/no payment, so
+    /// the bound is one `can_afford(base + rider)` call, which is what
+    /// `marker_rider_is_affordable` now does. Fuse included: CR 702.102b makes its cost the
+    /// two halves summed, and `effective_cast_cost_with_additional`'s Fuse arm computes
+    /// exactly that.
+    ///
+    /// Measured, not argued, in both directions: with 4 Mountains — Goblin War Party's base
+    /// `{3}{R}` affordable, its Entwine `{2}{R}` not — the offer now carries
+    /// `affordable: false` and paying it is refused at the **400** boundary naming the
+    /// offer, instead of by the engine with `"player does not have enough mana"`.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx29_an_unaffordable_entwine_is_offered_disabled_and_refused_at_400() {
+        let state = shared_state();
+        ui2_install(
+            &state,
+            dx29_mountain_deck_with(&[(0, DX29_ENTWINE_SPELL)]),
+            dx29_mountain_deck_with(&[]),
+        );
+
+        // 4 Mountains: enough for the base {3}{R} (MV 4), not for the Entwine
+        // {2}{R} (MV 3) on top of it.
+        let view = ui2_drive_playing_lands(&state, 4, UI2_LAND_DRIVE_MAX_STEPS).await;
+        let cast_label = format!("Cast {DX29_ENTWINE_SPELL_NAME}");
+        let action = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["kind"] == "CastSpell" && a["label"] == cast_label.as_str())
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!("the base cost is affordable, so the cast must be offered: {view}")
+            });
+
+        // Half 1: the rider is still SHOWN -- `affordable: false` is the marker analogue
+        // of `max_count: 0`, not a suppression. A human is told the rider exists and is
+        // not payable right now, which is strictly more information than an absence.
+        // Non-vacuity: `counts` is empty here, so this is genuinely the marker family and
+        // not a count rider whose `max_count` would have carried the bound instead.
+        assert!(
+            action["costs"]["counts"]
+                .as_array()
+                .is_none_or(|c| c.is_empty()),
+            "non-vacuity: this must be the MARKER family, not a count rider: {action}"
+        );
+        let markers = action["costs"]["markers"]
+            .as_array()
+            .expect("markers is an array");
+        assert_eq!(markers.len(), 1, "{action}");
+        assert_eq!(markers[0]["kind"], "Entwine");
+        assert_eq!(
+            markers[0]["affordable"], false,
+            "SR-38: 4 Mountains pay the base {{3}}{{R}} and cannot also pay Entwine \
+             {{2}}{{R}}, so the offer must say so rather than rendering a tickable box. \
+             marker: {}",
+            markers[0]
+        );
+
+        // Half 2: submitting it anyway is refused at the 400 boundary, naming the offer --
+        // NOT by the engine as a bare 422. That difference is the whole point: a 400 says
+        // "your answer contradicts the payload you are holding", which needs no game state
+        // to see; a 422 says "the engine looked at your command and said no", which is what
+        // an offer the server should never have made looks like.
+        let index = action["index"].as_u64().expect("index is a number");
+        let wire_seq = seq(&view);
+        let (status, body) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {"additional_costs": ["Entwine"]}
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "SR-38: an unaffordable marker must be refused by \
+             `validate_additional_cost_params` with a 400, exactly like an \
+             over-`max_count` Replicate. A 422 here means the affordability bound was \
+             removed and the server is again offering something it will not accept. \
+             body: {body}"
+        );
+        assert_eq!(body["kind"], "bad_params", "{body}");
     }
 }
