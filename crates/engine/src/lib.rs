@@ -12,7 +12,8 @@ pub use cards::{
     ForEachTarget, LibraryPosition, LoyaltyCost, MeldPair, ModeSelection, PlayerTarget,
     RegistryError, SelfActivatedCostReduction, SelfCostReduction, SoulbondGrant,
     SpellAdditionalCost, SpellCostFilter, SpellCostModifier, TargetController, TargetFilter,
-    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
+    TargetOwner, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine,
+    ZoneTarget,
 };
 // Convenience re-exports of primary types
 pub use rules::commander::{

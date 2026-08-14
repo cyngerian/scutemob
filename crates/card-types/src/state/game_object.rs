@@ -860,6 +860,18 @@ pub struct DeathTriggerFilter {
     pub exclude_self: bool,
     /// If true, the dying creature must be a nontoken.
     pub nontoken_only: bool,
+    /// PB-DX28 (CR 108.3 / CR 404.3): if true, the dying creature must have been
+    /// OWNED (not merely controlled) by the trigger source's owner. "Whenever a
+    /// creature you own dies". Decomposed into two bools rather than a stored
+    /// `TargetOwner`, mirroring `controller_you`/`controller_opponent` — this
+    /// module cannot import `cards::card_definition` types (module dependency
+    /// direction: `cards/` imports from `state/`, never the reverse).
+    #[serde(default)]
+    pub owner_you: bool,
+    /// If true, the dying creature must have been OWNED by an opponent of the
+    /// trigger source's owner. "Whenever a creature an opponent owns dies".
+    #[serde(default)]
+    pub owner_opponent: bool,
 }
 /// Filter applied to ETB triggers to restrict which entering permanents cause
 /// the trigger to fire. All `true` fields must be satisfied (AND logic).
