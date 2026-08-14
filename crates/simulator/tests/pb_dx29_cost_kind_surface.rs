@@ -893,6 +893,45 @@ fn p3b_splice_is_suppressed_until_an_eligible_card_is_in_hand() {
         vec![ray],
         "the same board, one card different, and the offer appears"
     );
+
+    // (d) the SUBTYPE half of the two-sided gate, which (a)-(c) cannot reach: an
+    // eligible-looking Glacial Ray in hand while the spell being cast is NOT Arcane.
+    // CR 702.47a keys splice on the spell carrying the splice card's `onto_subtype`, and
+    // a fixture whose subject is subtypeless (Lightning Bolt) would be caught by
+    // `eligible_splice_cards`'s empty-subtypes early return instead, proving nothing
+    // about the comparison itself. Llanowar Elves is Elf Druid — subtypes present, and
+    // none of them Arcane.
+    let wrong_subtype = GameStateBuilder::new()
+        .add_player(P1)
+        .add_player(P2)
+        .with_registry(corpus_registry())
+        .active_player(P1)
+        .player_mana(
+            P1,
+            ManaPool {
+                green: 1,
+                red: 1,
+                colorless: 1,
+                ..Default::default()
+            },
+        )
+        .object(corpus_object(&defs, P1, "Llanowar Elves", ZoneId::Hand(P1)))
+        .object(corpus_object(&defs, P1, "Glacial Ray", ZoneId::Hand(P1)))
+        .build()
+        .expect("state builds");
+    let elves = id_of(&wrong_subtype, "Llanowar Elves");
+    assert!(
+        !mtg_engine::calculate_characteristics(&wrong_subtype, elves)
+            .expect("the card exists")
+            .subtypes
+            .is_empty(),
+        "the fixture only tests the comparison while the subject HAS subtypes — a \
+         subtypeless one is short-circuited before the comparison is reached"
+    );
+    assert!(
+        cast_plan(&wrong_subtype, P1, elves).splice.is_none(),
+        "CR 702.47a: Glacial Ray splices onto Arcane, and an Elf Druid is not Arcane"
+    );
 }
 
 /// **P4** — CR 702.102a, "from your hand". Fuse is the one rider whose legality depends
@@ -1400,8 +1439,15 @@ fn c2f_splice_is_charged_the_way_the_engine_charges_it() {
 /// carried a hybrid pip, a Phyrexian pip or `{X}` would therefore be UNDER-predicted by
 /// the auto-tap and refused by the engine.
 ///
-/// The divergence is unreachable today and this walk is what says so. If it ever
-/// reddens, the fix is in `legal_actions.rs`, not here.
+/// **That is measured, not argued.** Adding `HybridMana::ColorColor(White, Blue)` to
+/// `wear_tear.rs`'s Fuse cost in a scratch worktree made
+/// `effective_cast_cost_with_additional` predict `{1}{R}{W}` (mana value **3**) while the
+/// engine charged **4** and refused the fused cast with `InsufficientMana` from a pool
+/// holding exactly the prediction — the same "clean offer, server rejection" the rest of
+/// this batch exists to delete, one pip away. The card def was restored; nothing in the
+/// corpus carries such a cost today, and this walk is what says so.
+///
+/// If it ever reddens, the fix is in `legal_actions.rs`'s `add` closure, not here.
 #[test]
 fn c2g_no_corpus_fuse_cost_carries_a_hybrid_phyrexian_or_x_component() {
     let mut seen = 0usize;

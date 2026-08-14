@@ -336,3 +336,60 @@ commit.** Joining the allowlist is what makes `first_announced_field` stop runni
 right — the alternative was refusing the `targets` and `x_value` that arm now genuinely reads —
 but it moves `params.rs`' own "nine consuming arms" residual to **ten**, and that doc still said
 nine. Corrected, and filed as `OOS-DX29-8`.
+
+### 5.3 A gate's WALK is narrower than its CLAIM — the third instance in one batch
+
+Found by the frontend author while wiring the picker, not by any test.
+
+`ui2_additional_cost_roster::r5` justifies `ActionBar.svelte`'s stage order with the claim *"no
+def declares an additional cost together with `{X}` or modes"* — and its predicate walks
+`spell_additional_costs` and Squad **only**. **Escalate (CR 702.120a) and Entwine (CR 702.42a)
+are additional costs on modal spells by definition** — `casting.rs` requires a modal spell for
+escalate in so many words, and entwine's whole function is "choose all modes". So R5 reports a
+clean board while the condition it was written to detect is live on **five** corpus defs.
+
+That is the same shape as `r3b` staying green while `nocturnal_hunger` was broken, and as UI-2's
+R4 staying green while `brokkos_apex_of_forever` sat in the corpus. Three instances, one batch.
+
+The replacement (`pb_dx29_additional_cost_roster::R6`) **prints** the offenders instead of
+asserting their absence, because their absence is not true and asserting it would be a lie that
+happens to pass. What it asserts is the half that actually matters to the client:
+
+| measured | value |
+|---|---|
+| modal additional-cost defs | **5** — `Goblin War Party`, `Promise of Power`, `Tooth and Nail` (Entwine); `Blessed Alliance`, `Collective Resistance` (Escalate) |
+| additional-cost defs carrying an `{X}` | **0** |
+
+So the stage-order inversion is modes-vs-costs — which is CR 601.2b's *own* order, and therefore
+harmless — and never `{X}`-vs-costs, which is the half that would be wrong. R5 is kept unchanged
+with its narrowness stated at the test, rather than widened into a failure.
+
+---
+
+## 6. The refusal channel, after — and the honest reading of an unmoved number
+
+Re-run of the identical instrument on the identical seeds after every change:
+
+| | before | after |
+|---|---|---|
+| seed 0 | 47 | 47 |
+| seed 7 | 5 | 5 |
+| seed 42 | 53 | 53 |
+| **total** | **105** | **105** |
+
+`diff` over the classified breakdowns is **empty**. Raw output:
+`memory/primitives/pb-dx29-refusal-before.txt` / `-after.txt`.
+
+**What that does and does not prove.** It does *not* prove the batch fixed nothing; it proves the
+batch is **bot-path-neutral**, which is the property that keeps every recorded seed alive. Bots
+never announce an additional cost (`params.rs` appends the offer's own default and nothing else),
+and in these three seeds no bot ever activates a targeted loyalty ability — so neither half of
+this batch has a bot-path expression, and the 105 are the same 76 `InsufficientMana`, 13
+"attacking player cannot declare blockers", 14 `CrossPlayerBlock` and 2 `InvalidTarget` as before.
+
+**The channel that moved is the human one**, and it is measured separately, through the
+play-server HTTP probes: refusals that used to be a bare **422** from the engine (or, worse, a
+silent loss of an announced rider) are now either a **400** naming the offer the answer
+contradicts, or an accepted answer with an observable game-state effect. Publishing the unmoved
+105 alongside that is the point — an A/B on the wrong channel that came back flat would otherwise
+read as evidence of nothing happening.
