@@ -29,53 +29,28 @@ Follow the exact same procedure as `/spawn` (steps 1 through 7):
 
 ### 8. Launch the worker
 
-Instead of reporting "launch the worker" to the user, launch it directly in a kitty pane.
+Instead of reporting "launch the worker" to the user, launch it directly via the
+`esm worker-tab` CLI command (esm-21). It opens a split kitty tab — worker session on
+the left, a live glance pane (`esm task glance`) on the right — and handles tab
+titling, cwd verification, retry, and a manual-instructions fallback when kitty
+remote control is unavailable.
 
-**CRITICAL: `--cwd` MUST be an absolute path.** `kitty @ launch --cwd` resolves
-relative paths against the kitty process cwd (typically `$HOME`), NOT the cwd of
-the calling shell or the focused pane. A relative path like `.worktrees/{task_id}`
-will launch the worker in the wrong directory (usually `$HOME`) and it will start
-trashing files there. Use the absolute `worktree` path returned by `esm worktree
-create` in step 5.
+`{worktree_abs}` is the absolute path returned in the `worktree` field of
+`esm worktree create`'s JSON response in step 5 — pass it verbatim.
 
-Verify the absolute path exists before launching:
 ```bash
-test -d "{worktree_abs}/.esm" && echo ok || { echo "worktree missing"; exit 1; }
+esm worker-tab {task_id} "{worktree_abs}" --prompt 'Read .esm/worker.md and follow its instructions. BEFORE you start implementing, use TaskCreate to build a visible task list derived from the acceptance criteria and any referenced plan file — one item per concrete step (enum add, each dispatch site, each card-def edit, each test, build/clippy/fmt checks, /review). Mark each item in_progress when you start it and completed as soon as it is done (do not batch completions at the end). The coordinator follows this task list to track progress. THEN delegate the heavy lifting to specialized project agents via the Agent tool rather than implementing everything inline: primitive batches (PB-*) use primitive-impl-runner for implementation and primitive-impl-reviewer for review; keyword abilities use ability-impl-runner + ability-impl-reviewer; card authoring uses bulk-card-author + card-batch-reviewer; LOW issue fix sessions use fix-session-runner; game scripts use game-script-generator. See the Agents table in CLAUDE.md. Only implement directly when no specialized agent fits the work. Satisfy all acceptance criteria, run /review (spawning the review agent if one fits), then follow the Completion Sequence.'
 ```
 
-Then launch:
-```bash
-kitty @ launch --type=tab --tab-title "worker: {task_id}" --keep-focus --cwd "{worktree_abs}" -- bash -c 'export PATH="$HOME/.local/bin:$PATH" ESM_API_KEY="'"$ESM_API_KEY"'" ESM_URL="'"$ESM_URL"'"; claude --model opus[1m] --dangerously-skip-permissions "Read .esm/worker.md and follow its instructions. BEFORE you start implementing, use TaskCreate to build a visible task list derived from the acceptance criteria and any referenced plan file — one item per concrete step (enum add, each dispatch site, each card-def edit, each test, build/clippy/fmt checks, /review). Mark each item in_progress when you start it and completed as soon as it is done (do not batch completions at the end). The coordinator follows this task list to track progress. THEN delegate the heavy lifting to specialized project agents via the Agent tool rather than implementing everything inline: primitive batches (PB-*) use primitive-impl-runner for implementation and primitive-impl-reviewer for review; keyword abilities use ability-impl-runner + ability-impl-reviewer; card authoring uses bulk-card-author + card-batch-reviewer; LOW issue fix sessions use fix-session-runner; game scripts use game-script-generator. See the Agents table in CLAUDE.md. Only implement directly when no specialized agent fits the work. Satisfy all acceptance criteria, run /review (spawning the review agent if one fits), then follow the Completion Sequence."; exec bash'
-```
+The `--prompt` value above is this project's customized worker prompt (task-list
+discipline + the specialized-agent roster) — keep it in sync with the Agents table in
+CLAUDE.md, and do not drop it in favor of the stock prompt: `esm update` skips this
+skill precisely because of that customization (see `.esm/migration.json`), and
+`esm update --force` would clobber it.
 
-Where `{worktree_abs}` is the absolute path returned in the `worktree` field of
-`esm worktree create`'s JSON response (e.g.
-`/home/skydude/projects/garden69/.worktrees/garden69-150`).
-
-After launching, confirm the new window's cwd matches:
-```bash
-kitty @ ls | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); [print(w['id'], t.get('title'), w.get('cwd')) for o in d for t in o.get('tabs',[]) for w in t.get('windows',[]) if 'worker: {task_id}' in (t.get('title','')+w.get('title',''))]"
-```
-If the cwd is not the worktree path, close the window with
-`kitty @ close-window --match id:<id>` and retry.
-
-Notes on the launch command:
-- `--type=tab` opens a new tab — does NOT affect existing tabs or split layouts
-- `--keep-focus` prevents the new tab from stealing focus from the coordinator
-- `--tab-title` labels it with the task ID for easy identification
-- `--cwd` sets the working directory to the worktree (absolute path only)
-- `--dangerously-skip-permissions` allows autonomous operation
-- `--model opus[1m]` matches the user's standard model config
-- The prompt is passed as an argument (NOT `-p`), for interactive streaming output
-- `; exec bash` keeps the tab open after Claude exits
-
-If `kitty @` is not available (not running in kitty, or remote control disabled), fall
-back to reporting the manual launch command as `/spawn` does.
-
-Test kitty availability first:
-```bash
-kitty @ ls >/dev/null 2>&1
-```
+Check the command's JSON output: `cwd_verified` must be `true`. If the command reports
+kitty remote control unavailable, relay its manual launch instructions to the user as
+`/spawn` does.
 
 ### 9. Report and begin monitoring
 
