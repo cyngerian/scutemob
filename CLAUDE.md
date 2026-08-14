@@ -49,7 +49,10 @@
   PB-DX7 shipped `scutemob-207` 2026-08-11 (rank 9 — closed OOS-DP7-11, OOS-DP9-13,
   and both riders OOS-DP10-1 and OOS-DP9-10's residual);
   PB-DX8 shipped `scutemob-208` 2026-08-12 (rank 10 — FILED and closed OOS-CARDS2-7,
-  RECORDED OOS-DP10-9, shipped the PB-DX42a rider); **next dispatch: PB-DX27** (rank 11);
+  RECORDED OOS-DP10-9, shipped the PB-DX42a rider);
+  PB-DX27 shipped `scutemob-209` 2026-08-13 (rank 11 — closed OOS-CARDS2-8/-10/-11, OOS-RR3-2
+  and rider OOS-ADJ-7, all five registry-rowed for the first time; PROTOCOL 36 / HASH 75);
+  **next dispatch: PB-DX28** (rank 12);
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
