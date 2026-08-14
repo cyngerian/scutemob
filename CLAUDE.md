@@ -143,6 +143,29 @@
   closed**, and the **PB-DX42a** rider shipped per adjudication §5.1) — ranks **1-10 are all
   shipped**, so **next dispatch: PB-DX27** (rank 11). Coverage unmoved at **62.8%**, proven by
   regeneration; PROTOCOL **35** / HASH **74** gate-executed and unmoved.
+  **PB-DX27 SHIPPED** (`scutemob-209`; v3 queue rank 11 — **OOS-CARDS2-8**, **OOS-CARDS2-10**,
+  **OOS-CARDS2-11**, **OOS-RR3-2** and the rider **OOS-ADJ-7** all FILED *and* CLOSED; none of
+  the five had a registry row before this batch wrote one) — ranks **1-11 are all shipped**,
+  so **next dispatch: PB-DX28** (rank 12). Coverage **62.8% → 63.0%** (1,133 → **1,136**);
+  PROTOCOL **35 → 36** / HASH **74 → 75**, both gate-computed. Filed **OOS-DX27-1..10**.
+- **Tests (delta 2026-08-13, PB-DX27 + fix cycle)**: **4,605 / 0 / 5** full-workspace on branch
+  `scutemob-209` (+44 over the **4,561** baseline measured on this branch BEFORE any edit),
+  `--workspace --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
+  **Delta itemised by test NAME with zero removals**, by set-diffing the two run logs: 9 in the
+  new `crates/engine/tests/rules/pb_dx27_blood_moon_type_scope.rs`, 9 in the new
+  `crates/engine/tests/primitives/pb_dx27_headline_defs.rs`, 7 in the new
+  `crates/engine/tests/core/pb_dx27_stale_blocker_notes.rs`, 9 in the new
+  `crates/engine/tests/primitives/pb_dx27_stale_blocker_repairs.rs`, and 10 in the new
+  `crates/engine/tests/primitives/pb_dx27_sweep_repairs_b.rs`.
+  **PROTOCOL 35 → 36 / HASH 74 → 75**, both taken from the gates' own output
+  (`hash_schema` 36/36, `protocol_schema` 17/17) — **the brief predicted "expected wire impact
+  NONE" and the gate refuted it**: `ContinuousEffectDef.modification` is a sibling of
+  `filter`/`duration`, both already in the `Command`/`GameEvent` closure, so
+  `LayerModification` is on the wire. Coverage **1,136/1,803 = 63.0%** by regeneration; flips
+  named — UP `chord_of_calling`, `reconnaissance`, `wight_of_the_reliquary`,
+  `chandra_flamecaller`; DOWN `qarsi_sadist` and `green_suns_zenith`.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs).
 - **Tests (delta 2026-08-12, PB-DX8 + fix cycle)**: **4,561 / 0 / 5** full-workspace on branch
   `scutemob-208` (+34 over the **4,527** baseline measured on this branch BEFORE any edit),
   `--workspace --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
@@ -414,7 +437,67 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-12 — **PB-DX8 SHIPPED** (`scutemob-208`; v3 queue rank 10 —
+- **Last Updated**: 2026-08-13 — **PB-DX27 SHIPPED** (`scutemob-209`; v3 queue rank 11 —
+  **OOS-CARDS2-8**, **OOS-CARDS2-10**, **OOS-CARDS2-11**, **OOS-RR3-2** and the rider
+  **OOS-ADJ-7** all FILED *and* CLOSED). **A blocker note is a claim, and nothing had ever
+  re-checked one.** `OOS-DX3-1`'s closure called the corpus-wide re-check "a cheap standing
+  sweep" and closed without filing it; this batch is that sweep, plus a gate so it cannot
+  silently reopen. **None of the five seeds had a registry row** — the third batch running
+  to find its own seeds unrowed (dispatch hygiene 5 held: grep first, then file, then close).
+  **The population the seed was RANKED on does not reproduce**: the memo's 67 machine-checkable
+  notes yields **49** by its own literal method at HEAD, 46 ground-truth-restricted, 109 by an
+  inverse method, and no variant reaches 67. The brief called it "a FLOOR and a snapshot"; it
+  is a snapshot and **not** a floor, because every reproduction is *smaller*. Of the 46
+  adjudicated: 10 REFUTED and repaired, 3 REFUTED-PARTIAL, 30 CONFIRMED with the still-missing
+  identifier named, 9 STALE-WORDING. The dominant shape is the one the CARDS-2 sweep predicted
+  — **an inline `// TODO` and a `Completeness` note in the same file disagreeing, note
+  correct** — and `marisi_breaker_of_the_coil`'s note literally says **STALE** while its TODO
+  denies a variant six corpus defs already use.
+  **Two REFUTED repairs were declined, and the distinction was load-bearing**: `kaito_shizuki`'s
+  −7 (`Effect::CreateEmblem` exists, but `collect_emblem_triggers_for_event` has 6 call sites
+  and **none is a combat-damage site**, so authoring it ships a 7-loyalty no-op) and
+  `blackblade_reforged`'s land-count static (`resolve_cda_amount` resolves the controller from
+  the **equipped creature**, CR 108.5/611.2c-wrong). **Existence is necessary and never
+  sufficient.**
+  **The rider found more than it was filed for.** `OOS-ADJ-7`'s population is **3** `Complete`
+  defs, not 2 — `dryad_arbor` was missed — and the same ruling's third sentence ("they gain
+  `{T}: Add {R}`") was implemented **nowhere**, so a Blood-Mooned land lost every ability and
+  gained nothing. New `LayerModification::SetLandTypes`, the exact analogue of the shipped
+  `SetCreatureTypes`. **The brief's "expected wire impact NONE" was refuted by the gate** —
+  `ContinuousEffectDef.modification` is a sibling of `filter`/`duration`, both already on the
+  wire — so **PROTOCOL 35 → 36 / HASH 74 → 75**, taken from the gates' own output.
+  **`OOS-ADJ-2` came true on its own gate's first real event**: authoring The World Tree's
+  six-lands static grew the layer-querying population **1 → 2**, exactly what that seed
+  predicted would "silently join the deviation". It was not silent — the PB-DX42a gate fired
+  and forced exit (b), so **PB-DX42b's rank premise (a measured population of exactly 1) is
+  now false** (`OOS-DX27-9`).
+  **The `/review` found 1 HIGH / 5 MEDIUM / 6 LOW and all 12 were taken — and the HIGH was
+  this batch committing its own subject matter, twice.** `chord_of_calling` and
+  `green_suns_zenith` were promoted to deck-legal `Complete` with their printed **"then
+  shuffle" unauthored**: `Effect::SearchLibrary` has no post-search shuffle, and
+  `eldritch_evolution.rs:12-14` — **the very file both defs cite as precedent** — says so
+  in-source. Checking the *other* clause then found the second instance:
+  `self_shuffle_on_resolution` does not shuffle (deterministic top-of-library,
+  `resolution.rs:2023-2025`), `nexus_of_fate` is `partial` for that reason, and
+  `green_suns_zenith` claiming `Complete` was **the same outlier shape this batch demoted
+  `qarsi_sadist` for**. Demoted back; coverage +4 → **+3**. The reviewer's diagnosis of *why*
+  it shipped is the durable half: **the three headline defs had zero behavioural coverage**,
+  now closed by 9 probes whose revert row R2 reproduces the exact HIGH. Also taken: a second
+  recall bound the gate never stated (**74** defs name a live identifier inside a gap phrased
+  outside the needle set — invisible to both ratchets, now ratcheted and revert-proven); a
+  calibration table publishing figures that **did not reproduce against the shipped code**
+  (deleted, and every population is now PRINTED by `t_derivation_report` — the same correction
+  PB-DX8 made and this file's own doc claimed to have learned); and **"`ALL_LAND_TYPES` had
+  zero users" asserted as *the proof* in three places, which is false** (`correlated_card_types`
+  reads it) — right conclusion, wrong proof, in a batch whose thesis is that a note is a claim.
+  **The corpus was reconciled TWICE**: the demotion moved `CORPUS_COMPLETE` again and re-dealt
+  every seeded fixture a day after the implement phase had re-observed all nine. **One marker
+  flip anywhere in 1,803 defs invalidates every seeded pin** — budget for two passes, not one.
+  Tests **4,605** (+44, itemised by name, 0 removals); coverage **63.0%**; PROTOCOL **36** /
+  HASH **75**. Filed **OOS-DX27-1..10**. Full handoff: `memory/workstream-state.md`;
+  measurements, disposition table and revert matrices:
+  `memory/primitives/pb-DX27-execution-notes.md`.
+- **Prior**: 2026-08-12 — **PB-DX8 SHIPPED** (`scutemob-208`; v3 queue rank 10 —
   **OOS-CARDS2-7** FILED *and* CLOSED, **OOS-DP10-9** **RECORDED not closed**, rider
   **PB-DX42a** SHIPPED). A gate can only see the vocabulary it was given. Three files, all
   tests: the new oracle-text-vs-DSL cross-check, the new `ContinuousEffectDef` roster, and a
