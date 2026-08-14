@@ -62,7 +62,11 @@ use std::collections::BTreeSet;
 /// is gated on `AbilityDefinition::CollectEvidence` alone, so there is no second set to
 /// disagree with. That also means SR-5's keyword registry does not see it, which is
 /// recorded as a seed rather than fixed here.
-const KEYWORD_CARRIED_COSTS: &[(&str, KeywordAbility, fn(&AbilityDefinition) -> bool)] = &[
+/// One row of [`KEYWORD_CARRIED_COSTS`]: the mechanic's printed name, its presence
+/// marker, and the predicate that recognises its cost-bearing `AbilityDefinition`.
+type CostKindRow = (&'static str, KeywordAbility, fn(&AbilityDefinition) -> bool);
+
+const KEYWORD_CARRIED_COSTS: &[CostKindRow] = &[
     ("Squad", KeywordAbility::Squad, |a| {
         matches!(a, AbilityDefinition::Squad { .. })
     }),

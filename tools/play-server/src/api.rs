@@ -949,28 +949,22 @@ pub(crate) fn validate_additional_cost_params(
                     )));
                 }
             }
-            AdditionalCost::Entwine => {
-                if !has_marker(plan, MarkerCostKind::Entwine) {
-                    return Err(bad(
-                        "CR 702.42a: this spell has no entwine cost to pay".to_string()
-                    ));
-                }
+            AdditionalCost::Entwine if !has_marker(plan, MarkerCostKind::Entwine) => {
+                return Err(bad(
+                    "CR 702.42a: this spell has no entwine cost to pay".to_string(),
+                ));
             }
-            AdditionalCost::Fuse => {
-                if !has_marker(plan, MarkerCostKind::Fuse) {
-                    return Err(bad(
-                        "CR 702.102a: this spell cannot be fused from here -- fuse requires both \
-                         halves and a cast from HAND"
-                            .to_string(),
-                    ));
-                }
+            AdditionalCost::Fuse if !has_marker(plan, MarkerCostKind::Fuse) => {
+                return Err(bad(
+                    "CR 702.102a: this spell cannot be fused from here -- fuse requires both \
+                     halves and a cast from HAND"
+                        .to_string(),
+                ));
             }
-            AdditionalCost::Offspring => {
-                if !has_marker(plan, MarkerCostKind::Offspring) {
-                    return Err(bad(
-                        "CR 702.175a: this spell has no offspring cost to pay".to_string()
-                    ));
-                }
+            AdditionalCost::Offspring if !has_marker(plan, MarkerCostKind::Offspring) => {
+                return Err(bad(
+                    "CR 702.175a: this spell has no offspring cost to pay".to_string(),
+                ));
             }
             AdditionalCost::Gift { opponent } => {
                 let Some(gift) = plan.gift.as_ref() else {
