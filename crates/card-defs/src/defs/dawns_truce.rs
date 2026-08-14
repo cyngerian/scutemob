@@ -23,14 +23,25 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Gift),
+            // CR 702.174e: the printed "Gift a card". Added by PB-DX29 — this def was
+            // marker-only, and `casting.rs` needs BOTH (it gates on the marker, then
+            // `resolution.rs` reads THIS variant's `gift_type` to decide what the chosen
+            // player gets), so the gift half was unannounceable and would have resolved
+            // to nothing had it been announced.
+            AbilityDefinition::Gift {
+                gift_type: GiftType::Card,
+            },
             // TODO: Hexproof + conditional indestructible not easily expressible.
         ],
         completeness: Completeness::partial(
-            "Spell effect unimplemented; def carries only the Gift keyword marker with no cost \
-             AbilityDefinition. Primitives exist: AbilityDefinition::Gift { gift_type } \
-             (card_definition.rs:866), Condition::GiftWasGiven, Effect::GrantPlayerProtection \
-             (effects/mod.rs:5303), ApplyContinuousEffect + AddKeyword + \
-             EffectFilter::ControlledBy.",
+            "Spell effect unimplemented: the hexproof-for-you-and-your-permanents clause and its \
+             conditional indestructible rider are not authored. The GIFT half IS authored now \
+             (PB-DX29) — this note's former claim that the def 'carries only the Gift keyword \
+             marker with no cost AbilityDefinition' was made stale by that repair and is \
+             corrected here. Primitives exist: Effect::GrantPlayerProtection (effects/mod.rs), \
+             ApplyContinuousEffect + AddKeyword + EffectFilter::ControlledBy, branched on \
+             Condition::GiftWasGiven — so this may well be an AUTHORABLE def rather than a \
+             blocked one, filed as OOS-DX29-* rather than asserted either way here.",
         ),
         ..Default::default()
     }

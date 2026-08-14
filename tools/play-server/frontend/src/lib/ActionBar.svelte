@@ -68,7 +68,11 @@
    *                          here beyond passing the two new blocks through — the
    *                          missing half was on the server, where
    *                          `additional_costs_view` early-returned for anything
-   *                          that was not a `CastSpell`.
+   *                          that was not a `CastSpell`. PB-DX29 added four more
+   *                          CAST families to the same panel — `counts`
+   *                          (Replicate/Escalate), `markers`
+   *                          (Entwine/Fuse/Offspring), `gift` and `splice` — and
+   *                          again needed nothing here but the props.
    *   3. `TargetPicker`    — iff the resolved slot list is non-empty. For a
    *                          per-mode-targeting card (`ModeOptionView.target_slots`
    *                          non-empty on at least one mode) the slots are the
@@ -108,6 +112,35 @@
    * with an `{X}` or modes, so the sub-ordering inside 601.2b is not observable
    * in any game this engine can deal. If R5 ever fails, this is the paragraph to
    * re-read: the fix is to split `ValuePrompt`, not to reorder the chain.
+   *
+   * **PB-DX29 measured that premise and it is already FALSE — R5 just cannot see
+   * it.** Escalate (CR 702.120a) and Entwine (CR 702.42a) are additional costs on
+   * MODAL spells by definition, and **five corpus defs carry one today**
+   * (`Goblin War Party`, `Promise of Power`, `Tooth and Nail`, `Blessed Alliance`,
+   * `Collective Resistance`). R5's roster walks Sacrifice and Squad only, so it
+   * reports a clean board while the situation it was written to detect is live.
+   *
+   * The stage order is nevertheless still right, and the reason is worth having in
+   * one place: the inversion R5 guards against has two halves, and only one of them
+   * matters. Modes are announced in `ValuePrompt` (stage 1) BEFORE this stage, which
+   * is CR 601.2b's own printed order — so modes-vs-costs is fine. `{X}` rides in the
+   * same panel and WOULD be announced too early — and **zero** corpus defs pair an
+   * additional cost with an `{X}`, measured by
+   * `core::pb_dx29_additional_cost_roster::r6`, which prints the modal offenders
+   * rather than asserting an absence that is not true and pins the `{X}` half at 0.
+   * If R6's `{X}` assertion ever fails, split `ValuePrompt` so X follows this stage.
+   *
+   * **"Harmless" here means the ORDER is harmless, not that modes and costs are
+   * reconciled — and they are not** (`OOS-DX29-11`, `/review` L11). This client
+   * announces `modes_chosen` in stage 1 and an escalate COUNT in stage 2, and
+   * `casting.rs` cross-checks neither: it derives the mode count from
+   * `EscalateModes` only when `modes_chosen` is empty, and validates a non-empty
+   * `modes_chosen` against `min_modes`/`max_modes` without ever looking at the
+   * count. Read literally, three modes announced with count 0 pays nothing extra.
+   * Unreachable today (both corpus escalate defs are `partial`, pinned at 0
+   * deck-legal by that roster's R4) and not fixable from here — the client needs
+   * either a server-derived count or a stated `count == modes_chosen.length - 1`
+   * invariant enforced at the 400 boundary.
    *
    * # Why the decision stage is numbered 0 and checked first
    *
@@ -930,6 +963,10 @@
         prompt={activeOption.costs.prompt}
         sacrifice={activeOption.costs.sacrifice}
         squad={activeOption.costs.squad}
+        counts={activeOption.costs.counts}
+        markers={activeOption.costs.markers}
+        gift={activeOption.costs.gift}
+        splice={activeOption.costs.splice}
         activationSacrifice={activeOption.costs.activation_sacrifice}
         activationDiscard={activeOption.costs.activation_discard}
         answerField={activeOption.costs.answer_field}

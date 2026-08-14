@@ -470,6 +470,10 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
             sites: &[
                 "crates/engine/src/rules/casting.rs",
                 "crates/engine/src/rules/resolution.rs",
+                // PB-DX29: the OFFER half. `build_additional_cost_plan` reads the
+                // layer-resolved keyword to decide whether to surface a Replicate rider,
+                // mirroring `casting.rs`'s own gate (SR-38).
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         K::Gravestorm => KeywordHandling::Handled {
@@ -482,9 +486,27 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
             carrier: "AbilityDefinition::Cleave { cost } + AltCostKind::Cleave",
             cr: "702.148a",
         },
-        K::Splice => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
-        K::Entwine => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
-        K::Escalate => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        // PB-DX29 added `crates/simulator/src/legal_actions.rs` to these three, to Fuse,
+        // Offspring and Gift, and to Replicate above: each is now surfaced as a cost offer,
+        // and the offer reads the same layer-resolved keyword `casting.rs` gates on.
+        K::Splice => KeywordHandling::Handled {
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
+        },
+        K::Entwine => KeywordHandling::Handled {
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
+        },
+        K::Escalate => KeywordHandling::Handled {
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
+        },
         K::Recover => KeywordHandling::Handled {
             sites: &[
                 "crates/engine/src/rules/abilities.rs",
@@ -578,7 +600,12 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
         },
         K::Tribute(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/resolution.rs"] },
         K::Fabricate(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/replacement.rs"] },
-        K::Fuse => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Fuse => KeywordHandling::Handled {
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
+        },
         K::Spree => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Ravenous => KeywordHandling::Handled {
             sites: &[
@@ -602,6 +629,7 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
                 "crates/engine/src/rules/abilities.rs",
                 "crates/engine/src/rules/casting.rs",
                 "crates/engine/src/rules/resolution.rs",
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         K::Gift => KeywordHandling::Handled {
@@ -610,6 +638,7 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
                 "crates/engine/src/rules/casting.rs",
                 "crates/engine/src/rules/resolution.rs",
                 "crates/engine/src/testing/replay_harness.rs",
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         K::Saddle(..) => KeywordHandling::Handled {

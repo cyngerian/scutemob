@@ -172,6 +172,141 @@ pub fn ability_target_requirements(
         .unwrap_or_default()
 }
 
+/// CR 606.3 / CR 601.2c — the target requirements a **loyalty** ability announces.
+///
+/// # This is deliberately NOT [`ability_target_requirements`], and the difference is the
+/// whole reason it exists
+///
+/// The two functions take the same `(source, ability_index)` argument shape and index
+/// **entirely unrelated lists**:
+///
+/// * [`ability_target_requirements`] indexes `Characteristics::activated_abilities` — the
+///   *layer-resolved* activated-ability list, which is what `handle_activate_ability`
+///   indexes.
+/// * `handle_activate_loyalty_ability` (`rules/engine.rs`, the `loyalty_abilities` binding)
+///   indexes `CardDefinition::abilities` **filtered to `AbilityDefinition::LoyaltyAbility`**,
+///   read from `state.card_registry()`, and `mtg_simulator::legal_actions` mints the
+///   `LegalAction::ActivateLoyaltyAbility { ability_index }` it offers against that same
+///   filtered registry list (counting `LoyaltyAbility` entries up to and including the raw
+///   index).
+///
+/// So index 0 means different abilities to the two functions, and on a planeswalker with
+/// both activated and loyalty abilities they can name different requirements entirely.
+/// `OOS-M11-10(loyalty)`'s own row says "CR 602.2b targets are already reachable through
+/// `queries.rs::ability_target_requirements`' sibling path"; that is true of the *machinery*
+/// and false of the *index space*, which is why this is a new function rather than a reuse.
+///
+/// # Why the registry and not `calculate_characteristics`
+///
+/// Mirroring the handler is the point (the PB-DX20 "one arithmetic, two consumers" shape):
+/// the handler reads the registry, so a query that read layer-resolved characteristics could
+/// announce a requirement the handler will not validate against, or miss one it will. A
+/// planeswalker whose loyalty abilities are altered by a continuous effect would need
+/// **both** sides changed together; a divergence here would be silent, and this is the half
+/// a client sees.
+///
+/// Missing object, missing `card_id`, an unregistered card, or an out-of-range
+/// `ability_index` all yield `vec![]` — this function never panics and never unwraps.
+pub fn loyalty_ability_target_requirements(
+    state: &GameState,
+    source: ObjectId,
+    ability_index: usize,
+) -> Vec<TargetRequirement> {
+    // NOT `expect_object`: that is the impossible-absence lookup (`state::diagnostics`),
+    // which fires a `debug_assert!` and degrades to `None` only in release. Every
+    // function in this module promises never to panic, and this one is called with an
+    // `ObjectId` a client chose — a CR 400.7-retired id from a stale UI is an ordinary
+    // input here, not an engine bug. The first draft used `expect_object` and the
+    // batch's own test author caught the contradiction against this doc.
+    let Some(obj) = state.objects().get(&source) else {
+        return vec![];
+    };
+    let Some(card_id) = obj.card_id.clone() else {
+        return vec![];
+    };
+    let Some(def) = state.card_registry().get(card_id) else {
+        return vec![];
+    };
+    def.abilities
+        .iter()
+        .filter_map(|a| match a {
+            crate::cards::card_definition::AbilityDefinition::LoyaltyAbility {
+                targets, ..
+            } => Some(targets),
+            _ => None,
+        })
+        .nth(ability_index)
+        .cloned()
+        .unwrap_or_default()
+}
+
+/// CR 606.4 — the printed loyalty COST of the ability at `ability_index`.
+///
+/// Added by PB-DX29's `/review` fix cycle (L9): the browser labelled a planeswalker's
+/// abilities `"Loyalty ability 0/1/2 of Chandra, Flamecaller"` — three indistinguishable
+/// buttons on the very card the batch was dispatched to make usable — and the cost is
+/// what a player actually says out loud.
+///
+/// **It lives here rather than in `tools/play-server` for a reason the batch's own
+/// Invariant-7 gate supplied**: formatting the label client-side needed a raw
+/// `state.card_registry()` read inside `view.rs`, and
+/// `test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places` immediately went
+/// red — correctly, since a new raw `GameState` read in that file is a new
+/// hidden-information channel no other Invariant-7 gate can see. Returning the COST and
+/// letting the view format it keeps that pin at three and puts the registry read beside
+/// the two loyalty queries that already make it.
+///
+/// Indexing is [`loyalty_ability_target_requirements`]' — see that function's doc for why
+/// this is not the activated-ability index space.
+pub fn loyalty_ability_cost(
+    state: &GameState,
+    source: ObjectId,
+    ability_index: usize,
+) -> Option<crate::cards::card_definition::LoyaltyCost> {
+    use crate::cards::card_definition::AbilityDefinition;
+    let obj = state.objects().get(&source)?;
+    let card_id = obj.card_id.clone()?;
+    let def = state.card_registry().get(card_id)?;
+    def.abilities
+        .iter()
+        .filter_map(|a| match a {
+            AbilityDefinition::LoyaltyAbility { cost, .. } => Some(cost.clone()),
+            _ => None,
+        })
+        .nth(ability_index)
+}
+
+/// CR 606.4 / CR 107.3m — does this loyalty ability's cost carry an `{X}`?
+///
+/// `LoyaltyCost::MinusX` is the only variant whose paid amount is the activator's choice
+/// (`handle_activate_loyalty_ability` reads `x_value.unwrap_or(0)` and both charges that
+/// many loyalty counters and stores it as the stack object's `x_value`). Every other
+/// variant is a fixed number and a client must not be offered a box for it.
+///
+/// Indexing and the registry read are [`loyalty_ability_target_requirements`]' — see that
+/// function's doc for why this is not the activated-ability index space.
+pub fn loyalty_ability_needs_x(state: &GameState, source: ObjectId, ability_index: usize) -> bool {
+    use crate::cards::card_definition::{AbilityDefinition, LoyaltyCost};
+    // See `loyalty_ability_target_requirements` for why this is not `expect_object`.
+    let Some(obj) = state.objects().get(&source) else {
+        return false;
+    };
+    let Some(card_id) = obj.card_id.clone() else {
+        return false;
+    };
+    let Some(def) = state.card_registry().get(card_id) else {
+        return false;
+    };
+    def.abilities
+        .iter()
+        .filter_map(|a| match a {
+            AbilityDefinition::LoyaltyAbility { cost, .. } => Some(cost),
+            _ => None,
+        })
+        .nth(ability_index)
+        .is_some_and(|cost| matches!(cost, LoyaltyCost::MinusX))
+}
+
 /// Per-slot legal-target candidates, parallel to `requirements`.
 ///
 /// **Advisory only**: each requirement is applied *independently* — inter-target

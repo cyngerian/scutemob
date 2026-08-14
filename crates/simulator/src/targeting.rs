@@ -122,6 +122,12 @@ fn target_query_source(action: &LegalAction) -> Option<ObjectId> {
     match action {
         LegalAction::CastSpell { card, .. } => Some(*card),
         LegalAction::ActivateAbility { source, .. } => Some(*source),
+        // PB-DX29 (CR 606.3): the loyalty arm. This is the BOT half of
+        // `OOS-M11-10(loyalty)` and the seed's site list did not name it — fixing only
+        // the browser's `view.rs` would have left every bot's loyalty activation
+        // untargeted, which is SIM-5's zero-target-cast defect re-created on a new
+        // action a batch later.
+        LegalAction::ActivateLoyaltyAbility { source, .. } => Some(*source),
         // Every other variant either takes no targets or carries them inside the
         // action itself (`ActivateBloodrush`, `CastWithMutate`, `ChooseTriggerTargets`),
         // and `params.rs` refuses a `targets` param on all of them with
@@ -161,6 +167,17 @@ pub fn action_target_requirements(
             ability_index,
             ..
         } => mtg_engine::ability_target_requirements(state, *source, *ability_index),
+        // PB-DX29 (CR 606.3 / CR 601.2c). Deliberately NOT
+        // `ability_target_requirements`: that function indexes
+        // `Characteristics::activated_abilities`, while a loyalty `ability_index` is
+        // minted by `legal_actions.rs` against the REGISTRY def's `AbilityDefinition::
+        // LoyaltyAbility` entries and consumed the same way by
+        // `handle_activate_loyalty_ability`. The two index spaces are unrelated; see
+        // `queries.rs::loyalty_ability_target_requirements`' own doc.
+        LegalAction::ActivateLoyaltyAbility {
+            source,
+            ability_index,
+        } => mtg_engine::loyalty_ability_target_requirements(state, *source, *ability_index),
         _ => Vec::new(),
     }
 }

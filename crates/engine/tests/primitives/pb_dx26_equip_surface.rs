@@ -11,7 +11,7 @@
 //!   * nothing for `StubProvider`/`legal_actions.rs` to offer, therefore
 //!   * no ability index a `Command::ActivateAbility` could name.
 //!
-//! Where `OOS-M11-10(equip)` was *"the picker never asks for a target"*, this is
+//! Where `OOS-M11-10E` was *"the picker never asks for a target"*, this is
 //! ***"there is no action to pick"*** — the same playtest symptom, one link
 //! sooner, and on a strictly larger population (21 defs, **10 of them deck-legal
 //! `Complete`**, versus CARDS-1's 17).
@@ -395,7 +395,7 @@ fn t3_umezawas_jitte_equip_is_appended_and_does_not_renumber_the_modal_ability()
 /// `memory/primitives/pb-DX26-fail-before-2026-08-11.md`), because `OOS-DX20-7`'s
 /// legacy `Effect::AttachEquipment` special-case in `rules/abilities.rs` separately
 /// validates a *volunteered* target's creature-ness and controller — it simply never
-/// *required* a target, which is why `OOS-M11-10(equip)` was a silent fizzle rather
+/// *required* a target, which is why `OOS-M11-10E` was a silent fizzle rather
 /// than a visible error. So the rejection here has two independent providers and
 /// this assertion cannot tell which one answered.
 ///

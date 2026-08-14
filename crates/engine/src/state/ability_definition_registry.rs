@@ -105,6 +105,10 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
                 "crates/engine/src/rules/replacement.rs",
                 "crates/engine/src/rules/resolution.rs",
                 "crates/engine/src/testing/replay_harness.rs",
+                // PB-DX29: `eligible_splice_cards` reads the PRESENCE marker on a card in
+                // hand (CR 702.47a requires the splice keyword on the spliced card, not on
+                // the spell being cast), which is a `Keyword(..)` read in the simulator.
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         A::Spell { .. } => AbilityHandling::Handled {
@@ -158,6 +162,11 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
         A::LoyaltyAbility { .. } => AbilityHandling::Handled {
             sites: &[
                 "crates/engine/src/rules/engine.rs",
+                // PB-DX29: the read-only QUERY half. `loyalty_ability_target_requirements`
+                // and `loyalty_ability_needs_x` index this filtered list exactly as
+                // `handle_activate_loyalty_ability` does — a different index space from
+                // `Characteristics::activated_abilities`, which is why they exist.
+                "crates/engine/src/rules/queries.rs",
                 "crates/simulator/src/legal_actions.rs",
             ],
         },
@@ -230,19 +239,39 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
             sites: &["crates/engine/src/rules/casting.rs"],
         },
         A::Replicate { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/casting.rs"],
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                // PB-DX29: the OFFER half — `build_additional_cost_plan` reads this
+                // variant's cost so the picker and the charge are one arithmetic.
+                "crates/simulator/src/legal_actions.rs",
+            ],
         },
         A::Cleave { .. } => AbilityHandling::Handled {
             sites: &["crates/engine/src/rules/casting.rs"],
         },
         A::Splice { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/casting.rs"],
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                // PB-DX29: the OFFER half — `build_additional_cost_plan` reads this
+                // variant's cost so the picker and the charge are one arithmetic.
+                "crates/simulator/src/legal_actions.rs",
+            ],
         },
         A::Entwine { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/casting.rs"],
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                // PB-DX29: the OFFER half — `build_additional_cost_plan` reads this
+                // variant's cost so the picker and the charge are one arithmetic.
+                "crates/simulator/src/legal_actions.rs",
+            ],
         },
         A::Escalate { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/casting.rs"],
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                // PB-DX29: the OFFER half — `build_additional_cost_plan` reads this
+                // variant's cost so the picker and the charge are one arithmetic.
+                "crates/simulator/src/legal_actions.rs",
+            ],
         },
         // ── The four inert markers. Each carries a payload that duplicates a
         //    KeywordAbility twin; the engine reads the twin, never this variant.
@@ -290,6 +319,9 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
             sites: &[
                 "crates/engine/src/rules/casting.rs",
                 "crates/engine/src/rules/resolution.rs",
+                // PB-DX29: the OFFER half — `build_additional_cost_plan` reads this
+                // variant's cost so the picker and the charge are one arithmetic.
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         A::CollectEvidence { .. } => AbilityHandling::Handled {
@@ -313,12 +345,18 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
             ],
         },
         A::Offspring { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/casting.rs"],
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                // PB-DX29: the OFFER half — `build_additional_cost_plan` reads this
+                // variant's cost so the picker and the charge are one arithmetic.
+                "crates/simulator/src/legal_actions.rs",
+            ],
         },
         A::Gift { .. } => AbilityHandling::Handled {
             sites: &[
                 "crates/engine/src/rules/resolution.rs",
                 "crates/engine/src/testing/replay_harness.rs",
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         A::Cipher => AbilityHandling::Handled {

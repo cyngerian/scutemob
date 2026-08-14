@@ -55,8 +55,9 @@ pub use invariants::{check_all as check_invariants, InvariantViolation};
 // same reason `effective_cast_cost` is: any caller that pays for a cast must use
 // the same arithmetic the offer gate used (SR-38).
 pub use legal_actions::{
-    effective_cast_cost, effective_cast_cost_with_additional, AdditionalCostPlan, LegalAction,
-    LegalActionProvider, SacrificeCostOption, SquadCostOption, StubProvider,
+    effective_cast_cost, effective_cast_cost_with_additional, AdditionalCostPlan, CountCostKind,
+    CountCostOption, GiftCostOption, LegalAction, LegalActionProvider, MarkerCostKind,
+    MarkerCostOption, SacrificeCostOption, SpliceCostOption, SquadCostOption, StubProvider,
 };
 pub use local_game::{
     human_only_actions, AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, LocalGame,

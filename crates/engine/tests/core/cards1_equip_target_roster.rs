@@ -1,4 +1,4 @@
-//! CARDS-1 (OOS-M11-10) roster sweep (SR-36 -- enumerate `all_cards()`, never grep
+//! CARDS-1 (OOS-M11-10E) roster sweep (SR-36 -- enumerate `all_cards()`, never grep
 //! source): the equip-ability target-requirement repair.
 //!
 //! > **PB-DX26 re-pinned R1 from 17 to 38 and made its `Effect` match recursive.**
@@ -18,7 +18,7 @@
 //! must be `TargetCreatureWithFilter` with `controller: TargetController::You` and
 //! otherwise default (no `exclude_self`, no power/type/colour restriction) --
 //! CR 702.6a: "Attach this permanent to target creature you control." This is the
-//! gate that makes OOS-M11-10 unable to recur: a def that regresses to
+//! gate that makes OOS-M11-10E unable to recur: a def that regresses to
 //! `targets: vec![]`, or to an under-restrictive `TargetCreature` (Helm of the
 //! Host's pre-fix shape), fails here.
 //!
@@ -212,7 +212,7 @@ fn r1_equip_activated_attach_equipment_roster_is_pinned() {
          asserts ONLY that the def's equip ability has this shape -- nothing about whether \
          the def is otherwise oracle-correct. If a card was ADDED, confirm its equip ability \
          declares a proper `TargetRequirement::TargetCreatureWithFilter {{ controller: You, \
-         .. }}` (CARDS-1 / OOS-M11-10 -- an empty `targets: vec![]` silently accepts a \
+         .. }}` (CARDS-1 / OOS-M11-10E -- an empty `targets: vec![]` silently accepts a \
          zero-target activation, pays the cost, and fizzles with no error) and update this \
          pinned set. If REMOVED, confirm that was intentional.\nFound:    {found:?}\nExpected: \
          {expected:?}"
@@ -251,7 +251,7 @@ fn r3_walk_is_not_vacuous() {
 
 /// R2 -- every R1 member declares EXACTLY ONE `TargetRequirement`, and it is
 /// `TargetCreatureWithFilter { controller: TargetController::You, ..default }`.
-/// This is the gate that makes OOS-M11-10 unable to recur: it fails loudly for
+/// This is the gate that makes OOS-M11-10E unable to recur: it fails loudly for
 /// ANY of the following regressions:
 ///   - a member reverting to `targets: vec![]` (the original defect),
 ///   - a member with more than one declared requirement,
@@ -332,7 +332,7 @@ fn r2_every_roster_member_has_exactly_the_expected_target_requirement() {
 
     assert!(
         failures.is_empty(),
-        "R2 (CARDS-1 / OOS-M11-10 fix gate) failed for {} of {} roster members:\n{}",
+        "R2 (CARDS-1 / OOS-M11-10E fix gate) failed for {} of {} roster members:\n{}",
         failures.len(),
         roster.len(),
         failures.join("\n")

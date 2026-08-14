@@ -691,16 +691,34 @@ fn validate_decision_params(
 /// response the client is holding*, with no game state needed to see it — this
 /// crate's own definition of a 400.
 ///
-/// # Only two of `AdditionalCost`'s sixteen variants are surfaced
+/// # Nine of `AdditionalCost`'s FIFTEEN variants are surfaced
 ///
-/// UI-2 renders a picker for exactly `Sacrifice` and `Squad`
-/// ([`crate::view::AdditionalCostsView`]). Every other variant — Kicker,
-/// Replicate, Offspring, Escalate, Splice, Entwine, Gift, Assist, Escape,
-/// Collect Evidence, and the rest — falls through to `Ok(())` here and is
-/// judged, if at all, by the **engine's** 422. This function can only speak
-/// authoritatively about the two kinds it renders an offer for; claiming to
-/// validate the rest would be a check written against no offer (the same
-/// "known limitation" this batch's own plan states rather than papers over).
+/// **The count in this heading was wrong until PB-DX29 and the correction is worth
+/// keeping**: the enum has **15** variants, not sixteen, and Kicker is not one of them
+/// (it is `CastSpellData.kicker_times`). UI-2's own count was off by one and its list
+/// named a variant that does not exist.
+///
+/// UI-2 rendered a picker for `Sacrifice` and `Squad`. PB-DX29 added `Replicate`,
+/// `EscalateModes`, `Entwine`, `Fuse`, `Offspring`, `Gift` and `Splice`, so this
+/// function now speaks for **nine**.
+///
+/// The remaining six fall through to `Ok(())` and are judged, if at all, by the
+/// **engine's** 422 — and every one of them has a stated reason rather than being
+/// residue:
+///
+/// * `Mutate` — carried per-ACTION (`LegalAction::CastWithMutate`), not announced here.
+/// * `Assist` — deliberately NOT surfaced: CR 702.132a needs the assisting player's
+///   agreement and no cross-seat decision machinery exists, so a picker would let one
+///   human spend another's floating mana without asking.
+/// * `CollectEvidenceExile` — reachable but has zero deck-legal members, and is the
+///   only kind whose mandatory/optional status is a per-def flag.
+/// * `Discard` (Retrace / Jump-Start), `EscapeExile`, `ExileFromHand` — **unreachable
+///   by construction**: `StubProvider`'s cast loops walk Hand and Command zone only
+///   (no graveyard), and `params.rs` hard-codes `alt_cost: None`.
+///
+/// The rule this function still obeys is unchanged: it can only speak authoritatively
+/// about kinds it renders an offer for. A check written against no offer is a check
+/// against nothing.
 ///
 /// `pub(crate)` rather than private: unit-tested directly from the crate's
 /// `tests` module (`main.rs`), which is a sibling module and cannot see a plain
@@ -709,8 +727,11 @@ fn validate_decision_params(
 pub(crate) fn validate_additional_cost_params(
     action: &mtg_simulator::LegalAction,
     params: &crate::view::ActionParamsDto,
+    state: &mtg_engine::GameState,
+    player: mtg_engine::PlayerId,
 ) -> Result<(), ApiFailure> {
     use mtg_engine::AdditionalCost;
+    use mtg_simulator::legal_actions::{CountCostKind, MarkerCostKind};
     use mtg_simulator::LegalAction;
 
     let bad = |message: String| ApiFailure::new(StatusCode::BAD_REQUEST, "bad_params", message);
@@ -834,6 +855,27 @@ pub(crate) fn validate_additional_cost_params(
         )));
     }
 
+    // PB-DX29: the same at-most-one rule for the seven kinds this batch surfaced, and
+    // for the same reason — `casting.rs`'s destructuring loop is a plain assignment for
+    // every one of them, so a second entry silently overwrites the first with no error
+    // and no diagnostic. Table-driven so a kind cannot be added to the offer and
+    // forgotten here; the discriminant is matched rather than the payload, because two
+    // `Gift`s naming DIFFERENT opponents is exactly the ambiguity being refused.
+    for (label, cr, is_kind) in DUPLICABLE_COST_KINDS {
+        let n = params
+            .additional_costs
+            .iter()
+            .filter(|c| is_kind(c))
+            .count();
+        if n > 1 {
+            return Err(bad(format!(
+                "{cr}: announce the {label} cost once, not {n} times; the engine's own \
+                 destructuring loop assigns rather than accumulates, so it would silently \
+                 apply only the last"
+            )));
+        }
+    }
+
     for cost in &params.additional_costs {
         match cost {
             // CR 118.8: exactly one id, and it must be among the permanents this
@@ -876,11 +918,396 @@ pub(crate) fn validate_additional_cost_params(
                     )));
                 }
             }
-            // Every other `AdditionalCost` variant: see the doc comment above.
-            _ => {}
+            // ── PB-DX29: the seven kinds this batch surfaced ──────────────────
+            //
+            // Each check is the same shape as Squad's: the OFFER must have carried this
+            // kind, and the answer must be within what the offer said. Nothing is
+            // re-derived — every bound is read off the plan the same response carried.
+            AdditionalCost::Replicate { count } => {
+                let Some(opt) = count_option(plan, CountCostKind::Replicate) else {
+                    return Err(bad(
+                        "CR 702.56a: this spell has no replicate cost to pay".to_string()
+                    ));
+                };
+                if *count > opt.max_count {
+                    return Err(bad(format!(
+                        "CR 702.56a: at most {} replicate payment(s) are affordable right now, \
+                         got {count}",
+                        opt.max_count
+                    )));
+                }
+            }
+            AdditionalCost::EscalateModes { count } => {
+                let Some(opt) = count_option(plan, CountCostKind::Escalate) else {
+                    return Err(bad(
+                        "CR 702.120a: this spell has no escalate cost to pay".to_string()
+                    ));
+                };
+                if *count > opt.max_count {
+                    return Err(bad(format!(
+                        "CR 702.120a: at most {} additional mode(s) are affordable right now, \
+                         got {count}",
+                        opt.max_count
+                    )));
+                }
+            }
+            AdditionalCost::Entwine if !marker_is_affordable(plan, MarkerCostKind::Entwine) => {
+                return Err(bad(marker_refusal(
+                    "entwine",
+                    "CR 702.42a",
+                    plan,
+                    MarkerCostKind::Entwine,
+                )));
+            }
+            AdditionalCost::Fuse if !marker_is_affordable(plan, MarkerCostKind::Fuse) => {
+                return Err(bad(marker_refusal(
+                    "fuse",
+                    "CR 702.102a/b",
+                    plan,
+                    MarkerCostKind::Fuse,
+                )));
+            }
+            AdditionalCost::Offspring if !marker_is_affordable(plan, MarkerCostKind::Offspring) => {
+                return Err(bad(marker_refusal(
+                    "offspring",
+                    "CR 702.175a",
+                    plan,
+                    MarkerCostKind::Offspring,
+                )));
+            }
+            AdditionalCost::Gift { opponent } => {
+                let Some(gift) = plan.gift.as_ref() else {
+                    return Err(bad(
+                        "CR 702.174a: this spell has no gift to give".to_string()
+                    ));
+                };
+                if !gift.eligible.contains(opponent) {
+                    return Err(bad(format!(
+                        "player {} is not among the opponents this gift offered (CR 702.174a); \
+                         this decision offered {:?}",
+                        opponent.0,
+                        gift.eligible.iter().map(|p| p.0).collect::<Vec<_>>()
+                    )));
+                }
+            }
+            AdditionalCost::Splice { cards } => {
+                let Some(splice) = plan.splice.as_ref() else {
+                    return Err(bad(
+                        "CR 702.47a: no card in your hand can be spliced onto this spell"
+                            .to_string(),
+                    ));
+                };
+                for card in cards {
+                    if !splice.eligible.contains(card) {
+                        return Err(bad(format!(
+                            "card {} is not among the cards this splice offer accepted \
+                             (CR 702.47a); this decision offered {:?}",
+                            card.0,
+                            splice.eligible.iter().map(|o| o.0).collect::<Vec<_>>()
+                        )));
+                    }
+                }
+                // CR 702.47b: "one or more OTHER cards" -- each may be spliced once. The
+                // engine refuses a repeat too, but as a 422; a list containing the same
+                // id twice is wrong against the offer itself.
+                let mut seen: std::collections::BTreeSet<mtg_engine::ObjectId> =
+                    std::collections::BTreeSet::new();
+                for card in cards {
+                    if !seen.insert(*card) {
+                        return Err(bad(format!(
+                            "CR 702.47b: card {} is spliced twice; each card may be spliced at \
+                             most once",
+                            card.0
+                        )));
+                    }
+                }
+            }
+            // **PB-DX29 `/review` M1: DEFAULT-DENY, not default-allow.**
+            //
+            // This arm was `_ => {}` — a fall-through that let the six unrendered kinds
+            // reach the engine unchecked. The doc above argued that Assist is safe
+            // because PB-DX29 "deliberately did not surface" it; **not surfacing closes
+            // the picker and does not close the wire.** Proven by execution during the
+            // review: a raw POST casting Huddle Up with
+            // `additional_costs: [{"Assist":{"player":2,"amount":2}}]` passed this
+            // boundary and the engine ACCEPTED it, moving P2's mana pool 5 → 3 without
+            // P2 ever being asked (CR 702.132a). Every argument in that doc about why a
+            // kind is deferred is an argument about the PICKER; this is the wire.
+            //
+            // Refusing here is exactly this function's own stated rule: an answer naming
+            // something *this decision never offered* is wrong against the payload the
+            // client is holding, with no game state needed to see it. None of the six is
+            // ever rendered, so none of them is ever an offer.
+            // The three marker arms above are `if !marker_is_affordable(..)` GUARDS, so a
+            // marker the plan DID offer and DID call payable falls through them. These
+            // three arms accept it. (A first draft of the default-deny below omitted
+            // them and every legal marker answer became a 400 — caught by
+            // `test_dx29_validate_accepts_one_legal_answer_of_every_family`, which exists
+            // precisely so a blanket refusal cannot masquerade as a check.)
+            AdditionalCost::Entwine | AdditionalCost::Fuse | AdditionalCost::Offspring => {}
+
+            // **PB-DX29 `/review` M1: the six unsurfaced kinds are NAMED and REFUSED,
+            // not waved through.**
+            //
+            // This was `_ => {}` — a fall-through that let them reach the engine
+            // unchecked. The doc above argued Assist is safe because PB-DX29
+            // "deliberately did not surface" it; **not surfacing closes the picker and
+            // does not close the wire.** Proven by execution during the review: a raw
+            // POST casting Huddle Up with
+            // `additional_costs: [{"Assist":{"player":2,"amount":2}}]` passed this
+            // boundary and the engine ACCEPTED it, moving P2's mana pool 5 -> 3 without
+            // P2 ever being asked (CR 702.132a). Every argument in that doc about why a
+            // kind is deferred is an argument about the PICKER; this is the wire.
+            //
+            // Written as six NAMED arms rather than a wildcard, so a sixteenth
+            // `AdditionalCost` variant is a compile error here — which is the class
+            // `OOS-UI2-4` describes: a kind arriving with nobody noticing.
+            AdditionalCost::Assist { .. }
+            | AdditionalCost::Mutate { .. }
+            | AdditionalCost::Discard(_)
+            | AdditionalCost::EscapeExile { .. }
+            | AdditionalCost::CollectEvidenceExile { .. }
+            | AdditionalCost::ExileFromHand { .. } => {
+                return Err(bad(format!(
+                    "this decision offered no such additional cost, so it cannot be \
+                     answered: {}. PB-DX29 surfaces nine of `AdditionalCost`'s fifteen \
+                     kinds; the other six are deferred with a stated reason each (see \
+                     `validate_additional_cost_params`' doc) and are refused here rather \
+                     than forwarded to the engine unchecked",
+                    cost_kind_name(cost)
+                )));
+            }
         }
     }
+
+    // ── PB-DX29 `/review` H1: the WHOLE ANSWER must be affordable ────────────────
+    //
+    // Every per-kind bound above is computed for that kind ALONE — `max_count` for a
+    // count, `affordable` for a marker — and `SpliceCostOption` carries no bound at all,
+    // for the reason its own doc gives: bounding the OFFER would be a subset-sum over
+    // `eligible`, because each spliced card costs a different amount.
+    //
+    // **That is a reason not to publish a maximum in the offer. It is not a reason to
+    // skip the check here**, where the chosen list is known and the arithmetic is one
+    // call. Proven by execution during the review: with `Reach Through Mists` and
+    // `Glacial Ray` (both `Complete`, both deck-legal) and one blue mana, the splice
+    // offer was made, this boundary accepted the answer, and the engine returned
+    // **422 `InsufficientMana`** — a clean offer followed by a server rejection, the
+    // exact SR-38 shape this batch exists to delete, one family over from the marker
+    // affordability the batch had already fixed.
+    //
+    // Checking the whole announced vector rather than each rider closes a second gap in
+    // the same move: two riders each affordable alone and unaffordable together. No
+    // corpus def carries two mana-bearing riders today (pinned by
+    // `core::pb_dx29_additional_cost_roster`), so that half is latent — but it is closed
+    // by construction rather than by the corpus happening to be small.
+    //
+    // The arithmetic is `effective_cast_cost_with_additional` + `can_afford`, the same
+    // pair the provider's own bounds walk, so this cannot disagree with them and
+    // inherits their stated `OOS-UI2-3` under-report and no new one.
+    if !params.additional_costs.is_empty() {
+        if let LegalAction::CastSpell { card, .. } = action {
+            // **Fails OPEN when the cost cannot be computed at all**, and that is the
+            // correct direction rather than a convenience.
+            // `effective_cast_cost_with_additional` returns `None` for a card this state
+            // does not hold, or a rider whose cost the def does not declare — neither is
+            // evidence of UNaffordability, and this boundary's whole contract is that it
+            // refuses only what it can positively judge against the payload the client is
+            // holding. The engine still judges the rest.
+            if let Some(cost) = mtg_simulator::legal_actions::effective_cast_cost_with_additional(
+                state,
+                player,
+                *card,
+                &params.additional_costs,
+            ) {
+                if !mtg_simulator::legal_actions::can_afford(state, player, &cost) {
+                    return Err(bad(
+                        "CR 601.2f-h: this answer's additional costs are not payable on top of \
+                         the spell's own cost. Every rider this decision offered is bounded \
+                         individually; a combination of them, or a splice list, can still \
+                         exceed what you can pay -- refused here rather than as an engine \
+                         rejection, so the refusal names the offer rather than the game state"
+                            .to_string(),
+                    ));
+                }
+            }
+        }
+    }
+
     Ok(())
+}
+
+/// CR 606.6 (PB-DX29 `/review` M2): an announced `{X}` on a `-X` loyalty ability must
+/// not exceed the loyalty counters the permanent actually has.
+///
+/// # This check exists because PB-DX29 opened the channel and bounded nothing
+///
+/// `x_value` was hard-coded `None` before this batch, so nothing could over-announce it.
+/// The batch made it announceable and stopped there: `legal_actions.rs` offers a
+/// `LoyaltyCost::MinusX` ability unconditionally (correct — CR 606.6 permits X = 0),
+/// `view.rs::action_needs_x` tells the client an `{X}` exists, and `ValuePrompt.svelte`
+/// renders a bare number input with **no ceiling**. Measured during the review on
+/// `chandra_flamecaller` (`Complete`, deck-legal, 4 loyalty): announcing X = 9 reached
+/// the engine and came back
+/// `422 InvalidCommand("ActivateLoyaltyAbility: insufficient loyalty counters (4
+/// available, 9 needed) (CR 606.6)")`.
+///
+/// A clean offer followed by a server rejection — on the half the batch was primarily
+/// dispatched for, while it was building `max_count` bounds for counts and an
+/// `affordable` bound for markers. The bound is one integer the server already holds.
+///
+/// **Only `MinusX` is bounded**, because it is the only loyalty cost whose paid amount
+/// is the activator's choice; `Plus`/`Minus`/`Zero` are fixed numbers and an `x_value`
+/// announced alongside one is simply unread by the engine (this function leaves that
+/// alone rather than inventing a second rule the engine does not have).
+pub(crate) fn validate_loyalty_x_value(
+    action: &mtg_simulator::LegalAction,
+    params: &crate::view::ActionParamsDto,
+    state: &mtg_engine::GameState,
+) -> Result<(), ApiFailure> {
+    use mtg_simulator::LegalAction;
+    let LegalAction::ActivateLoyaltyAbility {
+        source,
+        ability_index,
+    } = action
+    else {
+        return Ok(());
+    };
+    if !mtg_engine::loyalty_ability_needs_x(state, *source, *ability_index) {
+        return Ok(());
+    }
+    // CR 606.6: the engine reads `x_value.unwrap_or(0)` and refuses when the resulting
+    // negative cost exceeds the counters present. Same number, read the same way.
+    let available = state
+        .objects()
+        .get(source)
+        .and_then(|o| o.counters.get(&mtg_engine::CounterType::Loyalty).copied())
+        .unwrap_or(0);
+    if params.x_value > available {
+        return Err(ApiFailure::new(
+            StatusCode::BAD_REQUEST,
+            "bad_params",
+            format!(
+                "CR 606.6: this planeswalker has {available} loyalty counter(s), so a -X                  ability cannot be activated for X = {}. The engine would refuse this too,                  but as a 422 -- refused here so the message names the offer rather than the                  game state",
+                params.x_value
+            ),
+        ));
+    }
+    Ok(())
+}
+
+/// PB-DX29 `/review` L3: say WHICH of the two things went wrong.
+///
+/// `marker_is_affordable` folds two questions into one boolean — "did the plan offer this
+/// rider at all?" and "did it say the rider is payable?" — which is right for the guard
+/// and wrong for the message. The first draft told a human casting Goblin War Party with
+/// four Mountains that *"this spell has no entwine cost to pay"*, on a card that plainly
+/// prints Entwine {2}{R}. Behaviour right, diagnosis wrong — and a 400's whole job is to
+/// name the part of the payload the client is holding that its answer contradicts.
+fn marker_refusal(
+    word: &str,
+    cr: &str,
+    plan: &mtg_simulator::legal_actions::AdditionalCostPlan,
+    kind: mtg_simulator::legal_actions::MarkerCostKind,
+) -> String {
+    if plan.markers.iter().any(|m| m.kind == kind) {
+        format!(
+            "{cr}: this spell's {word} cost is not payable right now -- this decision offered \
+             it and marked it unaffordable on top of the spell's own cost. Tap more mana, or \
+             cast without it"
+        )
+    } else {
+        format!(
+            "{cr}: this decision offered no {word} cost to pay -- this spell has none, or (for \
+             fuse, CR 702.102a/d) it cannot be fused from this zone or with a targeted right \
+             half"
+        )
+    }
+}
+
+/// PB-DX29 `/review` M1: the printed name of a cost kind, for the default-deny message.
+///
+/// Exhaustive with **no wildcard arm**: a sixteenth `AdditionalCost` variant must be
+/// named here or this crate stops compiling, which is the point — the class
+/// `OOS-UI2-4` describes is exactly a kind arriving with nobody noticing.
+fn cost_kind_name(cost: &mtg_engine::AdditionalCost) -> &'static str {
+    use mtg_engine::AdditionalCost as A;
+    match cost {
+        A::Sacrifice { .. } => "Sacrifice (CR 118.8)",
+        A::Discard(_) => "Discard (CR 702.15a Retrace / CR 702.133a Jump-Start)",
+        A::EscapeExile { .. } => "EscapeExile (CR 702.138a)",
+        A::CollectEvidenceExile { .. } => "CollectEvidenceExile (CR 701.59a)",
+        A::Assist { .. } => "Assist (CR 702.132a)",
+        A::Replicate { .. } => "Replicate (CR 702.56a)",
+        A::Squad { .. } => "Squad (CR 702.157a)",
+        A::EscalateModes { .. } => "EscalateModes (CR 702.120a)",
+        A::Splice { .. } => "Splice (CR 702.47a)",
+        A::Entwine => "Entwine (CR 702.42a)",
+        A::Fuse => "Fuse (CR 702.102a)",
+        A::Offspring => "Offspring (CR 702.175a)",
+        A::Gift { .. } => "Gift (CR 702.174a)",
+        A::Mutate { .. } => "Mutate (CR 702.140a)",
+        A::ExileFromHand { .. } => "ExileFromHand (CR 118.9)",
+    }
+}
+
+/// PB-DX29: the cost kinds whose second entry silently overwrites the first.
+///
+/// `Sacrifice` and `Squad` are checked above with their own bespoke messages (UI-2
+/// wrote those and they name the first-wins/last-wins asymmetry); this table covers the
+/// seven PB-DX29 added. `Mutate` and the unreachable kinds are absent because no offer
+/// carries them, so "the offer never made this announcement" is not a claim this
+/// function is entitled to make about them.
+#[allow(clippy::type_complexity)]
+const DUPLICABLE_COST_KINDS: &[(&str, &str, fn(&mtg_engine::AdditionalCost) -> bool)] = &[
+    ("replicate", "CR 702.56a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Replicate { .. })
+    }),
+    ("escalate", "CR 702.120a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::EscalateModes { .. })
+    }),
+    ("entwine", "CR 702.42a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Entwine)
+    }),
+    ("fuse", "CR 702.102a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Fuse)
+    }),
+    ("offspring", "CR 702.175a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Offspring)
+    }),
+    ("gift", "CR 702.174a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Gift { .. })
+    }),
+    ("splice", "CR 702.47a", |c| {
+        matches!(c, mtg_engine::AdditionalCost::Splice { .. })
+    }),
+];
+
+/// PB-DX29: the plan's descriptor for a pay-N-times rider, if it offered one.
+fn count_option(
+    plan: &mtg_simulator::legal_actions::AdditionalCostPlan,
+    kind: mtg_simulator::legal_actions::CountCostKind,
+) -> Option<&mtg_simulator::legal_actions::CountCostOption> {
+    plan.counts.iter().find(|c| c.kind == kind)
+}
+
+/// PB-DX29: did the plan offer this pay-or-not rider, AND say it was payable?
+///
+/// **The affordability half is not decoration and its absence was a live defect.** A
+/// count rider is bounded by `max_count` and an over-count is a 400; a marker has no
+/// count, and the first draft checked presence alone. Measured: with the base cost
+/// affordable and the rider not, the offer carried a tickable Entwine and ticking it
+/// returned `422 "player does not have enough mana to pay the cost"` — a clean offer
+/// followed by a server rejection, on the batch that exists to delete them. Folding
+/// affordability in here turns that into a 400 that names the offer.
+///
+/// One function rather than a presence check plus a separate affordability check,
+/// because two call sites that must agree are the drift class `OOS-RS-2` names.
+fn marker_is_affordable(
+    plan: &mtg_simulator::legal_actions::AdditionalCostPlan,
+    kind: mtg_simulator::legal_actions::MarkerCostKind,
+) -> bool {
+    plan.markers.iter().any(|m| m.kind == kind && m.affordable)
 }
 
 /// CR 701.22a / CR 701.25a: the two piles must PARTITION `whole` — same multiset,
@@ -1321,7 +1748,23 @@ pub async fn post_action(
                 validate_decision_params(action, &req.params)?;
                 // UI-2 (CR 118.8 / CR 702.157): same boundary again, for the two
                 // additional-cost kinds this crate renders a picker for.
-                validate_additional_cost_params(action, &req.params)?;
+                // PB-DX29 `/review` H1/M1/M2: the state and the deciding seat are
+                // threaded in, because three of this function's checks need them.
+                // `pending.player` rather than a request field — the seat is the
+                // server's, never the client's (Architecture Invariant 7).
+                let deciding_seat = play
+                    .pending
+                    .as_ref()
+                    .map(|pending| pending.player)
+                    .unwrap_or(mtg_engine::PlayerId(0));
+                validate_additional_cost_params(
+                    action,
+                    &req.params,
+                    play.game.state(),
+                    deciding_seat,
+                )?;
+                // PB-DX29 `/review` M2 (CR 606.6): the loyalty `{X}` this batch opened.
+                validate_loyalty_x_value(action, &req.params, play.game.state())?;
             }
         }
 

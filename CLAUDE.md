@@ -154,6 +154,38 @@
   the five had a registry row before this batch wrote one) — ranks **1-11 are all shipped**,
   so **next dispatch: PB-DX28** (rank 12). Coverage **62.8% → 63.0%** (1,133 → **1,136**);
   PROTOCOL **35 → 36** / HASH **74 → 75**, both gate-computed. Filed **OOS-DX27-1..10**.
+- **Tests (delta 2026-08-14, PB-DX29 + `/review` fix cycle)**: **4,721 / 0 / 5** full-workspace on
+  branch `scutemob-211` (+87 over the **4,634** baseline, which was measured on this branch BEFORE
+  any edit and reproduced PB-DX28's close pin exactly), `--workspace --no-fail-fast` to a file,
+  **49** result-producing targets (46 → 49: three new test binaries), residual list empty.
+  **Delta itemised by test NAME with ZERO removals**, by set-diffing the two run logs: **29** in
+  the new `crates/simulator/tests/pb_dx29_cost_kind_surface.rs` (P/C/E groups), **24** in
+  `tools/play-server/src/main.rs`'s `#[cfg(test)]` module (14 unit tests of the 400 boundary, 2
+  wire-shape pins, 2 full HTTP drives, 2 frontend source gates, 1 inverted deviation pin, 3 from
+  the fix cycle), **11** in the new
+  `crates/engine/tests/primitives/pb_dx29_loyalty_target_surface.rs`, **8** in the new
+  `crates/simulator/tests/pb_dx29_loyalty_channel.rs`, **8** in the new
+  `crates/engine/tests/core/pb_dx29_additional_cost_roster.rs` (R1-R7 + R2m), **4** in `view.rs`'s
+  new `format_mana_cost_compact_tests` (the function had **none** despite five call sites), and
+  **3** in the new `crates/simulator/tests/pb_dx29_mutate_on_top.rs`.
+  **PROTOCOL 37 / HASH 76 both UNMOVED**, gate-executed (`hash_schema` 36/36, `protocol_schema`
+  17/17) — nothing added is a type in the `Command`/`GameEvent`/`Effect`/`Characteristics`
+  closure, and `LegalAction::CastWithMutate` gaining a field is not a wire change because
+  `LegalAction` is a simulator type.
+  Coverage **1,136/1,803 = 63.0%** by regeneration, **0 flips** as predicted, self-dating churn
+  reverted — proven by regeneration rather than by an empty card-defs diff, because three defs
+  were edited and the shortcut was unavailable.
+  **Engine lines are NOT zero and the brief predicted zero** — `git diff --numstat` over
+  `crates/engine/src` + `crates/card-types/src` is **+218 / −12**, of which **138** are the new
+  read-only query surface (`rules/queries.rs`' three functions + their re-export), **76** are
+  registry *declarations* that SR-5's keyword gate and its ability-definition sibling refused to
+  let the batch omit, and **4** are one comment in `engine.rs` disambiguating a renumbered seed
+  ID. Zero behaviour-changing engine lines anywhere; `crates/view-model` is **0**.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `npm run build` green on the frontend.
+  **`/review`: 2 HIGH / 6 MEDIUM / 11 LOW, all 19 taken** — the reviewer had a shell, reproduced
+  every figure above independently (its own test-NAME set was byte-identical), and found no second
+  divergence in the two mirrors this batch flagged hardest.
 - **Tests (delta 2026-08-14, PB-DX28 + fix cycle)**: **4,634 / 0 / 5** full-workspace on branch
   `scutemob-210` (+29 over the **4,605** baseline, which was **re-measured at `c5b9e459` in a
   scratch worktree** after a mid-batch reboot destroyed the original log — it reproduced the
@@ -462,7 +494,73 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-14 — **PB-DX28 SHIPPED** (`scutemob-210`; v3 queue rank 12 —
+- **Last Updated**: 2026-08-14 — **PB-DX29 SHIPPED** (`scutemob-211`; v3 queue rank 13 —
+  **OOS-M11-10(loyalty)** and **OOS-UI2-4** both CLOSED, and the **OOS-M11-10 ID collision
+  RESOLVED**: that note deferred renumbering to "whichever task next touches `params.rs`", this is
+  that task, and the closed equip seed is now **OOS-M11-10E**). **A choice you cannot express is a
+  choice you do not have.** Both halves were framed as pure routing — "the `Command` fields already
+  exist" — and **both framings were short by the load-bearing link.**
+  The loyalty half needed **two engine functions**: the seed says CR 602.2b targets are "already
+  reachable through `queries.rs::ability_target_requirements`' sibling path", which is true of the
+  *machinery* and **false of the index space** — that function indexes
+  `Characteristics::activated_abilities` while a loyalty `ability_index` is minted against the
+  **registry** def's filtered `AbilityDefinition::LoyaltyAbility` list. Index 0 means different
+  abilities to the two. The cost half needed **`effective_cast_cost_with_additional` extended**, and
+  no document named it: it read **Squad and nothing else**, and it is what
+  `LocalGame::auto_tap_commands_for` asks how much mana to tap — so shipping the seven pickers alone
+  would have tapped the base cost, accepted the human's announcement and let the engine refuse with
+  `InsufficientMana`. **The batch would have created the exact SR-38 defect it was dispatched to
+  remove.**
+  **Enforcement-site lists were short in both halves**: five loyalty sites, not two, including
+  `view.rs::target_query_source` (which renders a picker with **zero candidates** on its own) and
+  `targeting.rs`, the **bot** path outside `tools/play-server` entirely, whose omission would have
+  re-created SIM-5's zero-target defect on a new action.
+  **Populations re-derived**: **4 of SEVEN** `Complete` planeswalkers, not 4 of 6; **15**
+  `AdditionalCost` variants and **Kicker is not one of them** — UI-2's README and `api.rs` doc both
+  listed a variant that does not exist; and "13 of 15 kinds invisible" is arithmetically right and
+  **materially misleading**, because four have **no deck-legal member at all** and three more are
+  unreachable by construction. **A fifth `Complete` planeswalker was live-wrong and no cite had
+  ever named it**: `chandra_flamecaller`'s `LoyaltyCost::MinusX` was **−0 for 0 damage** in every
+  client, because `params.rs` hard-coded `x_value: None`.
+  **A new live defect, and it is `r3b`'s Squad shape INVERTED**: `nocturnal_hunger` is `Complete`,
+  deck-legal, carries `AbilityDefinition::Gift` and **no `KeywordAbility::Gift`**, and `casting.rs`
+  gates on the marker first — printed gift, unpayable, nothing red. UI-2 wrote `r3b` *because the
+  corpus had failed it on Squad*, and the same defect had already recurred one variant over. **A
+  gate written for one variant measures that variant** — the batch's thesis, which then arrived
+  **three more times inside its own work**: UI-2's R4 promised to fail "the day one is authored" and
+  PB-DX29's widened R3 went red on its **first run** on `brokkos_apex_of_forever`'s hybrid mutate
+  cost (fixed the *formatter*, CR 107.4e/107.4f/107.3, not the gate); R5 justifies `ActionBar`'s
+  stage order while walking Sacrifice and Squad only, so it reports a clean board while its own
+  condition is live on **five** defs (new R6 prints them and asserts the half that matters — **0**
+  defs pair a cost with an `{X}`); and **the batch's own Fuse cost arm called the seven-component
+  helper under a comment saying `casting.rs` mirrors three more fields "for Fuse … mirrored
+  deliberately"**. It did not. Proven by execution: predicted mana value 3, engine charged 4, cast
+  refused from a pool holding exactly the prediction.
+  **A picker was GATED rather than shipped**: `casting.rs` never concatenates the fuse right half's
+  targets, so a fused cast of either deck-legal fuse def is a guaranteed `InvalidTarget` —
+  pre-existing, and unreachable until this batch's picker made it reachable (`OOS-DX29-12`).
+  **Mutate is the mandatory-kind proof**: measured, it is the only mandatory kind both reachable and
+  buildable, `LegalAction::CastWithMutate` gains `on_top`, and the provider emits one action per
+  `(target, on_top)` pair — the PayEcho/ChooseDredge idiom, no params field and no wire change. No
+  client could ever mutate **under** before, and CR 702.140e makes the topmost component supply the
+  merged permanent's name, cost, colours, types and P/T. Its CR 702.140c **timing** is filed, not
+  moved.
+  Three machine gates caught this batch's own work and every one was right (SR-5, its
+  ability-definition sibling, and `pb_dx27_stale_blocker_notes` firing on the batch's own
+  `dawns_truce` note). Two part-A defects were found by the batch's own test author and taken: the
+  new queries used `expect_object` — the impossible-absence lookup — while their rustdoc promised
+  "never panics" (**what is impossible for an engine-internal caller is ordinary input for a UI
+  one**), and joining the allowlist widened a declared residual from nine arms to ten while the doc
+  still said nine. Coverage unmoved at **1,136/1,803 = 63.0%**, **0 flips**, proven by regeneration;
+  **PROTOCOL 37 / HASH 76 both gate-executed and unmoved**; engine lines **NOT zero** and the brief
+  predicted zero — **+177 / −11**, of which 101 are the new read-only query surface and 76 are
+  registry *declarations* two gates refused to let the batch omit. Refusal-channel A/B **105 → 105
+  with an empty diff**, reported as proof of **bot-path neutrality** rather than of nothing
+  happening. **`/review` 2 HIGH / 6 MEDIUM / 11 LOW, all 19 taken** — the two HIGHs were a Splice
+  offer with no affordability bound that 422'd after a clean offer, and a renumbering that
+  orphaned 30 in-source cites under a note asserting it had not. Filed **OOS-DX29-1..17**. Full record:
+  `memory/primitives/pb-DX29-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-08-14 — **PB-DX28 SHIPPED** (`scutemob-210`; v3 queue rank 12 —
   **OOS-DX4-6** and **OOS-DX4-1** both CLOSED). **A spell targets only where it says "target"**
   (CR 115.10), and 18 `Complete` deck-legal defs said no such thing while declaring a real
   `TargetRequirement` anyway. Wrong in two directions: hexproof / shroud / protection wrongly

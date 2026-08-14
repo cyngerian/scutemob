@@ -1,0 +1,42 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/sim5_bot_cast_discipline.rs (target/debug/deps/sim5_bot_cast_discipline-5f2158df6f6b82ef)
+
+running 1 test
+SIM-5 A/B seed 0: Metrics { tap_runs: 19, wasted_tap_runs: 0, wasted_taps: 0, total_taps: 49, mana_pools_emptied: 0, casts: 20, targeted_casts: 1, turns: 26, commands: 1099 }
+  rejections: 47 retained/47 total
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(441), attacker: ObjectId(504) })
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(458), attacker: ObjectId(423) })
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(484), attacker: ObjectId(423) })
+    x2 Discriminant(7): Rejected(InvalidCommand("The attacking player cannot declare blockers"))
+    x26 activate(p1): Rejected(InsufficientMana)
+    x16 activate(p3): Rejected(InsufficientMana)
+  targeted cast: T12 Rancor -> ["ObjectId(423)"]
+SIM-5 A/B seed 7: Metrics { tap_runs: 20, wasted_tap_runs: 0, wasted_taps: 0, total_taps: 58, mana_pools_emptied: 0, casts: 20, targeted_casts: 1, turns: 26, commands: 1148 }
+  rejections: 5 retained/5 total
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(436), attacker: ObjectId(425) })
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(442), attacker: ObjectId(416) })
+    x3 Discriminant(7): Rejected(InvalidCommand("The attacking player cannot declare blockers"))
+  targeted cast: T2 Burst Lightning -> ["player 1"]
+SIM-5 A/B seed 42: Metrics { tap_runs: 21, wasted_tap_runs: 0, wasted_taps: 0, total_taps: 64, mana_pools_emptied: 0, casts: 23, targeted_casts: 3, turns: 26, commands: 1231 }
+  rejections: 53 retained/53 total
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(428), attacker: ObjectId(412) })
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(455), attacker: ObjectId(428) })
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(465), attacker: ObjectId(428) })
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(472), attacker: ObjectId(455) })
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(482), attacker: ObjectId(449) })
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(482), attacker: ObjectId(465) })
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(594), attacker: ObjectId(472) })
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(603), attacker: ObjectId(594) })
+    x1 Discriminant(7): Rejected(CrossPlayerBlock { blocker: ObjectId(626), attacker: ObjectId(472) })
+    x8 Discriminant(7): Rejected(InvalidCommand("The attacking player cannot declare blockers"))
+    x2 activate(p1): Rejected(InsufficientMana)
+    x2 activate(p1): Rejected(InvalidTarget("expected 1..=1 target(s) but got 0"))
+    x10 activate(p3): Rejected(InsufficientMana)
+    x22 activate(p4): Rejected(InsufficientMana)
+  targeted cast: T7 Glacial Ray -> ["player 1"]
+  targeted cast: T8 Doom Blade -> ["ObjectId(412)"]
+  targeted cast: T20 ObjectId(461) -> ["ObjectId(423)"]
+test seeded_four_bot_game_wastes_no_taps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 1.37s
+
