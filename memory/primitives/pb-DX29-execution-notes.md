@@ -393,3 +393,60 @@ silent loss of an announced rider) are now either a **400** naming the offer the
 contradicts, or an accepted answer with an observable game-state effect. Publishing the unmoved
 105 alongside that is the point — an A/B on the wrong channel that came back flat would otherwise
 read as evidence of nothing happening.
+
+---
+
+## 7. The gates, executed
+
+### 7.1 Wire — **PROTOCOL 37 / HASH 76, both unmoved**
+
+Gate-executed, not predicted: `--test core hash_schema` **36/36**, `--test core protocol_schema`
+**17/17**, both green with the pinned constants unchanged (`PROTOCOL_VERSION = 37`,
+`HASH_SCHEMA_VERSION = 76` — PB-DX28's close-out values). Nothing this batch added is a type in
+either closure: the two new engine functions are free functions in a read-only query module, and
+every new `AdditionalCostPlan` / `AdditionalCostsView` type lives in `crates/simulator` or
+`tools/play-server`, outside the `Command`/`GameEvent`/`Effect`/`Characteristics` closure.
+
+`LegalAction::CastWithMutate` gained a field, and that is deliberately **not** a wire change for
+the same reason: `LegalAction` is a simulator type, not an engine one.
+
+### 7.2 Engine lines — **NOT zero, and the brief predicted zero**
+
+`git diff --numstat 53ecbd36..HEAD -- crates/engine/src crates/card-types/src`:
+
+| file | +/− | what |
+|---|---|---|
+| `rules/queries.rs` | **+99 / −0** | the two new read-only queries |
+| `lib.rs` | +2 / −2 | their re-export |
+| `state/ability_definition_registry.rs` | +43 / −5 | **SR-5's sibling gate forced these** — 7 variants gained the simulator as a handling site, and `A::LoyaltyAbility` gained `rules/queries.rs` |
+| `state/keyword_registry.rs` | +33 / −4 | **SR-5 forced these** — 7 keywords gained the simulator as a handling site |
+| **total** | **+177 / −11** | |
+
+Reported rather than hidden, per the acceptance criterion's own instruction. The honest reading:
+**101 lines are the new query surface** (the thing the seed's "no engine change" prediction got
+wrong, §1.5), and **76 are registry *declarations* that machine gates refused to let the batch
+omit** — not behaviour. Zero behaviour-changing engine lines exist outside `queries.rs`, and
+everything in `queries.rs` is a pure read.
+
+Everything else, for the record:
+
+| area | +/− |
+|---|---|
+| `crates/card-defs/src` (3 defs) | +41 / −5 |
+| `crates/simulator/src` | +733 / −55 |
+| `tools/play-server/src` | +978 / −25 |
+| `tools/play-server/frontend/src` | +391 / −1 |
+| `crates/view-model/src` | **0** |
+
+### 7.3 Coverage — **1,136 / 1,803 = 63.0%, ZERO flips as predicted**
+
+Proven by *regeneration* (`python3 tools/authoring-report.py`), not by an empty card-defs diff —
+this batch edited three defs, so the empty-diff shortcut was unavailable. The report's delta
+column reads `·` for both "Clean" and "With TODO markers". Every other line in the regenerated
+diff is self-dating churn (the git SHA, the recent-commit list, the 7/30/90-day windows), and
+that churn was reverted.
+
+The zero is not luck. `nocturnal_hunger` was **already** `Complete` and deck-legal while its
+printed Gift was unpayable — which is the whole point of `OOS-UI2-4`'s class — so repairing it
+moves nothing; and `tooth_and_nail` and `dawns_truce` stay `partial` on blockers this batch did
+not touch.
