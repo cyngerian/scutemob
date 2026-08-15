@@ -66,3 +66,76 @@ index 1 and find nothing. This is a real consequence of the def-authoring conven
 `resolution.rs:338-345` documents, and any half-selector that ignores it ships a spell that
 resolves at nothing — the silent-wrong-game-state failure, not a refusal. Handling is designed in
 §3 and gated by a roster assertion over every `AbilityDefinition::Fuse` carrier.
+
+---
+
+## 2. Census — every population re-derived at HEAD, on two axes, and PRINTED
+
+`crates/engine/tests/core/pb_dx44_uncastable_roster.rs` (6 gates). Every figure below is
+**copied from that test's own output**, not transcribed from a memo — PB-DX8's correction, which
+PB-DX27 had to make a second time. `t_census_report` prints the whole membership under
+`--nocapture`; if it ever disagrees with this table, it wins.
+
+Each population is measured **forward** (the DSL construct `casting.rs` actually reads) and
+**inverse** (the printed text, or the printed name). Dispatch hygiene 6, and four consecutive
+batches that learned it: *a roster derived from one declaration construct measures that
+construct.*
+
+| population | forward | deck-legal | inverse | the filed row said | verdict |
+|---|---|---|---|---|---|
+| **Pitch** (CR 118.9) | 4 | **4** | 14 (4 deck-legal) | 4, named | **reproduces EXACTLY** |
+| **Split right half** (CR 702.102a/709.4) | 3 | **3** | 39 (20 deck-legal) | "reachable population is 2" | **short by one** |
+| **Fusable** (Fuse keyword) | 2 | **2** | — | 2 | reproduces |
+| **Spree** (CR 702.172a) | 3 | **1** | 2 (1 deck-legal) | 1 | reproduces |
+
+### 2.1 The pitch list is exact, and the batch's own grep was not
+
+**`OOS-DX29-3` names four defs — `force_of_will`, `force_of_negation`, `force_of_vigor`,
+`misdirection` — and the corpus walk returns exactly those four**, with no `partial` or `inert`
+member hiding behind the deck-legal filter. "The filed site list is a FLOOR" has held for four
+consecutive batches; this is a counterexample, the same way `OOS-ENG2-1`'s five-site census was
+exact. Worth saying out loud, because a rule that is *usually* true is the kind that gets applied
+without checking.
+
+**And the census's first draft got it wrong in the direction the project has a rule against.**
+`grep -l "AltCostKind::Pitch" crates/card-defs/src/defs/*.rs` returns **five** files, so this
+batch's hand census recorded a fifth member (`force_of_despair`, `inert`) and `r1` was written to
+assert five. The gate went red on its first run: `force_of_despair` declares **no** pitch
+ability — `force_of_despair.rs:5` merely *mentions* `AltCostKind::Pitch` in a comment recording
+what PB-AC5 shipped. **A source grep counts the token; `all_cards()` counts the declaration.**
+That is SR-36's whole content, committed by this batch inside its own census, and caught only
+because the figure was written as an executed assertion rather than as prose. The correction is
+recorded in `r1`'s doc comment rather than silently fixed.
+
+The inverse axis is 14 defs, of which 10 print CR 118.9's phrase and declare no pitch construct.
+**Every one is non-deck-legal**, so none is a live-wrong card today — and `r1` asserts that
+emptiness wrong-way-round, so the day one is promoted the gate says so. Two of the ten (`Gush`,
+`Mindbreak Trap`) the hand grep also missed.
+
+### 2.2 The half selector serves THREE defs, and `OOS-DX29-9` says two
+
+`OOS-DX29-9` states "Population: 3 deck-legal `Complete` fuse-cost defs … so the reachable
+population is 2", excluding `connive_concoct` because it is a deliberate data carrier with no
+`Fuse` marker. That subtraction is right about **fusing** and wrong about **this batch**: the
+half selector is CR 702.102a's *other* half, and `connive_concoct`'s right half (Concoct) is
+exactly as uncastable as Burn and Tear. The keyword governs whether you may cast **both**; it has
+nothing to do with whether you may cast the **right one**. So the row's two figures answer
+different questions and its own summary sentence conflates them. `r2` pins both sets separately
+for that reason.
+
+The inverse `//`-name axis returns **39** defs, 20 of them deck-legal — MDFCs, Adventures, Rooms
+and Aftermath split cards. Deliberately over-broad: the question is "which printed two-halved
+cards can a player not cast a half of", and a needle narrowed to `AbilityDefinition::Fuse` could
+never surface a two-halved card the engine models some other way. What it shows is that the
+right-half gap is confined to the DSL's `Fuse` carrier — the Aftermath and Adventure halves have
+their own (separately reachable, separately gapped) channels.
+
+### 2.3 A new finding the inverse Spree axis produced
+
+**`smugglers_surprise` carries `KeywordAbility::Spree` and declares no `mode_costs` at all.**
+`casting.rs:2983-2987` refuses that cast outright ("spree spell has no per-mode costs defined in
+ModeSelection"). It is `partial`, so the defect is latent — but it is `galadhrim_brigade`'s
+marker-without-cost shape recurring on the one mode-cost mechanic that lives under a different
+enum and was therefore outside `pb_dx29_additional_cost_roster::R2`'s eight-kind table. *A gate
+written for one variant measures that variant*, arriving one enum over from the gate written to
+generalise it. Pinned wrong-way-round by `r4`, filed as **`OOS-DX44-1`**.
