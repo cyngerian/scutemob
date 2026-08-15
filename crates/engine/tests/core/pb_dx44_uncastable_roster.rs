@@ -180,10 +180,18 @@ fn t_census_report() {
         let fwd_legal = deck_legal(&defs, &fwd);
         let inv_legal = deck_legal(&defs, &inv);
         println!("--- {label} ---");
-        println!("  forward axis: {} defs, {} deck-legal", fwd.len(), fwd_legal.len());
+        println!(
+            "  forward axis: {} defs, {} deck-legal",
+            fwd.len(),
+            fwd_legal.len()
+        );
         println!("    all:        {fwd:?}");
         println!("    deck-legal: {fwd_legal:?}");
-        println!("  inverse axis: {} defs, {} deck-legal", inv.len(), inv_legal.len());
+        println!(
+            "  inverse axis: {} defs, {} deck-legal",
+            inv.len(),
+            inv_legal.len()
+        );
         println!("    deck-legal: {inv_legal:?}");
         let only_fwd: Vec<_> = fwd.difference(&inv).collect();
         let only_inv: Vec<_> = inv.difference(&fwd).collect();
@@ -384,7 +392,10 @@ fn r4_spree_population_and_the_marker_cost_disagreement() {
     let costed = names_of(&defs, mode_costs_declared);
 
     assert_eq!(
-        deck_legal(&defs, &marked).iter().cloned().collect::<Vec<_>>(),
+        deck_legal(&defs, &marked)
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>(),
         vec!["Insatiable Avarice".to_string()],
         "the deck-legal Spree population is exactly one def, and it was totally \
          uncastable until PB-DX44"
@@ -423,8 +434,14 @@ fn r5_non_vacuity_floors() {
          gate in this file is vacuous",
         defs.len()
     );
-    assert!(!names_of(&defs, pitch_forward).is_empty(), "pitch forward axis matched nothing");
-    assert!(!names_of(&defs, pitch_inverse).is_empty(), "pitch inverse axis matched nothing");
+    assert!(
+        !names_of(&defs, pitch_forward).is_empty(),
+        "pitch forward axis matched nothing"
+    );
+    assert!(
+        !names_of(&defs, pitch_inverse).is_empty(),
+        "pitch inverse axis matched nothing"
+    );
     assert!(
         !names_of(&defs, right_half_forward).is_empty(),
         "right-half forward axis matched nothing"
@@ -435,7 +452,10 @@ fn r5_non_vacuity_floors() {
          defs means the needle has stopped working",
         names_of(&defs, split_name_inverse).len()
     );
-    assert!(!names_of(&defs, spree_marker).is_empty(), "spree forward axis matched nothing");
+    assert!(
+        !names_of(&defs, spree_marker).is_empty(),
+        "spree forward axis matched nothing"
+    );
     assert!(
         !names_of(&defs, mode_costs_declared).is_empty(),
         "mode_costs inverse axis matched nothing"
