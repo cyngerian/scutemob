@@ -139,3 +139,20 @@ marker-without-cost shape recurring on the one mode-cost mechanic that lives und
 enum and was therefore outside `pb_dx29_additional_cost_roster::R2`'s eight-kind table. *A gate
 written for one variant measures that variant*, arriving one enum over from the gate written to
 generalise it. Pinned wrong-way-round by `r4`, filed as **`OOS-DX44-1`**.
+
+---
+
+## 3. Rider disposition — every seed naming PB-DX44 as host, decided in writing
+
+The brief names seven riders across three groups. AC 6732 requires each to be TAKEN with a probe
+or DEFERRED with a reason written into its registry row. Nothing is left implicit.
+
+| rider | disposition | reason |
+|---|---|---|
+| **`OOS-DX29-13`** (a wrong `CardId` is a silently rider-less offer) | **TAKEN** — `pb_dx44_uncastable_roster::r6` | This batch builds its fuse and right-half fixtures against `turn.rs`, the exact def PB-DX29 lost three probes to. Without the gate this batch pays that cost a fourth time. **And executing the row's own prescribed fix refuted it**: the equality it asks for fails on **50** defs, in four classes, so the gate ships as a pinned floor and the row's prescription is corrected. Two genuine typos found (`skrevls-hive`, `laez-el-…`), filed as `OOS-DX44-2`. |
+| **`OOS-DX29-4`** (hybrid/Phyrexian pips free in the additive rider arms) | **DEFERRED**, gap RECORDED | The Spree arm this batch mirrors is a **ninth** member of that class, and the mirror is deliberate for the reason the existing arms document: `effective_cast_cost_with_additional` must predict what `casting.rs` charges, and a provider that "corrected" the engine here would over-tap, fail to spend the surplus, and turn a silent undercharge into a visible refusal. Fixing it means teaching all nine `casting.rs` arms and *then* un-mirroring the provider, in that order — an engine behaviour change that has no deck-legal member today and no business sharing a commit with this batch's wire bump. |
+| **`OOS-DX29-10`** (a hybrid rider pip makes `repeated_cost_max_count`'s bound an under-report) | **DEFERRED**, coupled | The row says it explicitly: teaching `casting.rs` to charge hybrid rider pips is what makes this one LIVE, so the two close in one commit or neither does. Deferring `-4` therefore defers `-10` by construction, not by choice. |
+| **`OOS-DX29-11`** (escalate count and `modes_chosen` are two unreconciled channels) | **DEFERRED** | Escalate's count and Spree's per-mode costs are different mechanics that happen to both read `modes_chosen`; this batch makes the modes reach the **cost** function and changes nothing about the escalate derivation. 0 deck-legal escalate defs, pinned by `pb_dx29_additional_cost_roster` R4. |
+| **`OOS-DX29-17`** (an over-announced escalate count is charged in full, clamped in effect) | **DEFERRED** | Same 0-member population. The fix is a clamp in `casting.rs`'s escalate charge, adjacent to but not inside the mode-cost region this batch touches, and it would move an engine charge with no member to prove it on. |
+| **`OOS-DX29-6`** (four mechanics share one `Sacrifice` entry with no arbitration) | **DEFERRED** to PB-DX57 | Nothing in this batch reads `AdditionalCost::Sacrifice`. |
+| **`OOS-DX29-15`** (`casting.rs` and `resolution.rs` make the entwine decision from two sources) | **DEFERRED** to PB-DX57 | This batch *does* mirror `casting.rs`'s entwine branch into the mode-cost arm — but that mirror is a third reader of the same decision only in the sense that the auto-tap now agrees with the charge, which is the defect being fixed rather than a new instance of `-15`. The `casting.rs`/`resolution.rs` divergence is untouched and still latent. |
