@@ -373,6 +373,141 @@ fn r3_right_half_target_counts_are_pinned() {
     );
 }
 
+/// **R6** — `OOS-DX29-13`, TAKEN as a rider: every def's `card_id` is the id
+/// `card_name_to_id` mints from its own `name`.
+///
+/// The seed's own words: *"a wrong `CardId` on a card object is not a build error, not an
+/// offer suppression, and not a diagnostic — it is a silently rider-less offer."*
+/// `legal_actions::build_additional_cost_plan` opens with
+/// `let Some(def) = obj.card_id.and_then(|cid| registry.get(cid)) else { return
+/// AdditionalCostPlan::default(); }`, while `enrich_spec_from_def` fills the object's
+/// characteristics from the def by **NAME**. So a def whose two keyings disagree produces
+/// a well-formed object with a working cast and **no additional-cost riders at all** —
+/// and nothing in the tree compares the keyings.
+///
+/// PB-DX29 found it the hard way on `turn.rs` (`cid("turn")` vs
+/// `card_name_to_id("Turn // Burn") == CardId("turn-burn")`), which is exactly the def
+/// this batch builds its fuse and right-half fixtures against, so the rider is taken here
+/// rather than deferred to PB-DX57: this batch would have paid the cost of the missing
+/// gate a fourth time.
+///
+/// # The seed's proposed fix cannot hold, and executing it is what shows that
+///
+/// `OOS-DX29-13` prescribes exactly this gate as its "cheap durable fix", phrased as an
+/// equality: *"a corpus gate asserting `card_name_to_id(def.name) == def.card_id` for
+/// every def"*. Run against the corpus, that equality fails on **50 defs**, not on the one
+/// the row names. The prescription is therefore **corrected here**: the population is a
+/// pinned floor, not an assertion of emptiness, and the row is updated to say so.
+///
+/// The 50 fall into four classes, and only the last two are defects:
+///
+/// 1. **Split / MDFC / Room defs keyed on the FRONT face alone** (~30, e.g.
+///    `Turn // Burn` → `cid("turn")`). A deliberate authoring convention.
+/// 2. **Transform defs keyed on BOTH faces while the `name` carries only the front**
+///    (`Legion's Landing` → `legions-landing-adanto-the-first-fort`,
+///    `Growing Rites of Itlimoc`, `Thaumatic Compass`). Class 1's mirror image — the same
+///    convention applied in the other direction, which is itself worth noticing: the
+///    corpus has two opposite conventions for the same question.
+/// 3. **Diacritics** (`Bartolomé del Presidio`, `Éomer, King of Rohan`,
+///    `Clavileño, First of the Blessed`). `card_name_to_id` does not fold accents, so the
+///    helper — not the def — is what is wrong for these.
+/// 4. **Genuine typos with no convention behind them**: `Skrelv's Hive` declares
+///    `skrevls-hive` (the `l` and `v` transposed) and `Lae'zel, Vlaakith's Champion`
+///    declares `laez-el-...`. Filed as **`OOS-DX44-2`**.
+///
+/// **Taken as a GATE with a pinned floor, not as a corpus rewrite.** Renaming a shipped
+/// `card_id` moves every fixture and golden script that names it, and this batch has a
+/// wire bump of its own to keep legible. What the gate buys is that the population cannot
+/// grow **silently** — a new def with a mismatched id is a red test, which is the failure
+/// `OOS-DX29-13` actually describes.
+#[test]
+fn r6_card_id_matches_the_id_minted_from_the_name() {
+    let defs = mtg_engine::all_cards();
+    let mismatched: Vec<(String, String, String)> = defs
+        .iter()
+        .filter_map(|d| {
+            let minted = mtg_engine::testing::replay_harness::card_name_to_id(&d.name);
+            (minted != d.card_id).then(|| (d.name.clone(), d.card_id.0.clone(), minted.0.clone()))
+        })
+        .collect();
+
+    for (name, declared, minted) in &mismatched {
+        println!("MISMATCH {name}: declared `{declared}`, name mints `{minted}`");
+    }
+
+    let names: Vec<&str> = mismatched.iter().map(|(n, _, _)| n.as_str()).collect();
+    assert_eq!(
+        names, KNOWN_ID_NAME_MISMATCHES,
+        "`OOS-DX29-13`: a def whose `card_id` is not what `card_name_to_id` mints from its \
+         `name` builds objects that cast fine and carry NO additional-cost riders, because \
+         `enrich_spec_from_def` keys on the name and `build_additional_cost_plan` keys on \
+         the id. The list is PINNED rather than empty (renaming a shipped `card_id` moves \
+         every fixture and golden script that names it); what this gate forbids is the \
+         population GROWING. A new def here must either be renamed or added to \
+         `KNOWN_ID_NAME_MISMATCHES` by a human who has read this doc."
+    );
+}
+
+/// The 50 `card_id`/`name` disagreements that exist at HEAD, pinned by `r6`.
+///
+/// Each entry is a def that ships today with the `OOS-DX29-13` shape. **This is not an
+/// approval list** — it is a floor. Emptying it means picking ONE of the corpus's two
+/// opposite front-face/both-faces conventions, teaching `card_name_to_id` to fold
+/// diacritics, and fixing the two typos in class 4; that is `PB-DX57`'s work, not this
+/// batch's.
+const KNOWN_ID_NAME_MISMATCHES: &[&str] = &[
+    "Agadeem's Awakening // Agadeem, the Undercrypt",
+    "Bala Ged Recovery // Bala Ged Sanctuary",
+    "Barkchannel Pathway // Tidechannel Pathway",
+    "Bartolomé del Presidio",
+    "Beloved Beggar",
+    "Blightstep Pathway // Searstep Pathway",
+    "Bloodline Keeper",
+    "Bloomvine Regent // Claim Territory",
+    "Boggart Trawler // Boggart Bog",
+    "Bottomless Pool // Locker Room",
+    "Braided Net",
+    "Bridgeworks Battle // Tanglespan Bridgeworks",
+    "Brightclimb Pathway // Grimclimb Pathway",
+    "Brutal Cathar",
+    "Clavileño, First of the Blessed",
+    "Clearwater Pathway // Murkwater Pathway",
+    "Commit // Memory",
+    "Consign // Oblivion",
+    "Cragcrown Pathway // Timbercrown Pathway",
+    "Darkbore Pathway // Slitherbore Pathway",
+    "Decadent Dragon // Expensive Taste",
+    "Delver of Secrets",
+    "Docent of Perfection",
+    "Dwynen's Elite",
+    "Éomer, King of Rohan",
+    "Fell the Profane // Fell Mire",
+    "Funeral Room // Awakening Hall",
+    "Growing Rites of Itlimoc",
+    "Hydroelectric Specimen // Hydroelectric Laboratory",
+    "Kabira Takedown // Kabira Plateau",
+    "Lae'zel, Vlaakith's Champion",
+    "Legion's Landing",
+    "Malakir Rebirth // Malakir Mire",
+    "Marang River Regent // Coil and Catch",
+    "Monster Manual // Zoological Study",
+    "Needleverge Pathway // Pillarverge Pathway",
+    "Riverglide Pathway // Lavaglide Pathway",
+    "Rune-Tail, Kitsune Ascendant // Rune-Tail's Essence",
+    "Scavenger Regent // Exude Toxin",
+    "Sejiri Shelter // Sejiri Glacier",
+    "Sink into Stupor // Soporific Springs",
+    "Skrelv's Hive",
+    "Sundering Eruption // Volcanic Fissure",
+    "Suq'Ata Lancer",
+    "Thaumatic Compass",
+    "Turn // Burn",
+    "Turntimber Symbiosis // Turntimber, Serpentine Wood",
+    "Valakut Awakening // Valakut Stoneforge",
+    "Walk-In Closet // Forgotten Cellar",
+    "Witch Enchanter // Witch-Blessed Meadow",
+];
+
 /// **R4** — the Spree population, and the marker/cost disagreement the inverse axis found.
 ///
 /// `OOS-DX29-14` states the deck-legal Spree population as exactly **1**
