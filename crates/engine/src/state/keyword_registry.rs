@@ -603,6 +603,11 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
         K::Fuse => KeywordHandling::Handled {
             sites: &[
                 "crates/engine/src/rules/casting.rs",
+                // PB-DX44 (`OOS-DX29-12`): `spell_target_requirements` gates the
+                // fused-target concatenation on `chars.keywords.contains(&KeywordAbility::
+                // Fuse)`, mirroring `casting.rs`'s own CR 702.102a check — the offer
+                // surface is now a Fuse dispatch site, not merely a describer of one.
+                "crates/engine/src/rules/queries.rs",
                 "crates/simulator/src/legal_actions.rs",
             ],
         },

@@ -34,6 +34,7 @@ mod partner_variants;
 mod partner_with;
 mod pb_dx27_blood_moon_type_scope;
 mod pb_dx43_intrinsic_land_mana;
+mod pb_dx44_fuse_targets;
 mod phasing;
 mod planeswalker;
 mod protection;

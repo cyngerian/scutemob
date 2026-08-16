@@ -2730,26 +2730,6 @@ fn build_additional_cost_plan(
         // one rider whose legality depends on the zone the cast is from, and
         // `build_additional_cost_plan` is shared by both loops.
         && obj.zone == ZoneId::Hand(player)
-        // SR-38 (PB-DX29), CR 702.102d: **a fused cast whose right half TARGETS cannot
-        // be announced at all today**, so offering it would be a clean offer followed
-        // by a guaranteed server rejection — the exact defect this batch exists to
-        // delete, created by this batch.
-        //
-        // `casting.rs` never concatenates `AbilityDefinition::Fuse { targets }` into
-        // the requirement list it validates against, so a fused `Turn // Burn`
-        // announcing both halves' targets is refused with
-        // `InvalidTarget("expected 1..=1 target(s) but got 2")`, and announcing only
-        // one leaves the right half's `DeclaredTarget { index: 1 }` resolving at
-        // nothing. That is pre-existing — it has been true since Fuse was implemented —
-        // but it was unreachable while no client could announce a fuse. PB-DX29 is what
-        // makes it reachable, so PB-DX29 is what has to gate it.
-        //
-        // This suppresses Fuse on **both** deck-legal fuse defs today, which is the
-        // honest outcome: the picker and the whole chain behind it are built and
-        // proven, and the rider turns on for real the day `casting.rs` learns CR
-        // 702.102d. Filed as `OOS-DX29-12`; found by the batch's own test author, not
-        // by the plan.
-        && !fused_right_half_declares_targets(def)
     {
         markers.push(MarkerCostOption {
             kind: MarkerCostKind::Fuse,
@@ -2864,6 +2844,21 @@ fn fuse_cost_of(a: &AbilityDefinition) -> Option<&ManaCost> {
         _ => None,
     }
 }
+/// PB-DX44 (`OOS-DX29-14`), CR 700.2h / 702.172a — the per-mode additional costs of a
+/// Spree spell (`ModeSelection.mode_costs`), the same lookup `casting.rs`'s Spree arm
+/// makes. `None` for every non-Spree card (a `ModeSelection` with no `mode_costs`, or no
+/// modal structure at all) — that absence IS the marker, so
+/// `effective_cast_cost_with_additional` does not also gate on
+/// `KeywordAbility::Spree` before calling this.
+fn spree_mode_costs_of(def: &mtg_engine::CardDefinition) -> Option<Vec<ManaCost>> {
+    def.abilities.iter().find_map(|a| {
+        if let AbilityDefinition::Spell { modes: Some(m), .. } = a {
+            m.mode_costs.clone()
+        } else {
+            None
+        }
+    })
+}
 
 /// PB-DX29 / SR-38: can `player` pay `rider` on top of `card`'s own effective cast cost?
 ///
@@ -2884,25 +2879,11 @@ fn marker_rider_is_affordable(
     card: ObjectId,
     rider: &AdditionalCost,
 ) -> bool {
-    effective_cast_cost_with_additional(state, player, card, std::slice::from_ref(rider))
+    // PB-DX44: no corpus def combines a marker rider (Entwine/Offspring/Fuse) with
+    // Spree, so `&[]` is exact here today, not merely a placeholder — see
+    // `spree_mode_costs_of`'s doc.
+    effective_cast_cost_with_additional(state, player, card, std::slice::from_ref(rider), &[])
         .is_some_and(|cost| can_afford(state, player, &cost))
-}
-
-/// PB-DX29, CR 702.102d: does this split card's fused RIGHT half declare targets?
-///
-/// `true` suppresses the Fuse offer, and the reason is stated at the call site: the cast
-/// path never concatenates `AbilityDefinition::Fuse { targets }` into the requirement
-/// list it validates against, so a fused cast of such a card cannot be announced at all.
-///
-/// This is a **structural gate on an engine gap, not a rule** — CR 702.102d says the
-/// fused spell has both halves' targets, and the engine will one day agree. When it
-/// does, delete this predicate and its call; `pb_dx29_cost_kind_surface`'s Fuse probes
-/// will then need re-pointing at a real fused cast rather than at the suppression.
-fn fused_right_half_declares_targets(def: &mtg_engine::CardDefinition) -> bool {
-    def.abilities.iter().any(|a| match a {
-        AbilityDefinition::Fuse { targets, .. } => !targets.is_empty(),
-        _ => false,
-    })
 }
 
 /// PB-DX29, CR 700.2: how many modes this spell declares, or 0 if it is not modal.
@@ -3096,8 +3077,10 @@ fn repeated_cost_max_count(
     let mut max_count = 0;
     for n in 1..=upper_bound {
         let announced = [announce(n)];
+        // PB-DX44: no corpus def combines a repeated rider (Squad/Replicate/Escalate)
+        // with Spree, so `&[]` is exact here today — see `spree_mode_costs_of`'s doc.
         let Some(candidate_cost) =
-            effective_cast_cost_with_additional(state, player, card, &announced)
+            effective_cast_cost_with_additional(state, player, card, &announced, &[])
         else {
             break;
         };
@@ -3124,11 +3107,21 @@ fn repeated_cost_max_count(
 ///
 /// Identity for every cast that announces no Squad -- which is every bot cast and
 /// every cast today (T-series pin this at both call sites in `local_game.rs`).
+/// `modes_chosen` (PB-DX44, CR 700.2h / 702.172a): the chosen-mode list this cast will
+/// announce. **Load-bearing for Spree, inert for everything else.** A Spree spell's
+/// per-mode cost is only visible through this parameter — Spree is the one modal shape
+/// whose modes carry their own mana cost (CR 700.2h), so a caller that omits it (or
+/// passes the wrong list) under-predicts exactly the way `additional_costs` omitting a
+/// rider used to. `LocalGame::auto_tap_commands_for` must pass `cast.modes_chosen`
+/// **verbatim** — the modes already fixed on the `Command::CastSpell` this function is
+/// pricing, not a re-derivation — so the auto-tap and `casting.rs` cannot disagree about
+/// which modes are being paid for.
 pub fn effective_cast_cost_with_additional(
     state: &GameState,
     player: PlayerId,
     card: ObjectId,
     additional_costs: &[AdditionalCost],
+    modes_chosen: &[usize],
 ) -> Option<ManaCost> {
     let mut cost = effective_cast_cost(state, player, card)?;
     // **LAST wins, not the sum** -- and the difference is a mirror correction, not a
@@ -3218,9 +3211,18 @@ pub fn effective_cast_cost_with_additional(
         && !offspring_paid
         && !fuse_paid
         && spliced.is_empty()
+        // PB-DX44 (`OOS-DX29-14`): a non-empty `modes_chosen` MUST NOT take this
+        // shortcut, or a Spree spell's per-mode cost is silently dropped from the
+        // prediction. This is the one place a non-`AdditionalCost` parameter has to
+        // join the identity guard — Spree's cost rides on `modes_chosen` itself
+        // (CR 700.2h), not on a rider in `additional_costs`. For every OTHER modal
+        // spell (no `mode_costs`) this falls through to the full computation and comes
+        // back unchanged — see the Spree block below.
+        && modes_chosen.is_empty()
     {
-        // Identity for every cast that announces no mana-bearing rider — which is every
-        // bot cast and, before PB-DX29, every cast in the tree.
+        // Identity for every cast that announces no mana-bearing rider and no modes —
+        // which is every bot cast of a non-modal spell, and, before PB-DX29, every cast
+        // in the tree.
         return Some(cost);
     }
 
@@ -3305,6 +3307,51 @@ pub fn effective_cast_cost_with_additional(
         cost.hybrid.extend(right.hybrid.iter().cloned());
         cost.phyrexian.extend(right.phyrexian.iter().cloned());
         cost.x_count += right.x_count;
+    }
+
+    // ── PB-DX44 (`OOS-DX29-14`), CR 700.2h / 702.172a: Spree per-mode costs ──────────
+    //
+    // The one rider whose cost does not live in `additional_costs` at all — it rides on
+    // `modes_chosen`, which every OTHER kind above ignores. `spree_mode_costs_of`
+    // returns `None` for every non-Spree card, so this block is a no-op (falls through
+    // to the unchanged `cost`) for the overwhelming majority of calls that reach past
+    // the identity guard only because `modes_chosen` was non-empty on an ordinary modal
+    // spell — exactly mirroring `casting.rs`'s own gate, which only enters its Spree arm
+    // when `chars.keywords.contains(&KeywordAbility::Spree)`; here the presence of
+    // `mode_costs` on the card def IS that gate, since only a Spree spell's
+    // `ModeSelection` ever carries one.
+    if let Some(mode_costs) = spree_mode_costs_of(def) {
+        // CR 702.172a: "at least one mode must be chosen" is `casting.rs`'s own
+        // validation, not this function's — a prediction function must not itself
+        // refuse a cast, only price what it is asked to price.
+        //
+        // Mirrors `casting.rs:2964-2969` clause for clause: `entwine_paid` overrides
+        // `modes_chosen` and charges EVERY mode (CR 702.42a's "instead of just the
+        // number specified" reaches Spree's per-mode costs too, on the same shared
+        // flag `casting.rs` reuses); otherwise only the announced indices are charged.
+        // Out-of-range indices are skipped via `.get(idx)`, exactly as `casting.rs`
+        // does — a caller-supplied index this function cannot validate is priced as
+        // "no cost" rather than panicking.
+        let indices_to_charge: Vec<usize> = if entwine_paid {
+            (0..mode_costs.len()).collect()
+        } else {
+            modes_chosen.to_vec()
+        };
+        // CR 118.8d / `casting.rs`'s own Spree arm: the seven numeric components only.
+        // `casting.rs:2953-2985` never touches `hybrid`, `phyrexian` or `x_count` for
+        // any mode cost — the same omission the `add` helper above mirrors for every
+        // OTHER rider, and it is deliberate here for the identical reason (`OOS-DX29-4`
+        // / `OOS-DX44`): "correcting" it here would over-tap relative to what
+        // `casting.rs` actually charges, turning a silent undercharge into a funded
+        // plan the engine still refuses (or, worse, a plan that overpays and strands
+        // mana the solver has no way to spend). No corpus Spree def carries such a
+        // component today (`insatiable_avarice.rs` is the only one, and both its mode
+        // costs are plain numeric), so the divergence is filed rather than live.
+        for idx in indices_to_charge {
+            if let Some(mc) = mode_costs.get(idx) {
+                add(&mut cost, mc, 1);
+            }
+        }
     }
 
     for splice_card in &spliced {
@@ -5020,6 +5067,7 @@ mod tests {
             p1,
             card_id,
             &[AdditionalCost::Squad { count: 1 }],
+            &[],
         )
         .expect("has a mana cost");
         assert_eq!(one.mana_value(), 6);
@@ -5033,6 +5081,7 @@ mod tests {
                 AdditionalCost::Squad { count: 2 },
                 AdditionalCost::Squad { count: 1 },
             ],
+            &[],
         )
         .expect("has a mana cost");
         assert_eq!(
@@ -5050,6 +5099,7 @@ mod tests {
                 AdditionalCost::Squad { count: 1 },
                 AdditionalCost::Squad { count: 2 },
             ],
+            &[],
         )
         .expect("has a mana cost");
         assert_eq!(last_wins_other.mana_value(), 8);

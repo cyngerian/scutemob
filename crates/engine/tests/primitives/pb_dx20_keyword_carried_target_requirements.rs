@@ -290,7 +290,7 @@ fn test_dx20_t1_enchant_target_offer_and_cast_agree_for_every_variant() {
             ("p2", Target::Player(p2)),
         ];
 
-        let reqs = spell_target_requirements(&state, aura_id, &[], None);
+        let reqs = spell_target_requirements(&state, aura_id, &[], None, false);
         assert_eq!(
             reqs.len(),
             1,
@@ -416,7 +416,7 @@ fn test_dx20_e1_exact_shape_pin_and_player_side_correctness() {
 
         // (a) Exact-shape pin: the literal the synthesis returns, not merely "offer
         // agrees with cast".
-        let reqs = spell_target_requirements(&state, aura_id, &[], None);
+        let reqs = spell_target_requirements(&state, aura_id, &[], None, false);
         assert_eq!(
             reqs,
             vec![expected.clone()],
@@ -489,7 +489,7 @@ fn test_dx20_t2_1_enchant_creature_offer_is_exactly_one_requirement() {
     let (state, p1, _p2) = build_board_with_aura(EnchantTarget::Creature);
     let aura_id = find_object(&state, "Test Aura");
 
-    let reqs = spell_target_requirements(&state, aura_id, &[], None);
+    let reqs = spell_target_requirements(&state, aura_id, &[], None, false);
     // `target_count_range` is asserted FIRST and prints the observed pair verbatim, so a
     // reverted synthesis reddens on the exact `(0, 0)` regression this probe exists to
     // catch (plan §6 T2.1) rather than only on a `Vec` equality whose printed form
@@ -670,14 +670,15 @@ fn test_dx20_t3_bestow_offers_a_target_only_when_cast_bestowed() {
 
     let boon_id = find_object(&state, "Boon Satyr");
 
-    let reqs_no_alt = spell_target_requirements(&state, boon_id, &[], None);
+    let reqs_no_alt = spell_target_requirements(&state, boon_id, &[], None, false);
     assert_eq!(
         reqs_no_alt,
         Vec::<TargetRequirement>::new(),
         "cast as a plain creature spell, Boon Satyr should offer no targets"
     );
 
-    let reqs_bestow = spell_target_requirements(&state, boon_id, &[], Some(AltCostKind::Bestow));
+    let reqs_bestow =
+        spell_target_requirements(&state, boon_id, &[], Some(AltCostKind::Bestow), false);
     assert_eq!(
         reqs_bestow,
         vec![TargetRequirement::TargetCreature],

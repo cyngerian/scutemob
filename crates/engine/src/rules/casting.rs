@@ -3614,7 +3614,12 @@ pub fn handle_cast_spell(
     // CR 702.127a + CR 709.3a: When casting the aftermath half, use the aftermath half's
     // target requirements instead of the first half's Spell targets.
     let (requirements, cant_be_countered): (Vec<TargetRequirement>, bool) =
-        card_def_target_requirements(state, card_id.as_ref(), casting_with_aftermath);
+        card_def_target_requirements(
+            state,
+            card_id.as_ref(),
+            casting_with_aftermath,
+            casting_with_fuse,
+        );
     // CR 702.96b: When overloaded, the spell has no targets.
     // Override requirements to empty so validate_targets doesn't require targets.
     //
@@ -5414,44 +5419,74 @@ pub(crate) fn get_overload_cost(
 /// flag (see `handle_cast_spell`'s Step 1h derivation), not something derivable from
 /// state alone — callers outside `handle_cast_spell` must compute it the same way (CR
 /// 702.127a: `cast_with_aftermath && casting_from_graveyard && has Aftermath keyword`).
+///
+/// `casting_with_fuse` (PB-DX44, `OOS-DX29-12`, CR 702.102d): a fused cast announces
+/// BOTH halves' targets, so when true this APPENDS `AbilityDefinition::Fuse { targets }`
+/// after the left half's own requirements — never replaces them, and never runs when
+/// `casting_with_aftermath` also holds (no card combines Aftermath and Fuse, and the two
+/// alt-cost/static-ability channels are unrelated). The append order is the global index
+/// contract `resolution.rs` documents: the left half's targets occupy indices
+/// `0..left_count`, the right half's follow at `left_count..`. Like
+/// `casting_with_aftermath`, this is caster intent (derived from `AdditionalCost::Fuse`
+/// being announced), not something derivable from the card definition alone — a card can
+/// carry `AbilityDefinition::Fuse` as a pure cost/target data carrier without the
+/// `KeywordAbility::Fuse` marker that makes fusing legal (see
+/// `pb_dx29_cost_kind_surface.rs`'s `p2a`), so this function does not gate on the
+/// keyword itself; callers are responsible for having already validated fusing is legal.
 pub(crate) fn card_def_target_requirements(
     state: &GameState,
     card_id: Option<&crate::state::CardId>,
     casting_with_aftermath: bool,
+    casting_with_fuse: bool,
 ) -> (Vec<TargetRequirement>, bool) {
     let registry = state.card_registry.clone();
-    card_id
-        .and_then(|cid| registry.get(cid.clone()))
-        .and_then(|def| {
-            if casting_with_aftermath {
-                // Find the Aftermath ability's targets.
-                def.abilities.iter().find_map(|a| {
-                    if let AbilityDefinition::Aftermath { targets, .. } = a {
-                        Some((targets.clone(), false))
-                    } else {
-                        None
-                    }
-                })
+    let Some(def) = card_id.and_then(|cid| registry.get(cid.clone())) else {
+        return (vec![], false);
+    };
+    let result = if casting_with_aftermath {
+        // Find the Aftermath ability's targets.
+        def.abilities.iter().find_map(|a| {
+            if let AbilityDefinition::Aftermath { targets, .. } = a {
+                Some((targets.clone(), false))
             } else {
-                // CR 101.6: Check AbilityDefinition::Spell first, then fall back to
-                // CardDefinition.cant_be_countered for creature/artifact spells that
-                // have "This spell can't be countered" as a characteristic.
-                let from_spell = def.abilities.iter().find_map(|a| {
-                    if let AbilityDefinition::Spell {
-                        targets,
-                        cant_be_countered,
-                        ..
-                    } = a
-                    {
-                        Some((targets.clone(), *cant_be_countered))
-                    } else {
-                        None
-                    }
-                });
-                Some(from_spell.unwrap_or_else(|| (vec![], def.cant_be_countered)))
+                None
             }
         })
-        .unwrap_or_default()
+    } else {
+        // CR 101.6: Check AbilityDefinition::Spell first, then fall back to
+        // CardDefinition.cant_be_countered for creature/artifact spells that
+        // have "This spell can't be countered" as a characteristic.
+        let from_spell = def.abilities.iter().find_map(|a| {
+            if let AbilityDefinition::Spell {
+                targets,
+                cant_be_countered,
+                ..
+            } = a
+            {
+                Some((targets.clone(), *cant_be_countered))
+            } else {
+                None
+            }
+        });
+        Some(from_spell.unwrap_or_else(|| (vec![], def.cant_be_countered)))
+    };
+    let Some((mut targets, cant_be_countered)) = result else {
+        return (vec![], false);
+    };
+    // CR 702.102d: append the fused right half's own target requirements, in printed
+    // order, after the left half's.
+    if casting_with_fuse {
+        if let Some(fuse_targets) = def.abilities.iter().find_map(|a| {
+            if let AbilityDefinition::Fuse { targets, .. } = a {
+                Some(targets.clone())
+            } else {
+                None
+            }
+        }) {
+            targets.extend(fuse_targets);
+        }
+    }
+    (targets, cant_be_countered)
 }
 /// CR 702.5a / 303.4a / 205.4a / 601.2c — the `TargetRequirement` an `EnchantTarget`
 /// restriction is equivalent to (PB-DX20 §3.2/§3.3, `pb-plan-DX20.md`).

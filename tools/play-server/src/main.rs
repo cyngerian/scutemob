@@ -1902,7 +1902,7 @@ mod tests {
 
         let (requirements, source) = match action {
             mtg_simulator::LegalAction::CastSpell { card, .. } => (
-                mtg_engine::spell_target_requirements(game_state, *card, &[], None),
+                mtg_engine::spell_target_requirements(game_state, *card, &[], None, false),
                 *card,
             ),
             mtg_simulator::LegalAction::ActivateAbility {

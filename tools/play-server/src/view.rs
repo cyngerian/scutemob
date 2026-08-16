@@ -1670,8 +1670,12 @@ fn mode_label(index: usize, effect: &Effect) -> String {
 /// set for a cast the client cannot actually make.
 fn action_target_requirements(action: &LegalAction, state: &GameState) -> Vec<TargetRequirement> {
     match action {
+        // `fuse: false`, same reasoning as `modes_chosen: &[]`/`alt_cost: None` above: the
+        // human has not decided whether to fuse at render time (`params.rs` builds the
+        // `Command` with whatever `AdditionalCost::Fuse` the client separately submits in
+        // its `additional_costs`, which this render precedes).
         LegalAction::CastSpell { card, .. } => {
-            mtg_engine::spell_target_requirements(state, *card, &[], None)
+            mtg_engine::spell_target_requirements(state, *card, &[], None, false)
         }
         LegalAction::ActivateAbility {
             source,

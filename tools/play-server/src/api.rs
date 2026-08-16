@@ -1119,6 +1119,10 @@ pub(crate) fn validate_additional_cost_params(
                 player,
                 *card,
                 &params.additional_costs,
+                // PB-DX44 (CR 700.2h): the client's own announced modes — a Spree
+                // spell's mode costs are part of what this boundary must judge, same
+                // reason `additional_costs` is here at all.
+                &params.modes_chosen,
             ) {
                 if !mtg_simulator::legal_actions::can_afford(state, player, &cost) {
                     return Err(bad(

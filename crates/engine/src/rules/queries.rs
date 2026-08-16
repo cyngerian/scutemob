@@ -68,11 +68,23 @@ use crate::state::{
 ///    today (`StubProvider` enumerates no alt-cost casts, CLAUDE.md M11-local R4, and
 ///    every `spell_target_requirements` caller here passes `alt_cost: None`); the value
 ///    is that the cast path and this query cannot drift the day that changes.
+///
+/// `fuse` (PB-DX44, `OOS-DX29-12`, CR 702.102d): mirrors `casting.rs`'s own
+/// `casting_with_fuse` caster-intent flag — `true` when the caller's prospective
+/// `CastSpell` is going to announce `AdditionalCost::Fuse`. Like `alt_cost`, this cannot
+/// be derived from state alone; it names an intent the `Command` has not been built yet.
+/// A `true` here appends the fused right half's own targets after the left half's,
+/// through the SAME `card_def_target_requirements` call `handle_cast_spell` makes, so the
+/// offer and the cast cannot disagree about the count. Every pre-existing caller in this
+/// tree passes `false` for the same reason they pass `modes_chosen: &[]` — the picker
+/// renders before the human has chosen whether to fuse, exactly as it renders before the
+/// human has chosen modes (divergence 1's own doc).
 pub fn spell_target_requirements(
     state: &GameState,
     card: ObjectId,
     modes_chosen: &[usize],
     alt_cost: Option<AltCostKind>,
+    fuse: bool,
 ) -> Vec<TargetRequirement> {
     let Some(obj) = state.objects().get(&card) else {
         return vec![];
@@ -100,6 +112,17 @@ pub fn spell_target_requirements(
         && matches!(obj.zone, ZoneId::Graveyard(_))
         && chars.keywords.contains(&KeywordAbility::Aftermath);
 
+    // CR 702.102a (PB-DX44): mirrors `casting.rs:1279`'s own gate — a fused cast
+    // requires the Fuse KEYWORD, not merely the `AbilityDefinition::Fuse` data carrier
+    // (`pb_dx29_cost_kind_surface.rs`'s `p2a` covers a corpus def with the data carrier
+    // and no marker). Fuse and Aftermath never combine (`casting.rs`'s own mutual
+    // exclusion, Step 1h), so the aftermath flag wins if somehow both were asked for.
+    // Computed here, BEFORE `chars` is moved into `eff_chars` below — Bestow never
+    // touches the Fuse keyword, so reading it from `chars` rather than `eff_chars` is
+    // not a divergence.
+    let casting_with_fuse =
+        fuse && !casting_with_aftermath && chars.keywords.contains(&KeywordAbility::Fuse);
+
     // CR 702.103b (PB-DX20 §4.5, divergence 3 above): if cast bestowed, apply the SAME
     // keyword transform `casting.rs:980-988` applies to its own `chars`, to a LOCAL
     // CLONE — `chars` itself must stay untransformed for every other caller.
@@ -117,8 +140,12 @@ pub fn spell_target_requirements(
         chars
     };
 
-    let (requirements, _cant_be_countered) =
-        casting::card_def_target_requirements(state, card_id, casting_with_aftermath);
+    let (requirements, _cant_be_countered) = casting::card_def_target_requirements(
+        state,
+        card_id,
+        casting_with_aftermath,
+        casting_with_fuse,
+    );
 
     // CR 702.127a: aftermath suppresses per-mode targets (mirrors `casting.rs:3689`'s
     // `if casting_with_aftermath { None } else { ... }`). CR 303.4a (PB-DX20 §5 Step 4c):

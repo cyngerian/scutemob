@@ -1528,7 +1528,7 @@ fn test_human_casts_targeted_spell_through_local_game() {
     );
 
     // CR 601.2c: use the engine's own query surface to pick a legal target.
-    let reqs = spell_target_requirements(game.state(), spell_id, &[], None);
+    let reqs = spell_target_requirements(game.state(), spell_id, &[], None, false);
     assert_eq!(reqs, vec![TargetRequirement::TargetCreature]);
     let candidates = legal_targets_per_slot(game.state(), PlayerId(1), spell_id, &reqs);
     assert_eq!(candidates.len(), 1, "one slot in, one slot out");
@@ -2187,6 +2187,7 @@ fn test_ui2_a_bot_pays_a_mandatory_sacrifice_cost_without_an_engine_rejection() 
             p1,
             cast.card,
             &cast.additional_costs,
+            &cast.modes_chosen,
         )
         .expect("Life's Legacy has a mana cost"),
     )

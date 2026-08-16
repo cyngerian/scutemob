@@ -1122,11 +1122,22 @@ impl<P: LegalActionProvider> LocalGame<P> {
         // `cast.additional_costs`'s `AdditionalCost::Squad` count on top, so this site,
         // the offer gate and `advance()`'s bot auto-tap above cannot disagree about
         // what a Squad-paying cast actually charges.
+        // CR 700.2h / 702.172a (PB-DX44, `OOS-DX29-14`): a Spree spell's per-mode cost
+        // rides on `modes_chosen`, not on `additional_costs` — passing `cast.modes_chosen`
+        // VERBATIM is the load-bearing link: it is the exact mode list the `CastSpell`
+        // command being funded is about to announce (already built by
+        // `action_to_command_with_params` for the human path, or by the bot's own
+        // `choose_action` for the bot path), never a re-derivation. Without this, this
+        // function priced only the base cost for `insatiable_avarice` and every other
+        // Spree spell, tapped for it, and watched the engine refuse the cast with
+        // `InsufficientMana` once the announced mode's cost was added — the SR-38 shape
+        // this whole call exists to prevent.
         let mut cost = legal_actions::effective_cast_cost_with_additional(
             &self.state,
             player,
             cast.card,
             &cast.additional_costs,
+            &cast.modes_chosen,
         )?;
         // CR 107.3 / 601.2b — see the doc block above (OOS-M11-8).
         cost.generic = cost

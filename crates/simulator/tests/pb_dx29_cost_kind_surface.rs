@@ -448,32 +448,21 @@ fn p1d_offspring_is_offered_with_its_printed_cost() {
     );
 }
 
-/// **P1e** — CR 702.102a/b/d, **inverted after the offer was suppressed, and the
-/// inversion is the finding.**
+/// **P1e** — CR 702.102a/b/d, **re-inverted a second time, by PB-DX44 closing
+/// `OOS-DX29-12`.**
 ///
-/// This test originally asserted that Fuse IS offered from hand, with `cost: None`
-/// (CR 702.102b: a fused spell's cost is the two halves summed, so there is no separate
-/// fuse cost and a client rendering `{0}` would be lying). It passed.
-///
-/// It should not have. `casting.rs` never concatenates `AbilityDefinition::Fuse
-/// { targets }` into the requirement list it validates against, so a fused
-/// `Turn // Burn` announcing both halves' targets is refused with
-/// `InvalidTarget("expected 1..=1 target(s) but got 2")` and announcing one leaves the
-/// right half's `DeclaredTarget { index: 1 }` resolving at nothing (CR 702.102d). The
-/// gap is **pre-existing** — it has been true since Fuse was implemented — and was
-/// unreachable while no client could announce a fuse at all. **PB-DX29 is what makes it
-/// reachable, so PB-DX29 is what gates it**: `fused_right_half_declares_targets`
-/// suppresses the offer, and both deck-legal fuse defs are covered by that suppression
-/// today. Filed as `OOS-DX29-12`.
-///
-/// So this now asserts the SUPPRESSION, plus the two facts that make it a gate on an
-/// engine gap rather than a claim that Fuse is unimplementable: the def really does
-/// carry a fuse cost, and the cost arithmetic for it is correct and covered (`c2e`).
-///
-/// **When `casting.rs` learns CR 702.102d, this test must be re-pointed at a real fused
-/// cast** — not deleted. The suppression predicate's own doc says the same.
+/// This test originally asserted that Fuse IS offered from hand (before PB-DX29 found
+/// the target-announcement gap); PB-DX29 then inverted it to assert the SUPPRESSION,
+/// with an explicit instruction in its own doc to re-point this at a real fused cast
+/// once `casting.rs` learns CR 702.102d — not to delete it. PB-DX44 is that fix
+/// (`card_def_target_requirements`'s new `casting_with_fuse` parameter, PB-DX44's
+/// implementation notes), so this asserts the OFFER again, plus the property that makes
+/// it safe now: the offer's target-requirement COUNT agrees with what the cast
+/// validates against — the differential this whole file's C2 group exists for, applied
+/// to targets rather than mana. Full end-to-end resolution (each half hitting its own
+/// target) is `crates/engine/tests/rules/pb_dx44_fuse_targets.rs`, not duplicated here.
 #[test]
-fn p1e_fuse_is_suppressed_while_its_right_half_targets_cannot_be_announced() {
+fn p1e_fuse_is_offered_and_its_target_count_matches_what_the_cast_validates() {
     let defs = defs_by_name();
     let state = GameStateBuilder::new()
         .add_player(P1)
@@ -490,52 +479,58 @@ fn p1e_fuse_is_suppressed_while_its_right_half_targets_cannot_be_announced() {
             },
         )
         .object(corpus_object(&defs, P1, "Turn // Burn", ZoneId::Hand(P1)))
+        .object(ObjectSpec::creature(P2, "Some Bear", 2, 2).in_zone(ZoneId::Battlefield))
         .build()
         .expect("state builds");
     let card = id_of(&state, "Turn // Burn");
 
+    // (1) The offer: Fuse is a marker with no separate cost (CR 702.102b) and is
+    // affordable from the pool above (base {2}{U} + right half {1}{R} = {3}{U}{R},
+    // mana value 5; the pool holds exactly that).
     let plan = cast_plan(&state, P1, card);
-    assert!(
-        plan.markers.is_empty(),
-        "SR-38 / CR 702.102d: `Turn // Burn`'s right half (`Burn`) declares a target, and \
-         `casting.rs` cannot announce it, so a fused cast is a guaranteed \
-         `InvalidTarget` refusal. Offering it would be a clean offer followed by a server \
-         rejection -- the exact defect PB-DX29 exists to delete, created by PB-DX29. If \
-         this now finds a Fuse marker, `casting.rs` has learned CR 702.102d (good) or the \
-         suppression was deleted without it (bad) -- check which before updating this \
-         test. Offered: {:?}",
+    assert_eq!(
+        plan.markers
+            .iter()
+            .find(|m| m.kind == MarkerCostKind::Fuse)
+            .map(|m| (m.cost.clone(), m.affordable)),
+        Some((None, true)),
+        "CR 702.102a/b: Fuse must be offered from hand, with no separate cost and \
+         affordable from this pool. Offered: {:?}",
         plan.markers
     );
 
-    // Non-vacuity, in TWO directions, so the empty above is about the suppression and
-    // not about the fixture or the provider having quietly stopped working.
-    //
-    // (1) The def really does carry a fuse cost the provider would otherwise surface.
-    let fuse_targets: Vec<usize> = defs
-        .get("Turn // Burn")
-        .expect("corpus def")
-        .abilities
-        .iter()
-        .filter_map(|a| match a {
-            mtg_engine::AbilityDefinition::Fuse { targets, .. } => Some(targets.len()),
-            _ => None,
-        })
-        .collect();
+    // (2) The offer's target-requirement count, read exactly the way the browser and
+    // the bot both would (`fuse: true`), must equal what a real fused cast validates
+    // against — 2, per CR 702.102d (left half + right half). This is the SR-38
+    // differential: an offer whose count disagrees with the cast is a clean offer
+    // followed by a guaranteed server rejection, which is exactly what PB-DX29 found
+    // and PB-DX44 fixes.
+    let offered_reqs = mtg_engine::spell_target_requirements(&state, card, &[], None, true);
     assert_eq!(
-        fuse_targets,
-        vec![1],
-        "precondition: the suppression must be firing on a REAL targeted right half. If \
-         this def stopped declaring `AbilityDefinition::Fuse` at all, the assertion above \
-         would pass for the wrong reason."
+        offered_reqs.len(),
+        2,
+        "CR 702.102d: a fused cast announces both halves' targets; got {offered_reqs:?}"
     );
-    // (2) The same board still offers the plain (unfused) cast, so the provider is alive.
+
+    // (3) The real cast, with exactly the requirement count the offer reported, is
+    // accepted -- the offer and the cast are proven to be ONE arithmetic by execution,
+    // not merely by reading the same source.
+    let bear = id_of(&state, "Some Bear");
+    let (after, _events) = cast(
+        state,
+        P1,
+        card,
+        vec![Target::Object(bear), Target::Object(bear)],
+        vec![],
+        vec![AdditionalCost::Fuse],
+    )
+    .expect("a fused cast with 2 announced targets, funded exactly, must be accepted");
     assert!(
-        StubProvider
-            .legal_actions(&state, P1)
+        after
+            .stack_objects()
             .iter()
-            .any(|a| matches!(a, LegalAction::CastSpell { card: c, .. } if *c == card)),
-        "CR 702.102a: suppressing the FUSE rider must not suppress the cast itself -- \
-         either half of a split card is still castable on its own"
+            .any(|so| matches!(&so.kind, mtg_engine::StackObjectKind::Spell { .. })),
+        "the fused spell must actually be on the stack after a successful cast"
     );
 }
 
@@ -1221,7 +1216,7 @@ fn c1_no_announced_rider_is_byte_identical_to_the_plain_effective_cost() {
             .expect("state builds");
         let card = id_of(&state, name);
         let plain = effective_cast_cost(&state, P1, card).expect("every fixture has a mana cost");
-        let with_none = effective_cast_cost_with_additional(&state, P1, card, &[])
+        let with_none = effective_cast_cost_with_additional(&state, P1, card, &[], &[])
             .expect("identity must not lose the cost");
         assert_eq!(
             plain, with_none,
@@ -1235,6 +1230,7 @@ fn c1_no_announced_rider_is_byte_identical_to_the_plain_effective_cost() {
             P1,
             card,
             &[AdditionalCost::Gift { opponent: P2 }],
+            &[],
         )
         .expect("gift must not make the cost unknowable");
         assert_eq!(plain, with_gift, "{name}: Gift must add nothing");
@@ -1261,7 +1257,7 @@ fn assert_prediction_is_exactly_what_the_engine_charges(
     let probe = build(ManaPool::default());
     let card = id_of(&probe, card_name);
     let base = effective_cast_cost(&probe, P1, card).expect("fixture has a mana cost");
-    let predicted = effective_cast_cost_with_additional(&probe, P1, card, riders)
+    let predicted = effective_cast_cost_with_additional(&probe, P1, card, riders, &modes)
         .unwrap_or_else(|| panic!("{label}: no prediction at all"));
     assert!(
         predicted.mana_value() > base.mana_value(),
@@ -1455,16 +1451,17 @@ fn c2e_fuse_is_charged_the_way_the_engine_charges_it() {
             .build()
             .expect("state builds")
     };
-    // **ONE target, not two, and that is a finding rather than a fixture choice.**
-    // CR 702.102d gives a fused spell both halves' targets — Turn // Burn declares
-    // `TargetCreature` on its `Spell` ability and `TargetAny` on its `Fuse` ability, and
-    // `Effect::DealDamage` in the right half reads `DeclaredTarget { index: 1 }`. But
-    // `casting.rs` never concatenates the `Fuse` arm's `targets` into the requirement
-    // list, so announcing two is refused with `InvalidTarget("expected 1..=1 target(s)
-    // but got 2")` and the right half resolves with nothing to point at. Pre-existing,
-    // outside PB-DX29's scope (this batch surfaces the COST, not the target slots) and
-    // recorded here rather than worked around in silence.
-    let targets = |state: &GameState| vec![Target::Object(id_of(state, "Some Bear"))];
+    // **TWO targets, not one (PB-DX44, `OOS-DX29-12` CLOSED).** CR 702.102d gives a
+    // fused spell both halves' targets — Turn // Burn declares `TargetCreature` on its
+    // `Spell` ability (index 0, left/Turn half) and `TargetAny` on its `Fuse` ability
+    // (index 1, right/Burn half). Both slots point at the same object here because this
+    // test is about the COST arithmetic, not the index contract — see
+    // `crates/engine/tests/rules/pb_dx44_fuse_targets.rs` for the test that targets two
+    // DIFFERENT objects and proves each half resolves against its own target.
+    let targets = |state: &GameState| {
+        let bear = Target::Object(id_of(state, "Some Bear"));
+        vec![bear.clone(), bear]
+    };
     assert_prediction_is_exactly_what_the_engine_charges(
         "fuse",
         &build,
@@ -1506,8 +1503,8 @@ fn c2f_splice_is_charged_the_way_the_engine_charges_it() {
     let ray = id_of(&probe, "Glacial Ray");
     let riders = vec![AdditionalCost::Splice { cards: vec![ray] }];
     let base = effective_cast_cost(&probe, P1, card).expect("has a cost");
-    let predicted =
-        effective_cast_cost_with_additional(&probe, P1, card, &riders).expect("splice prediction");
+    let predicted = effective_cast_cost_with_additional(&probe, P1, card, &riders, &[])
+        .expect("splice prediction");
     assert_eq!(
         predicted.mana_value(),
         base.mana_value() + 2,
@@ -1626,7 +1623,7 @@ fn c3_scalar_riders_take_the_last_announced_entry_not_the_sum() {
         .expect("state builds");
     let card = id_of(&state, "Train of Thought");
     let mv = |riders: &[AdditionalCost]| {
-        effective_cast_cost_with_additional(&state, P1, card, riders)
+        effective_cast_cost_with_additional(&state, P1, card, riders, &[])
             .expect("has a cost")
             .mana_value()
     };
@@ -1666,7 +1663,7 @@ fn c3_scalar_riders_take_the_last_announced_entry_not_the_sum() {
         .expect("state builds");
     let esc_card = id_of(&esc_state, "Collective Resistance");
     let esc_mv = |riders: &[AdditionalCost]| {
-        effective_cast_cost_with_additional(&esc_state, P1, esc_card, riders)
+        effective_cast_cost_with_additional(&esc_state, P1, esc_card, riders, &[])
             .expect("has a cost")
             .mana_value()
     };
@@ -1713,6 +1710,7 @@ fn c4_gift_adds_no_mana_and_the_engine_agrees() {
         P1,
         card,
         &[AdditionalCost::Gift { opponent: P2 }],
+        &[],
     )
     .expect("has a cost");
     assert_eq!(

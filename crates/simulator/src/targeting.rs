@@ -156,11 +156,16 @@ pub fn action_target_requirements(
     action: &LegalAction,
 ) -> Vec<TargetRequirement> {
     match action {
+        // `fuse: false` for the same reason `alt_cost: None` is — a bot never announces
+        // `AdditionalCost::Fuse` (nothing in `params.rs`/`merge_required_additional_costs`
+        // ever adds an OPTIONAL marker rider to a bot's cast), so the command this plan
+        // feeds never fuses. See `queries::spell_target_requirements`'s own doc.
         LegalAction::CastSpell { card, .. } => mtg_engine::spell_target_requirements(
             state,
             *card,
             &legal_actions::spell_default_modes(state, *card),
             None,
+            false,
         ),
         LegalAction::ActivateAbility {
             source,

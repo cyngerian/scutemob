@@ -202,14 +202,14 @@ fn test_702_96b_overload_reports_no_target_requirements() {
 
     let card_obj_id = find_object(&state, "Cyclonic Rift");
 
-    let normal = spell_target_requirements(&state, card_obj_id, &[], None);
+    let normal = spell_target_requirements(&state, card_obj_id, &[], None, false);
     assert!(
         !normal.is_empty(),
         "without overload, Cyclonic Rift carries its printed target requirement"
     );
 
     let overloaded =
-        spell_target_requirements(&state, card_obj_id, &[], Some(AltCostKind::Overload));
+        spell_target_requirements(&state, card_obj_id, &[], Some(AltCostKind::Overload), false);
     assert!(
         overloaded.is_empty(),
         "CR 702.96b: an overloaded spell has no targets"
@@ -221,7 +221,7 @@ fn test_702_96b_overload_reports_no_target_requirements() {
 fn test_spell_target_requirements_missing_object_is_empty() {
     let state = GameStateBuilder::four_player().build().unwrap();
     let bogus = ObjectId(999_999);
-    assert!(spell_target_requirements(&state, bogus, &[], None).is_empty());
+    assert!(spell_target_requirements(&state, bogus, &[], None, false).is_empty());
 }
 
 // ── CR 602.2b: ability_target_requirements ─────────────────────────────────────
