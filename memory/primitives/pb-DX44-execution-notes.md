@@ -220,3 +220,76 @@ the function, not the caller.* PB-DX20's durable lesson, in the file that cites 
 
 Closed in Stage 2b together with the pitch and half-selector client work, since all three need the
 same offer-side plumbing.
+
+---
+
+## 5. Stage 2a — the right-half cast, and the batch's one wire bump
+
+Commit `8eec3696`. **PROTOCOL 37 → 38 / HASH 76 → 77**, both taken from the failing gates' own
+output and both **predicted in writing in §1 before any code changed**. §1's stop condition (a
+gate that moves in a way the half selector does not explain, or does not move at all) never fired.
+
+### 5.1 Why the selector is an `AltCostKind` variant and not a `CastSpellData` field
+
+Two reasons, and the second is the one that makes it right rather than merely cheap.
+
+**Cheap**: `CastSpellData` derives no `Default` and its **793** construction sites each list every
+field, so a sixteenth field is a 793-line mechanical diff — a change that would bury this batch's
+actual content under churn and make the `/review` unreadable.
+
+**Right**: `AltCostKind` is already the engine's *which face/half/mode am I casting*
+discriminator, not merely its alternative-cost list, and it says so itself. Three of its members
+carry doc comments denying they are alternative costs — `Prototype` ("NOT an alternative cost,
+ruling 2022-10-14"), `Adventure`, and above all **`Aftermath`, which is literally "cast the other
+half of a split card"**. `SplitRightHalf` is Aftermath's sibling, one zone over. And
+`OOS-DX29-9`'s own text asks for "a half-selector on the cast action, not another additional
+cost", which an `AdditionalCost` variant would have violated while also colliding with
+`AdditionalCost::Fuse` — a "fused right half" is not a thing.
+
+`StackObject` gains `cast_right_half: bool`, which is the shape every other cast-mode flag on that
+struct already has (`was_overloaded`, `was_bargained`, `was_cleaved`, `cast_with_aftermath`,
+`was_cast_as_adventure`). It is hashed; that is the HASH half of the bump, and §1 predicted it
+while the v4 memo's wire cell did not.
+
+### 5.2 The stage's real risk was never the cost arm
+
+The cost arm is four lines. **The target index is where a wrong answer is silent.**
+
+`turn.rs`'s right half declares `EffectTarget::DeclaredTarget { index: 1 }` — a **globally
+offset** index, correct for a fused cast where the left half's single target occupies index 0.
+Cast alone, the spell announces one target at index 0, the effect reads index 1, and it resolves
+**at nothing**: no error, no refusal, wrong game state. This is the "legal-but-wrong" class the
+project ranks as its biggest pre-alpha risk, and it is reachable from a legal deck.
+
+`resolution.rs` pads the **effect context** by the LEFT half's declared requirement count, using
+the pre-existing `SpellTarget::unchosen_slot()` idiom. Three constraints, each of which a naive
+padding would have broken:
+* pad **after** the `is_target_legal` filter, or a dropped target shifts every index behind it;
+* pad the **context only, never `stack_obj.targets`** — that vector is what CR 608.2b's fizzle
+  check reads and what `GameEvent::TargetsAnnounced` publishes to clients, so a duplicated entry
+  there would both mis-report and mis-fizzle;
+* the offset is **computed** from `r3`'s pinned per-half counts, not remembered — which is the
+  whole reason `r3` pins them by value rather than by a floor.
+
+`connive_concoct` is the control case that makes the padding path observable on an empty
+announcement: its right half declares **zero** targets.
+
+### 5.3 A guard deliberately NOT written
+
+The brief asked for a `SplitRightHalf` + `AdditionalCost::Fuse` rejection. It is **dead code**:
+the pre-existing fuse block already rejects `alt_cost.is_some()` unconditionally, and
+`cast_right_half` is *derived from* `alt_cost`, so the combined command has already returned
+`Err` before that point. Documented in place rather than added — a second check guarding an
+unreachable state is a claim about the code that is false.
+
+### 5.4 A stated design residual, recorded as a decision rather than left to be found
+
+`card_def_target_requirements` now takes **three booleans**
+(`casting_with_aftermath`, `casting_with_fuse`, `casting_right_half`), of whose eight
+combinations only four are legal, and the function's own doc says it does not re-validate the
+mutual exclusion its callers guarantee. An enum would make the illegal states unrepresentable and
+would be the better shape. It is **not** taken in this batch: the refactor touches the function,
+`queries::spell_target_requirements`' public signature and ~10 call sites, and no fourth flag is
+coming (pitch does not change a spell's target requirements), so the churn buys nothing this
+batch needs. Recorded here as a decision, and filed, so that it is a choice rather than an
+oversight if the `/review` raises it.
