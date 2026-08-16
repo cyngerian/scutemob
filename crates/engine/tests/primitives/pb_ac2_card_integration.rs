@@ -207,6 +207,7 @@ fn push_spell_stack_object(
             was_casualty_paid: false,
             was_cleaved: false,
             was_cast_as_adventure: false,
+            cast_right_half: false,
             x_value: 0,
             evidence_collected: false,
             spliced_effects: vec![],

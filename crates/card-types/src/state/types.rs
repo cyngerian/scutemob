@@ -180,6 +180,27 @@ pub enum AltCostKind {
     /// at cast time (caster must control a commander on the battlefield).
     /// 2020-04-17 ruling: any commander works — doesn't have to be your own.
     CommanderFreeCast,
+    /// CR 702.102a / CR 709.4 (PB-DX44, `OOS-DX29-9`): cast ONLY the right half of a
+    /// split card (the half the DSL stores in `AbilityDefinition::Fuse`), paying that
+    /// half's own cost and announcing that half's own targets alone. CR 709.4: while on
+    /// the stack this way, the spell has only the characteristics of the half chosen —
+    /// not the left half's, and not the two concatenated (that is `AdditionalCost::Fuse`,
+    /// a different and mutually-exclusive channel, CR 702.102a).
+    ///
+    /// This is `AltCostKind`'s sibling to `Aftermath` ("cast the other half of a split
+    /// card, from the graveyard") rather than a new concept — and, like `Prototype`
+    /// above, arguably NOT an "alternative cost" in the CR 118 sense at all: CR 601.2a
+    /// lets a player announce which half of a split card they are casting, the same way
+    /// they choose an Adventure's creature face or a modal spell's mode, so this member
+    /// selects a FACE, not a payment method. It lives here rather than as a new
+    /// `CastSpellData` field because `AltCostKind` is already the engine's "which
+    /// face/half/mode am I casting" discriminator (its own docs already carry members
+    /// that are not alternative costs), and `CastSpellData` has no `Default` impl — 793
+    /// construction sites list every field explicitly, so a 16th field would be a
+    /// mechanical diff unrelated to this change. It cannot combine with
+    /// `AdditionalCost::Fuse` (rejected at cast time, CR 702.102a: fuse pays BOTH
+    /// halves' costs from hand only).
+    SplitRightHalf,
     /// CR 118.9 (Bolas's Citadel): Pay life equal to the spell's mana value instead of
     /// paying the mana cost. Only available when a play-from-top permission with
     /// `pay_life_instead: true` is active. Mana cost becomes {0}; life equal to the

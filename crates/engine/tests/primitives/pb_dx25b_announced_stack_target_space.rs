@@ -914,6 +914,7 @@ fn blank_stack_object() -> StackObject {
         was_casualty_paid: false,
         was_cleaved: false,
         was_cast_as_adventure: false,
+        cast_right_half: false,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         modes_chosen: vec![],

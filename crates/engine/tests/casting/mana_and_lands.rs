@@ -286,6 +286,7 @@ fn test_play_land_stack_nonempty_fails() {
         was_cleaved: false,
         // CR 715.3d: test objects are not adventure casts.
         was_cast_as_adventure: false,
+        cast_right_half: false,
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],

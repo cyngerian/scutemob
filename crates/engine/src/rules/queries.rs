@@ -79,6 +79,16 @@ use crate::state::{
 /// tree passes `false` for the same reason they pass `modes_chosen: &[]` — the picker
 /// renders before the human has chosen whether to fuse, exactly as it renders before the
 /// human has chosen modes (divergence 1's own doc).
+///
+/// `alt_cost: Some(AltCostKind::SplitRightHalf)` (PB-DX44, `OOS-DX29-9`, CR 709.4): unlike
+/// `fuse`, casting ONLY the right half is expressed through the existing `alt_cost`
+/// parameter, not a new bool — `AltCostKind` is already this function's "which
+/// face/half/mode" channel (see `casting_with_aftermath`, `casting_with_bestow`). A `true`
+/// derivation here REPLACES the returned requirements with the right half's own targets
+/// alone (never the left half's, never both), through the same shared
+/// `card_def_target_requirements` call, gated on the same `get_fuse_data` existence check
+/// `casting.rs` uses so the offer and the cast agree about which defs even have a right
+/// half.
 pub fn spell_target_requirements(
     state: &GameState,
     card: ObjectId,
@@ -123,6 +133,20 @@ pub fn spell_target_requirements(
     let casting_with_fuse =
         fuse && !casting_with_aftermath && chars.keywords.contains(&KeywordAbility::Fuse);
 
+    // CR 709.4 (PB-DX44, `OOS-DX29-9`): mirrors `casting.rs`'s own `cast_right_half`
+    // caster-intent derivation (`alt_cost == Some(AltCostKind::SplitRightHalf)`), gated
+    // on the SAME `get_fuse_data` lookup the cast path uses -- so the offer layer and the
+    // cast agree about which defs have a DSL right half at all, without a second
+    // implementation of "does this card have a `AbilityDefinition::Fuse`". Unlike
+    // `casting_with_fuse`, this does NOT gate on the `Fuse` KEYWORD (CR 709.4's
+    // single-half cast is legal on any split card, not only fusable ones -- see
+    // `casting::card_def_target_requirements`'s own doc). Mutually exclusive with both
+    // `casting_with_aftermath` and `casting_with_fuse` by construction (`alt_cost` can
+    // only be one variant at a time, and `fuse` + `alt_cost: Some(SplitRightHalf)` is
+    // rejected at cast time), so no precedence ordering is needed here.
+    let casting_right_half = alt_cost == Some(AltCostKind::SplitRightHalf)
+        && casting::get_fuse_data(&obj.card_id, &state.card_registry).is_some();
+
     // CR 702.103b (PB-DX20 §4.5, divergence 3 above): if cast bestowed, apply the SAME
     // keyword transform `casting.rs:980-988` applies to its own `chars`, to a LOCAL
     // CLONE — `chars` itself must stay untransformed for every other caller.
@@ -145,6 +169,7 @@ pub fn spell_target_requirements(
         card_id,
         casting_with_aftermath,
         casting_with_fuse,
+        casting_right_half,
     );
 
     // CR 702.127a: aftermath suppresses per-mode targets (mirrors `casting.rs:3689`'s

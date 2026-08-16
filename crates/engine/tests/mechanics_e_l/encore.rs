@@ -585,6 +585,7 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         was_cleaved: false,
         // CR 715.3d: test objects are not adventure casts.
         was_cast_as_adventure: false,
+        cast_right_half: false,
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],

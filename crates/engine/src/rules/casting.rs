@@ -177,6 +177,10 @@ pub fn handle_cast_spell(
     // PB-AC5: CR 118.9 Pitch -- alternative cost; exile a card from hand (+ optional other
     // non-mana components) instead of paying the mana cost.
     let cast_with_pitch = alt_cost == Some(AltCostKind::Pitch);
+    // PB-DX44 (`OOS-DX29-9`, CR 702.102a / CR 709.4): cast ONLY the right half of a
+    // split card. Validated below (Step 1i); mutually exclusive with `casting_with_fuse`
+    // by the pre-existing "fuse rejects any alt_cost" guard (Step 1h fuse validation).
+    let cast_right_half = alt_cost == Some(AltCostKind::SplitRightHalf);
     // CR 702.102a: Fuse is a static ability, not an alternative cost. The `fuse` param
     // indicates the player's intent to cast both halves. Validated below.
     let casting_with_fuse = fuse;
@@ -936,6 +940,18 @@ pub fn handle_cast_spell(
     } else {
         is_instant_speed
     };
+    // CR 709.4 (PB-DX44, `OOS-DX29-9`): STATED RESIDUAL, not an oversight. While on the
+    // stack as ONLY the right half, a split spell has only that half's characteristics —
+    // so a Sorcery right half printed on an Instant-typed card should be sorcery-speed
+    // (the same REPLACE-not-OR shape `casting_with_aftermath` uses two blocks up, not
+    // this block's OR). No such machinery is built here: `pb_dx44_uncastable_roster::r7`
+    // pins that all three corpus `AbilityDefinition::Fuse` carriers have a right half
+    // whose `card_type` matches the card's own printed type (`Turn // Burn` and
+    // `Wear // Tear` both Instant/Instant; `Connive // Concoct` both Sorcery/Sorcery), so
+    // `is_instant_speed` above already reads correctly for every def that exists today
+    // via `chars.card_types` alone. The day a heterogeneous split card is authored, `r7`
+    // goes red and this residual becomes live — filed as a candidate seed rather than
+    // built speculatively (no member to prove the machinery on).
     // CR 702.74a / CR 702.34a / CR 903.8: Determine the cost to pay.
     // - Evoke: pay the evoke cost (alternative cost, CR 118.9) instead of mana cost.
     //   Cannot combine with flashback (CR 118.9a: only one alternative cost).
@@ -1300,6 +1316,41 @@ pub fn handle_cast_spell(
                 "cannot combine fuse with an alternative cost (CR 702.102a: from hand only)".into(),
             ));
         }
+    }
+    // CR 702.102a / CR 709.4 (PB-DX44, `OOS-DX29-9`): validate a right-half-only cast.
+    //
+    // No explicit "cannot combine with fuse" check here: the fuse-validation block just
+    // above already rejects `alt_cost.is_some()` unconditionally when `casting_with_fuse`
+    // is true (CR 702.102a: fuse pays BOTH halves' costs from hand only), and
+    // `cast_right_half` is itself derived FROM `alt_cost`, so by the time control reaches
+    // this block a combined fuse + right-half command has already returned `Err` above.
+    // A second check here would be dead code guarding a state that cannot be reached.
+    if cast_right_half {
+        // CR 709.4: a right-half-only cast requires the card to actually have a DSL
+        // right half defined. Unlike the Fuse block above, this does NOT gate on the
+        // `Fuse` keyword (CR 702.102a's keyword governs whether BOTH halves may be cast
+        // together; CR 709.4's single-half cast is legal on any split card) -- so
+        // `Connive // Concoct`, which declares `AbilityDefinition::Fuse` as a pure
+        // data carrier with no `Fuse` keyword marker, is a legal right-half cast target
+        // (`pb_dx44_uncastable_roster::r2`).
+        if get_fuse_data(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "split right half: card has no AbilityDefinition::Fuse (right half) \
+                 defined (CR 709.4)"
+                    .into(),
+            ));
+        }
+        // CR 709.4 / CR 601.2a: casting a single half is announced when casting the
+        // spell -- like the left half, it is cast from hand. No shipped split card has
+        // a right half with its own alternative zone of origin (unlike Aftermath, which
+        // is specifically a graveyard-only channel for the SECOND half).
+        //
+        // No explicit `!casting_from_hand` check here -- this function's own general
+        // "card is not in your hand" zone-legality gate (above, near the top: the long
+        // `&& !casting_with_X` chain guarding a bare `card_obj.zone != ZoneId::Hand
+        // (player)`) already refuses this, since `cast_right_half` is deliberately NOT
+        // one of that chain's exemptions. A duplicate check here would be dead code:
+        // control cannot reach this point with the card outside hand.
     }
     // Step 1h-mutate: Validate mutate (CR 702.140a / CR 118.9a).
     // Mutate is an alternative cost. The spell must have the Mutate keyword.
@@ -2611,6 +2662,23 @@ pub fn handle_cast_spell(
         // CR 107.3: X is 0 when casting with an alternative cost that ignores the mana cost.
         // 2019-05-03 ruling: "you must choose 0 as the value of X when casting it this way."
         Some(ManaCost::default())
+    } else if cast_right_half {
+        // CR 709.4 / CR 702.102c (PB-DX44, `OOS-DX29-9`): a right-half-ONLY cast pays
+        // the right half's OWN cost alone — never the combined cost `casting_with_fuse`
+        // computes just below by ADDING the two, and never the card's printed
+        // (left-half) `mana_cost`. Reuses the exact lookup the fused path already
+        // shares (`get_fuse_data`), so the two casts cannot report different costs for
+        // the same right half.
+        match get_fuse_data(&card_id, &state.card_registry) {
+            Some(right_cost) => Some(right_cost),
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "split right half: card has no AbilityDefinition::Fuse (right half) \
+                     cost defined (CR 709.4)"
+                        .into(),
+                ));
+            }
+        }
     } else if has_cast_self_from_graveyard {
         // CR 601.2f / CR 118.9: CastSelfFromGraveyard — if the ability specifies an alt mana
         // cost (e.g., Squee, Dubious Monarch's {3}{R} instead of {2}{R}), use that cost.
@@ -3619,6 +3687,7 @@ pub fn handle_cast_spell(
             card_id.as_ref(),
             casting_with_aftermath,
             casting_with_fuse,
+            cast_right_half,
         );
     // CR 702.96b: When overloaded, the spell has no targets.
     // Override requirements to empty so validate_targets doesn't require targets.
@@ -4631,6 +4700,9 @@ pub fn handle_cast_spell(
         was_cleaved: casting_with_cleave,
         // CR 715.3d: Record whether this spell was cast as an Adventure.
         was_cast_as_adventure: cast_with_adventure,
+        // CR 702.102a / CR 709.4 (PB-DX44): Record whether this spell was cast as ONLY
+        // the right half of a split card.
+        cast_right_half,
         // was_entwined: REMOVED — read from AdditionalCost::Entwine in additional_costs
         // escalate_modes_paid: REMOVED — read from AdditionalCost::EscalateModes in additional_costs
         // CR 702.47a: Spliced effects collected during splice validation above.
@@ -5433,16 +5505,47 @@ pub(crate) fn get_overload_cost(
 /// `KeywordAbility::Fuse` marker that makes fusing legal (see
 /// `pb_dx29_cost_kind_surface.rs`'s `p2a`), so this function does not gate on the
 /// keyword itself; callers are responsible for having already validated fusing is legal.
+///
+/// `casting_right_half` (PB-DX44, `OOS-DX29-9`, CR 709.4): a THIRD, mutually exclusive
+/// mode alongside the two above. While on the stack as only the right half, a split
+/// spell has ONLY that half's characteristics — so this REPLACES the returned
+/// requirements with `AbilityDefinition::Fuse { targets }` alone, exactly as
+/// `casting_with_aftermath` replaces them with the Aftermath ability's own targets, and
+/// never extends the left half's. Callers must ensure at most one of
+/// `casting_with_aftermath` / `casting_with_fuse` / `casting_right_half` is true for a
+/// given cast (`handle_cast_spell`'s Step 1h/1i alt-cost mutual-exclusion guards; this
+/// function does not itself re-validate that, matching the two existing flags' contract).
+/// Like the other two, this does not gate on the `Fuse` KEYWORD — CR 709.4's single-half
+/// cast is legal on any split card, not only fusable ones (`Connive // Concoct` has no
+/// `Fuse` keyword and is still a right-half-cast target, `pb_dx44_uncastable_roster::r2`).
 pub(crate) fn card_def_target_requirements(
     state: &GameState,
     card_id: Option<&crate::state::CardId>,
     casting_with_aftermath: bool,
     casting_with_fuse: bool,
+    casting_right_half: bool,
 ) -> (Vec<TargetRequirement>, bool) {
     let registry = state.card_registry.clone();
     let Some(def) = card_id.and_then(|cid| registry.get(cid.clone())) else {
         return (vec![], false);
     };
+    // CR 709.4 (PB-DX44): right-half-only REPLACES, never extends -- return early before
+    // the aftermath/spell branch below even runs.
+    if casting_right_half {
+        let right_targets = def
+            .abilities
+            .iter()
+            .find_map(|a| match a {
+                AbilityDefinition::Fuse { targets, .. } => Some(targets.clone()),
+                _ => None,
+            })
+            .unwrap_or_default();
+        // `AbilityDefinition::Fuse` carries no `cant_be_countered` field of its own
+        // (unlike `AbilityDefinition::Spell`); fall back to the card-definition-level
+        // flag, the same fallback the else branch below uses when no `Spell` ability is
+        // found at all.
+        return (right_targets, def.cant_be_countered);
+    }
     let result = if casting_with_aftermath {
         // Find the Aftermath ability's targets.
         def.abilities.iter().find_map(|a| {
@@ -8148,7 +8251,12 @@ fn get_splice_info(
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Fuse { cost, .. }`, or `None`
 /// if the card has no definition or no fuse ability defined.
-fn get_fuse_data(
+///
+/// `pub(crate)` (PB-DX44): `rules::queries::spell_target_requirements` gates its own
+/// `casting_right_half` derivation on this same lookup, so the offer layer and the cast
+/// path agree about which defs have a DSL right half at all (CR 709.4) without a second,
+/// possibly-drifting implementation.
+pub(crate) fn get_fuse_data(
     card_id: &Option<crate::state::CardId>,
     registry: &crate::cards::CardRegistry,
 ) -> Option<ManaCost> {
@@ -8337,6 +8445,7 @@ mod tests {
             was_casualty_paid: false,
             was_cleaved: false,
             was_cast_as_adventure: false,
+            cast_right_half: false,
             spliced_effects: vec![],
             spliced_card_ids: vec![],
             modes_chosen: vec![],

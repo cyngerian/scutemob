@@ -28,7 +28,7 @@
 //! lesson, same wording). It says nothing about whether the def is otherwise
 //! oracle-correct.
 
-use mtg_engine::{AbilityDefinition, AltCostKind, CardDefinition, KeywordAbility};
+use mtg_engine::{AbilityDefinition, AltCostKind, CardDefinition, CardType, KeywordAbility};
 use std::collections::BTreeSet;
 
 /// `Completeness::is_complete()` is the deck-legality predicate `validate_deck` enforces
@@ -552,6 +552,59 @@ fn r4_spree_population_and_the_marker_cost_disagreement() {
         "a def declaring `mode_costs` without the Spree marker would have its per-mode \
          costs silently NOT charged -- `casting.rs` reads `mode_costs` only inside its \
          `KeywordAbility::Spree` branch. Offenders: {costs_without_marker:?}"
+    );
+}
+
+/// **R7** — CR 709.4 timing residual, pinned wrong-way-round on purpose.
+///
+/// `casting.rs`'s `is_instant_speed` derivation for a right-half-only cast (stage 2a,
+/// PB-DX44 `OOS-DX29-9`) deliberately does NOT build a REPLACE-not-OR override the way
+/// `casting_with_aftermath` does two blocks up in the same function -- there is no corpus
+/// member to prove that machinery on. Instead it reads `chars.card_types` alone, which is
+/// CR 709.4-correct only because every right half's own `card_type` happens to match the
+/// card's own printed type. This gate is what makes that "happens to" a checked claim
+/// rather than an assumption: if a future split card's right half prints a DIFFERENT card
+/// type than its left half (the way a real Aftermath sorcery/instant pair can), this test
+/// goes red and the residual `casting.rs` documents beside `is_instant_speed` becomes
+/// live, not latent.
+#[test]
+fn r7_right_half_card_type_matches_the_card_printed_type() {
+    let defs = mtg_engine::all_cards();
+    let mut measured: Vec<(String, CardType, bool)> = Vec::new();
+    for def in &defs {
+        let Some(right_card_type) = def.abilities.iter().find_map(|a| match a {
+            AbilityDefinition::Fuse { card_type, .. } => Some(*card_type),
+            _ => None,
+        }) else {
+            continue;
+        };
+        let matches = def.types.card_types.contains(&right_card_type);
+        println!(
+            "{}: right half card_type {right_card_type:?}, def.types.card_types \
+             {:?}, matches printed type: {matches}",
+            def.name, def.types.card_types
+        );
+        measured.push((def.name.clone(), right_card_type, matches));
+    }
+    measured.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+        measured.len(),
+        3,
+        "non-vacuity floor: expected the three known right-half defs, walked {}",
+        measured.len()
+    );
+    let mismatched: Vec<_> = measured
+        .iter()
+        .filter(|(_, _, m)| !m)
+        .map(|(n, _, _)| n.clone())
+        .collect();
+    assert!(
+        mismatched.is_empty(),
+        "CR 709.4: these defs' right half prints a card TYPE different from the card's \
+         own printed type. `casting.rs`'s right-half-only `is_instant_speed` derivation \
+         reads `chars.card_types` alone (never the right half's own `card_type`), which \
+         is CR-WRONG for any member of this list -- the timing override documented \
+         beside `is_instant_speed` in `casting.rs` must be built: {mismatched:?}"
     );
 }
 

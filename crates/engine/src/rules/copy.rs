@@ -223,6 +223,7 @@ pub fn copy_spell_on_stack(
         was_cleaved: false,
         // CR 715.3c: Copies of an Adventure spell are also Adventures — propagate from original.
         was_cast_as_adventure: original.was_cast_as_adventure,
+        cast_right_half: original.cast_right_half,
         // was_entwined, escalate_modes_paid: REMOVED — propagated via additional_costs
         // CR 702.47a: copies do not inherit spliced effects.
         spliced_effects: vec![],
@@ -446,6 +447,7 @@ pub fn resolve_cascade(
                 // CR 702.148a: cascade free-cast spells are not cleave casts.
                 was_cleaved: false,
                 was_cast_as_adventure: false,
+                cast_right_half: false,
                 // CR 702.47a: cascade free-cast spells have no spliced effects.
                 spliced_effects: vec![],
                 spliced_card_ids: vec![],
@@ -681,6 +683,7 @@ pub fn resolve_discover(
                 was_casualty_paid: false,
                 was_cleaved: false,
                 was_cast_as_adventure: false,
+                cast_right_half: false,
                 spliced_effects: vec![],
                 spliced_card_ids: vec![],
                 modes_chosen: vec![],

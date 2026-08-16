@@ -398,7 +398,18 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   types it was adding and would have missed `TargetFilter.owner`, which
 ///   rides into the closure on a struct made reachable many versions ago.
 ///   Both numbers above are the gates' own output, not a prediction.
-pub const PROTOCOL_VERSION: u32 = 37;
+/// - 38: PB-DX44 stage 2a (2026-08-15, `OOS-DX29-9` — CR 702.102a / CR 709.4,
+///   casting only the right half of a split card): `AltCostKind` (reachable via
+///   `CastSpellData.alt_cost: Option<AltCostKind>`, part of `Command::CastSpell`,
+///   in the closure since its earliest versions) gains one new variant,
+///   `SplitRightHalf`. This is a variant addition to an ALREADY-reachable
+///   closure member, the same shape as `- 33`'s two field additions to
+///   already-reachable `Command` variants: no new type joins the closure
+///   (**98 -> 98, unchanged**), but `AltCostKind`'s declared shape moves, so the
+///   digest moves. Predicted in writing before this line was added
+///   (`memory/primitives/pb-DX44-execution-notes.md` §1) and confirmed by the
+///   gate's own output, not transcribed from a memo (PB-DX8's rule).
+pub const PROTOCOL_VERSION: u32 = 38;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -416,7 +427,7 @@ pub const PROTOCOL_VERSION: u32 = 37;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "03c5a4ac138556dd27c63a00088624287070a6107d382220b16c67b0df3d00a3";
+    "50e69006e68918bfffde8882e0bf21e9e18a6b8afbefaf8981975b691e205a27";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -701,6 +712,13 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // Closure type count 96 -> 98: ChoiceZone and TargetOwner are both NEW
         // members. First count change since v31.
         fingerprint: "03c5a4ac138556dd27c63a00088624287070a6107d382220b16c67b0df3d00a3",
+    },
+    ProtocolEpoch {
+        version: 38,
+        // PB-DX44 stage 2a (2026-08-15, `OOS-DX29-9`): AltCostKind gains
+        // SplitRightHalf (see the `- 38:` History line above). Closure type
+        // count unchanged (98).
+        fingerprint: "50e69006e68918bfffde8882e0bf21e9e18a6b8afbefaf8981975b691e205a27",
     },
 ];
 

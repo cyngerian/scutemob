@@ -889,6 +889,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         was_cleaved: false,
         // CR 715.3d: test objects are not adventure casts.
         was_cast_as_adventure: false,
+        cast_right_half: false,
         x_value: 0,
         evidence_collected: false,
         spliced_effects: vec![],
