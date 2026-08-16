@@ -293,3 +293,100 @@ would be the better shape. It is **not** taken in this batch: the refactor touch
 coming (pitch does not change a spell's target requirements), so the churn buys nothing this
 batch needs. Recorded here as a decision, and filed, so that it is a choice rather than an
 oversight if the `/review` raises it.
+
+---
+
+## 6. Stage 2b — the client half, and the pitch channel
+
+Commits `0ebbd0b1`, `0efbcf0e`, plus the deferral pins. **PROTOCOL 38 / HASH 77 both gate-executed
+and UNMOVED** — one wire bump for the whole PB, taken in Stage 2a.
+
+### 6.1 The one line that made a whole engine branch unreachable
+
+`params.rs` hard-coded `alt_cost: None` on every `CastSpell`. `casting.rs`'s pitch payment path
+(`:4209-4260`) has existed since PB-AC5 and **nothing could reach it**. Four deck-legal `Complete`
+defs printed an alternative cost no client could pay, and the fix on that axis is one field
+forwarded.
+
+`LegalAction::CastSpell` carries the alt cost so the hand loop emits **one action per castable
+mode** — the `PayEcho` / `ChooseDredge` idiom, and PB-DX29's `(target, on_top)` pair idiom.
+`AdditionalCostPlan.pitch` carries the eligible exile candidates, with eligibility **mirroring**
+`casting.rs`'s own gate rather than re-derived (colour, not-the-spell-itself, in hand, life
+payable, CR 118.9's `opponents_turn_only`).
+
+### 6.2 Two affordability traps, either of which silently suppresses the feature
+
+The hand loop gates casts on `can_afford(obj.characteristics.mana_cost)`.
+
+* **Pitch**: a pitch cast's mana cost is `{0}`, and Force of Will's entire point is casting it
+  when you *cannot* afford `{3}{U}{U}`. An offer left behind that gate appears exactly when it is
+  least wanted and vanishes exactly when it matters.
+* **Right half**: `Turn // Burn`'s printed `mana_cost` is the LEFT half's `{2}{U}`, while Burn
+  costs `{1}{R}`. A player holding `{1}{R}` can legally cast Burn and would be offered nothing.
+
+So `effective_cast_cost_with_additional` learns the alt cost too. **This is the same class of link
+Stage 1 hit**: the function auto-tap asks is where the defect lives, and a brief that names only
+the offer has named half of it.
+
+### 6.3 The fuse hole closed on the precedent that already existed
+
+`ActionOptionView` gains fused slot/min/max fields and `ActionBar.svelte` selects on whether
+`paramsAcc.additional_costs` carries a Fuse entry. **`ModeOptionView::target_slots` exists for
+exactly this reason** — slots that depend on an earlier stage's answer — so this is an instance of
+a shape the file already had, not new machinery.
+
+The regression probe is a differential over **the DTO the browser actually receives**. Stage 1's
+`t4` compared `fuse: true` against `fuse: false` on the query; both assertions were true and the
+channel was broken between them.
+
+### 6.4 Two acceptance gaps the coordinator closed rather than accepted
+
+* **Misdirection (T6).** Stage 2b recorded the fourth pitch member as a stated floor. The
+  criterion names four and three is not four. Writing it then produced a second lesson: the
+  probe's own doc justified it as *"the only member whose cost list has no `Cost::PayLife`"*, and
+  an executed revert — making a life component mandatory in `offerable_pitch_plan` — reddened
+  **four** tests instead of one. `force_of_will` is the only member that **pays** life; the claim
+  was inverted 1-vs-3. Corrected in the test's own doc, along with an honest statement that T6
+  isolates no branch T1-T5 miss.
+* **The graveyard half (T7 + `r8`).** Deferred, with the coupling reason stated *and measured on
+  both axes*: nothing is offered today, and the deck-legal `Complete` Escape population is
+  **zero**. The seed's row argues the coupling and omits the population, and the distinction —
+  latent versus unreachable — is the figure PB-DX29 learned to publish when its own "13 of 15
+  kinds invisible" proved materially misleading.
+
+---
+
+## 7. Final measurements
+
+| gate | value |
+|---|---|
+| tests | **4,795 / 0 / 5**, **53** result-producing targets (baseline 4,753 / 50) |
+| delta | **+42**, itemised by NAME below |
+| removals | **0** genuine; **1 rename**, mandated by the criterion |
+| PROTOCOL | **37 → 38**, gate-computed, predicted in writing |
+| HASH | **76 → 77**, gate-computed, predicted in writing |
+| coverage | **1,136 / 1,803 = 63.0%**, **0 flips** as predicted, self-dating churn reverted |
+| clippy | `--workspace --all-targets -- -D warnings` clean |
+| fmt | `cargo fmt --check` clean; `tools/check-defs-fmt.sh` clean (1,803 defs) |
+
+### 7.1 The delta, by test NAME (set-diff of the two run logs)
+
+4,757 unique names → 4,799. **43 additions, 1 rename, 0 removals.**
+
+| count | file |
+|---|---|
+| 10 | `crates/engine/tests/core/pb_dx44_uncastable_roster.rs` (new — `r1`-`r9` + `t_census_report`) |
+| 8 | `crates/engine/tests/rules/pb_dx44_split_half_cast.rs` (new) |
+| 7 | `crates/simulator/tests/pb_dx44_pitch_channel.rs` (new — T1-T7) |
+| 6 | `crates/simulator/tests/pb_dx44_spree_mode_costs.rs` (new) |
+| 4 | `crates/engine/tests/rules/pb_dx44_fuse_targets.rs` (new) |
+| 4 | `tools/play-server/src/main.rs`'s `#[cfg(test)]` module |
+| 3 | `crates/simulator/tests/pb_dx44_split_half_channel.rs` (new — R1-R3) |
+| 1 | `pb_dx29_cost_kind_surface::p1e` (the rename's successor) |
+
+**The one name that left the passing set is not a removal**:
+`p1e_fuse_is_suppressed_while_its_right_half_targets_cannot_be_announced` became
+`p1e_fuse_is_offered_and_its_target_count_matches_what_the_cast_validates` — same file, same
+position, **subject inverted**, because the suppression it pinned is the thing this batch deleted.
+The acceptance criterion mandated exactly this re-pointing. Stated rather than netted out, because
+"+42 with zero removals" would have been a true number hiding a real edit.
