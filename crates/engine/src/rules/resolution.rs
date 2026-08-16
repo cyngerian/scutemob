@@ -409,6 +409,27 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                     })
                                 });
                                 eff.map(|(e, m)| (Some(e), m)).unwrap_or((None, None))
+                            } else if stack_obj.cast_right_half {
+                                // CR 702.102a / CR 709.4 (PB-DX44, `OOS-DX29-9`): a
+                                // right-half-only cast executes the right half's OWN
+                                // effect (`AbilityDefinition::Fuse { effect, .. }`) —
+                                // never the left half's `Spell` effect, and never both
+                                // (that is the fused path above, mutually exclusive with
+                                // this flag by construction). `AbilityDefinition::Fuse`
+                                // carries no `modes` field, so a right-half cast is never
+                                // modal.
+                                let eff = def.abilities.iter().find_map(|a| {
+                                    if let crate::cards::card_definition::AbilityDefinition::Fuse {
+                                        effect,
+                                        ..
+                                    } = a
+                                    {
+                                        Some(effect.clone())
+                                    } else {
+                                        None
+                                    }
+                                });
+                                (eff, None)
                             } else {
                                 def.abilities.iter().find_map(|a| {
                                 if let crate::cards::card_definition::AbilityDefinition::Spell {
@@ -434,6 +455,58 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                     .filter(|t| is_target_legal(state, t))
                                     .cloned()
                                     .collect();
+                                // CR 709.4 / CR 702.102d (PB-DX44, `OOS-DX29-9`): a
+                                // right-half-only cast announces ONLY the right half's
+                                // targets, which land at indices `0..n` in `legal_targets`
+                                // above -- but the def's `Effect` tree was authored
+                                // assuming the FUSED cast's globally-offset index space
+                                // (the same contract the fused path documents at the top
+                                // of this match arm), so the right half's own
+                                // `DeclaredTarget { index }` values read GLOBALLY OFFSET
+                                // past the left half's declared requirement count. Pad
+                                // the CONTEXT'S target list -- never `stack_obj.targets`
+                                // itself, which CR 608.2b's fizzle check above and
+                                // `GameEvent::TargetsAnnounced` both read UNPADDED -- with
+                                // `left_count` `unchosen_slot` placeholders (the same
+                                // "interior hole" idiom PB-DP8 introduced for `UpToN`
+                                // slots) so the announced targets land at the index the
+                                // right half's effect expects.
+                                //
+                                // The placeholders are never observed by anything: the
+                                // left half's own effect never runs on this path (see the
+                                // `spell_effect` derivation above). `pb_dx44_uncastable_
+                                // roster::r3` pins only the per-half declared target
+                                // COUNTS (`left_count`/`right_count`) that this offset is
+                                // computed from -- it does NOT walk either half's `Effect`
+                                // tree for the `DeclaredTarget { index }` values
+                                // themselves, so it cannot by itself prove the padding
+                                // above is correct. That behavioural proof is
+                                // `rules::pb_dx44_split_half_cast::t1`/`t2`, which cast
+                                // each right half for real and assert the effect landed on
+                                // the announced target rather than resolving at nothing.
+                                let legal_targets: Vec<SpellTarget> = if stack_obj.cast_right_half {
+                                    let left_count = def
+                                        .abilities
+                                        .iter()
+                                        .find_map(|a| match a {
+                                            crate::cards::card_definition::AbilityDefinition::Spell {
+                                                targets,
+                                                ..
+                                            } => Some(targets.len()),
+                                            _ => None,
+                                        })
+                                        .unwrap_or(0);
+                                    let mut padded =
+                                        Vec::with_capacity(left_count + legal_targets.len());
+                                    padded.extend(std::iter::repeat_n(
+                                        SpellTarget::unchosen_slot(),
+                                        left_count,
+                                    ));
+                                    padded.extend(legal_targets);
+                                    padded
+                                } else {
+                                    legal_targets
+                                };
                                 // CR 702.33d: Pass kicker status to the effect context so
                                 // Condition::WasKicked can be checked during resolution.
                                 // CR 702.96a: Pass overload status so Condition::WasOverloaded works.
@@ -8537,6 +8610,7 @@ mod dx2_pending_effect_choice_reap_tests {
             was_casualty_paid: false,
             was_cleaved: false,
             was_cast_as_adventure: false,
+            cast_right_half: false,
             spliced_effects: vec![],
             spliced_card_ids: vec![],
             modes_chosen: vec![],

@@ -836,7 +836,31 @@
 /// header comment for why, settled by an executed pairwise-distinctness
 /// experiment (`effect_colliding_variant_digests_are_pairwise_distinct`),
 /// not argued.
-pub const HASH_SCHEMA_VERSION: u8 = 76;
+/// - 77: PB-DX44 stage 2a (2026-08-15, `OOS-DX29-9` -- CR 702.102a / CR 709.4,
+///   casting only the right half of a split card): `StackObject` (already in
+///   the `GameState` serde closure, reachable via `GameState.stack_objects:
+///   Vector<StackObject>`) gains one new hashed `bool` field,
+///   `cast_right_half` -- the same shape as every other cast-mode flag on the
+///   struct (`was_overloaded`, `was_bargained`, `was_cleaved`,
+///   `cast_with_aftermath`, `was_cast_as_adventure`). `AltCostKind` gains a
+///   new variant, `SplitRightHalf`, with an explicit hash discriminant (`32`)
+///   appended to the existing TC-23 match so a future reorder cannot silently
+///   change it -- `AltCostKind` was ALREADY in the `GameState` closure before
+///   this batch, via `GameObject.cast_alt_cost: Option<AltCostKind>`
+///   (`GameObject` is reachable from `GameState.objects`), independent of
+///   this batch's `StackObject` field. `bool` is already a closure member
+///   (the new field adds no new TYPE), so the closure's type count is
+///   **unchanged (131)** -- only `StackObject`'s and `AltCostKind`'s declared
+///   shapes move, so `decl_fingerprint` moves.
+///
+///   `stream_fingerprint` MOVES for the v40 reason alone (`HASH_SCHEMA_VERSION`
+///   is the stream's first byte). `canonical_fixture()` builds no `StackObject`
+///   with `cast_right_half: true` and casts no `AltCostKind::SplitRightHalf`
+///   spell, so this is the v69/v72/v73/v74/v75/v76-style
+///   version-sentinel-byte-only case, not a payload-bytes case -- the new
+///   field's and variant's own bytes are exercised by the direct behavioural
+///   probes in `pb_dx44_split_half_cast.rs`, not by this stream fixture.
+pub const HASH_SCHEMA_VERSION: u8 = 77;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1319,6 +1343,14 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // stream fixture.
         decl_fingerprint: "06208006f9fb87b49e3f15b1132f4dbf2656da44a47895d2ea58e88aa97348e0",
         stream_fingerprint: "b899b0721d3a27cbb37311a4bac048f4a6f207349e40ba5d1a80625464cb6b63",
+    },
+    HashSchemaEpoch {
+        version: 77,
+        // PB-DX44 stage 2a (2026-08-15, `OOS-DX29-9`): StackObject gains
+        // cast_right_half: bool; AltCostKind gains SplitRightHalf (see the
+        // `- 77:` History line above). Closure type count unchanged (131).
+        decl_fingerprint: "f26b4ecb26feae3bbeac9096bf6620ac28a22f94a133d018e827e858a1aa8705",
+        stream_fingerprint: "948264b073ea1c4ebdae6726dd36935d4140ee8da44e54baefe0d3be137dd5c4",
     },
 ];
 
@@ -4608,6 +4640,9 @@ impl HashInto for StackObject {
         self.was_cleaved.hash_into(hasher);
         // Adventure (CR 715.3d) — spell was cast as an Adventure
         self.was_cast_as_adventure.hash_into(hasher);
+        // Split-card right half (CR 702.102a / CR 709.4, PB-DX44) — spell was cast as
+        // ONLY the right half; resolution runs the Fuse-carried effect, not the Spell one
+        self.cast_right_half.hash_into(hasher);
         // was_entwined, escalate_modes_paid: REMOVED — now in additional_costs (hashed below)
         // Splice (CR 702.47a) — spliced effects attached to this spell
         for effect in &self.spliced_effects {
@@ -4725,6 +4760,8 @@ impl HashInto for crate::state::types::AltCostKind {
             // PB-AC5: Warp (CR 702.185) / Pitch (CR 118.9)
             AltCostKind::Warp => 30,
             AltCostKind::Pitch => 31,
+            // PB-DX44: cast only the right half of a split card (CR 702.102a / CR 709.4)
+            AltCostKind::SplitRightHalf => 32,
         };
         disc.hash_into(hasher);
     }

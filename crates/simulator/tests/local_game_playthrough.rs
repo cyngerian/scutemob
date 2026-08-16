@@ -183,7 +183,7 @@ fn choose(state: &mtg_engine::GameState, decision: &PendingDecision) -> (usize, 
                 };
                 let obj = state.object(*card).ok()?;
                 let (min, _) = mtg_engine::target_count_range(
-                    &mtg_engine::spell_target_requirements(state, *card, &[], None),
+                    &mtg_engine::spell_target_requirements(state, *card, &[], None, false),
                 );
                 if min > 0 {
                     return None;

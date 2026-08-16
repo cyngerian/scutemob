@@ -303,6 +303,7 @@ fn saga_not_sacrificed_while_chapter_on_stack_cr714_4() {
         was_cleaved: false,
         // CR 715.3d: test objects are not adventure casts.
         was_cast_as_adventure: false,
+        cast_right_half: false,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         modes_chosen: vec![],
@@ -542,6 +543,7 @@ fn class_level_up_requires_sorcery_speed_cr716_2a() {
         was_cleaved: false,
         // CR 715.3d: test objects are not adventure casts.
         was_cast_as_adventure: false,
+        cast_right_half: false,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         modes_chosen: vec![],

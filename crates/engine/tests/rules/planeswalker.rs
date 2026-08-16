@@ -393,6 +393,7 @@ fn test_loyalty_needs_empty_stack_cr606_3() {
             was_cleaved: false,
             // CR 715.3d: test objects are not adventure casts.
             was_cast_as_adventure: false,
+            cast_right_half: false,
             spliced_effects: vec![],
             spliced_card_ids: vec![],
             modes_chosen: vec![],

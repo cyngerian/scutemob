@@ -406,6 +406,25 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub was_cast_as_adventure: bool,
+    /// CR 702.102a / CR 709.4 (PB-DX44, `OOS-DX29-9`): if true, this spell was cast as
+    /// ONLY the right half of a split card (`AltCostKind::SplitRightHalf`), the DSL's
+    /// `AbilityDefinition::Fuse` payload. At resolution, the right half's OWN effect is
+    /// executed instead of the left half's `AbilityDefinition::Spell` effect, and the
+    /// announced targets are the right half's alone — never the left half's, and never
+    /// both concatenated (that is the FUSED path, `AdditionalCost::Fuse`, mutually
+    /// exclusive with this flag by construction, `casting.rs`'s alt-cost guard).
+    ///
+    /// CR 709.4's global `DeclaredTarget { index }` offset convention (documented at the
+    /// fused-path target contract above) still applies to the right half's own `Effect`
+    /// tree, because card defs author it assuming a FUSED cast's combined index space —
+    /// so a right-half-only resolution must compensate by padding the effect context's
+    /// target list with `left_count` `SpellTarget::unchosen_slot()` placeholders (never
+    /// `self.targets` itself, which CR 608.2b's fizzle check and
+    /// `GameEvent::TargetsAnnounced` both read unpadded).
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub cast_right_half: bool,
     // was_entwined: REMOVED — read from AdditionalCost::Entwine in additional_costs
     // escalate_modes_paid: REMOVED — read from AdditionalCost::EscalateModes in additional_costs
     /// CR 702.47a: Effects from cards spliced onto this spell.
@@ -577,6 +596,7 @@ impl StackObject {
             was_casualty_paid: false,
             was_cleaved: false,
             was_cast_as_adventure: false,
+            cast_right_half: false,
             spliced_effects: vec![],
             spliced_card_ids: vec![],
             modes_chosen: vec![],

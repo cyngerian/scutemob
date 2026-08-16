@@ -1902,7 +1902,7 @@ mod tests {
 
         let (requirements, source) = match action {
             mtg_simulator::LegalAction::CastSpell { card, .. } => (
-                mtg_engine::spell_target_requirements(game_state, *card, &[], None),
+                mtg_engine::spell_target_requirements(game_state, *card, &[], None, false),
                 *card,
             ),
             mtg_simulator::LegalAction::ActivateAbility {
@@ -6008,12 +6008,12 @@ mod tests {
                     cards: vec![mtg_engine::ObjectId(7)],
                 },
             ),
-            (
-                "ExileFromHand",
-                mtg_engine::AdditionalCost::ExileFromHand {
-                    card: mtg_engine::ObjectId(7),
-                },
-            ),
+            // `ExileFromHand` is NOT in this list -- PB-DX44 surfaced it (CR
+            // 118.9, the pitch alt cost), so it is no longer refused by the
+            // catch-all this test is for. It is refused a DIFFERENT way now
+            // (this action's plan carries no `pitch` offer), which
+            // `test_dx44_pitch_answer_without_a_pitch_offer_is_refused` below
+            // pins.
         ];
         for (label, cost) in unsurfaced {
             let err = api::validate_additional_cost_params(
@@ -6039,6 +6039,41 @@ mod tests {
                 err.body.error
             );
         }
+    }
+
+    /// **PB-DX44** — `ExileFromHand` (CR 118.9's pitch alt cost) is now a
+    /// SURFACED kind, so a submission naming it on an action whose plan
+    /// carries no `pitch` offer is refused by its OWN arm
+    /// (`AdditionalCost::ExileFromHand { card } => { let Some(pitch) =
+    /// plan.pitch.as_ref() else { ... } }`), not by the default-deny
+    /// catch-all the test above pins. Both are 400s; this test is what
+    /// proves the NEW arm is reached at all.
+    #[test]
+    fn test_dx44_pitch_answer_without_a_pitch_offer_is_refused() {
+        let action = ui2_cast_spell_action_with_costs(
+            vec![mtg_engine::ObjectId(7)],
+            mtg_engine::ObjectId(7),
+            1,
+        );
+        let err = api::validate_additional_cost_params(
+            &action,
+            &crate::view::ActionParamsDto {
+                additional_costs: vec![mtg_engine::AdditionalCost::ExileFromHand {
+                    card: mtg_engine::ObjectId(7),
+                }],
+                ..Default::default()
+            },
+            &dx29_empty_state(),
+            mtg_engine::PlayerId(1),
+        )
+        .expect_err("this action's plan carries no pitch offer, so this must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+        assert!(
+            err.body.error.contains("pitch"),
+            "the refusal must name the missing offer: {}",
+            err.body.error
+        );
     }
 
     /// **PB-DX29 `/review` H1** — CR 601.2f-h / CR 702.47a. An unaffordable SPLICE is
@@ -6076,6 +6111,7 @@ mod tests {
                     }),
                     ..Default::default()
                 },
+                alt_cost: None,
             };
             api::validate_additional_cost_params(
                 &action,
@@ -6192,6 +6228,7 @@ mod tests {
                 }),
                 ..Default::default()
             },
+            alt_cost: None,
         }
     }
 
@@ -6282,6 +6319,7 @@ mod tests {
                 squad: None,
                 ..Default::default()
             },
+            alt_cost: None,
         };
         let params = crate::view::ActionParamsDto {
             additional_costs: vec![mtg_engine::AdditionalCost::Squad { count: 1 }],
@@ -8252,6 +8290,10 @@ mod tests {
             "count.template",
             "gift.template",
             "splice.template",
+            // PB-DX44: `AdditionalCost::ExileFromHand { card }` carries a
+            // SCALAR field, exactly like `gift.template`'s `opponent` --
+            // object-shaped, not a unit variant, so it belongs in this list.
+            "pitch.template",
         ]
         .into_iter()
         .collect();
@@ -8265,8 +8307,8 @@ mod tests {
         );
         assert_eq!(
             args.len(),
-            5,
-            "expected exactly five template-filler call sites, one per object-shaped family; \
+            6,
+            "expected exactly six template-filler call sites, one per object-shaped family; \
              found {args:?}"
         );
         for arg in &args {
@@ -11101,6 +11143,7 @@ mod tests {
             card: mtg_engine::ObjectId(1),
             from_zone: mtg_engine::ZoneId::Hand(mtg_engine::PlayerId(1)),
             additional_costs: plan,
+            alt_cost: None,
         }
     }
 
@@ -12187,5 +12230,763 @@ mod tests {
              body: {body}"
         );
         assert_eq!(body["kind"], "bad_params", "{body}");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PB-DX44 — the casts you cannot make: Spree mode costs (`OOS-DX29-14`),
+    // the split-card right half (`OOS-DX29-9`), and Fuse's own target slots
+    // (`OOS-DX29-12`), each driven through the SAME HTTP channel a browser
+    // client uses.
+    // ═══════════════════════════════════════════════════════════════════
+
+    const DX44_SPREE_SPELL: &str = "insatiable-avarice";
+    const DX44_SPREE_SPELL_NAME: &str = "Insatiable Avarice";
+    /// Mono-black legendary creature, `Complete` -- covers Insatiable
+    /// Avarice's `{B}` color identity (CR 903.4). Already proven legal as a
+    /// commander fixture ([`UI1_COMMANDER`] / [`SIM6_COMMANDER`] both use it).
+    const DX44_BLACK_COMMANDER: &str = "razaketh-the-foulblooded";
+
+    const DX44_SPLIT_CARD: &str = "turn";
+    const DX44_SPLIT_CARD_NAME: &str = "Turn // Burn";
+    /// UR legendary creature, `Complete` by derive -- covers `Turn // Burn`'s
+    /// {U}{R} color identity (CR 903.4 counts BOTH halves' mana symbols, so
+    /// the mono-red [`DX29_RED_COMMANDER`] cannot legally include this card
+    /// even though the RIGHT half alone is mono-red).
+    const DX44_UR_COMMANDER: &str = "niv-mizzet-the-firemind";
+
+    /// PB-DX44: [`DX44_BLACK_COMMANDER`] plus 99 Swamps, `overrides` written
+    /// over specific indices -- the black-mana sibling of
+    /// [`dx29_mountain_deck_with`].
+    fn dx44_swamp_deck_with(overrides: &[(usize, &str)]) -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = (0..99).map(|_| CardId("swamp".to_string())).collect();
+        for (index, card) in overrides {
+            main_deck[*index] = CardId(card.to_string());
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX44_BLACK_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// PB-DX44: [`DX44_UR_COMMANDER`] plus alternating Mountain/Island,
+    /// `overrides` written over specific indices -- needed only by the
+    /// right-half `Turn // Burn` probe, whose CARD (not its castable right
+    /// half alone) has a two-colour identity.
+    fn dx44_mountain_island_deck_with(overrides: &[(usize, &str)]) -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let lands = ["mountain", "island"];
+        let mut main_deck: Vec<CardId> = (0..99)
+            .map(|i| CardId(lands[i % lands.len()].to_string()))
+            .collect();
+        for (index, card) in overrides {
+            main_deck[*index] = CardId(card.to_string());
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX44_UR_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// Out-of-band oracle: `player`'s current life total.
+    fn dx44_life_total(state: &SharedState, player: mtg_engine::PlayerId) -> i32 {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        session
+            .game
+            .state()
+            .player(player)
+            .expect("player exists")
+            .life_total
+    }
+
+    /// Out-of-band oracle: how many cards are in `player`'s hand right now.
+    fn dx44_hand_count(state: &SharedState, player: mtg_engine::PlayerId) -> usize {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        session
+            .game
+            .state()
+            .zones()
+            .get(&mtg_engine::ZoneId::Hand(player))
+            .map(|z| z.object_ids().len())
+            .unwrap_or(0)
+    }
+
+    /// **JOB 4.1 — the Spree channel, over HTTP, with a NON-DEFAULT mode
+    /// selection.** `spell_default_modes` picks the FIRST `min_modes`
+    /// indices -- mode 0 ("+{2}": search library) for Insatiable Avarice --
+    /// so choosing mode 1 alone ("+{B}{B}": target player draws three and
+    /// loses 3 life) is an answer neither a bot nor an unparameterized
+    /// client would ever submit. Asserted on the RESOLUTION EFFECT (P2's
+    /// hand size and life total), not on the offer.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx44_spree_mode_is_offered_and_resolved_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+        let p2 = mtg_engine::PlayerId(2);
+        let state = shared_state();
+        ui2_install(
+            &state,
+            dx44_swamp_deck_with(&[(0, DX44_SPREE_SPELL)]),
+            dx29_mountain_deck_with(&[]),
+        );
+
+        // Base {B} + mode 1's {B}{B} = {B}{B}{B}, exactly 3 Swamps.
+        let view = ui2_drive_playing_lands(&state, 3, UI2_LAND_DRIVE_MAX_STEPS).await;
+        let cast_label = format!("Cast {DX44_SPREE_SPELL_NAME}");
+        let action = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["kind"] == "CastSpell" && a["label"] == cast_label.as_str())
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!("{DX44_SPREE_SPELL_NAME} must be offered with 3 Swamps out: {view}")
+            });
+        let index = action["index"].as_u64().expect("index is a number");
+        assert_eq!(
+            action["modes"].as_array().map(|a| a.len()),
+            Some(2),
+            "Insatiable Avarice declares two Spree modes: {action}"
+        );
+
+        let wire_seq = seq(&view);
+        let p2_hand_before = dx44_hand_count(&state, p2);
+        let p2_life_before = dx44_life_total(&state, p2);
+
+        let (status, after_cast) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {
+                    "modes_chosen": [1],
+                    "targets": [{"Player": p2.0}]
+                }
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after_cast}");
+
+        ui2_drain_stack(&state, after_cast, 60).await;
+
+        assert_eq!(
+            dx44_hand_count(&state, p2),
+            p2_hand_before + 3,
+            "CR 702.172a mode 1: target player draws 3 cards"
+        );
+        assert_eq!(
+            dx44_life_total(&state, p2),
+            p2_life_before - 3,
+            "CR 702.172a mode 1: target player loses 3 life"
+        );
+        assert_eq!(
+            ui2_mana_pool_total(&state, p1),
+            0,
+            "all 3 Swamps must have been spent -- base {{B}} plus mode 1's {{B}}{{B}}"
+        );
+    }
+
+    /// **JOB 4.3 (right half, browser channel)** — `Turn // Burn`'s right
+    /// half (Burn, `{1}{R}`) is offered and resolved over HTTP as its OWN
+    /// action, distinct from the ordinary (left-half, `{2}{U}`) cast.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx44_right_half_cast_is_offered_and_resolved_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+        let p2 = mtg_engine::PlayerId(2);
+        let state = shared_state();
+        ui2_install(
+            &state,
+            dx44_mountain_island_deck_with(&[(0, DX44_SPLIT_CARD)]),
+            dx29_mountain_deck_with(&[]),
+        );
+
+        // Burn's own cost {1}{R} needs at least one Mountain. The deck is a
+        // strict Mountain/Island ALTERNATION pre-shuffle, but CR 103.3's real
+        // shuffle (seeded by `UI2_SEED`) does not preserve that order --
+        // empirically, at this seed, a Mountain is not drawn until the 5th
+        // land; 5 is pinned rather than 2 for exactly that reason (mirrors
+        // this file's own `UI3_SPLIT_COMBAT_SEED` precedent: re-observe
+        // rather than assume, and say so where the number is chosen).
+        let view = ui2_drive_playing_lands(&state, 5, UI2_LAND_DRIVE_MAX_STEPS).await;
+        let cast_label = format!("Cast {DX44_SPLIT_CARD_NAME} (right half only)");
+        let action = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["kind"] == "CastSpell" && a["label"] == cast_label.as_str())
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!(
+                    "{DX44_SPLIT_CARD_NAME}'s right-half offer must be present with 2 \
+                     Mountains out: {view}"
+                )
+            });
+        let index = action["index"].as_u64().expect("index is a number");
+        assert_eq!(
+            action["target_min"], 1,
+            "Burn (right half alone) declares exactly one target: {action}"
+        );
+        assert_eq!(
+            action["target_max"], 1,
+            "Burn (right half alone) declares exactly one target: {action}"
+        );
+
+        let wire_seq = seq(&view);
+        let p2_life_before = dx44_life_total(&state, p2);
+
+        let (status, after_cast) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {"targets": [{"Player": p2.0}]}
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after_cast}");
+
+        ui2_drain_stack(&state, after_cast, 60).await;
+
+        assert_eq!(
+            dx44_life_total(&state, p2),
+            p2_life_before - 2,
+            "Burn deals 2 damage to any target -- the right half's own effect \
+             must have resolved on the announced target"
+        );
+        assert_eq!(
+            ui2_mana_pool_total(&state, p1),
+            0,
+            "Burn's own cost ({{1}}{{R}}) must be charged exactly, not Turn's \
+             ({{2}}{{U}})"
+        );
+        let graveyard = ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1));
+        assert!(
+            graveyard.contains(&DX44_SPLIT_CARD_NAME.to_string()),
+            "the resolved card must be in the graveyard: {graveyard:?}"
+        );
+    }
+
+    /// **JOB 4.4 — the fused target-slot regression, over the CHANNEL.**
+    ///
+    /// Stage 1 left a hole: `ActionOptionView.target_slots` was the UN-fused
+    /// list even when the option ALSO offered a Fuse marker, so a human who
+    /// ticked Fuse in `CostPicker` was then asked for the wrong number of
+    /// targets in `TargetPicker` -- a clean offer followed by a guaranteed
+    /// 422 (SR-38). This probe is a DIFFERENTIAL over the DTO the browser
+    /// actually receives (`ActionOptionView.fused_target_slots`), not over
+    /// two arguments of one function call -- PB-DX20's lesson, cited in
+    /// Stage 2b's own execution notes: a differential between two arguments
+    /// of `spell_target_requirements` proves the function, not the channel.
+    /// It then proves the CHANNEL's count is exactly what the ENGINE accepts
+    /// by casting for real with that many targets.
+    #[test]
+    fn test_dx44_fused_target_slots_match_what_the_engine_actually_accepts() {
+        use mtg_view_model::{StateViewModel, Viewer};
+
+        let p1 = mtg_engine::PlayerId(1);
+        let p2 = mtg_engine::PlayerId(2);
+        let defs: std::collections::HashMap<String, mtg_engine::CardDefinition> =
+            mtg_engine::all_cards()
+                .into_iter()
+                .map(|d| (d.name.clone(), d))
+                .collect();
+        let card_def = |name: &str| {
+            defs.get(name)
+                .unwrap_or_else(|| panic!("{name:?} not in all_cards()"))
+        };
+        let obj = |owner, name: &str, zone| {
+            mtg_engine::enrich_spec_from_def(
+                mtg_engine::ObjectSpec::card(owner, name)
+                    .with_card_id(card_def(name).card_id.clone())
+                    .in_zone(zone),
+                &defs,
+            )
+        };
+        let state = mtg_engine::GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(mtg_simulator::build_registry())
+            .active_player(p1)
+            .at_step(mtg_engine::Step::PreCombatMain)
+            .player_mana(
+                p1,
+                mtg_engine::ManaPool {
+                    red: 1,
+                    white: 1,
+                    colorless: 1,
+                    ..Default::default()
+                },
+            )
+            .object(obj(p1, "Wear // Tear", mtg_engine::ZoneId::Hand(p1)))
+            .object(
+                mtg_engine::ObjectSpec::artifact(p2, "Doomed Artifact")
+                    .in_zone(mtg_engine::ZoneId::Battlefield),
+            )
+            .object(
+                mtg_engine::ObjectSpec::enchantment(p2, "Doomed Enchantment")
+                    .in_zone(mtg_engine::ZoneId::Battlefield),
+            )
+            .build()
+            .expect("state builds");
+
+        use mtg_simulator::LegalActionProvider as _;
+        let actions = mtg_simulator::StubProvider.legal_actions(&state, p1);
+        let card_id = state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == "Wear // Tear")
+            .map(|(id, _)| *id)
+            .expect("Wear // Tear must be in the built state");
+        let index = actions
+            .iter()
+            .position(|a| {
+                matches!(
+                    a,
+                    mtg_simulator::LegalAction::CastSpell {
+                        card,
+                        alt_cost: None,
+                        ..
+                    } if *card == card_id
+                )
+            })
+            .unwrap_or_else(|| panic!("the ordinary cast must be offered: {actions:?}"));
+
+        let decision = mtg_simulator::PendingDecision {
+            seq: 1,
+            player: p1,
+            kind: mtg_simulator::DecisionKind::Priority,
+            actions,
+        };
+        let player_names: HashMap<mtg_engine::PlayerId, String> = HashMap::new();
+        let state_view =
+            StateViewModel::from_game_state_for(&state, &player_names, Viewer::Seat(p1));
+        let names = crate::view::NameIndex::from_view(&state_view);
+        let dview = crate::view::decision_view(&decision, 1, &state, &names, &player_names);
+        let option = &dview.actions[index];
+
+        // The CHANNEL's own count -- this is what Stage 1 left wrong.
+        assert_eq!(
+            option.fused_target_slots.len(),
+            2,
+            "the wire DTO must carry TWO fused target slots (Wear + Tear): {:?}",
+            option.fused_target_slots
+        );
+        assert_eq!(
+            option.fused_target_min, 2,
+            "{:?}",
+            option.fused_target_slots
+        );
+        assert_eq!(
+            option.fused_target_max, 2,
+            "{:?}",
+            option.fused_target_slots
+        );
+
+        // Now let the ENGINE be the arbiter: cast for real with exactly that
+        // many targets, paying the fused cost. If the channel's count ever
+        // disagreed with what `casting.rs` accepts, THIS is what would go red
+        // -- not a second call to the same query function.
+        let artifact_id = state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == "Doomed Artifact")
+            .map(|(id, _)| *id)
+            .expect("artifact exists");
+        let enchantment_id = state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == "Doomed Enchantment")
+            .map(|(id, _)| *id)
+            .expect("enchantment exists");
+        let card = card_id;
+        mtg_engine::process_command(
+            state,
+            mtg_engine::Command::CastSpell(Box::new(mtg_engine::rules::command::CastSpellData {
+                player: p1,
+                card,
+                targets: vec![
+                    mtg_engine::Target::Object(artifact_id),
+                    mtg_engine::Target::Object(enchantment_id),
+                ],
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                prototype: false,
+                modes_chosen: vec![],
+                x_value: 0,
+                face_down_kind: None,
+                additional_costs: vec![mtg_engine::AdditionalCost::Fuse],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            })),
+        )
+        .unwrap_or_else(|e| {
+            panic!(
+                "the engine must accept a fused cast announcing exactly the \
+                 CHANNEL's own fused_target_slots count (2): {e:?}"
+            )
+        });
+    }
+
+    /// **PB-DX44 `/review` finding 1 (HIGH) — the browser half of this batch was
+    /// ungated.**
+    ///
+    /// Two lines in `ActionBar.svelte` are load-bearing and nothing pinned either:
+    ///
+    /// 1. `resolvedTargetSlots`/`resolvedTargetRange` must open with the
+    ///    Fuse-first branch (Stage 1's execution notes §4.3) — deleting it does
+    ///    not fail a single test, and it recreates the EXACT SR-38 defect PB-DX44
+    ///    exists to delete: a human ticks Fuse in `CostPicker`, and `TargetPicker`
+    ///    then asks for the UN-fused slot count. Clean offer, server 422.
+    /// 2. `pitch={activeOption.costs.pitch}` must be threaded into `CostPicker` —
+    ///    `test_frontend_cost_picker_never_fills_a_unit_variant_marker_template`
+    ///    proves the COMPONENT handles a `pitch` prop correctly, but nothing
+    ///    proved `ActionBar` ever GIVES it one. Dropping the prop is silent:
+    ///    `CostPicker` renders with `pitch: null`, its `{#if pitch}` branch never
+    ///    opens, and `merge_required_additional_costs` (server-side) silently
+    ///    substitutes `plan.pitch.default` — a human never chooses which card to
+    ///    pitch, which is the acceptance criterion's own "NON-DEFAULT pitched
+    ///    card" requirement made unreachable from the browser with everything
+    ///    green.
+    ///
+    /// Source-level, for the standing reason this file states everywhere else —
+    /// there is no frontend test harness (plan §8 R7). Both needles below are
+    /// checked against `ActionBar.svelte`'s own text as returned by
+    /// `collect_frontend_files(frontend_src, ..)`, and `ActionBar.svelte` lives
+    /// directly under `frontend/src/lib/` — inside that walk's root, not behind
+    /// the `$viewer` alias `vite.config.js` resolves to a sibling tool's source
+    /// tree (the UI-4 gap: a needle satisfied from a file the walk never visits).
+    /// Both functions this test pins are defined in `ActionBar.svelte` itself,
+    /// not imported from `$viewer`, so that gap does not apply here.
+    #[test]
+    fn test_frontend_action_bar_keeps_the_fused_slot_and_pitch_wiring() {
+        let frontend_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&frontend_src, &mut sources);
+        let action_bar = sources
+            .iter()
+            .find(|(p, _)| p.ends_with("ActionBar.svelte"))
+            .map(|(_, t)| t.as_str())
+            .expect("ActionBar.svelte is in the frontend walk");
+
+        // (1) The Fuse-first branch, counted rather than merely found: this
+        //     exact string (with the `if (` prefix) appears ONLY in the two
+        //     branches themselves — the doc comments above each function quote
+        //     `option.fused_target_slots` alone, never the full condition, so a
+        //     doc-comment-satisfiable false pass is not possible here.
+        const FUSE_BRANCH: &str =
+            "if (isFusedCast(paramsSoFar) && (option.fused_target_slots?.length ?? 0) > 0) {";
+        assert_eq!(
+            action_bar.matches(FUSE_BRANCH).count(),
+            2,
+            "`ActionBar.svelte` must open BOTH `resolvedTargetSlots` and `resolvedTargetRange` \
+             with the Fuse-first branch ({FUSE_BRANCH:?}). Losing either one reopens the exact \
+             SR-38 defect PB-DX44 Stage 2b closed (execution notes §4.3): a human ticks Fuse in \
+             `CostPicker`, and `TargetPicker` then asks for the wrong (UN-fused) target count."
+        );
+
+        // (2) The pitch prop, threaded exactly like every other `costs.*` prop
+        //     `CostPicker` is given.
+        assert!(
+            action_bar.contains("pitch={activeOption.costs.pitch}"),
+            "`ActionBar` never threads `costs.pitch` into `CostPicker` — the pitch stage \
+             renders with no candidates and the server silently substitutes the default \
+             exiled card, making CR 118.9's choice unreachable from the browser"
+        );
+    }
+
+    const DX44_PITCH_SPELL: &str = "force-of-will";
+    const DX44_PITCH_SPELL_NAME: &str = "Force of Will";
+    const DX44_PITCH_VICTIM: &str = "lightning-bolt";
+    const DX44_PITCH_VICTIM_NAME: &str = "Lightning Bolt";
+    /// [`DX44_PITCH_SPELL`]'s two pitch-eligible blue cards -- neither is ever
+    /// cast, only exiled. `eligible[0]` (lower `ObjectId`, built/drawn first)
+    /// is the provider's own default; this probe deliberately answers with
+    /// the OTHER one, mirroring `pb_dx44_pitch_channel.rs`'s T1.
+    const DX44_PITCH_DEFAULT_CANDIDATE: &str = "brainstorm";
+    const DX44_PITCH_DEFAULT_CANDIDATE_NAME: &str = "Brainstorm";
+    const DX44_PITCH_NON_DEFAULT_CANDIDATE: &str = "counterspell";
+    const DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME: &str = "Counterspell";
+
+    /// Drive P1 -- playing a land, else passing priority -- until ALL FOUR of
+    /// [`DX44_PITCH_VICTIM_NAME`]/[`DX44_PITCH_SPELL_NAME`]/
+    /// [`DX44_PITCH_DEFAULT_CANDIDATE_NAME`]/[`DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME`]
+    /// are in hand AND at least one Mountain is on the battlefield.
+    ///
+    /// `ui2_drive_playing_lands`'s land-COUNT contract (used by the right-half
+    /// probe above) is not reused here: that contract only pins WHEN the
+    /// target's own land type is drawn, and this fixture additionally needs
+    /// two DISTINCT other non-land cards in hand at the same moment, which
+    /// [`UI2_SEED`]'s pinned-position doc (`ui2_lifes_legacy_two_elves_deck`)
+    /// only maps out for the forest-based [`UI2_COMMANDER`] deck, not this
+    /// mountain/island one -- so this drives on the STATE itself (never
+    /// casting anything, never tapping), rather than assuming a position.
+    async fn dx44_drive_until_pitch_fixture_ready(state: &SharedState, max_steps: usize) -> Value {
+        let p1 = mtg_engine::PlayerId(1);
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            let hand = ui2_zone_names(state, mtg_engine::ZoneId::Hand(p1));
+            let ready = [
+                DX44_PITCH_VICTIM_NAME,
+                DX44_PITCH_SPELL_NAME,
+                DX44_PITCH_DEFAULT_CANDIDATE_NAME,
+                DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME,
+            ]
+            .iter()
+            .all(|name| hand.contains(&name.to_string()))
+                && ui2_battlefield_count_by_name(state, p1, "Mountain") > 0;
+            if ready {
+                return view;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} before the pitch fixture (all four cards in \
+                 hand, a Mountain in play) was ready: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!("the pitch fixture was never ready within {max_steps} steps: {view}");
+    }
+
+    /// **`/review` finding 4 (MEDIUM) — JOB 4.5 (pitch, browser channel).**
+    ///
+    /// Spree and the split-card right half each got a full HTTP drive (the two
+    /// tests above); the pitch channel had only a 400-boundary unit test on a
+    /// synthetic action, so the chain `additional_costs_view` -> `PitchCostView`
+    /// -> `CostPicker` render -> submit -> engine was never exercised end to end
+    /// and `view.rs`'s `pitch_prompt`/`color_word` had no coverage at all.
+    ///
+    /// Force of Will is offered and resolved over HTTP as a SEPARATE pitch
+    /// action (`AltCostKind::Pitch`), paying CR 118.9's alternative cost (1
+    /// life + a NON-DEFAULT exiled blue card) rather than its printed
+    /// `{3}{U}{U}`. Real deck, real HTTP router, no direct engine construction
+    /// -- mirroring the right-half probe above exactly.
+    ///
+    /// P1 casts Lightning Bolt (targeting P2) first and, per CR 117.3c
+    /// (PB-DP1: the actor keeps priority), is offered a fresh decision in
+    /// response to their OWN spell -- no bot cooperation needed to put a
+    /// counterable target on the stack.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx44_pitch_cast_is_offered_and_resolved_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+        let p2 = mtg_engine::PlayerId(2);
+        let state = shared_state();
+        ui2_install(
+            &state,
+            dx44_mountain_island_deck_with(&[
+                (0, DX44_PITCH_VICTIM),
+                (1, DX44_PITCH_SPELL),
+                // [`UI2_SEED`]'s pinned positions for THIS deck arrangement (mountain/
+                // island, [`DX44_UR_COMMANDER`]) are NOT the forest-deck ones
+                // `ui2_lifes_legacy_two_elves_deck` documents -- re-measured for this
+                // arrangement by a throwaway library-order dump (never committed): 19
+                // is in the OPENING hand and 22 is the very TOP of the post-shuffle
+                // library (drawn on the first draw step), so both candidates are in
+                // hand well within [`dx44_drive_until_pitch_fixture_ready`]'s budget.
+                (19, DX44_PITCH_DEFAULT_CANDIDATE),
+                (22, DX44_PITCH_NON_DEFAULT_CANDIDATE),
+            ]),
+            dx29_mountain_deck_with(&[]),
+        );
+
+        // Lightning Bolt's own {R} needs at least one Mountain, and the pitch
+        // action needs the two candidate blue cards actually in hand.
+        let view = dx44_drive_until_pitch_fixture_ready(&state, UI2_LAND_DRIVE_MAX_STEPS).await;
+
+        let cast_bolt_label = format!("Cast {DX44_PITCH_VICTIM_NAME}");
+        let bolt_action = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["kind"] == "CastSpell" && a["label"] == cast_bolt_label.as_str())
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!(
+                    "{DX44_PITCH_VICTIM_NAME}'s ordinary offer must be present with a \
+                     Mountain out: {view}"
+                )
+            });
+        let bolt_index = bolt_action["index"].as_u64().expect("index is a number");
+
+        let wire_seq = seq(&view);
+        let (status, after_bolt) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": bolt_index,
+                "params": {"targets": [{"Player": p2.0}]}
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after_bolt}");
+
+        // CR 117.3c (PB-DP1): the actor keeps priority after casting, so P1
+        // is offered a NEW decision here -- still their own priority window,
+        // in response to their OWN Lightning Bolt on the stack.
+        let view = after_bolt;
+        let pitch_label = format!("Cast {DX44_PITCH_SPELL_NAME} via its pitch cost");
+        let pitch_action = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["kind"] == "CastSpell" && a["label"] == pitch_label.as_str())
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!(
+                    "{DX44_PITCH_SPELL_NAME}'s pitch offer must be present in response to \
+                     P1's own Lightning Bolt: {view}"
+                )
+            });
+        let pitch_index = pitch_action["index"].as_u64().expect("index is a number");
+
+        // The served `PitchCostView` itself -- candidates and prompt, not just
+        // presence. Both blue candidates must be named (by id, via `NameIndex`).
+        let costs = &pitch_action["costs"];
+        assert_eq!(costs["answer_field"], "additional_costs", "{pitch_action}");
+        let pitch_view = &costs["pitch"];
+        assert!(
+            !pitch_view.is_null(),
+            "the pitch offer must carry its own `PitchCostView`: {pitch_action}"
+        );
+        assert!(
+            pitch_view["prompt"]
+                .as_str()
+                .expect("prompt is a string")
+                .contains("CR 118.9"),
+            "the served prompt must cite CR 118.9: {pitch_view}"
+        );
+        let candidate_labels: Vec<String> = pitch_view["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .map(|c| c["label"].as_str().expect("label is a string").to_string())
+            .collect();
+        let mut sorted_labels = candidate_labels.clone();
+        sorted_labels.sort();
+        let mut expected_labels = vec![
+            DX44_PITCH_DEFAULT_CANDIDATE_NAME.to_string(),
+            DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME.to_string(),
+        ];
+        expected_labels.sort();
+        assert_eq!(
+            sorted_labels, expected_labels,
+            "the served candidate list must name both eligible blue cards: {candidate_labels:?}"
+        );
+
+        let non_default_id = pitch_view["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .find(|c| c["label"] == DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME)
+            .and_then(|c| c["id"].as_u64())
+            .expect("Counterspell must be among the served candidates");
+
+        // CR 400.7: casting Lightning Bolt minted it a FRESH `ObjectId` on the
+        // move to the stack -- re-resolve by name and zone, mirroring T1's own
+        // note in `pb_dx44_pitch_channel.rs`.
+        let bolt_stack_id = {
+            let guard = state.session.lock().expect("lock");
+            let session = guard.as_ref().expect("a session is installed");
+            session
+                .game
+                .state()
+                .objects()
+                .iter()
+                .find(|(_, o)| {
+                    o.characteristics.name == DX44_PITCH_VICTIM_NAME
+                        && o.zone == mtg_engine::ZoneId::Stack
+                })
+                .map(|(id, _)| id.0)
+                .expect("Lightning Bolt must be on the stack")
+        };
+
+        let p1_life_before = dx44_life_total(&state, p1);
+        let wire_seq = seq(&view);
+        let (status, after_pitch) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": pitch_index,
+                "params": {
+                    "targets": [{"Object": bolt_stack_id}],
+                    "additional_costs": [{"ExileFromHand": {"card": non_default_id}}]
+                }
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after_pitch}");
+
+        // CR 119.4: exactly 1 life paid.
+        assert_eq!(
+            dx44_life_total(&state, p1),
+            p1_life_before - 1,
+            "CR 118.9: pitching Force of Will pays exactly 1 life"
+        );
+        // CR 118.9a: the printed {3}{U}{U} must never be charged.
+        assert_eq!(
+            ui2_mana_pool_total(&state, p1),
+            0,
+            "{DX44_PITCH_SPELL_NAME}'s printed mana cost must never be paid"
+        );
+
+        // The NON-DEFAULT (Counterspell) card, and only it, is exiled. The
+        // DEFAULT (Brainstorm) must still be in hand -- never touched.
+        let exile_names = ui2_zone_names(&state, mtg_engine::ZoneId::Exile);
+        assert_eq!(
+            exile_names,
+            vec![DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME.to_string()],
+            "exactly the chosen (non-default) blue card must be exiled: {exile_names:?}"
+        );
+        let hand_names = ui2_zone_names(&state, mtg_engine::ZoneId::Hand(p1));
+        assert!(
+            hand_names.contains(&DX44_PITCH_DEFAULT_CANDIDATE_NAME.to_string()),
+            "the default (never chosen) card must still be in hand: {hand_names:?}"
+        );
+
+        ui2_drain_stack(&state, after_pitch, 60).await;
+
+        // CR 608: resolution. Bolt is countered -- to its OWNER's graveyard
+        // (CR 800.4a), which is P1: P1 both cast and owns Lightning Bolt (it
+        // came from P1's own deck; P2 is merely the spell's TARGET).
+        let graveyard = ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1));
+        assert!(
+            graveyard.contains(&DX44_PITCH_VICTIM_NAME.to_string()),
+            "{DX44_PITCH_SPELL_NAME}'s CounterSpell must have sent {DX44_PITCH_VICTIM_NAME} \
+             to its owner's graveyard: {graveyard:?}"
+        );
     }
 }

@@ -68,11 +68,33 @@ use crate::state::{
 ///    today (`StubProvider` enumerates no alt-cost casts, CLAUDE.md M11-local R4, and
 ///    every `spell_target_requirements` caller here passes `alt_cost: None`); the value
 ///    is that the cast path and this query cannot drift the day that changes.
+///
+/// `fuse` (PB-DX44, `OOS-DX29-12`, CR 702.102d): mirrors `casting.rs`'s own
+/// `casting_with_fuse` caster-intent flag — `true` when the caller's prospective
+/// `CastSpell` is going to announce `AdditionalCost::Fuse`. Like `alt_cost`, this cannot
+/// be derived from state alone; it names an intent the `Command` has not been built yet.
+/// A `true` here appends the fused right half's own targets after the left half's,
+/// through the SAME `card_def_target_requirements` call `handle_cast_spell` makes, so the
+/// offer and the cast cannot disagree about the count. Every pre-existing caller in this
+/// tree passes `false` for the same reason they pass `modes_chosen: &[]` — the picker
+/// renders before the human has chosen whether to fuse, exactly as it renders before the
+/// human has chosen modes (divergence 1's own doc).
+///
+/// `alt_cost: Some(AltCostKind::SplitRightHalf)` (PB-DX44, `OOS-DX29-9`, CR 709.4): unlike
+/// `fuse`, casting ONLY the right half is expressed through the existing `alt_cost`
+/// parameter, not a new bool — `AltCostKind` is already this function's "which
+/// face/half/mode" channel (see `casting_with_aftermath`, `casting_with_bestow`). A `true`
+/// derivation here REPLACES the returned requirements with the right half's own targets
+/// alone (never the left half's, never both), through the same shared
+/// `card_def_target_requirements` call, gated on the same `get_fuse_data` existence check
+/// `casting.rs` uses so the offer and the cast agree about which defs even have a right
+/// half.
 pub fn spell_target_requirements(
     state: &GameState,
     card: ObjectId,
     modes_chosen: &[usize],
     alt_cost: Option<AltCostKind>,
+    fuse: bool,
 ) -> Vec<TargetRequirement> {
     let Some(obj) = state.objects().get(&card) else {
         return vec![];
@@ -100,6 +122,31 @@ pub fn spell_target_requirements(
         && matches!(obj.zone, ZoneId::Graveyard(_))
         && chars.keywords.contains(&KeywordAbility::Aftermath);
 
+    // CR 702.102a (PB-DX44): mirrors `casting.rs:1279`'s own gate — a fused cast
+    // requires the Fuse KEYWORD, not merely the `AbilityDefinition::Fuse` data carrier
+    // (`pb_dx29_cost_kind_surface.rs`'s `p2a` covers a corpus def with the data carrier
+    // and no marker). Fuse and Aftermath never combine (`casting.rs`'s own mutual
+    // exclusion, Step 1h), so the aftermath flag wins if somehow both were asked for.
+    // Computed here, BEFORE `chars` is moved into `eff_chars` below — Bestow never
+    // touches the Fuse keyword, so reading it from `chars` rather than `eff_chars` is
+    // not a divergence.
+    let casting_with_fuse =
+        fuse && !casting_with_aftermath && chars.keywords.contains(&KeywordAbility::Fuse);
+
+    // CR 709.4 (PB-DX44, `OOS-DX29-9`): mirrors `casting.rs`'s own `cast_right_half`
+    // caster-intent derivation (`alt_cost == Some(AltCostKind::SplitRightHalf)`), gated
+    // on the SAME `get_fuse_data` lookup the cast path uses -- so the offer layer and the
+    // cast agree about which defs have a DSL right half at all, without a second
+    // implementation of "does this card have a `AbilityDefinition::Fuse`". Unlike
+    // `casting_with_fuse`, this does NOT gate on the `Fuse` KEYWORD (CR 709.4's
+    // single-half cast is legal on any split card, not only fusable ones -- see
+    // `casting::card_def_target_requirements`'s own doc). Mutually exclusive with both
+    // `casting_with_aftermath` and `casting_with_fuse` by construction (`alt_cost` can
+    // only be one variant at a time, and `fuse` + `alt_cost: Some(SplitRightHalf)` is
+    // rejected at cast time), so no precedence ordering is needed here.
+    let casting_right_half = alt_cost == Some(AltCostKind::SplitRightHalf)
+        && casting::get_fuse_data(&obj.card_id, &state.card_registry).is_some();
+
     // CR 702.103b (PB-DX20 §4.5, divergence 3 above): if cast bestowed, apply the SAME
     // keyword transform `casting.rs:980-988` applies to its own `chars`, to a LOCAL
     // CLONE — `chars` itself must stay untransformed for every other caller.
@@ -117,8 +164,13 @@ pub fn spell_target_requirements(
         chars
     };
 
-    let (requirements, _cant_be_countered) =
-        casting::card_def_target_requirements(state, card_id, casting_with_aftermath);
+    let (requirements, _cant_be_countered) = casting::card_def_target_requirements(
+        state,
+        card_id,
+        casting_with_aftermath,
+        casting_with_fuse,
+        casting_right_half,
+    );
 
     // CR 702.127a: aftermath suppresses per-mode targets (mirrors `casting.rs:3689`'s
     // `if casting_with_aftermath { None } else { ... }`). CR 303.4a (PB-DX20 §5 Step 4c):
@@ -133,11 +185,22 @@ pub fn spell_target_requirements(
     // the shared Aura synthesis (§5 Step 4c) — an Aura never has per-mode targets today
     // (no shipped card combines the two), so this is a no-op guard in practice, not a
     // behaviour change.
-    let requirements = match casting::spell_mode_selection(state, card_id) {
-        Some(ms) => {
-            casting::per_mode_target_requirements(&ms, modes_chosen).unwrap_or(requirements)
+    //
+    // `/review` finding 5 (PB-DX44): mirror `casting.rs`'s SAME short-circuit — a
+    // right-half-only cast (CR 709.4) must never let a modal LEFT half's per-mode
+    // targets replace the right half's own requirements. No shipped card combines
+    // the Fuse-right-half DSL carrier with per-mode targets today, so
+    // `casting::spell_mode_selection` already returns `None` for every corpus
+    // right-half member and this is a latent-gap closure, not a behaviour change.
+    let requirements = if casting_right_half {
+        requirements
+    } else {
+        match casting::spell_mode_selection(state, card_id) {
+            Some(ms) => {
+                casting::per_mode_target_requirements(&ms, modes_chosen).unwrap_or(requirements)
+            }
+            None => requirements,
         }
-        None => requirements,
     };
     casting::aura_spell_target_requirements(&eff_chars, requirements)
 }

@@ -45,7 +45,7 @@ use std::collections::HashMap;
 
 use mtg_engine::cards::card_definition::GiftType;
 use mtg_engine::{
-    AbilityDefinition, AdditionalCost, AttackTarget, Effect, EffectChoiceAnswer,
+    AbilityDefinition, AdditionalCost, AltCostKind, AttackTarget, Effect, EffectChoiceAnswer,
     EffectChoiceQuestion, GameState, HybridMana, ManaColor, ManaCost, ModeSelection, ObjectId,
     PhyrexianMana, PlayerId, SpellAdditionalCost, Target, TargetRequirement,
 };
@@ -196,6 +196,26 @@ pub struct ActionOptionView {
     /// two can differ — "up to N target creatures" legally takes fewer.
     pub target_min: usize,
     pub target_max: usize,
+    /// PB-DX44 (`OOS-DX29-12`), CR 702.102a/d: this option's FUSED target slots —
+    /// what [`Self::target_slots`] would be if the human answers this cast's
+    /// `CostPicker` stage with the Fuse marker ticked. `spell_target_requirements`
+    /// with `fuse: true` is a no-op for a spell without the Fuse keyword, so this
+    /// is populated for every `CastSpell` option and equals [`Self::target_slots`]
+    /// (in candidates, not necessarily in count) for the overwhelming majority.
+    ///
+    /// Populated as its OWN field rather than folded into `target_slots`, mirroring
+    /// [`ModeOptionView::target_slots`]'s precedent ("which slots exist depends on
+    /// an earlier stage's answer"): fusing is decided at the `CostPicker` stage,
+    /// and by the time a client reaches `TargetPicker` it already knows whether
+    /// Fuse was ticked (`ActionBar.svelte`'s `resolvedTargetSlots`).
+    ///
+    /// **This closes the hole Stage 1 left open**: before this field existed, a
+    /// human who ticked Fuse was shown the UN-fused (one-target) slot list while
+    /// `casting.rs` demanded the fused (two-target) one — a clean offer followed
+    /// by a guaranteed 422 (SR-38), created by Stage 1 and closed here.
+    pub fused_target_slots: Vec<TargetSlotView>,
+    pub fused_target_min: usize,
+    pub fused_target_max: usize,
     /// CR 107.3 / 601.2b: this action needs an `x_value` announced.
     ///
     /// Answered for **both** `CastSpell` (the spell's own `{X}`) and
@@ -280,6 +300,9 @@ pub struct AdditionalCostsView {
     /// PB-DX29, CR 702.47a: present when this player holds a card that may be spliced
     /// onto this spell.
     pub splice: Option<SpliceCostView>,
+    /// PB-DX44, CR 118.9: present only on the SEPARATE pitch `CastSpell` action --
+    /// `None` on the ordinary cast, whichever spell it is. See [`PitchCostView`].
+    pub pitch: Option<PitchCostView>,
 }
 
 /// PB-DX29, CR 702.56a / CR 702.120a: a rider paid a chosen number of times.
@@ -397,6 +420,31 @@ pub struct SpliceCostView {
     /// The key inside `template`'s single variant object the chosen ids go in —
     /// `"cards"`.
     pub ids_key: String,
+}
+
+/// PB-DX44, CR 118.9 (`OOS-DX29-3`): the offer's pitch descriptor -- present only
+/// on the SEPARATE pitch `CastSpell` action (`ActionOptionView.kind == "CastSpell"`
+/// with `option.costs.pitch.is_some()`), never on the ordinary cast's own
+/// [`AdditionalCostsView`] -- see [`mtg_simulator::legal_actions::
+/// AdditionalCostPlan::pitch`]'s own doc for why Pitch is not a rider on the
+/// ordinary cast.
+#[derive(Debug, Serialize)]
+pub struct PitchCostView {
+    pub prompt: String,
+    /// Cards in this seat's own hand that `casting.rs`'s pitch gate will accept,
+    /// from the provider's own eligible set. Labelled through [`NameIndex`], same
+    /// argument as [`SacrificeCostView::candidates`].
+    pub candidates: Vec<CardOptionView>,
+    pub default: u64,
+    /// `ExileFromHand { card: <default> }` -- see [`SacrificeCostView::template`]
+    /// for why this is sent verbatim rather than reconstructed client-side.
+    pub template: AdditionalCost,
+    /// The key inside `template`'s single variant object the chosen card id goes
+    /// in -- `"card"`. A SCALAR key, unlike [`SacrificeCostView::ids_key`] /
+    /// [`SpliceCostView::ids_key`]: `AdditionalCost::ExileFromHand` carries one
+    /// `ObjectId` field, not a `Vec`, mirroring [`GiftCostView::player_key`]'s
+    /// shape rather than the two array-answered kinds.
+    pub card_key: String,
 }
 
 /// CR 602.2 (SIM-6): one object-naming component of an activated ability's cost.
@@ -1418,7 +1466,23 @@ fn action_label(action: &LegalAction, names: &NameIndex, state: &GameState) -> S
         LegalAction::PassPriority => "Pass priority".to_string(),
         LegalAction::Concede => "Concede".to_string(),
         LegalAction::PlayLand { card: c } => format!("Play {}", card(*c)),
-        LegalAction::CastSpell { card: c, .. } => format!("Cast {}", card(*c)),
+        // PB-DX44 (`OOS-DX29-3`/`-9`): `alt_cost` distinguishes what would otherwise
+        // be up to THREE identical "Cast <name>" buttons for the same card. String
+        // suffixes only -- no new `GameState` read, so the Invariant-7 raw-read gate
+        // (`test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places`)
+        // stays untouched; the RIGHT half's own sub-name (e.g. "Burn" for "Turn //
+        // Burn") would need a registry lookup this file's pinned read count does not
+        // have room for, so the label names the printed card and the half generically
+        // rather than by its own name.
+        LegalAction::CastSpell {
+            card: c, alt_cost, ..
+        } => match alt_cost {
+            Some(AltCostKind::Pitch) => format!("Cast {} via its pitch cost", card(*c)),
+            Some(AltCostKind::SplitRightHalf) => {
+                format!("Cast {} (right half only)", card(*c))
+            }
+            _ => format!("Cast {}", card(*c)),
+        },
         LegalAction::TapForMana { source, .. } => format!("Tap {} for mana", card(*source)),
         LegalAction::ActivateAbility {
             source,
@@ -1662,16 +1726,29 @@ fn mode_label(index: usize, effect: &Effect) -> String {
 /// CR 601.2c: the target requirements this action announces, from the engine's
 /// own query surface — never re-derived here.
 ///
-/// `modes_chosen` is `&[]` and `alt_cost` is `None` because that is exactly what
+/// `modes_chosen` is `&[]` because that is exactly what
 /// `mtg_simulator::params::action_to_command_with_params` builds the `Command`
-/// with for these two variants: it passes `alt_cost: None` unconditionally, and
-/// forwards `params.modes_chosen`, which is empty at render time (the human has
-/// not answered yet). Any other pair of arguments here would advertise a target
-/// set for a cast the client cannot actually make.
+/// with for `CastSpell`: it forwards `params.modes_chosen`, which is empty at
+/// render time (the human has not answered yet). Any other value here would
+/// advertise a target set for a cast the client cannot actually make.
+///
+/// **`alt_cost` is READ FROM THE ACTION as of PB-DX44 (`OOS-DX29-9`), not hard-
+/// coded.** This doc used to say `params.rs` hard-codes `alt_cost: None`
+/// unconditionally; PB-DX44 made that sentence false — `LegalAction::CastSpell`
+/// now carries its OWN `alt_cost` (Pitch and SplitRightHalf are each a separate
+/// action from the ordinary cast, not a client-chosen param), and `params.rs`
+/// forwards it verbatim. Reading `None` here for a right-half-only action would
+/// surface the printed card's FLAT (left-half) target list while `casting.rs`
+/// demands the right half's — the exact SR-38 defect Stage 2b exists to close.
 fn action_target_requirements(action: &LegalAction, state: &GameState) -> Vec<TargetRequirement> {
     match action {
-        LegalAction::CastSpell { card, .. } => {
-            mtg_engine::spell_target_requirements(state, *card, &[], None)
+        // `fuse: false`, same reasoning as `modes_chosen: &[]` above: the human has
+        // not decided whether to fuse at render time (`params.rs` builds the
+        // `Command` with whatever `AdditionalCost::Fuse` the client separately submits
+        // in its `additional_costs`, which this render precedes). See
+        // `action_option_view`'s `fused_target_slots` for the FUSED case.
+        LegalAction::CastSpell { card, alt_cost, .. } => {
+            mtg_engine::spell_target_requirements(state, *card, &[], *alt_cost, false)
         }
         LegalAction::ActivateAbility {
             source,
@@ -2002,6 +2079,30 @@ fn additional_costs_view(
         ids_key: "cards".to_string(),
     });
 
+    // PB-DX44, CR 118.9: present only on the SEPARATE pitch `CastSpell` action --
+    // `plan.pitch` is `None` on the ordinary cast, whichever spell it is (see
+    // `AdditionalCostPlan::pitch`'s own doc).
+    let pitch = plan.pitch.as_ref().and_then(|p| {
+        // The provider guarantees a non-empty eligible set, but a template needs a
+        // concrete card id and an `expect` here would be a panic in a request
+        // handler -- same defensive shape as `gift` above.
+        let default = p.eligible.first().copied()?;
+        Some(PitchCostView {
+            prompt: pitch_prompt(p),
+            candidates: p
+                .eligible
+                .iter()
+                .map(|id| CardOptionView {
+                    id: id.0,
+                    label: names.label(*id),
+                })
+                .collect(),
+            default: default.0,
+            template: AdditionalCost::ExileFromHand { card: default },
+            card_key: "card".to_string(),
+        })
+    });
+
     // PB-DX29: "is there anything to ask?", asked of the BUILT views rather than of the
     // plan. Forgetting a family here is invisible — the picker simply never opens and the
     // rider is silently lost, which is `OOS-UI2-4`'s exact symptom, so the list is
@@ -2012,6 +2113,7 @@ fn additional_costs_view(
         && markers.is_empty()
         && gift.is_none()
         && splice.is_none()
+        && pitch.is_none()
     {
         return None;
     }
@@ -2022,7 +2124,9 @@ fn additional_costs_view(
         // hard-coded "CR 118.8 / CR 702.157" for every cast, which after this batch would
         // have cited a required sacrifice and Squad on a spell whose only rider is
         // Replicate, Gift or Splice — two rules that have nothing to do with it.
-        prompt: cast_cost_prompt(&sacrifice, &squad, &counts, &markers, &gift, &splice),
+        prompt: cast_cost_prompt(
+            &sacrifice, &squad, &counts, &markers, &gift, &splice, &pitch,
+        ),
         sacrifice,
         squad,
         activation_sacrifice: None,
@@ -2031,7 +2135,51 @@ fn additional_costs_view(
         markers,
         gift,
         splice,
+        pitch,
     })
+}
+
+/// PB-DX44, CR 118.9: the pitch panel's prompt, composed from the printed
+/// non-mana cost components -- life payment and/or an exiled colour -- rather
+/// than a hard-coded sentence, so Force of Will's "pay 1 life and exile a blue
+/// card" and Misdirection's plain "exile a blue card" read correctly from the
+/// SAME function.
+fn pitch_prompt(p: &mtg_simulator::legal_actions::PitchCostOption) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    for c in &p.costs {
+        match c {
+            mtg_engine::Cost::PayLife(n) => parts.push(format!("pay {n} life")),
+            mtg_engine::Cost::ExileFromHand { color } => parts.push(format!(
+                "exile a {} card from your hand",
+                color_word(*color)
+            )),
+            _ => {}
+        }
+    }
+    let body = if parts.is_empty() {
+        "pay this spell's alternative cost".to_string()
+    } else {
+        parts.join(" and ")
+    };
+    let restriction = if p.opponents_turn_only {
+        " -- only when it isn't your turn"
+    } else {
+        ""
+    };
+    format!("You may {body} rather than pay this spell's mana cost (CR 118.9){restriction}")
+}
+
+/// PB-DX44: the printed colour word for a pitch cost's `Color` component.
+/// Exhaustive with **no wildcard arm**, same rule as [`gift_label`]: a sixth
+/// `Color` variant must be named here or the crate stops compiling.
+fn color_word(color: mtg_engine::Color) -> &'static str {
+    match color {
+        mtg_engine::Color::White => "white",
+        mtg_engine::Color::Blue => "blue",
+        mtg_engine::Color::Black => "black",
+        mtg_engine::Color::Red => "red",
+        mtg_engine::Color::Green => "green",
+    }
 }
 
 /// PB-DX29: the panel header, naming the rules the offer on screen actually invokes.
@@ -2047,6 +2195,7 @@ fn cast_cost_prompt(
     markers: &[MarkerCostView],
     gift: &Option<GiftCostView>,
     splice: &Option<SpliceCostView>,
+    pitch: &Option<PitchCostView>,
 ) -> String {
     let mut cites: Vec<&str> = Vec::new();
     if sacrifice.is_some() {
@@ -2074,10 +2223,18 @@ fn cast_cost_prompt(
     if splice.is_some() {
         cites.push("CR 702.47a");
     }
+    if pitch.is_some() {
+        cites.push("CR 118.9");
+    }
     // A required sacrifice is the only one of these a player cannot decline, so the
-    // header says "must" only when one is present.
+    // header says "must" only when one is present. Pitch is its own third phrasing:
+    // it REPLACES the mana cost rather than adding to it (CR 118.9a), so "additional
+    // cost" would be the wrong rule for the one block that can appear alone here
+    // (`offerable_pitch_plan` never combines it with any other family today).
     let verb = if sacrifice.is_some() {
         "This spell has an additional cost to cast"
+    } else if pitch.is_some() {
+        "This spell may be cast via an alternative cost instead of its mana cost"
     } else {
         "This spell has optional additional costs you may pay"
     };
@@ -2158,6 +2315,9 @@ fn activation_costs_view(
         markers: Vec::new(),
         gift: None,
         splice: None,
+        // PB-DX44: Pitch is CAST-side too (CR 118.9), and only ever present on the
+        // separate pitch `CastSpell` action -- see the comment above.
+        pitch: None,
     })
 }
 
@@ -2920,6 +3080,21 @@ fn action_option_view(
 
     let target_slots = slots(&requirements);
 
+    // PB-DX44 (`OOS-DX29-12`), CR 702.102a/d: the FUSED requirement list --
+    // `fuse: true` is a no-op for any card without the Fuse keyword (`casting_
+    // with_fuse`'s own gate), so this is safe and cheap to compute unconditionally
+    // for every `CastSpell` option and stays empty for every other action kind.
+    // See `ActionOptionView::fused_target_slots`'s own doc for why this is a
+    // SEPARATE field rather than folded into `target_slots` above.
+    let fused_requirements = match action {
+        LegalAction::CastSpell { card, .. } => {
+            mtg_engine::spell_target_requirements(state, *card, &[], None, true)
+        }
+        _ => Vec::new(),
+    };
+    let (fused_target_min, fused_target_max) = mtg_engine::target_count_range(&fused_requirements);
+    let fused_target_slots = slots(&fused_requirements);
+
     // CR 700.2a/700.2c. A modal action's per-mode target requirements are only
     // knowable once the modes are chosen, and the human has not chosen yet, so
     // each mode carries its own slots and the client picks the ones for the modes
@@ -2971,6 +3146,9 @@ fn action_option_view(
         target_slots,
         target_min,
         target_max,
+        fused_target_slots,
+        fused_target_min,
+        fused_target_max,
         needs_x: action_needs_x(action, state),
         modes,
         mode_min,

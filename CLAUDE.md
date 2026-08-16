@@ -61,7 +61,10 @@
   abilities — OOS-DX27-1 + OOS-DX27-10, live-wrong on 3 deck-legal `Complete` format staples);
   **not** PB-DX18, which sits at v4 rank 10;
   **↻ PB-DX43 SHIPPED** (`scutemob-213`, 2026-08-14; v4 rank 1 — **OOS-DX27-1** and
-  **OOS-DX27-10** both CLOSED). **Next dispatch: PB-DX44** (v4 rank 2).
+  **OOS-DX27-10** both CLOSED);
+  **↻ PB-DX44 SHIPPED** (`scutemob-215`, 2026-08-15; v4 rank 2 — **OOS-DX29-9**, **OOS-DX29-12**
+  and **OOS-DX29-14** CLOSED, **OOS-DX29-3** NARROWED: its pitch half closed, its graveyard half
+  deferred-and-measured). **Next dispatch: PB-DX15a** (v4 rank 3); ranks 1-2 both shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -170,6 +173,30 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-08-15, PB-DX44 + `/review` fix cycle)**: **4,797 / 0 / 5** full-workspace on
+  branch `scutemob-215` (+44 over the **4,753** baseline, measured on this branch BEFORE any edit
+  and reproducing PB-DX43's close pin exactly), `--workspace --no-fail-fast` to a file, **53**
+  result-producing targets (50 → 53: three new test binaries), residual list empty.
+  **Delta itemised by test NAME**, by set-diffing the two run logs: **45 additions, 1 RENAME,
+  0 removals** — 10 in the new `crates/engine/tests/core/pb_dx44_uncastable_roster.rs` (r1-r9 +
+  `t_census_report`), 8 in the new `crates/engine/tests/rules/pb_dx44_split_half_cast.rs`, 7 in the
+  new `crates/simulator/tests/pb_dx44_pitch_channel.rs` (T1-T7), 6 in the new
+  `crates/simulator/tests/pb_dx44_spree_mode_costs.rs`, 4 in the new
+  `crates/engine/tests/rules/pb_dx44_fuse_targets.rs`, 4 in `tools/play-server/src/main.rs`'s
+  `#[cfg(test)]` module, 3 in the new `crates/simulator/tests/pb_dx44_split_half_channel.rs`, and 1
+  the rename's successor. **The rename is disclosed rather than netted out**:
+  `p1e_fuse_is_suppressed_while_its_right_half_targets_cannot_be_announced` became
+  `p1e_fuse_is_offered_and_its_target_count_matches_what_the_cast_validates` — same file, subject
+  **inverted**, because the suppression it pinned is what this batch deleted. "+44 with zero
+  removals" would have been a true number hiding a real edit.
+  **PROTOCOL 37 → 38 / HASH 76 → 77**, both taken from the failing gates' own output and both
+  **predicted in writing before any code changed**; the stop-condition (a gate moving in a way the
+  half selector does not explain, or not moving at all) never fired. History rows appended, never
+  edited; frozen-prefix digests re-pinned; `history_is_append_only` and `frozen_prefix_is_pinned`
+  green. ONE wire bump for the whole PB — stages 1 and 2b each gate-verified unmoved.
+  Coverage **1,136/1,803 = 63.0%** by regeneration, **0 flips** as predicted, self-dating churn
+  reverted. `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs).
 - **Tests (delta 2026-08-14, PB-DX43 + `/review` fix cycle)**: **4,753 / 0 / 5** full-workspace on
   branch `scutemob-213` (+32 over the **4,721** baseline, measured on this branch BEFORE any edit
   and reproducing PB-DX29's close pin exactly), `--workspace --no-fail-fast` to a file, **50**
@@ -550,7 +577,60 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-14 — **PB-DX43 SHIPPED** (`scutemob-213`; v4 queue rank 1 —
+- **Last Updated**: 2026-08-15 — **PB-DX44 SHIPPED** (`scutemob-215`; v4 queue rank 2 —
+  **OOS-DX29-9**, **OOS-DX29-12** and **OOS-DX29-14** CLOSED, **OOS-DX29-3** NARROWED).
+  **Seven deck-legal `Complete` defs could not be cast as printed, and one could not be cast at
+  all.** Four halves, one wire bump.
+  **The Spree half is PB-DX29's own headline one enum over.** `casting.rs` charges
+  `ModeSelection.mode_costs`; `legal_actions::effective_cast_cost_with_additional` — the function
+  `LocalGame::auto_tap_commands_for` asks how much mana to tap — modelled none, so
+  `insatiable_avarice` was `InsufficientMana` from **every** channel. **The fix is not the
+  arithmetic, it is the argument**: `auto_tap_commands_for` must pass `&cast.modes_chosen`
+  *verbatim off the `Command` it is about to apply*, which is the same value for the human path
+  and the bot path. `&[]` there is the obvious first draft and leaves the defect alive on both —
+  proven, that one substitution reddens three end-to-end probes. The mirror also needed a clause
+  the seed never mentions (entwine charges **every** mode, not the chosen ones).
+  **The fuse half shipped an SR-38 defect in its first draft and the coordinator caught it.**
+  Concatenating CR 702.102d's targets in the shared `card_def_target_requirements` is correct and
+  **deleting the offer suppression is not the same as making the offer honest**: `view.rs` passed
+  `fuse: false` and `ActionBar`'s stage order is `ValuePrompt → CostPicker → TargetPicker`, so a
+  human ticked Fuse and was then asked for **one** target while the engine demanded **two**. A
+  clean offer followed by a guaranteed 422 — exactly what PB-DX29 gated the offer to avoid,
+  recreated by the batch fixing it. The probe that missed it compared `fuse: true` against
+  `fuse: false` on the query: **both assertions true, neither about the channel.**
+  **The half selector is `AltCostKind::SplitRightHalf`, not a 16th `CastSpellData` field** —
+  that struct has no `Default` and **793** sites list every field, and `AltCostKind` already
+  carries `Aftermath`, literally *"cast the other half of a split card"*. **Its risk was never the
+  cost arm**: a right half declares a **globally offset** `DeclaredTarget` index, correct only for
+  a fused cast, so cast alone it resolves **at nothing** — silent wrong game state, not a refusal.
+  `resolution.rs` pads the effect **context** by the left half's declared count, after the
+  `is_target_legal` filter and never on `stack_obj.targets` (which CR 608.2b fizzling reads and
+  `TargetsAnnounced` publishes). **Population is 3, not the seed's 2**: `connive_concoct`'s right
+  half is as uncastable as Burn and Tear, it merely cannot fuse.
+  **The pitch half was one line.** `params.rs` hard-coded `alt_cost: None`, so `casting.rs`'s
+  pitch payment path — shipped in PB-AC5 — was unreachable by construction. Two affordability
+  traps had to be dodged: a pitch cast costs `{0}` and Force of Will's whole point is casting it
+  when you *cannot* afford `{3}{U}{U}`, and `Turn // Burn`'s printed cost is the LEFT half's.
+  **PROTOCOL 37 → 38 / HASH 76 → 77**, both gate-computed and **both predicted in writing before
+  any code changed** — the v4 memo's cell predicted PROTOCOL only and was short by the HASH half.
+  **The batch corrected itself four times by execution, which is the durable half.** Its census
+  asserted pitch = 5 from a **source grep**; the `all_cards()` walk refuted it (`force_of_despair`
+  mentions `AltCostKind::Pitch` in a *comment*) — SR-36's exact failure, inside the census written
+  to obey SR-36. `OOS-DX29-13`'s own prescribed fix (assert `card_name_to_id(name) == card_id`)
+  **fails on 50 defs in four classes**, so it ships as a pinned floor and the row's prescription is
+  corrected. A probe doc claimed Misdirection was "the only pitch member with no life component";
+  making life mandatory reddened **four** tests — `force_of_will` is the only one that *pays* it.
+  And `OOS-DX44-4`'s first draft said "a **fused** spell's target indices shift", until the
+  ordinary cast path showed the identical `filter`-then-positional-`get`: **where a defect is
+  noticed is not where it lives**, and the measured candidate population is **7** deck-legal
+  `Complete` defs, not 2.
+  Tests **4,797 / 0 / 5** (+44 over the 4,753 pre-edit baseline, **53** targets), itemised by NAME:
+  **45 additions, 1 rename, 0 removals** — the rename (`p1e`) is the one the criterion mandated and
+  is stated rather than netted out. Coverage unmoved **1,136/1,803 = 63.0%**, **0 flips**, churn
+  reverted. `clippy --workspace --all-targets -D warnings`, `cargo fmt --check` and
+  `tools/check-defs-fmt.sh` (1,803 defs) all clean. Filed **OOS-DX44-1..5**. Full record:
+  `memory/primitives/pb-DX44-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-08-14 — **PB-DX43 SHIPPED** (`scutemob-213`; v4 queue rank 1 —
   **OOS-DX27-1** and **OOS-DX27-10** both CLOSED). **A rule the engine had never derived, on cards
   that print no text for it.** CR 305.6 gives any object with the land card type and a basic land
   type the intrinsic `{T}: Add [symbol]`; `Characteristics.mana_abilities` was written from four

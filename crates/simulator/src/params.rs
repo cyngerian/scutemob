@@ -315,6 +315,7 @@ pub fn action_to_command_with_params(
         LegalAction::CastSpell {
             card,
             additional_costs: plan,
+            alt_cost,
             ..
         } => Ok(Command::CastSpell(Box::new(CastSpellData {
             player,
@@ -324,7 +325,12 @@ pub fn action_to_command_with_params(
             improvise_artifacts: Vec::new(),
             delve_cards: Vec::new(),
             kicker_times: 0,
-            alt_cost: None,
+            // PB-DX44 (`OOS-DX29-3`/`-9`): the action's OWN judgment, forwarded
+            // verbatim -- Pitch and SplitRightHalf are each a separate `CastSpell`
+            // action from the ordinary cast (`LegalAction::CastSpell::alt_cost`'s
+            // own doc), not a client-supplied param, so there is nothing on
+            // `params` to read here.
+            alt_cost: *alt_cost,
             prototype: false,
             // CR 601.2b/700.2a (PB-DP3): announce the caller's modes if given, else
             // fall back to the deterministic first-`min_modes` default (a no-op for
@@ -342,7 +348,11 @@ pub fn action_to_command_with_params(
             // `merge_required_additional_costs`'s own doc for why this keeps a bot's
             // cast of a mandatory-sacrifice spell engine-legal (SR-38) while never
             // overwriting a human's explicit choice.
-            additional_costs: merge_required_additional_costs(plan, &params.additional_costs),
+            additional_costs: merge_required_additional_costs(
+                plan,
+                &params.additional_costs,
+                *alt_cost,
+            ),
             // KNOWN GAP: unlike `TapForMana`/`ActivateAbility`, `LegalAction::CastSpell`
             // carries no provider-resolved hybrid/Phyrexian payment plan, so there is
             // nothing to forward here. Empty is the documented default: each hybrid
@@ -769,28 +779,50 @@ pub fn action_to_command_with_params(
 /// Squad is NEVER defaulted here: absent means declined (`count: 0`), which is what
 /// the engine already does, and is what keeps a bot's command byte-identical to the
 /// pre-UI-2 one on every non-sacrifice spell.
+/// `alt_cost` (PB-DX44, `OOS-DX29-3`): the action's own alt cost, threaded so this
+/// function can ALSO default a pitch cast's exiled card the same way it defaults a
+/// required sacrifice -- a bot (or a human who submitted no `ExileFromHand`) still
+/// needs SOME legal card named, or `casting.rs`'s pitch gate refuses the cast
+/// outright ("no card was chosen to exile from hand", CR 118.9).
 fn merge_required_additional_costs(
     plan: &legal_actions::AdditionalCostPlan,
     announced: &[AdditionalCost],
+    alt_cost: Option<AltCostKind>,
 ) -> Vec<AdditionalCost> {
-    let already_announced = announced
+    let mut merged = announced.to_vec();
+
+    let sacrifice_announced = announced
         .iter()
         .any(|c| matches!(c, AdditionalCost::Sacrifice { .. }));
-    if already_announced {
-        return announced.to_vec();
+    if !sacrifice_announced {
+        if let Some(sacrifice) = &plan.sacrifice {
+            // CR 608.2b/608.2h/608.2i: `lki` is deliberately empty --
+            // `casting.rs:4269-4285` PATCHES it from the layer-resolved
+            // characteristics captured before the zone move. A client-supplied
+            // (or here, bot-default) `lki` would be a second opinion about LKI.
+            merged.push(AdditionalCost::Sacrifice {
+                ids: vec![sacrifice.default],
+                lki: vec![],
+            });
+        }
     }
-    let Some(sacrifice) = &plan.sacrifice else {
-        return announced.to_vec();
-    };
-    let mut merged = announced.to_vec();
-    // CR 608.2b/608.2h/608.2i: `lki` is deliberately empty -- `casting.rs:4269-4285`
-    // PATCHES it from the layer-resolved characteristics captured before the zone
-    // move. A client-supplied (or here, bot-default) `lki` would be a second
-    // opinion about LKI.
-    merged.push(AdditionalCost::Sacrifice {
-        ids: vec![sacrifice.default],
-        lki: vec![],
-    });
+
+    // PB-DX44, CR 118.9: the pitch cast's exiled card, mirroring the sacrifice
+    // default above -- same "match on the variant, not on emptiness" rule, and
+    // same "a human's explicit choice is never overwritten" guarantee.
+    if alt_cost == Some(AltCostKind::Pitch) {
+        let pitch_announced = announced
+            .iter()
+            .any(|c| matches!(c, AdditionalCost::ExileFromHand { .. }));
+        if !pitch_announced {
+            if let Some(pitch) = &plan.pitch {
+                merged.push(AdditionalCost::ExileFromHand {
+                    card: pitch.default,
+                });
+            }
+        }
+    }
+
     merged
 }
 
