@@ -156,3 +156,67 @@ or DEFERRED with a reason written into its registry row. Nothing is left implici
 | **`OOS-DX29-17`** (an over-announced escalate count is charged in full, clamped in effect) | **DEFERRED** | Same 0-member population. The fix is a clamp in `casting.rs`'s escalate charge, adjacent to but not inside the mode-cost region this batch touches, and it would move an engine charge with no member to prove it on. |
 | **`OOS-DX29-6`** (four mechanics share one `Sacrifice` entry with no arbitration) | **DEFERRED** to PB-DX57 | Nothing in this batch reads `AdditionalCost::Sacrifice`. |
 | **`OOS-DX29-15`** (`casting.rs` and `resolution.rs` make the entwine decision from two sources) | **DEFERRED** to PB-DX57 | This batch *does* mirror `casting.rs`'s entwine branch into the mode-cost arm — but that mirror is a third reader of the same decision only in the sense that the auto-tap now agrees with the charge, which is the defect being fixed rather than a new instance of `-15`. The `casting.rs`/`resolution.rs` divergence is untouched and still latent. |
+
+---
+
+## 4. Stage 1 — Spree mode costs, and CR 702.102d fuse targets
+
+Commit `0a14c42c`. **PROTOCOL 37 / HASH 76 both gate-executed and UNMOVED**, exactly as §1
+predicted for these two halves.
+
+### 4.1 `OOS-DX29-14` — the eighth site of PB-DX29's own seven
+
+`effective_cast_cost_with_additional` gains `modes_chosen: &[usize]` and charges
+`ModeSelection.mode_costs`, mirroring `casting.rs:2940-2991` clause for clause — **including
+the `entwine_paid` override that charges EVERY mode rather than the chosen ones**, which a
+mirror written from the seed's one-sentence description would have missed.
+
+**The load-bearing link is not the arithmetic, it is the argument.** `auto_tap_commands_for`
+passes `&cast.modes_chosen` **verbatim off the `Command` it is about to apply**, which is the
+same value for the human path (`submit`) and the bot path (`advance`, where `params.rs` has
+already substituted `spell_default_modes`). Passing `&[]` there — the obvious first draft, since
+the caller is "just funding a cast" — leaves the defect alive on both paths, and the revert row
+proves it: that one substitution reddens three end-to-end probes with `InsufficientMana`. This is
+PB-DX29's own lesson arriving one function over: *the function auto-tap asks is where the defect
+lives, and the brief that names only the arithmetic has named half of it.*
+
+`insatiable_avarice`, the only deck-legal `Complete` Spree def and previously uncastable from
+**every** channel, now casts — proven by resolution effect (mode 1 makes a player draw 3 and lose
+3 life) rather than by the offer.
+
+**The hybrid/Phyrexian omission is mirrored deliberately** and the Spree arm is recorded as a
+**ninth** member of `OOS-DX29-4`'s undercharge class (§3). A provider that "corrected" the engine
+here would over-tap, fail to spend the surplus, and turn a silent undercharge into a visible
+refusal — the trade the existing rider arms already document.
+
+### 4.2 `OOS-DX29-12` — one derivation, two consumers
+
+`card_def_target_requirements` — the function `handle_cast_spell` and
+`queries::spell_target_requirements` **share** so they cannot drift — appends the
+`AbilityDefinition::Fuse { targets }` after the left half's, preserving the global index contract
+`resolution.rs:338-345` documents. `legal_actions::fused_right_half_declares_targets` and its
+suppression site are DELETED with their mechanism, per the PB-DX20/PB-DX21 precedent.
+
+**The SR-5 keyword registry caught `queries.rs` as an unregistered `Fuse` handling site on the
+first full run** — the third consecutive batch in which that gate finds what static reading of
+the brief missed (PB-DX20's `queries.rs`/Enchant, PB-DX23's `queries.rs`/Dredge, now this).
+
+### 4.3 The hole Stage 1 left, found by the coordinator and not by Stage 1's own gate
+
+**Deleting the suppression is not the same as making the offer honest, and the difference is a
+guaranteed 422.** `view.rs::action_target_requirements` calls
+`spell_target_requirements(state, card, &[], None, **false**)`, and `ActionBar.svelte`'s
+`resolvedTargetSlots` returns that static list for any card without per-mode targeting. The
+browser's stage order is `ValuePrompt` → `CostPicker` → `TargetPicker`, so a human ticks Fuse in
+stage 2 and is then asked in stage 3 for **one** target while `casting.rs` now demands **two**.
+Clean offer, server rejection — **the exact SR-38 defect this batch exists to delete, created by
+this batch**, which is what PB-DX29 recorded about itself when it chose to gate the offer instead.
+
+Stage 1's own `t4` does not catch it, and the reason is worth naming: it asserts
+`spell_target_requirements(.., fuse: true).len() == 2` and
+`(.., fuse: false).len() == 1`. **Both are true, and neither is about the channel** — nothing on
+the browser path ever passes `true`. *A differential between two arguments of one function proves
+the function, not the caller.* PB-DX20's durable lesson, in the file that cites it.
+
+Closed in Stage 2b together with the pitch and half-selector client work, since all three need the
+same offer-side plumbing.
