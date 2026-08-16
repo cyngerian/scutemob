@@ -698,3 +698,60 @@ fn r8_deck_legal_escape_population_is_zero() {
          `OOS-DX29-3` registry row before adding a graveyard cast loop."
     );
 }
+
+/// **R9 (report)** — the population exposed to `OOS-DX44-4`: deck-legal `Complete`
+/// defs whose flat `AbilityDefinition::Spell` declares **two or more** targets.
+///
+/// `resolution.rs` builds its effect context as
+/// `stack_obj.targets.iter().filter(|t| is_target_legal(state, t))` and
+/// `effects/mod.rs:7937` then resolves `DeclaredTarget { index }` as
+/// `ctx.targets.get(idx)` — a positional index into the **filtered** vector. So
+/// under CR 608.2b partial legality (one announced target becomes illegal in
+/// response, the spell still resolves doing as much as it can), every target
+/// behind the removed one slides down one slot and the effects addressing them
+/// hit the WRONG object, or nothing.
+///
+/// This was found while designing PB-DX44's right-half index padding, which
+/// pads AFTER the same filter precisely so it does not inherit the bug. It is
+/// **pre-existing and not fuse-specific** — the batch's first draft of
+/// `OOS-DX44-4` said "a fused spell's", which is where it was noticed, not where
+/// it lives. This report is what corrected that row: the same filter-then-index
+/// pattern is on the ordinary spell path.
+///
+/// A report rather than a gate, deliberately: the fix is a positional target
+/// model that survives filtering, and pinning a number here would imply this
+/// batch had scoped that. Run with `--nocapture`.
+#[test]
+fn r9_multi_target_population_report() {
+    let defs = mtg_engine::all_cards();
+    let mut multi: Vec<(String, usize)> = Vec::new();
+    for def in &defs {
+        if !def.completeness.is_complete() {
+            continue;
+        }
+        let n = def
+            .abilities
+            .iter()
+            .find_map(|a| match a {
+                AbilityDefinition::Spell { targets, .. } => Some(targets.len()),
+                _ => None,
+            })
+            .unwrap_or(0);
+        if n >= 2 {
+            multi.push((def.name.clone(), n));
+        }
+    }
+    multi.sort();
+    println!(
+        "\n=== OOS-DX44-4 exposure: {} deck-legal `Complete` defs declare >=2 flat spell targets ===",
+        multi.len()
+    );
+    for (name, n) in &multi {
+        println!("  {n} targets  {name}");
+    }
+    assert!(
+        !multi.is_empty(),
+        "non-vacuity: if no deck-legal def declares two flat targets, `OOS-DX44-4`'s \
+         ordinary-spell half has no member and the row must say so"
+    );
+}
