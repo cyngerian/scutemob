@@ -691,7 +691,7 @@ fn validate_decision_params(
 /// response the client is holding*, with no game state needed to see it — this
 /// crate's own definition of a 400.
 ///
-/// # Nine of `AdditionalCost`'s FIFTEEN variants are surfaced
+/// # Ten of `AdditionalCost`'s FIFTEEN variants are surfaced
 ///
 /// **The count in this heading was wrong until PB-DX29 and the correction is worth
 /// keeping**: the enum has **15** variants, not sixteen, and Kicker is not one of them
@@ -699,10 +699,11 @@ fn validate_decision_params(
 /// named a variant that does not exist.
 ///
 /// UI-2 rendered a picker for `Sacrifice` and `Squad`. PB-DX29 added `Replicate`,
-/// `EscalateModes`, `Entwine`, `Fuse`, `Offspring`, `Gift` and `Splice`, so this
-/// function now speaks for **nine**.
+/// `EscalateModes`, `Entwine`, `Fuse`, `Offspring`, `Gift` and `Splice`; PB-DX44 added
+/// `ExileFromHand` (CR 118.9, the pitch alt cost's exiled card), so this function now
+/// speaks for **ten**.
 ///
-/// The remaining six fall through to `Ok(())` and are judged, if at all, by the
+/// The remaining five fall through to `Ok(())` and are judged, if at all, by the
 /// **engine's** 422 — and every one of them has a stated reason rather than being
 /// residue:
 ///
@@ -712,9 +713,10 @@ fn validate_decision_params(
 ///   human spend another's floating mana without asking.
 /// * `CollectEvidenceExile` — reachable but has zero deck-legal members, and is the
 ///   only kind whose mandatory/optional status is a per-def flag.
-/// * `Discard` (Retrace / Jump-Start), `EscapeExile`, `ExileFromHand` — **unreachable
-///   by construction**: `StubProvider`'s cast loops walk Hand and Command zone only
-///   (no graveyard), and `params.rs` hard-codes `alt_cost: None`.
+/// * `Discard` (Retrace / Jump-Start), `EscapeExile` — **unreachable by construction**:
+///   `StubProvider`'s cast loops walk Hand and Command zone only (no graveyard), and
+///   `params.rs` hard-codes `alt_cost: None` for every OTHER `AltCostKind` this
+///   provider can offer.
 ///
 /// The rule this function still obeys is unchanged: it can only speak authoritatively
 /// about kinds it renders an offer for. A check written against no offer is a check
@@ -1022,9 +1024,28 @@ pub(crate) fn validate_additional_cost_params(
                     }
                 }
             }
+            // PB-DX44, CR 118.9 (`OOS-DX29-3`): the pitch alt cost's exiled card.
+            // Same shape as `Sacrifice` above -- exactly one id, and it must be
+            // among the cards this decision's `pitch` offer accepted.
+            AdditionalCost::ExileFromHand { card } => {
+                let Some(pitch) = plan.pitch.as_ref() else {
+                    return Err(bad(
+                        "CR 118.9: this spell has no pitch alt cost to pay".to_string()
+                    ));
+                };
+                if !pitch.eligible.contains(card) {
+                    return Err(bad(format!(
+                        "card {} is not among the cards this pitch offer accepted \
+                         (CR 118.9); this decision offered {:?}",
+                        card.0,
+                        pitch.eligible.iter().map(|o| o.0).collect::<Vec<_>>()
+                    )));
+                }
+            }
+
             // **PB-DX29 `/review` M1: DEFAULT-DENY, not default-allow.**
             //
-            // This arm was `_ => {}` — a fall-through that let the six unrendered kinds
+            // This arm was `_ => {}` — a fall-through that let the unrendered kinds
             // reach the engine unchecked. The doc above argued that Assist is safe
             // because PB-DX29 "deliberately did not surface" it; **not surfacing closes
             // the picker and does not close the wire.** Proven by execution during the
@@ -1036,8 +1057,8 @@ pub(crate) fn validate_additional_cost_params(
             //
             // Refusing here is exactly this function's own stated rule: an answer naming
             // something *this decision never offered* is wrong against the payload the
-            // client is holding, with no game state needed to see it. None of the six is
-            // ever rendered, so none of them is ever an offer.
+            // client is holding, with no game state needed to see it. None of the five
+            // below is ever rendered, so none of them is ever an offer.
             // The three marker arms above are `if !marker_is_affordable(..)` GUARDS, so a
             // marker the plan DID offer and DID call payable falls through them. These
             // three arms accept it. (A first draft of the default-deny below omitted
@@ -1046,8 +1067,9 @@ pub(crate) fn validate_additional_cost_params(
             // precisely so a blanket refusal cannot masquerade as a check.)
             AdditionalCost::Entwine | AdditionalCost::Fuse | AdditionalCost::Offspring => {}
 
-            // **PB-DX29 `/review` M1: the six unsurfaced kinds are NAMED and REFUSED,
-            // not waved through.**
+            // **PB-DX29 `/review` M1: the unsurfaced kinds are NAMED and REFUSED,
+            // not waved through.** PB-DX44 removed `ExileFromHand` from this list
+            // (it is surfaced now, above) without widening it back to six.
             //
             // This was `_ => {}` — a fall-through that let them reach the engine
             // unchecked. The doc above argued Assist is safe because PB-DX29
@@ -1059,19 +1081,18 @@ pub(crate) fn validate_additional_cost_params(
             // P2 ever being asked (CR 702.132a). Every argument in that doc about why a
             // kind is deferred is an argument about the PICKER; this is the wire.
             //
-            // Written as six NAMED arms rather than a wildcard, so a sixteenth
+            // Written as five NAMED arms rather than a wildcard, so a sixteenth
             // `AdditionalCost` variant is a compile error here — which is the class
             // `OOS-UI2-4` describes: a kind arriving with nobody noticing.
             AdditionalCost::Assist { .. }
             | AdditionalCost::Mutate { .. }
             | AdditionalCost::Discard(_)
             | AdditionalCost::EscapeExile { .. }
-            | AdditionalCost::CollectEvidenceExile { .. }
-            | AdditionalCost::ExileFromHand { .. } => {
+            | AdditionalCost::CollectEvidenceExile { .. } => {
                 return Err(bad(format!(
                     "this decision offered no such additional cost, so it cannot be \
-                     answered: {}. PB-DX29 surfaces nine of `AdditionalCost`'s fifteen \
-                     kinds; the other six are deferred with a stated reason each (see \
+                     answered: {}. PB-DX44 surfaces ten of `AdditionalCost`'s fifteen \
+                     kinds; the other five are deferred with a stated reason each (see \
                      `validate_additional_cost_params`' doc) and are refused here rather \
                      than forwarded to the engine unchecked",
                     cost_kind_name(cost)
@@ -1106,7 +1127,7 @@ pub(crate) fn validate_additional_cost_params(
     // pair the provider's own bounds walk, so this cannot disagree with them and
     // inherits their stated `OOS-UI2-3` under-report and no new one.
     if !params.additional_costs.is_empty() {
-        if let LegalAction::CastSpell { card, .. } = action {
+        if let LegalAction::CastSpell { card, alt_cost, .. } = action {
             // **Fails OPEN when the cost cannot be computed at all**, and that is the
             // correct direction rather than a convenience.
             // `effective_cast_cost_with_additional` returns `None` for a card this state
@@ -1123,6 +1144,12 @@ pub(crate) fn validate_additional_cost_params(
                 // spell's mode costs are part of what this boundary must judge, same
                 // reason `additional_costs` is here at all.
                 &params.modes_chosen,
+                // PB-DX44 (`OOS-DX29-3`): the OFFER's own alt cost -- a pitch cast's
+                // ExileFromHand answer makes `params.additional_costs` non-empty and
+                // reaches this branch, and without this the cost read here would be
+                // the printed mana cost Pitch never pays, wrongly refusing an
+                // affordable pitch as "not payable on top of the spell's own cost".
+                *alt_cost,
             ) {
                 if !mtg_simulator::legal_actions::can_afford(state, player, &cost) {
                     return Err(bad(
@@ -1284,6 +1311,13 @@ const DUPLICABLE_COST_KINDS: &[(&str, &str, fn(&mtg_engine::AdditionalCost) -> b
     }),
     ("splice", "CR 702.47a", |c| {
         matches!(c, mtg_engine::AdditionalCost::Splice { .. })
+    }),
+    // PB-DX44, CR 118.9: `casting.rs`'s extraction loop is the same shape as
+    // Gift's -- `exile_from_hand_card = Some(*card)`, a plain assignment inside a
+    // `for cost in &additional_costs` walk, so a second `ExileFromHand` entry
+    // silently overwrites the first with no error and no diagnostic.
+    ("pitch", "CR 118.9", |c| {
+        matches!(c, mtg_engine::AdditionalCost::ExileFromHand { .. })
     }),
 ];
 

@@ -149,22 +149,28 @@ fn target_query_source(action: &LegalAction) -> Option<ObjectId> {
 /// bot would announce nothing for a cast whose command *does* select a mode — the same
 /// zero-target rejection SIM-5 exists to remove.
 ///
-/// `alt_cost` is `None` for the same reason `view.rs` passes `None`: `params.rs` hard-
-/// codes `alt_cost: None` on both arms.
+/// `alt_cost` is READ FROM THE ACTION as of PB-DX44 (`OOS-DX29-9`), not
+/// hard-coded. This doc used to say `params.rs` hard-codes `alt_cost: None` on
+/// both arms; PB-DX44 made that sentence false — `LegalAction::CastSpell` now
+/// carries its OWN `alt_cost` (Pitch and SplitRightHalf are each a separate
+/// action from the ordinary cast), and `params.rs::action_to_command_with_params`
+/// forwards it verbatim rather than hard-coding anything. Reading it here is what
+/// makes a bot's right-half-only cast announce the RIGHT half's one target
+/// instead of the printed card's flat requirement list.
 pub fn action_target_requirements(
     state: &GameState,
     action: &LegalAction,
 ) -> Vec<TargetRequirement> {
     match action {
-        // `fuse: false` for the same reason `alt_cost: None` is — a bot never announces
+        // `fuse: false` for the same reason it always was — a bot never announces
         // `AdditionalCost::Fuse` (nothing in `params.rs`/`merge_required_additional_costs`
         // ever adds an OPTIONAL marker rider to a bot's cast), so the command this plan
         // feeds never fuses. See `queries::spell_target_requirements`'s own doc.
-        LegalAction::CastSpell { card, .. } => mtg_engine::spell_target_requirements(
+        LegalAction::CastSpell { card, alt_cost, .. } => mtg_engine::spell_target_requirements(
             state,
             *card,
             &legal_actions::spell_default_modes(state, *card),
-            None,
+            *alt_cost,
             false,
         ),
         LegalAction::ActivateAbility {

@@ -1132,12 +1132,18 @@ impl<P: LegalActionProvider> LocalGame<P> {
         // Spree spell, tapped for it, and watched the engine refuse the cast with
         // `InsufficientMana` once the announced mode's cost was added — the SR-38 shape
         // this whole call exists to prevent.
+        // PB-DX44 (`OOS-DX29-3`/`-9`): `cast.alt_cost` VERBATIM -- the exact flag
+        // this `Command::CastSpell` is about to announce, never a re-derivation.
+        // Without it, a Pitch cast is funded for the printed mana cost (which
+        // Pitch never pays -- CR 118.9a) and a right-half-only cast is funded for
+        // the LEFT half's cost, both wrong-shaped SR-38 failures.
         let mut cost = legal_actions::effective_cast_cost_with_additional(
             &self.state,
             player,
             cast.card,
             &cast.additional_costs,
             &cast.modes_chosen,
+            cast.alt_cost,
         )?;
         // CR 107.3 / 601.2b — see the doc block above (OOS-M11-8).
         cost.generic = cost

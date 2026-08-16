@@ -36,6 +36,16 @@
    *                          template, ids_key}`. The only genuinely
    *                          MULTI-select cost: the answer is a list of card ids
    *                          from this seat's own hand.
+   *   pitch (PitchCostView|null) — PB-DX44, CR 118.9. `{prompt, candidates,
+   *                          default, template, card_key}`. Present ONLY on the
+   *                          SEPARATE pitch `CastSpell` action (never alongside
+   *                          `sacrifice`/`squad`/etc. on the ordinary cast — see
+   *                          `AdditionalCostPlan::pitch`'s own doc), and behaves
+   *                          like `sacrifice`: REQUIRED, pre-selected on the
+   *                          server's own default, no way to clear. `card_key` is
+   *                          a SCALAR field name (`"card"`), not `ids_key` --
+   *                          `AdditionalCost::ExileFromHand` carries one
+   *                          `ObjectId`, not a list.
    *   activationSacrifice, activationDiscard (ActivationChoiceView|null) —
    *                          `{prompt, candidates, default, answer_field}`
    *                          (SIM-6, CR 602.2). An ACTIVATED ABILITY's two
@@ -152,6 +162,7 @@
     markers = [],
     gift = null,
     splice = null,
+    pitch = null,
     activationSacrifice = null,
     activationDiscard = null,
     answerField = 'additional_costs',
@@ -214,6 +225,27 @@
    * offer the human in exchange. `null` only when this offer has no sacrifice.
    */
   const chosenId = $derived(picked ?? sacrifice?.default ?? null);
+
+  /**
+   * PB-DX44, CR 118.9: the card explicitly clicked for the pitch cost, or `null`
+   * for "hasn't clicked one". Separate `$state` from `picked` above -- `pitch` and
+   * `sacrifice` never co-occur on the same offer (see the module doc), but keeping
+   * them as two fields rather than one means a future offer that DID carry both
+   * could not confuse one choice for the other.
+   */
+  let pitchPicked = $state(null);
+
+  /** The card to exile: what was clicked, else the server's own `default`. Same
+   * "no way to clear" contract as `chosenId` -- CR 118.9 makes this REQUIRED once
+   * this action has been chosen at all. */
+  const chosenPitchId = $derived(pitchPicked ?? pitch?.default ?? null);
+
+  const chosenPitchLabel = $derived(
+    chosenPitchId === null
+      ? null
+      : ((pitch?.candidates ?? []).find((c) => c.id === chosenPitchId)?.label ??
+          `#${chosenPitchId}`),
+  );
 
   /** CR 702.157a: how many extra copies to pay for. 0 = decline. */
   let squadCount = $state(0);
@@ -293,6 +325,11 @@
    */
   const canConfirm = $derived(
     (!sacrifice || ((sacrifice.candidates ?? []).length > 0 && chosenId !== null)) &&
+      // PB-DX44, CR 118.9: the same required-with-nothing-eligible guard as
+      // `sacrifice` above. `offerable_pitch_plan` never offers this action with an
+      // empty `eligible` set, so this is unreachable while that suppression holds
+      // -- stated rather than assumed, same as the sacrifice case.
+      (!pitch || ((pitch.candidates ?? []).length > 0 && chosenPitchId !== null)) &&
       // CR 602.2 (SIM-6): the same guard, for the same reason, on each activation
       // block. `default` is `ObjectId::SENTINEL` (the number 0) when the provider's
       // eligible set is empty, so gating on `chosen !== null` alone would leave
@@ -306,6 +343,12 @@
   function select(id) {
     if (disabled) return;
     picked = id;
+  }
+
+  /** PB-DX44, CR 118.9: pick the card to exile for the pitch cost. */
+  function selectPitch(id) {
+    if (disabled) return;
+    pitchPicked = id;
   }
 
   /** CR 602.2: pick the object that pays one activation-cost component. */
@@ -394,6 +437,18 @@
         const entry = fillTemplate(sacrifice.template, sacrifice.ids_key, [chosenId]);
         if (!entry) {
           onError?.('the sacrifice cost template is not the shape this client can fill in');
+          return;
+        }
+        entries.push(entry);
+      }
+
+      // PB-DX44, CR 118.9: REQUIRED once this action is chosen -- same shape as
+      // `sacrifice` above, and `card_key` names a SCALAR field (`fillTemplate`
+      // handles both; the difference is entirely in what value is passed).
+      if (pitch) {
+        const entry = fillTemplate(pitch.template, pitch.card_key, chosenPitchId);
+        if (!entry) {
+          onError?.('the pitch cost template is not the shape this client can fill in');
           return;
         }
         entries.push(entry);
@@ -516,6 +571,37 @@
               class:selected={chosenId === card.id}
               disabled={disabled}
               onclick={() => select(card.id)}
+            >
+              {card.label}
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  <!-- PB-DX44, CR 118.9: the pitch cost -- required once this action is chosen,
+       exactly like the sacrifice block above (never rendered alongside it). -->
+  {#if pitch}
+    <div class="cost-block">
+      <div class="cost-label">
+        <span class="required">required</span>
+        <span class="cost-prompt">{pitch.prompt}</span>
+        {#if chosenPitchLabel !== null}
+          <span class="picker-chosen">exiling: {chosenPitchLabel}</span>
+        {/if}
+      </div>
+
+      {#if (pitch.candidates ?? []).length === 0}
+        <span class="no-candidates">no card in your hand can pay this cost</span>
+      {:else}
+        <div class="candidates">
+          {#each pitch.candidates as card (card.id)}
+            <button
+              class="candidate"
+              class:selected={chosenPitchId === card.id}
+              disabled={disabled}
+              onclick={() => selectPitch(card.id)}
             >
               {card.label}
             </button>

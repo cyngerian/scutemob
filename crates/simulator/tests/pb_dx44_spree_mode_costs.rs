@@ -188,8 +188,8 @@ fn p1_predicted_cost_matches_casting_rs_for_every_mode_combination() {
     let base = effective_cast_cost(&state, P1, card).expect("has a mana cost");
     assert_eq!(base.mana_value(), 1, "base cost is {{B}}");
 
-    let mode0 =
-        effective_cast_cost_with_additional(&state, P1, card, &[], &[0]).expect("mode 0 predicted");
+    let mode0 = effective_cast_cost_with_additional(&state, P1, card, &[], &[0], None)
+        .expect("mode 0 predicted");
     assert_eq!(
         mode0,
         ManaCost {
@@ -200,8 +200,8 @@ fn p1_predicted_cost_matches_casting_rs_for_every_mode_combination() {
         "{{B}} base + {{2}} for mode 0"
     );
 
-    let mode1 =
-        effective_cast_cost_with_additional(&state, P1, card, &[], &[1]).expect("mode 1 predicted");
+    let mode1 = effective_cast_cost_with_additional(&state, P1, card, &[], &[1], None)
+        .expect("mode 1 predicted");
     assert_eq!(
         mode1,
         ManaCost {
@@ -211,7 +211,7 @@ fn p1_predicted_cost_matches_casting_rs_for_every_mode_combination() {
         "{{B}} base + {{B}}{{B}} for mode 1"
     );
 
-    let both = effective_cast_cost_with_additional(&state, P1, card, &[], &[0, 1])
+    let both = effective_cast_cost_with_additional(&state, P1, card, &[], &[0, 1], None)
         .expect("both modes predicted");
     assert_eq!(
         both,
@@ -224,7 +224,7 @@ fn p1_predicted_cost_matches_casting_rs_for_every_mode_combination() {
     );
 
     // Non-vacuity: the un-modal identity path (no modes announced) is untouched.
-    let none = effective_cast_cost_with_additional(&state, P1, card, &[], &[])
+    let none = effective_cast_cost_with_additional(&state, P1, card, &[], &[], None)
         .expect("identity predicted");
     assert_eq!(none, base, "no announced modes must be the identity");
 }
@@ -317,9 +317,15 @@ fn p3_entwine_overrides_modes_chosen_and_charges_every_mode_synthetic() {
     let card = id_of(&state, &def.name);
 
     // Entwine paid, modes_chosen EMPTY: every mode's cost must still be charged.
-    let with_entwine =
-        effective_cast_cost_with_additional(&state, P1, card, &[AdditionalCost::Entwine], &[])
-            .expect("entwine + spree predicted");
+    let with_entwine = effective_cast_cost_with_additional(
+        &state,
+        P1,
+        card,
+        &[AdditionalCost::Entwine],
+        &[],
+        None,
+    )
+    .expect("entwine + spree predicted");
     assert_eq!(
         with_entwine,
         ManaCost {
@@ -333,7 +339,7 @@ fn p3_entwine_overrides_modes_chosen_and_charges_every_mode_synthetic() {
     // Without entwine, the SAME empty `modes_chosen` charges nothing extra (identity) —
     // the contrast that proves the override is really `entwine_paid`-gated and not a
     // permanent "charge everything" bug.
-    let without_entwine = effective_cast_cost_with_additional(&state, P1, card, &[], &[])
+    let without_entwine = effective_cast_cost_with_additional(&state, P1, card, &[], &[], None)
         .expect("spree with no announcement predicted");
     assert_eq!(
         without_entwine,
@@ -372,8 +378,8 @@ fn p2_prediction_vs_charge_parity_for_mode_1() {
     };
     let probe = build(ManaPool::default());
     let card = id_of(&probe, "Insatiable Avarice");
-    let predicted =
-        effective_cast_cost_with_additional(&probe, P1, card, &[], &[1]).expect("mode 1 predicted");
+    let predicted = effective_cast_cost_with_additional(&probe, P1, card, &[], &[1], None)
+        .expect("mode 1 predicted");
     assert_eq!(predicted.mana_value(), 3);
 
     let exact_pool = ManaPool {

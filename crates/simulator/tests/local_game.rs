@@ -2188,6 +2188,7 @@ fn test_ui2_a_bot_pays_a_mandatory_sacrifice_cost_without_an_engine_rejection() 
             cast.card,
             &cast.additional_costs,
             &cast.modes_chosen,
+            cast.alt_cost,
         )
         .expect("Life's Legacy has a mana cost"),
     )

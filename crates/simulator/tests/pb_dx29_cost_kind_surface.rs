@@ -1216,7 +1216,7 @@ fn c1_no_announced_rider_is_byte_identical_to_the_plain_effective_cost() {
             .expect("state builds");
         let card = id_of(&state, name);
         let plain = effective_cast_cost(&state, P1, card).expect("every fixture has a mana cost");
-        let with_none = effective_cast_cost_with_additional(&state, P1, card, &[], &[])
+        let with_none = effective_cast_cost_with_additional(&state, P1, card, &[], &[], None)
             .expect("identity must not lose the cost");
         assert_eq!(
             plain, with_none,
@@ -1231,6 +1231,7 @@ fn c1_no_announced_rider_is_byte_identical_to_the_plain_effective_cost() {
             card,
             &[AdditionalCost::Gift { opponent: P2 }],
             &[],
+            None,
         )
         .expect("gift must not make the cost unknowable");
         assert_eq!(plain, with_gift, "{name}: Gift must add nothing");
@@ -1257,7 +1258,7 @@ fn assert_prediction_is_exactly_what_the_engine_charges(
     let probe = build(ManaPool::default());
     let card = id_of(&probe, card_name);
     let base = effective_cast_cost(&probe, P1, card).expect("fixture has a mana cost");
-    let predicted = effective_cast_cost_with_additional(&probe, P1, card, riders, &modes)
+    let predicted = effective_cast_cost_with_additional(&probe, P1, card, riders, &modes, None)
         .unwrap_or_else(|| panic!("{label}: no prediction at all"));
     assert!(
         predicted.mana_value() > base.mana_value(),
@@ -1503,7 +1504,7 @@ fn c2f_splice_is_charged_the_way_the_engine_charges_it() {
     let ray = id_of(&probe, "Glacial Ray");
     let riders = vec![AdditionalCost::Splice { cards: vec![ray] }];
     let base = effective_cast_cost(&probe, P1, card).expect("has a cost");
-    let predicted = effective_cast_cost_with_additional(&probe, P1, card, &riders, &[])
+    let predicted = effective_cast_cost_with_additional(&probe, P1, card, &riders, &[], None)
         .expect("splice prediction");
     assert_eq!(
         predicted.mana_value(),
@@ -1623,7 +1624,7 @@ fn c3_scalar_riders_take_the_last_announced_entry_not_the_sum() {
         .expect("state builds");
     let card = id_of(&state, "Train of Thought");
     let mv = |riders: &[AdditionalCost]| {
-        effective_cast_cost_with_additional(&state, P1, card, riders, &[])
+        effective_cast_cost_with_additional(&state, P1, card, riders, &[], None)
             .expect("has a cost")
             .mana_value()
     };
@@ -1663,7 +1664,7 @@ fn c3_scalar_riders_take_the_last_announced_entry_not_the_sum() {
         .expect("state builds");
     let esc_card = id_of(&esc_state, "Collective Resistance");
     let esc_mv = |riders: &[AdditionalCost]| {
-        effective_cast_cost_with_additional(&esc_state, P1, esc_card, riders, &[])
+        effective_cast_cost_with_additional(&esc_state, P1, esc_card, riders, &[], None)
             .expect("has a cost")
             .mana_value()
     };
@@ -1711,6 +1712,7 @@ fn c4_gift_adds_no_mana_and_the_engine_agrees() {
         card,
         &[AdditionalCost::Gift { opponent: P2 }],
         &[],
+        None,
     )
     .expect("has a cost");
     assert_eq!(

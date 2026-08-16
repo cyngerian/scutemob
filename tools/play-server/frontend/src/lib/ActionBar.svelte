@@ -395,11 +395,35 @@
   }
 
   /**
+   * PB-DX44 (`OOS-DX29-12`), CR 702.102a/d: has the human's `CostPicker` answer
+   * ticked Fuse for this cast?
+   *
+   * `additional_costs` carries `AdditionalCost::Fuse` as the BARE STRING
+   * `"Fuse"` (a serde unit variant — see `CostPicker.svelte`'s module doc, "the
+   * marker templates are not objects"), pushed verbatim by that picker's
+   * `confirm()`. So membership in the array, not a key lookup, is the test.
+   */
+  function isFusedCast(paramsSoFar) {
+    return (paramsSoFar.additional_costs ?? []).some((c) => c === 'Fuse');
+  }
+
+  /**
    * The slot list the `TargetPicker` stage should render for `option`, given
-   * whatever has been accumulated in `paramsSoFar` (specifically `modes_chosen`).
-   * See the module doc for the per-mode-vs-flat distinction and its known gap.
+   * whatever has been accumulated in `paramsSoFar` (specifically `modes_chosen`
+   * and, as of PB-DX44, `additional_costs`). See the module doc for the
+   * per-mode-vs-flat distinction and its known gap.
+   *
+   * **Fuse is checked FIRST, before per-mode targeting** — CR 702.102a fusing and
+   * CR 700.2c per-mode targeting are properties of different card SHAPES (a fuse
+   * split card is never also modal in this corpus), so the two branches never
+   * actually compete; Fuse is checked first because `option.fused_target_slots`
+   * is the more specific answer when it applies, mirroring the general rule that
+   * a later-decided stage's slots override an earlier stage's guess.
    */
   function resolvedTargetSlots(option, paramsSoFar) {
+    if (isFusedCast(paramsSoFar) && (option.fused_target_slots?.length ?? 0) > 0) {
+      return option.fused_target_slots;
+    }
     if (isPerModeTargeting(option)) {
       const chosen = [...(paramsSoFar.modes_chosen ?? [])].sort((a, b) => a - b);
       const slots = [];
@@ -419,8 +443,15 @@
    * each mode's own server-computed range, not a slot count — see the module
    * doc. Summing is right because the announced `targets` array is the chosen
    * modes' slots concatenated, so the collective range is the sum of the parts.
+   *
+   * PB-DX44: mirrors `resolvedTargetSlots`'s Fuse-first check, over the SAME
+   * `fused_target_min`/`fused_target_max` pair the server computed alongside
+   * `fused_target_slots` — never re-derived from the slot list here.
    */
   function resolvedTargetRange(option, paramsSoFar) {
+    if (isFusedCast(paramsSoFar) && (option.fused_target_slots?.length ?? 0) > 0) {
+      return [option.fused_target_min, option.fused_target_max];
+    }
     if (isPerModeTargeting(option)) {
       const chosen = [...(paramsSoFar.modes_chosen ?? [])];
       let min = 0;
@@ -967,6 +998,7 @@
         markers={activeOption.costs.markers}
         gift={activeOption.costs.gift}
         splice={activeOption.costs.splice}
+        pitch={activeOption.costs.pitch}
         activationSacrifice={activeOption.costs.activation_sacrifice}
         activationDiscard={activeOption.costs.activation_discard}
         answerField={activeOption.costs.answer_field}

@@ -1051,6 +1051,7 @@ fn test_sim1_both_bots_choose_the_offered_commander_cast() {
             from_zone: ZoneId::Command(p1),
             // UI-2: no additional-cost machinery is under test in this fixture.
             additional_costs: Default::default(),
+            alt_cost: None,
         },
         LegalAction::PassPriority,
     ];

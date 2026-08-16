@@ -145,6 +145,12 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
                 "crates/engine/src/rules/casting.rs",
                 "crates/engine/src/rules/commander.rs",
                 "crates/engine/src/rules/plot.rs",
+                // PB-DX44 (`OOS-DX29-3`): `legal_actions.rs::pitch_ability_of`
+                // reads `AltCastAbility { kind: AltCostKind::Pitch, .. }`
+                // directly (the offer layer's necessary duplicate of
+                // `casting.rs`'s private `get_pitch_ability`) to build the
+                // pitch cast's SR-38 offer.
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         A::Cycling { .. } => AbilityHandling::Handled {

@@ -5,14 +5,15 @@
 //! without deep engine knowledge — enough to play games, but misses edge
 //! cases that a full engine implementation would catch.
 
-use mtg_engine::cards::card_definition::GiftType;
+use mtg_engine::cards::card_definition::{Cost, GiftType};
 use mtg_engine::state::game_object::SacrificeFilter;
 use mtg_engine::{
-    apply_commander_tax, AbilityDefinition, ActivatedAbility, AdditionalCost, AttackTarget,
-    CardType, CounterType, EffectChoiceAnswer, EffectChoiceQuestion, EffectDuration, FaceDownKind,
-    FlashGrantFilter, GameObject, GameRestriction, GameState, HybridMana, HybridManaPayment,
-    KeywordAbility, ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, SpellAdditionalCost,
-    Step, SubType, Target, TriggerTargetOption, TurnFaceUpMethod, ZoneId,
+    apply_commander_tax, AbilityDefinition, ActivatedAbility, AdditionalCost, AltCostKind,
+    AttackTarget, CardType, Color, CounterType, EffectChoiceAnswer, EffectChoiceQuestion,
+    EffectDuration, FaceDownKind, FlashGrantFilter, GameObject, GameRestriction, GameState,
+    HybridMana, HybridManaPayment, KeywordAbility, ManaColor, ManaCost, ObjectId, PhyrexianMana,
+    PlayerId, SpellAdditionalCost, Step, SubType, Target, TriggerTargetOption, TurnFaceUpMethod,
+    ZoneId,
 };
 
 /// CR 118.8 / CR 601.2b (UI-2): the additional costs a `CastSpell` offer must or may
@@ -42,6 +43,13 @@ pub struct AdditionalCostPlan {
     /// PB-DX29, CR 702.47a: the OPTIONAL splice, when this player holds at least one
     /// card that may be spliced onto this spell.
     pub splice: Option<SpliceCostOption>,
+    /// PB-DX44, CR 118.9 (`OOS-DX29-3`): the pitch alt cost's exile-from-hand
+    /// component, present only on the SEPARATE `LegalAction::CastSpell { alt_cost:
+    /// Some(AltCostKind::Pitch), .. }` offer -- never on the ordinary cast's own
+    /// plan. Pitch REPLACES the mana cost (CR 118.9a); it is not an additional cost
+    /// riding alongside the printed one, so it does not belong in the same
+    /// `AdditionalCostPlan` as `sacrifice`/`squad`/etc. for the ordinary cast.
+    pub pitch: Option<PitchCostOption>,
 }
 
 /// PB-DX29: which pay-N-times rider a [`CountCostOption`] describes.
@@ -181,6 +189,32 @@ pub struct SacrificeCostOption {
     pub default: ObjectId,
 }
 
+/// CR 118.9 (PB-DX44, `OOS-DX29-3`): the offer's pitch descriptor -- the card
+/// exiled from hand as (part of) the alternative cost that REPLACES the mana cost.
+/// Carried on the SEPARATE `LegalAction::CastSpell { alt_cost: Some(AltCostKind::
+/// Pitch), .. }` offer, never on the ordinary cast's own plan -- see
+/// [`AdditionalCostPlan::pitch`].
+#[derive(Clone, Debug)]
+pub struct PitchCostOption {
+    /// The non-mana cost components, verbatim -- for labelling only. The engine's
+    /// own `AltCastAbility { kind: Pitch, details: Some(AltCastDetails::Pitch
+    /// { costs, .. }), .. }`, cloned.
+    pub costs: Vec<Cost>,
+    /// CR 118.9's own restriction on WHEN this alt cost may be paid (Force of
+    /// Vigor/Negation's "If it's not your turn"). Already applied at OFFER time:
+    /// this whole action is absent when the restriction is unmet -- see
+    /// [`offerable_pitch_plan`].
+    pub opponents_turn_only: bool,
+    /// Cards in this player's hand that `casting.rs`'s own pitch gate will accept:
+    /// the required COLOUR component of `costs`, layer-resolved. **Never empty**:
+    /// an empty set suppresses the whole pitch offer, mirroring
+    /// [`SacrificeCostOption::eligible`].
+    pub eligible: Vec<ObjectId>,
+    /// The deterministic default a bot submits: `eligible[0]` (lowest `ObjectId`).
+    /// Same contract as [`SacrificeCostOption::default`].
+    pub default: ObjectId,
+}
+
 /// CR 602.2 (SIM-6, triage G4): the **non-mana** activation costs an
 /// `ActivateAbility` offer has to pay, described well enough that a client can
 /// render a picker and a bot can submit an answer the engine will accept.
@@ -275,6 +309,21 @@ pub enum LegalAction {
         /// CR 118.8 / CR 702.157 (UI-2): `AdditionalCostPlan::default()` -- both
         /// fields `None` -- for the overwhelming majority of spells.
         additional_costs: AdditionalCostPlan,
+        /// PB-DX44 (`OOS-DX29-3`/`-9`): which alternative cost, if any, THIS
+        /// action pays. `None` for an ordinary cast of the printed mana cost.
+        /// `Some(AltCostKind::Pitch)` and `Some(AltCostKind::SplitRightHalf)` are
+        /// each a SEPARATE `CastSpell` action from the ordinary cast of the same
+        /// card -- CR 601.2a lets a caster announce which cost/half/face they are
+        /// casting, and the choice is made by picking WHICH action, not by
+        /// answering a param on one shared action (mirroring how a fused cast is
+        /// announced through `additional_costs` rather than through this field --
+        /// CR 702.102a's Fuse is a static ability, not an alternative cost, so it
+        /// stays out of `AltCostKind` entirely; see `AltCostKind::SplitRightHalf`'s
+        /// own doc for why the two are mutually exclusive by construction).
+        /// `params.rs::action_to_command_with_params` forwards this field
+        /// VERBATIM into `CastSpellData.alt_cost` -- it is the offer's own
+        /// judgment, never a client's.
+        alt_cost: Option<AltCostKind>,
     },
     TapForMana {
         source: ObjectId,
@@ -946,6 +995,15 @@ impl LegalActionProvider for StubProvider {
                 // SIM-1 Step 3: timing predicate extracted to `can_cast_at_this_time`
                 // so the hand loop and the new command-zone loop (below) cannot drift
                 // out of sync on CR 117.1a / CR 601.3b timing.
+                // CR 601.3 timing applies to EVERY way this card can be cast --
+                // Pitch and a right-half-only cast are still casts of this same
+                // card, not a separate object with its own speed. `r7`
+                // (`pb_dx44_uncastable_roster.rs`) pins that no corpus split card
+                // has halves of differing instant-ness, so gating all three
+                // offers on the LEFT half's / printed card's own timing is exact
+                // for today's corpus, not merely convenient -- PB-DX44's own notes
+                // name this as the deliberate non-fix (no per-half override
+                // machinery is built).
                 if can_cast_at_this_time(state, player, obj, is_main_phase, stack_empty, is_active)
                 {
                     // Basic mana affordability check
@@ -963,9 +1021,42 @@ impl LegalActionProvider for StubProvider {
                                     card: obj.id,
                                     from_zone: hand,
                                     additional_costs,
+                                    alt_cost: None,
                                 });
                             }
                         }
+                    }
+
+                    // PB-DX44, CR 118.9 (`OOS-DX29-3`): priced INDEPENDENTLY of the
+                    // printed mana cost above -- offered even when the base cast is
+                    // wholly unaffordable, which is the entire reason Pitch exists
+                    // (Force of Will). A SEPARATE `CastSpell` action from the
+                    // ordinary one, not a rider on it (CR 118.9a: pitch REPLACES the
+                    // mana cost).
+                    if let Some(additional_costs) = offerable_pitch_plan(state, player, obj) {
+                        actions.push(LegalAction::CastSpell {
+                            card: obj.id,
+                            from_zone: hand,
+                            additional_costs,
+                            alt_cost: Some(AltCostKind::Pitch),
+                        });
+                    }
+
+                    // PB-DX44, CR 702.102a/709.4 (`OOS-DX29-9`): the right half of a
+                    // split card, cast ALONE -- a third, separate `CastSpell` action.
+                    // `offerable_split_right_half_plan` returns `None` for every
+                    // card with no DSL right half (`AbilityDefinition::Fuse`) at
+                    // all, so this is a no-op for the overwhelming majority of hand
+                    // cards.
+                    if let Some(additional_costs) =
+                        offerable_split_right_half_plan(state, player, obj)
+                    {
+                        actions.push(LegalAction::CastSpell {
+                            card: obj.id,
+                            from_zone: hand,
+                            additional_costs,
+                            alt_cost: Some(AltCostKind::SplitRightHalf),
+                        });
                     }
                 }
             }
@@ -1073,6 +1164,12 @@ impl LegalActionProvider for StubProvider {
                             card: obj.id,
                             from_zone: command_zone,
                             additional_costs,
+                            // PB-DX44: Pitch and SplitRightHalf are both
+                            // hand-only (`casting.rs:434-435`, T8 in
+                            // `pb_dx44_split_half_cast.rs`) -- commanders are
+                            // never split cards or pitch cards in this corpus
+                            // either way, so this loop offers neither.
+                            alt_cost: None,
                         });
                     }
                 }
@@ -2785,6 +2882,10 @@ fn build_additional_cost_plan(
         markers,
         gift,
         splice,
+        // PB-DX44: pitch never rides alongside an ORDINARY cast's plan -- see
+        // `AdditionalCostPlan::pitch`'s own doc and `offerable_pitch_plan`, which
+        // builds it for the pitch action's SEPARATE plan instead.
+        pitch: None,
     }
 }
 
@@ -2859,6 +2960,32 @@ fn spree_mode_costs_of(def: &mtg_engine::CardDefinition) -> Option<Vec<ManaCost>
         }
     })
 }
+/// PB-DX44, CR 118.9: the pitch alt cost's non-mana components and opponents'-turn
+/// gate, read directly off the registry def. `casting.rs`'s own `get_pitch_ability`
+/// is private to that file (same reason `squad_cost_of` and friends read the
+/// registry themselves rather than calling it) -- a NECESSARY duplicate, not a
+/// second opinion: both read the identical `AbilityDefinition::AltCastAbility {
+/// kind: AltCostKind::Pitch, .. }` shape.
+fn pitch_ability_of(def: &mtg_engine::CardDefinition) -> Option<(Vec<Cost>, bool)> {
+    def.abilities.iter().find_map(|a| {
+        if let AbilityDefinition::AltCastAbility {
+            kind: AltCostKind::Pitch,
+            details,
+            ..
+        } = a
+        {
+            match details {
+                Some(mtg_engine::AltCastDetails::Pitch {
+                    costs,
+                    opponents_turn_only,
+                }) => Some((costs.clone(), *opponents_turn_only)),
+                _ => Some((vec![], false)),
+            }
+        } else {
+            None
+        }
+    })
+}
 
 /// PB-DX29 / SR-38: can `player` pay `rider` on top of `card`'s own effective cast cost?
 ///
@@ -2881,8 +3008,12 @@ fn marker_rider_is_affordable(
 ) -> bool {
     // PB-DX44: no corpus def combines a marker rider (Entwine/Offspring/Fuse) with
     // Spree, so `&[]` is exact here today, not merely a placeholder — see
-    // `spree_mode_costs_of`'s doc.
-    effective_cast_cost_with_additional(state, player, card, std::slice::from_ref(rider), &[])
+    // `spree_mode_costs_of`'s doc. `alt_cost: None` -- a marker rider is CR 118.8
+    // additional-cost machinery, riding on an ORDINARY cast; Pitch and
+    // SplitRightHalf are their own separate actions and never reach this helper
+    // (`build_additional_cost_plan`, this function's only caller, is not run for
+    // them -- see `offerable_pitch_plan` / `offerable_split_right_half_plan`).
+    effective_cast_cost_with_additional(state, player, card, std::slice::from_ref(rider), &[], None)
         .is_some_and(|cost| can_afford(state, player, &cost))
 }
 
@@ -2965,6 +3096,119 @@ fn eligible_splice_cards(
         })
         .map(|obj| obj.id)
         .collect()
+}
+
+/// PB-DX44, CR 118.9: cards in `player`'s hand that `casting.rs`'s own pitch gate
+/// (`casting.rs:4303-4329`) will accept for exiling as (part of) the pitch alt
+/// cost -- the required COLOUR, layer-resolved (same argument as
+/// `eligible_splice_cards`'s colour read: a continuous effect could change a
+/// card's colours), and never the spell BEING cast (CR 118.9: by the time this
+/// cost is paid the card is on the stack, not in hand -- and exiling the very
+/// spell being cast to pay for itself is nonsensical regardless).
+fn eligible_pitch_cards(
+    state: &GameState,
+    player: PlayerId,
+    card: ObjectId,
+    color: Color,
+) -> Vec<ObjectId> {
+    state
+        .objects_in_zone(&ZoneId::Hand(player))
+        .into_iter()
+        .filter(|obj| obj.id != card)
+        .filter(|obj| {
+            mtg_engine::calculate_characteristics(state, obj.id)
+                .map(|c| c.colors.contains(&color))
+                .unwrap_or(false)
+        })
+        .map(|obj| obj.id)
+        .collect()
+}
+
+/// PB-DX44, CR 118.9 / SR-38: the `AdditionalCostPlan` to offer alongside a
+/// `LegalAction::CastSpell { alt_cost: Some(AltCostKind::Pitch), .. }`, or `None`
+/// if the pitch alt cost must not be offered at all.
+///
+/// `None` covers every reason `casting.rs`'s own pitch gate would refuse the cast:
+/// no pitch ability at all, CR 118.9's "if it's not your turn" restriction unmet,
+/// a `Cost::PayLife` component this player's life total cannot pay outright
+/// (`casting.rs:4291-4302`), or no card in hand of the required colour. **Priced
+/// independently of the printed mana cost** -- this is offered even when the
+/// player cannot afford the base cast at all, which is the entire reason Pitch
+/// exists (Force of Will).
+fn offerable_pitch_plan(
+    state: &GameState,
+    player: PlayerId,
+    obj: &GameObject,
+) -> Option<AdditionalCostPlan> {
+    let def = obj
+        .card_id
+        .as_ref()
+        .and_then(|cid| state.card_registry().get(cid.clone()))?;
+    let (costs, opponents_turn_only) = pitch_ability_of(def)?;
+    // CR 118.9 (Force of Vigor/Negation's "If it's not your turn"): eligibility is
+    // per the CASTER's own turn, mirroring `casting.rs:441-445`.
+    if opponents_turn_only && state.turn().active_player == player {
+        return None;
+    }
+    for c in &costs {
+        if let Cost::PayLife(n) = c {
+            let life = state.player(player).map(|p| p.life_total).unwrap_or(0);
+            if life < *n as i32 {
+                return None;
+            }
+        }
+    }
+    let color = costs.iter().find_map(|c| match c {
+        Cost::ExileFromHand { color } => Some(*color),
+        _ => None,
+    })?;
+    let eligible = eligible_pitch_cards(state, player, obj.id, color);
+    if eligible.is_empty() {
+        return None;
+    }
+    let default = eligible[0];
+    Some(AdditionalCostPlan {
+        pitch: Some(PitchCostOption {
+            costs,
+            opponents_turn_only,
+            eligible,
+            default,
+        }),
+        ..AdditionalCostPlan::default()
+    })
+}
+
+/// PB-DX44, CR 702.102a/709.4 (`OOS-DX29-9`) / SR-38: whether to offer
+/// `LegalAction::CastSpell { alt_cost: Some(AltCostKind::SplitRightHalf), .. }`
+/// for `obj`, and the (always-empty-today) `AdditionalCostPlan` to carry with it.
+///
+/// The plan is `AdditionalCostPlan::default()` because no corpus def combines a
+/// right-half-only cast with any OTHER additional cost (`pb_dx44_uncastable_
+/// roster.rs`'s `r2`/`r3` census); the type is still `AdditionalCostPlan` rather
+/// than `()` so a future rider (should one ever exist) has somewhere to go
+/// without widening `LegalAction::CastSpell` again.
+///
+/// Affordability is checked against the RIGHT HALF's own cost
+/// (`effective_cast_cost_with_additional` with this same `alt_cost`), never the
+/// printed (left-half) `mana_cost` -- offering this action gated on the wrong
+/// cost would be exactly the SR-38 shape this batch exists to delete.
+fn offerable_split_right_half_plan(
+    state: &GameState,
+    player: PlayerId,
+    obj: &GameObject,
+) -> Option<AdditionalCostPlan> {
+    let cost = effective_cast_cost_with_additional(
+        state,
+        player,
+        obj.id,
+        &[],
+        &[],
+        Some(AltCostKind::SplitRightHalf),
+    )?;
+    if !can_afford(state, player, &cost) {
+        return None;
+    }
+    Some(AdditionalCostPlan::default())
 }
 
 /// CR 702.157a (UI-2 §1.4): the largest N this player can currently afford on top
@@ -3079,8 +3323,10 @@ fn repeated_cost_max_count(
         let announced = [announce(n)];
         // PB-DX44: no corpus def combines a repeated rider (Squad/Replicate/Escalate)
         // with Spree, so `&[]` is exact here today — see `spree_mode_costs_of`'s doc.
+        // `alt_cost: None` for the same reason `marker_rider_is_affordable` passes
+        // it: a repeated rider is CR 118.8 machinery on an ORDINARY cast.
         let Some(candidate_cost) =
-            effective_cast_cost_with_additional(state, player, card, &announced, &[])
+            effective_cast_cost_with_additional(state, player, card, &announced, &[], None)
         else {
             break;
         };
@@ -3116,14 +3362,57 @@ fn repeated_cost_max_count(
 /// **verbatim** — the modes already fixed on the `Command::CastSpell` this function is
 /// pricing, not a re-derivation — so the auto-tap and `casting.rs` cannot disagree about
 /// which modes are being paid for.
+///
+/// `alt_cost` (PB-DX44, `OOS-DX29-3`/`-9`): which alternative cost, if any, THIS
+/// predicted cast pays. Two variants REPLACE the base cost outright rather than
+/// modifying it -- `Some(AltCostKind::Pitch)` (CR 118.9: the mana cost is always
+/// `{0}`) and `Some(AltCostKind::SplitRightHalf)` (CR 709.4: the RIGHT half's own
+/// printed cost, never the LEFT half's `effective_cast_cost` would otherwise
+/// return, and never the two summed as a fused cast would). Both branches mirror
+/// `casting.rs`'s own base-cost selection (`casting.rs:2649-2681`), which picks the
+/// base cost BEFORE any rider or commander-tax arithmetic runs -- so this
+/// selection runs first here too, ahead of the identity shortcut below. Every
+/// other `alt_cost` value falls through to the unchanged `effective_cast_cost`
+/// read, since no OTHER `AltCostKind` variant changes what a client must fund
+/// (Overload/Aftermath/etc. are not reachable through this offer layer today).
 pub fn effective_cast_cost_with_additional(
     state: &GameState,
     player: PlayerId,
     card: ObjectId,
     additional_costs: &[AdditionalCost],
     modes_chosen: &[usize],
+    alt_cost: Option<AltCostKind>,
 ) -> Option<ManaCost> {
-    let mut cost = effective_cast_cost(state, player, card)?;
+    let mut cost = match alt_cost {
+        Some(AltCostKind::Pitch) => {
+            // CR 118.9: the mana cost is always {0}. Declines to fund a cast the
+            // engine will refuse outright when the card carries no pitch ability
+            // at all -- mirrors `casting.rs`'s own
+            // `get_pitch_ability(..).is_none()` guard (`casting.rs:2652-2656`).
+            let def = state
+                .object(card)
+                .ok()?
+                .card_id
+                .as_ref()
+                .and_then(|cid| state.card_registry().get(cid.clone()))?;
+            pitch_ability_of(def)?;
+            ManaCost::default()
+        }
+        Some(AltCostKind::SplitRightHalf) => {
+            // CR 709.4: the right half's OWN printed cost. `casting.rs`'s
+            // `cast_right_half` arm reuses `get_fuse_data`; `fuse_cost_of` is this
+            // crate's necessary duplicate of that same registry read, shared with
+            // the offer side (`offerable_split_right_half_plan`).
+            let def = state
+                .object(card)
+                .ok()?
+                .card_id
+                .as_ref()
+                .and_then(|cid| state.card_registry().get(cid.clone()))?;
+            ability_cost(def, fuse_cost_of)?
+        }
+        _ => effective_cast_cost(state, player, card)?,
+    };
     // **LAST wins, not the sum** -- and the difference is a mirror correction, not a
     // preference. `casting.rs`'s own destructuring loop is
     // `AdditionalCost::Squad { count } => { squad_count = *count; }`, a plain
@@ -5068,6 +5357,7 @@ mod tests {
             card_id,
             &[AdditionalCost::Squad { count: 1 }],
             &[],
+            None,
         )
         .expect("has a mana cost");
         assert_eq!(one.mana_value(), 6);
@@ -5082,6 +5372,7 @@ mod tests {
                 AdditionalCost::Squad { count: 1 },
             ],
             &[],
+            None,
         )
         .expect("has a mana cost");
         assert_eq!(
@@ -5100,6 +5391,7 @@ mod tests {
                 AdditionalCost::Squad { count: 2 },
             ],
             &[],
+            None,
         )
         .expect("has a mana cost");
         assert_eq!(last_wins_other.mana_value(), 8);
