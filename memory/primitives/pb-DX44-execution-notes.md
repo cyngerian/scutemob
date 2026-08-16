@@ -360,8 +360,8 @@ channel was broken between them.
 
 | gate | value |
 |---|---|
-| tests | **4,795 / 0 / 5**, **53** result-producing targets (baseline 4,753 / 50) |
-| delta | **+42**, itemised by NAME below |
+| tests | **4,797 / 0 / 5**, **53** result-producing targets (baseline 4,753 / 50) — includes the `/review` fix cycle's +2 |
+| delta | **+44**, itemised by NAME below |
 | removals | **0** genuine; **1 rename**, mandated by the criterion |
 | PROTOCOL | **37 → 38**, gate-computed, predicted in writing |
 | HASH | **76 → 77**, gate-computed, predicted in writing |
@@ -371,7 +371,8 @@ channel was broken between them.
 
 ### 7.1 The delta, by test NAME (set-diff of the two run logs)
 
-4,757 unique names → 4,799. **43 additions, 1 rename, 0 removals.**
+4,757 unique names → 4,801. **45 additions, 1 rename, 0 removals.** (43 + the fix cycle's 2: the
+frontend source gate and the pitch HTTP probe.)
 
 | count | file |
 |---|---|
@@ -389,14 +390,14 @@ channel was broken between them.
 `p1e_fuse_is_offered_and_its_target_count_matches_what_the_cast_validates` — same file, same
 position, **subject inverted**, because the suppression it pinned is the thing this batch deleted.
 The acceptance criterion mandated exactly this re-pointing. Stated rather than netted out, because
-"+42 with zero removals" would have been a true number hiding a real edit.
+"+44 with zero removals" would have been a true number hiding a real edit.
 
 ---
 
 ## 8. `/review` — 1 HIGH, 3 MEDIUM, 8 LOW, all 12 taken
 
 An Opus reviewer with a shell re-derived every headline figure against the shipped code (all
-reproduced), ran the full suite (4,795 / 0 / 5 at 53 targets, exactly), and executed five reverts
+reproduced), ran the full suite (4,795 / 0 / 5 at 53 targets — the pre-fix-cycle figure, reproduced exactly), and executed five reverts
 of its own — four confirming the claimed discrimination, including the "3 probes redden" figure for
 the `modes_chosen` link.
 
@@ -500,3 +501,29 @@ should know is understood, not a thing to discover.
   green, preserving the CR 702.102a **zone** clause's independence from the target clause. The
   criterion asked for "preserved or explicitly re-homed" **in writing**; it was preserved and not
   written down. Written down here.
+
+### 8.6 The fix cycle's outcome, and the defeat re-executed by the coordinator
+
+`crates/engine/src/rules/{casting,queries}.rs`, `crates/simulator/src/legal_actions.rs`,
+`tools/play-server/src/main.rs`. **+2 tests** (4,795 → **4,797**), no removals, PROTOCOL 38 /
+HASH 77 gate-executed and unmoved.
+
+* `test_frontend_action_bar_keeps_the_fused_slot_and_pitch_wiring` — the UI-4/UI-5/UI-6 source-scan
+  idiom, pinning both the Fuse-first branch (twice: `resolvedTargetSlots` and `resolvedTargetRange`)
+  and the `pitch={activeOption.costs.pitch}` thread to `CostPicker`.
+* `test_dx44_pitch_cast_is_offered_and_resolved_over_http` — the full HTTP drive pitch was missing,
+  with a NON-DEFAULT `ExileFromHand`. `view.rs`'s `pitch_prompt` / `color_word` had **no coverage at
+  all** before it.
+
+**The defeat was re-executed by the coordinator rather than taken on report**, three ways: the
+reviewer's exact combined deletion, then the `pitch` prop alone, then the two `isFusedCast` branches
+alone. All three redden; the tree was restored and `git diff --stat` over the frontend is empty.
+Each half catches independently, which is what stops the gate from being satisfied by whichever
+half a future edit happens to leave behind.
+
+**LOW 5 was taken as code rather than as a note**: `cast_right_half` now joins
+`casting_with_aftermath` in the per-mode `mode_targets` short-circuit at **both** sites
+(`casting.rs` and `queries.rs`), verified behaviour-neutral by the full suite — no shipped card is
+both modal and a fuse right half. The two sites had to move together for the same reason they were
+worth fixing: they agree today, and fixing one would have created the offer-vs-cast drift the
+absence of the fix did not have.

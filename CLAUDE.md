@@ -173,11 +173,11 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-08-15, PB-DX44 + `/review` fix cycle)**: **4,795 / 0 / 5** full-workspace on
-  branch `scutemob-215` (+42 over the **4,753** baseline, measured on this branch BEFORE any edit
+- **Tests (delta 2026-08-15, PB-DX44 + `/review` fix cycle)**: **4,797 / 0 / 5** full-workspace on
+  branch `scutemob-215` (+44 over the **4,753** baseline, measured on this branch BEFORE any edit
   and reproducing PB-DX43's close pin exactly), `--workspace --no-fail-fast` to a file, **53**
   result-producing targets (50 → 53: three new test binaries), residual list empty.
-  **Delta itemised by test NAME**, by set-diffing the two run logs: **43 additions, 1 RENAME,
+  **Delta itemised by test NAME**, by set-diffing the two run logs: **45 additions, 1 RENAME,
   0 removals** — 10 in the new `crates/engine/tests/core/pb_dx44_uncastable_roster.rs` (r1-r9 +
   `t_census_report`), 8 in the new `crates/engine/tests/rules/pb_dx44_split_half_cast.rs`, 7 in the
   new `crates/simulator/tests/pb_dx44_pitch_channel.rs` (T1-T7), 6 in the new
@@ -187,7 +187,7 @@
   the rename's successor. **The rename is disclosed rather than netted out**:
   `p1e_fuse_is_suppressed_while_its_right_half_targets_cannot_be_announced` became
   `p1e_fuse_is_offered_and_its_target_count_matches_what_the_cast_validates` — same file, subject
-  **inverted**, because the suppression it pinned is what this batch deleted. "+42 with zero
+  **inverted**, because the suppression it pinned is what this batch deleted. "+44 with zero
   removals" would have been a true number hiding a real edit.
   **PROTOCOL 37 → 38 / HASH 76 → 77**, both taken from the failing gates' own output and both
   **predicted in writing before any code changed**; the stop-condition (a gate moving in a way the
@@ -624,8 +624,8 @@
   ordinary cast path showed the identical `filter`-then-positional-`get`: **where a defect is
   noticed is not where it lives**, and the measured candidate population is **7** deck-legal
   `Complete` defs, not 2.
-  Tests **4,795 / 0 / 5** (+42 over the 4,753 pre-edit baseline, **53** targets), itemised by NAME:
-  **43 additions, 1 rename, 0 removals** — the rename (`p1e`) is the one the criterion mandated and
+  Tests **4,797 / 0 / 5** (+44 over the 4,753 pre-edit baseline, **53** targets), itemised by NAME:
+  **45 additions, 1 rename, 0 removals** — the rename (`p1e`) is the one the criterion mandated and
   is stated rather than netted out. Coverage unmoved **1,136/1,803 = 63.0%**, **0 flips**, churn
   reverted. `clippy --workspace --all-targets -D warnings`, `cargo fmt --check` and
   `tools/check-defs-fmt.sh` (1,803 defs) all clean. Filed **OOS-DX44-1..5**. Full record:

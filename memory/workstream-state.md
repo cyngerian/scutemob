@@ -21,8 +21,8 @@
 
 **Shipped**: v4 queue **rank 2**. **`OOS-DX29-9`, `OOS-DX29-12`, `OOS-DX29-14` CLOSED**;
 **`OOS-DX29-3` NARROWED** (pitch half closed, graveyard half deferred and measured). Filed
-**`OOS-DX44-1..5`**. Tests **4,795 / 0 / 5** (+42 over the 4,753 pre-edit baseline, itemised by
-NAME: **43 additions, 1 rename, 0 removals**, 53 targets); coverage unmoved
+**`OOS-DX44-1..5`**. Tests **4,797 / 0 / 5** (+44 over the 4,753 pre-edit baseline, itemised by
+NAME: **45 additions, 1 rename, 0 removals**, 53 targets); coverage unmoved
 **1,136/1,803 = 63.0%**, **0 flips**; **PROTOCOL 37 → 38 / HASH 76 → 77**, both gate-computed and
 both predicted in writing before any code changed.
 
