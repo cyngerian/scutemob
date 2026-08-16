@@ -684,3 +684,153 @@ fn t5_pitch_cost_prediction_taps_nothing_even_when_it_could() {
          plan and tapped them"
     );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// T6 — Misdirection: the ONLY pitch member whose cost list has no life
+// component, driven end to end for that reason.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// **T6** — Misdirection, pitched: exiles the NON-DEFAULT blue card, pays NO
+/// life, charges NO mana, and redirects Lightning Bolt off its announced target
+/// onto the caster's opponent (CR 115.7a).
+///
+/// # Why this exists, and a correction to this test's own first draft
+///
+/// This file's first draft recorded Misdirection as a stated FLOOR, on the
+/// ground that `offerable_pitch_plan` / `eligible_pitch_cards` /
+/// `pitch_ability_of` have no per-card branch. The probe was then written with
+/// a doc comment claiming Misdirection is *"the only deck-legal member whose
+/// cost list contains no `Cost::PayLife` at all"*.
+///
+/// **That claim was exactly backwards, and executing a revert is what said so.**
+/// Rewriting `offerable_pitch_plan`'s tolerant `for … if let Cost::PayLife`
+/// loop into a `find_map(PayLife)?` — i.e. making a life component MANDATORY —
+/// was expected to redden this test alone. It reddened **four**. Reading the
+/// defs afterwards: `force_of_will` pays `Cost::PayLife(1)`, and
+/// `force_of_negation`, `force_of_vigor` and `misdirection` pay **no life at
+/// all**. Force of Will is the exception, not the rule, and this comment had
+/// the population inverted 1-vs-3.
+///
+/// So the honest account of what T6 buys:
+/// * **Coverage of the fourth named member.** `pb_dx44_uncastable_roster::r1`
+///   pins the deck-legal pitch population at four and this batch's acceptance
+///   criterion names all four; three of four is not four.
+/// * **The only pitch cast in this file whose spell effect is a target CHANGE**
+///   (CR 115.7a, `Effect::ChangeTargets`) rather than a counter or a destroy —
+///   the path PB-DX25c rebuilt, reached for the first time through the pitch
+///   channel.
+/// * It is the only member combining a life-free cost list with
+///   `opponents_turn_only: false`, so it is the only pitch offer that must
+///   appear on the CASTER'S OWN TURN with nothing to check but the colour.
+///
+/// **It isolates no code branch T1-T5 miss**, and that is stated rather than
+/// implied: it reddens on the shared-channel reverts (`params.rs` forwarding
+/// `alt_cost`, the Pitch cost-prediction branch) exactly as its siblings do,
+/// and there is no revert of a line this batch owns that reddens T6 alone.
+///
+/// **The redirect half is deliberately asserted by DAMAGE, not by the stack.**
+/// `Effect::ChangeTargets` rewriting a `StackObject.targets` entry is
+/// observable before resolution, and a probe that stopped there would pass
+/// against a redirect that never takes effect. Bolt is drained to resolution
+/// and the life totals decide it.
+#[test]
+fn t6_misdirection_pitch_end_to_end_with_no_life_component() {
+    // P2 is active (see `pitch_state`), holds Lightning Bolt and a Mountain to
+    // cast it with; P1 holds Misdirection plus two blue pitch candidates.
+    let state = pitch_state("Misdirection", &["Brainstorm", "Counterspell"], 20, 1);
+    let mis_id = id_of(&state, "Misdirection");
+    let bolt_id = id_of(&state, "Lightning Bolt");
+    // `eligible[0]` (Brainstorm) is the provider's own default; pick the other.
+    let non_default_card_id = id_of(&state, "Counterspell");
+    let default_card_id = id_of(&state, "Brainstorm");
+
+    let mut game = start(state);
+    // P2 casts Bolt at P1. Misdirection will move it to P2.
+    cast_bolt(&mut game, bolt_id, P1);
+
+    let decision = drive_until(&mut game, is_pitch_cast_of(mis_id));
+    let idx = index_of(&decision.actions, is_pitch_cast_of(mis_id));
+
+    // CR 400.7: the cast minted Bolt a fresh `ObjectId`; re-resolve by name, for
+    // the reason T1 documents at length.
+    let bolt_stack_id = id_of(game.state(), "Lightning Bolt");
+
+    let p1_life_before = game.state().player(P1).expect("p1 exists").life_total;
+    let p2_life_before = game.state().player(P2).expect("p2 exists").life_total;
+
+    game.submit(
+        decision.seq,
+        HumanChoice {
+            action_index: idx,
+            params: ActionParams {
+                targets: vec![Target::Object(bolt_stack_id)],
+                additional_costs: vec![AdditionalCost::ExileFromHand {
+                    card: non_default_card_id,
+                }],
+                auto_tap: true,
+                ..Default::default()
+            },
+        },
+    )
+    .unwrap_or_else(|e| panic!("Misdirection pitch cast must be accepted: {e:?}"));
+
+    // The point of this probe: NO life is paid, because Misdirection's cost list
+    // has no `Cost::PayLife` member at all.
+    assert_eq!(
+        game.state().player(P1).expect("p1 exists").life_total,
+        p1_life_before,
+        "CR 118.9: Misdirection's pitch cost is a card and NOTHING else -- no \
+         life may be paid"
+    );
+    // CR 118.9a: the printed {3}{U}{U} is never charged. P1 has no mana source
+    // at all, so reaching this point proves it; the empty pool proves nothing
+    // was conjured.
+    assert!(
+        game.state()
+            .player(P1)
+            .expect("p1 exists")
+            .mana_pool
+            .is_empty(),
+        "CR 118.9a: Misdirection's printed {{3}}{{U}}{{U}} must never be charged"
+    );
+    // The NON-DEFAULT card, and only it, is exiled -- checked by NAME because
+    // CR 400.7 minted it a fresh id on the move.
+    let exile_names: Vec<String> = game
+        .state()
+        .objects_in_zone(&ZoneId::Exile)
+        .into_iter()
+        .map(|o| o.characteristics.name.clone())
+        .collect();
+    assert_eq!(
+        exile_names,
+        vec!["Counterspell".to_string()],
+        "exactly the chosen (non-default) card must be exiled: {exile_names:?}"
+    );
+    assert_eq!(
+        game.state()
+            .object(default_card_id)
+            .expect("the default card was never moved, so its id must still be live")
+            .zone,
+        ZoneId::Hand(P1),
+        "the DEFAULT card (never chosen) must still be in hand"
+    );
+
+    drain_stack(&mut game);
+
+    // CR 115.7a: the redirect landed. Bolt was announced at P1 and dealt its 3
+    // to P2 instead. Asserted on BOTH seats -- "P2 lost 3" alone would also hold
+    // if the spell had somehow hit both.
+    assert_eq!(
+        game.state().player(P2).expect("p2 exists").life_total,
+        p2_life_before - 3,
+        "CR 115.7a: Misdirection moved Lightning Bolt's target to P2, so P2 \
+         takes the 3 damage"
+    );
+    assert_eq!(
+        game.state().player(P1).expect("p1 exists").life_total,
+        p1_life_before,
+        "CR 115.7a: P1 was Bolt's ANNOUNCED target and must take no damage \
+         once the target is changed -- and pays no life for the pitch either, \
+         so this total is unmoved from before the cast"
+    );
+}
