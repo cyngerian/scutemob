@@ -3515,6 +3515,17 @@ pub fn effective_cast_cost_with_additional(
         return Some(cost);
     }
 
+    // `/review` finding 9: widening the guard's condition to include `modes_chosen`
+    // is not identity-neutral in one edge case — a `modes_chosen`-bearing cast whose
+    // card has NO registry def now falls past this point into the `state.object(card)
+    // .ok()?...?` chain below and returns `None` (cast unfunded) rather than `Some
+    // (cost)` (the base cost, as it did before this batch). No corpus member is
+    // affected: `modes_chosen` can only be non-empty for a card the offer layer
+    // already resolved as modal through its registry `ModeSelection`, so reaching
+    // here with modes chosen and no registry def is not a reachable shape through any
+    // real cast path today. Recorded as the one behavioural change to this shared
+    // cost-prediction function, judged acceptable rather than narrowed further.
+
     let def = state
         .object(card)
         .ok()?

@@ -3724,32 +3724,43 @@ pub fn handle_cast_spell(
     // modes with empty target slices. A future spell combining Escalate with `mode_targets`
     // needs both ladders extended together (flag, do not silently extend — see
     // `memory/conventions.md` "implement-phase default-to-defer").
-    let mode_targets_active: Option<Vec<TargetRequirement>> = if casting_with_aftermath {
-        None
-    } else {
-        mode_selection_opt.as_ref().and_then(|ms| {
-            // Post-PB-DP3: an empty `validated_modes_chosen` here no longer means
-            // "auto-select mode 0 for any modal spell" — Change 1 rejects that case before
-            // this point is ever reached. The `!ms.modes.is_empty() { vec![0] }` arm below
-            // is reachable only when `mode_targets.is_some()` AND `validated_modes_chosen`
-            // is empty, which after Change 1 means the escalate exemption fired
-            // (`escalate_modes > 0`) — and that combination is hard-rejected 16 lines below
-            // at the Escalate + `mode_targets` guard. So this arm is UNREACHABLE IN
-            // PRACTICE but retained as a fail-safe (do not delete — PB-DP3 plan §3, Change
-            // 2).
-            let indices: Vec<usize> = if entwine_paid {
-                (0..ms.modes.len()).collect()
-            } else if !validated_modes_chosen.is_empty() {
-                validated_modes_chosen.clone()
-            } else if !ms.modes.is_empty() {
-                // Fail-safe only — see comment above. Not reachable by any shipped card.
-                vec![0]
-            } else {
-                vec![]
-            };
-            per_mode_target_requirements(ms, &indices)
-        })
-    };
+    // `/review` finding 5: this must also short-circuit on `cast_right_half`
+    // (CR 709.4) for the same reason it already does on `casting_with_aftermath`
+    // -- a modal LEFT half's `mode_targets` must never replace the RIGHT half's
+    // own requirements. No shipped card combines the Fuse-right-half DSL carrier
+    // with per-mode targets today (`pb_dx44_uncastable_roster::r3`'s three-member
+    // roster is non-modal in every member), so `mode_selection_opt` is already
+    // `None` for all of them and this is a latent-gap closure, not a behaviour
+    // change -- confirmed by the full workspace suite staying green. Mirrors
+    // `queries::spell_target_requirements`'s SAME gap (line ~188 there), so the
+    // offer layer and the cast path stay in agreement if either is ever widened.
+    let mode_targets_active: Option<Vec<TargetRequirement>> =
+        if casting_with_aftermath || cast_right_half {
+            None
+        } else {
+            mode_selection_opt.as_ref().and_then(|ms| {
+                // Post-PB-DP3: an empty `validated_modes_chosen` here no longer means
+                // "auto-select mode 0 for any modal spell" — Change 1 rejects that case before
+                // this point is ever reached. The `!ms.modes.is_empty() { vec![0] }` arm below
+                // is reachable only when `mode_targets.is_some()` AND `validated_modes_chosen`
+                // is empty, which after Change 1 means the escalate exemption fired
+                // (`escalate_modes > 0`) — and that combination is hard-rejected 16 lines below
+                // at the Escalate + `mode_targets` guard. So this arm is UNREACHABLE IN
+                // PRACTICE but retained as a fail-safe (do not delete — PB-DP3 plan §3, Change
+                // 2).
+                let indices: Vec<usize> = if entwine_paid {
+                    (0..ms.modes.len()).collect()
+                } else if !validated_modes_chosen.is_empty() {
+                    validated_modes_chosen.clone()
+                } else if !ms.modes.is_empty() {
+                    // Fail-safe only — see comment above. Not reachable by any shipped card.
+                    vec![0]
+                } else {
+                    vec![]
+                };
+                per_mode_target_requirements(ms, &indices)
+            })
+        };
     // CR 700.2c/702.120a (PB-AC4 fix-phase Finding 1, MEDIUM): Escalate + `mode_targets` is
     // not a supported combination. Cast-time `mode_targets_active` (above) has no Escalate
     // branch, while resolution's `chosen_mode_indices` (resolution.rs) does — a spell
@@ -5544,6 +5555,21 @@ pub(crate) fn card_def_target_requirements(
         // (unlike `AbilityDefinition::Spell`); fall back to the card-definition-level
         // flag, the same fallback the else branch below uses when no `Spell` ability is
         // found at all.
+        //
+        // **Stated residual (`/review` finding 8, undocumented until now)**: a split
+        // card's RIGHT half therefore cannot print its own "this spell can't be
+        // countered" independent of the card-def-level flag or the LEFT half's
+        // `AbilityDefinition::Spell.cant_be_countered` -- there is no per-half
+        // channel for it, unlike the aftermath arm below (which reads its own
+        // `AbilityDefinition::Aftermath`, hard-coded `false`, i.e. the SAME gap on
+        // that side). Correct today: `pb_dx44_uncastable_roster::r3`'s three-member
+        // roster (`connive_concoct`, `turn`/Burn, `wear_tear`/Tear) has no member
+        // whose halves disagree on countering. This is the SAME shape as CR 709.4's
+        // timing residual (`OOS-DX44-5`, `def.card_type` also read from the whole
+        // card rather than per-half) -- recorded here rather than left to be
+        // re-derived, per that seed's own precedent. Do not widen
+        // `AbilityDefinition::Fuse` with a new field for this until a shipped
+        // member needs it (0 members today).
         return (right_targets, def.cant_be_countered);
     }
     let result = if casting_with_aftermath {

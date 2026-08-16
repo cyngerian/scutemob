@@ -185,11 +185,22 @@ pub fn spell_target_requirements(
     // the shared Aura synthesis (§5 Step 4c) — an Aura never has per-mode targets today
     // (no shipped card combines the two), so this is a no-op guard in practice, not a
     // behaviour change.
-    let requirements = match casting::spell_mode_selection(state, card_id) {
-        Some(ms) => {
-            casting::per_mode_target_requirements(&ms, modes_chosen).unwrap_or(requirements)
+    //
+    // `/review` finding 5 (PB-DX44): mirror `casting.rs`'s SAME short-circuit — a
+    // right-half-only cast (CR 709.4) must never let a modal LEFT half's per-mode
+    // targets replace the right half's own requirements. No shipped card combines
+    // the Fuse-right-half DSL carrier with per-mode targets today, so
+    // `casting::spell_mode_selection` already returns `None` for every corpus
+    // right-half member and this is a latent-gap closure, not a behaviour change.
+    let requirements = if casting_right_half {
+        requirements
+    } else {
+        match casting::spell_mode_selection(state, card_id) {
+            Some(ms) => {
+                casting::per_mode_target_requirements(&ms, modes_chosen).unwrap_or(requirements)
+            }
+            None => requirements,
         }
-        None => requirements,
     };
     casting::aura_spell_target_requirements(&eff_chars, requirements)
 }

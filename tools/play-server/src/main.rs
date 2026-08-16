@@ -12701,4 +12701,292 @@ mod tests {
              exiled card, making CR 118.9's choice unreachable from the browser"
         );
     }
+
+    const DX44_PITCH_SPELL: &str = "force-of-will";
+    const DX44_PITCH_SPELL_NAME: &str = "Force of Will";
+    const DX44_PITCH_VICTIM: &str = "lightning-bolt";
+    const DX44_PITCH_VICTIM_NAME: &str = "Lightning Bolt";
+    /// [`DX44_PITCH_SPELL`]'s two pitch-eligible blue cards -- neither is ever
+    /// cast, only exiled. `eligible[0]` (lower `ObjectId`, built/drawn first)
+    /// is the provider's own default; this probe deliberately answers with
+    /// the OTHER one, mirroring `pb_dx44_pitch_channel.rs`'s T1.
+    const DX44_PITCH_DEFAULT_CANDIDATE: &str = "brainstorm";
+    const DX44_PITCH_DEFAULT_CANDIDATE_NAME: &str = "Brainstorm";
+    const DX44_PITCH_NON_DEFAULT_CANDIDATE: &str = "counterspell";
+    const DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME: &str = "Counterspell";
+
+    /// Drive P1 -- playing a land, else passing priority -- until ALL FOUR of
+    /// [`DX44_PITCH_VICTIM_NAME`]/[`DX44_PITCH_SPELL_NAME`]/
+    /// [`DX44_PITCH_DEFAULT_CANDIDATE_NAME`]/[`DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME`]
+    /// are in hand AND at least one Mountain is on the battlefield.
+    ///
+    /// `ui2_drive_playing_lands`'s land-COUNT contract (used by the right-half
+    /// probe above) is not reused here: that contract only pins WHEN the
+    /// target's own land type is drawn, and this fixture additionally needs
+    /// two DISTINCT other non-land cards in hand at the same moment, which
+    /// [`UI2_SEED`]'s pinned-position doc (`ui2_lifes_legacy_two_elves_deck`)
+    /// only maps out for the forest-based [`UI2_COMMANDER`] deck, not this
+    /// mountain/island one -- so this drives on the STATE itself (never
+    /// casting anything, never tapping), rather than assuming a position.
+    async fn dx44_drive_until_pitch_fixture_ready(state: &SharedState, max_steps: usize) -> Value {
+        let p1 = mtg_engine::PlayerId(1);
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            let hand = ui2_zone_names(state, mtg_engine::ZoneId::Hand(p1));
+            let ready = [
+                DX44_PITCH_VICTIM_NAME,
+                DX44_PITCH_SPELL_NAME,
+                DX44_PITCH_DEFAULT_CANDIDATE_NAME,
+                DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME,
+            ]
+            .iter()
+            .all(|name| hand.contains(&name.to_string()))
+                && ui2_battlefield_count_by_name(state, p1, "Mountain") > 0;
+            if ready {
+                return view;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} before the pitch fixture (all four cards in \
+                 hand, a Mountain in play) was ready: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!("the pitch fixture was never ready within {max_steps} steps: {view}");
+    }
+
+    /// **`/review` finding 4 (MEDIUM) — JOB 4.5 (pitch, browser channel).**
+    ///
+    /// Spree and the split-card right half each got a full HTTP drive (the two
+    /// tests above); the pitch channel had only a 400-boundary unit test on a
+    /// synthetic action, so the chain `additional_costs_view` -> `PitchCostView`
+    /// -> `CostPicker` render -> submit -> engine was never exercised end to end
+    /// and `view.rs`'s `pitch_prompt`/`color_word` had no coverage at all.
+    ///
+    /// Force of Will is offered and resolved over HTTP as a SEPARATE pitch
+    /// action (`AltCostKind::Pitch`), paying CR 118.9's alternative cost (1
+    /// life + a NON-DEFAULT exiled blue card) rather than its printed
+    /// `{3}{U}{U}`. Real deck, real HTTP router, no direct engine construction
+    /// -- mirroring the right-half probe above exactly.
+    ///
+    /// P1 casts Lightning Bolt (targeting P2) first and, per CR 117.3c
+    /// (PB-DP1: the actor keeps priority), is offered a fresh decision in
+    /// response to their OWN spell -- no bot cooperation needed to put a
+    /// counterable target on the stack.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx44_pitch_cast_is_offered_and_resolved_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+        let p2 = mtg_engine::PlayerId(2);
+        let state = shared_state();
+        ui2_install(
+            &state,
+            dx44_mountain_island_deck_with(&[
+                (0, DX44_PITCH_VICTIM),
+                (1, DX44_PITCH_SPELL),
+                // [`UI2_SEED`]'s pinned positions for THIS deck arrangement (mountain/
+                // island, [`DX44_UR_COMMANDER`]) are NOT the forest-deck ones
+                // `ui2_lifes_legacy_two_elves_deck` documents -- re-measured for this
+                // arrangement by a throwaway library-order dump (never committed): 19
+                // is in the OPENING hand and 22 is the very TOP of the post-shuffle
+                // library (drawn on the first draw step), so both candidates are in
+                // hand well within [`dx44_drive_until_pitch_fixture_ready`]'s budget.
+                (19, DX44_PITCH_DEFAULT_CANDIDATE),
+                (22, DX44_PITCH_NON_DEFAULT_CANDIDATE),
+            ]),
+            dx29_mountain_deck_with(&[]),
+        );
+
+        // Lightning Bolt's own {R} needs at least one Mountain, and the pitch
+        // action needs the two candidate blue cards actually in hand.
+        let view = dx44_drive_until_pitch_fixture_ready(&state, UI2_LAND_DRIVE_MAX_STEPS).await;
+
+        let cast_bolt_label = format!("Cast {DX44_PITCH_VICTIM_NAME}");
+        let bolt_action = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["kind"] == "CastSpell" && a["label"] == cast_bolt_label.as_str())
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!(
+                    "{DX44_PITCH_VICTIM_NAME}'s ordinary offer must be present with a \
+                     Mountain out: {view}"
+                )
+            });
+        let bolt_index = bolt_action["index"].as_u64().expect("index is a number");
+
+        let wire_seq = seq(&view);
+        let (status, after_bolt) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": bolt_index,
+                "params": {"targets": [{"Player": p2.0}]}
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after_bolt}");
+
+        // CR 117.3c (PB-DP1): the actor keeps priority after casting, so P1
+        // is offered a NEW decision here -- still their own priority window,
+        // in response to their OWN Lightning Bolt on the stack.
+        let view = after_bolt;
+        let pitch_label = format!("Cast {DX44_PITCH_SPELL_NAME} via its pitch cost");
+        let pitch_action = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["kind"] == "CastSpell" && a["label"] == pitch_label.as_str())
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!(
+                    "{DX44_PITCH_SPELL_NAME}'s pitch offer must be present in response to \
+                     P1's own Lightning Bolt: {view}"
+                )
+            });
+        let pitch_index = pitch_action["index"].as_u64().expect("index is a number");
+
+        // The served `PitchCostView` itself -- candidates and prompt, not just
+        // presence. Both blue candidates must be named (by id, via `NameIndex`).
+        let costs = &pitch_action["costs"];
+        assert_eq!(costs["answer_field"], "additional_costs", "{pitch_action}");
+        let pitch_view = &costs["pitch"];
+        assert!(
+            !pitch_view.is_null(),
+            "the pitch offer must carry its own `PitchCostView`: {pitch_action}"
+        );
+        assert!(
+            pitch_view["prompt"]
+                .as_str()
+                .expect("prompt is a string")
+                .contains("CR 118.9"),
+            "the served prompt must cite CR 118.9: {pitch_view}"
+        );
+        let candidate_labels: Vec<String> = pitch_view["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .map(|c| c["label"].as_str().expect("label is a string").to_string())
+            .collect();
+        let mut sorted_labels = candidate_labels.clone();
+        sorted_labels.sort();
+        let mut expected_labels = vec![
+            DX44_PITCH_DEFAULT_CANDIDATE_NAME.to_string(),
+            DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME.to_string(),
+        ];
+        expected_labels.sort();
+        assert_eq!(
+            sorted_labels, expected_labels,
+            "the served candidate list must name both eligible blue cards: {candidate_labels:?}"
+        );
+
+        let non_default_id = pitch_view["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .find(|c| c["label"] == DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME)
+            .and_then(|c| c["id"].as_u64())
+            .expect("Counterspell must be among the served candidates");
+
+        // CR 400.7: casting Lightning Bolt minted it a FRESH `ObjectId` on the
+        // move to the stack -- re-resolve by name and zone, mirroring T1's own
+        // note in `pb_dx44_pitch_channel.rs`.
+        let bolt_stack_id = {
+            let guard = state.session.lock().expect("lock");
+            let session = guard.as_ref().expect("a session is installed");
+            session
+                .game
+                .state()
+                .objects()
+                .iter()
+                .find(|(_, o)| {
+                    o.characteristics.name == DX44_PITCH_VICTIM_NAME
+                        && o.zone == mtg_engine::ZoneId::Stack
+                })
+                .map(|(id, _)| id.0)
+                .expect("Lightning Bolt must be on the stack")
+        };
+
+        let p1_life_before = dx44_life_total(&state, p1);
+        let wire_seq = seq(&view);
+        let (status, after_pitch) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": pitch_index,
+                "params": {
+                    "targets": [{"Object": bolt_stack_id}],
+                    "additional_costs": [{"ExileFromHand": {"card": non_default_id}}]
+                }
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after_pitch}");
+
+        // CR 119.4: exactly 1 life paid.
+        assert_eq!(
+            dx44_life_total(&state, p1),
+            p1_life_before - 1,
+            "CR 118.9: pitching Force of Will pays exactly 1 life"
+        );
+        // CR 118.9a: the printed {3}{U}{U} must never be charged.
+        assert_eq!(
+            ui2_mana_pool_total(&state, p1),
+            0,
+            "{DX44_PITCH_SPELL_NAME}'s printed mana cost must never be paid"
+        );
+
+        // The NON-DEFAULT (Counterspell) card, and only it, is exiled. The
+        // DEFAULT (Brainstorm) must still be in hand -- never touched.
+        let exile_names = ui2_zone_names(&state, mtg_engine::ZoneId::Exile);
+        assert_eq!(
+            exile_names,
+            vec![DX44_PITCH_NON_DEFAULT_CANDIDATE_NAME.to_string()],
+            "exactly the chosen (non-default) blue card must be exiled: {exile_names:?}"
+        );
+        let hand_names = ui2_zone_names(&state, mtg_engine::ZoneId::Hand(p1));
+        assert!(
+            hand_names.contains(&DX44_PITCH_DEFAULT_CANDIDATE_NAME.to_string()),
+            "the default (never chosen) card must still be in hand: {hand_names:?}"
+        );
+
+        ui2_drain_stack(&state, after_pitch, 60).await;
+
+        // CR 608: resolution. Bolt is countered -- to its OWNER's graveyard
+        // (CR 800.4a), which is P1: P1 both cast and owns Lightning Bolt (it
+        // came from P1's own deck; P2 is merely the spell's TARGET).
+        let graveyard = ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1));
+        assert!(
+            graveyard.contains(&DX44_PITCH_VICTIM_NAME.to_string()),
+            "{DX44_PITCH_SPELL_NAME}'s CounterSpell must have sent {DX44_PITCH_VICTIM_NAME} \
+             to its owner's graveyard: {graveyard:?}"
+        );
+    }
 }
