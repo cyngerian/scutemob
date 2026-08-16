@@ -390,3 +390,113 @@ channel was broken between them.
 position, **subject inverted**, because the suppression it pinned is the thing this batch deleted.
 The acceptance criterion mandated exactly this re-pointing. Stated rather than netted out, because
 "+42 with zero removals" would have been a true number hiding a real edit.
+
+---
+
+## 8. `/review` — 1 HIGH, 3 MEDIUM, 8 LOW, all 12 taken
+
+An Opus reviewer with a shell re-derived every headline figure against the shipped code (all
+reproduced), ran the full suite (4,795 / 0 / 5 at 53 targets, exactly), and executed five reverts
+of its own — four confirming the claimed discrimination, including the "3 probes redden" figure for
+the `modes_chosen` link.
+
+### 8.1 The HIGH was the batch shipping its own subject matter, a third time
+
+**The entire browser half of two of the four seeds had ZERO gate coverage.** The reviewer deleted
+both `isFusedCast` branches from `ActionBar.svelte`'s slot/range derivation **and** the
+`pitch={activeOption.costs.pitch}` prop, then ran `cargo test -p play-server`: **112 passed, 0
+failed.**
+
+That is worse than a missing test in two distinct ways. §4.3 of this file calls the fused-slot hole
+*"the exact SR-38 defect this batch exists to delete, created by this batch"* — and the fix closing
+it silently reopens on the next frontend edit. Dropping the `pitch` prop is a different failure:
+`CostPicker` never renders, `merge_required_additional_costs` substitutes `plan.pitch.default`, and
+**a human never chooses which card to pitch** — the acceptance criterion's "NON-DEFAULT pitched
+card" becomes unreachable from the browser with everything green.
+
+The project has a settled precedent (UI-4's `frontend/src` walk, UI-5's four gates, UI-6's needle
+set), and this batch reached for it for the ENGINE half and not the CLIENT half. *A batch that
+gates the half it finds interesting has gated half its work.*
+
+### 8.2 A comment citing a gate that does not make the claim
+
+`resolution.rs` justified the target-index padding with "`r3` pins that every corpus right half's
+declared indices start at or after `left_count`". `r3` pins `(name, left_len, right_len)`
+**counts**; it never walks the `Effect` tree for `DeclaredTarget` values. The invariant *is* covered
+— behaviourally, by `split_half_cast::t1`/`t2`, which the reviewer proved by setting `wear_tear`'s
+right half to `index: 0` and watching three tests redden — so this is a **wrong cite, not an
+uncovered invariant**, sitting in the one comment guarding the batch's stated highest-risk line.
+PB-DX7's `/review` M5 in the same shape: *a reason asserting documentation that does not exist.*
+
+### 8.3 The riders were dispositioned in `memory/` and the criterion said registry
+
+All seven rider rows were **byte-unchanged** on the branch; §3 of this file held the dispositions.
+That is precisely the failure the v4 re-rank made its headline finding — 61 of 208 seeds unrowed
+because work was filed into handoff prose — and dispatch hygiene 5's "the registry is ground truth".
+Now written into each row. Note `OOS-DX29-13` is **TAKEN**, not deferred, and its refuted
+prescription is corrected in its OWN row rather than only in `OOS-DX44-2`'s, so a reader of `-13`
+no longer sees a prescription this batch disproved.
+
+### 8.4 The refusal-channel A/B, measured because the reviewer asked and worth the answer
+
+SIM-5, SIM-6 and PB-DX29 each published one; this batch published none, in a batch whose entire
+framing is SR-38. Measured now.
+
+**The standing gate** (`sim5_bot_cast_discipline`, seeds 0/7/42, 26 turns, 4 heuristic bots):
+
+| class | seed | PB-DX29 | PB-DX44 |
+|---|---|---|---|
+| `InsufficientMana` on **activate** (auto-tap covers `CastSpell` alone) | `OOS-SIM6-3` | 76 | **76** |
+| blocker refusals (`CrossPlayerBlock` + attacker-declaring-blockers) | `OOS-SIM5-3` | 27 | **26** |
+| modal per-mode target slices unqueryable | `OOS-SIM5-5` | 2 | **4** |
+| **cast-side refusals of any kind** | — | **0** | **0** |
+| total | | 105 | **106** |
+
+**The number that matters is the last-but-one row: cast-side refusals are still ZERO.** This batch
+opened four new cast channels and none of them produces a refusal — which is the SR-38 property,
+and the only one of these figures that is a claim about this batch rather than about the bot.
+
+**The two that moved are not evidence of anything, and saying why is the point.** This batch grows
+the offer list (up to three `CastSpell` actions per card where there was one), so a bot drawing
+uniformly over that list **diverges from the first affected offer and plays a different game**.
+Per-seed counts across an action-space change are not a like-for-like comparison — `OOS-DX22`'s own
+recorded lesson, *a random bot's seed choice is not evidence*. Both moved classes are pre-existing
+and named; no new class appears.
+
+**The fuzz figures, reproduced from the reviewer's run**: RandomBot, 8 games from seed 44, 60 turns
+— `250 / 19365 = 12.910‰` on branch against `206 / 19346 = 10.648‰` on main, threshold **30‰** on
+the aggregate. Seeds 44-50 are byte-identical; **all +44 land in seed 51** (20/2216 → 64/2235 =
+28.6‰), i.e. exactly one game diverged, for the reason above. Its rejection classes are
+`InsufficientMana`, `InvalidTarget`, `AlreadyDeclaredBlockers`, `InvalidCommand`, `CrossPlayerBlock`
+— all pre-existing. The heuristic bot moved the other way (1487 → 1395). **Recorded rather than
+tuned away**: a single seed at 28.6‰ against a 30‰ aggregate threshold is a thing a future reader
+should know is understood, not a thing to discover.
+
+### 8.5 The remaining findings
+
+* **LOW 5** — a right-half cast still runs the LEFT half's per-mode target branch: both
+  `queries.rs` and `casting.rs` short-circuit `mode_targets` on `casting_with_aftermath` only. The
+  two **agree**, so there is no offer-vs-cast drift; a shared latent CR 709.4 gap with zero corpus
+  members. Recorded in `OOS-DX44-3`.
+* **LOW 6** — **the dual of SR-38, and worth naming as a class**: `offerable_pitch_plan` requires an
+  `ExileFromHand` component, so a life-only pitch ability would never be OFFERED though
+  `casting.rs` would accept it. Every seed in the registry describes an offer the engine refuses;
+  this is an offer withheld that the engine would honour. Latent (all four members exile).
+  Recorded in `OOS-DX44-3`.
+* **LOW 8** — a right half cannot express "can't be countered" (`AbilityDefinition::Fuse` has no
+  such field, so the branch falls back to `def.cant_be_countered`). Correct today, now documented as
+  a residual — the CR 709.4 timing residual got a comment and a seed row and this did not.
+* **LOW 9** — the identity-guard widening's one behavioural change: a modal cast of a card with **no
+  registry def** now yields `None` (unfunded) where it previously yielded the base cost. No member.
+* **LOW 10** — the v4 memo stated two different "next dispatch" answers three lines apart
+  (pre-existing; PB-DX43 left it, and this batch edited the adjacent line). Struck, not deleted,
+  because the sentence after it explains why the memo names a dispatch at all.
+* **LOW 11** — **criterion 3's "fused … from bot paths" is structurally unmet and is now stated as
+  such rather than reported as met.** `merge_required_additional_costs` only ever defaults
+  *required* costs, so no bot can announce the optional `AdditionalCost::Fuse`. Left-only and
+  right-only ARE bot-reachable; fused is not, by construction, and making it so would mean teaching
+  bots to want optional riders — a different batch. Documented at `targeting.rs`.
+* **LOW 12** — `p4_fuse_is_offered_from_hand_and_never_from_the_command_zone` survives unchanged and
+  green, preserving the CR 702.102a **zone** clause's independence from the target clause. The
+  criterion asked for "preserved or explicitly re-homed" **in writing**; it was preserved and not
+  written down. Written down here.

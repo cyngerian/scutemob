@@ -12632,4 +12632,73 @@ mod tests {
             )
         });
     }
+
+    /// **PB-DX44 `/review` finding 1 (HIGH) — the browser half of this batch was
+    /// ungated.**
+    ///
+    /// Two lines in `ActionBar.svelte` are load-bearing and nothing pinned either:
+    ///
+    /// 1. `resolvedTargetSlots`/`resolvedTargetRange` must open with the
+    ///    Fuse-first branch (Stage 1's execution notes §4.3) — deleting it does
+    ///    not fail a single test, and it recreates the EXACT SR-38 defect PB-DX44
+    ///    exists to delete: a human ticks Fuse in `CostPicker`, and `TargetPicker`
+    ///    then asks for the UN-fused slot count. Clean offer, server 422.
+    /// 2. `pitch={activeOption.costs.pitch}` must be threaded into `CostPicker` —
+    ///    `test_frontend_cost_picker_never_fills_a_unit_variant_marker_template`
+    ///    proves the COMPONENT handles a `pitch` prop correctly, but nothing
+    ///    proved `ActionBar` ever GIVES it one. Dropping the prop is silent:
+    ///    `CostPicker` renders with `pitch: null`, its `{#if pitch}` branch never
+    ///    opens, and `merge_required_additional_costs` (server-side) silently
+    ///    substitutes `plan.pitch.default` — a human never chooses which card to
+    ///    pitch, which is the acceptance criterion's own "NON-DEFAULT pitched
+    ///    card" requirement made unreachable from the browser with everything
+    ///    green.
+    ///
+    /// Source-level, for the standing reason this file states everywhere else —
+    /// there is no frontend test harness (plan §8 R7). Both needles below are
+    /// checked against `ActionBar.svelte`'s own text as returned by
+    /// `collect_frontend_files(frontend_src, ..)`, and `ActionBar.svelte` lives
+    /// directly under `frontend/src/lib/` — inside that walk's root, not behind
+    /// the `$viewer` alias `vite.config.js` resolves to a sibling tool's source
+    /// tree (the UI-4 gap: a needle satisfied from a file the walk never visits).
+    /// Both functions this test pins are defined in `ActionBar.svelte` itself,
+    /// not imported from `$viewer`, so that gap does not apply here.
+    #[test]
+    fn test_frontend_action_bar_keeps_the_fused_slot_and_pitch_wiring() {
+        let frontend_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&frontend_src, &mut sources);
+        let action_bar = sources
+            .iter()
+            .find(|(p, _)| p.ends_with("ActionBar.svelte"))
+            .map(|(_, t)| t.as_str())
+            .expect("ActionBar.svelte is in the frontend walk");
+
+        // (1) The Fuse-first branch, counted rather than merely found: this
+        //     exact string (with the `if (` prefix) appears ONLY in the two
+        //     branches themselves — the doc comments above each function quote
+        //     `option.fused_target_slots` alone, never the full condition, so a
+        //     doc-comment-satisfiable false pass is not possible here.
+        const FUSE_BRANCH: &str =
+            "if (isFusedCast(paramsSoFar) && (option.fused_target_slots?.length ?? 0) > 0) {";
+        assert_eq!(
+            action_bar.matches(FUSE_BRANCH).count(),
+            2,
+            "`ActionBar.svelte` must open BOTH `resolvedTargetSlots` and `resolvedTargetRange` \
+             with the Fuse-first branch ({FUSE_BRANCH:?}). Losing either one reopens the exact \
+             SR-38 defect PB-DX44 Stage 2b closed (execution notes §4.3): a human ticks Fuse in \
+             `CostPicker`, and `TargetPicker` then asks for the wrong (UN-fused) target count."
+        );
+
+        // (2) The pitch prop, threaded exactly like every other `costs.*` prop
+        //     `CostPicker` is given.
+        assert!(
+            action_bar.contains("pitch={activeOption.costs.pitch}"),
+            "`ActionBar` never threads `costs.pitch` into `CostPicker` — the pitch stage \
+             renders with no candidates and the server silently substitutes the default \
+             exiled card, making CR 118.9's choice unreachable from the browser"
+        );
+    }
 }

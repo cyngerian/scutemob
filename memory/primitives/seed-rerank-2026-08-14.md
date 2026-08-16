@@ -910,7 +910,7 @@ leave the set is `discard_cards` (13 → 12), closed by ENG-1.
 > the two live CR sweeps, `OOS-DP9-8` + `OOS-DP9-11`). Ranks **1-2 are both shipped**.
 > *(prior: `PB-DX43` SHIPPED `scutemob-213` 2026-08-14, which made `PB-DX44` rank 2 the next dispatch.)*
 >
-> **The next dispatch is `PB-DX43`.** CLAUDE.md said "next dispatch: coordinator's call" until this
+> ~~**The next dispatch is `PB-DX43`.**~~ *(superseded — `PB-DX43` shipped `scutemob-213` and `PB-DX44` shipped `scutemob-215`; see the 2026-08-15 banner above. Left struck rather than deleted because the sentence after it explains WHY this memo names a dispatch at all.)* CLAUDE.md said "next dispatch: coordinator's call" until this
 > task; it is repointed in §6. If you are reading a stale pointer, this banner is the correction.
 >
 > **Numbering, stated so nobody hunts for a gap.** New labels are **PB-DX43..PB-DX61**, and

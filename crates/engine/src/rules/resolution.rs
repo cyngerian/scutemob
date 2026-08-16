@@ -474,10 +474,16 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                 //
                                 // The placeholders are never observed by anything: the
                                 // left half's own effect never runs on this path (see the
-                                // `spell_effect` derivation above), and
-                                // `pb_dx44_uncastable_roster::r3` pins that every corpus
-                                // right half's declared indices start at or after
-                                // `left_count`.
+                                // `spell_effect` derivation above). `pb_dx44_uncastable_
+                                // roster::r3` pins only the per-half declared target
+                                // COUNTS (`left_count`/`right_count`) that this offset is
+                                // computed from -- it does NOT walk either half's `Effect`
+                                // tree for the `DeclaredTarget { index }` values
+                                // themselves, so it cannot by itself prove the padding
+                                // above is correct. That behavioural proof is
+                                // `rules::pb_dx44_split_half_cast::t1`/`t2`, which cast
+                                // each right half for real and assert the effect landed on
+                                // the announced target rather than resolving at nothing.
                                 let legal_targets: Vec<SpellTarget> = if stack_obj.cast_right_half {
                                     let left_count = def
                                         .abilities
