@@ -834,3 +834,102 @@ fn t6_misdirection_pitch_end_to_end_with_no_life_component() {
          so this total is unmoved from before the cast"
     );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// T7 — the DEFERRED half of `OOS-DX29-3`, pinned wrong-way-round.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// **T7** — an Escape card sitting in a graveyard is offered NOTHING today, so
+/// nothing about it can be refused. Pinned so the day a graveyard cast loop is
+/// added, this test says out loud what that loop is coupled to.
+///
+/// # What is deferred, and why it is deferred rather than shipped
+///
+/// `OOS-DX29-3` has two halves. The pitch half is CLOSED by this batch (T1-T6).
+/// The other half is a graveyard cast loop — `StubProvider`'s two cast loops
+/// walk `ZoneId::Hand(player)` and `ZoneId::Command(player)` and **no
+/// graveyard**, so Retrace, Jump-Start, Escape and Flashback casts are never
+/// offered at all.
+///
+/// It is deferred because it is not one feature, it is two that must land
+/// together, and the seed says so: **`casting.rs` AUTO-DETECTS escape.**
+/// `casting.rs:283` is
+/// `casting_from_graveyard && card_has_escape_keyword && !casting_with_flashback`,
+/// with no opt-in from the caller — so the moment a graveyard loop exists, an
+/// Escape card in a graveyard becomes an escape cast that then demands an
+/// exact-count `AdditionalCost::EscapeExile` the offer layer has no channel to
+/// supply. **A graveyard loop shipped alone converts "never offered" into "a
+/// hard refusal"**, which is strictly worse than the status quo and is exactly
+/// the SR-38 shape this batch exists to delete. Adding the `EscapeExile`
+/// channel is a second cost picker with its own eligibility arithmetic (CR
+/// 702.138a's exact count, from a zone the pitch picker never reads), and this
+/// batch has already taken a wire bump and four other channels.
+///
+/// # The deferral is doubly safe today, and both halves are measured
+///
+/// 1. This test: the provider offers **zero** casts for a graveyard-resident
+///    Escape card, so no refusal exists to fix.
+/// 2. `pb_dx44_uncastable_roster::r8`: the deck-legal `Complete` Escape
+///    population is **zero** — all four corpus Escape defs are `partial` or
+///    `known_wrong` — so even a graveyard loop could not reach one from a legal
+///    deck. The seed's row does not mention this and it is the difference
+///    between a latent defect and an unreachable one.
+///
+/// **This test is a FLOOR, not an approval.** It goes red the day a graveyard
+/// cast loop is added, and that redness is the reminder to bring the
+/// `EscapeExile` channel with it.
+#[test]
+fn t7_an_escape_card_in_a_graveyard_is_offered_no_cast_today() {
+    let defs = defs_by_name();
+    // `nethergoyf` is `partial`, so a real deck could not contain it; a fixture
+    // can, which is what makes the coupling observable at all today.
+    let state = GameStateBuilder::new()
+        .add_player(P1)
+        .add_player(P2)
+        .with_registry(corpus_registry())
+        .active_player(P1)
+        .object(corpus_object(
+            &defs,
+            P1,
+            "Nethergoyf",
+            ZoneId::Graveyard(P1),
+        ))
+        // Plenty of mana, so a suppressed offer cannot be mistaken for an
+        // unaffordable one.
+        .object(corpus_object(&defs, P1, "Swamp", ZoneId::Battlefield))
+        .object(corpus_object(&defs, P1, "Forest", ZoneId::Battlefield))
+        .object(corpus_object(&defs, P1, "Mountain", ZoneId::Battlefield))
+        .build()
+        .expect("state builds");
+
+    let goyf = id_of(&state, "Nethergoyf");
+    assert_eq!(
+        state.object(goyf).expect("goyf exists").zone,
+        ZoneId::Graveyard(P1),
+        "fixture precondition: the Escape card must actually be in the graveyard"
+    );
+
+    let actions =
+        mtg_simulator::legal_actions::LegalActionProvider::legal_actions(&StubProvider, &state, P1);
+    let casts_of_goyf: Vec<&LegalAction> = actions
+        .iter()
+        .filter(|a| matches!(a, LegalAction::CastSpell { card, .. } if *card == goyf))
+        .collect();
+    assert!(
+        casts_of_goyf.is_empty(),
+        "`OOS-DX29-3` (deferred half): the provider walks Hand and Command only, \
+         so a graveyard-resident Escape card must be offered NO cast at all. \
+         Offering one without an `EscapeExile` channel turns 'never offered' \
+         into a HARD REFUSAL, because `casting.rs:283` auto-detects escape from \
+         the zone alone. Got: {casts_of_goyf:?}"
+    );
+
+    // Non-vacuity: the provider is working and DOES offer casts from hand in
+    // this same state -- an empty `actions` list would satisfy the assertion
+    // above while proving nothing.
+    assert!(
+        !actions.is_empty(),
+        "non-vacuity floor: the provider returned no actions at all, so the \
+         assertion above is vacuous"
+    );
+}

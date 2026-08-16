@@ -649,3 +649,52 @@ fn r5_non_vacuity_floors() {
         "mode_costs inverse axis matched nothing"
     );
 }
+
+/// **R8** — the deck-legal `Complete` **Escape** population, pinned at ZERO.
+///
+/// This is the measurement that makes `OOS-DX29-3`'s deferred half safe to
+/// defer, and the seed's own row does not mention it.
+///
+/// The row's argument is that a graveyard cast loop and the `EscapeExile`
+/// channel must land together, because `casting.rs:283` auto-detects escape
+/// from the zone alone (`casting_from_graveyard && card_has_escape_keyword &&
+/// !casting_with_flashback`, no caller opt-in) — so a graveyard loop shipped
+/// alone converts "never offered" into a HARD REFUSAL. That argument is
+/// correct. What it omits is that **no deck-legal member exists to be refused**:
+/// all four corpus Escape defs are `partial` or `known_wrong`.
+///
+/// The distinction is the difference between a latent defect and an unreachable
+/// one, and it is the kind of figure this project has repeatedly found to be
+/// load-bearing for a scope decision (PB-DX29's "13 of 15 kinds invisible" was
+/// arithmetically right and materially misleading for exactly this reason —
+/// four of the thirteen had no deck-legal member at all).
+///
+/// Pinned WRONG-WAY-ROUND: the day an Escape def is promoted to `Complete`,
+/// this gate goes red and says that the graveyard-loop coupling has acquired a
+/// real member. Read alongside
+/// `pb_dx44_pitch_channel::t7_an_escape_card_in_a_graveyard_is_offered_no_cast_today`,
+/// which pins the other half (nothing is offered, so nothing is refused).
+#[test]
+fn r8_deck_legal_escape_population_is_zero() {
+    let defs = mtg_engine::all_cards();
+    let escape = names_of(&defs, |d| {
+        d.abilities
+            .iter()
+            .any(|a| matches!(a, AbilityDefinition::Keyword(KeywordAbility::Escape)))
+    });
+    println!("Escape defs (any completeness): {escape:?}");
+    assert!(
+        !escape.is_empty(),
+        "non-vacuity floor: the Escape needle matched nothing, so the emptiness \
+         asserted below would be meaningless"
+    );
+    let legal = deck_legal(&defs, &escape);
+    assert!(
+        legal.is_empty(),
+        "`OOS-DX29-3` deferred half: a deck-legal `Complete` Escape def now \
+         exists ({legal:?}). The graveyard cast loop's coupling to the \
+         `EscapeExile` channel has a REAL member as of this change -- read \
+         `t7_an_escape_card_in_a_graveyard_is_offered_no_cast_today` and the \
+         `OOS-DX29-3` registry row before adding a graveyard cast loop."
+    );
+}
