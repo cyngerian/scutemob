@@ -174,7 +174,45 @@ proven red by an executed revert (§5).
 
 ## §3 — Same-zone half
 
-## §4 — Rider dispositions (`OOS-DX24-1`, `OOS-DX24-7`)
+## §4 — Rider and park dispositions
+
+### §4.1 — `OOS-DP9-16`: **NOT TAKEN**, parked, as the brief directs
+
+The v4 memo parks it as *unreachable by construction — both delayed-trigger producers
+mint fresh `ObjectId`s*, and states there is no PB-DX15b. It is **not** taken here, and
+this sentence is the record of that decision rather than an omission. Nothing in this
+batch touches `turn_actions.rs`'s end-step delayed-trigger sweep.
+
+One coupling worth writing down for whoever does take it: this batch removes a source of
+`ObjectId` minting (same-zone moves). `OOS-DP9-16`'s "unreachable by construction"
+argument rests on delayed-trigger producers minting *fresh* ids so two delayed triggers
+cannot share a `target_object` key. **This batch does not weaken that argument** — the
+producers it names are zone CHANGES, which still mint — but the argument is now one
+mechanism narrower than it was, and a future batch that removes another minting site
+should re-check it rather than inherit it.
+
+### §4.2 — `OOS-DX24-7` (CR 603.10a look-back set coarser than one batch): **TAKEN**
+
+*(implementation + probe recorded in §5)*
+
+### §4.3 — `Effect::Manifest` / `Effect::Cloak`'s `EachOpponent` arm: NOT taken, filed
+
+Found while enumerating the APNAP sites (§1.2b), outside both riders' scope.
+`effects/mod.rs:5116` and `:5182` handle `PlayerTarget::EachOpponent` by taking
+`state.players.keys().find(|&&pid| pid != ctx.controller)` — i.e. they collapse "each
+opponent" to a **single** opponent, the lowest `PlayerId`. Two defects in one expression:
+the cardinality is wrong (a bigger defect than the ordering), and the single pick is
+ascending rather than APNAP.
+
+Not fixed, and not fixed for a stated reason rather than an unstated one: **corpus reach
+is zero**. The three `Effect::Manifest`/`Effect::Cloak` users (`cryptic_coat`,
+`reality_shift`, `write_into_being`) are all `PlayerTarget::Controller`; **no def in the
+corpus reaches the `EachOpponent` arm at all.** Changing which single opponent is picked
+would be motion on a path nothing takes, on top of a cardinality bug this batch is not
+scoped to fix. Filed as a new seed instead (§6), so the *cardinality* half — the one that
+matters — is what the next batch is pointed at, rather than the ordering half being
+quietly patched and the row closed.
+
 
 ## §5 — Revert matrix
 

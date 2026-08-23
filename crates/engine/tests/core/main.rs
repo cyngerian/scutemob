@@ -29,6 +29,7 @@ mod invariants;
 mod keyword_registry;
 mod lki_diagnostics_scan;
 mod object_identity;
+mod pb_dx15a_same_zone_identity_roster;
 mod pb_dx24_trigger_zone_roster;
 mod pb_dx25_stack_registry_roster;
 mod pb_dx25b_announced_target_roster;
