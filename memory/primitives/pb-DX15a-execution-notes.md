@@ -101,9 +101,74 @@ helpers, which makes a renumbering same-zone move *unrepresentable* rather than 
 absent. That is the difference between a sweep and a fix, and it is why the criterion's
 "or a sibling" clause was taken.
 
-### §1.2 — APNAP (`OOS-DP9-8`)
+### §1.2 — APNAP (`OOS-DP9-8`): the seed's own pin was VACUOUS, and its headline family is mis-framed
 
-*(filled in below, §2)*
+**(a) The recorded deviation was recorded in the one configuration that cannot express it.**
+`test_dp9_choice_inside_for_each_each_player` carried a "Recorded deviation (OOS-DP9-8)"
+block ending *"Not fixed here; this test asserts the order the engine actually has."* It
+ran on `fixture` — two seats, `.active_player(p(1))` — and asserted `vec![p(1), p(2)]`.
+`GameStateBuilder` seeds `turn_order` in `add_player` call order, which is ascending in
+every fixture in this repository, so **APNAP starting from the lowest `PlayerId` IS
+ascending `PlayerId`**: rotating a list to start at its first element is the identity.
+The pin would have stayed green under either rule. That is why the seed survived from
+PB-DP9 (`scutemob-157`) to here — the suite reported a pinned deviation while pinning
+nothing.
+
+The same vacuity affects `fixture_3p` (also `.active_player(p(1))`) and
+`pb_eng1_effect_discard_choice.rs`'s 3-player discard-order test, whose prose at `:417`
+says the engine "iterates players ascending". Four stale or unfalsifiable APNAP claims
+in the tree, not one.
+
+It is now stated **structurally** rather than left as a discovered fact:
+`test_dx15a_active_lowest_id_makes_apnap_and_ascending_indistinguishable` asserts the
+coincidence over 2..=6 seats, plus the contrasting non-vacuous case, so the same mistake
+cannot recur silently.
+
+**(b) The seed names ONE function; there are seven order-sensitive sites.**
+
+| site | file | status |
+|---|---|---|
+| `resolve_player_target_list` — `EachPlayer` / `EachOpponent` | `effects/mod.rs:8201` | **the seed's only named site**; fixed |
+| `resolve_effect_target_list` — `EffectTarget::EachPlayer` / `EachOpponent` | `effects/mod.rs:~7999` | independently reachable, same `OrdMap`, same defect; fixed |
+| `Effect::ForEach` | `effects/mod.rs:4520` | delegates to the above; fixed transitively |
+| `Effect::LivingDeath` | `effects/mod.rs:7511` | fixed — see (c) |
+| `Effect::ReturnAllFromGraveyardToBattlefield` | `effects/mod.rs:7378` | fixed; the walk decides the order permanents enter and therefore the order ETB triggers are queued |
+| `Effect::Manifest` / `Effect::Cloak`, `EachOpponent` arm | `effects/mod.rs:5116`, `:5182` | **NOT fixed — see §4.3**; these collapse "each opponent" to a single `.keys().find(..)` pick, a different and larger defect |
+| `resolve_cda_player_target` | `layers.rs:3093` | **deliberately not fixed** — CDA context, order-insensitive (its consumers count and sum); documented at the function |
+
+Fixing only the function the seed named would have left `resolve_player_target_list` and
+`resolve_effect_target_list` **disagreeing about the order of the same set of players**.
+
+**(c) Two comments asserted APNAP that the code did not implement.** `Effect::LivingDeath`
+read `state.players.keys().copied().collect()` then `.sort()` under a comment saying
+*"Determine APNAP player order (active player first, then in turn order)"*; the
+`Effect::WheelHand` arm said *"APNAP order comes from `resolve_player_target_list`'s
+`PlayerTarget::EachPlayer` iteration"*. The `OOS-DX28-6` note-vs-code shape, twice,
+**inside this batch's own subject matter**. Both are now true, and both are called out
+in-source rather than quietly corrected.
+
+**(d) The memo's headline family is mis-framed, and the correction is the load-bearing
+part.** Row 3 says the batch "repairs the Fleshbag/Grave Pact family (10 defs)", which
+reads as ten defs regaining a per-player choice. Measured:
+`effects::sacrifice_permanents_for_player` (`effects/mod.rs:9479-9492`) computes
+`eligible_sacrifice_targets`, **sorts, and takes the first `n`** — it asks nothing. So
+`Effect::SacrificePermanents { player: EachPlayer }` has no per-player *question* at all,
+and what this batch fixes for that family is the **order the sacrifices happen** (event
+order, and hence trigger-queueing order), not a choice. The agency gap — nobody chooses
+which creature — is a separate, pre-existing defect that PB-DX15a does **not** close, and
+the probe covering that family says so in its own doc rather than implying otherwise.
+
+Only **2** deck-legal `Complete` defs (`burglar_rat`, `geier_reach_sanitarium`) exercise
+the seed's literal per-player-question claim; 3 more (`echo_of_eons`,
+`whirlpool_warrior`, `winds_of_change`) reach it through the shared RNG counter.
+
+**(e) Neither CR violation was pinned anywhere in the 4,797-test suite.** A full
+`--workspace --no-fail-fast` run with **both** engine halves in place is **4,797 / 0 / 5**
+— zero failures, no golden script moved, no SR-9b fingerprint moved, no seeded constant
+re-observed. §0 budgeted that movement and **none came due**; that is stated here as a
+paid-and-unclaimed budget rather than quietly dropped. The consequence for this batch is
+strict: there is **no inherited red-before evidence anywhere**, so every probe must be
+proven red by an executed revert (§5).
 
 ## §2 — APNAP half
 
