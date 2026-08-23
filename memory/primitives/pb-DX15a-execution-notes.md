@@ -255,9 +255,66 @@ pairings in either direction**.
 takes `OOS-DX24-1` must keep it green, which rules out the prescription the row currently
 carries. The row is corrected in the registry to say so.
 
-### §4.2 — `OOS-DX24-7` (CR 603.10a look-back set coarser than one batch)
+### §4.2 — `OOS-DX24-7` (CR 603.10a look-back set coarser than one batch): **TAKEN** — and the row's fix sketch was INVERTED
 
-*(disposition recorded below)*
+**Disposition: TAKEN.** Implementation: `rules::abilities::EventBatchTiming` +
+`check_triggers_with_timing`. Probe: `crates/engine/tests/rules/pb_dx15a_lookback_batch_timing.rs`
+(t1-t4). Revert rows R3/R4 in §5.
+
+The row's fix sketch is *"rebuild the set per event **prefix** rather than per whole
+slice, so each event looks back only at deaths strictly earlier in `events`' order."*
+**Two things are wrong with it, and both were settled by executing the sketch rather than
+by reasoning about it.**
+
+**(1) Applied to every caller, the prefix makes `sba.rs` wrong — the caller the guard was
+written for.** Within one CR 704.3 fixpoint pass the deaths are genuinely simultaneous,
+so CR 603.10a's "immediately prior" means prior to **all** of them. That is not an
+inference: it is the Gatherer ruling `check_triggers` already quotes in-source — *"If
+Nether Traitor and another creature are put into your graveyard **at the same time**,
+Nether Traitor's ability won't trigger."* A prefix set there makes a simultaneous batch's
+answer depend on the slice's incidental ordering, which is a property the batch does not
+have. `t2` asserts both orderings and pins it.
+
+So timing became a **caller declaration** rather than a property of whatever slice a
+caller happened to hand in:
+
+| call site | timing | why |
+|---|---|---|
+| `sba.rs:97` | `Simultaneous` | PB-DX24 measured this one EXACT: one CR 704.3 fixpoint pass |
+| `resolution.rs:8248` | `Sequential` | PB-DX24 measured this one COARSE: a whole resolution's sub-effects, which run in sequence |
+| `combat.rs` ×2, `engine.rs` ×2 | `Simultaneous` | **byte-identical to their previous behaviour.** PB-DX24 recorded these four as NOT audited and this batch did not audit them either. The parameter is what makes that status visible *at the call site*, and each carries a comment saying so — the alternative was leaving four callers silently inheriting a default |
+
+**(2) The prefix is what to SUBTRACT, not what to pass.** The set is a *suppression* set:
+a source in it did **not** yet have a functioning graveyard ability immediately prior to
+the event. A source that arrived at an **earlier** event was already there, so it must be
+**removed**. Passing the prefix itself inverts the guard — and on the row's **own worked
+example** (a resolution that sequentially puts a `trigger_zone: Graveyard` source into a
+graveyard, then kills another creature) the prefix at the second event is `{source}`,
+which suppresses. **The row's sketch reproduces the very defect the row describes.**
+Revert row R3 applies it verbatim: `t1` **and** `t3` go red.
+
+The shipped set is `whole_batch − strictly_earlier_arrivals`. The subtraction is also
+what keeps the *other* order correct: `check_triggers` runs **after** every event in the
+slice has been applied, so a source arriving later in the slice is already sitting in the
+graveyard when `collect_graveyard_carddef_triggers` enumerates `state.objects`. Keeping
+later-and-current arrivals in the set is what stops it firing off a death that happened
+before it got there — `t3`, and revert row R4 (subtract everything) reddens exactly that.
+
+**A gate caught this batch's own work and was right.** PB-DX7's
+`unordered_iteration_ratchet` fired on the first draft, which added three `HashSet`s and
+pushed `rules/abilities.rs` from 11 to 15. They are `contains`-only, i.e. legitimately
+the ratchet's category (a) — "raise the ceiling and say which". Converting to `BTreeSet`
+was taken instead: it costs nothing at this size, moves the ceiling **down** (11 → **6**,
+re-pinned with the reason in the entry) rather than asking for a raise, and removes the
+question entirely from a function PB-DP9 re-executes wholesale after every suspended
+`EffectChoiceQuestion` (`OOS-DP9-10`).
+
+**Both riders' prescriptions were wrong as written, in different ways, and neither
+would have been caught by reading.** `OOS-DX24-1`'s ships a regression under a green
+workspace (§4.4); `OOS-DX24-7`'s reproduces its own defect. The common cause is worth
+naming: **a fix sketch written from the symptom describes the symptom's neighbourhood,
+not the mechanism** — and this repository's rule that a row is a claim like any other
+applies to the *fix* half of a row, not only to its measurement half.
 
 ### §4.3 — `Effect::Manifest` / `Effect::Cloak`'s `EachOpponent` arm: NOT taken, filed
 
