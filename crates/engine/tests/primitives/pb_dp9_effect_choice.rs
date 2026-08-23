@@ -1309,6 +1309,141 @@ fn test_dp9_choice_inside_conditional_and_sequence() {
 }
 
 #[test]
+/// PB-DX15a — **CR 701.22c's simultaneity clause, MEASURED rather than asserted.**
+///
+/// CR 701.22c: *"If multiple players scry at once, each of those players looks at the top
+/// cards of their library at the same time. Those players decide in APNAP order (see rule
+/// 101.4) where to put those cards, **then those cards move at the same time**."*
+///
+/// CR 701.23i, by contrast, requires simultaneous *looking* and APNAP *deciding* and says
+/// **nothing** about simultaneous movement — a distinction `OOS-DP9-8`'s row blurs by
+/// listing the two rules together. So "honour the simultaneity where those rules apply"
+/// is a real question with a real answer, and this test is the answer.
+///
+/// # The engine applies each player's scry before asking the next, and that is fine HERE
+///
+/// `Effect::Scry`'s loop asks player *k*, applies player *k*'s `reposition_within`, and
+/// only then asks player *k+1*. That is textually ask-then-move, not
+/// ask-all-then-move-all. It is nonetheless observationally identical to simultaneous
+/// movement **because the per-player move sets are pairwise disjoint by construction**:
+/// each player's scry reads and permutes `ZoneId::Library(p)` for its own `p` and touches
+/// no other zone. No player's question can be perturbed by an earlier player's move, and
+/// no card can be moved twice.
+///
+/// This test asserts that disjointness directly rather than restructuring the loop for a
+/// difference no observer can make. It is written wrong-way-round on purpose: the day an
+/// effect makes one player's resolution-time move visible to another player's pending
+/// question, this goes red and says the restructure is now owed.
+fn test_dx15a_multi_player_scry_move_sets_are_disjoint_so_sequential_equals_simultaneous() {
+    let def = spell_def(
+        "Everyone Scries",
+        "dx15a-everyone-scries",
+        Effect::Scry {
+            player: PlayerTarget::EachPlayer,
+            count: EffectAmount::Fixed(2),
+        },
+    );
+    let state = fixture_3p_active_p2(
+        def,
+        vec![
+            library_creature(p(1), "P1 Top"),
+            library_creature(p(1), "P1 Next"),
+            library_creature(p(2), "P2 Top"),
+            library_creature(p(2), "P2 Next"),
+            library_creature(p(3), "P3 Top"),
+            library_creature(p(3), "P3 Next"),
+        ],
+    );
+
+    let (mut state, _) = cast_and_resolve_active_p2(state, "Everyone Scries");
+
+    let mut asked: Vec<PlayerId> = Vec::new();
+    // Every ObjectId any player's scry question named, with the asker.
+    let mut looked_at_by_player: Vec<(PlayerId, Vec<ObjectId>)> = Vec::new();
+    // (asker, the NAME they announced to the bottom) -- captured from the announcement
+    // itself rather than predicted from the fixture's push order, which is bottom-to-top
+    // (`GameStateBuilder::object` appends and `Zone::top()` reads the LAST element, so
+    // `Zone::top_n`'s top-first list starts with the LAST-pushed card). The first draft
+    // of this test predicted it the other way round and its own non-vacuity floor caught
+    // it -- which is the floor earning its keep before the test ever shipped.
+    let mut bottomed: Vec<(PlayerId, String)> = Vec::new();
+    let mut guard = 0;
+    while let Some(entry) = state.pending_effect_choice() {
+        let asker = entry.player;
+        let looked_at = match &entry.question {
+            EffectChoiceQuestion::Scry { looked_at } => looked_at.clone(),
+            other => panic!("expected a scry question, got {other:?}"),
+        };
+        asked.push(asker);
+        looked_at_by_player.push((asker, looked_at.clone()));
+        bottomed.push((asker, name_of(&state, looked_at[0])));
+        // A NON-DEFAULT answer: bottom the top card. The engine's deterministic default
+        // is the identity (keep everything on top) since PB-DP9, so this distinguishes
+        // the announcement from the default.
+        let (s, _) = answer_with(
+            state,
+            EffectChoiceAnswer::Scry {
+                bottom: vec![looked_at[0]],
+                top: looked_at[1..].to_vec(),
+            },
+        );
+        state = s;
+        guard += 1;
+        assert!(guard < 12, "the per-player scry questions did not converge");
+    }
+
+    // CR 608.2e / 101.4 -- the DECIDING order, which is the half 701.22c shares with
+    // 701.23i and 608.2e.
+    assert_eq!(
+        asked,
+        vec![p(2), p(3), p(1)],
+        "CR 701.22c: the players decide in APNAP order (active p2 first)"
+    );
+
+    // CR 701.22c's MOVEMENT half, expressed as the property that makes sequential
+    // application equivalent to simultaneous application.
+    for (asker, looked_at) in &looked_at_by_player {
+        for id in looked_at {
+            let owner_zone = state
+                .objects()
+                .get(id)
+                .map(|o| o.zone)
+                .expect("a scried card stays in its library -- CR 400.7 / PB-DX15a");
+            assert_eq!(
+                owner_zone,
+                ZoneId::Library(*asker),
+                "every card a player's scry touches must be in THAT player's own                  library. Disjoint per-player move sets are what make the engine's                  ask-then-move loop observationally identical to CR 701.22c's                  simultaneous movement; if this fails, the loop must be restructured                  into ask-all-then-move-all."
+            );
+        }
+    }
+
+    // Pairwise disjointness, stated directly rather than inferred from the zone check.
+    for (i, (_, a)) in looked_at_by_player.iter().enumerate() {
+        for (_, b) in looked_at_by_player.iter().skip(i + 1) {
+            assert!(
+                a.iter().all(|id| !b.contains(id)),
+                "no card may appear in two players' scry questions -- that is the                  condition under which sequential and simultaneous movement differ"
+            );
+        }
+    }
+
+    // Non-vacuity: the announcements were actually applied, and applied per-asker.
+    // Without this the disjointness assertions would pass on a scry that did nothing.
+    assert_eq!(bottomed.len(), 3, "all three seats must have announced");
+    for (owner, name) in &bottomed {
+        let names = names_in_library(&state, *owner);
+        assert_eq!(
+            names.first(),
+            Some(name),
+            "{name} was announced to the BOTTOM by {owner:?}, so it must now be the \
+             bottom-most card of that player's library (index 0 is the bottom). This is \
+             the non-vacuity floor: without it the disjointness assertions above would \
+             pass on a scry that moved nothing."
+        );
+    }
+}
+
+#[test]
 /// PB-DX15a — the companion gate to
 /// [`test_dx15a_each_player_search_asks_in_apnap_order`]: **an `active_player(p(1))`
 /// fixture cannot tell CR 608.2e APNAP order from ascending `PlayerId` order, whatever
