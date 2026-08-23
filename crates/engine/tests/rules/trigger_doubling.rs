@@ -1733,3 +1733,128 @@ fn test_panharmonicon_doubles_carddef_etb_trigger() {
         triggered_count, resolution_events
     );
 }
+
+// ── PB-DX15a: the `CreatureDeath` doubler arm (rider `OOS-DX24-1`) ──────────────
+
+/// A "when this dies" triggered ability (CR 603.6c / CR 700.4 / CR 603.10a).
+fn dx15a_dies_trigger(description: &str) -> TriggeredAbilityDef {
+    TriggeredAbilityDef {
+        counter_filter: None,
+        counter_on_self: false,
+        once_per_turn: false,
+        trigger_on: TriggerEvent::SelfDies,
+        intervening_if: None,
+        description: description.to_string(),
+        effect: None,
+        etb_filter: None,
+        death_filter: None,
+        combat_damage_filter: None,
+        triggering_creature_filter: None,
+        targets: vec![],
+    }
+}
+
+#[test]
+/// CR 603.2d / CR 603.6c / CR 603.10a — a `TriggerDoublerFilter::CreatureDeath` doubler
+/// (Teysa Karlov, Drivnod) **doubles a dying creature's own "when this dies" trigger**.
+///
+/// # Why this test exists — it is the evidence behind `OOS-DX24-1`'s DEFERRAL
+///
+/// This file had **nine** tests before PB-DX15a and **not one** of them exercised the
+/// `CreatureDeath` arm of `doubler_applies_to_trigger` — every one is an ETB arm. So the
+/// most common real interaction that arm exists to serve had zero coverage, and a change
+/// to that function could break it with the whole workspace green.
+///
+/// `OOS-DX24-1` asks for exactly such a change. Its prescribed fix is *"one source-zone
+/// conjunct at the top of `doubler_applies_to_trigger`, before the `match`, covering all
+/// four arms at once"*, on the CR 110.1 reasoning that every printed doubler says "a
+/// triggered ability of a **permanent** you control" and a card in a graveyard is not a
+/// permanent.
+///
+/// **That conjunct, written as prescribed, breaks this test.** A CR 603.6c/603.10a
+/// look-back dies trigger is constructed as
+/// `PendingTrigger::blank(*new_grave_id, *death_controller, kind)` — the dying creature's
+/// **graveyard** object is the trigger's `source`, because the battlefield object is
+/// already gone by trigger-check time (`move_object_to_zone` removes it from
+/// `state.objects`). So at doubling time BOTH the legitimate case (this test: Teysa
+/// doubling a dies trigger, which CR 603.10a says WAS a permanent's ability) and the
+/// illegitimate case the seed describes (Nether Traitor's `trigger_zone: Graveyard`
+/// ability, which was never a permanent's) present a source sitting in a graveyard.
+/// **Zone alone cannot separate them.**
+///
+/// The correct discriminator is *why* the source is in the graveyard — whether it
+/// arrived there as part of this very event — and that information exists only in
+/// `check_triggers`' `arrived_in_graveyard_this_batch` set, which is not in scope at
+/// `compute_trigger_doubling`'s call site, or in a construction-time marker on
+/// `PendingTrigger`, which is a hashed, serialized type and therefore a HASH/PROTOCOL
+/// bump this PB cannot take (one wire bump per PB, and this batch predicted and measured
+/// NONE). Full reasoning: `memory/primitives/pb-DX15a-execution-notes.md` §4.4.
+///
+/// So the rider is deferred, and this test is what makes the deferral checkable: whoever
+/// takes `OOS-DX24-1` must keep this green.
+fn test_dx15a_creature_death_doubler_doubles_a_look_back_dies_trigger() {
+    let p1 = p1();
+    let p2 = p2();
+    let p3 = p3();
+    let p4 = p4();
+
+    // A 2/2 with 2 damage marked (lethal, CR 704.5g) carrying its own dies trigger.
+    let dying = ObjectSpec::creature(p1, "Dying Bear", 2, 2)
+        .with_damage(2)
+        .with_triggered_ability(dx15a_dies_trigger(
+            "When Dying Bear dies, do something (CR 700.4)",
+        ))
+        .in_zone(ZoneId::Battlefield);
+
+    // The doubler's own body. It needs to be a battlefield permanent, because
+    // `doubler_applies_to_trigger`'s FIRST guard is the DOUBLER's battlefield presence.
+    let doubler_body = ObjectSpec::creature(p1, "Death Doubler", 1, 1).in_zone(ZoneId::Battlefield);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(dying)
+        .object(doubler_body)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    let doubler_id = state
+        .objects()
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Death Doubler")
+        .map(|(id, _)| *id)
+        .expect("doubler body should be on the battlefield");
+    state.trigger_doublers_mut().push_back(TriggerDoubler {
+        source: doubler_id,
+        controller: p1,
+        filter: TriggerDoublerFilter::CreatureDeath,
+        additional_triggers: 1,
+    });
+
+    // Pass priority around the table so SBAs run and the lethal-damage creature dies.
+    let mut state = state;
+    for player in [p1, p2, p3, p4] {
+        let (s, _) = process_command(state, Command::PassPriority { player }).unwrap();
+        state = s;
+    }
+
+    // CR 603.2d: base 1 + 1 additional = the dies trigger goes on the stack TWICE.
+    let dies_triggers_on_stack = state
+        .stack_objects()
+        .iter()
+        .filter(|so| matches!(so.kind, StackObjectKind::TriggeredAbility { .. }))
+        .count();
+    assert_eq!(
+        dies_triggers_on_stack, 2,
+        "CR 603.2d: a CreatureDeath doubler must double the dying creature's own \
+         look-back 'when this dies' trigger (CR 603.10a). Getting 1 here means the \
+         doubler stopped seeing it -- which is exactly what OOS-DX24-1's prescribed \
+         source-zone conjunct does, because a look-back dies trigger's source IS a \
+         graveyard object."
+    );
+}

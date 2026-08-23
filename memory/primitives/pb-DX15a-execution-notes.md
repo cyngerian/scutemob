@@ -191,9 +191,73 @@ producers it names are zone CHANGES, which still mint — but the argument is no
 mechanism narrower than it was, and a future batch that removes another minting site
 should re-check it rather than inherit it.
 
-### §4.2 — `OOS-DX24-7` (CR 603.10a look-back set coarser than one batch): **TAKEN**
+### §4.4 — `OOS-DX24-1` (`doubler_applies_to_trigger` source-blind): **DEFERRED**, and the row's prescribed fix is CR-WRONG as written
 
-*(implementation + probe recorded in §5)*
+**Disposition: DEFERRED. Reason: the fix the row prescribes, implemented verbatim, ships
+a regression on the most common real interaction the arm it touches exists to serve.
+Proven by execution, not argued.**
+
+The row prescribes *"one source-zone conjunct at the top of `doubler_applies_to_trigger`
+(`abilities.rs:10020`), before the `match`, covering all four arms at once"*, on the
+CR 110.1 reasoning that every printed doubler says "a triggered ability of a **permanent**
+you control" and a card in a graveyard is not a permanent. The reasoning is right; the
+conjunct does not implement it.
+
+**Why zone alone cannot decide this.** A CR 603.6c / 603.10a look-back "when this dies"
+trigger is constructed at `abilities.rs:4740` as
+`PendingTrigger::blank(*new_grave_id, *death_controller, kind)` — its `source` is the
+dying creature's **graveyard** object, because `move_object_to_zone` has already removed
+the battlefield object from `state.objects` by trigger-check time. So at doubling time:
+
+| case | correct verdict | source's zone |
+|---|---|---|
+| Teysa Karlov doubling a creature's own "when this dies" trigger | **double it** — CR 603.10a: it *was* a permanent's ability | Graveyard |
+| Nether Traitor's `trigger_zone: Graveyard` ability (the seed's own subject) | **do not double it** — it was never a permanent's ability | Graveyard |
+
+**Both present a graveyard source. The conjunct cannot separate them, and it silently
+picks the wrong one for the common case.**
+
+**The experiment (revert row R1).** `trigger_doubling.rs` carried **nine** tests before
+this batch and **not one** exercised the `CreatureDeath` arm — every one is an ETB arm.
+So this batch first wrote
+`test_dx15a_creature_death_doubler_doubles_a_look_back_dies_trigger`, confirmed it GREEN
+at HEAD (the engine gets this right today), then applied the row's prescribed conjunct
+verbatim and ran the file:
+
+```
+test_dx15a_creature_death_doubler_doubles_a_look_back_dies_trigger ... FAILED
+  left: 1
+ right: 2
+9 passed; 1 failed
+```
+
+**The nine pre-existing tests all stayed green.** That is the durable half: the arm had
+zero behavioural coverage, so the prescribed fix would have shipped with the workspace
+green and nobody the wiser. The conjunct was then removed and the file restored to
+10 passed / 0 failed.
+
+**What a correct fix needs, and why it is out of scope here.** The discriminator is not
+the source's zone but *why* it is there — whether it arrived in the graveyard as part of
+this very event. That information exists in exactly two places, and neither is available
+to this batch:
+1. `check_triggers`' `arrived_in_graveyard_this_batch` set — which is not in scope at
+   `compute_trigger_doubling`'s call site (the doubling happens at flush time, long
+   after);
+2. a construction-time marker on `PendingTrigger` — which is a **hashed, serialized**
+   type, so that is a `HASH`/`PROTOCOL` bump. This PB predicted NONE in writing before
+   any code (§0), measured NONE, and the project's standing rule is one wire bump per PB.
+
+Deferring costs nothing live: the row's own corrected measurement is **zero deck-legal
+pairings in either direction**.
+
+**What ships instead of the fix**: the probe. It is the first behavioural coverage the
+`CreatureDeath` arm has ever had, and it is written wrong-way-round on purpose — whoever
+takes `OOS-DX24-1` must keep it green, which rules out the prescription the row currently
+carries. The row is corrected in the registry to say so.
+
+### §4.2 — `OOS-DX24-7` (CR 603.10a look-back set coarser than one batch)
+
+*(disposition recorded below)*
 
 ### §4.3 — `Effect::Manifest` / `Effect::Cloak`'s `EachOpponent` arm: NOT taken, filed
 
