@@ -177,18 +177,18 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-08-23, PB-DX15a + `/review` fix cycle)**: **4,829 / 0 / 5** full-workspace on
-  branch `scutemob-216` (+32 over the **4,797** baseline, measured on this branch BEFORE any edit
+- **Tests (delta 2026-08-23, PB-DX15a + `/review` fix cycle)**: **4,835 / 0 / 5** full-workspace on
+  branch `scutemob-216` (+38 over the **4,797** baseline, measured on this branch BEFORE any edit
   and reproducing PB-DX44's close pin exactly), `--workspace --no-fail-fast` to a file, **54**
   result-producing targets (53 → 54: one new simulator test binary), residual list empty.
-  **Delta itemised by test NAME: 36 additions, 4 names leaving the passing set, 0 removals** —
+  **Delta itemised by test NAME: 42 additions, 4 names leaving the passing set, 0 removals** —
   and the four are disclosed individually rather than netted out, because two of them are not
   removals at all. Two are the batch's **inversions**
   (`test_400_7_same_zone_move_produces_new_id` → `..._keeps_the_same_id`;
   `test_dp9_choice_inside_for_each_each_player` → `test_dx15a_each_player_search_asks_in_apnap_order`).
   The other two are **doctests whose name IS their line number** —
   `state::GameState (line 81)` → `(line 91)` and `(line 90) - compile fail` → `(line 100)` — both
-  shifted by exactly **+10**, the height of the new `ZoneEnd` declaration. Honest reading: **34
+  shifted by exactly **+10**, the height of the new `ZoneEnd` declaration. Honest reading: **40
   genuine additions, 2 inversions, 2 line-number shifts.**
   **PROTOCOL 38 / HASH 77 both UNMOVED**, gate-executed (`hash_schema` 36/36, `protocol_schema`
   17/17) and **predicted in writing before any code changed**; the stop-condition never fired and
@@ -676,8 +676,8 @@
   (only CR 701.22c does), and `Effect::Scry`'s per-player move sets are pairwise **disjoint by
   construction**, so the ask-then-move loop is observationally simultaneous — asserted directly and
   wrong-way-round instead of restructuring for a difference no observer can make.
-  Tests **4,829 / 0 / 5** (+32 over the 4,797 pre-edit baseline, **54** targets), delta itemised by
-  NAME as **36 additions / 4 leaving / 0 removals** with all four disclosed (2 inversions, 2
+  Tests **4,835 / 0 / 5** (+38 over the 4,797 pre-edit baseline, **54** targets), delta itemised by
+  NAME as **42 additions / 4 leaving / 0 removals** with all four disclosed (2 inversions, 2
   doctest line-number shifts). **PROTOCOL 38 / HASH 77 both gate-executed and UNMOVED**, predicted
   in writing before any code. Coverage unmoved **1,136/1,803 = 63.0%**, **0 flips**, churn
   reverted, **0 card-def edits**. `clippy --workspace --all-targets -D warnings`, `cargo fmt

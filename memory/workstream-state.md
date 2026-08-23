@@ -25,8 +25,8 @@ DEFERRED** — and **both riders' prescribed fixes were wrong as written**, each
 executing it rather than by argument. `OOS-DP9-16` **NOT taken**, parked as the brief directs.
 Filed **`OOS-DX15a-1..7`**.
 
-Tests **4,829 / 0 / 5** (+32 over the **4,797** pre-edit baseline, **54** targets; delta itemised
-by NAME as **36 additions / 4 leaving / 0 removals**, the four disclosed individually — 2 are the
+Tests **4,835 / 0 / 5** (+38 over the **4,797** pre-edit baseline, **54** targets; delta itemised
+by NAME as **42 additions / 4 leaving / 0 removals**, the four disclosed individually — 2 are the
 inversions and 2 are **doctests whose name IS their line number**, shifted +10 by the `ZoneEnd`
 declaration). `clippy --workspace --all-targets -D warnings`, `cargo fmt --check` and
 `tools/check-defs-fmt.sh` (1,803 defs) all clean.
@@ -130,6 +130,37 @@ asserts the `timestamp_counter` half.
   seat and `post_action` refuses a foreign seat), so the *sequence of asked seats* is not
   observable over HTTP. The HTTP probe asserts what is: which seat the server had already asked,
   and the resolution's event order straight off the wire payload.
+
+### The `/review` cycle: 1 HIGH / 4 MEDIUM / 5 LOW, all ten taken
+
+**The HIGH was a regression this batch introduced, and the argument against it is the batch's own
+argument applied to a case it missed.** `§4.2` explains at length why a prefix set makes
+*simultaneous* SBA deaths wrong — and the same batch then declared a **wrath's** deaths sequential.
+`Effect::DestroyAll` snapshots the battlefield and destroys it in one loop (**21** corpus board
+wipes), so a resolution's event slice is not uniformly sequential, and `nether_traitor` (`Complete`,
+deck-legal) fired its `trigger_zone: Graveyard` ability off a creature that died at the same instant.
+`resolution.rs` is reverted to `Simultaneous` and **`OOS-DX24-7` is re-opened**: its premise survives
+(the caller really is coarse) but **`EventBatchTiming` is the wrong granularity** — the correct unit
+is a simultaneous GROUP, and one resolution holds both kinds, so closing it needs the event stream to
+carry group boundaries. `t5` pins the wrath case wrong-way-round. `Sequential` ships with **no
+production caller**, stated in-source rather than left as an unexplained dead variant.
+
+**The second finding is that a deferral reason did not survive checking.** `§4.4`'s first draft said
+`OOS-DX24-1`'s discriminator "exists in exactly two places, and neither is available to this batch".
+**A third was in data already passed to the function** — the triggering EVENT. The four values
+reaching the doubler's `match` with a non-battlefield source split exactly two ways, and the split is
+**total** because the battlefield-sourced `AnyCreatureDies` collector filters on `obj.zone ==
+ZoneId::Battlefield`. The rider is **CLOSED**, with a **pair** of probes: both sources sit in a
+graveyard, so either alone is satisfiable by a wrong implementation and together they are not.
+**A deferral is a claim like any other**, and this one reached the registry before it was checked.
+
+**A process failure worth carrying**: the fix cycle introduced **five** further failures (a
+`bare_lookup_ratchet` breach, two `completeness_deviation_scan` breaches, a `fmt` diff and a clippy
+lint) and **none was caught by the batch**, because after the fix cycle it ran the *targeted* tests
+and not the full suite. **The gates must be run against the final tree; a fix cycle is a change like
+any other.** Three of those five were gates catching the batch a second time and all three were
+right — and the deviation-scan answer was **not** an allowlist entry: the offending paragraph did not
+belong in a card def at all.
 
 Full record: `memory/primitives/pb-DX15a-execution-notes.md`.
 

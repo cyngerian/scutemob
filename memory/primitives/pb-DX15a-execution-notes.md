@@ -502,13 +502,17 @@ moved a gate, and it was gate-checked rather than assumed.
 
 ## §8 — Standard gates, measured at close
 
-**Tests: 4,829 / 0 / 5** full-workspace on branch `scutemob-216`, `--workspace
+**Tests: 4,835 / 0 / 5** full-workspace on branch `scutemob-216`, `--workspace
 --no-fail-fast` to a file, **54** result-producing targets (53 → 54: one new simulator
-test binary). **+32** over the **4,797** baseline, which was measured on this branch
+test binary). **+38** over the **4,797** baseline, which was measured on this branch
 **before any edit** and reproduced PB-DX44's close pin exactly (4,797 / 0 / 5, 53
 targets).
 
-**Delta itemised by test NAME**, by set-diffing the two run logs: **36 additions, 4
+*(Figures re-measured after the `/review` fix cycle, which added 6: `t5`, the doubler
+pair's negative half, and the four `pb_dx15a_apnap_sites` probes. The implement-phase
+close was 4,829 / +32.)*
+
+**Delta itemised by test NAME**, by set-diffing the two run logs: **42 additions, 4
 names leaving the passing set, 0 removals.** The four are disclosed individually rather
 than netted out, because two of them are not what "removed" would suggest:
 
@@ -520,8 +524,8 @@ than netted out, because two of them are not what "removed" would suggest:
 | `crates/engine/src/state/mod.rs - state::GameState (line 90) - compile fail` | the same, shifted to `(line 100)` |
 
 Both doctest shifts are exactly **+10**, which is the height of the `ZoneEnd` declaration
-and its doc comment. So the honest reading is **34 genuine additions, 2 inversions, 2
-doctest line-number shifts, 0 removals** — and `+32` is the arithmetic of those, not a
+and its doc comment. So the honest reading is **40 genuine additions, 2 inversions, 2
+doctest line-number shifts, 0 removals** — and `+38` is the arithmetic of those, not a
 figure that hides an edit.
 
 | gate | result |
@@ -547,3 +551,67 @@ when written and false by the time the batch closed: the `/review` fix cycle edi
 coverage is unmoved and `check-defs-fmt.sh` stays clean (1,803 defs, re-run after the edit), but
 "0 card-def edits" is the kind of figure this project treats as a claim, and a claim that goes
 stale mid-batch is corrected rather than left standing.
+
+---
+
+## §9 — The `/review` cycle
+
+**1 HIGH / 4 MEDIUM / 5 LOW. All ten taken.** Two of them refuted claims this batch had
+already written into a registry row, and the HIGH was a regression the batch introduced.
+
+| # | sev | finding | disposition |
+|---|---|---|---|
+| 1 | **HIGH** | the `OOS-DX24-7` rider regressed CR 603.10a: a resolution's slice is **not** uniformly sequential, because `Effect::DestroyAll` destroys simultaneously (**21** corpus board wipes), so `nether_traitor` (`Complete`, deck-legal) fired off a creature that died at the same instant | **TAKEN** — `resolution.rs` reverted to `Simultaneous`, `OOS-DX24-7` **re-opened**, `t5` pins the wrath case wrong-way-round |
+| 2 | MED | three of the five APNAP sites shipped with **zero** coverage; the reviewer reverted each and all 4,829 tests stayed green | **TAKEN** — `pb_dx15a_apnap_sites.rs`, `t1`-`t3` + `t3b` |
+| 3 | MED | the notes named a roster file that **does not exist** | **TAKEN** — §1 corrected; the same-zone half is printed, the APNAP half is prose-derived and now covered, and the difference is stated |
+| 4 | MED | `t_total_population_report`'s doc called a **dead** assertion "live" | **TAKEN** — doc corrected to what it actually guards; the sibling `union.len() == 17` deleted |
+| 5 | MED | the `OOS-DX24-1` **deferral reason was factually wrong** — a wire-neutral discriminator existed | **TAKEN** — rider now **CLOSED**, not deferred, with a two-probe pair |
+| 6-10 | LOW | `nether_traitor`'s comment; a wrong seed cross-reference; an `OOS-DX15a-1..N` placeholder; `r5`'s real reach; a second now-conditional CR 400.7 comment | all **TAKEN** |
+
+### The HIGH is this batch committing its own subject matter
+
+§4.2 spends a paragraph explaining why a prefix set makes **simultaneous** SBA deaths
+wrong — and then the same batch declared a **wrath's** deaths sequential. The argument was
+correct, was written down, and was not applied to the case one function over. It is the
+`OOS-DX28-6` shape at the level of reasoning rather than comments: *the batch's own stated
+principle, not carried to its second instance.*
+
+Two further things it teaches, both narrower and both worth more than the fix:
+
+1. **`EventBatchTiming` is the wrong granularity, and only executing it showed that.** The
+   seed's premise (this caller is coarse) is TRUE; a per-caller knob cannot express it,
+   because one resolution contains **both** simultaneous groups and sequential steps. That
+   is now the recorded blocker on `OOS-DX24-7` — a considerably more useful thing for the
+   next batch than the prefix-vs-complement question, which is settled.
+2. **`Sequential` ships with no production caller**, and that is stated in-source rather
+   than left as an unexplained dead variant.
+
+### The second-most useful finding: a deferral reason that did not survive
+
+§4.4's first draft said the `OOS-DX24-1` discriminator "exists in exactly two places, and
+neither is available to this batch". **A third was in data already passed to the
+function** — the triggering EVENT. The four values that can reach the doubler's `match`
+with a non-battlefield source split exactly two ways, and the split is **total** because
+the battlefield-sourced `AnyCreatureDies` collector filters on `obj.zone ==
+ZoneId::Battlefield`. So the rider is CLOSED with a **pair** of probes: both sources sit in
+a graveyard, so either alone is satisfiable by a wrong implementation and together they are
+not — removing the conjunct reddens the negative probe (`2` vs `1`), the row's own
+zone-only conjunct reddens the positive one (`1` vs `2`).
+
+**A deferral is a claim like any other**, and this one was written into the registry before
+it was checked. That is the durable half.
+
+### And a process failure worth naming
+
+The fix cycle introduced **five** failures — a `bare_lookup_ratchet` breach, two
+`completeness_deviation_scan` breaches, a `fmt` diff and a clippy lint — and **none was
+caught by me**, because after the fix cycle I ran the *targeted* tests and not the full
+suite. They were found by the next agent's full-workspace run. The rule this batch already
+learned once about `cargo fmt --check` (§8) generalises: **the gates must be run against
+the final tree, and a fix cycle is a change like any other.**
+
+Notably, three of those five were gates catching this batch a second time, and all three
+were right: SR-25's ratchet on the new conjunct's bare lookup, and PB-DX8's deviation scan
+on a paragraph added to a `Complete` card def. The deviation-scan answer was **not** an
+allowlist entry — the paragraph did not belong in a card def at all, and the engine-mechanism
+caveat it carried already lived in the engine and in the registry row.
