@@ -15,7 +15,125 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**PB-DX44 shipped `scutemob-215` 2026-08-15; v4 ranks 1-2 all shipped; next dispatch PB-DX15a, v4 rank 3**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX15a shipped `scutemob-216` 2026-08-23; v4 ranks 1-3 all shipped; next dispatch PB-DX45, v4 rank 4**)
+
+## Worker Handoff (PB-DX15a, `scutemob-216`) — the two live CR sweeps
+
+**Shipped**: v4 queue **rank 3**. **`OOS-DP9-8` and `OOS-DP9-11` both CLOSED**, each registry row
+carrying corrections to its own claims. Rider **`OOS-DX24-7` TAKEN**, rider **`OOS-DX24-1`
+DEFERRED** — and **both riders' prescribed fixes were wrong as written**, each refuted by
+executing it rather than by argument. `OOS-DP9-16` **NOT taken**, parked as the brief directs.
+Filed **`OOS-DX15a-1..7`**.
+
+Tests **4,829 / 0 / 5** (+32 over the **4,797** pre-edit baseline, **54** targets; delta itemised
+by NAME as **36 additions / 4 leaving / 0 removals**, the four disclosed individually — 2 are the
+inversions and 2 are **doctests whose name IS their line number**, shifted +10 by the `ZoneEnd`
+declaration). `clippy --workspace --all-targets -D warnings`, `cargo fmt --check` and
+`tools/check-defs-fmt.sh` (1,803 defs) all clean.
+
+**Next dispatch: PB-DX45** (v4 rank 4). Ranks 1-3 are all shipped.
+
+### The headline: a pin that pinned nothing, and the reason both seeds survived
+
+`OOS-DP9-8`'s row said its deviation was "pinned as the engine's actual behaviour by
+`test_dp9_choice_inside_for_each_each_player`". **It was not, and could not be.** That test ran
+on a two-seat fixture with `.active_player(p(1))`, and APNAP (CR 101.4: active player, then the
+rest in turn order) starting from the **lowest** `PlayerId` over an ascending `turn_order` **is**
+ascending `PlayerId` — rotating a list to start at its first element is the identity. The
+assertion `vec![p(1), p(2)]` would have stayed green under either rule.
+
+**That one fact explains three separate things**, which is why it is the headline rather than a
+footnote:
+
+1. why `OOS-DP9-8` survived five months and eleven batches behind a test claiming to hold it;
+2. why the v4 memo's wire cell ("golden scripts and SR-9b per-step fingerprints move; budget the
+   re-pin") was **wrong** — nothing moved, because *every* fixture in the tree makes the same
+   choice, so the reorder is invisible to all of them;
+3. why the batch has **no inherited red-before evidence anywhere** (full workspace with both
+   engine halves in: **4,797 / 0 / 5**, zero failures) and every probe had to earn its own revert.
+
+It is now stated **structurally**, not left as a discovered fact:
+`test_dx15a_active_lowest_id_makes_apnap_and_ascending_indistinguishable` asserts the coincidence
+over 2..=6 seats plus the contrasting non-vacuous case. Two known non-discriminating survivors are
+named in `OOS-DX15a-3`: `fixture_3p` in the same file, and `pb_eng1_effect_discard_choice.rs`'s
+3-player discard-order test, whose prose still says the engine "iterates players ascending".
+
+### Both filed populations were floors, and both were mis-framed
+
+**`OOS-DP9-11`: 5 → 17 deck-legal `Complete`.** The five named defs all reproduce, and they are
+**one of four mechanisms**: family A (`RevealAndRoute`/`LookAtTopThenPlace` routing to a library,
+the named 5), family B (**every `SearchLibrary`-to-library tutor** — 8), family C (Hideaway — 1),
+family D (PartnerWith — 3). The two census axes **do not nest**: an oracle-text axis sees only
+family A (a tutor's printed text never says "put the rest on the bottom") and a structural
+`Effect`-payload axis cannot see C/D at all (a keyword confers through `AbilityDefinition::Keyword`).
+PB-DX26's and PB-DX43's lesson a third time. Two more corrections: **`chaos_warp`, one of the row's
+own five, reaches the `Library{Top}` branch**, not the bottom helper the row is filed against; and
+**family D's blast radius is the whole library** — the PartnerWith arm moved every id to the bottom
+in turn, so a 99-card library minted 99 ids and burned 99 `timestamp_counter` values per ETB,
+unconditionally.
+
+**`OOS-DP9-8`: the "Fleshbag / Grave Pact family (10 defs)" makes no per-player choice at all.**
+`sacrifice_permanents_for_player` sorts the eligible set and takes the first `n`. What this batch
+repairs there is the **order the sacrifices happen**, not agency. Only **2** deck-legal `Complete`
+defs (`burglar_rat`, `geier_reach_sanitarium`) exercise the row's literal question-order claim. The
+agency gap is filed as `OOS-DX15a-2` so the family is not treated as closed, and the probe covering
+it carries `assert_ne!(decision.kind, DecisionKind::EffectChoice)` so its doc cannot go stale.
+
+### The same-zone fix is not the sweep the seed asks for, deliberately
+
+`Effect::MoveZone` and `Effect::PutOnLibrary` resolve their destination from a `ZoneTarget` **at
+runtime**, so "is this call same-zone" is not a property of the call site at all — a per-caller
+sweep closes today's members and cannot close the class. The guard lives inside both `GameState`
+move helpers (`from == to` → `reposition_within_own_zone`), which makes a renumbering same-zone
+move **unrepresentable**.
+
+**One existing test was a pin ON the defect**: `test_400_7_same_zone_move_produces_new_id` asserted
+`assert_ne!(old_id, new_id)` because "the zone-change event creates a new object regardless of the
+source and destination zones being the same" — which **inverts CR 400.7**, whose antecedent is
+"moves from one zone to another". That test is *why* the seed stayed open: a helper-level fix
+reddened it, so every earlier reader concluded the helper was right. Inverted, and it now also
+asserts the `timestamp_counter` half.
+
+### Both riders' prescriptions were wrong, in different ways
+
+- **`OOS-DX24-1` — DEFERRED, prescription refuted.** Its "one source-zone conjunct before the
+  match" would break Teysa Karlov's doubling of a look-back dies trigger, because such a trigger is
+  built as `PendingTrigger::blank(*new_grave_id, ..)` — **its source is a graveyard object too**.
+  Zone alone cannot separate the legitimate case from the defect. Proven: `trigger_doubling.rs` had
+  **nine** tests and **none** touched the `CreatureDeath` arm, so the missing probe was written
+  first, confirmed green, and then the conjunct applied verbatim → `left: 1, right: 2` **with all
+  nine still green**. A correct fix needs a set not in scope at the doubling call site, or a marker
+  on a hashed serialized type (a second wire bump). Zero deck-legal pairings, so deferral costs
+  nothing live; the probe ships as permanent wrong-way-round coverage.
+- **`OOS-DX24-7` — TAKEN, prescription inverted.** "Rebuild the set per event prefix" (a) makes
+  `sba.rs` wrong — in one CR 704.3 fixpoint pass the deaths *are* simultaneous, which is the
+  Gatherer ruling the function already quotes — and (b) has the direction backwards: the set is a
+  **suppression** set, so the prefix is what to **subtract**, not what to pass. Passing it
+  reproduces the very defect the row describes. Shipped as `EventBatchTiming` + the complement.
+
+### Standing facts for the next batch
+
+- **PROTOCOL 38 / HASH 77 both gate-executed and UNMOVED**, exactly as predicted in writing before
+  any code changed; the stop-condition never fired and no pin was edited.
+- Coverage unmoved **1,136/1,803 = 63.0%**, **0 flips**, proven by regeneration with the
+  self-dating churn reverted. **0 card-def edits.**
+- **Moved-pin list by name: EMPTY** — reported as a paid-and-unclaimed budget, with the measured
+  reason, rather than dropped.
+- **Four gates fired on this batch's own work and all four were right**: SR-25's
+  `bare_lookup_ratchet`, PB-DX7's `unordered_iteration_ratchet` (ceiling **lowered** 11 → 6 by
+  converting to `BTreeSet` rather than raised), the batch's own scry non-vacuity floor, and its own
+  `r5` roster row (which found that `move_object_to_zone` mints **three** ids, not one).
+- **One probe passed vacuously before it passed honestly**: a bare `execute_effect` on
+  `Effect::SearchLibrary` measures nothing, because PB-DP9 rolls the whole resolution back until
+  the choice is answered. Worth carrying to anyone writing an `OOS-DP9-*` probe.
+- **The play server structurally exposes ONE seat's questions** (`seat_view` filters on the human
+  seat and `post_action` refuses a foreign seat), so the *sequence of asked seats* is not
+  observable over HTTP. The HTTP probe asserts what is: which seat the server had already asked,
+  and the resolution's event order straight off the wire payload.
+
+Full record: `memory/primitives/pb-DX15a-execution-notes.md`.
+
+---
 
 ## Worker Handoff (PB-DX44, `scutemob-215`) — the casts you cannot make
 
