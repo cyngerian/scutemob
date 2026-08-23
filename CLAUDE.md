@@ -66,8 +66,9 @@
   and **OOS-DX29-14** CLOSED, **OOS-DX29-3** NARROWED: its pitch half closed, its graveyard half
   deferred-and-measured);
   **↻ PB-DX15a SHIPPED** (`scutemob-216`, 2026-08-23; v4 rank 3 — **OOS-DP9-8** and
-  **OOS-DP9-11** both CLOSED, rider **OOS-DX24-7** TAKEN, rider **OOS-DX24-1** DEFERRED with
-  its prescription refuted by execution, **OOS-DP9-16** parked as directed).
+  **OOS-DP9-11** both CLOSED; rider **OOS-DX24-1** CLOSED and rider **OOS-DX24-7** RE-OPENED —
+  the `/review` fix cycle inverted BOTH first-draft rider verdicts, see the narrative below;
+  **OOS-DP9-16** parked as directed).
   **Next dispatch: PB-DX45** (v4 rank 4); ranks 1-3 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
@@ -680,9 +681,26 @@
   NAME as **42 additions / 4 leaving / 0 removals** with all four disclosed (2 inversions, 2
   doctest line-number shifts). **PROTOCOL 38 / HASH 77 both gate-executed and UNMOVED**, predicted
   in writing before any code. Coverage unmoved **1,136/1,803 = 63.0%**, **0 flips**, churn
-  reverted, **0 card-def edits**. `clippy --workspace --all-targets -D warnings`, `cargo fmt
-  --check` and `tools/check-defs-fmt.sh` (1,803 defs) all clean. Filed **OOS-DX15a-1..7**. Full
-  record: `memory/primitives/pb-DX15a-execution-notes.md`; handoff: `memory/workstream-state.md`.
+  reverted, **1 comment-only card-def edit**. `clippy --workspace --all-targets -D warnings`,
+  `cargo fmt --check` and `tools/check-defs-fmt.sh` (1,803 defs) all clean, against the FINAL
+  tree. Filed **OOS-DX15a-1..7**.
+  **↻ The `/review` (1 HIGH / 4 MEDIUM / 5 LOW, all ten taken) inverted BOTH rider verdicts
+  above, so read them as first drafts.** The HIGH was a regression the batch introduced with its
+  own argument applied to a case it missed: `Effect::DestroyAll` destroys in ONE loop, so a wrath's
+  deaths are simultaneous and `resolution.rs` cannot be declared `Sequential` — `nether_traitor`
+  (`Complete`, deck-legal) fired its graveyard ability off a creature that died at the same instant
+  (**21** corpus board wipes). `resolution.rs` reverted byte-identical to `Simultaneous` and
+  **`OOS-DX24-7` is RE-OPENED**: premise intact, granularity refuted — the unit is a simultaneous
+  GROUP and one resolution holds both kinds, so closing it needs group boundaries in the event
+  stream; `t5` pins the wrath case wrong-way-round. And `OOS-DX24-1`'s deferral reason was
+  factually wrong — a wire-neutral discriminator (the triggering EVENT) was already passed to the
+  function, and the split is total because the battlefield-sourced `AnyCreatureDies` collector
+  filters on `zone == Battlefield` — so **`OOS-DX24-1` is CLOSED** with a two-probe pair that only
+  a correct implementation satisfies together. **The fix cycle itself introduced FIVE failures the
+  batch did not catch** (it ran targeted tests, not the suite); three were standing gates firing a
+  second time, all correctly. A fix cycle is a change like any other: gates run on the final tree.
+  Full record: `memory/primitives/pb-DX15a-execution-notes.md`; handoff:
+  `memory/workstream-state.md`.
 - **Prior**: 2026-08-15 — **PB-DX44 SHIPPED** (`scutemob-215`; v4 queue rank 2 —
   **OOS-DX29-9**, **OOS-DX29-12** and **OOS-DX29-14** CLOSED, **OOS-DX29-3** NARROWED).
   **Seven deck-legal `Complete` defs could not be cast as printed, and one could not be cast at

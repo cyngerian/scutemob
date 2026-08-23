@@ -20,9 +20,10 @@
 ## Worker Handoff (PB-DX15a, `scutemob-216`) — the two live CR sweeps
 
 **Shipped**: v4 queue **rank 3**. **`OOS-DP9-8` and `OOS-DP9-11` both CLOSED**, each registry row
-carrying corrections to its own claims. Rider **`OOS-DX24-7` TAKEN**, rider **`OOS-DX24-1`
-DEFERRED** — and **both riders' prescribed fixes were wrong as written**, each refuted by
-executing it rather than by argument. `OOS-DP9-16` **NOT taken**, parked as the brief directs.
+carrying corrections to its own claims. Riders, FINAL after the `/review` fix cycle (which
+inverted both first-draft verdicts — see "The `/review` cycle" below): **`OOS-DX24-1` CLOSED**,
+**`OOS-DX24-7` RE-OPENED** — and **both riders' prescribed fixes were wrong as written**, each
+refuted by executing it rather than by argument. `OOS-DP9-16` **NOT taken**, parked as the brief directs.
 Filed **`OOS-DX15a-1..7`**.
 
 Tests **4,835 / 0 / 5** (+38 over the **4,797** pre-edit baseline, **54** targets; delta itemised
