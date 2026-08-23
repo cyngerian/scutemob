@@ -249,10 +249,36 @@ fn test_move_nonexistent_object_errors() {
 }
 
 #[test]
-/// MR-M1-19 / CR 400.7 — same-zone move (battlefield → battlefield) still
-/// produces a new ObjectId, because the zone-change event creates a new object
-/// regardless of the source and destination zones being the same.
-fn test_400_7_same_zone_move_produces_new_id() {
+/// MR-M1-19 / CR 400.7 — a same-zone move (battlefield → battlefield) **keeps the
+/// same `ObjectId`**, because no zone change happened.
+///
+/// # This test is INVERTED by PB-DX15a (`scutemob-216`, closes `OOS-DP9-11`)
+///
+/// It used to be `test_400_7_same_zone_move_produces_new_id`, asserting
+/// `assert_ne!(old_id, new_id)` on the reasoning that *"the zone-change event creates a
+/// new object regardless of the source and destination zones being the same."*
+///
+/// **That reasoning inverts the rule it cites.** CR 400.7 reads, in full: *"An object
+/// that moves from one zone to another becomes a new object with no memory of, or
+/// relation to, its previous existence."* The antecedent is a move **from one zone to
+/// another**. An object whose destination is the zone it is already in has not moved
+/// from one zone to another, so the rule does not fire and the object is the same
+/// object. The old assertion was a pin on a primitive's behaviour dressed as a rules
+/// claim, and it was the reason `OOS-DP9-11` stayed open: a fix at the helper level
+/// reddened it, so every earlier reader concluded the helper was right.
+///
+/// Its consequences were real, not theoretical. `next_object_id()` is
+/// `timestamp_counter += 1`, and `timestamp_counter` is the seed source for every
+/// `Zone::shuffle` and coin flip (`rules/commander.rs:832-835`), so a card that never
+/// left its library both lost its identity and moved the game's PRNG. Seventeen
+/// deck-legal `Complete` defs reached that path — see
+/// `crates/engine/tests/core/pb_dx15a_same_zone_identity_roster.rs`, which prints the
+/// population rather than transcribing it.
+///
+/// The battlefield is an **unordered** zone (`Zone::new_unordered()`,
+/// `state/builder.rs:302`), so there is no order to permute either: the correct
+/// behaviour here is a total no-op, which is what this now asserts.
+fn test_400_7_same_zone_move_keeps_the_same_id() {
     let p1 = PlayerId(1);
     let mut state = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(p1, "Blinking Bear", 2, 2))
@@ -260,25 +286,41 @@ fn test_400_7_same_zone_move_produces_new_id() {
         .unwrap();
 
     let old_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
+    let counter_before = state.current_timestamp();
 
-    // Move back to battlefield (simulating "leave and re-enter" at the primitive level).
+    // "Move" to the zone it is already in. At the primitive level this is a reposition,
+    // not a zone change.
     let (new_id, _old_snapshot) =
         test_util::move_object_to_zone(&mut state, old_id, ZoneId::Battlefield).unwrap();
 
-    // New ObjectId is different from old (CR 400.7: every zone change = new object).
-    assert_ne!(old_id, new_id, "same-zone move must produce a new ObjectId");
+    // CR 400.7: no move from one zone to another, so no new object.
+    assert_eq!(
+        old_id, new_id,
+        "a same-zone move must NOT produce a new ObjectId -- CR 400.7's antecedent is \
+         'moves from one zone to another', and this object did not"
+    );
 
-    // Old ID is gone.
+    // The original id is still live.
     assert!(
-        state.object(old_id).is_err(),
-        "old ObjectId should no longer exist after same-zone move"
+        state.object(old_id).is_ok(),
+        "the original ObjectId must still resolve after a same-zone move"
+    );
+
+    // And no `timestamp_counter` value was burned. This is the half that matters beyond
+    // identity: the counter seeds `Zone::shuffle` and every coin flip, so a same-zone
+    // move used to perturb the game's PRNG for free.
+    assert_eq!(
+        state.current_timestamp(),
+        counter_before,
+        "a same-zone move must consume NO timestamp_counter value -- it is the shuffle \
+         and coin-flip seed source"
     );
 
     // Only one object on the battlefield still.
     assert_eq!(
         state.objects_in_zone(&ZoneId::Battlefield).len(),
         1,
-        "battlefield should still have exactly 1 object after same-zone move"
+        "battlefield should still have exactly 1 object after a same-zone move"
     );
 }
 

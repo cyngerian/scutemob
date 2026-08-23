@@ -10155,6 +10155,47 @@ pub fn apnap_order(state: &GameState) -> Vec<PlayerId> {
     let start = start_pos.unwrap_or(0);
     (0..n).map(|i| order[(start + i) % n]).collect()
 }
+/// Every player in the game, in APNAP order — the ordering CR 608.2e requires for a
+/// multi-player resolution-time choice (PB-DX15a, closes `OOS-DP9-8`).
+///
+/// CR 608.2e: *"the choices for the first action are made in APNAP order, and then the
+/// first action is processed simultaneously"*. CR 101.4 defines that order as the active
+/// player, then the remaining players in turn order.
+///
+/// # Why this is not just `apnap_order`
+///
+/// [`apnap_order`] enumerates `state.turn.turn_order` and nothing else. Every production
+/// state is built by `GameStateBuilder`, which sets `turn_order` from the same player
+/// list it seeds `state.players` from (`state/builder.rs`), so the two agree — but
+/// `turn_order` is never re-derived afterwards and `retarget.rs`'s own doc block already
+/// records that an alive-but-absent player is *believed* impossible rather than enforced.
+/// `resolve_player_target_list`'s universe is `state.players`, so swapping it for
+/// `turn_order` alone would silently **drop** any such player from an "each player"
+/// effect — trading a wrong order for a missing player, which is strictly worse.
+///
+/// So: order by `turn_order`, then append anything in `state.players` that `turn_order`
+/// does not name, ascending — i.e. the pre-PB-DX15a order, for exactly the residue that
+/// has no APNAP position to be given. The `debug_assert` states that this residue is
+/// expected to be empty (SR-4: an engine-bug assertion, not a runtime rejection).
+pub fn apnap_order_all_players(state: &GameState) -> Vec<PlayerId> {
+    let mut out = apnap_order(state);
+    let mut residue: Vec<PlayerId> = state
+        .players
+        .keys()
+        .copied()
+        .filter(|p| !out.contains(p))
+        .collect();
+    debug_assert!(
+        residue.is_empty(),
+        "apnap_order_all_players: {residue:?} are in state.players but absent from \
+         turn_order {:?} — they keep their pre-APNAP ascending position rather than \
+         being dropped, but the divergence is an engine bug",
+        state.turn.turn_order
+    );
+    residue.sort();
+    out.extend(residue);
+    out
+}
 /// CR 603.2d: Compute how many additional times a trigger should fire due to
 /// Panharmonicon-style trigger-doubling effects.
 ///
