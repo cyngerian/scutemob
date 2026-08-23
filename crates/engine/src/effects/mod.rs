@@ -8004,24 +8004,13 @@ fn resolve_effect_target_list_indexed(
         // about the order of the same set of players.
         EffectTarget::EachPlayer => crate::rules::abilities::apnap_order_all_players(state)
             .into_iter()
-            .filter(|p| {
-                state
-                    .players
-                    .get(p)
-                    .map(|ps| !ps.has_lost)
-                    .unwrap_or(false)
-            })
+            .filter(|p| state.players.get(p).map(|ps| !ps.has_lost).unwrap_or(false))
             .map(|p| (None, ResolvedTarget::Player(p)))
             .collect(),
         EffectTarget::EachOpponent => crate::rules::abilities::apnap_order_all_players(state)
             .into_iter()
             .filter(|p| {
-                *p != ctx.controller
-                    && state
-                        .players
-                        .get(p)
-                        .map(|ps| !ps.has_lost)
-                        .unwrap_or(false)
+                *p != ctx.controller && state.players.get(p).map(|ps| !ps.has_lost).unwrap_or(false)
             })
             .map(|p| (None, ResolvedTarget::Player(p)))
             .collect(),
@@ -8235,23 +8224,12 @@ fn resolve_player_target_list(
         // `state.players.keys()` — an `imbl::OrdMap`, i.e. ascending `PlayerId`.
         PlayerTarget::EachPlayer => crate::rules::abilities::apnap_order_all_players(state)
             .into_iter()
-            .filter(|p| {
-                state
-                    .players
-                    .get(p)
-                    .map(|ps| !ps.has_lost)
-                    .unwrap_or(false)
-            })
+            .filter(|p| state.players.get(p).map(|ps| !ps.has_lost).unwrap_or(false))
             .collect(),
         PlayerTarget::EachOpponent => crate::rules::abilities::apnap_order_all_players(state)
             .into_iter()
             .filter(|p| {
-                *p != ctx.controller
-                    && state
-                        .players
-                        .get(p)
-                        .map(|ps| !ps.has_lost)
-                        .unwrap_or(false)
+                *p != ctx.controller && state.players.get(p).map(|ps| !ps.has_lost).unwrap_or(false)
             })
             .collect(),
         PlayerTarget::DeclaredTarget { index } => {
