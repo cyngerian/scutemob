@@ -7996,30 +7996,34 @@ fn resolve_effect_target_list_indexed(
                 vec![]
             }
         }
-        EffectTarget::EachPlayer => state
-            .players
-            .keys()
-            .filter(|&&p| {
+        // CR 608.2e / CR 101.4 (PB-DX15a, `OOS-DP9-8`): the `EffectTarget` twins of
+        // `resolve_player_target_list`'s `PlayerTarget::EachPlayer`/`EachOpponent`. The
+        // seed names ONE function; this is a second, independently-reachable iteration
+        // over the same `imbl::OrdMap` with the same ascending-`PlayerId` order, and
+        // fixing only the function the seed named would have left the two disagreeing
+        // about the order of the same set of players.
+        EffectTarget::EachPlayer => crate::rules::abilities::apnap_order_all_players(state)
+            .into_iter()
+            .filter(|p| {
                 state
                     .players
-                    .get(&p)
+                    .get(p)
                     .map(|ps| !ps.has_lost)
                     .unwrap_or(false)
             })
-            .map(|&p| (None, ResolvedTarget::Player(p)))
+            .map(|p| (None, ResolvedTarget::Player(p)))
             .collect(),
-        EffectTarget::EachOpponent => state
-            .players
-            .keys()
-            .filter(|&&p| {
-                p != ctx.controller
+        EffectTarget::EachOpponent => crate::rules::abilities::apnap_order_all_players(state)
+            .into_iter()
+            .filter(|p| {
+                *p != ctx.controller
                     && state
                         .players
-                        .get(&p)
+                        .get(p)
                         .map(|ps| !ps.has_lost)
                         .unwrap_or(false)
             })
-            .map(|&p| (None, ResolvedTarget::Player(p)))
+            .map(|p| (None, ResolvedTarget::Player(p)))
             .collect(),
         // CR 702.26b: phased-out permanents are treated as nonexistent.
         // CR 613.1d: Use layer-resolved types for creature check.
