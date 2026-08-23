@@ -31,7 +31,16 @@ use crate::state::GameState;
 /// CR 603.3: Check for triggered abilities arising from events and flush
 /// pending triggers to the stack. Extracted from per-command-arm boilerplate.
 fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) {
-    let new_triggers = abilities::check_triggers(state, events);
+    // PB-DX15a (`OOS-DX24-7`): `Simultaneous` here is EXACTLY the pre-PB-DX15a
+    // behaviour, not a new judgement. PB-DX24's fix cycle recorded this call site as
+    // NOT AUDITED for CR 603.10a look-back granularity, and this batch did not audit
+    // it either -- the parameter exists so that status is visible here instead of
+    // buried in a comment in `abilities.rs`.
+    let new_triggers = abilities::check_triggers_with_timing(
+        state,
+        events,
+        abilities::EventBatchTiming::Simultaneous,
+    );
     for t in new_triggers {
         state.pending_triggers.push_back(t);
     }
@@ -2496,7 +2505,16 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
         // BEFORE extending events (so the reference is still valid) and BEFORE SBA
         // checking. This ensures "whenever ~ deals combat damage to a player" triggers
         // are queued alongside SBA-generated triggers.
-        let tba_triggers = abilities::check_triggers(state, &action_events);
+        // PB-DX15a (`OOS-DX24-7`): `Simultaneous` here is EXACTLY the pre-PB-DX15a
+        // behaviour, not a new judgement. PB-DX24's fix cycle recorded this call site as
+        // NOT AUDITED for CR 603.10a look-back granularity, and this batch did not audit
+        // it either -- the parameter exists so that status is visible here instead of
+        // buried in a comment in `abilities.rs`.
+        let tba_triggers = abilities::check_triggers_with_timing(
+            state,
+            &action_events,
+            abilities::EventBatchTiming::Simultaneous,
+        );
         for t in tba_triggers {
             state.pending_triggers.push_back(t);
         }

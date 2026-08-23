@@ -32,6 +32,7 @@ mod modal_triggers;
 mod monarch;
 mod partner_variants;
 mod partner_with;
+mod pb_dx15a_lookback_batch_timing;
 mod pb_dx27_blood_moon_type_scope;
 mod pb_dx43_intrinsic_land_mana;
 mod pb_dx44_fuse_targets;

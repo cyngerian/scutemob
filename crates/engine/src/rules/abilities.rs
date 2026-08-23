@@ -358,7 +358,7 @@ pub fn handle_activate_ability(
                 }
                 // CR 700.2d: Duplicate modes are only allowed when allow_duplicate_modes is set.
                 if !ms.allow_duplicate_modes {
-                    let mut seen = std::collections::HashSet::new();
+                    let mut seen = std::collections::BTreeSet::new();
                     for &idx in &modes_chosen {
                         if !seen.insert(idx) {
                             return Err(GameStateError::InvalidCommand(format!(
@@ -2977,7 +2977,41 @@ fn get_encore_cost(
 /// and the trigger condition is met.
 /// CR 603.4: If an intervening-if clause is present, the condition is checked
 /// at trigger time; the ability only queues if the condition is true.
+/// Whether a `check_triggers` caller's `events` slice is ONE simultaneous batch or a
+/// SEQUENCE of events that happened one after another (PB-DX15a, rider `OOS-DX24-7`).
+///
+/// This distinction is load-bearing for exactly one thing: the CR 603.10a look-back set
+/// (`arrived_in_graveyard_this_batch`) that suppresses a `trigger_zone: Graveyard`
+/// ability whose source arrived in the graveyard as part of the same event.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EventBatchTiming {
+    /// Every event in the slice happened at the SAME time, so CR 603.10a's "immediately
+    /// prior" means prior to ALL of them. A CR 704.3 state-based-action fixpoint pass is
+    /// the canonical example, and the Gatherer ruling this rule is derived from is
+    /// explicitly about it: *"If Nether Traitor and another creature are put into your
+    /// graveyard **at the same time**, Nether Traitor's ability won't trigger."*
+    Simultaneous,
+    /// The events happened one after another, so CR 603.10a's "immediately prior" means
+    /// prior to THIS event — i.e. each event looks back only at deaths strictly earlier
+    /// in the slice. A spell resolution whose sub-effects run in sequence is the case.
+    Sequential,
+}
+/// [`check_triggers_with_timing`] with [`EventBatchTiming::Simultaneous`] — the
+/// behaviour every caller had before PB-DX15a.
+///
+/// Kept as the short form because ~40 primitive-level tests call it to exercise trigger
+/// collection directly, and for those the whole-slice look-back set is both the historical
+/// and the correct reading (they hand in one simultaneous event batch). **Production code
+/// should call [`check_triggers_with_timing`] and name its timing**, so that the choice is
+/// visible at the call site rather than inherited; all six production sites do.
 pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTrigger> {
+    check_triggers_with_timing(state, events, EventBatchTiming::Simultaneous)
+}
+pub fn check_triggers_with_timing(
+    state: &GameState,
+    events: &[GameEvent],
+    timing: EventBatchTiming,
+) -> Vec<PendingTrigger> {
     let mut triggers = Vec::new();
     // CR 603.10a (PB-DX24): a leaves-the-battlefield ability looks back in time --
     // the game asks whether the ability EXISTED immediately prior to the event. A
@@ -3031,18 +3065,82 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
     //     `check_and_flush_triggers`, shared by nearly every `Command` arm, so
     //     its own granularity is a per-command-handler question that would need
     //     its own investigation).
-    let arrived_in_graveyard_this_batch: std::collections::HashSet<ObjectId> = events
-        .iter()
-        .filter_map(|event| match event {
+    //
+    // PB-DX15a (rider `OOS-DX24-7`) — the per-caller granularity above is now a
+    // PARAMETER rather than a property of whichever slice a caller happened to hand in.
+    //
+    // **The row's own prescribed fix was "rebuild the set per event PREFIX rather than
+    // per whole slice". Taken literally that makes the `sba.rs` caller WRONG**, and it
+    // is the caller the guard was written for. In one CR 704.3 fixpoint pass the deaths
+    // are genuinely simultaneous, so CR 603.10a's "immediately prior" means prior to all
+    // of them — which is exactly the Gatherer ruling quoted above ("at the same time").
+    // A prefix set there would let a `trigger_zone: Graveyard` source fire off a death
+    // whose event merely happens to sort AFTER its own in the slice: a correct answer or
+    // a wrong one depending on event order within a batch that has no order.
+    //
+    // So: `Simultaneous` keeps the whole-slice set (byte-identical to pre-PB-DX15a
+    // behaviour) and `Sequential` rebuilds per prefix. Of the six call sites, only
+    // `resolution.rs` passes `Sequential`; the four sites PB-DX24 recorded as NOT
+    // audited (`combat.rs` ×2, `engine.rs` ×2) pass `Simultaneous`, which is precisely
+    // what they did before, so this change moves no behaviour anywhere it was not
+    // measured. Naming the parameter is what makes their unaudited status visible at the
+    // call site instead of buried in a comment here.
+    fn graveyard_arrival_id(event: &GameEvent) -> Option<ObjectId> {
+        match event {
             GameEvent::CreatureDied { new_grave_id, .. }
             | GameEvent::PlaneswalkerDied { new_grave_id, .. }
             | GameEvent::PermanentDestroyed { new_grave_id, .. }
             | GameEvent::AuraFellOff { new_grave_id, .. }
             | GameEvent::ObjectPutInGraveyard { new_grave_id, .. } => Some(*new_grave_id),
             _ => None,
-        })
-        .collect();
+        }
+    }
+    // `BTreeSet`, not `HashSet` (PB-DX7's `unordered_iteration_ratchet` fired on the
+    // first draft of this and was right to). These three sets are `contains`-only
+    // suppression sets, so `HashSet` would have been category (a) and legal — but a
+    // `BTreeSet` costs nothing at this size, keeps the ratchet moving DOWN rather than
+    // needing its ceiling raised, and removes the question from a function PB-DP9
+    // re-executes wholesale after every suspended choice (`OOS-DP9-10`).
+    let whole_batch_arrivals: std::collections::BTreeSet<ObjectId> =
+        events.iter().filter_map(graveyard_arrival_id).collect();
+    // Arrivals from events STRICTLY EARLIER than the one being handled. Grown at the
+    // bottom of the loop; unused when `timing` is `Simultaneous`.
+    let mut earlier_arrivals: std::collections::BTreeSet<ObjectId> =
+        std::collections::BTreeSet::new();
     for event in events {
+        // `OOS-DX24-7`'s own fix sketch says *"rebuild the set per event PREFIX"*.
+        // **That is inverted, and this batch is where it was caught.** The set is a
+        // SUPPRESSION set: a source in it did NOT yet have a functioning graveyard
+        // ability immediately prior to the event. A source that arrived at an EARLIER
+        // event was already there, so it must be REMOVED from the set — the prefix is
+        // exactly what to subtract, not what to pass. Passing the prefix itself inverts
+        // the guard: it would suppress on the arrivals that are settled and permit on
+        // the ones that are not.
+        //
+        // Concretely, on the row's own example (a resolution that sequentially puts a
+        // `trigger_zone: Graveyard` source into a graveyard, then kills another
+        // creature): the prefix at the second event is `{source}`, which suppresses —
+        // i.e. the row's sketch reproduces the very defect it describes. The complement
+        // gives `{other}`, and the source's trigger fires, which is the CR 603.10a
+        // answer.
+        //
+        // The subtraction is also what keeps the other order correct. `check_triggers`
+        // runs AFTER every event in the slice has been applied, so a source that arrives
+        // LATER in the slice is already sitting in the graveyard when
+        // `collect_graveyard_carddef_triggers` enumerates `state.objects`. Keeping
+        // later-and-current arrivals in the set is what stops it firing off a death that
+        // happened before it got there.
+        let sequential_arrivals: std::collections::BTreeSet<ObjectId>;
+        let arrived_in_graveyard_this_batch: &std::collections::BTreeSet<ObjectId> = match timing {
+            EventBatchTiming::Simultaneous => &whole_batch_arrivals,
+            EventBatchTiming::Sequential => {
+                sequential_arrivals = whole_batch_arrivals
+                    .difference(&earlier_arrivals)
+                    .copied()
+                    .collect();
+                &sequential_arrivals
+            }
+        };
         match event {
             GameEvent::PermanentEnteredBattlefield { object_id, .. } => {
                 // SelfEntersBattlefield: fires on the entering permanent itself.
@@ -3071,7 +3169,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     &mut triggers,
                     event,
                     Some(*object_id),
-                    &arrived_in_graveyard_this_batch,
+                    arrived_in_graveyard_this_batch,
                 );
                 // CR 702.74a: If the permanent was evoked, generate the evoke sacrifice trigger.
                 // "When this permanent enters, if its evoke cost was paid, its controller
@@ -5090,7 +5188,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     &mut triggers,
                     event,
                     Some(*new_grave_id),
-                    &arrived_in_graveyard_this_batch,
+                    arrived_in_graveyard_this_batch,
                 );
             }
             GameEvent::AuraFellOff {
@@ -6681,6 +6779,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             }
             _ => {}
         }
+        // PB-DX15a (`OOS-DX24-7`): record this event's own arrival AFTER it is handled,
+        // so the next event sees it as "strictly earlier" and subtracts it (CR 603.10a).
+        // No-op under `Simultaneous`, which reads the whole-batch set instead.
+        if timing == EventBatchTiming::Sequential {
+            if let Some(id) = graveyard_arrival_id(event) {
+                earlier_arrivals.insert(id);
+            }
+        }
     }
     // CR 610.3: For delayed triggers with WhenSourceLeavesBattlefield timing,
     // check if the source left the battlefield in this event batch. If so,
@@ -6692,8 +6798,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
     {
         use crate::state::stubs::DelayedTriggerTiming;
         // Collect source IDs of permanents that left the battlefield in this event batch.
-        let mut left_battlefield: std::collections::HashSet<ObjectId> =
-            std::collections::HashSet::new();
+        let mut left_battlefield: std::collections::BTreeSet<ObjectId> =
+            std::collections::BTreeSet::new();
         for event in events {
             match event {
                 GameEvent::CreatureDied {
@@ -7289,7 +7395,7 @@ fn collect_graveyard_carddef_triggers(
     triggers: &mut Vec<PendingTrigger>,
     event: &GameEvent,
     entering_object: Option<ObjectId>,
-    arrived_in_graveyard_this_batch: &std::collections::HashSet<ObjectId>,
+    arrived_in_graveyard_this_batch: &std::collections::BTreeSet<ObjectId>,
 ) {
     use crate::cards::card_definition::{
         AbilityDefinition, TargetController, TargetOwner, TriggerCondition, TriggerZone,

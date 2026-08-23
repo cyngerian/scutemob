@@ -8245,7 +8245,11 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
         }
     }
     // Check for triggered abilities arising from this resolution.
-    let new_triggers = abilities::check_triggers(state, &events);
+    let new_triggers = abilities::check_triggers_with_timing(
+        state,
+        &events,
+        abilities::EventBatchTiming::Sequential,
+    );
     for t in new_triggers {
         state.pending_triggers.push_back(t);
     }

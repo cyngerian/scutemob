@@ -843,7 +843,16 @@ pub fn handle_declare_attackers(
         attackers: attackers.clone(),
     });
     // Check and queue triggers from the attack declaration (e.g., SelfAttacks).
-    let new_triggers = abilities::check_triggers(state, &events);
+    // PB-DX15a (`OOS-DX24-7`): `Simultaneous` here is EXACTLY the pre-PB-DX15a
+    // behaviour, not a new judgement. PB-DX24's fix cycle recorded this call site as
+    // NOT AUDITED for CR 603.10a look-back granularity, and this batch did not audit
+    // it either -- the parameter exists so that status is visible here instead of
+    // buried in a comment in `abilities.rs`.
+    let new_triggers = abilities::check_triggers_with_timing(
+        state,
+        &events,
+        abilities::EventBatchTiming::Simultaneous,
+    );
     for t in new_triggers {
         state.pending_triggers.push_back(t);
     }
@@ -1740,7 +1749,16 @@ pub fn handle_declare_blockers(
         blockers: blockers.clone(),
     });
     // Check and queue triggers from blocker declaration (e.g., SelfBlocks, Flanking).
-    let new_triggers = abilities::check_triggers(state, &events);
+    // PB-DX15a (`OOS-DX24-7`): `Simultaneous` here is EXACTLY the pre-PB-DX15a
+    // behaviour, not a new judgement. PB-DX24's fix cycle recorded this call site as
+    // NOT AUDITED for CR 603.10a look-back granularity, and this batch did not audit
+    // it either -- the parameter exists so that status is visible here instead of
+    // buried in a comment in `abilities.rs`.
+    let new_triggers = abilities::check_triggers_with_timing(
+        state,
+        &events,
+        abilities::EventBatchTiming::Simultaneous,
+    );
     for t in new_triggers {
         state.pending_triggers.push_back(t);
     }
