@@ -12989,4 +12989,257 @@ mod tests {
              to its owner's graveyard: {graveyard:?}"
         );
     }
+
+    // ── PB-DX15a (CR 608.2e / CR 101.4): APNAP order over a real HTTP round trip ──
+    //
+    // `scutemob-216`, the reachability half of `OOS-DP9-8`. The engine-side probe lives
+    // in `crates/engine/tests/primitives/pb_dp9_effect_choice.rs` and the offer-layer /
+    // `LocalGame` probes in `crates/simulator/tests/pb_dx15a_apnap_channel.rs`; this is
+    // the browser channel, driven through the real router.
+    //
+    // # THE fixture rule
+    //
+    // **A fixture whose active player is the LOWEST `PlayerId` cannot tell CR 608.2e
+    // APNAP order from ascending `PlayerId` order**, because `GameStateBuilder` seeds
+    // `turn_order` in `add_player` order (ascending everywhere in this tree), so
+    // "rotate to start at the active player" is the identity. That is why `OOS-DP9-8`
+    // survived behind a test whose doc said it pinned the deviation. `session::new_game`
+    // always starts turn 1 with seat 1 active, so this fixture does not *build* a
+    // non-lowest active player — it **drives the real game to turn 5**, where the active
+    // player is seat 2, and asserts that fact before asserting anything about order.
+    //
+    // # What the play server can and cannot show, stated rather than glossed
+    //
+    // The HTTP surface exposes exactly ONE seat's questions, by construction and on
+    // purpose: `seat_view` filters `pending.player == human` and `post_action` refuses a
+    // submission whose `pending.player != play.human` (both cited in their own comments
+    // above). So the *sequence of `PendingDecision::player`s* — which is what the
+    // simulator-level `c1`/`c3` probes assert — is **not observable over HTTP**, and a
+    // second human seat would not merely be unobservable but would deadlock the session.
+    // This probe therefore does not claim to observe that sequence. It asserts the two
+    // order-dependent facts that ARE observable here, both of which invert under
+    // ascending `PlayerId` order:
+    //
+    // 1. **Which seat the server had already asked** when it handed the human its own
+    //    question — `PlayerId(3)`, the APNAP-correct predecessor, and exactly one of
+    //    them. Under ascending order the human is asked FIRST and this list is empty.
+    //    Read through the same out-of-band oracle `ui1_zone` uses (the session's own
+    //    `LocalGame`), never used to build a payload.
+    // 2. **The order of the `CardDiscarded` lines in the HTTP `events` payload** —
+    //    `["Bot-3", "Human-1"]`. Under ascending order it is the exact reversal.
+    //
+    // Both were executed red by reverting `resolve_player_target_list`'s
+    // `EachPlayer`/`EachOpponent` arms to `state.players.keys()`.
+    //
+    // # Fixture choice
+    //
+    // `burglar_rat` — `{1}{B}` Creature — Rat, `Complete`, deck-legal: "When this
+    // creature enters, each opponent discards a card." Its ETB is an
+    // `Effect::ForEach { over: ForEachTarget::EachOpponent, .. }` around
+    // `Effect::DiscardCards`, and `ForEach`'s player arm resolves through the same
+    // `resolve_player_target_list` this batch rewired. Three seats, the human passive at
+    // seat 1, the Rat in seat **2**'s deck alone — so the caster is the active player of
+    // turn 5 and the two opponents are seats 3 and 1, whose APNAP order `[3, 1]` is the
+    // exact reversal of ascending `[1, 3]`. A set assertion would not discriminate; an
+    // ordered one does.
+
+    /// **Read off a real run, not reasoned to** (the [`UI1_SEED`] / [`ENG1_SEED`]
+    /// convention): at this seed [`DX15A_BURGLAR_RAT`] at `main_deck[0]` of seat 2's
+    /// deck lands in that bot's OPENING hand, and the bot casts it on turn 5 with the
+    /// human having done nothing but pass. A completeness flip in any card-def batch
+    /// re-deals every seat and moves this; re-observe it off a real run rather than
+    /// guessing.
+    const DX15A_SEED: u64 = 7;
+
+    /// CR 701.9b: "When this creature enters, each opponent discards a card."
+    /// `{1}{B}`, `Complete`, and the only non-Swamp in seat 2's deck.
+    const DX15A_BURGLAR_RAT: &str = "burglar-rat";
+
+    /// The turn the drive reaches before the Rat resolves, and the whole reason this
+    /// fixture can express the deviation: on turn 5 of a three-seat game the active
+    /// player is seat 2, **not** the lowest `PlayerId`.
+    const DX15A_EXPECTED_TURN: u32 = 5;
+
+    /// Install the PB-DX15a fixture: three seats, human passive at seat 1, the Rat in
+    /// seat 2's deck only. Built through `session::new_game` — the same constructor
+    /// `post_game` uses, running the same two Invariant-9 gates — because
+    /// `session::config_for` hard-codes two things this fixture must override
+    /// (`DeckSource::RandomPerSeat`, and a player count taken from `NewGameDefaults`).
+    /// Nothing about the HTTP path is stubbed; only the decks the game starts from.
+    fn dx15a_install(state: &SharedState) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 3,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: DX15A_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), eng1_deck_with(&[])),
+                (
+                    mtg_engine::PlayerId(2),
+                    eng1_deck_with(&[(0, DX15A_BURGLAR_RAT)]),
+                ),
+                (mtg_engine::PlayerId(3), eng1_deck_with(&[])),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the PB-DX15a fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// The out-of-band oracle: the seats whose CR 608.2d questions the engine has
+    /// already accepted an answer for, in application order. Read straight off the
+    /// session's `LocalGame` journal — the same role `ui1_zone` plays, and used only to
+    /// verify, never to build a payload.
+    fn dx15a_answered_seats(state: &SharedState) -> Vec<u64> {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        session
+            .game
+            .journal()
+            .iter()
+            .filter_map(|record| match &record.command {
+                mtg_engine::Command::AnswerEffectChoice { player, .. } => Some(player.0),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The active player of the session's current turn, and its turn number. Same
+    /// out-of-band oracle; used to prove the fixture is *capable* of expressing the
+    /// deviation before any order is asserted.
+    fn dx15a_turn(state: &SharedState) -> (u32, u64) {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        let turn = session.game.state().turn();
+        (turn.turn_number, turn.active_player.0)
+    }
+
+    /// **CR 608.2e / CR 101.4 / CR 701.9b — "each opponent discards a card" is asked
+    /// and resolved in APNAP order, over a real HTTP round trip.**
+    ///
+    /// See the block comment above for what this probe can and cannot observe, and why.
+    /// The short version: the play server shows one seat's questions, so the evidence
+    /// here is (a) which seat the server had already asked when it asked the human, and
+    /// (b) the order of the resolution's own `CardDiscarded` lines in the payload. Both
+    /// invert under the pre-PB-DX15a ascending-`PlayerId` walk.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx15a_each_opponent_discard_is_apnap_ordered_over_http() {
+        let state = shared_state();
+        dx15a_install(&state);
+
+        let view = eng1_drive_pass_only(&state, "Discard", 400).await;
+
+        // The fixture rule, checked on the REAL session before any order is asserted:
+        // if the active player were seat 1 (the lowest id), APNAP and ascending
+        // PlayerId would be the same list and everything below would be vacuous.
+        let (turn, active) = dx15a_turn(&state);
+        assert_eq!(
+            (turn, active),
+            (DX15A_EXPECTED_TURN, 2),
+            "the drive must reach a turn whose active player is NOT the lowest \
+             PlayerId, or this probe cannot tell APNAP from ascending PlayerId order"
+        );
+
+        // (1) The seat the server had ALREADY asked. CR 608.2e puts p3 (the active
+        // player's first opponent in turn order) ahead of p1; ascending PlayerId puts
+        // p1 first, in which case this list is EMPTY at this moment.
+        assert_eq!(
+            dx15a_answered_seats(&state),
+            vec![3],
+            "CR 608.2e / CR 101.4: with seat 2 active and casting, its opponents are \
+             asked [3, 1]. So by the time the server hands the human (seat 1) its own \
+             question, seat 3 has already answered exactly one. Ascending PlayerId -- \
+             what the engine did before PB-DX15a -- asks seat 1 FIRST, leaving this \
+             list empty."
+        );
+
+        let index = ui1_question_index(&view, "Discard").expect("just found");
+        let option = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+        let decision = &option["decision"];
+        assert_eq!(decision["answer_field"], "effect_choice_answer");
+        let answer = &decision["answer"];
+        assert_eq!(answer["shape"], "PickN");
+        assert_eq!(
+            answer["count"], 1,
+            "Burglar Rat discards exactly one: {answer}"
+        );
+
+        // A NON-DEFAULT pick, so the resolution below distinguishes the human's answer
+        // from the engine's fallback (`default_discard_answer` takes the LOWEST ids).
+        let mut candidates: Vec<u64> = answer["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        candidates.sort_unstable();
+        assert!(
+            candidates.len() > 1,
+            "the human must hold more than one card, or there is no choice to make: \
+             {answer}"
+        );
+        let chosen = *candidates.last().expect("non-empty");
+        assert_eq!(
+            answer["template"],
+            json!({"Discard": {"chosen": [candidates[0]]}}),
+            "the offered default is the LOWEST ObjectId; the pick below is a different \
+             card, so the hand check at the end is about the human's answer"
+        );
+
+        let wire_seq = seq(&view);
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {"effect_choice_answer": {"Discard": {"chosen": [chosen]}}},
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after}");
+
+        // (2) The RESOLUTION's own events, straight off the wire payload.
+        let discarders: Vec<String> = after["events"]
+            .as_array()
+            .expect("events is an array")
+            .iter()
+            .filter(|e| e["kind"] == "CardDiscarded")
+            .map(|e| {
+                e["player"]
+                    .as_str()
+                    .expect("a CardDiscarded line names its player")
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(
+            discarders,
+            vec!["Bot-3".to_string(), "Human-1".to_string()],
+            "CR 608.2e: the resolution applies each opponent's discard in APNAP order, \
+             and the browser's own event feed shows it. Ascending PlayerId is the exact \
+             reversal, [\"Human-1\", \"Bot-3\"]."
+        );
+
+        // ...and the human's non-default answer is what actually happened.
+        let hand = ui1_hand(&state);
+        assert!(
+            !hand.contains(&chosen),
+            "the card the human chose must be gone from hand: {hand:?}"
+        );
+        assert!(
+            hand.contains(&candidates[0]),
+            "the card the DEFAULT would have discarded must still be in hand, or this \
+             probe is measuring the engine's fallback and not the human: {hand:?}"
+        );
+    }
 }
