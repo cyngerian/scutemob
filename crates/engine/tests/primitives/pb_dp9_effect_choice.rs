@@ -260,6 +260,69 @@ fn cast_and_resolve_3p(state: GameState, spell_name: &str) -> (GameState, Vec<Ga
     pass_all(state, &[p(1), p(2), p(3)])
 }
 
+/// A **three-player** fixture whose ACTIVE PLAYER is `p(2)` — i.e. NOT the lowest
+/// `PlayerId` (PB-DX15a).
+///
+/// # Why a third fixture exists
+///
+/// [`fixture`] (2 seats) and [`fixture_3p`] (3 seats) both call
+/// `.active_player(p(1))`. APNAP order (CR 101.4: active player, then the remaining
+/// players in turn order) starting from the LOWEST id is *identical* to ascending
+/// `PlayerId` order, so neither fixture can tell the two apart. Any test asserting a
+/// per-player order on them is vacuous on that axis whatever it claims in its doc — see
+/// [`test_dx15a_each_player_search_asks_in_apnap_order`], which is exactly that mistake,
+/// inverted.
+///
+/// With active `p(2)` and turn order `[p1, p2, p3]`, APNAP is `[p2, p3, p1]` and
+/// ascending is `[p1, p2, p3]` — different in every position.
+///
+/// The spell goes in `p(2)`'s hand and `p(2)` casts it, because [`spell_def`] builds a
+/// sorcery and CR 307.1 requires the caster to be the active player.
+fn fixture_3p_active_p2(def: CardDefinition, extra: Vec<ObjectSpec>) -> GameState {
+    let mut builder = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .with_registry(CardRegistry::new(vec![def.clone()]))
+        .active_player(p(2))
+        .at_step(Step::PreCombatMain)
+        .object(
+            ObjectSpec::card(p(2), &def.name)
+                .with_card_id(def.card_id.clone())
+                .with_types(vec![CardType::Sorcery])
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                })
+                .in_zone(ZoneId::Hand(p(2))),
+        );
+    for spec in extra {
+        builder = builder.object(spec);
+    }
+    let mut state = builder.build().unwrap();
+    state
+        .players_mut()
+        .get_mut(&p(2))
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 5);
+    state.turn_mut().priority_holder = Some(p(2));
+    state
+}
+
+/// [`cast_and_resolve`] for [`fixture_3p_active_p2`] — `p(2)` casts, and the pass round
+/// starts from `p(2)` because that is who holds priority after the cast (CR 117.3c).
+fn cast_and_resolve_active_p2(state: GameState, spell_name: &str) -> (GameState, Vec<GameEvent>) {
+    let spell_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == spell_name && o.zone == ZoneId::Hand(p(2)))
+        .map(|(id, _)| *id)
+        .expect("spell should be in p2's hand");
+    let (state, _) = process_command(state, cast(p(2), spell_id)).expect("cast should succeed");
+    pass_all(state, &[p(2), p(3), p(1)])
+}
+
 fn library_creature(owner: PlayerId, name: &str) -> ObjectSpec {
     ObjectSpec::creature(owner, name, 1, 1).in_zone(ZoneId::Library(owner))
 }
@@ -1246,18 +1309,240 @@ fn test_dp9_choice_inside_conditional_and_sequence() {
 }
 
 #[test]
+/// PB-DX15a — **CR 701.22c's simultaneity clause, MEASURED rather than asserted.**
+///
+/// CR 701.22c: *"If multiple players scry at once, each of those players looks at the top
+/// cards of their library at the same time. Those players decide in APNAP order (see rule
+/// 101.4) where to put those cards, **then those cards move at the same time**."*
+///
+/// CR 701.23i, by contrast, requires simultaneous *looking* and APNAP *deciding* and says
+/// **nothing** about simultaneous movement — a distinction `OOS-DP9-8`'s row blurs by
+/// listing the two rules together. So "honour the simultaneity where those rules apply"
+/// is a real question with a real answer, and this test is the answer.
+///
+/// # The engine applies each player's scry before asking the next, and that is fine HERE
+///
+/// `Effect::Scry`'s loop asks player *k*, applies player *k*'s `reposition_within`, and
+/// only then asks player *k+1*. That is textually ask-then-move, not
+/// ask-all-then-move-all. It is nonetheless observationally identical to simultaneous
+/// movement **because the per-player move sets are pairwise disjoint by construction**:
+/// each player's scry reads and permutes `ZoneId::Library(p)` for its own `p` and touches
+/// no other zone. No player's question can be perturbed by an earlier player's move, and
+/// no card can be moved twice.
+///
+/// This test asserts that disjointness directly rather than restructuring the loop for a
+/// difference no observer can make. It is written wrong-way-round on purpose: the day an
+/// effect makes one player's resolution-time move visible to another player's pending
+/// question, this goes red and says the restructure is now owed.
+fn test_dx15a_multi_player_scry_move_sets_are_disjoint_so_sequential_equals_simultaneous() {
+    let def = spell_def(
+        "Everyone Scries",
+        "dx15a-everyone-scries",
+        Effect::Scry {
+            player: PlayerTarget::EachPlayer,
+            count: EffectAmount::Fixed(2),
+        },
+    );
+    let state = fixture_3p_active_p2(
+        def,
+        vec![
+            library_creature(p(1), "P1 Top"),
+            library_creature(p(1), "P1 Next"),
+            library_creature(p(2), "P2 Top"),
+            library_creature(p(2), "P2 Next"),
+            library_creature(p(3), "P3 Top"),
+            library_creature(p(3), "P3 Next"),
+        ],
+    );
+
+    let (mut state, _) = cast_and_resolve_active_p2(state, "Everyone Scries");
+
+    let mut asked: Vec<PlayerId> = Vec::new();
+    // Every ObjectId any player's scry question named, with the asker.
+    let mut looked_at_by_player: Vec<(PlayerId, Vec<ObjectId>)> = Vec::new();
+    // (asker, the NAME they announced to the bottom) -- captured from the announcement
+    // itself rather than predicted from the fixture's push order, which is bottom-to-top
+    // (`GameStateBuilder::object` appends and `Zone::top()` reads the LAST element, so
+    // `Zone::top_n`'s top-first list starts with the LAST-pushed card). The first draft
+    // of this test predicted it the other way round and its own non-vacuity floor caught
+    // it -- which is the floor earning its keep before the test ever shipped.
+    let mut bottomed: Vec<(PlayerId, String)> = Vec::new();
+    let mut guard = 0;
+    while let Some(entry) = state.pending_effect_choice() {
+        let asker = entry.player;
+        let looked_at = match &entry.question {
+            EffectChoiceQuestion::Scry { looked_at } => looked_at.clone(),
+            other => panic!("expected a scry question, got {other:?}"),
+        };
+        asked.push(asker);
+        looked_at_by_player.push((asker, looked_at.clone()));
+        bottomed.push((asker, name_of(&state, looked_at[0])));
+        // A NON-DEFAULT answer: bottom the top card. The engine's deterministic default
+        // is the identity (keep everything on top) since PB-DP9, so this distinguishes
+        // the announcement from the default.
+        let (s, _) = answer_with(
+            state,
+            EffectChoiceAnswer::Scry {
+                bottom: vec![looked_at[0]],
+                top: looked_at[1..].to_vec(),
+            },
+        );
+        state = s;
+        guard += 1;
+        assert!(guard < 12, "the per-player scry questions did not converge");
+    }
+
+    // CR 608.2e / 101.4 -- the DECIDING order, which is the half 701.22c shares with
+    // 701.23i and 608.2e.
+    assert_eq!(
+        asked,
+        vec![p(2), p(3), p(1)],
+        "CR 701.22c: the players decide in APNAP order (active p2 first)"
+    );
+
+    // CR 701.22c's MOVEMENT half, expressed as the property that makes sequential
+    // application equivalent to simultaneous application.
+    for (asker, looked_at) in &looked_at_by_player {
+        for id in looked_at {
+            let owner_zone = state
+                .objects()
+                .get(id)
+                .map(|o| o.zone)
+                .expect("a scried card stays in its library -- CR 400.7 / PB-DX15a");
+            assert_eq!(
+                owner_zone,
+                ZoneId::Library(*asker),
+                "every card a player's scry touches must be in THAT player's own                  library. Disjoint per-player move sets are what make the engine's                  ask-then-move loop observationally identical to CR 701.22c's                  simultaneous movement; if this fails, the loop must be restructured                  into ask-all-then-move-all."
+            );
+        }
+    }
+
+    // Pairwise disjointness, stated directly rather than inferred from the zone check.
+    for (i, (_, a)) in looked_at_by_player.iter().enumerate() {
+        for (_, b) in looked_at_by_player.iter().skip(i + 1) {
+            assert!(
+                a.iter().all(|id| !b.contains(id)),
+                "no card may appear in two players' scry questions -- that is the                  condition under which sequential and simultaneous movement differ"
+            );
+        }
+    }
+
+    // Non-vacuity: the announcements were actually applied, and applied per-asker.
+    // Without this the disjointness assertions would pass on a scry that did nothing.
+    assert_eq!(bottomed.len(), 3, "all three seats must have announced");
+    for (owner, name) in &bottomed {
+        let names = names_in_library(&state, *owner);
+        assert_eq!(
+            names.first(),
+            Some(name),
+            "{name} was announced to the BOTTOM by {owner:?}, so it must now be the \
+             bottom-most card of that player's library (index 0 is the bottom). This is \
+             the non-vacuity floor: without it the disjointness assertions above would \
+             pass on a scry that moved nothing."
+        );
+    }
+}
+
+#[test]
+/// PB-DX15a — the companion gate to
+/// [`test_dx15a_each_player_search_asks_in_apnap_order`]: **an `active_player(p(1))`
+/// fixture cannot tell CR 608.2e APNAP order from ascending `PlayerId` order, whatever
+/// its doc comment claims.**
+///
+/// This is the structural statement of why `OOS-DP9-8` survived from PB-DP9
+/// (`scutemob-157`) to PB-DX15a (`scutemob-216`) behind a test that said it was pinning
+/// the deviation. CR 101.4 defines APNAP as the active player followed by the remaining
+/// players in turn order; `GameStateBuilder` seeds `turn_order` from the player list in
+/// the order `add_player` was called (`state/builder.rs:323`), which every fixture in
+/// this repository calls in ascending id order. So when the active player IS the lowest
+/// id, "rotate turn order to start at the active player" is the identity and the two
+/// rules produce the same list.
+///
+/// Asserted as an equality between the two orders rather than as a runtime observation,
+/// so it stays meaningful with no fixture to drift: it is a fact about the rule, and it
+/// is the reason the new probe uses [`fixture_3p_active_p2`].
+fn test_dx15a_active_lowest_id_makes_apnap_and_ascending_indistinguishable() {
+    for seats in 2..=6u64 {
+        let mut builder = GameStateBuilder::new();
+        for n in 1..=seats {
+            builder = builder.add_player(p(n));
+        }
+        let state = builder
+            .with_registry(CardRegistry::new(vec![]))
+            .active_player(p(1))
+            .at_step(Step::PreCombatMain)
+            .build()
+            .unwrap();
+
+        let apnap = mtg_engine::rules::abilities::apnap_order_all_players(&state);
+        let mut ascending: Vec<PlayerId> = state.players().keys().copied().collect();
+        ascending.sort();
+
+        assert_eq!(
+            apnap, ascending,
+            "with {seats} seats and the LOWEST PlayerId active, APNAP and ascending \
+             PlayerId are the same list -- so a test asserting a per-player order on \
+             such a fixture pins nothing about CR 608.2e"
+        );
+    }
+
+    // And the contrast: move the active player off the lowest id and the two orders
+    // separate. Without this half the assertion above would be satisfied by an
+    // `apnap_order_all_players` that simply returned ascending order always.
+    let state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .with_registry(CardRegistry::new(vec![]))
+        .active_player(p(2))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    assert_eq!(
+        mtg_engine::rules::abilities::apnap_order_all_players(&state),
+        vec![p(2), p(3), p(1)],
+        "with p2 active, APNAP must be [p2, p3, p1] -- NOT ascending [p1, p2, p3]"
+    );
+}
+
+#[test]
 /// CR 608.2e / CR 101.4 / CR 701.23i — "each player searches their library":
 /// every player is asked in turn, each with their OWN candidates, and all the
 /// answers are applied.
 ///
-/// **Recorded deviation (OOS-DP9-8):** CR 701.22c / 701.23i / 608.2e require the
-/// per-player decisions to be made in **APNAP** order.
-/// `effects::resolve_player_target_list` iterates `state.players.keys()` — an
-/// `imbl::OrdMap`, i.e. ascending `PlayerId`. That is pre-existing (it governs
-/// every `ForEach::EachPlayer` effect, far beyond this roster), and PB-DP9 makes
-/// it *observable* for the first time because the questions are now asked in that
-/// order. Not fixed here; this test asserts the order the engine actually has.
-fn test_dp9_choice_inside_for_each_each_player() {
+/// # INVERTED by PB-DX15a (`scutemob-216`, closes `OOS-DP9-8`)
+///
+/// This test used to be `test_dp9_choice_inside_for_each_each_player` and carried a
+/// "**Recorded deviation (OOS-DP9-8)**" block saying that CR 701.22c / 701.23i / 608.2e
+/// require APNAP order, that `effects::resolve_player_target_list` iterated
+/// `state.players.keys()` (an `imbl::OrdMap`, i.e. ascending `PlayerId`) instead, and
+/// that *"this test asserts the order the engine actually has."*
+///
+/// **It did not, and could not.** It ran on [`fixture`], which is two players with
+/// `.active_player(p(1))`. APNAP from an active player of `p(1)` over turn order
+/// `[p(1), p(2)]` **is** `[p(1), p(2)]` — the same list ascending `PlayerId` gives. The
+/// pin asserted `vec![p(1), p(2)]` and would have stayed green under either rule, so the
+/// recorded deviation was recorded in the one configuration that cannot express it.
+/// This is why the seed survived: the suite reported a pinned deviation and was pinning
+/// nothing. (The same vacuity affects `fixture_3p`, also `.active_player(p(1))`, and
+/// `pb_eng1_effect_discard_choice.rs`'s 3-player discard-order test.)
+///
+/// It is therefore **rebuilt on a discriminating configuration** rather than edited in
+/// place: three seats, and the active player and caster is `p(2)`, so the two candidate
+/// orders are different lists —
+///
+/// | rule | order |
+/// |---|---|
+/// | CR 608.2e / 101.4 APNAP (active first, then turn order) | `[p2, p3, p1]` |
+/// | the pre-PB-DX15a `state.players.keys()` walk | `[p1, p2, p3]` |
+///
+/// The assertion below names `[p2, p3, p1]`, and reverting
+/// `resolve_player_target_list` to `state.players.keys()` reddens it (revert row A1 in
+/// `memory/primitives/pb-DX15a-execution-notes.md`).
+///
+/// `p(2)` is the caster as well as the active player because [`spell_def`] builds a
+/// **sorcery**, and CR 307.1 sorcery timing requires the caster to be the active player.
+fn test_dx15a_each_player_search_asks_in_apnap_order() {
     let def = spell_def(
         "Everyone Tutors",
         "dp9-everyone-tutors",
@@ -1275,17 +1560,19 @@ fn test_dp9_choice_inside_for_each_each_player() {
             also_search_graveyard: false,
         },
     );
-    let state = fixture(
+    let state = fixture_3p_active_p2(
         def,
         vec![
             library_creature(p(1), "P1 Alpha"),
             library_creature(p(1), "P1 Beta"),
             library_creature(p(2), "P2 Alpha"),
             library_creature(p(2), "P2 Beta"),
+            library_creature(p(3), "P3 Alpha"),
+            library_creature(p(3), "P3 Beta"),
         ],
     );
 
-    let (mut state, _) = cast_and_resolve(state, "Everyone Tutors");
+    let (mut state, _) = cast_and_resolve_active_p2(state, "Everyone Tutors");
     let mut asked: Vec<PlayerId> = Vec::new();
     let mut chosen: Vec<String> = Vec::new();
     let mut guard = 0;
@@ -1310,28 +1597,40 @@ fn test_dp9_choice_inside_for_each_each_player() {
         );
         state = s;
         guard += 1;
-        assert!(guard < 8, "the per-player questions did not converge");
+        assert!(guard < 12, "the per-player questions did not converge");
     }
 
+    // CR 608.2e / CR 101.4: active player first, then the remaining players in turn
+    // order. Active is p(2), turn order is [p1, p2, p3], so APNAP is [p2, p3, p1].
+    // Ascending `PlayerId` -- what the engine did before PB-DX15a -- would be
+    // [p1, p2, p3]. The two lists differ in every position, so this assertion
+    // discriminates; the version of it that ran on the 2-player fixture did not.
     assert_eq!(
         asked,
-        vec![p(1), p(2)],
-        "every player named by the effect is asked, one at a time. The ORDER is \
-         ascending PlayerId, which is what the engine actually does -- CR 608.2e / \
-         701.23i want APNAP (seed OOS-DP9-8)."
+        vec![p(2), p(3), p(1)],
+        "every player named by the effect is asked, one at a time, in CR 608.2e APNAP \
+         order -- active player p2 first, then p3 and p1 in turn order. Ascending \
+         PlayerId would be [p1, p2, p3]."
     );
+    // The answers must be applied to the player who gave them, which is a DIFFERENT
+    // claim from the order and fails differently: an implementation that asked in APNAP
+    // order but applied answers by ascending index would pass the assertion above.
     assert_eq!(
         chosen,
-        vec!["P1 Beta".to_string(), "P2 Beta".to_string()],
-        "each player's own announcement is the one applied"
+        vec![
+            "P2 Beta".to_string(),
+            "P3 Beta".to_string(),
+            "P1 Beta".to_string()
+        ],
+        "each player's own announcement is the one applied, in the order they were asked"
     );
-    for name in ["P1 Beta", "P2 Beta"] {
+    for name in ["P1 Beta", "P2 Beta", "P3 Beta"] {
         assert!(
             matches!(zone_of(&state, name), Some(ZoneId::Hand(_))),
             "{name} should have been found"
         );
     }
-    for name in ["P1 Alpha", "P2 Alpha"] {
+    for name in ["P1 Alpha", "P2 Alpha", "P3 Alpha"] {
         assert!(
             matches!(zone_of(&state, name), Some(ZoneId::Library(_))),
             "{name} -- the pre-PB-DP9 auto-pick -- must stay in the library"
@@ -1688,7 +1987,7 @@ fn test_dp9_foreign_concede_invalidates_a_non_empty_bank() {
         );
         state = s;
         guard += 1;
-        assert!(guard < 8, "the per-player questions did not converge");
+        assert!(guard < 12, "the per-player questions did not converge");
     }
     assert_eq!(
         asked,
@@ -1847,7 +2146,7 @@ fn test_dp9_active_player_concedes_under_a_foreign_block() {
         let (s, _) = answer_pending_effect_choice(state);
         state = s;
         guard += 1;
-        assert!(guard < 8, "the per-player questions did not converge");
+        assert!(guard < 12, "the per-player questions did not converge");
     }
     assert!(state.stack_objects().is_empty(), "the resolution completed");
 

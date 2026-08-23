@@ -94,7 +94,11 @@ pub fn check_and_apply_sbas(state: &mut GameState) -> Vec<GameEvent> {
         // Check triggers on this pass's events NOW, before the next pass can
         // remove tokens from state.objects (CR 704.5d). This is what allows
         // "when this dies" triggers on tokens to fire correctly.
-        let pass_triggers = abilities::check_triggers(state, &events);
+        let pass_triggers = abilities::check_triggers_with_timing(
+            state,
+            &events,
+            abilities::EventBatchTiming::Simultaneous,
+        );
         for t in pass_triggers {
             state.pending_triggers.push_back(t);
         }

@@ -88,7 +88,9 @@
 //!   `target_remaps` is `insert`/`get`-only across its 1 declaration + 1 field annotation + 5
 //!   construction sites (the seed's original claim, still true). `seen_names` is a membership
 //!   filter. The rest are 1 `use` import and 9 empty `&HashSet::new()` arguments.
-//! - `abilities.rs` (11), `sba.rs` (8), `commander.rs` (4), `engine.rs` (3) — `seen`,
+//! - `abilities.rs` (**6**, was 11 — PB-DX15a converted `left_battlefield` and the
+//!   CR 603.10a look-back set to `BTreeSet`), `sba.rs` (8), `commander.rs` (4),
+//!   `engine.rs` (3) — `seen`,
 //!   `left_battlefield`, `arrived_in_graveyard_this_batch`, `chars_map`, `reported_incomplete`,
 //!   `sources_on_bf` are all `contains`/`get`-only membership or lookup tables, each counted
 //!   once per declaration/parameter/construction site rather than once per file; the rest are
@@ -144,10 +146,19 @@ const UNORDERED_CEILINGS: &[(&str, usize)] = &[
     // `seen_names` (declaration + construction), 1 `use` import, and 9 empty
     // `&HashSet::new()` arguments.
     ("effects/mod.rs", 19),
-    // 11 — `seen` (x2 declaration+construction pairs across two helper fns), `left_battlefield`
-    // (declaration + construction), `arrived_in_graveyard_this_batch` (declaration +
-    // parameter), 2 `use` imports. All membership filters; none iterated.
-    ("rules/abilities.rs", 11),
+    // 6 — `seen` (x2 declaration+construction pairs across two helper fns) + 2 `use`
+    // imports. All membership filters; none iterated.
+    //
+    // **11 → 6, PB-DX15a (`scutemob-216`).** `left_battlefield` and the CR 603.10a
+    // look-back set became `BTreeSet`s. The look-back set had to be touched anyway
+    // (rider `OOS-DX24-7` splits it into a whole-batch set and a strictly-earlier set),
+    // and this ratchet fired on the first draft, which added three more `HashSet`s and
+    // pushed the count to 15. They were `contains`-only, i.e. legitimately category (a),
+    // and converting was still the better answer: it costs nothing at this size, it
+    // moves the ceiling DOWN instead of asking for it to be raised, and it removes the
+    // question entirely from a function PB-DP9 re-executes wholesale after every
+    // suspended `EffectChoiceQuestion` (`OOS-DP9-10`).
+    ("rules/abilities.rs", 6),
     // 9 — 9x `let mut seen(_x) = std::collections::HashSet::new();`, one per splice/dedup
     // site; each is `insert`-only, never iterated. **Newly visible under the widened
     // needle** (the `<`-suffixed counter found 0 here) — inspected individually, all clean.

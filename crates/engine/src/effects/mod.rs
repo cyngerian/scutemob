@@ -1642,6 +1642,12 @@ fn execute_effect_inner(
         // DiscardCards{HandSize} + DrawCards{HandSize} would read 0 after the
         // discard has already emptied the hand). APNAP order comes from
         // `resolve_player_target_list`'s `PlayerTarget::EachPlayer` iteration.
+        //
+        // PB-DX15a: that last sentence was **false when it was written** — the
+        // iteration was ascending `PlayerId` (`state.players.keys()` on an
+        // `imbl::OrdMap`) until this batch made it CR 608.2e APNAP. Left in place
+        // rather than reworded, because the sentence is now true and the note of
+        // *when* it became true is the useful part.
         Effect::WheelHand {
             player,
             disposal,
@@ -7372,13 +7378,15 @@ fn execute_effect_inner(
             permanent_cards_only,
         } => {
             // Determine which players' graveyards to search.
+            // CR 608.2e / CR 101.4 (PB-DX15a): the per-graveyard walk decides the order
+            // permanents are put onto the battlefield, and therefore the order their ETB
+            // triggers are queued — observable, so it is APNAP rather than ascending
+            // `PlayerId`. (The trigger FLUSH is separately APNAP-ordered by
+            // `flush_pending_triggers`; that does not make this walk's order unobservable,
+            // because the events themselves are logged in this order.)
             let graveyard_owners: Vec<PlayerId> = match graveyards {
                 PlayerTarget::Controller => vec![ctx.controller],
-                _ => {
-                    let mut all: Vec<PlayerId> = state.players.keys().copied().collect();
-                    all.sort();
-                    all
-                }
+                _ => crate::rules::abilities::apnap_order_all_players(state),
             };
             // Collect all cards matching the filter from the specified graveyards.
             // Cards in graveyards use their printed (base) characteristics — no layer system.
@@ -7507,9 +7515,19 @@ fn execute_effect_inner(
         // Step 3: Each player puts all cards exiled in step 1 onto the battlefield.
         // CR 101.4 (APNAP simultaneous), CR 701.21a (sacrifice semantics).
         Effect::LivingDeath => {
-            // Determine APNAP player order (active player first, then in turn order).
-            let mut player_order: Vec<PlayerId> = state.players.keys().copied().collect();
-            player_order.sort();
+            // CR 101.4 / CR 608.2e (PB-DX15a): active player first, then the remaining
+            // players in turn order.
+            //
+            // **This comment used to say exactly what it says now while the code below
+            // it read `state.players.keys().copied().collect()` followed by `.sort()`,
+            // i.e. ascending `PlayerId`.** A comment naming a mechanism the code does not
+            // use is the `OOS-DX28-6` shape; it is called out here rather than quietly
+            // corrected, because this file carried a second instance of it (the
+            // `Effect::WheelHand` arm's "APNAP order comes from
+            // `resolve_player_target_list`'s `PlayerTarget::EachPlayer` iteration",
+            // which was false for the same reason and is true as of this batch).
+            let player_order: Vec<PlayerId> =
+                crate::rules::abilities::apnap_order_all_players(state);
 
             // ── Step 1: Exile all creature CARDS from each player's graveyard. ──
             // Track newly-exiled ObjectIds per player to use in step 3.
@@ -7978,30 +7996,23 @@ fn resolve_effect_target_list_indexed(
                 vec![]
             }
         }
-        EffectTarget::EachPlayer => state
-            .players
-            .keys()
-            .filter(|&&p| {
-                state
-                    .players
-                    .get(&p)
-                    .map(|ps| !ps.has_lost)
-                    .unwrap_or(false)
-            })
-            .map(|&p| (None, ResolvedTarget::Player(p)))
+        // CR 608.2e / CR 101.4 (PB-DX15a, `OOS-DP9-8`): the `EffectTarget` twins of
+        // `resolve_player_target_list`'s `PlayerTarget::EachPlayer`/`EachOpponent`. The
+        // seed names ONE function; this is a second, independently-reachable iteration
+        // over the same `imbl::OrdMap` with the same ascending-`PlayerId` order, and
+        // fixing only the function the seed named would have left the two disagreeing
+        // about the order of the same set of players.
+        EffectTarget::EachPlayer => crate::rules::abilities::apnap_order_all_players(state)
+            .into_iter()
+            .filter(|p| state.players.get(p).map(|ps| !ps.has_lost).unwrap_or(false))
+            .map(|p| (None, ResolvedTarget::Player(p)))
             .collect(),
-        EffectTarget::EachOpponent => state
-            .players
-            .keys()
-            .filter(|&&p| {
-                p != ctx.controller
-                    && state
-                        .players
-                        .get(&p)
-                        .map(|ps| !ps.has_lost)
-                        .unwrap_or(false)
+        EffectTarget::EachOpponent => crate::rules::abilities::apnap_order_all_players(state)
+            .into_iter()
+            .filter(|p| {
+                *p != ctx.controller && state.players.get(p).map(|ps| !ps.has_lost).unwrap_or(false)
             })
-            .map(|&p| (None, ResolvedTarget::Player(p)))
+            .map(|p| (None, ResolvedTarget::Player(p)))
             .collect(),
         // CR 702.26b: phased-out permanents are treated as nonexistent.
         // CR 613.1d: Use layer-resolved types for creature check.
@@ -8205,30 +8216,21 @@ fn resolve_player_target_list(
 ) -> Vec<PlayerId> {
     match player {
         PlayerTarget::Controller => vec![ctx.controller],
-        PlayerTarget::EachPlayer => state
-            .players
-            .keys()
-            .filter(|&&p| {
-                state
-                    .players
-                    .get(&p)
-                    .map(|ps| !ps.has_lost)
-                    .unwrap_or(false)
-            })
-            .copied()
+        // CR 608.2e / CR 101.4 (PB-DX15a, closes `OOS-DP9-8`): APNAP — active player
+        // first, then the remaining players in turn order. This list is what the four
+        // asking effects iterate (`SearchLibrary`, `Scry`, `Surveil`, `DiscardCards` all
+        // call `ask_or_consume_effect_choice` inside a `for p in <this list>`), so the
+        // order here IS the order a human is asked in. It used to be
+        // `state.players.keys()` — an `imbl::OrdMap`, i.e. ascending `PlayerId`.
+        PlayerTarget::EachPlayer => crate::rules::abilities::apnap_order_all_players(state)
+            .into_iter()
+            .filter(|p| state.players.get(p).map(|ps| !ps.has_lost).unwrap_or(false))
             .collect(),
-        PlayerTarget::EachOpponent => state
-            .players
-            .keys()
-            .filter(|&&p| {
-                p != ctx.controller
-                    && state
-                        .players
-                        .get(&p)
-                        .map(|ps| !ps.has_lost)
-                        .unwrap_or(false)
+        PlayerTarget::EachOpponent => crate::rules::abilities::apnap_order_all_players(state)
+            .into_iter()
+            .filter(|p| {
+                *p != ctx.controller && state.players.get(p).map(|ps| !ps.has_lost).unwrap_or(false)
             })
-            .copied()
             .collect(),
         PlayerTarget::DeclaredTarget { index } => {
             // Must be a player target.
@@ -9980,6 +9982,16 @@ fn discard_one_chosen_card(
 /// CR 400.7: each moved card becomes a new object; no `ObjectId` collected here
 /// remains valid after the move. Objects are moved in ascending `ObjectId` order
 /// for determinism (their post-shuffle order is randomized anyway).
+///
+/// **PB-DX15a (`/review` Issue 10): that first sentence is now CONDITIONAL, not
+/// absolute.** A same-zone move preserves the `ObjectId` — CR 400.7's antecedent is
+/// "moves from one zone to another", and a destination equal to the source is not that.
+/// The sentence still holds here, but only because `Effect::WheelHand` (this function's
+/// sole caller) passes `Hand` / `Graveyard` as `from_zones` and never `Library`, so every
+/// move really is cross-zone. **Nothing gates that.** Recorded rather than reworded,
+/// because the claim is still true of this call site and the *reason* it is true changed
+/// underneath it — which is exactly the note-vs-code shape (`OOS-DX28-6`) this batch
+/// found twice elsewhere in this file.
 fn move_zone_all_then_shuffle(
     state: &mut GameState,
     player: PlayerId,

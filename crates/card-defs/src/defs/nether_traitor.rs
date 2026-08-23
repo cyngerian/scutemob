@@ -17,7 +17,8 @@
 // your graveyard at the same time, this ability does NOT trigger — a leaves-the-battlefield
 // ability looks back in time, and immediately prior to the event this card was on the
 // battlefield, where (CR 113.6m) the ability did not function. Enforced by
-// `rules::abilities::check_triggers`'s `arrived_in_graveyard_this_batch` set.
+// `rules::abilities::check_triggers_with_timing`'s `arrived_in_graveyard_this_batch` set,
+// which every production caller reaches with `EventBatchTiming::Simultaneous` (PB-DX15a).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

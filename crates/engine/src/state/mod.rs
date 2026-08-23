@@ -56,6 +56,16 @@ pub use mtg_card_types::state::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 pub use turn::{Phase, Step, TurnState};
+/// Which end of an ordered zone a CR 400.7 same-zone reposition targets
+/// (PB-DX15a). Internal to `GameState`'s two move helpers — deliberately NOT a
+/// `bool`, so a call site cannot silently mean the opposite of what it reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ZoneEnd {
+    /// `Zone::insert` — the append end, which `Zone::top()` reads.
+    Top,
+    /// `Zone::push_front` — index 0, the end furthest from the top.
+    Bottom,
+}
 /// The complete state of an MTG game at a point in time.
 ///
 /// Uses `im` persistent data structures for O(1) cloning via structural sharing.
@@ -1195,6 +1205,69 @@ impl GameState {
     /// object's live layer-resolved characteristics), and — SR-23 — AFTER the move's
     /// error checks (source zone exists and contains the object), so a move that errors
     /// out never leaves a ghost snapshot for an object that is still on the battlefield.
+    /// CR 400.7 (PB-DX15a, closes `OOS-DP9-11`): reposition an object **within the zone
+    /// it is already in**, preserving its `ObjectId` and every field of the object, and
+    /// consuming **no** `timestamp_counter` value. Returns the (unchanged) id, so the
+    /// two move helpers can return it in `new_id`'s position and every caller keeps
+    /// compiling and keeps working.
+    ///
+    /// # Why this guard lives in the helper, not at each caller
+    ///
+    /// `OOS-DP9-11` asks for "every other same-zone caller of either helper" to be
+    /// swept. A per-caller sweep closes the members that exist today and cannot close
+    /// the class: `Effect::MoveZone` and `Effect::PutOnLibrary` both take their
+    /// destination from a `ZoneTarget` resolved at runtime, so whether a given call is
+    /// same-zone is not a property of the call site at all. Guarding inside the helpers
+    /// makes a renumbering same-zone move **unrepresentable** rather than merely absent,
+    /// which is the difference between a sweep and a fix. The roster gate in
+    /// `crates/engine/tests/core/pb_dx15a_same_zone_identity_roster.rs` pins the
+    /// remaining `next_object_id()` call sites so a third minting path cannot appear
+    /// silently.
+    ///
+    /// # What is deliberately NOT done here
+    ///
+    /// No `capture_lki_snapshot`. LKI (CR 113.7a / 608.2h) exists so an ability can read
+    /// a source that **left** — an object that never left has no last-known information
+    /// to capture, and capturing one would leave a snapshot of a live object in
+    /// `lki_objects`. The two move helpers call it only on the cross-zone path, after
+    /// this guard has already returned.
+    ///
+    /// No field resets. Every `// CR 400.7: … not preserved across zone changes` line in
+    /// the two helpers is conditioned on a zone **change**; there is none here, so
+    /// counters, attachments, tapped status, `goaded_by`, `x_value` and the rest all
+    /// survive, which is what CR 400.7 requires.
+    ///
+    /// No `timestamp` refresh. The object's timestamp orders continuous effects
+    /// (CR 613.7); an object that did not change zones did not acquire a new one.
+    ///
+    /// Unordered zones (battlefield, hand, exile, command) have no order to permute, so
+    /// `ZoneEnd` is ignored there and the call is a true no-op — which is the correct
+    /// reading of "put this battlefield permanent onto the battlefield".
+    fn reposition_within_own_zone(
+        &mut self,
+        object_id: ObjectId,
+        zone: ZoneId,
+        end: ZoneEnd,
+    ) -> ObjectId {
+        // SR-25/SR-4: `expect_zone_mut`, not a bare `.zones.get_mut(..)` — both callers
+        // have already proven the zone exists, so a `None` here is an engine bug and
+        // must `debug_assert`, never be swallowed. (The SR-25 ratchet caught the first
+        // draft of this function using the bare lookup.)
+        if let Some(z) = self.expect_zone_mut(&zone) {
+            // Membership was verified by both callers before this point.
+            let removed = z.remove(&object_id);
+            debug_assert!(
+                removed,
+                "reposition_within_own_zone: {object_id:?} not in {zone:?} — membership \
+                 is checked by both callers before this guard"
+            );
+            match end {
+                ZoneEnd::Top => z.insert(object_id),
+                ZoneEnd::Bottom => z.push_front(object_id),
+            }
+        }
+        object_id
+    }
     fn capture_lki_snapshot(&mut self, object_id: ObjectId, from: ZoneId, old_object: &GameObject) {
         if from != ZoneId::Battlefield {
             return;
@@ -1286,6 +1359,17 @@ impl GameState {
             .ok_or(GameStateError::ZoneNotFound(from))?;
         if !from_zone.contains(&object_id) {
             return Err(GameStateError::ObjectNotInZone(object_id, from));
+        }
+        // CR 400.7 (PB-DX15a, closes OOS-DP9-11): a move whose destination IS the
+        // object's current zone is not a zone change, so the object does NOT become a
+        // new object. Reposition it and return the SAME id. See
+        // `reposition_within_own_zone` for why this guard lives in the helper rather
+        // than at each caller.
+        if from == to {
+            return Ok((
+                self.reposition_within_own_zone(object_id, to, ZoneEnd::Top),
+                old_object,
+            ));
         }
         // SR-13: snapshot last-known information before the object is removed, so a
         // damage ability still on the stack can read its source's keywords once the
@@ -1792,6 +1876,17 @@ impl GameState {
             .ok_or(GameStateError::ZoneNotFound(from))?;
         if !from_zone.contains(&object_id) {
             return Err(GameStateError::ObjectNotInZone(object_id, from));
+        }
+        // CR 400.7 (PB-DX15a, closes OOS-DP9-11): same-zone bottoming is a REORDER, not
+        // a zone change — this is the arm the five named defs actually reach
+        // (`Effect::RevealAndRoute`'s `unmatched_dest` and `Effect::LookAtTopThenPlace`'s
+        // `rest_to`, both `ZoneTarget::Library { position: Bottom }` on a card already in
+        // that library).
+        if from == to {
+            return Ok((
+                self.reposition_within_own_zone(object_id, to, ZoneEnd::Bottom),
+                old_object,
+            ));
         }
         // SR-13: snapshot last-known information before removal (CR 113.7a / 608.2h).
         self.capture_lki_snapshot(object_id, from, &old_object);

@@ -636,11 +636,37 @@ fn test_look_place_cost_declined_when_unpayable_skips_placement() {
 /// library. Library has `count + 2` cards; a matching creature sits INSIDE the window
 /// (the true top, CR 121.1) and a second matching creature sits `count` positions down from
 /// the top -- one position PAST the window (`Zone::top_n(count)` never reaches it). Assert
-/// the in-window match is placed, and the out-of-window match is completely UNTOUCHED: still
-/// in the library under its ORIGINAL ObjectId (not re-inserted as a new object via a
-/// bottoming move, CR 400.7), and no zone-move event (`ObjectPutOnLibrary`/
-/// `ObjectReturnedToHand`) was ever emitted referencing it. This would fail if the executor
-/// accidentally scanned the whole library (or `count + 1`/more) instead of `top_n(count)`.
+/// the in-window match is placed, and the out-of-window match is completely UNTOUCHED. This
+/// would fail if the executor accidentally scanned the whole library (or `count + 1`/more)
+/// instead of `top_n(count)`.
+///
+/// ## PB-DX15a: the ObjectId check is no longer the discriminator (CR 400.7)
+///
+/// This test used to rest its "untouched" claim on the out-of-window card keeping its
+/// ORIGINAL `ObjectId`, on the stated reasoning that a bottomed card "would also satisfy that
+/// weaker check, but under a NEW ObjectId per CR 400.7". **That sentence is now false.**
+/// CR 400.7's antecedent is "if an object moves *from one zone to another*", and a card
+/// bottomed by `rest_to: Library { Bottom }` is already in that library — so since PB-DX15a
+/// (`OOS-DP9-11`) `GameState::move_object_to_bottom_of_zone` repositions it in place and
+/// **keeps its id**. A bottomed card and an untouched card are now indistinguishable by id.
+///
+/// The id check is KEPT — it still proves the card is live and still in the library, which is
+/// a real (if weaker) property. Note that the test is not left WITHOUT a discriminator by the
+/// change: the `ObjectPutOnLibrary` event assertion below still fires on a bottomed card, which
+/// was verified by experiment (widening `count` to 4 so the out-of-window card enters the window
+/// reddens it). What is added here is a POSITIONAL discriminator, which the test genuinely has
+/// and which does not depend on the executor's choice of events:
+///
+/// A bottomed card is `push_front`ed to index 0 and therefore ends up BELOW `Truncation Filler
+/// C`, the library's original bottom card and the only other card never in the window. The
+/// out-of-window creature instead ends up as the library's TOP card (index `len - 1`), because
+/// the three examined cards were all placed beneath it. Measured order after the effect:
+/// `[Filler A, Filler B, Filler C, Out Of Window Creature]`.
+///
+/// Note that "still at its ORIGINAL index" would NOT be a true assertion — the card starts at
+/// index 1 and ends at index 3. Its index moves because three cards were removed from above it
+/// and re-inserted below it; what is invariant is that it stays ABOVE every card that was
+/// bottomed, and above the never-examined bottom card too.
 ///
 /// PB-RS1: card push order is bottom-to-top (`GameStateBuilder::object` appends, and
 /// `Zone::top()`/`top_n()` read from the LAST-pushed element -- CR 121.1). The in-window
@@ -672,11 +698,12 @@ fn test_look_place_truncates_at_top_n_leaves_out_of_window_match_untouched() {
         .build()
         .unwrap();
 
-    // Capture the out-of-window creature's ORIGINAL ObjectId before the effect runs -- the
-    // load-bearing check is that this exact id is untouched afterward, not merely that a
-    // same-named card exists somewhere in the library (a bottomed card would also satisfy
-    // that weaker check, but under a NEW ObjectId per CR 400.7).
+    // Capture the out-of-window creature's ORIGINAL ObjectId before the effect runs. Since
+    // PB-DX15a this proves the card is LIVE and still in the library, but no longer that it
+    // was un-bottomed -- a bottomed card keeps its id too (CR 400.7 does not apply to a
+    // same-zone move). The positional assertion at the end of this test is the discriminator.
     let out_of_window_original_id = find_obj(&state, "Out Of Window Creature");
+    let filler_c_id = find_obj(&state, "Truncation Filler C");
 
     let effect = Effect::LookAtTopThenPlace {
         player: PlayerTarget::Controller,
@@ -727,6 +754,39 @@ fn test_look_place_truncates_at_top_n_leaves_out_of_window_match_untouched() {
         )),
         "no zone-move event should ever reference the out-of-window creature's original id -- \
          it was structurally unreachable, not merely un-selected"
+    );
+
+    // PB-DX15a (CR 400.7 / CR 401): the POSITIONAL discriminator that replaces the ObjectId
+    // one. `Zone::object_ids()` on an ordered zone walks the backing Vector bottom-to-top, so
+    // the last index is the top (`Zone::top()` is `v.last()`).
+    let lib_ids = state
+        .zones()
+        .get(&ZoneId::Library(p1))
+        .unwrap()
+        .object_ids();
+    assert_eq!(
+        lib_ids.len(),
+        4,
+        "sanity: the in-window creature left for hand; the other four cards stay"
+    );
+    assert_eq!(
+        lib_ids.last().copied(),
+        Some(out_of_window_original_id),
+        "CR 121.1: the out-of-window creature must be the library's TOP card -- the three \
+         examined cards were `push_front`ed beneath it. If the executor had scanned past \
+         `top_n(count)` and bottomed this card too, it would sit at or near index 0 instead. \
+         library (bottom-to-top): {:?}",
+        lib_ids
+    );
+    let pos = |id: ObjectId| lib_ids.iter().position(|x| *x == id).unwrap();
+    assert!(
+        pos(out_of_window_original_id) > pos(filler_c_id),
+        "CR 401: the out-of-window creature must stay ABOVE `Truncation Filler C`, the \
+         library's original bottom card and the only other card never in the window. A \
+         bottomed card is inserted at index 0, i.e. BELOW Filler C -- that inequality is what \
+         now distinguishes 'never bottomed' from 'bottomed', the ObjectId no longer being \
+         able to (PB-DX15a). library (bottom-to-top): {:?}",
+        lib_ids
     );
 }
 
