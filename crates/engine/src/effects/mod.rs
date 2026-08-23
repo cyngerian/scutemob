@@ -9982,6 +9982,16 @@ fn discard_one_chosen_card(
 /// CR 400.7: each moved card becomes a new object; no `ObjectId` collected here
 /// remains valid after the move. Objects are moved in ascending `ObjectId` order
 /// for determinism (their post-shuffle order is randomized anyway).
+///
+/// **PB-DX15a (`/review` Issue 10): that first sentence is now CONDITIONAL, not
+/// absolute.** A same-zone move preserves the `ObjectId` — CR 400.7's antecedent is
+/// "moves from one zone to another", and a destination equal to the source is not that.
+/// The sentence still holds here, but only because `Effect::WheelHand` (this function's
+/// sole caller) passes `Hand` / `Graveyard` as `from_zones` and never `Library`, so every
+/// move really is cross-zone. **Nothing gates that.** Recorded rather than reworded,
+/// because the claim is still true of this call site and the *reason* it is true changed
+/// underneath it — which is exactly the note-vs-code shape (`OOS-DX28-6`) this batch
+/// found twice elsewhere in this file.
 fn move_zone_all_then_shuffle(
     state: &mut GameState,
     player: PlayerId,

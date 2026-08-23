@@ -200,7 +200,10 @@
   so APNAP and ascending `PlayerId` are the same list in all of them, and the same-zone class had
   **no behavioural coverage at all**.
   Coverage **1,136/1,803 = 63.0%** by regeneration, **0 flips** as predicted (clean 1,136 / todo
-  520 / empty 147 all identical), self-dating churn reverted; **0 card-def edits**.
+  520 / empty 147 all identical), self-dating churn reverted. **1 card-def edit, comment-only**
+  (`nether_traitor.rs`, in the `/review` fix cycle — its in-source note cited an enforcement that
+  the rider had made conditional; the first draft of this line said **0** and is corrected here
+  rather than left to be caught at collect).
   `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
   `tools/check-defs-fmt.sh` clean (1,803 defs).
   **Four gates fired on this batch's own work and all four were right**: SR-25's

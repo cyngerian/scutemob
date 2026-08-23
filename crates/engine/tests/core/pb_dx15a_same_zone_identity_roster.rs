@@ -296,12 +296,27 @@ fn r4_partner_with_population_is_pinned() {
 /// transcribe it**. The prose above quotes 5 / 8 / 1 / 3 / 17; this test is where those numbers
 /// are decided, and its `eprintln!` is where a reader gets them without trusting a comment.
 ///
-/// The disjointness identity (`|A| + |B| + |C| + |D| == |A ∪ B ∪ C ∪ D|`) is a **live** check
-/// and not a dead floor: it is a property none of the four exact-set pins implies. A def
-/// carrying, say, both a Hideaway keyword and a `SearchLibrary`-to-library effect would satisfy
-/// all four pins individually while making this identity false — and would need one probe, not
-/// two, in the per-def file. It fires as a signal to go look.
-/// **Reverts watched red**: V8, V9, V10 and V11 — each shrinks one family and the union with it.
+/// # What the remaining assertion does and does NOT catch (`/review` Issue 4)
+///
+/// The first draft of this doc claimed the disjointness identity
+/// (`|A| + |B| + |C| + |D| == |A ∪ B ∪ C ∪ D|`) was "a **live** check and not a dead floor …
+/// a property none of the four exact-set pins implies". **That was false, and it is corrected
+/// here rather than quietly deleted.** R1-R4 pin A, B, C and D each with an exact-set
+/// `assert_eq!` against a *literal* name list, and those four literals are pairwise disjoint —
+/// so while R1-R4 pass, the identity holds by construction and cannot fail. It is dead in the
+/// PB-DX28 sense, and **no revert row in the matrix discriminates it**: V8-V11 each shrink one
+/// family, which reddens that family's own R row first.
+///
+/// It is kept, narrowly, for the one thing it still does: it guards a **future re-pin**. If
+/// someone later widens R1's or R3's literal list so the families overlap, this fires and says
+/// the per-def file now needs one probe where it had two. That is a real if modest function, and
+/// stating it is the difference between a floor and a floor that lies about itself.
+///
+/// A companion `assert_eq!(union.len(), 17)` was **deleted**: it was determined by R1-R4 in
+/// exactly the same way and guarded nothing at all, since any change to a family's literal
+/// reddens that family's row. The union size is still *published* by the `eprintln!` below,
+/// which is where PB-DX27's "publish the figure, do not transcribe it" rule is actually
+/// discharged.
 #[test]
 fn t_total_population_report() {
     let (a, b, c, d) = (family_a(), family_b(), family_c(), family_d());
@@ -324,12 +339,6 @@ fn t_total_population_report() {
          class through two different declaration constructs. That is not a failure of the fix, \
          but it changes how the per-def probe file should be read; go name the overlap. \
          A={a:?} B={b:?} C={c:?} D={d:?}"
-    );
-    assert_eq!(
-        union.len(),
-        17,
-        "the deck-legal `Complete` same-zone-move population has changed from the 17 measured \
-         2026-08-23: {union:?}"
     );
 }
 
@@ -552,6 +561,21 @@ fn t_same_zone_move_actually_repositions_in_ordered_zones() {
 ///
 /// **Revert to watch red**: delete either `if from == to { … }` early return.
 /// **Reverts watched red**: V6 (a sixth `next_object_id()` call site added inside `move_object_to_bottom_of_zone`) and V7 (`reposition_within_own_zone` renamed with behaviour unchanged — the needle disappears and this row is the only one that notices, which is both its purpose and the honest statement of its limit: it measures a NAME, so it cannot police a guard that is present but wrong).
+/// # Reach, stated in the criterion's own terms (`/review` Issue 9)
+///
+/// This gate scans **`crates/engine/src/state/mod.rs` only**. `GameState::next_object_id` is
+/// `pub(crate)` with ~30 callers outside that file (`rules/abilities.rs`, `rules/copy.rs`, …),
+/// so a hand-rolled same-zone renumber written elsewhere — `zone.remove(id)` +
+/// `next_object_id()` + `objects.insert(..)` — is **invisible** to it.
+///
+/// That is a smaller claim than "a new same-zone caller cannot renumber", and the difference
+/// matters. What actually closes the class is not this gate but the guard itself: every
+/// same-zone move *through the two helpers* is identity-preserving **by construction**, so
+/// there is no caller of them left to police. This row's job is narrower — it stops a third
+/// minting path from being added *inside* the helpers without anyone noticing. A same-zone
+/// reorder open-coded in `effects/` or `rules/` would evade both, and no gate in this batch
+/// covers that; it is stated here rather than left to be discovered.
+///
 #[test]
 fn r5_the_two_move_helpers_guard_before_they_mint() {
     let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/state/mod.rs");

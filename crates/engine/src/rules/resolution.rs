@@ -8245,10 +8245,35 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
         }
     }
     // Check for triggered abilities arising from this resolution.
+    // PB-DX15a rider `OOS-DX24-7`, **REVERTED BY ITS OWN /review (Issue 1, HIGH)**.
+    //
+    // This site shipped `Sequential` for one implement cycle. That was WRONG, and the
+    // argument against it is the one PB-DX15a itself made about `sba.rs`, applied to a
+    // case it missed: **a resolution's event slice is not uniformly sequential.**
+    // `Effect::DestroyAll` snapshots the whole battlefield and destroys it in one loop
+    // (`effects/mod.rs:2144-2270`) — 21 corpus board wipes — so a wrath emits N
+    // `CreatureDied` events that are *simultaneous*, inside a slice this caller was
+    // declaring sequential. Under `Sequential`, `nether_traitor` (`Complete`,
+    // deck-legal) fires its `trigger_zone: Graveyard` ability off a creature that died
+    // at the same moment it did, which CR 603.10a and the Gatherer ruling quoted in
+    // `check_triggers_with_timing` both forbid. Reproduced by execution before this
+    // revert; pinned wrong-way-round by
+    // `pb_dx15a_lookback_batch_timing::t5_a_mass_destruction_inside_one_resolution_is_simultaneous`.
+    //
+    // **The seed's premise survives; only the granularity is refuted.** PB-DX24
+    // measured this caller COARSE and it still is — a resolution whose sub-effects run
+    // in sequence really can over-suppress. But `EventBatchTiming` is a **per-caller**
+    // knob, and the correct granularity is **per simultaneous GROUP**: one resolution
+    // contains both kinds, and nothing in `events` distinguishes them. Closing
+    // `OOS-DX24-7` needs the event stream to carry that grouping, which is a batch of
+    // its own. Recorded in that row rather than left for the next reader to rediscover.
+    //
+    // `Simultaneous` here is therefore byte-identical to pre-PB-DX15a behaviour, exactly
+    // like the four sites below it.
     let new_triggers = abilities::check_triggers_with_timing(
         state,
         &events,
-        abilities::EventBatchTiming::Sequential,
+        abilities::EventBatchTiming::Simultaneous,
     );
     for t in new_triggers {
         state.pending_triggers.push_back(t);

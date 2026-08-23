@@ -10353,6 +10353,58 @@ fn doubler_applies_to_trigger(
     if trigger.controller != doubler.controller {
         return false;
     }
+    // CR 110.1 / CR 603.2d (PB-DX15a `/review` Issue 5, closes rider `OOS-DX24-1`):
+    // every printed doubler reads "a triggered ability of a **permanent** you control",
+    // and a card in a graveyard is not a permanent — so a `trigger_zone: Graveyard`
+    // ability (Nether Traitor's shape, CR 113.6m) is out of scope for all four filters.
+    //
+    // # Why this is NOT the source-zone conjunct `OOS-DX24-1` prescribed
+    //
+    // That row asked for a bare "the trigger's source is on the battlefield" test. It is
+    // CR-wrong, and PB-DX15a proved it by executing it: a CR 603.6c/603.10a look-back
+    // "when this dies" trigger is built as `PendingTrigger::blank(*new_grave_id, ..)`
+    // (`:4839`), so **its source is a graveyard object too**. The bare conjunct stops
+    // Teysa Karlov doubling a dying creature's own dies trigger — the commonest real use
+    // of the `CreatureDeath` arm — and does so with the whole workspace green, because
+    // that arm had zero behavioural coverage until this batch added
+    // `test_dx15a_creature_death_doubler_doubles_a_look_back_dies_trigger`.
+    //
+    // # The discriminator is the EVENT, not the zone
+    //
+    // Both cases present a graveyard source; they differ in *why*. Measured over every
+    // construction site, the four `triggering_event` values that can reach the `match`
+    // below with a non-battlefield source split exactly two ways:
+    //
+    // | event | built by | source | verdict |
+    // |---|---|---|---|
+    // | `SelfDies` | `:4831`/`:4924`, look-back | the dying object's graveyard id | **was** a permanent — double |
+    // | `SelfEntersBattlefield` | the ETB paths, look-back if it has since left | LKI | **was** a permanent — double |
+    // | `AnyCreatureDies` | `collect_graveyard_carddef_triggers:7590` | a graveyard-resident card | never a permanent — do NOT double |
+    // | `AnyPermanentEntersBattlefield` | the same graveyard collector | a graveyard-resident card | never a permanent — do NOT double |
+    //
+    // The split is total because the battlefield-sourced `AnyCreatureDies` collector
+    // filters on `obj.zone == ZoneId::Battlefield` (`:5070`), so a graveyard source
+    // carrying that event can ONLY have come from the graveyard collector. Verified by
+    // enumeration, not assumed — and it is what makes a `Self*` allowlist safe rather
+    // than merely plausible.
+    //
+    // Keyed on "exists and is not on the battlefield" rather than "is in a graveyard":
+    // the graveyard is the only non-battlefield trigger-source channel today, so the two
+    // are equivalent now, and the broader form does not need revisiting if a second one
+    // appears. A source ABSENT from `state.objects` keeps the pre-existing permissive
+    // behaviour — that is LKI, and narrowing it is a separate question this row does not
+    // reach.
+    let source_is_off_battlefield = state
+        .objects
+        .get(&trigger.source)
+        .is_some_and(|o| o.zone != ZoneId::Battlefield);
+    let is_look_back_self_trigger = matches!(
+        trigger.triggering_event,
+        Some(TriggerEvent::SelfDies) | Some(TriggerEvent::SelfEntersBattlefield)
+    );
+    if source_is_off_battlefield && !is_look_back_self_trigger {
+        return false;
+    }
     match &doubler.filter {
         TriggerDoublerFilter::ArtifactOrCreatureETB => {
             // The triggering event must be an ETB event (CR 603.2d + Panharmonicon ruling

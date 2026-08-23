@@ -227,3 +227,63 @@ fn t4_watcher_fires_on_an_unrelated_death_under_both_timings() {
         );
     }
 }
+
+#[test]
+/// **t5 — the `/review` HIGH (Issue 1), pinned wrong-way-round.**
+///
+/// `EventBatchTiming` is a **per-caller** knob, and `resolution.rs` shipped `Sequential`
+/// for one implement cycle on the strength of PB-DX24's measurement that the caller is
+/// "coarse". **That measurement is right and the granularity is still wrong**, because a
+/// resolution's event slice is not uniformly sequential: `Effect::DestroyAll` snapshots
+/// the whole battlefield and destroys it in a single loop (`effects/mod.rs:2144-2270`),
+/// so a wrath emits N `CreatureDied` events that are **simultaneous** — inside a slice
+/// the caller was declaring sequential.
+///
+/// The corpus reach is not theoretical: **21 defs carry `Effect::DestroyAll`**, and
+/// `nether_traitor` — the card this whole guard was written for — is `Complete` and
+/// deck-legal. Under `Sequential` it fired its `trigger_zone: Graveyard` ability off a
+/// creature that died at the same instant it did, which CR 603.10a and the Gatherer
+/// ruling quoted in `check_triggers_with_timing` both forbid.
+///
+/// This test asserts the SHAPE of a mass destruction — every death in one slice, no
+/// ordering between them — gets the simultaneous answer. It is the `t2` case stated in
+/// the vocabulary of the caller that got it wrong, and it fails if `resolution.rs` is
+/// ever switched back to `Sequential` without first giving the event stream a way to
+/// carry per-group boundaries.
+///
+/// Note what this test deliberately does NOT do: it does not claim `Sequential` is
+/// useless. `t1` still holds — a genuinely sequential pair of sub-effects still
+/// over-suppresses under `Simultaneous`, which is `OOS-DX24-7`'s live premise. The
+/// variant exists, is correct, and has no production caller until the grouping problem
+/// is solved. That is stated here rather than left as an unexplained dead variant.
+fn t5_a_mass_destruction_inside_one_resolution_is_simultaneous() {
+    let (state, watcher, other) = fixture();
+
+    // The shape `Effect::DestroyAll` produces: every death in one slice, and the slice
+    // carries no ordering between them because the effect snapshotted first.
+    for (label, events) in [
+        ("watcher first", vec![died(watcher, p(1)), died(other, p(1))]),
+        ("other first", vec![died(other, p(1)), died(watcher, p(1))]),
+    ] {
+        assert!(
+            !watcher_triggered(&state, &events, EventBatchTiming::Simultaneous),
+            "CR 603.10a: a wrath kills the watcher and the other creature AT THE SAME \
+             TIME ({label}), so the watcher's graveyard ability did not exist \
+             immediately prior and must not trigger. `resolution.rs` must pass \
+             Simultaneous until the event stream can carry per-group boundaries."
+        );
+    }
+
+    // And the wrong answer is genuinely reachable through the other variant, so this
+    // test is not asserting something no implementation could get wrong.
+    assert!(
+        watcher_triggered(
+            &state,
+            &vec![died(watcher, p(1)), died(other, p(1))],
+            EventBatchTiming::Sequential
+        ),
+        "non-vacuity: Sequential DOES give the other answer on this exact slice -- which \
+         is why passing it at a caller whose slice contains a mass destruction was a \
+         live defect and not a stylistic choice"
+    );
+}

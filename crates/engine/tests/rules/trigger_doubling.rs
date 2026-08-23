@@ -1858,3 +1858,127 @@ fn test_dx15a_creature_death_doubler_doubles_a_look_back_dies_trigger() {
          graveyard object."
     );
 }
+
+#[test]
+/// CR 110.1 / CR 603.2d / CR 113.6m — a `trigger_zone: Graveyard` ability is **not** a
+/// permanent's ability, so a `CreatureDeath` doubler must **not** double it.
+///
+/// This is the defect `OOS-DX24-1` was filed for (Nether Traitor in your graveyard,
+/// Teysa Karlov on your battlefield, another creature dies → **two** `{B}` offers instead
+/// of one), and it is the negative half of
+/// [`test_dx15a_creature_death_doubler_doubles_a_look_back_dies_trigger`].
+///
+/// **The pair is the point.** Both trigger sources sit in a graveyard at doubling time,
+/// so a source-ZONE conjunct — which is what the row prescribed — cannot separate them
+/// and gets this one right only by getting the other one wrong. The shipped discriminator
+/// is the triggering EVENT: `SelfDies`/`SelfEntersBattlefield` are CR 603.6c/603.10a
+/// look-backs on something that *was* a permanent, while `AnyCreatureDies` /
+/// `AnyPermanentEntersBattlefield` on a graveyard source can only have come from
+/// `collect_graveyard_carddef_triggers`, i.e. a card that never was one.
+///
+/// Either test alone is satisfiable by a wrong implementation. Together they are not.
+fn test_dx15a_creature_death_doubler_does_not_double_a_graveyard_zone_ability() {
+    let p1 = p1();
+    let p2 = p2();
+    let p3 = p3();
+    let p4 = p4();
+
+    // A plain 2/2 with lethal damage marked — it dies to SBAs and carries no ability of
+    // its own, so every trigger observed below belongs to the graveyard watcher.
+    let dying = ObjectSpec::creature(p1, "Ordinary Bear", 2, 2)
+        .with_damage(2)
+        .in_zone(ZoneId::Battlefield);
+
+    // The graveyard-functioning watcher: Nether Traitor's shape. Its ability watches
+    // creature deaths and functions FROM the graveyard, so it was never a permanent's
+    // ability and CR 110.1 puts it outside every printed doubler's scope.
+    let watcher_def = CardDefinition {
+        card_id: CardId("dx15a-graveyard-death-watcher".into()),
+        name: "Graveyard Death Watcher".into(),
+        types: TypeLine {
+            card_types: [CardType::Creature].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "Whenever another creature is put into your graveyard from the battlefield, \
+                      draw a card."
+            .into(),
+        power: Some(1),
+        toughness: Some(1),
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition: TriggerCondition::WheneverCreatureDies {
+                filter: None,
+                controller: None,
+                owner: None,
+                exclude_self: true,
+                nontoken_only: false,
+            },
+            effect: Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::Fixed(1),
+            },
+            intervening_if: None,
+            targets: vec![],
+            modes: None,
+            trigger_zone: Some(mtg_engine::cards::card_definition::TriggerZone::Graveyard),
+        }],
+        completeness: Completeness::Complete,
+        ..Default::default()
+    };
+    let watcher_card_id = watcher_def.card_id.clone();
+
+    let doubler_body = ObjectSpec::creature(p1, "Death Doubler", 1, 1).in_zone(ZoneId::Battlefield);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .with_registry(CardRegistry::new(vec![watcher_def]))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(dying)
+        .object(doubler_body)
+        .object(
+            ObjectSpec::creature(p1, "Graveyard Death Watcher", 1, 1)
+                .with_card_id(watcher_card_id)
+                .in_zone(ZoneId::Graveyard(p1)),
+        )
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    let doubler_id = state
+        .objects()
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Death Doubler")
+        .map(|(id, _)| *id)
+        .expect("doubler body should be on the battlefield");
+    state.trigger_doublers_mut().push_back(TriggerDoubler {
+        source: doubler_id,
+        controller: p1,
+        filter: TriggerDoublerFilter::CreatureDeath,
+        additional_triggers: 1,
+    });
+
+    for player in [p1, p2, p3, p4] {
+        let (s, _) = process_command(state, Command::PassPriority { player }).unwrap();
+        state = s;
+    }
+
+    let triggers_on_stack = state
+        .stack_objects()
+        .iter()
+        .filter(|so| matches!(so.kind, StackObjectKind::TriggeredAbility { .. }))
+        .count();
+
+    // Non-vacuity first: the watcher's ability must actually have fired, or "not doubled"
+    // would be satisfied by an ability that never triggers at all.
+    assert_eq!(
+        triggers_on_stack, 1,
+        "CR 110.1 / CR 603.2d: the graveyard-zone ability triggers ONCE and is NOT \
+         doubled -- it is not a permanent's ability. Getting 2 here is OOS-DX24-1's \
+         filed defect; getting 0 means the ability did not fire at all and this test is \
+         vacuous rather than passing."
+    );
+}
