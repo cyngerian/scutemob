@@ -339,5 +339,70 @@ quietly patched and the row closed.
 
 ## §6 — Moved pins, by name, with the CR reason
 
+**NONE. The budget written in §0 was paid and nothing came due, and that is stated here
+rather than quietly dropped.**
+
+§0 budgeted movement in three places, each for a stated mechanism: golden scripts whose
+per-step assertions read `ObjectId`s across a same-zone reorder or whose event order is
+per-player; SR-9b per-step fingerprints (fewer `ObjectId`s minted, different event
+order); and seeded fixtures whose shuffle or coin-flip outcome depends on
+`timestamp_counter`. A full `--workspace --no-fail-fast` run with **both** engine halves
+in place produced **zero** failures in any of those categories.
+
+**Why the prediction over-shot, measured rather than guessed:**
+
+- *Golden scripts and deterministic fixtures.* Every fixture in this repository calls
+  `add_player` in ascending order and `.active_player(<lowest id>)`, so APNAP and
+  ascending `PlayerId` are the same list in all of them (§1.2a). The reorder is
+  behaviourally invisible to them **for the same reason the seed's own pin was vacuous**
+  — one cause, two consequences.
+- *The same-zone half.* It had **no behavioural coverage at all** (§1.1): no test in the
+  tree referenced `Zone::reposition_within`, none counted or rostered the move helpers,
+  and no Hideaway or Partner-With test asserted an `ObjectId` across a reorder. Nothing
+  could move because nothing was looking.
+- *Seeded fuzz fixtures.* `pb_dx32_fuzz_output`'s seeds and the play-server's seeded
+  constants (`UI3_SPLIT_COMBAT_SEED` and siblings) survived unmoved. The `timestamp_counter`
+  trajectory only changes on a game that actually reaches a same-zone move, and the
+  4-player/25-turn random-deck fuzz seeds did not reach one.
+
+**Two pins DID move, and neither is in this category — both are pins ON the defects,
+handled by inversion rather than repair:**
+
+| pin | what it asserted | disposition | CR reason |
+|---|---|---|---|
+| `object_identity::test_400_7_same_zone_move_produces_new_id` | `assert_ne!(old_id, new_id)` on a same-zone move | **INVERTED**, renamed `..._keeps_the_same_id`, subject stated in its own doc | CR 400.7's antecedent is *"moves from one zone to another"*. Its stated rationale — *"the zone-change event creates a new object regardless of the source and destination zones being the same"* — inverts the rule it cites |
+| `pb_dp9_effect_choice::test_dp9_choice_inside_for_each_each_player` | `asked == vec![p(1), p(2)]`, documented as a recorded APNAP deviation | **INVERTED**, renamed `test_dx15a_each_player_search_asks_in_apnap_order`, rebuilt on a discriminating 3-seat fixture | CR 608.2e / 101.4 / 701.23i. The old assertion was vacuous on its own axis (§1.2a) |
+
+**No assertion was weakened anywhere.** Both inversions are strictly stronger than what
+they replaced: the first gained a `timestamp_counter` clause it never had, the second
+gained a third seat, a full-order assertion, and an answers-applied-to-the-right-player
+clause that fails differently from the order clause.
+
+Two ratchets and one gate fired on this batch's own work, all three correctly, and each
+is recorded where it fired rather than only here: SR-25's `bare_lookup_ratchet` (§3),
+PB-DX7's `unordered_iteration_ratchet` (§4.2), and the SR-5 keyword registry (no hit this
+batch).
+
 ## §7 — Gates, measured
+
+| gate | predicted (§0, before any code) | **measured** | how |
+|---|---|---|---|
+| `PROTOCOL_SCHEMA_FINGERPRINT` | **NONE** | **UNMOVED at 38** | `core protocol_schema` executed: 17 passed / 0 failed |
+| `HASH_SCHEMA_VERSION` | **NONE** | **UNMOVED at 77** | `core hash_schema` executed: 36 passed / 0 failed |
+| `history_is_append_only` | green | **green** (2/2) | executed |
+| `frozen_prefix_is_pinned` | green | **green** (2/2) | executed |
+
+**Prediction and measurement agree on both halves, so the §0 stop-condition never fired
+and no pin was edited.** Both gates were executed, not reasoned about; the numbers above
+are read off the passing gates rather than transcribed from the previous batch's close
+(PB-DX44 closed at PROTOCOL 38 / HASH 77, and this batch reproduces that).
+
+Derivation, restated against what actually shipped: the APNAP half reorders an existing
+`Vec<PlayerId>` and adds no type, variant or field; the same-zone half declines to call
+`next_object_id()` and mutates only `GameState.zones`, an existing field of an existing
+type. The rider's `EventBatchTiming` is a **function parameter** on an engine-internal
+function — it is not reachable from `Command`, `GameEvent`, `Effect` or `Characteristics`,
+so it is outside the PROTOCOL closure, and it is not a `GameState` field, so it is
+outside the HASH schema. That last one was the only addition that could plausibly have
+moved a gate, and it was gate-checked rather than assumed.
 
