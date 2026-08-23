@@ -337,6 +337,86 @@ quietly patched and the row closed.
 
 ## §5 — Revert matrix
 
+**Every gate and probe in this batch was proven RED by an executed revert.** That is not
+the usual belt-and-braces here — it is forced. §1.2e records that a full `--workspace`
+run with both engine halves in place is **4,797 / 0 / 5**: neither CR violation was
+pinned anywhere in the suite, so **no probe in this batch inherits red-before evidence**
+and each has to earn its own.
+
+### A — the APNAP half (`OOS-DP9-8`)
+
+Revert: `crate::rules::abilities::apnap_order_all_players(state)` →
+`state.players.keys().copied().collect::<Vec<_>>()`.
+
+| row | reverted arm | observed |
+|---|---|---|
+| **A1** | `PlayerTarget::EachPlayer` | **RED** — `test_dx15a_each_player_search_asks_in_apnap_order`: `left: [1, 2, 3]`, `right: [2, 3, 1]` |
+| **R1** | `EachPlayer` only | **RED** on `c1` (human `LocalGame`), `c2` (bot path), `c4` (Fleshbag resolution order) |
+| **R2** | `EachOpponent` only | **RED** on `c3` (`burglar_rat`, asked order AND `CardDiscarded` order) and on the play-server HTTP probe |
+| **R3** | both | **RED** on `c1`, `c2`, `c3`, `c4`, HTTP |
+
+Observed reds at R3: `[1,2,3]` vs `[2,3,1]` for `c1`/`c2`/`c4`; `[1,3]` vs `[3,1]` for
+`c3`; `[]` vs `[3]` and `["Human-1","Bot-3"]` vs `["Bot-3","Human-1"]` for the two HTTP
+assertions.
+
+**Two rows are green by design and both are disclosed rather than left to look like a
+hole**: `c5` is a **CONTROL** (it reads `apnap_order_all_players` and the fixture
+directly, not the `effects` wiring, so it must stay green under every revert), and the
+HTTP probe is `EachOpponent`-only, so `R1` leaves it green — that is the arm it does not
+exercise. The HTTP probe's second assertion is masked by its first firing sooner, so it
+was proven **separately**, with the first neutralised, rather than assumed.
+
+### B — the same-zone half (`OOS-DP9-11`)
+
+| row | edit | reds |
+|---|---|---|
+| **V1** | disable the `from == to` guard in `move_object_to_zone` | 5 |
+| **V2** | same, in `move_object_to_bottom_of_zone` | 9 |
+| **V3** | swap the `ZoneEnd::Top` / `Bottom` arms | 8 (incl. the `pb_os8` edit) |
+| **V4** | `reposition_within_own_zone` returns the id but repositions nothing | 8 (incl. the `pb_os8` edit) |
+| **V5** | delete the Hideaway LCG's new `timestamp_counter += 1` | 1 |
+| **V6** | add a 6th `next_object_id()` in `move_object_to_bottom_of_zone` | 1 (`r5`) |
+| **V7** | rename `reposition_within_own_zone`, behaviour unchanged | 1 (`r5`) |
+| **V8-V11** | one card def leaves each family (sylvan_messenger, worldly_tutor, windbrisk_heights, pir_imaginative_rascal) | 3 / 3 / 2 / 2 |
+
+**V1 and V2 could not delete the guard outright**, and that is a real structural property
+of the fix rather than a testing inconvenience: deleting it leaves `ZoneEnd::Top` and
+`ZoneEnd::Bottom` unconstructed, and the crate's `deny(warnings)` turns that into a
+**compile** error, not a red test. They are disabled at runtime instead.
+
+### C — the riders
+
+| row | edit | observed |
+|---|---|---|
+| **R1 (DX24-1)** | apply `OOS-DX24-1`'s prescribed source-zone conjunct **verbatim** | **RED** — `left: 1, right: 2`, **with all nine pre-existing `trigger_doubling.rs` tests still green** |
+| **R3 (DX24-7)** | apply `OOS-DX24-7`'s prescribed "pass the prefix" sketch **verbatim** | **RED on t1 AND t3** |
+| **R4 (DX24-7)** | subtract everything (empty sequential set) | **RED on t3** |
+
+### D — honestly UNDISCRIMINATED
+
+**One row**, and it is disclosed **in the test's own doc comment**, not only here:
+`t_worldly_tutor_with_nothing_to_find_consumes_only_the_spell_move`. It is a control that
+by construction contains no same-zone move, which is precisely what lets `2 − 1 = 1`
+prove that the sibling's second counter draw is the shuffle seed rather than the
+placement. Strengthening it would destroy the property it exists to establish.
+
+### E — gates that fired on this batch's own work, and were right
+
+| gate | what it caught | disposition |
+|---|---|---|
+| SR-25 `bare_lookup_ratchet` | the new `reposition_within_own_zone` used a bare `.zones.get_mut(..)` | switched to `expect_zone_mut` — a `None` there is an engine bug |
+| PB-DX7 `unordered_iteration_ratchet` | the rider's first draft took `rules/abilities.rs` from 11 to 15 `HashSet`s | converted to `BTreeSet`; ceiling **lowered** 11 → 6 rather than raised |
+| the batch's own scry probe | its non-vacuity floor caught the first draft predicting the bottomed card from the fixture's push order, with the convention backwards | captured from the announcement instead |
+| the batch's own `r5` roster row | reddened on its first run: `move_object_to_zone` mints **three** ids, not one (two component re-mints for merged mutate/meld components) | counts measured per function with the reason |
+
+**And one probe passed VACUOUSLY before it passed honestly.** The first Worldly Tutor
+probe drove `Effect::SearchLibrary` through a bare `execute_effect` and measured a delta
+of 0 against an untouched library — because PB-DP9 **suspends and rolls the whole
+resolution back** until the choice is answered, so the effect had never run. Rewritten
+onto the real stack + `PassPriority` + answer path; disclosed in the test's doc. This is
+the `OOS-DP9-*` family's own machinery making a probe of it silently meaningless, which
+is worth carrying to the next batch that writes one.
+
 ## §6 — Moved pins, by name, with the CR reason
 
 **NONE. The budget written in §0 was paid and nothing came due, and that is stated here
