@@ -262,7 +262,10 @@ fn t5_a_mass_destruction_inside_one_resolution_is_simultaneous() {
     // The shape `Effect::DestroyAll` produces: every death in one slice, and the slice
     // carries no ordering between them because the effect snapshotted first.
     for (label, events) in [
-        ("watcher first", vec![died(watcher, p(1)), died(other, p(1))]),
+        (
+            "watcher first",
+            vec![died(watcher, p(1)), died(other, p(1))],
+        ),
         ("other first", vec![died(other, p(1)), died(watcher, p(1))]),
     ] {
         assert!(
@@ -279,7 +282,7 @@ fn t5_a_mass_destruction_inside_one_resolution_is_simultaneous() {
     assert!(
         watcher_triggered(
             &state,
-            &vec![died(watcher, p(1)), died(other, p(1))],
+            &[died(watcher, p(1)), died(other, p(1))],
             EventBatchTiming::Sequential
         ),
         "non-vacuity: Sequential DOES give the other answer on this exact slice -- which \

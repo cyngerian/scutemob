@@ -10394,9 +10394,14 @@ fn doubler_applies_to_trigger(
     // appears. A source ABSENT from `state.objects` keeps the pre-existing permissive
     // behaviour — that is LKI, and narrowing it is a separate question this row does not
     // reach.
+    // SR-25/SR-4: `fizzle_object`, not a bare `.objects.get(..)`. A `None` here is
+    // RULES-CORRECT, not an engine bug: the trigger's source may legitimately have left
+    // (CR 113.7a LKI), which is the `unwrap_or(false)`-equivalent branch below — absent
+    // means "not known to be off the battlefield", i.e. keep the permissive
+    // pre-existing behaviour. (The `bare_lookup_ratchet` fired on the first draft of
+    // this line and was right to.)
     let source_is_off_battlefield = state
-        .objects
-        .get(&trigger.source)
+        .fizzle_object(trigger.source)
         .is_some_and(|o| o.zone != ZoneId::Battlefield);
     let is_look_back_self_trigger = matches!(
         trigger.triggering_event,

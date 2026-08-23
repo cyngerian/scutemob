@@ -17,14 +17,8 @@
 // your graveyard at the same time, this ability does NOT trigger — a leaves-the-battlefield
 // ability looks back in time, and immediately prior to the event this card was on the
 // battlefield, where (CR 113.6m) the ability did not function. Enforced by
-// `rules::abilities::check_triggers_with_timing`'s `arrived_in_graveyard_this_batch` set.
-//
-// PB-DX15a: that enforcement is now CONDITIONAL on the caller's declared
-// `EventBatchTiming`, and every production caller passes `Simultaneous`, so the ruling
-// above holds everywhere today. It would NOT hold at a caller passing `Sequential` whose
-// event slice contains a mass destruction (`Effect::DestroyAll` kills simultaneously),
-// which is why `resolution.rs` passes `Simultaneous` and why `OOS-DX24-7` is still open:
-// closing it needs the event stream to carry per-group boundaries, not a per-caller flag.
+// `rules::abilities::check_triggers_with_timing`'s `arrived_in_graveyard_this_batch` set,
+// which every production caller reaches with `EventBatchTiming::Simultaneous` (PB-DX15a).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
