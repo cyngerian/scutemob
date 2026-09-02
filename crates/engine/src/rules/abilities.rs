@@ -8433,12 +8433,39 @@ const MAX_BECOMES_TARGET_WAVES: u32 = 16;
 /// function appended, and each event is read by exactly one wave.
 pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = flush_pending_triggers_once(state);
+    dispatch_becomes_target_waves(state, &mut events);
+    events
+}
+
+/// CR 702.21a / CR 603.3b — place whatever became a target while `events` was being
+/// produced, and keep going until nothing new does.
+///
+/// `events` must be the events of ONE flush, and every `PermanentTargeted` in it must
+/// not already have been dispatched by someone else — the cursor makes each event
+/// readable by exactly one wave *within* this call, but it cannot see a second
+/// dispatcher upstream. The two callers are chosen for that reason:
+///
+/// * `flush_pending_triggers` (above) — the function five of the six flush sites go
+///   through, and the only one their callers do not sweep after in any consistent way.
+/// * `rules::engine::handle_concede` — CR 800.4d resumes a suspended batch through
+///   `drop_departed_trigger_flush`, and `Command::Concede`'s arm calls no trigger sweep
+///   at all, so without this its resumed triggers would announce targets that nothing
+///   dispatches.
+///
+/// **Deliberately NOT called from `resume_trigger_flush`**, whose events ARE swept:
+/// `Command::ChooseTriggerTargets`'s arm runs `check_and_flush_triggers` over them.
+/// Calling it there too would dispatch the same event twice and fire Ward twice — the
+/// failure an earlier design of this batch actually produced and that was caught by
+/// execution. The residual that leaves is `OOS-DX48-3`: that arm's sweep is guarded on
+/// `pending_trigger_targets.is_none()`, so a batch that suspends a SECOND time hands
+/// its middle section's `PermanentTargeted` events to a caller that never scans them.
+pub(crate) fn dispatch_becomes_target_waves(state: &mut GameState, events: &mut Vec<GameEvent>) {
     let mut scanned = 0usize;
     for wave in 0..MAX_BECOMES_TARGET_WAVES {
         // CR 603.3d (PB-DP8): a suspended flush owns its own continuation; the
         // resumed call runs this loop again over its own events.
         if state.pending_trigger_targets.is_some() {
-            return events;
+            return;
         }
         let slice: Vec<GameEvent> = events[scanned..]
             .iter()
@@ -8447,7 +8474,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             .collect();
         scanned = events.len();
         if slice.is_empty() {
-            return events;
+            return;
         }
         // CR 603.3b: every ability of one batch goes on the stack in one window, so
         // the targetings they cause are simultaneous with one another for
@@ -8455,7 +8482,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         let new_triggers =
             check_triggers_with_timing(state, &slice, EventBatchTiming::Simultaneous);
         if new_triggers.is_empty() {
-            return events;
+            return;
         }
         for t in new_triggers {
             state.pending_triggers.push_back(t);
@@ -8473,7 +8500,6 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             );
         }
     }
-    events
 }
 
 /// One CR 603.3b flush: the pre-PB-DX48 body of `flush_pending_triggers`, unchanged.

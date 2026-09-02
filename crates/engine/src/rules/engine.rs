@@ -2860,7 +2860,13 @@ fn handle_concede(
     // controlled. The REST of the CR 603.3b batch must still be placed -- CR
     // 800.4j: the turn continues to its completion -- so the flush resumes here,
     // and may legitimately suspend again on a different player's trigger.
-    if let Some(resume_events) = abilities::drop_departed_trigger_flush(state, player) {
+    if let Some(mut resume_events) = abilities::drop_departed_trigger_flush(state, player) {
+        // CR 702.21a (PB-DX48): the resumed batch can announce targets, and
+        // `Command::Concede`'s arm runs no trigger sweep afterwards, so this is the
+        // only place its becomes-target triggers can be placed before priority
+        // (CR 603.3b). `drop_departed_trigger_flush` reaches `flush_sorted` directly,
+        // bypassing `flush_pending_triggers` and its own copy of this loop.
+        abilities::dispatch_becomes_target_waves(state, &mut resume_events);
         events.extend(resume_events);
     }
     events.push(GameEvent::PlayerConceded { player });
