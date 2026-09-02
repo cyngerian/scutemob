@@ -114,6 +114,18 @@ the two on three independent axes, each of which is a place the deleted scan was
 | granted / copied abilities | sees them (they are in `characteristics.triggered_abilities`) | invisible — they are not on the card |
 | tokens | sees them | invisible — a token has no `card_id` |
 
+**The one axis where the deleted scan was WIDER, stated rather than omitted** (the `/review`
+filed the first draft's three-row table as incomplete, and it was right): the scan read its source
+through `state.fizzle_object` under an explicit *"CR 113.7a: the damage source may have left the
+battlefield; use LKI"* comment, while `collect_triggers_for_event` requires a LIVE object at
+`zone == Battlefield`. So the surviving path is strictly narrower on look-back. It is narrower
+**correctly**: the arm's own pre-existing comment says this trigger is *not* a look-back trigger
+(CR 603.10 — "NOT a look-back trigger: creature must be on battlefield"), and no
+production-reachable case was constructible, because combat damage is applied and its events
+checked before SBAs move anything. But two sibling readers of the SAME `assignment.source` in the
+same handler do cite CR 113.7a (`turn_actions.rs`), so the axis earns a sentence rather than
+silence — a superset claim with an omitted axis is exactly the shape this batch is about.
+
 **The scan's own historical justification is DISCHARGED, and by execution rather than argument.**
 PB-EF3 A2's comment said `CardDefETB` "keeps the raw-index/card-registry lookup authoritative for
 both effect and target selection (Throat Slitter's *'destroy target nonblack creature that player
@@ -236,11 +248,12 @@ empty 147` all identical); self-dating churn reverted. **Zero card-def edits** �
 `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
 `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree (PB-DX15a's lesson).
 
-### Revert matrix — 9 rows, 9 RED, 0 UNDISCRIMINATED (row 9 is tabled in §8)
+### Revert matrix — **10 rows, 10 RED, 0 UNDISCRIMINATED** (row 9 is tabled in §8, row 10 in §9)
 
 | # | revert | expected | observed |
 |---|---|---|---|
-| V1 | restore the deleted registry scan in the `CombatDamageDealt` arm | `r3`, `r4`, the Q4 inversion and the `p2` probe all red | **RED (4 rows)** |
+| V1 | restore the deleted registry scan in the `CombatDamageDealt` arm (LITERAL shape) | `r3`, `r4`, the Q4 inversion, the `p2` probe and `t1` all red | **RED (5 rows)** |
+| V10 | a second dispatcher for the same condition in **BINDING** shape, outside the arm — the `/review`'s own defeat | `r3` red | **RED** (it was GREEN against `r3`'s first draft, which is finding 1) |
 | V2 | un-enrich the Throat Slitter fixture (back to a naked object) | `test_throat_slitter_end_to_end_precision_fix` red | **RED** |
 | V3 | drop `targets: targets.clone()` from the lowering | `r5` red, Throat Slitter end-to-end red | **RED (2 rows)** |
 | V4 | empty `r3`'s `POST_FILTER_ONLY` allowlist | `r3` red (allowlist load-bearing) | **RED** |
@@ -257,10 +270,14 @@ empty 147` all identical); self-dating churn reverted. **Zero card-def edits** �
   it is the row that refutes the false comment directly.
 * Under **V1**, the Throat Slitter probe also stays green: the enriched fixture works under both
   engines, which is the point. It is discriminated by V2 and V3 instead.
-* Under **V8**, `r3` stayed **GREEN** while `r3b` reddened. Neither source file currently contains
-  a commented-out `trigger_condition: TriggerCondition::X` pair, so the stripping is *defensive*
-  for `r3`'s verdict today and load-bearing for `r3b`'s own guarantee. Stated as a residual in
-  `r3b` itself and filed as **`OOS-DX47-7`**, rather than left to read as full coverage.
+* Under **V8**, `r3` stayed **GREEN** while `r3b` reddened. **↻ That is true of `r3`'s FIRST
+  draft only, and it inverted in the `/review` fix cycle** — re-measured on the final tree rather
+  than carried forward. With the shape-specific parser there was no commented-out
+  `trigger_condition: TriggerCondition::X` pair anywhere, so the stripping was merely defensive for
+  `r3`; with the mechanism-keyed axis that replaced it (§9), a prose mention of a variant name
+  inside a scan window feeds `r3` directly, so V8 now reddens **both**. `r3b`'s doc and
+  `OOS-DX47-7` carry both measurements — the point being that *a residual measured against one
+  draft of a gate is not a residual of the gate*.
 
 ---
 
@@ -275,7 +292,8 @@ one repaired, population unmeasured), `OOS-DX47-5` (PB-DX24's Q4 probe was a pin
 its docstring said so — the durable rule is that isolating a path you are changing becomes a pin
 the moment the isolation is the only thing asserting the count), `OOS-DX47-6` (the false comment
 propagated by being cited as precedent; a true conclusion on a false general premise reads as
-confirmation), `OOS-DX47-7` (`r3`'s parser strips `//` only, bound stated).
+confirmation), `OOS-DX47-7` (`r3`'s parser strips `//` only, bound stated — **re-scoped by the `/review`, see
+§9**).
 
 **`OOS-DX24-4` is CLOSED**, with four corrections to its own claims recorded in the row itself.
 
@@ -339,3 +357,73 @@ stopped one consumer short.
 | # | revert | expected | observed |
 |---|---|---|---|
 | V9 | restore the deleted registry scan | `t1` red at `left: 2, right: 1` | **RED, exactly that** |
+
+---
+
+## §9 — The `/review` cycle: 1 MEDIUM, 1 LOW-MEDIUM, 4 LOW, 1 NIT, **all 7 taken**
+
+The reviewer had a shell, used it, and independently reproduced **every** published figure
+(4,872 / 0 / 5 across 56 targets at the commit it read, 26 / 18 / 20 / 34 / 6, PROTOCOL 39 /
+HASH 78, clippy / fmt / defs-fmt clean, coverage 1,137 with a `·` delta column). It also
+re-derived the class-sweep axes with its own Python parser and got the identical numbers, and it
+independently confirmed the `WheneverYouSacrifice` allowlist entry is genuinely a
+`triggers.retain(..)` post-filter and not a second push.
+
+### The MEDIUM is the batch's own thesis, committed inside the gate that states it
+
+**`r3`'s first draft was blind to the binding shape, and the reviewer re-created `OOS-DX24-4`
+verbatim with all nine gates GREEN.**
+
+The axis matched one syntactic form — `trigger_condition:` immediately followed by
+`TriggerCondition::X`, the struct-pattern spelling. A second dispatcher written as
+
+```rust
+let AbilityDefinition::Triggered { trigger_condition, .. } = ability else { continue };
+if !matches!(trigger_condition, TriggerCondition::WhenDealsCombatDamageToPlayer) { continue }
+```
+
+was invisible to it. **Reproduced here before fixing**: planting exactly that helper and calling it
+from inside the `CombatDamageDealt` arm left all 9 roster gates green, and only the behavioural
+probe (`primitives::pb_dx47_modal_trigger_mode_zero::t1`, `left: 2, right: 1`) reddened.
+
+And the form is not contrived: `collect_graveyard_carddef_triggers` in the very same file is a
+real registry scan written that way, and it filters on `WheneverPermanentEntersBattlefield` and
+`WheneverCreatureDies` — **both members of the lowered 34**. Their exclusivity is real
+(`lowers_onto_the_battlefield` drops every `trigger_zone: Some(TriggerZone::Graveyard)` ability,
+PB-DX24) but `r3` was not what established it, while the file header claimed *"a second
+`OOS-DX24-4` is now a red test"*.
+
+*A gate written for one variant measures that variant* — this file's own headline, arriving inside
+the file that states it, for the fourth time in this queue's history (PB-DX26, PB-DX43, PB-DX45,
+now here).
+
+**The fix keys on the MECHANISM, not the shape.** A registry scan must walk a card definition's
+ability list, so `registry_scanned_conditions` collects every `TriggerCondition::X` within
+`SCAN_WINDOW` (3,000 bytes, measured stable — 5,000 adds nothing) after any
+`effective_abilities(` / `abilities.iter()` hit. **Over-collection makes `r3` redder, never
+greener**, which is the only direction a class gate may be wrong in. The price is paid in
+`MUTUALLY_EXCLUSIVE_BY_CONSTRUCTION`, where each of the three false positives is named with the
+mechanism that separates it **and** with a companion assertion in `r3` that the mechanism still
+exists in source — an allowlist entry whose reason is not checked is a comment, which is what
+started this batch.
+
+Post-fix intersection: exactly the three allowlisted members. The planted binding-shape defeat now
+reddens `r3`, re-executed.
+
+**The residual is stated in the header rather than left to be discovered**: a queue site that
+reaches a condition without naming it within the window is still invisible, and the behavioural
+probes — not this gate — are the backstop, which is what the defeat demonstrated.
+
+### The rest
+
+| # | severity | finding | disposition |
+|---|---|---|---|
+| 1 | MEDIUM | `r3` blind to the binding shape; defect re-created with all gates green | **TAKEN** — axis re-keyed on the mechanism, over-collecting; reproduced then re-reddened |
+| 2 | LOW-MED | `r3`'s registry axis read only `abilities.rs`, so "swept mechanically" described one file | **TAKEN** — five `rules/` files now (`abilities`, `mana`, `turn_actions`, `replacement`, `resolution`); the axis moves 6 → 17 |
+| 3 | LOW | `r2`'s ceiling was 40 against a measured 20, under a comment saying "it cannot grow in silence" | **TAKEN** — ceiling 22, and the comment now names the slack. *A ratchet's slack IS its blind spot.* |
+| 4 | LOW | the §3 superset table omitted the one axis where the deleted scan was WIDER (CR 113.7a LKI) | **TAKEN** — §3 now states it, why it is CR-correct to narrow, and that two siblings in the same handler do cite 113.7a |
+| 5 | LOW | `OOS-DX47-4`'s "population UNMEASURED" is cheap to measure | **TAKEN** — re-measured independently: **247** files / **1,619** sites carry `.with_card_id(`, **149** never call `enrich_spec_from_def`. Recorded as an upper bound and a search space, not a work list |
+| 6 | INFO | the branch was mid-fix-cycle; CLAUDE.md not yet re-synced with the corrected `OOS-DX47-3` row | **ALREADY DONE** at `a0fc6447`, before the report landed — see §8 |
+| 7 | NIT | `r5`'s `&SRC[idx..idx+1_400]` is a latent panic on a multi-byte boundary | **TAKEN** — bounded with a char-boundary walk; a gate that panics reports a backtrace instead of its own message |
+
+**Nothing was declined.**

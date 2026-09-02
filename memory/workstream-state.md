@@ -58,6 +58,25 @@ a card printing **ONE** counter put **TWO** on its lone attacker.
    `crates/engine/tests/` paired with `.with_card_id(` and not `enrich_spec_from_def`
    (`OOS-DX47-4`).
 
+### The `/review` defeated the class gate, and that is the most useful thing in the batch
+
+1 MEDIUM / 1 LOW-MEDIUM / 4 LOW / 1 NIT, **all seven taken, none declined**. The reviewer had a
+shell, independently reproduced every published figure, and then **re-created `OOS-DX24-4`
+verbatim with all nine roster gates GREEN** — by writing the second dispatcher in the BINDING form
+(`let AbilityDefinition::Triggered { trigger_condition, .. } = ability` then `matches!`) instead of
+the struct-pattern form `r3`'s parser matched. Only the behavioural probe caught it.
+
+That form is used in this tree already (`collect_graveyard_carddef_triggers`), on two conditions
+that ARE in the lowered set — so the gate's header claim was false about the exact family it could
+not see. **A gate written for one variant measures that variant**, for the fourth time in this
+queue.
+
+`r3` now keys on the MECHANISM (every `TriggerCondition::X` within 3,000 bytes of an ability-list
+walk, across five `rules/` files, 6 → 17 conditions), deliberately over-collecting, with each of
+the three false positives carrying a named mechanism **and a companion assertion that the mechanism
+still exists in source**. **Carry this forward: an allowlist entry whose reason is not machine-
+checked is a comment, and this batch exists because of a comment.**
+
 ### Numbers
 
 Tests **4,873 / 0 / 5** (+12 over the **4,861** pre-edit baseline measured on this branch before
@@ -71,7 +90,7 @@ this batch deleted (`OOS-DX47-5`).
 the reason stated (a suppression adds no type, variant or field to the wire closure). Coverage
 unmoved **1,137/1,803 = 63.1%**, **0 flips**, **0 card-def edits of any kind**.
 `clippy --workspace --all-targets -D warnings`, `cargo fmt --check` and `tools/check-defs-fmt.sh`
-(1,803 defs) all clean **against the final tree**. **9 revert rows, 9 RED, 0 UNDISCRIMINATED**,
+(1,803 defs) all clean **against the final tree**. **10 revert rows, 10 RED, 0 UNDISCRIMINATED**,
 with three green-under-revert rows disclosed as such.
 
 Census, printed by `core::pb_dx47_dispatch_path_roster::t_census_report`: **26** defs declare the

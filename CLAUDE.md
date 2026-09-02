@@ -214,7 +214,7 @@
   the empty-diff shortcut was available and was checked.
   `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
   `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree.
-  **9 revert rows executed, 9 RED, 0 UNDISCRIMINATED**, with three green-under-revert rows
+  **10 revert rows executed, 10 RED, 0 UNDISCRIMINATED**, with three green-under-revert rows
   disclosed as such rather than left implicit — including that disabling the `r3` parser's
   comment-stripping reddens `r3b` and leaves `r3` GREEN, so that stripping is defensive today and
   load-bearing only for `r3b`'s own guarantee (`OOS-DX47-7`).
@@ -787,6 +787,32 @@
   The durable rule is not that PB-DX24 was careless — isolating the path you are changing is
   correct technique — it is that **the isolation becomes a pin on a defect the moment it is the
   only thing asserting the count.**
+  **↻ The `/review` (1 MEDIUM / 1 LOW-MEDIUM / 4 LOW / 1 NIT — all seven taken, none declined)
+  DEFEATED this batch's own class gate by execution, and the defeat is this batch's thesis
+  committed inside the gate that states it.** `r3`'s first draft keyed on ONE syntactic form —
+  `trigger_condition:` immediately followed by `TriggerCondition::X`. The reviewer re-created
+  **`OOS-DX24-4` verbatim**, a second `WhenDealsCombatDamageToPlayer` dispatcher written in the
+  BINDING form (`let ... { trigger_condition, .. }` then `matches!`), and **all nine gates in the
+  file stayed GREEN**; only the behavioural probe reddened. Reproduced here before fixing. And the
+  form is not contrived — `collect_graveyard_carddef_triggers` in the same file is a real registry
+  scan written that way, filtering two conditions that ARE in the lowered 34, so the header's *"a
+  second `OOS-DX24-4` is now a red test"* was false about the very family it could not see.
+  *A gate written for one variant measures that variant*, for the fourth time in this queue
+  (PB-DX26, PB-DX43, PB-DX45, now here). **The axis is re-keyed on the MECHANISM**: a registry scan
+  must walk an ability list, so every `TriggerCondition::X` within 3,000 bytes of an
+  `effective_abilities(` / `abilities.iter()` hit is collected, across **five** `rules/` files
+  rather than one (6 → **17** conditions). Over-collection can only make `r3` redder, and each of
+  the three resulting false positives is named with the mechanism that separates it **plus a
+  companion assertion that the mechanism still exists in source** — an allowlist whose reason is
+  not checked is a comment, which is what started this batch. Also taken: the registry axis read
+  only `abilities.rs` while `mana.rs`/`turn_actions.rs`/`replacement.rs`/`resolution.rs` also queue
+  from the registry; `r2`'s ratchet ceiling was **2× its measurement** under a comment claiming *"it
+  cannot grow in silence"* (**a ratchet's slack IS its blind spot** — 40 → 22); the superset table
+  omitted the one axis where the deleted scan was **wider** (CR 113.7a LKI — narrower is CR-correct
+  here, and it now says so); `OOS-DX47-4`'s "population UNMEASURED" was cheap and is now measured
+  (**247** test files / **1,619** `.with_card_id(` sites, **149** files never calling
+  `enrich_spec_from_def` — an upper bound and a search space, not a work list); and a fixed-width
+  byte slice in `r5` that would have **panicked** rather than failed with its own message.
   Census re-derived and PRINTED (never transcribed): **26** corpus defs declare the trigger, **18**
   deck-legal `Complete`. **The v4 memo's conditional "18 if real" reproduces EXACTLY**, which is
   the outcome the re-derivation discipline is FOR; the agreement is kept honest by the inverse
@@ -796,7 +822,7 @@
   as 13 additions / 1 disclosed inversion / 0 removals). **PROTOCOL 39 / HASH 78 both
   gate-executed and UNMOVED**, predicted in writing before any code with the reason stated.
   Coverage unmoved **63.1%**, 0 flips, 0 card-def edits. All gates clean against the FINAL tree.
-  **9 revert rows, 9 RED.** Filed **OOS-DX47-1..7**. Full record:
+  **10 revert rows, 10 RED.** Filed **OOS-DX47-1..7**. Full record:
   `memory/primitives/pb-DX47-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-09-02 — **PB-DX45 SHIPPED** (`scutemob-217`; v4 queue rank 4 —
   **OOS-DX24-9** ≡ **OOS-DX27-5** CLOSED as ONE defect, cross-cited, each row corrected).
