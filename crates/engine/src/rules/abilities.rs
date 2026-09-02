@@ -1389,19 +1389,9 @@ pub fn handle_activate_ability(
         .collect();
     // Push the activated ability onto the stack.
     let stack_id = state.next_object_id();
-    // CR 702.21a: Collect battlefield object targets before moving spell_targets into
-    // the stack object. These are used to emit PermanentTargeted events for Ward.
-    let battlefield_targets: Vec<ObjectId> = spell_targets
-        .iter()
-        .filter_map(|st| {
-            if let Target::Object(id) = st.target {
-                if matches!(st.zone_at_cast, Some(ZoneId::Battlefield)) {
-                    return Some(id);
-                }
-            }
-            None
-        })
-        .collect();
+    // CR 702.21a (PB-DX48): the Ward dispatch is derived by
+    // `rules::events::push_target_announcement` from the stack object's own
+    // `targets`, with the identical predicate this block used to spell out.
     // MR-TC-25: use trigger_default; override targets with the declared targets.
     let mut stack_obj = StackObject::trigger_default(
         stack_id,
@@ -1442,17 +1432,6 @@ pub fn handle_activate_ability(
     });
     // ENG-2 (A1, CR 602.2b): announce the ability's targets, if any.
     super::events::push_target_announcement(state, &mut events, player, source, stack_id);
-    // CR 702.21a: Emit PermanentTargeted for each battlefield permanent that this
-    // activated ability targets. These events drive Ward trigger checks in check_triggers.
-    // `targeting_stack_id` is the stack entry's own ObjectId so the ward CounterSpell
-    // effect can locate it via direct stack ID match (so.id == id).
-    for target_id in battlefield_targets {
-        events.push(GameEvent::PermanentTargeted {
-            target_id,
-            targeting_stack_id: stack_id,
-            targeting_controller: player,
-        });
-    }
     events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
@@ -2036,15 +2015,15 @@ pub fn handle_activate_bloodrush(
     // ENG-2 (A4, CR 602.2b): announce the bloodrush ability's (single, unfiltered)
     // target.
     super::events::push_target_announcement(state, &mut events, player, card, stack_id);
-    // CR 702.21a: Emit PermanentTargeted so Ward triggers fire when the target
-    // creature has Ward. Mirrors the pattern in handle_activate_ability (lines
-    // 464-470) which emits this event for every battlefield permanent targeted
-    // by an activated ability.
-    events.push(GameEvent::PermanentTargeted {
-        target_id: target,
-        targeting_stack_id: stack_id,
-        targeting_controller: player,
-    });
+    // CR 702.21a (PB-DX48): emitted by `push_target_announcement` above, from the
+    // stack object's own single `SpellTarget`. **Measured behavioural delta: none.**
+    // The deleted push was unconditional, where the shared predicate requires
+    // `zone_at_cast == Some(Battlefield)`; bloodrush's `zone_at_cast` is
+    // `state.expect_object(target).map(|o| o.zone)` and its own step-5 validation
+    // already refuses a target that is not an attacking creature, i.e. not on the
+    // battlefield. And an event emitted for a non-battlefield object was inert
+    // anyway: `check_triggers`'s `PermanentTargeted` arm re-reads the object and
+    // requires `zone == Battlefield`.
     events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }

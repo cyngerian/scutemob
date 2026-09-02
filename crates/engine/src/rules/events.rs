@@ -1612,7 +1612,71 @@ pub(crate) fn announce_targets(
         targets,
     })
 }
+/// CR 702.21a (PB-DX48, `OOS-ENG2-1` ≡ `OOS-ENG2-2`) — the battlefield permanents
+/// that the stack object at `stack_object_id` targets, in declaration order.
+///
+/// `GameEvent::PermanentTargeted` is the ONLY event that drives Ward and the
+/// `PermanentBecomesTarget` family (`rules/abilities.rs`'s `check_triggers` arm is
+/// its sole consumer). Before PB-DX48 the predicate below was written out THREE
+/// times by hand -- in `casting.rs::handle_cast_spell`, in
+/// `abilities.rs::handle_activate_ability` and (in a single-target special case) in
+/// the bloodrush handler -- and was ABSENT from the other nine
+/// `push_target_announcement` sites, so a triggered / forecast / scavenge / loyalty
+/// ability could target a Ward permanent and Ward never fired.
+///
+/// It is written ONCE here, and `push_target_announcement` calls it, so "announce
+/// this stack object's targets" and "dispatch CR 702.21a for them" are one
+/// operation at one place. A thirteenth announcement site therefore cannot omit
+/// the Ward dispatch by forgetting to copy a loop.
+///
+/// **Predicate, unchanged from the three hand-rolled copies it replaces**: a
+/// `Target::Object` whose `zone_at_cast` is `Some(ZoneId::Battlefield)`. This is a
+/// prefilter, not the correctness gate -- `check_triggers`'s own arm re-reads the
+/// object and requires `zone == Battlefield && is_phased_in() && controller !=
+/// targeting_controller` (CR 702.21a's "an opponent controls") before any trigger
+/// is collected, so an over- or under-inclusive `zone_at_cast` cannot make a Ward
+/// trigger fire that should not.
+pub(crate) fn permanent_targeted_events(
+    state: &crate::state::GameState,
+    controller: crate::state::player::PlayerId,
+    stack_object_id: crate::state::game_object::ObjectId,
+) -> Vec<GameEvent> {
+    use crate::state::targeting::Target;
+    use crate::state::zone::ZoneId;
+    let Some(stack_obj) = state
+        .stack_objects()
+        .iter()
+        .find(|so| so.id == stack_object_id)
+    else {
+        // Same SR-4 classification as `announce_targets` above, which has already
+        // `debug_assert!`ed on this exact lookup one call earlier; asserting twice
+        // for one absence would only make the message noisier.
+        return Vec::new();
+    };
+    stack_obj
+        .targets
+        .iter()
+        .filter_map(|st| match st.target {
+            Target::Object(id) if matches!(st.zone_at_cast, Some(ZoneId::Battlefield)) => {
+                Some(GameEvent::PermanentTargeted {
+                    target_id: id,
+                    // The stack entry's own ObjectId, so the ward `CounterSpell`
+                    // effect can locate it by direct stack-id match (`so.id == id`).
+                    targeting_stack_id: stack_object_id,
+                    targeting_controller: controller,
+                })
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 /// The one-line call form used at every site.
+///
+/// PB-DX48: this emits BOTH halves of "an object was put on the stack with
+/// targets" -- the display event `TargetsAnnounced` (CR 601.2c / 602.2b / 603.3d)
+/// and the CR 702.21a dispatch event `PermanentTargeted`, in that order, which is
+/// the order the three pre-PB-DX48 hand-rolled sites already emitted them in.
 pub(crate) fn push_target_announcement(
     state: &crate::state::GameState,
     events: &mut Vec<GameEvent>,
@@ -1623,6 +1687,11 @@ pub(crate) fn push_target_announcement(
     if let Some(ev) = announce_targets(state, controller, source_object_id, stack_object_id) {
         events.push(ev);
     }
+    events.extend(permanent_targeted_events(
+        state,
+        controller,
+        stack_object_id,
+    ));
 }
 impl GameEvent {
     /// Returns `true` if this event reveals or commits to hidden information.
