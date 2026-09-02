@@ -15,7 +15,77 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**PB-DX45 shipped `scutemob-217` 2026-09-02; v4 ranks 1-4 all shipped; next dispatch PB-DX47, v4 rank 5**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX47 shipped `scutemob-218` 2026-09-02; v4 ranks 1-5 all shipped; next dispatch PB-DX48, v4 rank 6**)
+
+## Worker Handoff (PB-DX47, `scutemob-218`) — one dispatcher per trigger
+
+**Shipped**: v4 queue **rank 5**. **`OOS-DX24-4` CLOSED**, with four corrections recorded in its
+own registry row. Filed **`OOS-DX47-1..7`**.
+
+### The probe came back with the LARGE answer, and it ran first
+
+This was a probe-first batch: the seed was MEDIUM confidence and the memo blessed the small
+outcome. The measurement was committed at `bb5a2f8e`, **before a line of engine source changed**.
+`crates/simulator/tests/pb_dx47_double_push_probe.rs` builds through `setup::build_initial_state`
+— the **production** pregame path, deliberately not `GameStateBuilder`, because the false comment
+under test claims the hand-built path is the special one, so a hand-built fixture would have proven
+nothing. Both seats human (no bot RNG). Subject `drana_liberator_of_malakir`: `Complete`,
+deck-legal, and **legendary**, so CR 903.6 puts it in the command zone by construction instead of
+leaving the probe to a shuffle, and its trigger puts a `+1/+1` counter on each attacking creature
+so a double dispatch is visible on the BOARD, not just on the stack.
+
+Measured: `check_triggers` pushed **`{CardDefETB: 1, Normal: 1}`** for one `CombatDamageDealt`, and
+a card printing **ONE** counter put **TWO** on its lone attacker.
+
+### Three things worth carrying forward
+
+1. **A boundary census of `state.pending_triggers()` measures ZERO and reads exactly like
+   "nothing happened."** The flush runs inside the same `process_command`, so the field is never
+   non-empty where a test can look. What caught it was an end-to-end assertion running *beside* the
+   census — the census said nothing while the board said twice. Any future batch reasoning about
+   trigger counts from outside the engine will reach for that field first; call `check_triggers`
+   instead (`OOS-DX47-1`).
+2. **A roster typed from `grep -l` over `crates/card-defs/src/defs/` counts `// TODO` comments.**
+   This batch's first-draft member list was **30 files**; the `all_cards()` walk is **26 defs**.
+   That is SR-36's own rule broken inside the batch whose subject is a false comment. It was caught
+   only because the gate re-derives from the compiled corpus rather than trusting the constant
+   beside it — **a pinned roster and its derivation must not share a source** (`OOS-DX47-2`).
+3. **A fixture that builds a NAKED object** (`ObjectSpec::creature(..).with_card_id(..)`, never
+   through `enrich_spec_from_def`) **tests a shape production cannot produce.**
+   `pbd_damaged_player_filter`'s Throat Slitter probe was one, and was the only reason
+   EF-W-MISS-10's justification for the deleted scan looked live. The population of other such
+   fixtures is **UNMEASURED**; the cheap census is a walk of `ObjectSpec::` constructors in
+   `crates/engine/tests/` paired with `.with_card_id(` and not `enrich_spec_from_def`
+   (`OOS-DX47-4`).
+
+### Numbers
+
+Tests **4,872 / 0 / 5** (+11 over the **4,861** pre-edit baseline measured on this branch before
+any edit, reproducing PB-DX45's close pin exactly), `--workspace --no-fail-fast` to a file, **56**
+result-producing targets (55 → 56: one new simulator test binary), residual list empty. **Delta
+itemised by test NAME: 12 additions, 1 leaver, 0 removals.** The leaver is **disclosed rather than
+netted out and is not a removal** — PB-DX24's Q4 probe was INVERTED, because what it pinned is what
+this batch deleted (`OOS-DX47-5`).
+
+**PROTOCOL 39 / HASH 78 both gate-executed and UNMOVED**, predicted in writing before any code with
+the reason stated (a suppression adds no type, variant or field to the wire closure). Coverage
+unmoved **1,137/1,803 = 63.1%**, **0 flips**, **0 card-def edits of any kind**.
+`clippy --workspace --all-targets -D warnings`, `cargo fmt --check` and `tools/check-defs-fmt.sh`
+(1,803 defs) all clean **against the final tree**. **8 revert rows, 8 RED, 0 UNDISCRIMINATED**,
+with three green-under-revert rows disclosed as such.
+
+Census, printed by `core::pb_dx47_dispatch_path_roster::t_census_report`: **26** defs declare the
+trigger, **18** deck-legal `Complete` (the v4 memo's conditional figure reproduces exactly); **20**
+`Complete` defs print it without declaring it (inverse axis, ratcheted); the class sweep intersects
+**34** lowered conditions with **6** registry-scanned ones and the intersection is empty but for
+one allowlisted post-filter.
+
+**Next dispatch: PB-DX48** (v4 rank 6 — Ward never fires on a triggered ability, `OOS-ENG2-1` ≡
+`OOS-ENG2-2` + `OOS-ENG2-3`). Ranks 1-5 are all shipped.
+
+Full record: `memory/primitives/pb-DX47-execution-notes.md`.
+
+---
 
 ## Worker Handoff (PB-DX45, `scutemob-217`) — CR 118.12's optional cost is the player's
 
@@ -36,7 +106,8 @@ output. Coverage **1,136 → 1,137 / 1,803 = 63.0% → 63.1%**, the single flip 
 before regeneration. `clippy --workspace --all-targets -D warnings`, `cargo fmt --check` and
 `tools/check-defs-fmt.sh` (1,803 defs) all clean **against the final tree**.
 
-**Next dispatch: PB-DX47** (v4 rank 5). Ranks 1-4 are all shipped.
+**Next dispatch (as of PB-DX45): PB-DX47** (v4 rank 5). *(↻ SHIPPED `scutemob-218` 2026-09-02;
+the live next dispatch is PB-DX48 — see the handoff above.)*
 
 ### The headline: the site list was short by one, and the compiler could not say so
 
