@@ -1636,6 +1636,17 @@ pub(crate) fn announce_targets(
 /// targeting_controller` (CR 702.21a's "an opponent controls") before any trigger
 /// is collected, so an over- or under-inclusive `zone_at_cast` cannot make a Ward
 /// trigger fire that should not.
+///
+/// **One event per TARGET SLOT, not per distinct permanent** — a spell or ability
+/// that names the same permanent in two slots raises two `PermanentTargeted` events
+/// and therefore triggers its Ward twice (CR 603.2c: "it can trigger repeatedly if
+/// one event contains multiple occurrences"). That is **verbatim** what the three
+/// hand-rolled loops this function replaces already did: each iterated the target
+/// list, not a deduplicated set. PB-DX48 preserves it deliberately and does not
+/// re-adjudicate it — the reading is not obviously wrong (Ward's own release notes
+/// treat each targeting as an occurrence) and changing it would be a behaviour flip
+/// at the three pre-existing sites, which is out of scope for a batch whose subject
+/// is the five sites that dispatched nothing at all.
 pub(crate) fn permanent_targeted_events(
     state: &crate::state::GameState,
     controller: crate::state::player::PlayerId,
