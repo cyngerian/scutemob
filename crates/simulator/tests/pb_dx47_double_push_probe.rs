@@ -167,9 +167,7 @@ fn p1_production_pregame_satisfies_both_dispatch_preconditions() {
         })
         .count();
 
-    println!(
-        "PB-DX47 P1: subject={SUBJECT} lowered(A)={lowered} registry(B)={in_registry}"
-    );
+    println!("PB-DX47 P1: subject={SUBJECT} lowered(A)={lowered} registry(B)={in_registry}");
 
     assert_eq!(
         in_registry, 1,
@@ -301,7 +299,11 @@ fn params_for(state: &GameState, action: &LegalAction) -> ActionParams {
             .iter()
             .copied()
             .find(|id| {
-                state.objects().get(id).map(|o| o.characteristics.name.as_str()) == Some(SUBJECT)
+                state
+                    .objects()
+                    .get(id)
+                    .map(|o| o.characteristics.name.as_str())
+                    == Some(SUBJECT)
             })
             .expect("choose() only picks this action when the subject is eligible");
         params.attackers = vec![(subject, AttackTarget::Player(p(2)))];
@@ -388,16 +390,34 @@ fn subject_counters(state: &GameState) -> u32 {
             o.counters
                 .get(&CounterType::PlusOnePlusOne)
                 .copied()
-                .unwrap_or(0) as u32
+                .unwrap_or(0)
         })
         .unwrap_or(0)
 }
 
-/// **The decisive probe.** It publishes the number either way; the assertions
-/// below are what the FIRST commit measured, written so that a dedup appearing
-/// later reddens this test rather than silently passing it.
+/// **The decisive probe, now INVERTED.**
+///
+/// # Read this before trusting the numbers
+///
+/// The values below are the SECOND set this test carried. Commit `bb5a2f8e` —
+/// made before a single line of engine source changed — asserted the opposite,
+/// and those assertions passed:
+///
+/// ```text
+/// census by kind = {"CardDefETB": 1, "Normal": 1} (total 2)
+/// +1/+1 counters on the lone attacker = 2      <- the card prints ONE
+/// ```
+///
+/// That is the whole of `OOS-DX24-4`, measured rather than argued, on a game
+/// built through the production pregame path. The fix deletes the card-registry
+/// scan from `abilities.rs`'s `GameEvent::CombatDamageDealt` arm and leaves the
+/// layer-resolved runtime lowering authoritative.
+///
+/// Discriminating revert: restore that scan — the census returns to
+/// `{CardDefETB: 1, Normal: 1}` and the attacker back to 2 counters, reddening
+/// both assertions below.
 #[test]
-fn p2_combat_damage_pushes_two_triggers_one_per_dispatch_path() {
+fn p2_combat_damage_pushes_exactly_one_trigger_from_one_dispatch_path() {
     let (census, counters, game) = drive();
     println!(
         "PB-DX47 P2: PendingTrigger census by kind = {:?} (total {}); \
@@ -413,16 +433,15 @@ fn p2_combat_damage_pushes_two_triggers_one_per_dispatch_path() {
     );
     assert_eq!(
         census.by_kind,
-        BTreeMap::from([("Normal".to_string(), 1), ("CardDefETB".to_string(), 1)]),
-        "MEASURED, first commit, before any fix: ONE PendingTrigger per dispatch \
-         path — `Normal` from the runtime lowering `collect_triggers_for_event` \
-         reads, `CardDefETB` from the card-registry scan in the same \
-         `GameEvent::CombatDamageDealt` arm. Neither suppresses the other."
+        BTreeMap::from([("Normal".to_string(), 1)]),
+        "PB-DX47: ONE PendingTrigger, from ONE dispatch path. `Normal` is the \
+         runtime lowering `collect_triggers_for_event` reads; the `CardDefETB` \
+         registry scan that used to stand beside it is deleted. Before the fix \
+         this was {{CardDefETB: 1, Normal: 1}}."
     );
     assert_eq!(
-        counters, 2,
-        "MEASURED, first commit, before any fix: the double dispatch is not \
-         academic — a card printing ONE +1/+1 counter put TWO on its lone \
-         attacker, in a game built through the production pregame path."
+        counters, 1,
+        "PB-DX47, end to end: `drana_liberator_of_malakir` prints ONE +1/+1 \
+         counter and now puts ONE on its lone attacker. Before the fix: 2."
     );
 }

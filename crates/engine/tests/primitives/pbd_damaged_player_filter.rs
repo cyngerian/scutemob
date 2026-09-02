@@ -12,10 +12,10 @@
 
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
-    all_cards, process_command, AbilityDefinition, AttackTarget, CardDefinition, CardId,
-    CardRegistry, CardType, Command, Effect, ForEachTarget, GameStateBuilder, ObjectSpec, PlayerId,
-    Step, SubType, Target, TargetController, TargetFilter, TargetRequirement, TriggerEvent,
-    TriggeredAbilityDef, TypeLine, ZoneId, HASH_SCHEMA_VERSION,
+    all_cards, enrich_spec_from_def, process_command, AbilityDefinition, AttackTarget,
+    CardDefinition, CardId, CardRegistry, CardType, Command, Effect, ForEachTarget,
+    GameStateBuilder, ObjectSpec, PlayerId, Step, SubType, Target, TargetController, TargetFilter,
+    TargetRequirement, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId, HASH_SCHEMA_VERSION,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -719,9 +719,27 @@ fn test_throat_slitter_end_to_end_precision_fix() {
         .cloned()
         .expect("Throat Slitter must be in the card registry");
 
-    // Throat Slitter with the real card_id so the registry can fire its triggers.
-    let throat_slitter = ObjectSpec::creature(p1, "Throat Slitter", 2, 2)
-        .with_card_id(CardId("throat-slitter".to_string()));
+    // Throat Slitter with the real card_id AND the real runtime lowering.
+    //
+    // PB-DX47: the `.with_card_id(..)` alone used to be enough, because
+    // `abilities.rs`'s `CombatDamageDealt` arm ALSO scanned the card registry
+    // and pushed a second, `CardDefETB`-kind `PendingTrigger` for the same
+    // ability. That scan is deleted (`OOS-DX24-4`), so this fixture now has to
+    // build the object the way the production pregame path does.
+    //
+    // This is not a workaround: it makes the fixture HONEST. A bare
+    // `ObjectSpec::creature(..).with_card_id(..)` is a NAKED object -- its
+    // `characteristics.triggered_abilities` is empty -- and no object in a real
+    // game is shaped like that, because `setup.rs:419/433/440` and
+    // `fuzz_setup.rs:119/130` route every card through `enrich_spec_from_def`.
+    // The test was passing through a channel production never reaches (the
+    // PB-DX25b lesson: a fixture that omits the enrichment makes a test green by
+    // removing the only condition under which the code is right).
+    let throat_slitter = enrich_spec_from_def(
+        ObjectSpec::creature(p1, "Throat Slitter", 2, 2)
+            .with_card_id(CardId("throat-slitter".to_string())),
+        &cards.iter().cloned().map(|d| (d.name.clone(), d)).collect(),
+    );
 
     // P2's nonblack Goblin — should be targeted and destroyed.
     let p2_goblin = ObjectSpec::creature(p2, "P2 Goblin M7", 1, 1)
