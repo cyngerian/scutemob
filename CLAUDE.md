@@ -198,12 +198,13 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-02, PB-DX48)**: **4,899 / 0 / 5** full-workspace on branch
-  `scutemob-219` (+26 over the **4,873** baseline, measured on this branch BEFORE any edit and
+- **Tests (delta 2026-09-02, PB-DX48)**: **4,900 / 0 / 5** full-workspace on branch
+  `scutemob-219` (+27 over the **4,873** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX47's close pin exactly), `--workspace --no-fail-fast` to a file, **57**
   result-producing targets (56 → 57: one new simulator test binary), residual list empty.
-  **Delta itemised by test NAME: 26 additions, 0 removals, 0 leavers, 0 renames** — 11 in the new
-  `crates/engine/tests/primitives/pb_dx48_ward_dispatch.rs`, 11 in the new
+  **Delta itemised by test NAME: 27 additions, 0 removals, 0 leavers, 0 renames** — 12 in the new
+  `crates/engine/tests/primitives/pb_dx48_ward_dispatch.rs` (11 shipped, +1 in the `/review` fix
+  cycle), 11 in the new
   `crates/engine/tests/core/pb_dx48_announcement_site_roster.rs`, 3 in the new
   `crates/simulator/tests/pb_dx48_ward_channel.rs`, and 1 in
   `crates/engine/tests/primitives/pb_eng2_targets_announced.rs`.
@@ -220,7 +221,10 @@
   519 / empty 147 all identical), self-dating churn reverted; **0 card-def edits of any kind**.
   `git diff main..HEAD --numstat` over `crates/card-defs`, `crates/card-types`,
   `crates/view-model`, `crates/simulator/src` and `tools/` is **empty**; the engine diff is 4 files,
-  **+235 / −61**. **`npm run build` was NOT run and that is stated rather than omitted**: it is
+  **+267 / −61** — a figure that was published as `+235 / −61` and did not reproduce, **twice**:
+  a doc-comment commit and then the `/review`'s MEDIUM-1 engine fix both landed after it was
+  taken. PB-DX28's "re-take the measured table" MEDIUM, committed again and caught by this
+  batch's own `/review`. **`npm run build` was NOT run and that is stated rather than omitted**: it is
   N/A here, because `tools/` is zero and `node_modules` is absent from this worktree.
   `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
   `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree.
@@ -861,8 +865,31 @@
   bump this batch's own gates pin as unmoved (`OOS-DX48-2`). What is exercised instead is
   CR 702.21a's own two-sided discrimination: Ward fires once for an **opponent's** ability and not
   at all for its own controller's.
-  Tests **4,899 / 0 / 5** (+26 over the 4,873 pre-edit baseline, **57** targets, itemised by NAME as
-  26 additions / 0 removals / 0 leavers — with the ENG-2 pin's **in-place** inversion disclosed so
+  **↻ The `/review` (2 MEDIUM engine-or-gate, 2 MEDIUM doc, 3 LOW, 2 NIT — all nine taken, eight
+  fixed and one declined with its reason) DEFEATED THREE OF THIS BATCH'S OWN GATES BY EXECUTION,
+  and found a real dispatch hole the shipped engine still had.** *(1)* `dispatch_becomes_target_waves`
+  tested suspension at the TOP of its loop, so a batch's **prefix** — the members placed before it
+  suspended — had its `PermanentTargeted` events dropped by everything: callers scan before the
+  flush, and `ChooseTriggerTargets` sweeps only the RESUMED events. **The loop's own comment
+  asserted the resumed call covered it, and it was false in both halves** — a false comment inside
+  the batch whose subject is a false comment. Fixed by the ORDER (queue, then stop); `t9` pins it
+  and is RED under the first draft with the `PermanentTargeted` assertion staying GREEN, which is
+  the whole reason the ward-trigger COUNT is the verdict. `OOS-DX48-3` also had its precondition
+  wrong: **two** triggers, one asking — not three. *(2)* **`r2` fell to FIELD ORDER**: it keyed on
+  the token after the brace being `target_id:`, and Rust does not constrain field order, so a real
+  second construction written in another order stayed green — the docstring named only the residual
+  it *had* thought of and called it "measured". *(3)* **`r1` fell twice**: its site was a
+  `BTreeSet<(file, func, marker)>`, so a **duplicated** call inside a marked site collapsed into one
+  element — and a duplicated announcement IS the Ward-fires-twice defect this batch rejected, so the
+  gate was blind to its own headline; and its file list was six hardcoded `rules/` files while
+  `push_target_announcement` is `pub(crate)`, which mattered concretely because `OOS-DX48-6` names
+  `effects/mod.rs` as the next dispatch site and the list did not contain it. Both re-keyed on the
+  mechanism, `SITE_SRCS` deleted, every defeat re-run and now RED. *(4)* The v4 memo's row-6 strike
+  still said the movement budget "did NOT come due"; it was written before the fuzz A/B ran and
+  never re-taken — PB-DX45's own MEDIUM, and it matters because the memo is what the next
+  dispatcher reads.
+  Tests **4,900 / 0 / 5** (+27 over the 4,873 pre-edit baseline, **57** targets, itemised by NAME as
+  27 additions / 0 removals / 0 leavers — with the ENG-2 pin's **in-place** inversion disclosed so
   that "0 leavers" is not read as "nothing was touched"). **PROTOCOL 39 / HASH 78 both
   gate-executed and UNMOVED**, predicted in writing before any code. Coverage unmoved **63.1%**,
   **0 flips**, **0 card-def edits**. All gates clean against the FINAL tree. Filed

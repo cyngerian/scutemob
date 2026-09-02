@@ -80,8 +80,8 @@ cannot distinguish a `MayPayOrElse` ask from a `MayPayThenEffect` one and its de
 `Complete` card defs use the variant** — Ward is its only live consumer — so the fix is bounded but
 needs a wire bump. Filed `OOS-DX48-2`.
 
-Tests **4,899 / 0 / 5** (+26 over the 4,873 pre-edit baseline, **57** targets), delta by NAME:
-**26 additions, 0 removals, 0 leavers, 0 renames** — with the disclosure that the ENG-2 deviation
+Tests **4,900 / 0 / 5** (+27 over the 4,873 pre-edit baseline, **57** targets), delta by NAME:
+**27 additions, 0 removals, 0 leavers, 0 renames** — with the disclosure that the ENG-2 deviation
 pin was inverted **IN PLACE**, so "0 leavers" must not be read as "nothing was touched".
 **PROTOCOL 39 / HASH 78 both gate-executed and UNMOVED**, predicted in writing before any code.
 Coverage **1,137/1,803 = 63.1%**, **0 flips**, churn reverted, **0 card-def edits**;
@@ -90,6 +90,26 @@ are all **zero**, so `npm run build` is N/A. **The fuzz half of the movement bud
 HARD **185** unmoved with both sub-checks and both game lists identical, but TRANSIENT
 `no_orphaned_tokens` **273 → 275** and **+20 rejections, all twenty inside one game of twenty**.
 One divergence; everything else downstream of it.
+
+**The `/review` found 9, all 9 taken (8 fixed, 1 declined with its reason), and THREE of this
+batch's own gates fell to mutations it ran.** One MEDIUM is a defect in the shipped engine:
+`dispatch_becomes_target_waves` tested suspension at the TOP of its loop, so a batch's **prefix**
+lost Ward entirely — and the loop's own comment asserted the resumed call covered it, which was
+false in both halves. Fixed by the queue-then-stop ORDER; `t9` pins it, RED under the first draft
+with the emission assertion staying green. `r2` fell to **field order** (Rust does not constrain it;
+the docstring named only the residual it had thought of and called it "measured"); `r1` fell to a
+**duplicated call** collapsing in a set — which IS the Ward-fires-twice defect — and to a hardcoded
+six-file list while `push_target_announcement` is `pub(crate)`, mattering concretely because
+`OOS-DX48-6` names `effects/mod.rs` as the next dispatch site. All re-keyed on the mechanism,
+`SITE_SRCS` deleted, every defeat re-run RED. Two doc MEDIUMs: the v4 memo's row-6 strike still said
+the budget "did NOT come due" (written before the fuzz A/B, never re-taken — PB-DX45's own MEDIUM),
+and the published engine line count `+235/−61` did not reproduce **twice** (it is **+267/−61**).
+
+**Durable lesson for the next batch that delegates.** Both delegated revert matrices reported "all
+rows RED" and one was wrong about which assertion made them red — the channel probes' verdict was
+vacuous because the drive ran past CR 514.2's Cleanup. **A matrix reports a row's colour, not which
+line coloured it**; re-running the revert and reading the PANIC LINE costs one command and is the
+only thing that separates the two.
 
 **Next dispatch: PB-DX49** (v4 rank 7 — every Saga site reads the printed def, `OOS-RR4-1` +
 `OOS-RR4-3`). Ranks 1-6 are all shipped.
