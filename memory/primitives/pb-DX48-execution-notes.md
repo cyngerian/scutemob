@@ -255,15 +255,28 @@ the measurement is the useful part:
   `Effect::MayPayOrElse`.** All 15 defs naming it are `known_wrong` (6), `partial` (5)
   or `inert` (4), and 12 of the 15 name it only inside a `// TODO` explaining why they
   cannot use it. Ward is the variant's only live consumer.
-* **And that is precisely why it is a separate batch, not a rider here.** Routing it
-  onto PB-DX45's shipped CR 608.2d channel means reusing
-  `EffectChoiceQuestion::PayOptionalCost`, whose `default_effect_choice_answer` returns
-  **`pay: true`** — deliberately, because that recovers `MayPayThenEffect`'s pre-PB-DX45
-  auto-pay. For `MayPayOrElse` the pre-batch behaviour is auto-**decline**, so parity
-  needs `pay: false`; the two cannot share one default without a distinguishing field
-  or a second question variant, and either is a **wire bump** — contradicting this
-  batch's own gate-confirmed `PROTOCOL 39 / HASH 78 UNMOVED` and moving every ward
-  golden script and all eight `mechanics_m_z/ward.rs` tests in the process.
+* **And that is precisely why it is a separate batch, not a rider here — read off the
+  source, not inferred.** Routing it onto PB-DX45's shipped CR 608.2d channel means
+  reusing `EffectChoiceQuestion::PayOptionalCost`, whose payload is
+  `{ cost: Box<Cost> }` (`card-types/src/state/stubs.rs:1020`) and carries **nothing**
+  that distinguishes a `MayPayOrElse` ask from a `MayPayThenEffect` one. Its default
+  (`effects/mod.rs:426`) is a hard `pay: true`, under a comment that already anticipates
+  this exact collision: *"It is deliberately NOT `false`. 'Decline by default' would be
+  a strictly safer-looking choice and a behavioural change to every bot-only game in the
+  tree, which is a different batch."* For `MayPayThenEffect` `true` is the parity-
+  preserving default because the pre-PB-DX45 behaviour was auto-**pay**; for
+  `MayPayOrElse` the pre-batch behaviour is auto-**decline**, so parity there needs
+  `false`. **The two cannot share one default**, and distinguishing them needs a new
+  field or a second question variant — either of which is a **wire bump**, contradicting
+  this batch's own gate-confirmed `PROTOCOL 39 / HASH 78 UNMOVED`, while flipping Ward
+  from "always counters" to "always paid" across every bot game, the fuzzer, every ward
+  golden script and all eight `mechanics_m_z/ward.rs` tests (whose module doc pins the
+  current behaviour in prose).
+
+**Stated plainly rather than narrowed:** acceptance criterion 7252 asks for both CR
+702.21a outcomes and this batch delivers one, because the other does not exist in this
+engine and making it exist is a different batch. That is a scope limit reported, not a
+requirement quietly re-read.
 
 Filed as **`OOS-DX48-2`**. What is exercised instead is the two-sided discrimination
 CR 702.21a itself provides: Ward fires exactly once when an **opponent's** ability
