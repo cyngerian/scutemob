@@ -100,9 +100,12 @@ fn no_complete_def_uses_the_choose_stub() {
 /// A `Complete` def may not contain `Effect::MayPayOrElse`: it always declines, so the
 /// "may" is not a choice and the `or_else` branch always fires.
 ///
-/// Note `Effect::MayPayThenEffect` is deliberately **not** gated here — it honours its
-/// `payer` and pays when able, which is a documented deterministic-but-legal game choice
-/// (CR 118.12). It is a weaker claim than these two stubs, not the same defect.
+/// Note `Effect::MayPayThenEffect` is deliberately **not** gated here — and since
+/// PB-DX45 (`scutemob-217`) the reason is a much stronger one than it used to be: that
+/// effect ASKS its payer an `EffectChoiceQuestion::PayOptionalCost` on the CR 608.2d
+/// suspend-and-replay channel, so its "may" is a real player decision. Until PB-DX45
+/// this comment said it "pays when able, a documented deterministic-but-legal game
+/// choice" — the conclusion was always right and the premise no longer holds.
 #[test]
 fn no_complete_def_uses_the_may_pay_or_else_stub() {
     let offenders: Vec<String> = all_cards()

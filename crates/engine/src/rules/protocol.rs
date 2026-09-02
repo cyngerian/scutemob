@@ -409,7 +409,22 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   digest moves. Predicted in writing before this line was added
 ///   (`memory/primitives/pb-DX44-execution-notes.md` §1) and confirmed by the
 ///   gate's own output, not transcribed from a memo (PB-DX8's rule).
-pub const PROTOCOL_VERSION: u32 = 38;
+/// - 39: PB-DX45 (2026-09-02, `OOS-DX24-9` ≡ `OOS-DX27-5` — CR 118.12, an
+///   optional cost is the PLAYER's decision): `EffectChoiceQuestion` and
+///   `EffectChoiceAnswer` each gain a **sixth** variant, `PayOptionalCost`
+///   (`{ cost: Cost }` and `{ pay: bool }`). Both enums have been in the closure
+///   since v31, reachable from `GameEvent::EffectChoiceRequired.question` and
+///   `Command::AnswerEffectChoice.answer` respectively; `Cost` has been in it
+///   for longer still, via `Effect::MayPayThenEffect { cost, .. }` — which is
+///   precisely the effect this batch repairs. So this is a variant addition to
+///   two ALREADY-reachable members carrying an ALREADY-reachable payload: the
+///   closure's type count is **98 -> 98, unchanged** (the same shape as `- 38`
+///   and `- 33`), and both declared shapes move, so the digest moves.
+///   Predicted in writing before any code changed
+///   (`memory/primitives/pb-DX45-execution-notes.md` §0.1, including the
+///   unchanged type count) and taken from the failing gate's own output rather
+///   than transcribed (PB-DX8's rule).
+pub const PROTOCOL_VERSION: u32 = 39;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -427,7 +442,7 @@ pub const PROTOCOL_VERSION: u32 = 38;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "50e69006e68918bfffde8882e0bf21e9e18a6b8afbefaf8981975b691e205a27";
+    "4e3b00203568d19fa1c7a680078c86e58e2cfb2083311f07bbaf78b0c3578aab";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -719,6 +734,14 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // SplitRightHalf (see the `- 38:` History line above). Closure type
         // count unchanged (98).
         fingerprint: "50e69006e68918bfffde8882e0bf21e9e18a6b8afbefaf8981975b691e205a27",
+    },
+    ProtocolEpoch {
+        version: 39,
+        // PB-DX45 (2026-09-02, `OOS-DX24-9` ≡ `OOS-DX27-5`):
+        // EffectChoiceQuestion/Answer each gain a sixth variant,
+        // PayOptionalCost (see the `- 39:` History line above). Closure type
+        // count unchanged (98).
+        fingerprint: "4e3b00203568d19fa1c7a680078c86e58e2cfb2083311f07bbaf78b0c3578aab",
     },
 ];
 

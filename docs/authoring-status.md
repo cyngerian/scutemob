@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-14 01:58 UTC  
-**Git:** `0720f0a0` on `feat/pb-dx27-stale-blocker-note-sweep-wrong-oracle-register-oos-c`  
+**Generated:** 2026-09-02 04:49 UTC  
+**Git:** `203f2d23` on `feat/pb-dx45-effectmaypaytheneffect-is-pay-when-able-cr-11812s-pl`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,8 +25,8 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,136 | -1 |
-| With TODO markers | 520 | +1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.1% | 1,137 | +1 |
+| With TODO markers | 519 | -1 |
 | Empty `abilities: vec![]` placeholders | 147 | · |
 | Total TODO lines across all defs | 918 | · |
 
@@ -34,10 +34,10 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 44 |
-| last 30 days | 57 | 1,772 |
-| last 90 days | 57 | 2,946 |
-| last 1 year | 1,830 | 3,369 |
+| last 7 days | 0 | 1 |
+| last 30 days | 0 | 134 |
+| last 90 days | 57 | 2,947 |
+| last 1 year | 1,830 | 3,370 |
 
 ## Bonus defs outside the plan
 
@@ -67,7 +67,7 @@ are blocked on engine primitives.
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 88 | 84 | 15 |
-| `draw` | 164 / 169 | 97% | 78 | 70 | 16 |
+| `draw` | 164 / 169 | 97% | 79 | 69 | 16 |
 | `token-create` | 148 / 155 | 95% | 87 | 46 | 15 |
 | `land-etb-tapped` | 138 / 138 | 100% | 115 | 23 | 0 |
 | `other` | 108 / 131 | 82% | 71 | 30 | 7 |
@@ -223,7 +223,7 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 
 ## ⚠ Completeness-marker drift
 
-18 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+17 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `birchlore_rangers` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -242,11 +242,23 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `the_reaver_cleaver` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `thrasios_triton_hero` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `vampire_gourmand` — marked partial but has no TODO / ENGINE-BLOCKED comment
 
 ## Recent card-touching commits
 
 ```
+6af13425 scutemob-217: PB-DX45 -- the CR 118.12 suspension, the wire bump, and the policy ruling
+40b1e610 scutemob-216: PB-DX15a /review fix cycle 2 -- probes for the three uncovered APNAP sites, and five failures my own fix cycle introduced
+4c2a0afd scutemob-216: PB-DX15a /review fix cycle -- the HIGH is a regression I introduced, and two of my own claims did not survive
+7c435919 scutemob-213: PB-DX43 S1-S4 -- CR 305.6/305.7 intrinsic land mana abilities
+2ca6a741 scutemob-211: PB-DX29 /review H2 — the renumbering orphaned 30 in-source cites and the note asserted the opposite
+753afb9c scutemob-211: PB-DX29 part B1 — the provider learns the seven remaining cast-side cost kinds
+de75b78d scutemob-211: PB-DX29 — marker/cost roster gate for all eight keyword-carried costs, three card-def repairs, OOS-M11-10 collision resolved
+9f3e41c0 scutemob-210: PB-DX28 AC4 — retire the allowlist entries, prove the scan still reddens
+1de151c7 scutemob-210: PB-DX28 — migrate the 18th member (Connive // Concoct), found by the batch's own gate
+1babe026 scutemob-210: PB-DX28 part 2 — the untargeted-choice channel (OOS-DX4-6)
+6aeb2008 scutemob-210: PB-DX28 part 1 — the owner axis (OOS-DX4-1) + EffectTarget::DamagedPlayer
+e5ee1994 scutemob-210: mechanical — owner: None at all 46 WheneverCreatureDies sites (45 files)
+a1bc271f scutemob-209: PB-DX27 fix cycle — reconcile the corpus a SECOND time after the demotion
 0720f0a0 scutemob-209: PB-DX27 fix cycle — the HIGH, and six doc/gate corrections
 2b485ccc scutemob-209: PB-DX27 rider OOS-ADJ-7 — Blood Moon strips land types, never card types
 f1b81bfe scutemob-209: PB-DX27 sweep repairs — 4 stale blocker notes verified and closed
@@ -259,19 +271,6 @@ f1b81bfe scutemob-209: PB-DX27 sweep repairs — 4 stale blocker notes verified 
 a275a949 scutemob-204: PB-DX25b fix cycle — take all 12 findings (1 HIGH / 5 MEDIUM / 6 LOW)
 cadb346b scutemob-202: PB-DX24 fix cycle — F12, drop stray blank line in nether_traitor.rs
 0ca69b6b scutemob-202: PB-DX24 stage 7 — nether_traitor comment records what the engine now reads
-789867db scutemob-201: PB-DX23 Stage 6 — the auto-discharge gets a row, and seeds
-f573ef21 scutemob-200: PB-DX21 fix cycle — take M1-M5, M7, L1-L5, L7-L8 (M6/L6 coordinator's)
-91e1f6b4 scutemob-200: PB-DX21 Stage 5 — comments and docs that PB-DX21 made wrong
-a878ca26 scutemob-189: SIM-6 — activation-cost payment channel (sacrifice + discard) end to end
-569087e6 scutemob-184: close OOS-DX19-1 for real, and gate it so the claim stays true
-697606a6 scutemob-184: apply the rest of the review — devilish_valet probe, docs, seeds
-79b94a58 scutemob-184: PB-DX19 — discriminating tests, each watched failing by revert
-a0d977e5 scutemob-184: PB-DX19 — close OOS-SIM2-6 and fold in OOS-SIM2-5
-a2fef7cd scutemob-178: UI-2 stage 1/2 — provider builds an AdditionalCostPlan; params defaults it; auto-tap pays Squad
-2c7272fd scutemob-181: CARDS-2 fourth fix cycle — the closed-vs-not-firing overclaim, and two uncovered repairs
-23b75885 scutemob-181: CARDS-2 third fix cycle — merge SIM-1, add R8, close the reviewer's list
-0abb41db scutemob-181: CARDS-2 second fix cycle — the batch's own worst moment, documented
-50f26048 scutemob-181: CARDS-2 fix cycle — the reviewer found the sharpest thing in the batch
 ```
 
 ## Missing card-defs sidecar

@@ -1255,12 +1255,32 @@ fn test_may_pay_sacrifice_captures_layer_resolved_power() {
     let lib_before = count_in_zone(&state, ZoneId::Library(p1));
 
     let mut ctx = EffectContext::new(p1, disciple_id, vec![]);
+    let sac_cost = Cost::Sacrifice(TargetFilter {
+        has_card_type: Some(mtg_engine::CardType::Creature),
+        exclude_self: true,
+        ..Default::default()
+    });
+    // PB-DX45: `Effect::MayPayThenEffect` now asks
+    // `EffectChoiceQuestion::PayOptionalCost { cost }` on the CR 608.2d
+    // suspend-and-replay channel rather than auto-paying. A bare
+    // `execute_effect` call (no `resolve_top_of_stack` wrapper) cannot answer
+    // that question -- it would just record it and apply nothing, exactly the
+    // "a bare `execute_effect` measures nothing" trap PB-DX15a hit on
+    // `SearchLibrary`. Bank a `pay: true` answer for the SAME `Cost` value
+    // first (`ask_or_consume_effect_choice` compares the banked question
+    // structurally against the one the engine recomputes, so a wrong `cost`
+    // would re-suspend rather than pass on a coincidence). `pay: true`
+    // reproduces the pre-PB-DX45 unconditional "pay when able" this test is
+    // pinning -- it is only ever consumed on the positive (payable) branch.
+    mtg_engine::state::test_util::bank_effect_choice_answer(
+        &mut state,
+        mtg_engine::EffectChoiceQuestion::PayOptionalCost {
+            cost: Box::new(sac_cost.clone()),
+        },
+        mtg_engine::EffectChoiceAnswer::PayOptionalCost { pay: true },
+    );
     let effect = Effect::MayPayThenEffect {
-        cost: Cost::Sacrifice(TargetFilter {
-            has_card_type: Some(mtg_engine::CardType::Creature),
-            exclude_self: true,
-            ..Default::default()
-        }),
+        cost: sac_cost,
         payer: PlayerTarget::Controller,
         then: Box::new(Effect::Sequence(vec![
             Effect::GainLife {
@@ -1623,12 +1643,12 @@ fn test_sacrificed_creature_lki_struct_hash() {
 #[test]
 fn test_pb_ef10_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 38,
+        PROTOCOL_VERSION, 39,
         "PROTOCOL_VERSION should be 15 after PB-EF10 (TargetFilter.max_cmc_amount / \
          AdditionalCost::Sacrifice reshape)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 77u8,
+        HASH_SCHEMA_VERSION, 78u8,
         "HASH_SCHEMA_VERSION should be 53 after PB-EF10"
     );
 }

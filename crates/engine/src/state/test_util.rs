@@ -103,3 +103,30 @@ pub fn move_object_to_bottom_of_zone(
 ) -> Result<(ObjectId, GameObject), GameStateError> {
     state.move_object_to_bottom_of_zone(object_id, to)
 }
+
+/// Escape hatch: bank an already-given answer to a CR 608.2d resolution-time
+/// choice on an ALREADY-BUILT state (PB-DX45).
+///
+/// `GameStateBuilder::effect_choice_answer` does the same job at construction
+/// time; this is its post-build sibling, for the many tests that build a state
+/// and then call `effects::execute_effect` directly.
+///
+/// **Why a direct-execute test needs this at all.** A bare `execute_effect` on
+/// an asking effect measures NOTHING: `ask_or_consume_effect_choice` records the
+/// question, returns `None`, and the arm applies nothing — the real answer comes
+/// from `resolve_top_of_stack`'s abort-and-replay wrapper, which a direct call
+/// does not go through. PB-DX15a hit exactly this on `Effect::SearchLibrary` and
+/// recorded it ("one probe passed VACUOUSLY before it passed honestly"). Banking
+/// the answer first reproduces what the replay does, and does so **strictly**:
+/// `ask_or_consume_effect_choice` compares the banked `question` structurally
+/// against the one the replay recomputes, so a test that banks the wrong shape
+/// re-suspends and fails loudly rather than passing on a coincidence.
+pub fn bank_effect_choice_answer(
+    state: &mut GameState,
+    question: crate::state::EffectChoiceQuestion,
+    answer: crate::state::EffectChoiceAnswer,
+) {
+    state
+        .effect_choice_answers
+        .push_back(crate::state::stubs::AnsweredEffectChoice { question, answer });
+}

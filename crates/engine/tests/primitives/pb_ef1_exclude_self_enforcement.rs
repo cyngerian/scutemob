@@ -81,6 +81,18 @@ fn hand_size(state: &GameState, player: PlayerId) -> usize {
         .count()
 }
 
+/// PB-DX45: `Effect::MayPayThenEffect` (the "EF1 OptCost Source" activated
+/// ability, `Cost::Sacrifice(exclude_self)`) now asks
+/// `EffectChoiceQuestion::PayOptionalCost` on the CR 608.2d suspend-and-replay
+/// channel instead of auto-paying. `process_command` does not error on the
+/// suspension itself (it returns `Ok` with a `GameEvent::EffectChoiceRequired`),
+/// so a plain `PassPriority` loop with no answering step silently leaves the
+/// resolution rolled back -- the fodder never gets sacrificed and the "if you
+/// do" `GainLife` never fires, which surfaced here as an assertion failure
+/// rather than an `Err`. Drain the question through
+/// `auto_answer_blocking_decisions`; its default answer for `PayOptionalCost`
+/// is `pay: true`, byte-identical to the pre-PB-DX45 unconditional pay this
+/// test is pinning.
 fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
     let mut events = Vec::new();
     let mut current = state;
@@ -90,6 +102,9 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
         current = s;
         events.extend(ev);
     }
+    let (current, pump_events) =
+        mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(current);
+    events.extend(pump_events);
     (current, events)
 }
 
@@ -162,7 +177,7 @@ fn enrich(
 #[test]
 fn test_ef1_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 77u8,
+        HASH_SCHEMA_VERSION, 78u8,
         "PB-EF1 added ActivationCost.sacrifice_exclude_self (HASH 43->44). Update this \
          sentinel and the state/hash.rs history block together; the authoritative check \
          is the SR-17 machine gate in tests/core/hash_schema.rs."

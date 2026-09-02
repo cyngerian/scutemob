@@ -427,6 +427,25 @@ const ALLOWLIST: &[(&str, &str)] = &[
         "\"Effect::WheelHand fixes the previous approximation\" — describes a \
          now-corrected approximation; the current implementation is faithful.",
     ),
+    // ── PB-DX45 (`scutemob-217`, 2026-09-02), OOS-DX24-9 = OOS-DX27-5 ──
+    (
+        "vampire_gourmand",
+        "\"PROMOTED partial -> Complete\" / \"leaves ruthless_technomancer at partial\" \
+         -- the needle is `partial`, and every occurrence of it in this def is HISTORICAL: \
+         the note records the CR 118.12 pay-when-able gap that PB-DX45 DELETED (both of \
+         the engine's try_pay_optional_cost call sites now ask), and the marker of a \
+         DIFFERENT def that keeps its own, unrelated blocker. The `hazorets_monument` / \
+         PB-DX27 shape -- a superseded gap claim, not a live one. \
+         **The widening of this list's stated contract is stated rather than glossed**: \
+         entries above justify themselves as \"faithful modeling, not a deviation\", and \
+         this def's note ALSO records one live residual -- WHICH permanent a \
+         Cost::Sacrifice eats is still the engine's lowest-ObjectId pick. That residual \
+         matches no needle (it is why the offender list names only `partial`), it is \
+         filed as OOS-DX45-1, and it is ruled non-blocking in memory/decisions.md on the \
+         same rule that keeps the whole Effect::SacrificePermanents family Complete. \
+         REVIEWED, not merely acknowledged -- which is what puts it here rather than in \
+         RECORDED_BASELINE.",
+    ),
     // ── PB-DX27 (`scutemob-209`, 2026-08-13), OOS-CARDS2-8 / OOS-RR3-2 ──
     //
     // Five defs whose prose describes a blocker claim that PB-DX27 REFUTED and

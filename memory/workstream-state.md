@@ -15,7 +15,139 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**PB-DX15a shipped `scutemob-216` 2026-08-23; v4 ranks 1-3 all shipped; next dispatch PB-DX45, v4 rank 4**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX45 shipped `scutemob-217` 2026-09-02; v4 ranks 1-4 all shipped; next dispatch PB-DX47, v4 rank 5**)
+
+## Worker Handoff (PB-DX45, `scutemob-217`) — CR 118.12's optional cost is the player's
+
+**Shipped**: v4 queue **rank 4**. **`OOS-DX24-9` and `OOS-DX27-5` CLOSED as ONE defect**, each
+registry row cross-citing the other and each carrying corrections to its own claims. Filed
+**`OOS-DX45-1..8`**.
+
+Tests **4,861 / 0 / 5** (+26 over the **4,835** pre-edit baseline measured on this branch before
+any edit, which reproduced PB-DX15a's close pin exactly), `--workspace --no-fail-fast` to a file,
+**55** result-producing targets (54 → 55: one new simulator test binary). **Delta itemised by test
+NAME by set-diffing the two run logs: 26 additions, 0 renames, 0 leavers, 0 removals** — 12 in the
+new `crates/engine/tests/primitives/pb_dx45_optional_cost.rs`, 6 in the new
+`crates/engine/tests/core/pb_dx45_may_pay_roster.rs`, 3 in the new
+`crates/simulator/tests/pb_dx45_optional_cost_channel.rs`, and 5 in
+`tools/play-server/src/main.rs`'s `#[cfg(test)]` module. **PROTOCOL 38 → 39 / HASH 77 → 78**, one
+bump each, both predicted in writing before any code and both taken from the failing gates' own
+output. Coverage **1,136 → 1,137 / 1,803 = 63.0% → 63.1%**, the single flip predicted and NAMED
+before regeneration. `clippy --workspace --all-targets -D warnings`, `cargo fmt --check` and
+`tools/check-defs-fmt.sh` (1,803 defs) all clean **against the final tree**.
+
+**Next dispatch: PB-DX47** (v4 rank 5). Ranks 1-4 are all shipped.
+
+### The headline: the site list was short by one, and the compiler could not say so
+
+`effects/mod.rs` has **two** callers of `try_pay_optional_cost`, and every document in this
+batch's chain — both registry rows, the v4 memo's rank-4 row, the dispatch brief — names only
+`Effect::MayPayThenEffect`. The other is `Effect::LookAtTopThenPlace`'s `place_cost`
+(`effects/mod.rs:6365`): the identical CR 118.12 decision one function over, live on a deck-legal
+`Complete` def (`birthing_ritual`), whose auto-paid sacrifice also parameterises the mana-value cap
+on what it may then cheat onto the battlefield. Both now ask. The scope line is stated so a reader
+can check it rather than infer it: **PB-DX45 repairs every caller of `try_pay_optional_cost`, not
+every printed "you may pay"** — which is what puts the second site IN and three never-charged
+`Complete` defs (`OOS-DX45-3`) OUT.
+
+### The three figures that did not reproduce
+
+1. **The v4 memo's 11 deck-legal `Complete` defs is 10** (`OOS-DX45-2`). Re-derived at HEAD by two
+   independent routes; no member's marker had moved since **before** the memo's census closed. The
+   memo offered "two independent measurements both returned 11" as the PROOF that the two rows are
+   one defect. They are one defect; the evidence was two agreeing wrong numbers. Six batches have
+   taught this queue that a member list is a FLOOR — **this is the first recorded OVER-count**, and
+   the durable correction is that a census figure is an estimate in both directions.
+2. **`OOS-DX27-5` says two defs were left `partial` "on the same shape". Only one was.**
+   `ruthless_technomancer`'s marker names its **activated** ability's missing variable-X sacrifice
+   cost, a different and still-live gap. So the policy re-adjudication is ONE flip, not two — and a
+   batch that took the row at its word would have promoted a def whose real blocker is live.
+3. **`pb_dx32_fuzz_output.rs`'s `MOVED_MSG` predicts five named sibling gates "will redden
+   alongside this one" on a `CORPUS_COMPLETE` move. None did.** Exactly one seeded pin in the whole
+   workspace moved (`UI3_SPLIT_COMBAT_SEED`, 32 → 13, re-observed by an executed sweep). PB-DX26's
+   lesson runs both ways: an unstable count is not necessarily an unstable deal.
+
+### The defect this batch shipped, and the obligation it added
+
+`play-server`'s `api::validate_decision_params` matched `(question, answer)` with a trailing
+`_ => Err("… the answer given is a different kind")`. That wildcard was written to mean *wrong
+question* and silently also served as the fallback for *unknown question* — so **every legal
+`PayOptionalCost` answer 400'd and the browser was offered a `Confirm` picker whose Confirm AND
+Decline buttons both failed.** A clean offer followed by a guaranteed refusal is the SR-38 shape
+PB-DX29 gated Fuse to avoid and PB-DX44 recreated while fixing it; **this is the third instance**.
+
+Eight consumers had to learn the new variant. **Seven were compile errors. The eighth was the one
+that broke.** Fixed structurally — the match now dispatches on `question` alone, exhaustive with no
+wildcard — and `rules/engine.rs`'s `BlockingDecision` obligation list gains **obligation (8)**:
+*a wildcard arm that encodes a JUDGEMENT cannot also be the fallback for the UNKNOWN, and seven
+compile-forced sites are not evidence that the eighth is safe — they are the reason nobody looks
+for it.*
+
+### Also worth knowing before the next batch
+
+* **The decline is asserted by RESOLUTION EFFECT everywhere**, never by the offer — the Traitor's
+  zone and the floating mana — because before this batch declining was not a reachable state, so an
+  offer-shaped assertion would pass on an engine that asked and threw the answer away.
+* **`default_effect_choice_answer` returns `pay: true` deliberately.** It is the exact recovery of
+  the pre-batch auto-pay, which is what keeps every bot game, the fuzzer and every pre-existing
+  golden script behaviourally identical while only the command trace grows. "Decline by default"
+  would look safer and would be a behavioural change to every bot game in the tree.
+* **`clippy::large_enum_variant` fired on this batch's own enum** (`PayOptionalCost { cost: Cost }`;
+  `Cost::Sacrifice(TargetFilter)` makes `Cost` ~296 bytes). `Cost` is `Box`ed — `Box<T>` serializes
+  and hashes transparently as `T`, so the WIRE shape is unchanged, but the **declaration text is
+  not**, and both fingerprints had to be re-taken. The version numbers never moved twice.
+* **A "re-pin by symbol" is only as wide as the spelling the regex matched.** The first pass caught
+  44 files and left two behind that spell the assertion across a line break.
+* **`OOS-DX45-8`**: the corpus re-deal exposed an SR-38 provider/engine disagreement at fuzz seed
+  46 that a previous 0..80 sweep drove clean. Not diagnosed; the sweep was bounded below it and the
+  chosen seed (13) does not depend on it.
+
+### ↻ The `/review` cycle (7 findings, all seven taken) — and it found a SECOND silent gate
+
+Figures unchanged by the fix cycle: **4,861 / 0 / 5**, 55 targets, the same 26-name delta, and
+zero tests added or removed by the cycle itself.
+
+**The finding that would have cost a future batch.** `test_dp9_mana_ability_gate` asserts that no
+`Complete` def puts an asking channel inside a mana ability — CR 605.4a leaves no room to announce
+there, so `ask_or_consume_effect_choice`'s `effect_choice_gate_closed` branch silently applies the
+default. Its needle list was never taught the sixth channel, and the comment describing it still
+said FIVE — **the same sentence PB-DX28's own `/review` caught one variant short and filed as
+`OOS-DX28-6`, one channel short again.** The reviewer proved it by planting a `MayPayThenEffect`
+inside a `WhenTappedForMana` trigger and watching the gate stay GREEN, then swapping it for an
+`Effect::Scry` and watching it go RED. Two needles added (`MayPayThenEffect`; and
+`LookAtTopThenPlace` **over-wide on purpose**, because the second site is a FIELD and no variant
+name distinguishes a def that sets `place_cost` from one that leaves it `None` — stated rather
+than accepted silently), both revert-proven RED as V15/V16.
+
+**Three MEDIUMs, all in the batch's record rather than its code, and all instructive:**
+1. **The execution notes' "measured" table published two fingerprints that exist nowhere at HEAD.**
+   They moved a SECOND time when `Cost` was `Box`ed for `clippy::large_enum_variant` and the table
+   was never re-taken. This is PB-DX28's MEDIUM verbatim, inside a batch whose headline is *three
+   published figures that did not reproduce*. Durable form: **a transcribed figure needs a re-take
+   every time its source is recomputed; "I took it from the gate" says WHEN, not whether.** The
+   version numbers never moved twice, which is what AC 7244 actually claims.
+2. **R2's failure message inverted its own consequence.** `can_pay_optional_cost`'s tail returns
+   **`false`**, not `true`, so an undecidable cost is never asked about and the whole `then` arm
+   **silently never runs** — a defect, not the harmless over-ask the message described. Proved by
+   executing `MayPayThenEffect { cost: Cost::Tap }`. The same fact makes `format_optional_cost`'s
+   residual arm provably dead, a stronger bound than the corpus gate it originally cited.
+3. **Six "pay when able" claims left standing in production source** — including
+   `try_pay_optional_cost`'s OWN doc, the `MayPayThenEffect` DSL variant doc a card author reads,
+   `birthing_ritual`, `effect_choose_gate`, and PB-DX24's deviation pin. PB-DX27's *a blocker note
+   is a claim* left un-applied to this batch's own subject matter, in a batch that invokes that
+   lesson to repair `teneb_the_harvester`'s false comment.
+
+**Three LOWs**: the policy ruling's first draft published a rule and then created three violations
+of it (narrowed to what it actually adjudicates — it discovers those three markers as wrong, it
+does not create them, and `OOS-DX45-3` now says marker and card must be fixed in ONE commit so the
+re-deal is paid once); the HTTP pair drives `birthing_ritual`'s `Cost::Sacrifice` at the SECOND
+site rather than `nether_traitor`'s `{B}` and the substitution was undisclosed (now disclosed at
+the test, in the notes and in CLAUDE.md, with the untested combination bounded to
+site 1 × HTTP transport); and a `cargo fmt`-mangled `debug_assert!` format string.
+
+Full record, including the census, the wire table, the seven-plus-one obligations, a 16-row
+revert matrix (**16 RED, 0 UNDISCRIMINATED**) and the two `/review` disclosures:
+`memory/primitives/pb-DX45-execution-notes.md`. Policy ruling: `memory/decisions.md`.
 
 ## Worker Handoff (PB-DX15a, `scutemob-216`) — the two live CR sweeps
 

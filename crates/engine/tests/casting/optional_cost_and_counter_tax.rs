@@ -9,10 +9,15 @@
 //! unless its controller pays [cost]." Equivalent to "controller may pay [cost]; if
 //! they don't, counter." Delegates to `Effect::CounterSpell`.
 //!
-//! Both primitives resolve the optional cost non-interactively and deterministically:
-//! the payer pays when able (CR 118.8/119.4), otherwise the cost is not paid. This is
-//! a legal, replayable game choice (architecture invariant #9) pending M10+ interactive
-//! pay-vs-decline.
+//! **`MayPayThenEffect` ASKS its payer, since PB-DX45** (`scutemob-217`): resolution
+//! suspends into an `EffectChoiceQuestion::PayOptionalCost` on the CR 608.2d
+//! suspend-and-replay channel and `then` runs only on `pay: true`. Every probe below
+//! banks that answer through `test_util::bank_effect_choice_answer` before executing,
+//! which is why each still measures the payment path it was written for — a bare
+//! `execute_effect` on an asking effect measures nothing. `CounterUnlessPays` is
+//! unchanged and still always counters (CR 118.12a; `OOS-*` territory, not this
+//! batch's). This module doc said "both primitives resolve the optional cost
+//! non-interactively and deterministically … architecture invariant #9" until PB-DX45.
 //!
 //! Card integration tests (crossway_troublemakers, hazorets_monument, springbloom_druid,
 //! nadir_kraken, mana_leak, etc.) are deferred to the PB-AC2 backfill phase, since the
@@ -23,9 +28,10 @@ use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::{
     AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry, CardType, Command,
-    Cost, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, ManaColor, ManaCost,
-    ObjectId, ObjectSpec, PlayerId, PlayerTarget, SpellTarget, StackObject, StackObjectKind, Step,
-    Target, TargetFilter, TargetRequirement, TypeLine, ZoneId, HASH_SCHEMA_VERSION,
+    Cost, Effect, EffectAmount, EffectChoiceAnswer, EffectChoiceQuestion, GameEvent, GameState,
+    GameStateBuilder, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget,
+    SpellTarget, StackObject, StackObjectKind, Step, Target, TargetFilter, TargetRequirement,
+    TypeLine, ZoneId, HASH_SCHEMA_VERSION,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -45,12 +51,37 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 /// Execute `Effect::MayPayThenEffect { cost, payer: Controller, then }` directly
 /// against `state` for `controller`. Returns (state, events).
+///
+/// PB-DX45: the arm no longer auto-pays. It asks
+/// `EffectChoiceQuestion::PayOptionalCost { cost }` on PB-DP9's CR 608.2d
+/// suspend-and-replay channel, and a bare `execute_effect` call (no
+/// `resolve_top_of_stack` wrapper) cannot answer it -- it just records the
+/// question and returns having applied nothing, which is exactly the "a bare
+/// `execute_effect` measures nothing" trap PB-DX15a hit on `SearchLibrary`. So
+/// bank a `PayOptionalCost { pay: true }` answer for the SAME `Cost` value
+/// BEFORE executing, via `state::test_util::bank_effect_choice_answer`
+/// (`ask_or_consume_effect_choice` compares the banked question structurally
+/// against the one the engine recomputes, so a wrong `cost` re-suspends
+/// instead of passing on a coincidence). This reproduces the pre-PB-DX45
+/// "pay when able" behaviour honestly, through the real answer channel,
+/// rather than the old unconditional auto-pay -- every assertion below is
+/// unchanged from before PB-DX45. Negative-direction tests (insufficient life,
+/// empty hand, no eligible sacrifice target, unfloated mana) are unaffected:
+/// the engine only asks when `can_pay_optional_cost` is already true, so on
+/// those paths the banked answer is simply never consumed.
 fn run_may_pay_then(
     mut state: GameState,
     controller: PlayerId,
     cost: Cost,
     then: Effect,
 ) -> (GameState, Vec<GameEvent>) {
+    test_util::bank_effect_choice_answer(
+        &mut state,
+        EffectChoiceQuestion::PayOptionalCost {
+            cost: Box::new(cost.clone()),
+        },
+        EffectChoiceAnswer::PayOptionalCost { pay: true },
+    );
     let effect = Effect::MayPayThenEffect {
         cost,
         payer: PlayerTarget::Controller,
@@ -1138,7 +1169,7 @@ fn test_counter_unless_pays_noncreature_filter() {
 /// `MayPayThenEffect` discriminant 88 and `CounterUnlessPays` discriminant 89).
 /// If you bumped again, update this test and the `state/hash.rs` history block.
 fn test_hash_schema_version_is_29() {
-    assert_eq!(HASH_SCHEMA_VERSION, 77u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 78u8);
 }
 
 #[test]

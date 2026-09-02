@@ -251,3 +251,66 @@ triage/plan section, state only the constraints and criteria not already recorde
 **Evaluation gate**: the next `/start` after a lean collect must reconstruct the batch from the
 bullet plus one pointer-follow. If orientation stumbles, write the missing detail back into that
 one bullet and resume the long form — rollback is one commit.
+
+---
+
+## 2026-09-02 — A `Complete` marker and CR 118.12's optional cost (PB-DX45, `scutemob-217`)
+
+**Decision.** After PB-DX45, an `Effect::MayPayThenEffect` (or an `Effect::LookAtTopThenPlace`
+`place_cost`) **does not bar a def from `Complete`**. The engine no longer takes CR 118.12's
+choice: both of the engine's `try_pay_optional_cost` call sites ask the payer an
+`EffectChoiceQuestion::PayOptionalCost` on PB-DP9's CR 608.2d suspend-and-replay channel, and a
+DECLINE is producible from every client — the browser, the TUI, a bot, and a golden script.
+
+**Why the ruling was needed.** `OOS-DX27-5` recorded that the corpus did not treat this
+consistently: `disciple_of_freyalise` shipped `Complete` on the same `MayPayThenEffect` +
+`Cost::Sacrifice` shape that left two other defs at `partial`. The row said *"One of the two
+readings is wrong and nothing decides which"*. Both readings are now moot — the deviation is gone
+— so the markers are re-adjudicated on one rule rather than left to be compared.
+
+**The three defs, re-adjudicated:**
+
+| def | before | after | why |
+|---|---|---|---|
+| `disciple_of_freyalise` | `Complete` | **`Complete`** (unchanged) | its printed clause is now fully expressed; it was `Complete` on a premise that has since become true |
+| `vampire_gourmand` | `partial` | **`Complete`** (flip) | its marker named exactly one blocker — pay-when-able — and that blocker is gone |
+| `ruthless_technomancer` | `partial` | **`partial`** (unchanged) | **`OOS-DX27-5`'s framing is wrong here.** The row says PB-DX27 *"left `ruthless_technomancer` and `vampire_gourmand` at `partial` on the same shape"*. Read at HEAD, this def's marker names its **activated** ability — *"no `Cost` variant for a player-chosen variable-X sacrifice count, and `TargetFilter.max_power` is a static `i32` with no `max_power_amount` sibling"* — a different, still-live gap that PB-DX45 does not touch |
+
+`ezuri_stalker_of_spheres` and `mana_vault`, the other two non-`Complete` `MayPayThenEffect`
+carriers, are likewise blocked on unrelated gaps and are unchanged. **One flip, not two**, and it
+was predicted and named before regeneration (`memory/primitives/pb-DX45-execution-notes.md` §1.5).
+
+**The residual the ruling explicitly does NOT treat as a blocker.** WHICH permanent a
+`Cost::Sacrifice` optional cost eats is still the engine's lowest-`ObjectId` pick
+(`OOS-DX45-1`). That is held not to bar `Complete`, and the reason is consistency rather than
+convenience: the identical auto-pick governs `Effect::SacrificePermanents`, whose ten-def
+Fleshbag / Grave Pact family has shipped `Complete` for the life of the corpus (re-measured by
+PB-DX15a, which found that family *"makes no per-player choice at all"*). Ruling one class of
+which-permanent auto-pick fatal while the other ships would recreate exactly the inconsistency
+`OOS-DX27-5` was filed about. If that pick is ever ruled a blocker, it must be ruled so for both
+sites in one commit.
+
+**What the rule is, stated so the next author can apply it without re-reading this.** A printed
+"you may pay X. If you do, Y" bars `Complete` iff the engine **cannot express the decline**. It
+can, now, wherever the clause is authored as `MayPayThenEffect` or a `place_cost`.
+
+**The scope of this rule, narrowed after the batch's own `/review` observed that the first draft
+contradicted itself.** That draft went on to say the rule "still cannot [express the decline] where
+the clause is authored as something else", named `teneb_the_harvester`, `crypt_ghast` and
+`syndic_of_tithes` as three deck-legal `Complete` defs whose markers are therefore "wrong today",
+and then shipped them `Complete` — a ruling creating three violations of itself, one class over
+from the two it resolved.
+
+The accurate framing, and the one that holds: **this rule adjudicates ONE deviation** — whether an
+optional cost that the engine models and auto-takes bars `Complete`. It does not, any more,
+because the decline is expressible. It says **nothing** about a def whose printed cost is not
+modelled at all. Those three are wrong for the ordinary reason every unauthored clause is wrong
+(printed text the def does not implement), they were **equally wrong before PB-DX45**, and this
+ruling neither creates nor excuses them: it discovers them. `OOS-DX45-3` carries them, names the
+one-primitive fix, and — this is the part that matters for whoever takes it — **their markers must
+be corrected in the same commit as their fix**, so the corpus re-deal (`OOS-CARDS2-3`) is paid
+once rather than twice. Demoting them here, with no repair, would have cost a second re-deal at
+the end of a batch and removed three cards from every deck to no one's benefit.
+
+Batch scope line, for completeness: PB-DX45 repairs every caller of
+`effects::try_pay_optional_cost`, not every printed "you may pay".

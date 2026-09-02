@@ -87,9 +87,17 @@ pub struct ActionParams {
     pub discard_cards: Vec<ObjectId>,
     /// CR 608.2d (UI-1; ENG-1 widens this to a fourth kind): this player's answer
     /// to a [`LegalAction::AnswerEffectChoice`] — a library search, a scry, a
-    /// surveil, or (ENG-1, CR 701.9b) an effect-driven discard. `None` means
-    /// "accept the engine's own default", in which case the action's `answer`
-    /// field is submitted verbatim.
+    /// surveil, (ENG-1, CR 701.9b) an effect-driven discard, (PB-DX28,
+    /// CR 115.10) an untargeted object choice, or (PB-DX45, CR 118.12) an
+    /// optional cost. `None` means "accept the engine's own default", in which
+    /// case the action's `answer` field is submitted verbatim.
+    ///
+    /// **This list was two variants stale before PB-DX45 corrected it**, which is
+    /// worth a sentence rather than a silent edit: PB-DX28 added `ChooseObject`
+    /// and did not update it. A doc that enumerates a closed set and then falls
+    /// behind it is `OOS-DX28-6`'s class — a claim wearing a gate's authority —
+    /// and nothing machine-checks this one, so it will fall behind again unless
+    /// the next variant's author reads this note.
     ///
     /// An `Option` rather than the "empty means default" convention above because
     /// the answer is an enum, not a collection, and several of its variants have a
