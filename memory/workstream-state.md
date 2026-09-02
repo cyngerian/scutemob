@@ -15,7 +15,88 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**PB-DX47 shipped `scutemob-218` 2026-09-02; v4 ranks 1-5 all shipped; next dispatch PB-DX48, v4 rank 6**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX48 shipped `scutemob-219` 2026-09-02; v4 ranks 1-6 all shipped; next dispatch PB-DX49, v4 rank 7**)
+
+## Worker Handoff (PB-DX48, `scutemob-219`) — emitting the event is not dispatching it
+
+**Shipped**: v4 queue **rank 6**. **`OOS-ENG2-1` ≡ `OOS-ENG2-2` FILED and CLOSED** (cross-cited —
+`-2` is `-1`'s site census, not a second finding), **`OOS-ENG2-3` FILED and NARROWED**. None of the
+three had a registry row: they were filed into ENG-2's handoff prose, which is the 61-of-208 blind
+spot the v4 re-rank measured. Dispatch hygiene 5 held — grep first, then file, then close.
+
+**The census is EXACT, and that is the rare part.** Re-verified at HEAD by the inverse method (all
+`push_target_announcement` sites minus the `PermanentTargeted` emitters, never by trusting either
+list): **12 = 3 emitters + 5 missing + 4 structurally target-free**. After three consecutive
+batches in which the filed site list was a floor, this one reproduces without correction.
+
+**The two things neither seed says, and they are the whole batch.**
+
+1. **Emitting the event is necessary and NOT sufficient.** `check_and_flush_triggers` scanned a
+   command's events and only THEN called `flush_pending_triggers`, so the events a flush itself
+   produced were fed back to nothing. A batch that took the rows at their word ships a diff that
+   looks like a fix and has a behavioural delta of **zero** at the headline site.
+2. **The design was wrong TWICE, and neither correction came from argument.** A hook inside
+   `flush_sorted` fired Ward **twice** (observed: two `AbilityTriggered`, two ward stack objects) —
+   `Command::ChooseTriggerTargets` re-scans the very events it dispatched. Moving the fixpoint into
+   `check_and_flush_triggers` was green on the full suite AND on an end-to-end probe and was still
+   short: **`Command::PassPriority` never calls it**, so a targeted ETB trigger placed during a
+   spell's *resolution* — the ordinary case — still dispatched nothing. Measured both ways:
+   emission **1**, ward on stack **0**. A third path (`handle_concede` → `drop_departed_trigger_flush`,
+   CR 800.4d) was found by enumerating callers a third time.
+
+**Shipped shape**: `rules::events::permanent_targeted_events` derives the CR 702.21a payload ONCE
+and `push_target_announcement` emits both halves, so all 12 sites dispatch and the three hand-rolled
+loops are gone; `abilities::dispatch_becomes_target_waves` is a bounded fixpoint with an
+**exactly-once scan cursor**, called from `flush_pending_triggers` and from `handle_concede`, and
+deliberately NOT from `resume_trigger_flush` (whose events are already swept — calling it there is
+wrong design 1 again). The asymmetry that leaves is `OOS-DX48-3`, and R-B **demonstrates** it:
+`c3` is the only channel probe that stays green under a single-wave revert, because its trigger
+suspends and is placed by `resume_trigger_flush`.
+
+**Five corrections to this batch's OWN census, all from walking `all_cards()` instead of a grep** —
+SR-36's rule, broken by my own brief, one batch after PB-DX47 filed `OOS-DX47-2` for the identical
+thing. Ward-declaring population is **4**, not 5 (`vein_ripper` names the variant only in a
+`// TODO`). `WhenBecomesTarget` has **1** structural declaration, not 6 (five are comment mentions).
+And two LIVE finds where the brief said latent: **`KeywordAbility::Cloak` does not exist** (Cloak is
+`Effect::Cloak`), so `cryptic_coat` — `Complete`, deck-legal — puts a face-down permanent on the
+battlefield with ward {2} and no Ward trigger (**`OOS-DX48-4`, LIVE**); and an INVERSE oracle axis
+found **`brutal_cathar`**, `Complete` and deck-legal, whose back face prints *"Ward—Pay 3 life"*
+with no Ward mechanism (**`OOS-DX48-7`**). The three deck-legal `Complete` Ward defs the rank rested
+on reproduce exactly.
+
+**Both delegated revert matrices were RE-EXECUTED rather than accepted, and one was wrong.** The
+channel suite reported "3/3 RED" truthfully while every probe panicked on the **journal**
+assertion its own comment calls *"corroboration, not the verdict"* — `damage_marked == 0` stayed
+TRUE under the revert, because the drive ran past CR 514.2's Cleanup, which erases the evidence
+either way. Repaired to stop the instant the trigger chain settles; re-executed, all three now fail
+on the damage assertion and `c2` reports `left: 1, right: 0`. **"All rows RED" is a true sentence
+the wrong assertion can produce; the check that costs one command is reading the PANIC LINE.**
+
+**AC 7252's "ward cost paid" branch is UNREACHABLE at HEAD and is reported, not narrowed.**
+`Effect::MayPayOrElse` discards its `cost` and `payer` and always applies `or_else`, so Ward can
+only ever counter. Blocker read off the source: `EffectChoiceQuestion::PayOptionalCost`'s payload
+cannot distinguish a `MayPayOrElse` ask from a `MayPayThenEffect` one and its default is a hard
+`pay: true` under a comment already calling the alternative "a different batch". **Zero deck-legal
+`Complete` card defs use the variant** — Ward is its only live consumer — so the fix is bounded but
+needs a wire bump. Filed `OOS-DX48-2`.
+
+Tests **4,899 / 0 / 5** (+26 over the 4,873 pre-edit baseline, **57** targets), delta by NAME:
+**26 additions, 0 removals, 0 leavers, 0 renames** — with the disclosure that the ENG-2 deviation
+pin was inverted **IN PLACE**, so "0 leavers" must not be read as "nothing was touched".
+**PROTOCOL 39 / HASH 78 both gate-executed and UNMOVED**, predicted in writing before any code.
+Coverage **1,137/1,803 = 63.1%**, **0 flips**, churn reverted, **0 card-def edits**;
+`crates/card-defs`, `crates/card-types`, `crates/view-model`, `crates/simulator/src` and `tools/`
+are all **zero**, so `npm run build` is N/A. **The fuzz half of the movement budget DID come due**:
+HARD **185** unmoved with both sub-checks and both game lists identical, but TRANSIENT
+`no_orphaned_tokens` **273 → 275** and **+20 rejections, all twenty inside one game of twenty**.
+One divergence; everything else downstream of it.
+
+**Next dispatch: PB-DX49** (v4 rank 7 — every Saga site reads the printed def, `OOS-RR4-1` +
+`OOS-RR4-3`). Ranks 1-6 are all shipped.
+
+Full record: `memory/primitives/pb-DX48-execution-notes.md`.
+
+---
 
 ## Worker Handoff (PB-DX47, `scutemob-218`) — one dispatcher per trigger
 
