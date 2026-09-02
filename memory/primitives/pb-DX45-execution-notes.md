@@ -140,3 +140,53 @@ cites this deviation.
 **One marker flip re-deals every seeded fixture** (`OOS-CARDS2-3`): `CORPUS_COMPLETE` moves, so
 `UI3_SPLIT_COMBAT_SEED` and every seeded pin must be re-observed. PB-DX27 needed **two**
 reconciliation passes for a single flip; two are budgeted.
+
+---
+
+## §1.6 — Corrections to §1, appended rather than rewritten
+
+§0 is immutable by this document's own rule; §1 is not, and two of its claims are corrected here
+rather than edited in place, because a batch whose subject matter is *a published figure that did
+not reproduce* should not quietly revise its own.
+
+1. **§1.4 said `teneb_the_harvester` is TAKEN. It is FILED.** The verdict was written before the
+   def's shape was read closely enough. Teneb is not an auto-PAY defect at all — its trigger
+   carries a bare `Effect::MoveZone` and the `{2}{B}` is **never charged**, which is a different
+   (and worse) failure from the one `OOS-DX24-9` describes. It does not reach
+   `try_pay_optional_cost` and therefore falls outside this batch's stated scope line. The same
+   re-reading then found **two more** members of that never-charged class — `crypt_ghast` and
+   `syndic_of_tithes`, whose Extort keyword `state/builder.rs` synthesises as a bare
+   `Effect::DrainLife` with no cost anywhere — so the population is **3 deck-legal `Complete`
+   defs**, not 1. All three are filed as `OOS-DX45-3` with the one-primitive fix named.
+
+2. **The scope line, stated so it can be checked rather than inferred.** PB-DX45 repairs **every
+   caller of `effects::try_pay_optional_cost`** — both of them — because that function is what the
+   `may_pay_then_effect` registry row names as its site. It does **not** repair printed "you may
+   pay" text that never reaches that helper. That line is what puts `LookAtTopThenPlace`'s
+   `place_cost` **in** scope (same helper, same rule, undocumented anywhere in the chain) and the
+   three never-charged defs **out** of it.
+
+---
+
+## §2 — Wire, measured (AC 7244)
+
+| axis | predicted (§0.1) | measured | source |
+|---|---|---|---|
+| PROTOCOL | 38 → 39 | **38 → 39** | `protocol_schema_fingerprint_is_pinned`'s own failure output |
+| PROTOCOL closure type count | 98 → 98 | **98 → 98** | the same failure message ("(98 types)") |
+| PROTOCOL fingerprint | not predicted | `0037ae3c…bce56a` | transcribed from the failing gate, never invented |
+| HASH | 77 → 78 | **77 → 78** | `declaration_fingerprint_is_pinned` / `stream_fingerprint_is_pinned` |
+| HASH closure type count | 131 → 131 | **131 → 131** | `declaration_fingerprint_is_pinned`'s own message ("(131 types)") |
+| HASH decl fingerprint | not predicted | `15c2ec02…7dbd12` | from the gate |
+| HASH stream fingerprint | not predicted | `08220ca0…19c80` | from the gate — moves for the v40 reason alone (`HASH_SCHEMA_VERSION` is the stream's first byte); `canonical_fixture()` records no pending choice and banks no answer |
+| frozen prefixes | RED until re-pinned | re-pinned in **both** gate files from their own output | |
+| sentinels | re-pinned by symbol | **44 files** by a symbol-anchored regex, then **2 more** by a second pass — `pb_dx2_command_gates.rs` and `pb_dx5_pending_draw_choice.rs` spell the assertion across TWO LINES, which the first single-line regex could not see | |
+
+**The stop condition never fired.** Both gates moved in exactly the way §0.1 explains and neither
+stayed still. Final: `protocol_schema` **17/17**, `hash_schema` **36/36**, with
+`history_is_append_only` and `frozen_prefix_is_pinned` green on both sides.
+
+**One sentinel lesson worth keeping**: a re-pin "by symbol" is only as wide as the spelling the
+regex matched. The first pass caught 44 files and left two green-looking failures behind, both of
+which spell `assert_eq!(mtg_engine::HASH_SCHEMA_VERSION,\n 77u8, ...)` across a line break. The
+second pass is newline-tolerant. Nothing was hand-copied.

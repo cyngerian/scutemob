@@ -762,7 +762,18 @@ const CORPUS_DEFS: usize = 1803;
 // than reasoned from "none of the six is a Legendary Creature" -- which happens to be true,
 // but PB-DX26's lesson is that a stable count is not a stable deal, so the pins below were
 // re-observed by execution regardless.
-const CORPUS_COMPLETE: usize = 1136;
+// PB-DX45 (`scutemob-217`, 2026-09-02): 1136 -> **1137** (+1).
+// One promotion, `vampire_gourmand` `partial` -> `Complete`, from the CR 118.12 policy
+// re-adjudication recorded in `memory/decisions.md`: its marker named exactly one
+// blocker -- `Effect::MayPayThenEffect` being pay-when-able -- and PB-DX45 deleted it.
+// The flip was PREDICTED AND NAMED in writing before the card-def edit existed
+// (`memory/primitives/pb-DX45-execution-notes.md` §1.5, commit `fedd90b2`), then
+// CONFIRMED by regenerating `tools/authoring-report.py` (1,136/1,803 = 63.0% ->
+// 1,137/1,803 = 63.1%) rather than by adjusting the arithmetic here.
+// COMMANDER_POOL re-measured by executing this gate and UNCHANGED at 90 -- again
+// measured, not reasoned from "a Vampire 2/2 is not Legendary", because PB-DX26's
+// lesson is that a stable count is not a stable deal.
+const CORPUS_COMPLETE: usize = 1137;
 const COMMANDER_POOL: usize = 90;
 
 /// Mirrors `crates/simulator/src/deck.rs:40-47`'s three-clause commander filter
@@ -931,6 +942,24 @@ fn test_dx32_row_id_for_covers_every_observable_row() {
                 count: 0,
             }),
         ),
+        // PB-DX45 (CR 118.12): the sixth observable row. `may_pay_then_effect`
+        // left `UNOBSERVABLE_ROW_IDS` when both of the engine's
+        // `try_pay_optional_cost` call sites started asking, and a row that
+        // leaves that list must have a counter that can actually MOVE -- which is
+        // what this fixture proves for `row_id_for`. The behavioural end of the
+        // same claim is `pb_dx45_optional_cost_channel.rs`, which reaches the
+        // real question through `LocalGame` on `nether_traitor`.
+        (
+            "may_pay_then_effect",
+            BlockingDecision::EffectChoice {
+                player: p(1),
+                choice_id: 1,
+                source: ObjectId(1),
+            },
+            effect_choice_state(EffectChoiceQuestion::PayOptionalCost {
+                cost: mtg_engine::Cost::PayLife(1),
+            }),
+        ),
     ];
 
     let mut reachable: BTreeSet<&'static str> = BTreeSet::new();
@@ -946,7 +975,7 @@ fn test_dx32_row_id_for_covers_every_observable_row() {
         }
     }
 
-    // Review finding L9: this test observes only the five fixtures constructed above
+    // Review finding L9: this test observes only the six fixtures constructed above
     // -- it does not itself prove `row_id_for` can NEVER return anything else. That
     // bound comes from `row_id_for`'s own match being EXHAUSTIVE with no wildcard on
     // both `BlockingDecision` and `EffectChoiceQuestion` (a compile-time property, not
