@@ -120,11 +120,34 @@ a second loop there would re-scan events the flush already dispatched, which is
 wrong design 1 again one layer up. **The dispatch is a property of flushing, not of
 remembering to sweep afterwards.**
 
+**Wrong design 2 was then confirmed wrong by EXECUTION, not left as an argument.**
+A probe was built for the exact shape it misses: an ARTIFACT source (so it is not its
+own `TargetCreature` candidate) whose ETB trigger targets the opponent's ward
+creature, which is the ONLY creature on the battlefield — so
+`forced_trigger_target_answer` answers the CR 603.3d slot without suspending
+(CR 601.2c: one legal answer is not a choice), and the trigger is placed by
+`resolution.rs`'s post-resolution flush during `Command::PassPriority`. Measured both
+ways:
+
+| tree | `PermanentTargeted` emitted | ward trigger on stack |
+|---|---|---|
+| HEAD | **1** | **1** |
+| `flush_pending_triggers` reverted to `flush_pending_triggers_once` | **1** | **0** |
+
+**The emission happens and nothing dispatches it.** That is the entire difference
+between the shipped fix and a diff that reads like one, and it is why every probe in
+this batch asserts the ward trigger reaching the STACK rather than the event being
+present — a probe asserting only on `PermanentTargeted` is GREEN under that revert.
+
 The durable half is not "we found a bug in our own patch". It is that a green full
 suite and a passing end-to-end probe were both satisfied by wrong design 2 — the
 thing that caught it was enumerating the OTHER callers of the function being changed,
 which is the same enumeration discipline this queue has been paying for since
-PB-DX25.
+PB-DX25. And the *reason* the end-to-end probe was satisfied is worth stating
+separately: it drove `Command::ChooseTriggerTargets`, because a two-creature board
+makes the trigger's target a real choice. **The probe was more interactive than the
+common case, and that is what made it weaker** — the ordinary board has one legal
+target, takes the forced-answer path, and never reaches the arm the probe exercised.
 
 ## §3 — Wire: prediction CONFIRMED
 
