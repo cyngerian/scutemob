@@ -446,3 +446,52 @@ and the requirement to re-run the revert and report the NEW panic lines.
 true sentence that can be produced by the wrong assertion, and a matrix reports the
 row's colour, not which line coloured it. The check that costs one command — re-run
 the revert, read the PANIC LINE — is the only thing that distinguishes them.
+
+---
+
+## §9 — The revert matrix, RE-EXECUTED by the coordinator rather than accepted
+
+Both delegated suites reported their own matrices. One was wrong (§8), so BOTH were
+re-executed here. These are the coordinator's own runs, on the final tree.
+
+**R-A — no emission.** In `rules/events.rs::push_target_announcement`, replace the
+four-line `events.extend(permanent_targeted_events(..))` with
+`let _ = permanent_targeted_events(..)` (deleting it outright orphans the function
+under `-D dead_code`; the four-line wrap is also why the first delegated attempt
+needed a file backup instead of a one-line edit).
+
+* all 11 `primitives::pb_dx48_ward_dispatch` probes RED, plus
+  `pb_eng2_targets_announced`'s new object-target sibling;
+* all 3 `pb_dx48_ward_channel` probes RED — and after the §8 repair they fail on the
+  **damage** assertion, with `c2` reporting `left: 1, right: 0`: the ward creature
+  genuinely takes the damage when the dispatch is gone. Panic lines re-read to confirm
+  it, because "RED" alone is what §8 shows can mislead.
+
+**R-B — single wave.** Replace `flush_pending_triggers`'s body with
+`flush_pending_triggers_once(state)` (drop `dispatch_becomes_target_waves`). Executed:
+
+| suite | RED | GREEN |
+|---|---|---|
+| `pb_dx48_ward_dispatch` | `t1`, `t5`, `t6` | `t1b`, `t2`, `t3`, `t4`, `t7`, `t8a`, `t8b`, `t8c` |
+| `pb_dx48_ward_channel` | `c1`, `c2` | `c3` |
+
+**This split is §6's dispatch map confirmed by execution, on two files that do not
+share a fixture.** The RED rows are exactly the ones whose Ward trigger is placed by a
+FLUSH with no outer sweep. The GREEN rows are green for a reason each states: `t2`/`t3`/
+`t4` emit from a command handler whose arm calls `check_and_flush_triggers`; **`c3` is
+green because its trigger SUSPENDS on the CR 603.3d question and is therefore placed by
+`resume_trigger_flush`, whose events `Command::ChooseTriggerTargets`'s arm sweeps.**
+That last row is worth its own sentence: it is the asymmetry that leaves `OOS-DX48-3`
+open, demonstrated rather than argued.
+
+**R-C — double scan** (re-adding a second dispatcher, i.e. the rejected `flush_sorted`
+hook): reddens `t1`, `t5`, `t6` via the wave-bound `debug_assert!`. This is what proves
+the **exact-count** assertions are load-bearing: every one of those probes would be
+GREEN under a `>= 1` assertion.
+
+**No UNDISCRIMINATED row in either suite.** `t1b` (Ward must NOT fire for its own
+controller) is discriminated by R-A only, and says so in its own doc comment.
+
+The roster file's own 10 rows (R-A..R-J in
+`core::pb_dx48_announcement_site_roster`) were executed by its author against its
+pinned constants; each is a constant mutation with a named test, and all 10 RED.
