@@ -216,3 +216,36 @@ Filed as **`OOS-DX48-2`**. What is exercised instead is the two-sided discrimina
 CR 702.21a itself provides: Ward fires exactly once when an **opponent's** ability
 targets the permanent, and **not at all** when its own controller's does
 (CR 702.21a's "an opponent controls").
+
+## §6 — The dispatch map, enumerated rather than assumed
+
+Emitting `PermanentTargeted` at a site only helps if something scans it. There are
+three ways an emission reaches `check_triggers`, and the batch is only complete
+because all three were enumerated. **Two of them were found by reading the callers
+after the first design was already green on the full suite.**
+
+| emission site | how its event reaches `check_triggers` | verified |
+|---|---|---|
+| `casting.rs::handle_cast_spell` | the command arm's `check_and_flush_triggers` | pre-existing |
+| `abilities.rs::handle_activate_ability` | same | pre-existing |
+| `abilities.rs::handle_activate_bloodrush` | same | pre-existing |
+| `abilities.rs::handle_activate_forecast` | same (`Command::ActivateForecast`'s arm) | ✓ read at HEAD |
+| `abilities.rs::handle_scavenge_card` | same (`Command::ScavengeCard`'s arm) | ✓ read at HEAD |
+| `engine.rs::handle_activate_loyalty_ability` | same (`Command::ActivateLoyaltyAbility`'s arm) | ✓ read at HEAD |
+| `abilities.rs::flush_sorted` ×2, via `flush_pending_triggers` | `dispatch_becomes_target_waves`, called by `flush_pending_triggers` | ✓ NEW |
+| `abilities.rs::flush_sorted` ×2, via `drop_departed_trigger_flush` from `handle_concede` (CR 800.4d) | `dispatch_becomes_target_waves`, called explicitly there | ✓ NEW |
+| `abilities.rs::flush_sorted` ×2, via `resume_trigger_flush` | `Command::ChooseTriggerTargets`'s own `check_and_flush_triggers` | pre-existing sweep |
+| the four `OOS-ENG2-3` free-cast sites | n/a — `targets: vec![]`, nothing to emit | structurally |
+
+**`resume_trigger_flush` is deliberately NOT given the wave loop**, and the reason is
+the batch's own defect: its events are already swept, so adding it would dispatch the
+same event twice. That asymmetry is what leaves `OOS-DX48-3` open — the
+`ChooseTriggerTargets` sweep is guarded on `pending_trigger_targets.is_none()`, so a
+batch that suspends a SECOND time hands its middle section to a caller that never
+scans it. Filed rather than hidden, and narrowed to that one path only after the other
+two were closed.
+
+**The three `check_and_flush_triggers`-covered new sites were read at HEAD, not
+assumed.** "The handler returns events and something sweeps them" is exactly the kind
+of claim this batch exists to punish: `Command::PassPriority` and `Command::Concede`
+both look like they should sweep and neither does.
