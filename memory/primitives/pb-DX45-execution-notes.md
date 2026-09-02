@@ -225,3 +225,74 @@ this one."* They did not. Of the whole workspace, exactly **one** seeded pin mov
 it is right to warn — but "will redden" overstates it, and the honest form is "may redden; re-run
 and see". A single-def pool change can leave most deals untouched, and PB-DX26's lesson runs the
 other way too: **an unstable count is not necessarily an unstable deal.**
+
+---
+
+## §4 — PB-DP9's suspend-and-replay obligations, discharged in writing (AC 7241)
+
+`rules/engine.rs`'s `BlockingDecision` doc block carries seven per-variant obligations. **PB-DX45
+adds no `BlockingDecision` variant** — it adds a sixth `EffectChoiceQuestion` variant inside the
+existing `EffectChoice` kind — so most are inherited rather than re-discharged. Stated one by one,
+because "inherited" is a claim like any other:
+
+| # | obligation | PB-DX45 |
+|---|---|---|
+| 1 | admission-gate allow-list in `process_command` | **inherited free.** The answering command is `Command::AnswerEffectChoice`, already named there by PB-DP9. No new command exists. |
+| 2 | `handle_concede` clears the per-kind field | **inherited free**, and not trivially: `discharge_effect_choice_on_concede` clears `pending_effect_choice` and abandons the whole answer bank *whatever question was pending*, then re-drives the rolled-back resolution. It is written against the entry, not against the question, so a sixth variant needs nothing. |
+| 3 | hashed BY NAME in two places | **discharged, and proven by the gates.** `public_state_hash` reaches the new variant through the unchanged `PendingEffectChoice` / `AnsweredEffectChoice` structs; both `HashInto` impls gained an explicit discriminant `5` arm. `loop_detection`'s fingerprint deliberately still excludes them, for PB-DP9's own reason (the bank GROWS between successive replays of one resolution, so including it could mask a CR 726 loop) — unchanged, because PB-DX45 adds no state FIELD at all. |
+| 4 | `LocalGame::advance`'s exhaustive `BlockingDecision` match | **not applicable** — the blocking kind is unchanged. |
+| 5 | `handle_concede`'s foreign-decision gate | **inherited free** — it reads `blocking_decision(..)`, not any one field. |
+| 6 | resume-site debt | **does not apply**, for PB-DP9's reason: the suspension is a total state RESTORE, so nothing was skipped. |
+| 7 | state whether the pending state belongs in `loop_detection`'s fingerprint, and argue it | **stated: NO**, and the argument is PB-DP9's unchanged one (see 3). Nothing about a pay/decline bool changes it. |
+
+### §4.1 — An EIGHTH obligation, found the hard way
+
+**Eight consumers had to learn the new variant. Seven were compile errors and the eighth was the
+one that broke.** The compiler enumerated `hash.rs`'s two `HashInto` impls,
+`default_effect_choice_answer`, `handle_answer_effect_choice`'s two matches, `replay_harness`,
+`decision_coverage::row_id_for`, `view::blocking_decision_view`, `api::question_kind` and the TUI
+formatter. It did **not** enumerate `play-server`'s `api::validate_decision_params`, because that
+match ended in `_ => Err("… the answer given is a different kind")` — **a wildcard written to mean
+*wrong question* silently also serving as the fallback for *unknown question***. So the browser was
+offered a working `Confirm` picker whose Confirm **and** Decline buttons both `400`'d.
+
+That is the SR-38 shape PB-DX29 gated Fuse to avoid and PB-DX44 then recreated while fixing it —
+**this is the third instance**, and it was found by the batch's own play-server test agent, which
+pinned the defect as a failing-by-design test rather than writing a passing one around it.
+
+Fixed **structurally**: `validate_decision_params` now dispatches on `question` ALONE, exhaustive
+over `EffectChoiceQuestion` with no wildcard, each arm destructuring the answer with a
+`let … else { return Err(mismatch()) }`. A seventh variant is now a compile error there too.
+`rules/engine.rs`'s obligation list gains **obligation (8)** with the durable form of the lesson:
+*a wildcard arm that encodes a JUDGEMENT cannot also serve as the fallback for the UNKNOWN, and
+seven compile-forced sites are not evidence that the eighth is safe — they are the reason nobody
+looks for it.*
+
+---
+
+## §5 — Revert matrix: 14 rows, all executed, **14 RED, 0 UNDISCRIMINATED**
+
+Each row was applied to the tree, the named target run, then restored. Nothing below is predicted.
+
+| # | revert applied | expected | measured |
+|---|---|---|---|
+| V1 | `MayPayThenEffect` arm: replace the ask with `Some(PayOptionalCost { pay: true })` (i.e. restore the unconditional pay) | the primitive + channel probes redden | **RED** — `primitives pb_dx45` 8 failed / 4 passed; **channel 3 failed / 0 passed** |
+| V2 | the same, at the SECOND site (`LookAtTopThenPlace::place_cost`) | only the second-site probes redden | **RED** — 2 failed (`p11`, `p12`), 10 passed. The two sites are independently covered. |
+| V3 | `default_effect_choice_answer` returns `pay: false` | the default pin + the bot-path probe redden | **RED** — `p5` alone in the engine suite; **all 3 channel probes**, since the drive reads the offered default |
+| V4 | delete the DETERMINED short-circuit (`!can_pay_optional_cost → continue`) | the unpayable-cost probe reddens | **RED** — `p4` alone |
+| V5 | hash the question's variant with discriminant `4` (colliding with `ChooseObject`) | a hash gate reddens | **RED** — `hash_schema`, 1 failed |
+| V6 | drop `cost` from the question's hash stream (`let _ = cost;`) | the unhashed-field gate reddens | **RED** — `hash_schema::every_hashed_enum_variant_field_is_hashed_or_allowlisted` **by name** (PB-DX7's gate, doing exactly its job) |
+| V7 | `decision_coverage::row_id_for` returns `None` for the new question | the observable-row gate reddens | **RED** — `test_dx32_row_id_for_covers_every_observable_row` |
+| V8 | invert `AnswerShapeView::Confirm`'s `default` | the DTO probe reddens | **RED** — `test_dx45_the_browser_is_offered_the_confirm_shape_over_http` |
+| V9 | re-break `validate_decision_params` (the shipped SR-38 defect, restored) | the HTTP probes redden | **RED** — all **three** HTTP tests, including the accept/decline pair. This row is the proof that the api.rs fix is load-bearing rather than cosmetic. |
+| V10 | R1's corpus walk keyed on `MayPayOrElse` instead of `MayPayThenEffect` | the roster rows redden | **RED** — `r1`, `r1b`, `r2` (three rows, since all three read the same walk) |
+| V11 | R4's `place_cost` JSON key mis-spelled | the second-site population pin reddens | **RED** — `r4` alone; the non-vacuity floor is what catches it, not the pinned set |
+| V12 | R3 loses the `"you may sacrifice"` needle | the inverse-axis pin reddens | **RED** — `r3` alone |
+| V13 | `ConfirmPicker` spells `answer['PayOptionalCost']` in its CODE | the never-respell gate reddens | **RED** — `test_dx45_frontend_answers_the_confirm_shape_without_spelling_the_variant` |
+| V14 | `ActionBar` dispatches on `'ConfirmXX'` | the same gate reddens | **RED** — the gate checks both halves, and this proves it |
+
+**No row is UNDISCRIMINATED.** Two rows are worth a sentence each: **V2** reddens exactly the two
+second-site probes and nothing else, which is what proves the two `try_pay_optional_cost` callers
+are independently covered rather than one being incidental to the other; and **V9** is the batch's
+own shipped defect re-applied, so the matrix contains a row that was RED *in production* until the
+`/review`-adjacent agent found it.

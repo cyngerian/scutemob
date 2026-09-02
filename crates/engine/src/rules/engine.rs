@@ -144,6 +144,34 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
 ///     Its one residual, `handle_all_passed`'s two post-resolution statements,
 ///     is factored into `finish_stack_resolution` so the two sites cannot drift.
 ///
+/// **What a new `EffectChoiceQuestion` VARIANT cost (PB-DX45 measured it).** This
+/// is a smaller act than a new `BlockingDecision` variant — obligations (1), (2),
+/// (4), (5) and (6) are all inherited free, because the blocking KIND is
+/// unchanged and only the question inside it is new — but it is not free, and
+/// **the one site that was not compile-forced is the one that broke**:
+/// * **Eight consumers had to learn the variant. Seven were compile errors** —
+///   `state/hash.rs`'s two `HashInto` impls, `effects::default_effect_choice_answer`,
+///   `effects::handle_answer_effect_choice`'s variant-agreement and per-variant
+///   legality matches, `testing/replay_harness.rs`, `simulator::decision_coverage::row_id_for`,
+///   `play-server`'s `view::blocking_decision_view` and `api::question_kind`, and
+///   the TUI's own formatter. The compiler enumerated them; nobody had to.
+/// * **The eighth was `play-server`'s `api::validate_decision_params`, and it was
+///   NOT a compile error**, because its `match (question, answer)` ended in a
+///   `_ => Err("… the answer given is a different kind")` — a wildcard written to
+///   mean *wrong question* that silently also meant *unknown question*. So the
+///   browser was offered a working picker whose every answer 400'd: a clean offer
+///   followed by a guaranteed refusal, the SR-38 shape PB-DX29 gated Fuse to
+///   avoid and PB-DX44 recreated while fixing it. PB-DX45 restructured that match
+///   to dispatch on `question` ALONE, exhaustively and with no wildcard, so a
+///   seventh variant is a compile error there too.
+/// * **Obligation (8), added by PB-DX45**: a new `EffectChoiceQuestion` variant
+///   must be added to `api::validate_decision_params`. More generally — and this
+///   is the durable half — **a wildcard arm that encodes a JUDGEMENT ("these two
+///   do not match") cannot also serve as a fallback for the UNKNOWN, and an enum
+///   whose growth is expected should be matched exhaustively at every gate that
+///   decides what a client may send.** Seven compile-forced sites are not
+///   evidence that the eighth is safe; they are the reason nobody looks for it.
+///
 /// **Obligation (7), added by PB-DP9**: a new blocking kind must STATE whether
 /// its pending state belongs in `rules/loop_detection.rs`'s mandatory-state
 /// fingerprint, and argue it. PB-DP7 and PB-DP8 both folded theirs in; PB-DP9
