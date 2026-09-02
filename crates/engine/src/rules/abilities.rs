@@ -5447,21 +5447,37 @@ pub fn check_triggers_with_timing(
                         // `CardDefETB` one. `pb_dx47_dispatch_path_roster.rs`
                         // pins both facts.
                         //
-                        // The one thing the lowering does NOT carry is `modes`: it
-                        // pre-selects mode 0 (CR 700.2b bot fallback). The first
-                        // draft of this comment claimed "ZERO corpus defs pair
-                        // `modes` with this `TriggerCondition`"; the roster gate
-                        // (`pb_dx47_dispatch_path_roster::r5b`) refuted it on its
-                        // first run. The measured population is ONE --
-                        // `glissa_sunslayer`, three modes -- and it is
-                        // `Completeness::partial`, so `validate_deck` refuses it and
-                        // DECK-LEGAL exposure is zero. Its pre-fix behaviour was not
-                        // "modal and correct" either: it was one mode-0 copy from
-                        // the lowering PLUS one modal copy from the scan, for one
-                        // damage event. `r5b` fails the day a DECK-LEGAL modal
-                        // member appears. The durable fix is a `modes` field on
-                        // `TriggeredAbilityDef`, which is a HASH bump; filed as
-                        // `OOS-DX47-3`.
+                        // The lowering does not carry `modes`: it pre-selects
+                        // mode 0 (CR 700.2b bot fallback). This comment's first two
+                        // drafts each got that wrong, in opposite directions, and
+                        // both were corrected by EXECUTING something:
+                        //
+                        // (1) "ZERO corpus defs pair `modes` with this
+                        //     `TriggerCondition`" -- refuted by
+                        //     `pb_dx47_dispatch_path_roster::r5b` on its first run.
+                        //     The population is ONE, `glissa_sunslayer`, three
+                        //     modes, `Completeness::partial` (so `validate_deck`
+                        //     refuses it and deck-legal exposure is zero).
+                        // (2) "a real capability the fix gives up" -- refuted by
+                        //     `primitives::pb_dx47_modal_trigger_mode_zero::t1`.
+                        //     NOTHING modal is lost, because nothing modal was ever
+                        //     offered: `flush_sorted` hard-codes
+                        //     `modes_chosen = vec![0]` in BOTH arms of its modal
+                        //     branch for any `StackObjectKind::TriggeredAbility`,
+                        //     `Normal` and `CardDefETB` alike, and
+                        //     `resolution.rs`'s modal replacement sits OUTSIDE the
+                        //     `is_carddef_etb` branch, so both kinds resolve
+                        //     `modes.modes[0]`. `modal_trigger` (CR 603.3c) is a
+                        //     standing `AutoChosen` row in
+                        //     `core::decision_site_walk`. Measured: restoring the
+                        //     deleted scan takes that probe from +1 life to +2 --
+                        //     mode 0 TWICE, not a mode the player picked.
+                        //
+                        // `OOS-DX47-3` therefore stays open as the STRUCTURAL gap
+                        // (`TriggeredAbilityDef` has no `modes` field, so the day
+                        // CR 603.3c is actually served the lowering must carry it,
+                        // which is a HASH bump) with its behavioural delta measured
+                        // at ZERO -- not as a regression this batch shipped.
                         // CR 702.115a: Ingest -- "Whenever this creature deals combat
                         // damage to a player, that player exiles the top card of
                         // their library."

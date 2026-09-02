@@ -32,13 +32,15 @@
 //!   not a five-month-old comment.
 //! * **R4** — the deleted scan stays deleted: no `CardDefETB` push may sit in
 //!   the `CombatDamageDealt` arm.
-//! * **R5** — the two things the lowering must carry for it to be a safe sole
-//!   survivor: `targets` (PB-EF3 A2 / EF-W-MISS-10's whole justification for the
-//!   scan, which it DOES carry) and `modes` (which it does NOT). The first draft
-//!   of this line said modal exposure was zero; `r5b` refuted it on its first
-//!   run — the population is ONE, `glissa_sunslayer`, and it is `partial`, so
-//!   DECK-LEGAL exposure is zero and `r5b` reddens the day that stops being
-//!   true. Filed as `OOS-DX47-3`.
+//! * **R5** — what the lowering must carry for it to be a safe sole survivor.
+//!   `targets` it DOES carry, which discharges PB-EF3 A2 / EF-W-MISS-10's whole
+//!   justification for the scan. `modes` it does NOT — and this batch got that
+//!   consequence wrong twice before measuring it. First draft: "modal exposure is
+//!   zero" (`r5b` refuted it — the population is ONE, `glissa_sunslayer`,
+//!   `partial`, so deck-legal exposure is zero). Second draft: "a real capability
+//!   the fix gives up" (`primitives::pb_dx47_modal_trigger_mode_zero::t1` refuted
+//!   that — nothing modal was ever offered on EITHER path, so the behavioural
+//!   delta is zero). `OOS-DX47-3` stays open as the structural gap only.
 //! * **`t_census_report`** — PRINTS every axis. Every population figure this
 //!   batch publishes is read off this test's output rather than transcribed
 //!   (PB-DX8's rule, restated by PB-DX28's MEDIUM and again by PB-DX45's).
@@ -562,19 +564,25 @@ fn r5_lowering_carries_declared_targets() {
 /// a batch whose entire subject is a justifying comment nobody re-checked.
 /// Corrected in place; filed as `OOS-DX47-3`.
 ///
-/// # Why the deletion still ships
+/// # The behavioural delta is ZERO, and that was measured, not reasoned
 ///
-/// `glissa_sunslayer` is `Completeness::partial`, so `validate_deck`
-/// (Architecture Invariant 9) refuses it and **no real game can contain it**:
-/// deck-legal exposure is **zero**. And its pre-fix behaviour was not "modal
-/// and correct" — it was the double-push, i.e. one mode-0 copy from the lowering
-/// PLUS one modal copy from the scan, for a single combat damage event. Trading
-/// "twice, one of them modal" for "once, not modal" on an unplayable def is a
-/// strict improvement on the axis this batch is about and a regression on an
-/// axis that has no live subject.
+/// The second draft of this doc called the `modes` gap "a real capability the fix
+/// gives up". It is not. `primitives::pb_dx47_modal_trigger_mode_zero::t1`
+/// resolves a modal `WhenDealsCombatDamageToPlayer` trigger end to end and
+/// measures **+1 life — mode 0, once**; restoring the deleted scan takes it to
+/// **+2**, i.e. mode 0 TWICE. Nothing modal was ever offered on either path:
+/// `flush_sorted` hard-codes `modes_chosen = vec![0]` in both arms of its modal
+/// branch for any `StackObjectKind::TriggeredAbility`, and `resolution.rs`'s
+/// modal replacement sits outside the `is_carddef_etb` branch. `modal_trigger`
+/// (CR 603.3c) is a standing `AutoChosen` row in `core::decision_site_walk`.
 ///
-/// The durable fix is a `modes` field on `TriggeredAbilityDef`, which is a HASH
-/// bump and out of scope here (`OOS-DX47-3`).
+/// `glissa_sunslayer` is also `Completeness::partial`, so `validate_deck`
+/// (Architecture Invariant 9) refuses it and no real game can contain it.
+///
+/// This row therefore watches a STRUCTURAL gap, not a live regression:
+/// `TriggeredAbilityDef` has no `modes` field, so the day CR 603.3c is actually
+/// served the lowering must learn to carry it — a HASH bump, out of scope here
+/// (`OOS-DX47-3`).
 #[test]
 fn r5b_modal_exposure_is_pinned_at_one_partial_def() {
     let mut modal: Vec<String> = Vec::new();

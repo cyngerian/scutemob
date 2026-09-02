@@ -191,15 +191,16 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-02, PB-DX47)**: **4,872 / 0 / 5** full-workspace on branch
-  `scutemob-218` (+11 over the **4,861** baseline, measured on this branch BEFORE any edit and
+- **Tests (delta 2026-09-02, PB-DX47)**: **4,873 / 0 / 5** full-workspace on branch
+  `scutemob-218` (+12 over the **4,861** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX45's close pin exactly), `--workspace --no-fail-fast` to a file, **56**
   result-producing targets (55 → 56: one new simulator test binary), residual list empty.
-  **Delta itemised by test NAME: 12 additions, 1 leaver, 0 removals** — 9 in the new
+  **Delta itemised by test NAME: 13 additions, 1 leaver, 0 removals** — 9 in the new
   `crates/engine/tests/core/pb_dx47_dispatch_path_roster.rs`, 2 in the new
-  `crates/simulator/tests/pb_dx47_double_push_probe.rs`, 1 the inversion's successor in
-  `crates/engine/tests/primitives/pb_dx24_trigger_zone_and_index_spaces.rs`. **The leaver is
-  disclosed rather than netted out and it is not a removal**:
+  `crates/simulator/tests/pb_dx47_double_push_probe.rs`, 1 in the new
+  `crates/engine/tests/primitives/pb_dx47_modal_trigger_mode_zero.rs`, and 1 the inversion's
+  successor in `crates/engine/tests/primitives/pb_dx24_trigger_zone_and_index_spaces.rs`.
+  **The leaver is disclosed rather than netted out and it is not a removal**:
   `test_dx24_when_deals_combat_damage_to_player_reads_the_visible_face_of_a_transformed_attacker`
   became `test_dx47_transformed_attacker_queues_exactly_one_trigger_off_the_visible_face` — same
   file, same Q4 property, subject **inverted**, because what it pinned is what this batch deleted.
@@ -213,7 +214,7 @@
   the empty-diff shortcut was available and was checked.
   `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
   `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree.
-  **8 revert rows executed, 8 RED, 0 UNDISCRIMINATED**, with three green-under-revert rows
+  **9 revert rows executed, 9 RED, 0 UNDISCRIMINATED**, with three green-under-revert rows
   disclosed as such rather than left implicit — including that disabling the `r3` parser's
   comment-stripping reddens `r3b` and leaves `r3` GREEN, so that stripping is defensive today and
   load-bearing only for `r3b`'s own guarantee (`OOS-DX47-7`).
@@ -223,10 +224,19 @@
   `all_cards()` walk returns **26 defs**; the four extras name the variant only inside a `// TODO`
   saying why they cannot use it. That is **SR-36's rule verbatim** (*enumerate `all_cards()` for
   rosters, never grep source*) broken inside the batch whose subject is a false comment, and
-  `OOS-CARDS2-7`'s shape a second time (`OOS-DX47-2`). (2) The engine comment written alongside the
-  fix claimed *"ZERO corpus defs pair `modes` with this `TriggerCondition`"*; `r5b` refuted it on
-  its first run — the population is **one**, `glissa_sunslayer`, and it is `partial`, so DECK-LEGAL
-  exposure is zero and `r5b` reddens the day that stops being true (`OOS-DX47-3`).
+  `OOS-CARDS2-7`'s shape a second time (`OOS-DX47-2`). (2) `OOS-DX47-3` was published **twice**
+  before it was true, and the second draft is the instructive one. Draft 1 (the engine comment):
+  *"ZERO corpus defs pair `modes` with this `TriggerCondition`"* — refuted by `r5b` on first run, the
+  population is **one** (`glissa_sunslayer`, `partial`, so deck-legal exposure is zero). Draft 2:
+  *"a real capability the fix gives up"* — refuted by execution, and this is the shape the whole
+  batch exists to punish, **a consequence inferred from a code shape and published without anyone
+  running it**. `primitives::pb_dx47_modal_trigger_mode_zero::t1` measures **+1 life (mode 0,
+  once)** at HEAD and **+2** with the scan restored — never +10 or +100. **Nothing modal was ever
+  offered on either path**: `flush_sorted` hard-codes `modes_chosen = vec![0]` in both arms for
+  every trigger kind, `resolution.rs`'s modal replacement sits outside the `is_carddef_etb` branch,
+  and `modal_trigger` (CR 603.3c) is a standing `AutoChosen` row in `core::decision_site_walk`. So
+  the pre-fix engine resolved **mode 0 twice**, and `OOS-DX47-3` is re-scoped to the structural gap
+  alone with its behavioural delta measured at **zero**.
 - **Tests (delta 2026-09-02, PB-DX45)**: **4,861 / 0 / 5** full-workspace on branch
   `scutemob-217` (+26 over the **4,835** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX15a's close pin exactly), `--workspace --no-fail-fast` to a file, **55**
@@ -782,11 +792,11 @@
   the outcome the re-derivation discipline is FOR; the agreement is kept honest by the inverse
   oracle-text axis, where the two do not agree (**20** `Complete` defs print the trigger without
   declaring it, ratcheted).
-  Tests **4,872 / 0 / 5** (+11 over the 4,861 pre-edit baseline, **56** targets, itemised by NAME
-  as 12 additions / 1 disclosed inversion / 0 removals). **PROTOCOL 39 / HASH 78 both
+  Tests **4,873 / 0 / 5** (+12 over the 4,861 pre-edit baseline, **56** targets, itemised by NAME
+  as 13 additions / 1 disclosed inversion / 0 removals). **PROTOCOL 39 / HASH 78 both
   gate-executed and UNMOVED**, predicted in writing before any code with the reason stated.
   Coverage unmoved **63.1%**, 0 flips, 0 card-def edits. All gates clean against the FINAL tree.
-  **8 revert rows, 8 RED.** Filed **OOS-DX47-1..7**. Full record:
+  **9 revert rows, 9 RED.** Filed **OOS-DX47-1..7**. Full record:
   `memory/primitives/pb-DX47-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-09-02 — **PB-DX45 SHIPPED** (`scutemob-217`; v4 queue rank 4 —
   **OOS-DX24-9** ≡ **OOS-DX27-5** CLOSED as ONE defect, cross-cited, each row corrected).

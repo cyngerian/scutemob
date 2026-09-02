@@ -209,17 +209,19 @@ UNMOVED.** `hash_schema` 36/36, `protocol_schema` 17/17, `HASH_SCHEMA_VERSION = 
 `history_is_append_only` 2/2 and `frozen_prefix_is_pinned` 2/2 green. No pin edited and no history
 row appended — none was owed.
 
-**Tests: 4,872 / 0 / 5** full-workspace, `--workspace --no-fail-fast` to a file, **56**
+**Tests: 4,873 / 0 / 5** full-workspace, `--workspace --no-fail-fast` to a file, **56**
 result-producing targets (55 → 56: one new simulator test binary), residual list empty. The
 pre-edit baseline was measured on this branch BEFORE any edit at **4,861 / 0 / 5** across **55**
 targets and reproduces PB-DX45's close pin exactly.
 
-**Delta itemised by test NAME (set-diff of the two run logs): 12 additions, 1 leaver, 0 removals.**
+**Delta itemised by test NAME (set-diff of the two run logs): 13 additions, 1 leaver, 0 removals.**
 
 Additions — 9 in the new `crates/engine/tests/core/pb_dx47_dispatch_path_roster.rs`
 (`r1`, `r1b`, `r2`, `r3`, `r3b`, `r4`, `r5`, `r5b`, `t_census_report`), 2 in the new
-`crates/simulator/tests/pb_dx47_double_push_probe.rs` (`p1`, `p2`), 1 the inversion's successor
-in `crates/engine/tests/primitives/pb_dx24_trigger_zone_and_index_spaces.rs`.
+`crates/simulator/tests/pb_dx47_double_push_probe.rs` (`p1`, `p2`), 1 in the new
+`crates/engine/tests/primitives/pb_dx47_modal_trigger_mode_zero.rs` (`t1`, added by the fix cycle
+— see §8), and 1 the inversion's successor in
+`crates/engine/tests/primitives/pb_dx24_trigger_zone_and_index_spaces.rs`.
 
 The single leaver is **disclosed rather than netted out**, because it is not a removal:
 `test_dx24_when_deals_combat_damage_to_player_reads_the_visible_face_of_a_transformed_attacker`
@@ -234,7 +236,7 @@ empty 147` all identical); self-dating churn reverted. **Zero card-def edits** �
 `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
 `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree (PB-DX15a's lesson).
 
-### Revert matrix — 8 rows, 8 RED, 0 UNDISCRIMINATED
+### Revert matrix — 9 rows, 9 RED, 0 UNDISCRIMINATED (row 9 is tabled in §8)
 
 | # | revert | expected | observed |
 |---|---|---|---|
@@ -266,9 +268,9 @@ empty 147` all identical); self-dating churn reverted. **Zero card-def edits** �
 
 `OOS-DX47-1` (a boundary census of `pending_triggers` measures 0 for a reason unrelated to
 triggers), `OOS-DX47-2` (a roster typed from `grep -l` counts TODO comments — SR-36 broken inside
-this batch), `OOS-DX47-3` (the lowering drops `modes`: one member, `glissa_sunslayer`, `partial`,
-**zero** deck-legal exposure — and the first draft of that claim said zero members, refuted by this
-batch's own `r5b` on its first run), `OOS-DX47-4` (naked-object fixtures test an unreachable shape;
+this batch), `OOS-DX47-3` (the lowering drops `modes` — a STRUCTURAL gap with a **measured
+behavioural delta of zero**; see §8, where this batch's own two drafts of the claim are both
+refuted by execution), `OOS-DX47-4` (naked-object fixtures test an unreachable shape;
 one repaired, population unmeasured), `OOS-DX47-5` (PB-DX24's Q4 probe was a pin ON this defect and
 its docstring said so — the durable rule is that isolating a path you are changing becomes a pin
 the moment the isolation is the only thing asserting the count), `OOS-DX47-6` (the false comment
@@ -276,3 +278,64 @@ propagated by being cited as precedent; a true conclusion on a false general pre
 confirmation), `OOS-DX47-7` (`r3`'s parser strips `//` only, bound stated).
 
 **`OOS-DX24-4` is CLOSED**, with four corrections to its own claims recorded in the row itself.
+
+---
+
+## §8 — The batch corrected itself twice on ONE claim, and the second time is the interesting one
+
+`OOS-DX47-3` — "the lowering drops `modes`" — was published three times before it was true.
+
+**Draft 1, in the engine comment:** *"Measured at HEAD, ZERO corpus defs pair `modes` with this
+`TriggerCondition`."* It was not measured; it was assumed. `r5b` refuted it on its **first run**:
+the population is **one**, `glissa_sunslayer`, three modes.
+
+**Draft 2, everywhere:** *"a real capability the fix gives up"*, softened only by
+`glissa_sunslayer` being `partial`. This is the one worth recording, because it is the shape this
+whole batch exists to punish — **a plausible consequence inferred from a code shape, published as
+a finding, without anyone running it.** The reasoning was: the lowering pre-selects mode 0, the
+deleted scan let `flush_sorted` read the full `ModeSelection` off the card def, therefore the
+deletion loses modality.
+
+**What the code actually does** — three sites, all kind-agnostic:
+
+1. the lowering sets `TriggeredAbilityDef.effect = modes.first()` — mode 0;
+2. `flush_sorted` hard-codes `stack_obj.modes_chosen = vec![0]` in **both** arms of its modal
+   branch, for any `StackObjectKind::TriggeredAbility`, `Normal` and `CardDefETB` alike — it never
+   consults a player. (Both arms. The `min_modes == 0` "choose up to one" arm and the
+   `min_modes >= 1` arm write the same literal.)
+3. `resolution.rs`'s modal replacement substitutes `modes.modes[chosen]` and sits **outside** the
+   `is_carddef_etb` branch, so it applies to both kinds — with `chosen` always `[0]`.
+
+And `modal_trigger` (CR 603.3c) is a standing, machine-checked **`AutoChosen`** row in
+`core::decision_site_walk` (`def_has_modal_triggered_ability`, row 12). The engine has never
+offered a modal-trigger choice on any path; the fuzzer prints the verdict on every run.
+
+**Measured rather than argued.** `primitives::pb_dx47_modal_trigger_mode_zero::t1` builds a
+synthetic def whose three modes gain 1 / 10 / 100 life — distinguishable by life total alone, so
+the assertion depends on no second subsystem — attacks, connects, and resolves:
+
+| tree | life gained |
+|---|---|
+| HEAD (scan deleted) | **+1** — mode 0, once |
+| revert V9 (scan restored) | **+2** — mode 0, **twice** |
+
+Never +10, never +100. **The pre-fix engine did not offer a mode; it resolved mode 0 twice.** So
+the deletion's real delta for `glissa_sunslayer` is one mode-0 resolution instead of two, which is
+the double-push itself.
+
+`OOS-DX47-3` is re-scoped in place: it stays open as the **structural** gap (`TriggeredAbilityDef`
+has no `modes` field, so the day CR 603.3c is served the lowering must carry it — a HASH bump),
+with its behavioural delta stated as **zero and measured**. The subject of `t1` is a synthetic def
+rather than `glissa_sunslayer` so the probe keeps measuring the property if that def is ever
+repaired or re-marked; `r5b` is what watches the real corpus.
+
+**The durable rule**: *a consequence inferred from a code shape is a claim, and the fact that the
+inference is sound about the shape does not make it sound about the behaviour.* Both drafts here
+were correct about `build_face_ability_vectors` and wrong about the game, because the reasoning
+stopped one consumer short.
+
+### Revert matrix, row 9
+
+| # | revert | expected | observed |
+|---|---|---|---|
+| V9 | restore the deleted registry scan | `t1` red at `left: 2, right: 1` | **RED, exactly that** |

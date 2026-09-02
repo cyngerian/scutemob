@@ -60,10 +60,10 @@ a card printing **ONE** counter put **TWO** on its lone attacker.
 
 ### Numbers
 
-Tests **4,872 / 0 / 5** (+11 over the **4,861** pre-edit baseline measured on this branch before
+Tests **4,873 / 0 / 5** (+12 over the **4,861** pre-edit baseline measured on this branch before
 any edit, reproducing PB-DX45's close pin exactly), `--workspace --no-fail-fast` to a file, **56**
 result-producing targets (55 → 56: one new simulator test binary), residual list empty. **Delta
-itemised by test NAME: 12 additions, 1 leaver, 0 removals.** The leaver is **disclosed rather than
+itemised by test NAME: 13 additions, 1 leaver, 0 removals.** The leaver is **disclosed rather than
 netted out and is not a removal** — PB-DX24's Q4 probe was INVERTED, because what it pinned is what
 this batch deleted (`OOS-DX47-5`).
 
@@ -71,7 +71,7 @@ this batch deleted (`OOS-DX47-5`).
 the reason stated (a suppression adds no type, variant or field to the wire closure). Coverage
 unmoved **1,137/1,803 = 63.1%**, **0 flips**, **0 card-def edits of any kind**.
 `clippy --workspace --all-targets -D warnings`, `cargo fmt --check` and `tools/check-defs-fmt.sh`
-(1,803 defs) all clean **against the final tree**. **8 revert rows, 8 RED, 0 UNDISCRIMINATED**,
+(1,803 defs) all clean **against the final tree**. **9 revert rows, 9 RED, 0 UNDISCRIMINATED**,
 with three green-under-revert rows disclosed as such.
 
 Census, printed by `core::pb_dx47_dispatch_path_roster::t_census_report`: **26** defs declare the
