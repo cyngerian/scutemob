@@ -143,14 +143,14 @@ fn declared_ward_cost(def: &CardDefinition) -> Option<u32> {
 // r1 — the push_target_announcement( call-site census
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// **`SITE_SRCS` was DELETED by the `/review` fix cycle, and the deletion is the
-/// point.** It hardcoded six `rules/` files, and `push_target_announcement` is
-/// `pub(crate)` — so a 13th call site anywhere else in `crates/engine/src` was
-/// invisible to `r1`, proven by the reviewer adding one to `rules/combat.rs` and
-/// watching this gate stay green. `live_sites` and `r1b` now both walk the whole
-/// crate with `walk_rs`, the traversal `r2` already used. Keeping a narrower list
-/// beside a wider one is how the two axes came to disagree about their own search
-/// space in the first place.
+// **`SITE_SRCS` was DELETED by the `/review` fix cycle, and the deletion is the
+// point.** It hardcoded six `rules/` files, and `push_target_announcement` is
+// `pub(crate)` — so a 13th call site anywhere else in `crates/engine/src` was
+// invisible to `r1`, proven by the reviewer adding one to `rules/combat.rs` and
+// watching this gate stay green. `live_sites` and `r1b` now both walk the whole
+// crate with `walk_rs`, the traversal `r2` already used. Keeping a narrower list
+// beside a wider one is how the two axes came to disagree about their own search
+// space in the first place.
 
 const CALL_NEEDLE: &str = "push_target_announcement(";
 
@@ -609,8 +609,9 @@ fn permanent_targeted_construction_sites() -> Vec<(String, usize)> {
             // not all of the fields is either a payload change or a form this parser
             // does not understand.
             let names_some = PERMANENT_TARGETED_FIELDS.iter().any(|f| region.contains(f));
+            let ambiguous = !tail.starts_with("=>") && names_some && !names_all;
             assert!(
-                !(is_pattern && !tail.starts_with("=>") && names_some && !names_all),
+                !ambiguous,
                 "ambiguous GameEvent::PermanentTargeted site in {label} at byte {at}: \
                  not a match arm, and it names some but not all of \
                  {PERMANENT_TARGETED_FIELDS:?}. Either the payload changed (update the \
