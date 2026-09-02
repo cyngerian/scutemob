@@ -213,7 +213,11 @@
   519 / empty 147 all identical), self-dating churn reverted; **0 card-def edits of any kind**, so
   the empty-diff shortcut was available and was checked.
   `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
-  `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree.
+  `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree. **`npm run build` was
+  NOT run and that is stated rather than omitted** (`node_modules` is absent from this worktree):
+  it is N/A here, because `git diff main..HEAD --numstat -- tools/` is **empty** and the engine
+  diff is `rules/abilities.rs` alone (**+106 / −81**) — `crates/view-model`,
+  `crates/simulator/src`, `crates/card-defs` and `crates/card-types` are all zero.
   **10 revert rows executed, 10 RED, 0 UNDISCRIMINATED**, with three green-under-revert rows
   disclosed as such rather than left implicit — including that disabling the `r3` parser's
   comment-stripping reddens `r3b` and leaves `r3` GREEN, so that stripping is defensive today and

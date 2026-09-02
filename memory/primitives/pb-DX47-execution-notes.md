@@ -248,6 +248,15 @@ empty 147` all identical); self-dating churn reverted. **Zero card-def edits** �
 `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
 `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree (PB-DX15a's lesson).
 
+**`npm run build` was NOT run, and that is stated rather than omitted**: `node_modules` is not
+installed in this worktree (`vite: command not found`). It is not applicable here —
+`git diff main..HEAD --numstat -- tools/` is **empty**, so the frontend is byte-identical to main.
+The precedent is PB-DX45, whose fix moved an offer surface and therefore owed a green frontend
+build; this one does not touch `LegalAction`, `ActionParams`, the wire, or any view model. Engine
+diff is `rules/abilities.rs` alone (**+106 / −81**, of which the non-comment change is one deleted
+block); `crates/view-model`, `crates/simulator/src`, `crates/card-defs`, `crates/card-types` and
+`tools/` are all **zero**.
+
 ### Revert matrix — **10 rows, 10 RED, 0 UNDISCRIMINATED** (row 9 is tabled in §8, row 10 in §9)
 
 | # | revert | expected | observed |
