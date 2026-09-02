@@ -102,9 +102,52 @@ for it.*
   46 that a previous 0..80 sweep drove clean. Not diagnosed; the sweep was bounded below it and the
   chosen seed (13) does not depend on it.
 
-Full record, including the census, the wire table, the seven-plus-one obligations and a 14-row
-revert matrix (**14 RED, 0 UNDISCRIMINATED**): `memory/primitives/pb-DX45-execution-notes.md`.
-Policy ruling: `memory/decisions.md`.
+### ↻ The `/review` cycle (7 findings, all seven taken) — and it found a SECOND silent gate
+
+Figures unchanged by the fix cycle: **4,861 / 0 / 5**, 55 targets, the same 26-name delta, and
+zero tests added or removed by the cycle itself.
+
+**The finding that would have cost a future batch.** `test_dp9_mana_ability_gate` asserts that no
+`Complete` def puts an asking channel inside a mana ability — CR 605.4a leaves no room to announce
+there, so `ask_or_consume_effect_choice`'s `effect_choice_gate_closed` branch silently applies the
+default. Its needle list was never taught the sixth channel, and the comment describing it still
+said FIVE — **the same sentence PB-DX28's own `/review` caught one variant short and filed as
+`OOS-DX28-6`, one channel short again.** The reviewer proved it by planting a `MayPayThenEffect`
+inside a `WhenTappedForMana` trigger and watching the gate stay GREEN, then swapping it for an
+`Effect::Scry` and watching it go RED. Two needles added (`MayPayThenEffect`; and
+`LookAtTopThenPlace` **over-wide on purpose**, because the second site is a FIELD and no variant
+name distinguishes a def that sets `place_cost` from one that leaves it `None` — stated rather
+than accepted silently), both revert-proven RED as V15/V16.
+
+**Three MEDIUMs, all in the batch's record rather than its code, and all instructive:**
+1. **The execution notes' "measured" table published two fingerprints that exist nowhere at HEAD.**
+   They moved a SECOND time when `Cost` was `Box`ed for `clippy::large_enum_variant` and the table
+   was never re-taken. This is PB-DX28's MEDIUM verbatim, inside a batch whose headline is *three
+   published figures that did not reproduce*. Durable form: **a transcribed figure needs a re-take
+   every time its source is recomputed; "I took it from the gate" says WHEN, not whether.** The
+   version numbers never moved twice, which is what AC 7244 actually claims.
+2. **R2's failure message inverted its own consequence.** `can_pay_optional_cost`'s tail returns
+   **`false`**, not `true`, so an undecidable cost is never asked about and the whole `then` arm
+   **silently never runs** — a defect, not the harmless over-ask the message described. Proved by
+   executing `MayPayThenEffect { cost: Cost::Tap }`. The same fact makes `format_optional_cost`'s
+   residual arm provably dead, a stronger bound than the corpus gate it originally cited.
+3. **Six "pay when able" claims left standing in production source** — including
+   `try_pay_optional_cost`'s OWN doc, the `MayPayThenEffect` DSL variant doc a card author reads,
+   `birthing_ritual`, `effect_choose_gate`, and PB-DX24's deviation pin. PB-DX27's *a blocker note
+   is a claim* left un-applied to this batch's own subject matter, in a batch that invokes that
+   lesson to repair `teneb_the_harvester`'s false comment.
+
+**Three LOWs**: the policy ruling's first draft published a rule and then created three violations
+of it (narrowed to what it actually adjudicates — it discovers those three markers as wrong, it
+does not create them, and `OOS-DX45-3` now says marker and card must be fixed in ONE commit so the
+re-deal is paid once); the HTTP pair drives `birthing_ritual`'s `Cost::Sacrifice` at the SECOND
+site rather than `nether_traitor`'s `{B}` and the substitution was undisclosed (now disclosed at
+the test, in the notes and in CLAUDE.md, with the untested combination bounded to
+site 1 × HTTP transport); and a `cargo fmt`-mangled `debug_assert!` format string.
+
+Full record, including the census, the wire table, the seven-plus-one obligations, a 16-row
+revert matrix (**16 RED, 0 UNDISCRIMINATED**) and the two `/review` disclosures:
+`memory/primitives/pb-DX45-execution-notes.md`. Policy ruling: `memory/decisions.md`.
 
 ## Worker Handoff (PB-DX15a, `scutemob-216`) — the two live CR sweeps
 

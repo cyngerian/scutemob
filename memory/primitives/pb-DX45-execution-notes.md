@@ -297,7 +297,7 @@ looks for it.*
 
 ---
 
-## §5 — Revert matrix: 14 rows, all executed, **14 RED, 0 UNDISCRIMINATED**
+## §5 — Revert matrix: 16 rows, all executed, **16 RED, 0 UNDISCRIMINATED**
 
 Each row was applied to the tree, the named target run, then restored. Nothing below is predicted.
 
@@ -317,6 +317,9 @@ Each row was applied to the tree, the named target run, then restored. Nothing b
 | V12 | R3 loses the `"you may sacrifice"` needle | the inverse-axis pin reddens | **RED** — `r3` alone |
 | V13 | `ConfirmPicker` spells `answer['PayOptionalCost']` in its CODE | the never-respell gate reddens | **RED** — `test_dx45_frontend_answers_the_confirm_shape_without_spelling_the_variant` |
 | V14 | `ActionBar` dispatches on `'ConfirmXX'` | the same gate reddens | **RED** — the gate checks both halves, and this proves it |
+
+| V15 | plant `MayPayThenEffect { cost: PayLife(1) }` inside `zendikar_resurgent`'s `WhenTappedForMana` trigger | the mana-ability gate reddens | **RED** — `pb_dp9_effect_choice::test_dp9_mana_ability_gate`. **This row is the `/review`'s Issue 1**: before the fix cycle the same plant left the gate GREEN, which is how the reviewer proved the sixth channel was never taught to it. |
+| V16 | the same slot, as `LookAtTopThenPlace { place_cost: Some(PayLife(1)) }` | the same gate reddens | **RED** — the second needle is independently proven, which matters because it is an over-wide one (the site is a FIELD, not a variant) |
 
 **No row is UNDISCRIMINATED.** Two rows are worth a sentence each: **V2** reddens exactly the two
 second-site probes and nothing else, which is what proves the two `try_pay_optional_cost` callers
