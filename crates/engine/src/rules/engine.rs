@@ -82,26 +82,47 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
     for wave in 0..MAX_BECOMES_TARGET_WAVES {
         // CR 702.21a: waves 1+ look only at the becomes-target events the previous
         // wave's flush appended (see the doc comment's residual note).
-        let slice: Vec<GameEvent> = if wave == 0 {
-            events.clone()
-        } else {
-            events[scanned..]
-                .iter()
-                .filter(|e| matches!(e, GameEvent::PermanentTargeted { .. }))
-                .cloned()
-                .collect()
-        };
-        scanned = events.len();
+        //
+        // Wave 0 borrows `events` rather than cloning it. That is not a micro-
+        // optimisation for its own sake: this function runs on essentially every
+        // `Command`, so a per-command clone of the whole event vec would be a real
+        // cost on the `full_turn_4p` bench path for a branch that, in the
+        // overwhelming majority of commands, never runs a second wave at all.
+        //
         // PB-DX15a (`OOS-DX24-7`): `Simultaneous` here is EXACTLY the pre-PB-DX15a
         // behaviour, not a new judgement. PB-DX24's fix cycle recorded this call site as
         // NOT AUDITED for CR 603.10a look-back granularity, and this batch did not audit
         // it either -- the parameter exists so that status is visible here instead of
         // buried in a comment in `abilities.rs`.
-        let new_triggers = abilities::check_triggers_with_timing(
-            state,
-            &slice,
-            abilities::EventBatchTiming::Simultaneous,
-        );
+        let new_triggers = if wave == 0 {
+            let t = abilities::check_triggers_with_timing(
+                state,
+                events,
+                abilities::EventBatchTiming::Simultaneous,
+            );
+            scanned = events.len();
+            t
+        } else {
+            let slice: Vec<GameEvent> = events[scanned..]
+                .iter()
+                .filter(|e| matches!(e, GameEvent::PermanentTargeted { .. }))
+                .cloned()
+                .collect();
+            scanned = events.len();
+            if slice.is_empty() {
+                // No permanent became the target during the previous wave's flush,
+                // so there is nothing this wave could add. Return before the extra
+                // `flush_pending_triggers` so a command that causes no
+                // becomes-target trigger produces a byte-identical event stream to
+                // the pre-PB-DX48 engine.
+                return;
+            }
+            abilities::check_triggers_with_timing(
+                state,
+                &slice,
+                abilities::EventBatchTiming::Simultaneous,
+            )
+        };
         let found_any = !new_triggers.is_empty();
         for t in new_triggers {
             state.pending_triggers.push_back(t);
