@@ -2870,12 +2870,40 @@ fn test_dp9_mana_ability_gate() {
                     // throughout the corpus with no choice attached), so this
                     // gate keys on the channel-marking variant instead, exactly
                     // as the other four key on their own asking Effect variant.
+                    // PB-DX45 (`scutemob-217`): the SIXTH and SEVENTH needles,
+                    // added by the batch's own `/review` after it proved the gate
+                    // silent on the new channel by planting a `MayPayThenEffect`
+                    // inside a `WhenTappedForMana` trigger and watching this test
+                    // stay GREEN, then swapping the same slot for an
+                    // `Effect::Scry` and watching it go RED.
+                    //
+                    // CR 118.12's optional cost is asked at TWO sites, so it needs
+                    // TWO needles: `MayPayThenEffect` is its own asking `Effect`
+                    // variant (the shape the first four needles have), while the
+                    // second site is `Effect::LookAtTopThenPlace`'s `place_cost`
+                    // FIELD -- a def that sets it asks, a def that leaves it
+                    // `None` does not, and there is no variant name that
+                    // distinguishes them. `LookAtTopThenPlace` is therefore an
+                    // OVER-wide needle here, deliberately: five corpus defs carry
+                    // it and only one sets a `place_cost`, so this gate would flag
+                    // a mana ability containing any of the five. That is the safe
+                    // direction (it can only over-report inside a mana ability,
+                    // which no `Complete` def does today) and it is stated rather
+                    // than silently accepted.
+                    //
+                    // **This list has now been one short TWICE**: PB-DX28's own
+                    // `/review` caught the parenthetical below one variant short
+                    // (`OOS-DX28-6`), and PB-DX45's caught the list itself one
+                    // channel short. A gate keyed on an enumeration needs the
+                    // enumeration re-derived, not appended to from memory.
                     let asks = [
                         "SearchLibrary",
                         "Scry",
                         "Surveil",
                         "DiscardCards",
                         "ChosenObject",
+                        "MayPayThenEffect",
+                        "LookAtTopThenPlace",
                     ]
                     .iter()
                     .any(|v| roster::contains_variant(a, v));

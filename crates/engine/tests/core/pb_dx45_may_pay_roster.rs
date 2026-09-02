@@ -10,9 +10,17 @@
 //!   pinned by NAME, with the `Complete` (deck-legal) subset called out
 //!   separately. A pin, so a 15th use is a deliberate act.
 //! * **R2** — every corpus `MayPayThenEffect` cost is one `can_pay_optional_cost`
-//!   can decide, i.e. NOT one of the arms that fall through to its
-//!   unconditional-`true` tail. That tail is what would make the new ask
-//!   unconditional-in-practice; the floor keeps the set non-empty.
+//!   can decide, i.e. NOT one of the nine arms that fall through to its tail.
+//!   **That tail returns `false`, not `true`**, and the consequence is the
+//!   opposite of what this doc claimed in its first draft: with PB-DX45's
+//!   `if !can_pay_optional_cost(..) { continue; }` short-circuit, such a cost is
+//!   **never asked about and the whole `then` arm silently never runs** — a
+//!   silent no-op, not a harmless over-ask. Corrected by the batch's own
+//!   `/review`, which proved it by executing
+//!   `MayPayThenEffect { cost: Cost::Tap, then: GainLife(2) }` and observing
+//!   `pending=None life=20 events=0`. The needle set and the gate were always
+//!   right; only the stated reason was wrong, and wrong in the direction that
+//!   would make a future author triage a real defect as a formality.
 //! * **R3** — **inverse axis** (dispatch hygiene 6: the memo's figure is a
 //!   FLOOR, so a second axis is mandatory). Starts from the printed oracle text
 //!   rather than the DSL: every `Complete` def whose printed text carries an
@@ -189,11 +197,18 @@ fn r1b_may_pay_complete_subset_is_pinned() {
 /// The `Cost` variant tags `can_pay_optional_cost` decides on their own merits.
 ///
 /// Its final arm (`Cost::Tap | SacrificeSelf | ExileSelf | Forage |
-/// RemoveCounter | DiscardSelf | ...`) returns an unconditional `true`, so a
-/// `MayPayThenEffect` carrying one of those would be *always* payable and the
-/// new question would be asked on every resolution regardless of board state.
-/// That is not wrong, but it is a different shape from the ten this batch
-/// measured, and it should be a deliberate act rather than a discovery.
+/// RemoveCounter | DiscardSelf | ExileFromHand | ExileSelfFromHand | Exert`)
+/// returns an unconditional **`false`** (`effects/mod.rs`, the tail of
+/// `can_pay_optional_cost`), so a `MayPayThenEffect` carrying one of those is
+/// **never payable**, is therefore never asked about under PB-DX45's
+/// determined short-circuit, and its `then` arm **never runs at all** — a silent
+/// no-op on a printed card, which is a defect and not a formality.
+///
+/// **This doc said `true` and "asked unconditionally" in its first draft**, i.e.
+/// it described the harmless failure instead of the real one. Corrected by the
+/// batch's `/review`, which executed the case rather than reading the arm. The
+/// needle set below is unchanged: it was always the right set, for a reason
+/// stronger than the one originally given.
 const DECIDABLE_COST_TAGS: &[&str] = &["Mana", "PayLife", "DiscardCard", "Sacrifice", "Sequence"];
 
 /// The tag of a serialized `Cost`: an object key for a struct/tuple variant, the
@@ -226,10 +241,12 @@ fn r2_every_corpus_cost_is_decidable() {
         assert!(
             DECIDABLE_COST_TAGS.contains(&tag.as_str()),
             "PB-DX45 R2: {name}'s MayPayThenEffect carries Cost::{tag}, which \
-             can_pay_optional_cost does not decide -- it falls through to the \
-             unconditional-true tail, so the CR 118.12 question would be asked \
-             unconditionally. Decide it deliberately (extend can_pay_optional_cost) or \
-             add the tag here with a reason."
+             can_pay_optional_cost does not decide -- it falls through to that \
+             function's tail, which returns FALSE. So this cost is never payable, \
+             PB-DX45's determined short-circuit never asks about it, and the effect's \
+             whole `then` arm silently never runs. Extend can_pay_optional_cost to \
+             decide the cost, or add the tag here with a reason saying why a silent \
+             no-op is acceptable for it."
         );
     }
     // Non-vacuity floors: the walk found something, and the set spans more than

@@ -419,14 +419,33 @@ fn test_dx24_nether_traitor_triggers_from_the_graveyard() {
 /// negative -- zero black mana available -- proves the assertion discriminates
 /// the RETURN, not merely the trigger firing.
 ///
-/// Fix cycle (review Finding 9): CR 118.12 itself makes this a PLAYER CHOICE
-/// ("checks whether the player CHOSE to pay an optional cost") -- it does not
-/// say "pay when able." The engine's OWN deviation is pay-when-able,
-/// documented at its one implementation site
-/// (`effects/mod.rs:4299-4301`, `try_pay_optional_cost`) as a deliberate M7
-/// simplification, not a CR requirement; `engine.rs:1568` already names this
-/// the "DP-19 (`MayPayThenEffect`) bug class." This test pins THAT engine
-/// deviation, not CR 118.12 -- see `OOS-DX24-9`.
+/// **↻ PB-DX45 (`scutemob-217`) CLOSED the deviation this test was re-worded to
+/// pin, so read the paragraph below as history and this one as what the test
+/// measures now.**
+///
+/// `OOS-DX24-9` is closed: `Effect::MayPayThenEffect` asks its payer an
+/// `EffectChoiceQuestion::PayOptionalCost` on the CR 608.2d suspend-and-replay
+/// channel. This test still passes **unchanged**, and the reason is worth
+/// stating rather than leaving to be re-derived: its `pass_all` already routes
+/// through `replay_harness::auto_answer_blocking_decisions`, which submits the
+/// engine's own default — `pay: true` — so the positive half now pins *"answered
+/// PAY, the Traitor returns"* rather than *"the engine paid for you"*. The
+/// no-mana negative half changes meaning too: the engine never ASKS when the cost
+/// is unpayable (the determined short-circuit), so it pins "no question, no
+/// return". Both halves remain discriminating; neither is about the deviation any
+/// more. The DECLINE — the state no channel could produce before PB-DX45 — is
+/// pinned by `pb_dx45_optional_cost::p7` and
+/// `pb_dx45_optional_cost_channel::c1`, not here.
+///
+/// *(Historical, PB-DX24 fix cycle, review Finding 9: CR 118.12 itself makes this
+/// a PLAYER CHOICE — "checks whether the player CHOSE to pay an optional cost" —
+/// and does not say "pay when able." The engine's OWN deviation was pay-when-able,
+/// documented at `effects::try_pay_optional_cost` as a deliberate M7
+/// simplification, not a CR requirement, and `rules::engine`'s `BlockingDecision`
+/// region named it the "DP-19 (`MayPayThenEffect`) bug class". This test pinned
+/// THAT engine deviation, not CR 118.12. The two line cites that sentence carried
+/// — `effects/mod.rs:4299-4301` and `engine.rs:1568` — had both drifted by
+/// hundreds of lines before PB-DX45 replaced them with symbols.)*
 #[test]
 fn test_dx24_nether_traitor_returns_itself_end_to_end() {
     let p1 = p(1);

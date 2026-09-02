@@ -174,10 +174,10 @@ not reproduce* should not quietly revise its own.
 |---|---|---|---|
 | PROTOCOL | 38 → 39 | **38 → 39** | `protocol_schema_fingerprint_is_pinned`'s own failure output |
 | PROTOCOL closure type count | 98 → 98 | **98 → 98** | the same failure message ("(98 types)") |
-| PROTOCOL fingerprint | not predicted | `0037ae3c…bce56a` | transcribed from the failing gate, never invented |
+| PROTOCOL fingerprint | not predicted | **`4e3b0020…578aab`** | transcribed from the failing gate, never invented — **corrected, see §2.1** |
 | HASH | 77 → 78 | **77 → 78** | `declaration_fingerprint_is_pinned` / `stream_fingerprint_is_pinned` |
 | HASH closure type count | 131 → 131 | **131 → 131** | `declaration_fingerprint_is_pinned`'s own message ("(131 types)") |
-| HASH decl fingerprint | not predicted | `15c2ec02…7dbd12` | from the gate |
+| HASH decl fingerprint | not predicted | **`0c452e2f…b062812`** | from the gate — **corrected, see §2.1** |
 | HASH stream fingerprint | not predicted | `08220ca0…19c80` | from the gate — moves for the v40 reason alone (`HASH_SCHEMA_VERSION` is the stream's first byte); `canonical_fixture()` records no pending choice and banks no answer |
 | frozen prefixes | RED until re-pinned | re-pinned in **both** gate files from their own output | |
 | sentinels | re-pinned by symbol | **44 files** by a symbol-anchored regex, then **2 more** by a second pass — `pb_dx2_command_gates.rs` and `pb_dx5_pending_draw_choice.rs` spell the assertion across TWO LINES, which the first single-line regex could not see | |
@@ -190,6 +190,33 @@ stayed still. Final: `protocol_schema` **17/17**, `hash_schema` **36/36**, with
 regex matched. The first pass caught 44 files and left two green-looking failures behind, both of
 which spell `assert_eq!(mtg_engine::HASH_SCHEMA_VERSION,\n 77u8, ...)` across a line break. The
 second pass is newline-tolerant. Nothing was hand-copied.
+
+### §2.1 — The two fingerprints in the table above were WRONG until the `/review` caught them
+
+**Corrected 2026-09-02 by this batch's own `/review`, and recorded rather than silently edited**,
+because a batch whose headline is *three published figures that did not reproduce* has no standing
+to quietly fix its own.
+
+Both fingerprints moved a **second** time, in commit `a8536c95`, when `Cost` was `Box`ed for
+`clippy::large_enum_variant` — `Box<T>` serializes and hashes transparently as `T`, so the WIRE
+shape did not move, but the DECLARATION text the scanners digest did. The table was written after
+the first computation and never re-taken, so it published `0037ae3c…` and `15c2ec02…`, **two
+strings that exist nowhere in this repository at HEAD**. The live values are `4e3b0020…578aab`
+(`protocol.rs:445`, `:744`) and `0c452e2f…b062812` (`hash.rs:1384`). The stream fingerprint
+(`08220ca0…`) was always right.
+
+**This is PB-DX28's MEDIUM, verbatim**: *"the execution notes' 'verbatim' gate output quoted two
+fingerprints that have never existed in any source file in this repository — PB-DX8's 'publish the
+figure, do not transcribe it' rule broken in the evidence for the very criterion that depends on
+it."* The durable form: **a transcribed figure needs a re-take every time its source is
+recomputed, and "I took it from the gate" is a statement about WHEN, not about whether.** The fix
+that would actually hold is to have the notes cite the constant's location rather than its value.
+
+**What did NOT happen, and is the claim AC 7244 actually makes**: the VERSION numbers never moved
+twice. PROTOCOL went 38 → 39 once and HASH 77 → 78 once; the history rows were appended once and
+their tail fingerprints updated in place, which is the sanctioned procedure (the frozen prefix
+covers every row *behind* the tail, and versions 38 / 77 joined it unchanged). Both gates are green
+at HEAD: `protocol_schema` 17/17, `hash_schema` 36/36.
 
 ---
 
@@ -296,3 +323,43 @@ second-site probes and nothing else, which is what proves the two `try_pay_optio
 are independently covered rather than one being incidental to the other; and **V9** is the batch's
 own shipped defect re-applied, so the matrix contains a row that was RED *in production* until the
 `/review`-adjacent agent found it.
+
+
+---
+
+## §6 — Two disclosures the `/review` asked for
+
+### §6.1 The HTTP half drives `birthing_ritual`, not `nether_traitor` — and AC 7241 names the latter
+
+AC 7241 says *"`nether_traitor`'s `{B}` declined AND accepted end-to-end through
+LocalGame/HumanChoice + play-server HTTP + bot path"*. Measured against that literally:
+
+| channel | card | cost shape | site |
+|---|---|---|---|
+| `LocalGame`/`HumanChoice` (`c1`/`c2`) | **`nether_traitor`** | `Cost::Mana({B})` | site 1 (`MayPayThenEffect`) |
+| bot path (`c3`) | **`nether_traitor`** | `Cost::Mana({B})` | site 1 |
+| play-server HTTP (`test_dx45_a_human_{decline,accept}_…`) | **`birthing_ritual`** | `Cost::Sacrifice` | **site 2** (`place_cost`) |
+
+**The substitution is real and was undisclosed until the `/review` named it.** Its cause is the
+HTTP surface's own shape: a play-server session is installed through `session::new_game` from a
+DECK, and getting a `nether_traitor` into a graveyard with a creature dying on top of it is not
+something that path can be asked for; `birthing_ritual`'s end-step trigger reaches a CR 118.12
+offer from an ordinary deck at turn 3. So the HTTP pair covers **the other site and the other cost
+kind**, which is more coverage than the criterion asked for and not the coverage it named.
+
+**What is therefore NOT covered, stated as a bound rather than left to be inferred**: no probe
+drives site 1 or a `Cost::Mana` optional cost over the HTTP transport. The gap is narrow — the
+HTTP handler's own answer path is `PlaySession::submit` → `LocalGame::submit`, which is the exact
+entry point `c1`/`c2` drive with `nether_traitor` — so what is untested is the transport for that
+combination, not the engine path. It is disclosed here, in CLAUDE.md and at the tests themselves
+rather than closed, because closing it means a second hand-built HTTP fixture for a leg whose only
+untested layer is JSON encode/decode that four other `EffectChoiceQuestion` variants already
+exercise.
+
+### §6.2 No golden script touches any carrier, measured
+
+`grep -rl` over `test-data/generated-scripts/` for all 15 `MayPayThenEffect` / `place_cost` carrier
+names returns **nothing**. So the JSON-script regime is unaffected by this batch **by absence, not
+by the `pay: true` default** — the default is what protects the fuzzer and the bot-driven suites,
+and the scripts are protected by simply not containing one of these cards. Recorded because
+"the scripts stayed green" would otherwise read as evidence for the default, which it is not.

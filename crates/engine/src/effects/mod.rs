@@ -566,16 +566,29 @@ fn ask_or_consume_effect_choice(
         // swallowed failure (SR-4). The obligation this branch skips (offering
         // the choice) is discharged instead by
         // `tests/primitives/pb_dp9_effect_choice.rs::test_dp9_mana_ability_gate`,
-        // which asserts no `Complete` card def puts one of the FIVE asking
+        // which asserts no `Complete` card def puts one of the SIX asking
         // channels inside a mana ability: `Effect::SearchLibrary`, `Scry`,
-        // `Surveil`, `DiscardCards`, and -- since PB-DX28 -- the CR 115.10
+        // `Surveil`, `DiscardCards`, -- since PB-DX28 -- the CR 115.10
         // untargeted choice, keyed on `EffectTarget::ChosenObject` because its
         // carriers (`MoveZone`/`AddCounter`/`UntapPermanent`) are far too
-        // generic to serve as needles. (This sentence said "the four asking
-        // effects" for the whole of PB-DX28's implement phase, while the gate
-        // it describes already checked five -- caught by the batch's own
-        // `/review`, and an instance of `OOS-DX28-6`, the class that seed was
-        // filed for.) If that assertion ever reddens, this branch has become live
+        // generic to serve as needles, and -- since PB-DX45 -- CR 118.12's
+        // optional cost, which needs TWO needles because it is asked at two
+        // sites (`Effect::MayPayThenEffect`, and `Effect::LookAtTopThenPlace`
+        // qualified by its `place_cost` field).
+        //
+        // **This sentence has now been wrong twice, in the same way.** It said
+        // "the four asking effects" for the whole of PB-DX28's implement phase
+        // while the gate already checked five (caught by that batch's `/review`,
+        // an instance of `OOS-DX28-6`); it then said FIVE for the whole of
+        // PB-DX45's implement phase while the gate checked five and the engine
+        // asked six -- so this time the COMMENT was right about the gate and both
+        // were wrong about the engine. Caught by PB-DX45's `/review`, which
+        // proved it by planting a `MayPayThenEffect` inside a mana ability and
+        // watching the gate stay green. Whoever adds a seventh channel: re-derive
+        // the list from the `ask_or_consume_effect_choice` call sites, do not
+        // append to it from this comment.
+        //
+        // If that assertion ever reddens, this branch has become live
         // and the card in question needs a rules decision, not a silent
         // default.
         return Some(default_effect_choice_answer(&question));
@@ -6432,12 +6445,17 @@ fn execute_effect_inner(
                     .map(|z| z.top_n(n))
                     .unwrap_or_default();
                 // Review Finding 1 (PB-OS8, LOW): an empty top-N `continue`s HERE, before the
-                // `place_cost` block below -- so an empty library never pays the interposed
-                // cost, whereas a non-empty-but-no-match top-N DOES pay it (deterministic
-                // "pay when able", invariant #9). This asymmetry is intentional, not a bug: an
-                // empty library is a guaranteed whiff, so skipping the cost there is arguably
-                // MORE correct than auto-sacrificing into a guaranteed whiff. Both lines are
-                // legal under CR 118.12's "may."
+                // `place_cost` block below -- so an empty library is never even ASKED
+                // about the interposed cost, whereas a non-empty-but-no-match top-N
+                // is asked and may pay into a whiff. **The asymmetry survives
+                // PB-DX45; the reason given for it does not.** It used to read
+                // "deterministic pay-when-able, invariant #9", i.e. it justified an
+                // ENGINE choice; since PB-DX45 the payer decides in both branches
+                // and what this `continue` skips is the QUESTION, not the payment.
+                // The asymmetry is still intentional and is now easier to defend:
+                // an empty library is a guaranteed whiff, so not asking beats asking
+                // a question whose only useful answer is "no". Both lines are legal
+                // under CR 118.12's "may."
                 if top_ids.is_empty() {
                     continue;
                 }
@@ -6471,7 +6489,8 @@ fn execute_effect_inner(
                             Some(other) => {
                                 debug_assert!(
                                     false,
-                                    "CR 608.2d: variant mismatch answering a PayOptionalCost:                                      {other:?}"
+                                    "CR 608.2d: variant mismatch answering a \
+                                     PayOptionalCost: {other:?}"
                                 );
                                 true
                             }
@@ -9932,9 +9951,19 @@ fn pay_optional_cost(
 /// CR 118.12 / 118.8: attempt to pay an optional cost non-interactively (deterministic).
 /// Returns `Some(lki)` and mutates state iff the cost was fully paid (`lki` carries any
 /// sacrificed creature LKI, empty for non-sacrifice costs); returns `None` (no mutation)
-/// if the payer can't/doesn't pay. "Pay when able" is the deterministic default until
-/// M10+ adds interactive pay-vs-decline choice (architecture invariant #9 -- a legal,
-/// replayable game choice, not state corruption).
+/// if the payer can't/doesn't pay.
+///
+/// **"Pay when able" is no longer the default, and this doc said it was until
+/// PB-DX45's `/review` (`scutemob-217`) caught it — on the very function whose
+/// CALLERS are that batch's stated scope.** Both callers now ask the payer an
+/// `EffectChoiceQuestion::PayOptionalCost` (CR 118.12, on PB-DP9's CR 608.2d
+/// suspend-and-replay channel) and reach this function only after the answer is
+/// `pay: true`, so what remains here is the PAYMENT, not the decision. The
+/// `can_pay_optional_cost` pre-check below is therefore belt-and-braces rather
+/// than a policy: nothing legal can change payability between the ask and the
+/// answer (the admission gate admits only that answer and `Concede` while the
+/// block stands), and it is kept so this function still fails closed if a third
+/// caller ever reaches it without asking.
 fn try_pay_optional_cost(
     state: &mut GameState,
     pid: PlayerId,

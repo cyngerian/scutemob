@@ -10,10 +10,19 @@
 // expressible via Effect::LookAtTopThenPlace. `place_cost: Cost::Sacrifice(creature)`
 // is the interposed "you may sacrifice a creature" (CR 118.12) — paid AFTER the
 // look, BEFORE placing, and its LKI parameterizes `filter.max_cmc_amount = 1 +
-// ManaValueOfSacrificedCreature` (CR 202.3/608.2h). Deterministic "pay when able"
-// (architecture invariant #9): the sacrifice fires whenever a creature is
-// available, even into a whiff, same as every other MayPayThenEffect-shaped
-// Complete card. The intervening-if re-check at resolution (CR 603.4) and the
+// ManaValueOfSacrificedCreature` (CR 202.3/608.2h).
+//
+// **The controller decides, since PB-DX45** (`scutemob-217`). This comment said
+// *"deterministic 'pay when able' (architecture invariant #9): the sacrifice fires
+// whenever a creature is available, even into a whiff, same as every other
+// MayPayThenEffect-shaped Complete card"* — true when written, false now.
+// `place_cost` is the engine's SECOND CR 118.12 optional-cost site and it asks an
+// `EffectChoiceQuestion::PayOptionalCost` exactly as `MayPayThenEffect` does. This
+// def is that site's ONLY corpus user, which is why it is the def the play-server's
+// own HTTP decline/accept pair drives. Still engine-chosen and filed as
+// `OOS-DX45-1`: WHICH creature is sacrificed (lowest `ObjectId`) — which here also
+// silently decides how big a creature the dig may cheat in, since that creature's
+// LKI parameterises `max_cmc_amount`. The intervening-if re-check at resolution (CR 603.4) and the
 // {X}=0 mana-value rule for X-cost cards among the seven are handled by existing
 // infrastructure (TriggerCondition/ManaValueOfSacrificedCreature). Rest-to-bottom
 // "in a random order" is realized as ObjectId-ascending deterministic placement,

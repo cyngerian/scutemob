@@ -13625,6 +13625,21 @@ mod tests {
         );
     }
 
+    /// **This pair drives `birthing_ritual`, not `nether_traitor`, and AC 7241 names
+    /// the latter — disclosed rather than glossed** (PB-DX45 `/review`, Issue 6). A
+    /// play-server session is installed from a DECK through `session::new_game`, and
+    /// that path cannot be asked for "a `nether_traitor` in a graveyard with a creature
+    /// dying on top of it"; `birthing_ritual`'s end-step trigger reaches a CR 118.12
+    /// offer from an ordinary deck at turn 3. So this pair covers the OTHER pay site
+    /// (`Effect::LookAtTopThenPlace`'s `place_cost`) and the OTHER cost kind
+    /// (`Cost::Sacrifice`) — more coverage than the criterion asked for, and not the
+    /// coverage it named. `nether_traitor`'s `{B}` is driven with a non-default answer
+    /// through `LocalGame`/`HumanChoice` and the bot path by
+    /// `crates/simulator/tests/pb_dx45_optional_cost_channel.rs`. What no probe covers
+    /// is site 1 or a `Cost::Mana` optional cost over the HTTP TRANSPORT; the handler's
+    /// own answer path is `PlaySession::submit` -> `LocalGame::submit`, which is the
+    /// exact entry point those probes drive, so the untested layer is the JSON
+    /// encode/decode four other question variants already exercise.
     /// **T2b -- a human DECLINE is answered over real HTTP and Arbor Elf
     /// survives (CR 118.12).**
     ///

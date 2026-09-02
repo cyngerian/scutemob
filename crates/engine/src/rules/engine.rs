@@ -1603,6 +1603,10 @@ fn handle_pay_recover(
 /// something else]" means "[a player may do something else]. If [that player doesn't], [do
 /// something]." Not answering is "doesn't". Auto-paying an affordable cost would spend mana
 /// or life the player never elected to spend -- the DP-19 (`MayPayThenEffect`) bug class.
+/// **PB-DX45 (`scutemob-217`) closed that class at the site this sentence names**: both
+/// `try_pay_optional_cost` call sites now ask (`EffectChoiceQuestion::PayOptionalCost`,
+/// CR 608.2d). The argument above is unaffected -- it is about why THIS mechanism declines
+/// rather than auto-pays -- but the cited exemplar is now a closed seed, not a live one.
 ///
 /// **Deviation from CR 608.2d, deliberate.** The CR makes this choice during the ability's
 /// resolution. This engine defers it to the end of the FIRST SUBSEQUENT priority round that

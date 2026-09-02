@@ -292,9 +292,25 @@ sites in one commit.
 
 **What the rule is, stated so the next author can apply it without re-reading this.** A printed
 "you may pay X. If you do, Y" bars `Complete` iff the engine **cannot express the decline**. It
-can, now, wherever the clause is authored as `MayPayThenEffect` or a `place_cost`. It still
-cannot where the clause is authored as something else — `OOS-DX45-3` names three deck-legal
-`Complete` defs (`teneb_the_harvester`, `crypt_ghast`, `syndic_of_tithes`) whose printed cost is
-not merely auto-taken but **never charged at all**, and those markers are wrong today. They are
-filed rather than fixed here, per this batch's scope line: PB-DX45 repairs every caller of
+can, now, wherever the clause is authored as `MayPayThenEffect` or a `place_cost`.
+
+**The scope of this rule, narrowed after the batch's own `/review` observed that the first draft
+contradicted itself.** That draft went on to say the rule "still cannot [express the decline] where
+the clause is authored as something else", named `teneb_the_harvester`, `crypt_ghast` and
+`syndic_of_tithes` as three deck-legal `Complete` defs whose markers are therefore "wrong today",
+and then shipped them `Complete` — a ruling creating three violations of itself, one class over
+from the two it resolved.
+
+The accurate framing, and the one that holds: **this rule adjudicates ONE deviation** — whether an
+optional cost that the engine models and auto-takes bars `Complete`. It does not, any more,
+because the decline is expressible. It says **nothing** about a def whose printed cost is not
+modelled at all. Those three are wrong for the ordinary reason every unauthored clause is wrong
+(printed text the def does not implement), they were **equally wrong before PB-DX45**, and this
+ruling neither creates nor excuses them: it discovers them. `OOS-DX45-3` carries them, names the
+one-primitive fix, and — this is the part that matters for whoever takes it — **their markers must
+be corrected in the same commit as their fix**, so the corpus re-deal (`OOS-CARDS2-3`) is paid
+once rather than twice. Demoting them here, with no repair, would have cost a second re-deal at
+the end of a batch and removed three cards from every deck to no one's benefit.
+
+Batch scope line, for completeness: PB-DX45 repairs every caller of
 `effects::try_pay_optional_cost`, not every printed "you may pay".

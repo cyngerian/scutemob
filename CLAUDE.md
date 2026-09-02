@@ -195,6 +195,25 @@
   `crates/engine/tests/core/pb_dx45_may_pay_roster.rs`, 3 in the new
   `crates/simulator/tests/pb_dx45_optional_cost_channel.rs`, 5 in `tools/play-server/src/main.rs`'s
   `#[cfg(test)]` module.
+  **↻ The `/review` (7 findings — 1 gate, 3 MEDIUM record/rationale, 3 LOW — all seven taken) found
+  a SECOND gate this batch had left silent, and it is the one that would have cost a future batch.**
+  `test_dp9_mana_ability_gate` asserts no `Complete` def puts an asking channel inside a mana
+  ability (CR 605.4a leaves no room to announce there, so the branch silently applies the default);
+  its needle list was never taught the sixth channel, and the comment describing it still said
+  FIVE — **the same sentence PB-DX28's own `/review` caught one variant short, filed as
+  `OOS-DX28-6`, now one channel short again.** Proved by planting a `MayPayThenEffect` inside a
+  `WhenTappedForMana` trigger and watching the gate stay GREEN. Two needles added
+  (`MayPayThenEffect`, and `LookAtTopThenPlace` over-wide because the second site is a FIELD, not
+  a variant — stated rather than accepted silently), both revert-proven RED.
+  Also taken: **the execution notes published two fingerprints that exist nowhere at HEAD** — they
+  moved a second time when `Cost` was `Box`ed and the "measured" table was never re-taken, which is
+  PB-DX28's MEDIUM verbatim, inside a batch whose headline is three figures that did not
+  reproduce; **R2's failure message inverted its own consequence** (`can_pay_optional_cost`'s tail
+  returns `false`, so an undecidable cost is a silent no-op, not a harmless over-ask — proved by
+  executing `Cost::Tap`); and **six "pay when able" claims left standing in production source**,
+  including on `try_pay_optional_cost`'s own doc, on the `MayPayThenEffect` DSL variant a card
+  author reads, and on `birthing_ritual` — PB-DX27's *a blocker note is a claim* left un-applied to
+  this batch's own subject matter.
   **PROTOCOL 38 → 39 / HASH 77 → 78**, ONE bump each, both **predicted in writing before any code
   changed** — including the prediction that neither closure's type count would move, confirmed at
   **98** and **131** — and both taken from the failing gates' own output, never invented. History
@@ -705,7 +724,12 @@
   BATTLEFIELD with it spent), through genuine `POST /api/game/action`, and through the bot path
   (`StubProvider` needed no change, asserted rather than assumed). The decline is a state the old
   engine could not produce from any channel, which is exactly why an offer-shaped assertion would
-  have been worthless.
+  have been worthless. **One disclosure the `/review` asked for**: the HTTP pair drives
+  `birthing_ritual`'s `Cost::Sacrifice` at the SECOND site, not `nether_traitor`'s `{B}` — a
+  play-server session installs from a DECK and cannot be asked for a Traitor in a graveyard with a
+  creature dying on it. More coverage than the criterion asked for, and not the coverage it named;
+  the untested combination is (site 1 × HTTP transport) alone, whose engine path is the very
+  `LocalGame::submit` the channel probes drive.
   **`default_effect_choice_answer` returns `pay: true` deliberately** — the exact recovery of the
   pre-batch auto-pay, which is what keeps every bot game, the fuzzer and every pre-existing golden
   script behaviourally identical while only the command trace grows.

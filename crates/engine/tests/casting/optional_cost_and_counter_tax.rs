@@ -9,10 +9,15 @@
 //! unless its controller pays [cost]." Equivalent to "controller may pay [cost]; if
 //! they don't, counter." Delegates to `Effect::CounterSpell`.
 //!
-//! Both primitives resolve the optional cost non-interactively and deterministically:
-//! the payer pays when able (CR 118.8/119.4), otherwise the cost is not paid. This is
-//! a legal, replayable game choice (architecture invariant #9) pending M10+ interactive
-//! pay-vs-decline.
+//! **`MayPayThenEffect` ASKS its payer, since PB-DX45** (`scutemob-217`): resolution
+//! suspends into an `EffectChoiceQuestion::PayOptionalCost` on the CR 608.2d
+//! suspend-and-replay channel and `then` runs only on `pay: true`. Every probe below
+//! banks that answer through `test_util::bank_effect_choice_answer` before executing,
+//! which is why each still measures the payment path it was written for — a bare
+//! `execute_effect` on an asking effect measures nothing. `CounterUnlessPays` is
+//! unchanged and still always counters (CR 118.12a; `OOS-*` territory, not this
+//! batch's). This module doc said "both primitives resolve the optional cost
+//! non-interactively and deterministically … architecture invariant #9" until PB-DX45.
 //!
 //! Card integration tests (crossway_troublemakers, hazorets_monument, springbloom_druid,
 //! nadir_kraken, mana_leak, etc.) are deferred to the PB-AC2 backfill phase, since the

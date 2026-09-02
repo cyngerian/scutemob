@@ -1776,8 +1776,11 @@ pub enum Effect {
     ///
     /// A def containing this variant cannot be `Complete`; the gate is
     /// `tests/core/effect_choose_gate.rs`. Contrast [`Effect::MayPayThenEffect`] below,
-    /// which does honour its `payer` and pays when able — a deterministic but *legal*
-    /// game choice, which is why it is not gated.
+    /// which honours its `payer` and — since PB-DX45 (`scutemob-217`) — **asks** them,
+    /// so its "may" is a real player decision rather than an engine one. That is why it
+    /// is not gated. (Until PB-DX45 this sentence read *"pays when able — a
+    /// deterministic but legal game choice"*, which is the reading `OOS-DX24-9`
+    /// and `OOS-DX27-5` were filed against.)
     MayPayOrElse {
         cost: Cost,
         payer: PlayerTarget,
@@ -1785,10 +1788,26 @@ pub enum Effect {
     },
     /// CR 118.12: "[player] may pay [cost]. If they do, [then]." Beneficial optional cost.
     /// Counterpart to `MayPayOrElse` (CR 118.12a tax semantics). `then` runs ONLY IF the
-    /// cost is paid. Deterministic non-interactive path: the payer pays when able (life >=
-    /// n, a matching permanent to sacrifice, a card to discard, or floating mana), then
-    /// `then` runs; otherwise nothing happens. Cost is paid at resolution (CR 118.12).
-    /// Interactive pay-vs-decline choice deferred to M10+.
+    /// cost is paid. Cost is paid at resolution (CR 118.12).
+    ///
+    /// **The PAYER decides, since PB-DX45** (`scutemob-217`, closing `OOS-DX24-9` =
+    /// `OOS-DX27-5`). Resolution suspends into an
+    /// `EffectChoiceQuestion::PayOptionalCost` on PB-DP9's CR 608.2d
+    /// suspend-and-replay channel, once per eligible payer, and `then` runs only if
+    /// that payer answered `pay: true`. Declining is real play — hold the mana, keep
+    /// the creature — and it is a state no channel could produce before that batch.
+    ///
+    /// The engine asks ONLY when the cost is already payable (`can_pay_optional_cost`):
+    /// CR 118.12 gives no choice to a player who cannot pay, and the short-circuit
+    /// spares a round trip whose only legal answer is "no". A cost outside
+    /// `Mana` / `PayLife` / `DiscardCard` / `Sacrifice` / `Sequence` is
+    /// **unconditionally unpayable**, so authoring one here makes `then` silently
+    /// never run; `pb_dx45_may_pay_roster.rs`'s R2 gates the corpus against it.
+    ///
+    /// This doc said *"Deterministic non-interactive path: the payer pays when able …
+    /// Interactive pay-vs-decline choice deferred to M10+"* until PB-DX45, and that
+    /// sentence is what four card defs' markers and two registry rows were reasoning
+    /// from.
     MayPayThenEffect {
         cost: Cost,
         payer: PlayerTarget,
@@ -2044,10 +2063,24 @@ pub enum Effect {
         player: PlayerTarget,
         count: EffectAmount,
         filter: TargetFilter,
-        /// Optional cost paid AFTER the look, BEFORE placing (deterministic "pay when able",
-        /// CR 118.12). When Some, placement happens only if paid; a `Cost::Sacrifice` here
-        /// populates `ctx.sacrificed_creature_lki` so `filter`'s `*_cmc_amount = 1 + sac MV`
+        /// Optional cost paid AFTER the look, BEFORE placing (CR 118.12). When Some,
+        /// placement happens only if paid; a `Cost::Sacrifice` here populates
+        /// `ctx.sacrificed_creature_lki` so `filter`'s `*_cmc_amount = 1 + sac MV`
         /// resolves (Birthing Ritual). None = no interposed cost (Growing Rites).
+        ///
+        /// **The PAYER decides, since PB-DX45** (`scutemob-217`). This doc said
+        /// *"deterministic 'pay when able'"* until then, and it was the DSL-facing
+        /// sentence a card author reads — so it is corrected here rather than only in
+        /// the executor. This field is the engine's SECOND CR 118.12 optional-cost
+        /// site (the first is [`Effect::MayPayThenEffect`]); setting it makes the
+        /// effect ask `EffectChoiceQuestion::PayOptionalCost` on the CR 608.2d
+        /// suspend-and-replay channel.
+        ///
+        /// The cost must be one `can_pay_optional_cost` decides — `Mana`, `PayLife`,
+        /// `DiscardCard`, `Sacrifice` or `Sequence`. Any other variant is
+        /// unconditionally unpayable there, so the effect would never ask and its
+        /// placement would silently never happen; `pb_dx45_may_pay_roster.rs`'s R2
+        /// gates the corpus against it.
         place_cost: Option<Box<Cost>>,
         /// Placed-card destination. Battlefield{tapped} → emits PermanentEnteredBattlefield
         /// (ETB triggers fire). Hand{owner} for "into your hand".

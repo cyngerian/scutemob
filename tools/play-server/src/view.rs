@@ -2441,14 +2441,18 @@ fn sacrifice_prompt(requirement: &SpellAdditionalCost) -> String {
 /// own recorded question and never against this string, so a formatting change
 /// here can never change what is legal.
 ///
-/// **Not exhaustive over `Cost`, deliberately, and the residual is stated
-/// rather than hidden behind a wildcard's silence.** The only costs that can
-/// reach this function are those `can_pay_optional_cost` decides — pinned to
-/// `Mana`, `PayLife`, `DiscardCard`, `Sacrifice` and `Sequence` by
-/// `pb_dx45_may_pay_roster.rs`'s `r2_every_corpus_cost_is_decidable`, which is a
-/// gate on the CORPUS, not on this match. A `Cost` variant outside that set
-/// renders as its own debug-ish name here, which is ugly and correct; it cannot
-/// render as something misleadingly specific.
+/// **Not exhaustive over `Cost`, deliberately, and the `other` arm is PROVABLY
+/// DEAD rather than merely unlikely.** The engine asks a `PayOptionalCost`
+/// question ONLY when `can_pay_optional_cost` has already returned `true`, and
+/// that function returns an unconditional `false` for every `Cost` variant
+/// outside `Mana` / `PayLife` / `DiscardCard` / `Sacrifice` / `Sequence`. So no
+/// other variant can reach this function at all — a stronger bound than the
+/// corpus gate `pb_dx45_may_pay_roster.rs::r2_every_corpus_cost_is_decidable`
+/// provides, and one that does not depend on which cards happen to be authored.
+/// (The first draft of this doc cited the corpus gate as its bound and described
+/// the tail as unconditional-`true`; both were corrected by PB-DX45's own
+/// `/review`.) The arm stays anyway: it renders as a debug-ish name, which is
+/// ugly and correct, and it cannot render as something misleadingly specific.
 fn format_optional_cost(cost: &Cost) -> String {
     match cost {
         Cost::Mana(mc) => format_mana_cost_compact(mc),
