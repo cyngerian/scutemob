@@ -1389,19 +1389,9 @@ pub fn handle_activate_ability(
         .collect();
     // Push the activated ability onto the stack.
     let stack_id = state.next_object_id();
-    // CR 702.21a: Collect battlefield object targets before moving spell_targets into
-    // the stack object. These are used to emit PermanentTargeted events for Ward.
-    let battlefield_targets: Vec<ObjectId> = spell_targets
-        .iter()
-        .filter_map(|st| {
-            if let Target::Object(id) = st.target {
-                if matches!(st.zone_at_cast, Some(ZoneId::Battlefield)) {
-                    return Some(id);
-                }
-            }
-            None
-        })
-        .collect();
+    // CR 702.21a (PB-DX48): the Ward dispatch is derived by
+    // `rules::events::push_target_announcement` from the stack object's own
+    // `targets`, with the identical predicate this block used to spell out.
     // MR-TC-25: use trigger_default; override targets with the declared targets.
     let mut stack_obj = StackObject::trigger_default(
         stack_id,
@@ -1442,17 +1432,6 @@ pub fn handle_activate_ability(
     });
     // ENG-2 (A1, CR 602.2b): announce the ability's targets, if any.
     super::events::push_target_announcement(state, &mut events, player, source, stack_id);
-    // CR 702.21a: Emit PermanentTargeted for each battlefield permanent that this
-    // activated ability targets. These events drive Ward trigger checks in check_triggers.
-    // `targeting_stack_id` is the stack entry's own ObjectId so the ward CounterSpell
-    // effect can locate it via direct stack ID match (so.id == id).
-    for target_id in battlefield_targets {
-        events.push(GameEvent::PermanentTargeted {
-            target_id,
-            targeting_stack_id: stack_id,
-            targeting_controller: player,
-        });
-    }
     events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
@@ -2036,15 +2015,15 @@ pub fn handle_activate_bloodrush(
     // ENG-2 (A4, CR 602.2b): announce the bloodrush ability's (single, unfiltered)
     // target.
     super::events::push_target_announcement(state, &mut events, player, card, stack_id);
-    // CR 702.21a: Emit PermanentTargeted so Ward triggers fire when the target
-    // creature has Ward. Mirrors the pattern in handle_activate_ability (lines
-    // 464-470) which emits this event for every battlefield permanent targeted
-    // by an activated ability.
-    events.push(GameEvent::PermanentTargeted {
-        target_id: target,
-        targeting_stack_id: stack_id,
-        targeting_controller: player,
-    });
+    // CR 702.21a (PB-DX48): emitted by `push_target_announcement` above, from the
+    // stack object's own single `SpellTarget`. **Measured behavioural delta: none.**
+    // The deleted push was unconditional, where the shared predicate requires
+    // `zone_at_cast == Some(Battlefield)`; bloodrush's `zone_at_cast` is
+    // `state.expect_object(target).map(|o| o.zone)` and its own step-5 validation
+    // already refuses a target that is not an attacking creature, i.e. not on the
+    // battlefield. And an event emitted for a non-battlefield object was inert
+    // anyway: `check_triggers`'s `PermanentTargeted` arm re-reads the object and
+    // requires `zone == Battlefield`.
     events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
@@ -8404,7 +8383,155 @@ fn trigger_target_slot_forced_answer(slot: &TriggerTargetOption) -> Option<Vec<S
 /// review Finding 3 -- `handle_all_passed`'s forced-overdue-payment branch).
 /// What each of them still owes on resume is carried as
 /// [`crate::state::stubs::FlushResumeSite`].
+/// CR 702.21a / CR 603.3b (PB-DX48): the bound on how many *consecutive*
+/// becomes-target waves one flush may place.
+///
+/// A wave exists because putting an ability on the stack can itself make a permanent
+/// "become the target" (CR 702.21a), and the trigger that causes is then "triggered
+/// but not yet on the stack" in the SAME CR 603.3b window — it must be placed before
+/// any player receives priority, not left in the queue until the next command.
+///
+/// In the corpus this terminates at wave 2 by construction: the only wave-2 trigger
+/// buildable today is Ward's, whose own single target is the TARGETING STACK OBJECT
+/// (`SpellTarget { target: Object(tsid), zone_at_cast: None }`, built by the
+/// `trigger_targets_opt` chain below), and `zone_at_cast: None` never satisfies the
+/// battlefield predicate in `rules::events::permanent_targeted_events`. The bound
+/// therefore truncates nothing reachable today; it exists so a future
+/// `PermanentBecomesTarget` card whose trigger targets a permanent cannot spin the
+/// engine, and it stops with a `debug_assert!` rather than silently (SR-4: an engine
+/// bug, not a rules-correct fizzle).
+const MAX_BECOMES_TARGET_WAVES: u32 = 16;
+
+/// CR 603.3b / CR 702.21a (PB-DX48, `OOS-ENG2-1` ≡ `OOS-ENG2-2`) — flush the queue,
+/// then flush again for whatever the flush itself caused to become a target.
+///
+/// **This wrapper is the batch's second half, and neither seed states that it was
+/// needed.** Both rows describe the fix as emitting `GameEvent::PermanentTargeted` at
+/// five more announcement sites. Emitting it is necessary and not sufficient: every
+/// caller of this function scanned its events for triggers and only THEN called it,
+/// so the events a flush ITSELF produced were fed back to nothing. A Ward trigger
+/// caused by a *triggered* ability going on the stack would have sat in
+/// `state.pending_triggers` until the next command — after priority had already been
+/// granted, which CR 603.3b forbids. A batch that took the two rows at their word
+/// would have shipped a diff that looks like a fix and moves nothing at the headline
+/// site.
+///
+/// **Why here and not in the callers.** There are six, and they do not agree: two
+/// (`rules/engine.rs`'s `check_and_flush_triggers`, `rules/resolution.rs`'s
+/// post-resolution sweep) scan their events first, four do not, and
+/// `resume_trigger_flush` / `drop_departed_trigger_flush` bypass this function
+/// entirely by calling `flush_sorted` directly. Putting the wave loop in the one
+/// function all six flush through makes the dispatch a property of flushing rather
+/// than of remembering to sweep afterwards.
+///
+/// **Exactly-once scanning is what makes Ward fire ONCE per targeting event**
+/// (CR 702.21a). The cursor is the mechanism, and it is not a theoretical concern: a
+/// first implementation hooked `flush_sorted`'s tail instead, and because
+/// `Command::ChooseTriggerTargets` then re-scanned the very events that hook had
+/// already dispatched, **Ward fired twice** — two `AbilityTriggered`, two ward stack
+/// objects, observed before the design changed. Waves here read only the events THIS
+/// function appended, and each event is read by exactly one wave.
 pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
+    let mut events = flush_pending_triggers_once(state);
+    dispatch_becomes_target_waves(state, &mut events);
+    events
+}
+
+/// CR 702.21a / CR 603.3b — place whatever became a target while `events` was being
+/// produced, and keep going until nothing new does.
+///
+/// `events` must be the events of ONE flush, and every `PermanentTargeted` in it must
+/// not already have been dispatched by someone else — the cursor makes each event
+/// readable by exactly one wave *within* this call, but it cannot see a second
+/// dispatcher upstream. The two callers are chosen for that reason:
+///
+/// * `flush_pending_triggers` (above) — the function five of the six flush sites go
+///   through, and the only one their callers do not sweep after in any consistent way.
+/// * `rules::engine::handle_concede` — CR 800.4d resumes a suspended batch through
+///   `drop_departed_trigger_flush`, and `Command::Concede`'s arm calls no trigger sweep
+///   at all, so without this its resumed triggers would announce targets that nothing
+///   dispatches.
+///
+/// **Deliberately NOT called from `resume_trigger_flush`**, whose events ARE swept:
+/// `Command::ChooseTriggerTargets`'s arm runs `check_and_flush_triggers` over them.
+/// Calling it there too would dispatch the same event twice and fire Ward twice — the
+/// failure an earlier design of this batch actually produced and that was caught by
+/// execution. The residual that leaves is `OOS-DX48-3`: that arm's sweep is guarded on
+/// `pending_trigger_targets.is_none()`, so a batch that suspends a SECOND time hands
+/// its middle section's `PermanentTargeted` events to a caller that never scans them.
+pub(crate) fn dispatch_becomes_target_waves(state: &mut GameState, events: &mut Vec<GameEvent>) {
+    let mut scanned = 0usize;
+    let mut wave = 0u32;
+    loop {
+        let slice: Vec<GameEvent> = events[scanned..]
+            .iter()
+            .filter(|e| matches!(e, GameEvent::PermanentTargeted { .. }))
+            .cloned()
+            .collect();
+        scanned = events.len();
+        if slice.is_empty() {
+            return;
+        }
+        // The bound is tested HERE, after establishing that there is genuinely more
+        // work to do, and not at the bottom of the previous iteration: a batch that
+        // needs exactly `MAX_BECOMES_TARGET_WAVES` waves and then finishes is not a
+        // runaway, and asserting on it would be a false positive at the boundary.
+        if wave >= MAX_BECOMES_TARGET_WAVES {
+            debug_assert!(
+                false,
+                "engine invariant: more than {MAX_BECOMES_TARGET_WAVES} consecutive \
+                 CR 702.21a becomes-target waves in one flush. Ward's own trigger targets \
+                 the TARGETING STACK OBJECT with `zone_at_cast: None`, which the \
+                 battlefield predicate in `rules::events::permanent_targeted_events` never \
+                 matches, so a real cascade this deep means a new \
+                 `PermanentBecomesTarget` card whose trigger targets a permanent is looping."
+            );
+            return;
+        }
+        // CR 603.3b: every ability of one batch goes on the stack in one window, so
+        // the targetings they cause are simultaneous with one another for
+        // CR 603.10a's look-back purposes — the same timing every caller passes.
+        let new_triggers =
+            check_triggers_with_timing(state, &slice, EventBatchTiming::Simultaneous);
+        if new_triggers.is_empty() {
+            return;
+        }
+        for t in new_triggers {
+            state.pending_triggers.push_back(t);
+        }
+        // CR 603.3d (PB-DP8) — QUEUE, then stop. A suspended flush owns its own
+        // continuation and must not be re-entered here.
+        //
+        // **The queue-then-stop ORDER is the whole of this fix, and the first draft had
+        // it backwards.** That draft tested suspension at the TOP of the loop and
+        // returned having collected nothing, which silently dropped every
+        // `PermanentTargeted` emitted by the members `flush_sorted` placed BEFORE it
+        // suspended — and nothing else ever scans them, because every
+        // `flush_pending_triggers` caller scans its events before the flush and
+        // `Command::ChooseTriggerTargets` sweeps only the RESUMED events. The draft's
+        // comment asserted the resumed call would cover it, and that was false in both
+        // halves: `resume_trigger_flush` never runs this loop, and its caller's sweep
+        // cannot see the prefix. Found by the `/review`, reproduced with TWO triggers
+        // (one asking) rather than the three `OOS-DX48-3` originally claimed, and
+        // pinned by `primitives::pb_dx48_ward_dispatch::test_dx48_t9_...`.
+        //
+        // Queueing is both sufficient and safe. Sufficient: `state.pending_triggers`
+        // survives the suspension, and the resume's own `check_and_flush_triggers` ->
+        // `flush_pending_triggers_once` drains it once the rest of the CR 603.3b batch
+        // is on the stack — which is the CR-correct order anyway. Safe against double
+        // dispatch: the events that produced these triggers have already been consumed
+        // by this loop's cursor and are never scanned again, because the resume starts
+        // from a fresh `events` vec.
+        if state.pending_trigger_targets.is_some() {
+            return;
+        }
+        events.extend(flush_pending_triggers_once(state));
+        wave += 1;
+    }
+}
+
+/// One CR 603.3b flush: the pre-PB-DX48 body of `flush_pending_triggers`, unchanged.
+fn flush_pending_triggers_once(state: &mut GameState) -> Vec<GameEvent> {
     // CR 800.4d (fix-cycle Finding 9, LOW): reconcile the liveness filter with the
     // raw field. `rules::engine::blocking_decision` reports `None` for an entry
     // whose player is no longer alive, but this function and the six in-crate

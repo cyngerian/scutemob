@@ -4525,20 +4525,10 @@ pub fn handle_cast_spell(
     let (new_card_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Stack)?;
     // CR 601.2: Create the StackObject and push it (LIFO — last in, first out).
     let stack_entry_id = state.next_object_id();
-    // CR 702.21a: Collect battlefield object targets before moving spell_targets into
-    // the stack object. These are used to emit PermanentTargeted events for Ward.
-    let battlefield_targets: Vec<ObjectId> = spell_targets
-        .iter()
-        .filter_map(|st| {
-            if let Target::Object(id) = st.target {
-                // Only objects that were on the battlefield at cast time trigger ward.
-                if matches!(st.zone_at_cast, Some(ZoneId::Battlefield)) {
-                    return Some(id);
-                }
-            }
-            None
-        })
-        .collect();
+    // CR 702.21a (PB-DX48): the Ward dispatch is no longer collected and emitted
+    // here. `rules::events::push_target_announcement` (called below) derives it
+    // from the stack object's own `targets` with the identical predicate, so the
+    // announcement and the CR 702.21a dispatch are one operation at one place.
     // CR 702.82a: Validate devour sacrifices from additional_costs -- each ObjectId must be:
     // - On the battlefield, controlled by the caster
     // - A creature (by current characteristics)
@@ -4873,17 +4863,6 @@ pub fn handle_cast_spell(
         new_card_id,
         stack_entry_id,
     );
-    // CR 702.21a: Emit PermanentTargeted for each battlefield permanent that this
-    // spell targets. These events drive Ward trigger checks in check_triggers.
-    // `targeting_stack_id` is the stack entry's own ObjectId so the ward CounterSpell
-    // effect can locate it via direct stack ID match (so.id == id).
-    for target_id in battlefield_targets {
-        events.push(GameEvent::PermanentTargeted {
-            target_id,
-            targeting_stack_id: stack_entry_id,
-            targeting_controller: player,
-        });
-    }
     // CR 702.40a: Track spells cast this turn for storm count.
     // Increment after the spell enters the stack (it is now a spell cast this turn).
     // NOTE: The increment happens here, before the storm trigger is queued, so that

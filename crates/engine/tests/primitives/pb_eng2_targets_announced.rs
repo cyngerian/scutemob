@@ -283,11 +283,24 @@ fn test_eng2_activated_ability_targeting_a_permanent_announces() {
 
 /// CR 603.3d + CR 601.2c — Fell Specter's ETB ("target opponent discards a
 /// card") announces its target once the CR 603.3d choice is answered with the
-/// engine's own default. Also pins the recorded deviation `OOS-ENG2-1`: no
-/// `PermanentTargeted` is emitted for a triggered ability (Ward does not fire
-/// on triggered abilities today) -- when that gap closes, this negative
-/// assertion is the one that must be inverted, per the PB-DX19
-/// deviation-pinning precedent.
+/// engine's own default.
+///
+/// **PB-DX48 INVERSION NOTE, replacing the original "DEVIATION PIN
+/// (`OOS-ENG2-1`)" framing.** That framing was WRONG about what a fix could ever
+/// change here, and it is corrected rather than silently updated: Fell Specter's
+/// ETB targets `TargetRequirement::TargetOpponent` -- a PLAYER, not an object --
+/// and `GameEvent::PermanentTargeted` carries only an `ObjectId`; there is no
+/// value it could ever hold for a player target. So the assertion below is not a
+/// deviation PB-DX48 closes, it is CR 702.21a's own SCOPE: Ward (and every other
+/// `PermanentTargeted` consumer) can only ever fire off an OBJECT becoming a
+/// target, and this test's negative case could never have flipped, at PB-DX48 or
+/// any other batch, no matter how the dispatch mechanism changed. The positive
+/// sibling immediately below --
+/// `test_eng2_hyrax_tower_scout_etb_object_target_emits_permanent_targeted` --
+/// is the discriminator the original pin was actually asking a successor to
+/// produce: the SAME `flush_sorted` T7 site, with an OBJECT target instead of a
+/// player one, now emits exactly one `PermanentTargeted` (it emitted none before
+/// PB-DX48).
 ///
 /// **Red by revert**: remove the helper call from `flush_sorted`'s main arm
 /// (T7). Reverting only the `event_view` prose arm (a *different* red, not
@@ -385,10 +398,138 @@ fn test_eng2_fell_specter_etb_announces_its_target() {
         !resumed
             .iter()
             .any(|e| matches!(e, GameEvent::PermanentTargeted { .. })),
-        "DEVIATION PIN (OOS-ENG2-1): flush_sorted emits no PermanentTargeted for a \
-         triggered ability -- Ward never fires on one today. If this assertion has \
-         started failing, OOS-ENG2-1 has been closed and this test should be \
-         INVERTED, not deleted."
+        "CR 702.21a SCOPE (not a deviation -- see the doc comment above): a PLAYER \
+         target can never raise PermanentTargeted, which carries only an ObjectId. \
+         This boolean cannot flip; the discriminator PB-DX48 needed is the sibling \
+         test below, on an OBJECT target through the same T7 site."
+    );
+
+    let _ = state;
+}
+
+/// CR 702.21a's positive sibling to the test above, and the actual discriminator
+/// `OOS-ENG2-1`'s original pin was asking a successor to produce (that pin's own
+/// negative assertion, on a PLAYER target, could never flip -- see the corrected
+/// doc comment on `test_eng2_fell_specter_etb_announces_its_target`).
+///
+/// Hyrax Tower Scout ("When this creature enters, untap target creature.") is a
+/// real, deck-legal, effectively-`Complete` corpus def whose ETB targets an
+/// OBJECT through the exact same `flush_sorted` T7 main arm Fell Specter's ETB
+/// uses. Before PB-DX48, `flush_sorted` never emitted `PermanentTargeted` at all
+/// (`OOS-ENG2-1` / `OOS-ENG2-2`); after it, an object-targeting triggered ability
+/// at this site emits EXACTLY one.
+///
+/// **Red by revert**: remove `events.extend(permanent_targeted_events(..))` from
+/// `rules/events.rs::push_target_announcement` (Part A) -- the announced-targets
+/// assertions below stay green (they read `TargetsAnnounced`, untouched by that
+/// revert) while the `PermanentTargeted` count silently drops to 0, which is
+/// exactly the pre-PB-DX48 defect this test exists to catch.
+#[test]
+fn test_eng2_hyrax_tower_scout_etb_object_target_emits_permanent_targeted() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let defs = defs_map();
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry())
+        .object(real_card_spec(
+            p1,
+            "Hyrax Tower Scout",
+            ZoneId::Hand(p1),
+            &defs,
+        ))
+        .object(ObjectSpec::creature(p2, "Opp Target Creature", 2, 2).tapped())
+        .player_mana(
+            p1,
+            ManaPool {
+                colorless: 2,
+                green: 1,
+                ..ManaPool::default()
+            },
+        )
+        .active_player(p1)
+        .at_step(mtg_engine::Step::PreCombatMain)
+        .build()
+        .expect("GameStateBuilder::build must succeed");
+
+    let scout_in_hand = find_obj(&state, "Hyrax Tower Scout");
+    let opp_creature = find_obj(&state, "Opp Target Creature");
+    let mut state = state;
+    state.turn_mut().priority_holder = Some(p1);
+    let (state, _) = process_command(state, cast(p1, scout_in_hand, vec![]))
+        .expect("casting Hyrax Tower Scout must succeed");
+    // Hyrax Tower Scout is the only spell on the stack; one full pass round
+    // resolves it (creature ETB), reaching flush_sorted's T7 site.
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // CR 601.2c: "target creature" with no filter offers >= 2 candidates here
+    // (Hyrax Tower Scout itself and the opponent's creature), so the flush must
+    // suspend on a real choice rather than auto-placing the trigger.
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::TriggerTargetChoiceRequired { .. })),
+        "CR 603.3d: at least two legal creature candidates must force a real \
+         announcement, not an auto-placed default"
+    );
+    let scout = find_obj(&state, "Hyrax Tower Scout");
+    let entry = state
+        .pending_trigger_targets()
+        .expect("no CR 603.3d trigger-target choice is pending")
+        .clone();
+    // Choose the OPPONENT's creature explicitly (not Hyrax Tower Scout's own
+    // default), so this test discriminates "the announced target is an object on
+    // the battlefield" from "whatever the engine happened to default to".
+    let chosen = entry.slots[0]
+        .candidates
+        .iter()
+        .find(|c| c.target == Target::Object(opp_creature))
+        .cloned()
+        .expect("the opponent's creature must be a legal candidate");
+
+    let (state, resumed) = process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player: entry.player,
+            choice_id: entry.choice_id,
+            targets: vec![vec![chosen.target.clone()]],
+        },
+    )
+    .expect("choosing the opponent's creature must be accepted");
+
+    let announced = resumed
+        .iter()
+        .find_map(|e| match e {
+            GameEvent::TargetsAnnounced {
+                controller,
+                source_object_id,
+                targets,
+                ..
+            } => Some((*controller, *source_object_id, targets.clone())),
+            _ => None,
+        })
+        .expect("TargetsAnnounced must be emitted on the RESUMED flush");
+    assert_eq!(announced.0, p1);
+    assert_eq!(announced.1, scout);
+    assert_eq!(announced.2, vec![chosen.clone()]);
+
+    let permanent_targeted_count = resumed
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                GameEvent::PermanentTargeted { target_id, .. } if *target_id == opp_creature
+            )
+        })
+        .count();
+    assert_eq!(
+        permanent_targeted_count, 1,
+        "CR 702.21a: flush_sorted's T7 arm must emit EXACTLY ONE PermanentTargeted \
+         for an object-targeting triggered ability, the count PB-DX48 exists to \
+         make true (not merely >= 1 -- the batch's own headline finding is a \
+         double-dispatch defect a bare presence check would miss)"
     );
 
     let _ = state;

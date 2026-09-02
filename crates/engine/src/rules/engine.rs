@@ -30,6 +30,14 @@ use crate::state::stubs::FlushResumeSite;
 use crate::state::GameState;
 /// CR 603.3: Check for triggered abilities arising from events and flush
 /// pending triggers to the stack. Extracted from per-command-arm boilerplate.
+///
+/// PB-DX48 note: this is a SINGLE pass, deliberately. The CR 702.21a becomes-target
+/// wave loop lives inside `abilities::flush_pending_triggers`, which is the one
+/// function all six flush sites go through — including
+/// `rules/resolution.rs`'s post-resolution sweep, which this function never runs
+/// after. Adding a second loop here would re-scan the events that one already
+/// dispatched and fire Ward twice; see that function's doc comment for the
+/// execution that established it.
 fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) {
     // PB-DX15a (`OOS-DX24-7`): `Simultaneous` here is EXACTLY the pre-PB-DX15a
     // behaviour, not a new judgement. PB-DX24's fix cycle recorded this call site as
@@ -44,6 +52,14 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
     for t in new_triggers {
         state.pending_triggers.push_back(t);
     }
+    run_delayed_trigger_cleanup(state);
+    let trigger_events = abilities::flush_pending_triggers(state);
+    events.extend(trigger_events);
+}
+
+/// CR 610.3 cleanup, lifted out of `check_and_flush_triggers` so its body stays
+/// readable; behaviour is unchanged.
+fn run_delayed_trigger_cleanup(state: &mut GameState) {
     // CR 610.3 cleanup: Remove WhenSourceLeavesBattlefield delayed triggers whose
     // source is no longer on the battlefield. This prevents re-firing on subsequent
     // event batches. Also remove triggers that have already fired.
@@ -67,8 +83,6 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
             true
         });
     }
-    let trigger_events = abilities::flush_pending_triggers(state);
-    events.extend(trigger_events);
 }
 /// The one decision, if any, that is currently gating the game (PB-DP7 / DP-3,
 /// PB-DP8 / DP-6).
@@ -2846,7 +2860,13 @@ fn handle_concede(
     // controlled. The REST of the CR 603.3b batch must still be placed -- CR
     // 800.4j: the turn continues to its completion -- so the flush resumes here,
     // and may legitimately suspend again on a different player's trigger.
-    if let Some(resume_events) = abilities::drop_departed_trigger_flush(state, player) {
+    if let Some(mut resume_events) = abilities::drop_departed_trigger_flush(state, player) {
+        // CR 702.21a (PB-DX48): the resumed batch can announce targets, and
+        // `Command::Concede`'s arm runs no trigger sweep afterwards, so this is the
+        // only place its becomes-target triggers can be placed before priority
+        // (CR 603.3b). `drop_departed_trigger_flush` reaches `flush_sorted` directly,
+        // bypassing `flush_pending_triggers` and its own copy of this loop.
+        abilities::dispatch_becomes_target_waves(state, &mut resume_events);
         events.extend(resume_events);
     }
     events.push(GameEvent::PlayerConceded { player });
