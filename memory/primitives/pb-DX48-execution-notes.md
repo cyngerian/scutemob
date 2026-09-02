@@ -302,3 +302,105 @@ two were closed.
 assumed.** "The handler returns events and something sweeps them" is exactly the kind
 of claim this batch exists to punish: `Command::PassPriority` and `Command::Concede`
 both look like they should sweep and neither does.
+
+## §7 — Test suite (§3a engine-side probes) and revert matrix
+
+`crates/engine/tests/primitives/pb_dx48_ward_dispatch.rs` (new; `mod` added to
+`tests/primitives/main.rs` between `pb_dx47_modal_trigger_mode_zero` and
+`pb_dx4_baseline_triage`, correct ASCII order) implements plan §3a's t1/t1b/t2/t3/t4/
+t5/t6/t7/t8. Plan §3d's pin inversion is in
+`crates/engine/tests/primitives/pb_eng2_targets_announced.rs`.
+
+**The file targets the FINAL architecture (`8c703988` → the later split of
+`dispatch_becomes_target_waves` out of `flush_pending_triggers`), not the first draft
+(`72c0770c`) the plan was written against.** The engine moved twice more while this
+file was being written (the wave loop relocating from `rules/engine.rs::
+check_and_flush_triggers` into `abilities::flush_pending_triggers`, then that function
+splitting into `flush_pending_triggers` + `dispatch_becomes_target_waves` so
+`handle_concede`'s CR 800.4d resume could call the wave loop too). None of the 12
+tests in this file needed to change across that relocation — they assert observable
+behaviour (event counts, stack contents, resolution effects), never which internal
+function does the dispatching — which is itself evidence the probes are testing the
+right thing.
+
+**`t1` is the coordinator-provided resolution-path probe** (a self-ETB triggered
+ability on an ARTIFACT source, targeting the only creature on the board so its CR
+603.3d slot is FORCED rather than suspended, driven through `Command::CastSpell` +
+two `Command::PassPriority`s so the trigger is placed by `resolution.rs`'s
+post-resolution sweep). Adopted with the fixture byte-identical to the measured
+original, renamed, given a real doc comment, and extended past the coordinator's
+`PermanentTargeted`/stack-count pin to a full resolution: pass twice more, assert the
+stack drains to empty and the ward creature takes zero damage (its own `DealDamage`
+never ran). `t1b` is its non-vacuity partner (own-controller case) — it asserts the
+`PermanentTargeted` count is still 1 (Part A's predicate is controller-agnostic) while
+the ward `AbilityTriggered` count is 0 (CR 702.21a's "an opponent controls"), so a
+bare "ward fired zero times" claim can't pass vacuously under a total-emission
+failure.
+
+**One structural correction made while writing t2/t3/t4/t5/t8c, not anticipated by the
+plan or the coordinator's message**: `Effect::CounterSpell`'s `SpellCountered` event
+is emitted for exactly two `StackObjectKind` variants — `ActivatedAbility` and
+`TriggeredAbility` (see `effects/mod.rs`'s own comment: "every other ability/trigger
+kind: NO event, exactly as before PB-DX25 — a DIAGNOSTICS omission, not a state one").
+`ForecastAbility`, `ScavengeAbility`, `LoyaltyAbility`, `KeywordTrigger` (Modular) and
+`BloodrushAbility` are all OUTSIDE that pair, so Ward silently removing them from the
+stack emits no `SpellCountered` at all — proven by running the first draft of these
+five tests (which asserted on that event) and watching all five fail with the stack
+already empty and no `AbilityResolved`/`SpellCountered` pair to find. Fixed by
+asserting on STATE instead: the stack drains to empty (the ward trigger resolved and
+its `CounterSpell` removed the other entry) plus a resolution-effect check specific to
+each kind (zero damage for forecast, zero +1/+1 counters for scavenge and modular,
+controller unchanged for loyalty, power unchanged for bloodrush). This is disclosed
+here because it means five of this file's own resolution assertions are NOT what a
+naive reading of `ward.rs`'s existing tests would predict, and a future reader
+grepping for `SpellCountered` in a new Ward probe will hit the same wall.
+
+**t6 (real corpus Ward defs) also goes through the resolution path**, using a
+synthetic `T48 Trigger Bear` (`TargetRequirement::TargetCreatureWithFilter(opponent)`
+so the ward creature is the only legal candidate, forcing the answer) cast against
+each of `Adrix and Nev, Twincasters`, `Miirym, Sentinel Wyrm` and `Tyrranax Rex`,
+built through `enrich_spec_from_def` per the plan's §2 verification. The Ward keyword
+cost is asserted directly off `characteristics.keywords` (2, 2, 4) to prove the probe
+reads the real def rather than a stand-in.
+
+**t7 (wave bound / no cascade)** asserts the structural claim from a LIVE stack
+object rather than a comment: the ward trigger's own `SpellTarget.zone_at_cast` is
+`None` (it targets the targeting stack object, never a battlefield permanent), plus a
+total-event count of exactly 1 `PermanentTargeted` for the whole command (proving no
+wave-2 fired from the ward trigger's own placement).
+
+**Plan §3d.** The existing "DEVIATION PIN (`OOS-ENG2-1`)" comment on
+`test_eng2_fell_specter_etb_announces_its_target` was WRONG about what a fix could
+ever change: Fell Specter's ETB targets `TargetRequirement::TargetOpponent`, a
+PLAYER, and `GameEvent::PermanentTargeted` carries only an `ObjectId` — the negative
+assertion could never flip at PB-DX48 or any other batch. Rewritten as a CR 702.21a
+SCOPE pin (a player target structurally cannot raise `PermanentTargeted`) with the
+correction stated in the comment, and a new positive sibling added in the same file,
+`test_eng2_hyrax_tower_scout_etb_object_target_emits_permanent_targeted` — a real,
+deck-legal corpus def ("When this creature enters, untap target creature.") reaching
+the SAME `flush_sorted` T7 site with an OBJECT target, which now emits exactly one
+`PermanentTargeted` where it emitted none before PB-DX48. This is the discriminator
+the original pin was asking a successor to produce. Disclosed as a rename/addition in
+the delta, not netted out: `test_eng2_fell_specter_etb_announces_its_target`'s claim
+text changed (its assertion boolean did not), and one new test was added.
+
+### Revert matrix — 3 rows, all executed, engine restored byte-for-byte after each
+(`git checkout crates/engine/src`, verified clean and green before and after)
+
+| row | what was reverted | reddened | stayed green (why, disclosed) |
+|---|---|---|---|
+| **R-A** — no emission | `rules/events.rs::push_target_announcement`: replaced `events.extend(permanent_targeted_events(..))` with `let _ = permanent_targeted_events(..);` (Part A disabled) | ALL 12 probes in `pb_dx48_ward_dispatch.rs` (t1, t1b, t2, t3, t4, t5, t6, t7, t8a, t8b, t8c) **and** the new `pb_eng2` sibling, **plus** the pre-existing `pb_eng2_targets_announced::test_eng2_activated_ability_targeting_a_permanent_announces` | — (nothing stayed green; this is total dispatch failure) |
+| **R-B** — single wave (the DECISIVE row, matches the coordinator's own measurement verbatim) | `abilities.rs::flush_pending_triggers`: body replaced with a bare call to `flush_pending_triggers_once(state)`, dropping the call to `dispatch_becomes_target_waves` | **t1** (resolution-path), **t5** (Modular/SBA path), **t6** (real-def resolution path) — all three go through a flush with NO subsequent outer `check_and_flush_triggers` re-scan, so the wave loop living inside `flush_pending_triggers` is the ONLY thing that can dispatch Ward for them. Each fails on the `ward AbilityTriggered` count (1 expected, 0 observed) — `PermanentTargeted` emission is untouched, confirming the coordinator's point that a probe asserting only on the emission event would have stayed GREEN here | t1b, t2, t3, t4, t7, t8a, t8b, t8c — each of these goes through a `Command` handler (`ActivateForecast`/`ScavengeCard`/`ActivateLoyaltyAbility`/`ActivateAbility`/`CastSpell`/`ActivateBloodrush`) whose OWN `check_and_flush_triggers` call independently scans the already-populated `events` slice and queues Ward directly — the wave loop inside `flush_pending_triggers` is never the only path for these, so this revert cannot discriminate them. Disclosed per-probe in the test file's doc comments, not left implicit. |
+| **R-C** — double-scan (reproduces finding #2, the rejected first design that fired Ward twice) | `dispatch_becomes_target_waves`: removed the `scanned = events.len();` cursor advance, so every wave re-includes wave 0's original `PermanentTargeted` slice forever | **t1, t5, t6** — same three as R-B, but this time the failure is a `debug_assert!` PANIC at `MAX_BECOMES_TARGET_WAVES` (16 consecutive re-dispatches of the same event) rather than an assertion mismatch, because the broken cursor causes Ward to be re-queued every wave until the bound trips. Confirms the count assertions (`ward_ability_triggered_count == 1`, not `>= 1`) are load-bearing against the batch's own documented double-dispatch defect. | t1b, t2, t3, t4, t7, t8a, t8b, t8c — same reason as R-B: their Ward trigger is queued once by the outer scan and the (broken) wave loop finds nothing to re-scan for them, so it never re-enters. |
+
+**No UNDISCRIMINATED row.** Every probe in the file is reddened by at least one of the
+three reverts (all 12 by R-A alone); `t1`, `t5` and `t6` are additionally reddened by
+R-B and R-C, which is disclosed as a STRENGTH (they are this file's only probes that
+exercise the wave-loop relocation directly) rather than a gap. `t1b` is discriminated
+by R-A only (its own claim — `PermanentTargeted` count is 1 while the ward trigger
+count is 0 — depends on emission, not on the wave mechanism), and that asymmetry is
+stated in its own doc comment.
+
+Full test file: `cargo test -p mtg-engine --test primitives -- pb_dx48 pb_eng2` — 21
+tests, all green at HEAD; `cargo clippy -p mtg-engine --test primitives -- -D
+warnings` clean; `cargo fmt --check` clean on both touched files.
