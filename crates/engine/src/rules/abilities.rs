@@ -4285,11 +4285,30 @@ pub fn check_triggers_with_timing(
                     // CR 701.43d / CR 607.2h: "When you do" linked exert trigger. Fires ONLY
                     // for attackers the player chose to exert this combat (stored in
                     // `combat.exerted_attackers` by `handle_declare_attackers`) -- NOT on
-                    // every attack (contrast with a plain WhenAttacks trigger). CardDef-level
-                    // `AbilityDefinition::Triggered` abilities are not converted to runtime
-                    // `TriggeredAbilityDef` (that only happens in `enrich_spec_from_def` for
-                    // tests), so -- mirroring the WhenDealsCombatDamageToPlayer CardDef scan
-                    // above -- we collect them here directly from the card registry.
+                    // every attack (contrast with a plain WhenAttacks trigger).
+                    //
+                    // `TriggerCondition::WhenExertedAsAttacks` has NO conversion loop
+                    // in `build_face_ability_vectors`, so this registry scan is the
+                    // ONLY dispatch path for it and there is nothing here to
+                    // duplicate. `pb_dx47_dispatch_path_roster::r3` proves that
+                    // mechanically rather than by assertion: it intersects the
+                    // lowered set with the registry-scanned set and fails on any
+                    // member.
+                    //
+                    // PB-DX47 (`OOS-DX24-4`): this comment used to read "CardDef-level
+                    // `AbilityDefinition::Triggered` abilities are not converted to
+                    // runtime `TriggeredAbilityDef` (that only happens in
+                    // `enrich_spec_from_def` for tests), so -- mirroring the
+                    // WhenDealsCombatDamageToPlayer CardDef scan above -- we collect
+                    // them here". BOTH clauses were false and the mirror was the
+                    // damage. (1) The lowering converts 34 distinct
+                    // `TriggerCondition`s, and `WhenDealsCombatDamageToPlayer` was one
+                    // of them, which is why that "mirror" was a DOUBLE dispatch.
+                    // (2) `enrich_spec_from_def` is the PRODUCTION pregame path
+                    // (`setup.rs:419/433/440`, `fuzz_setup.rs:119/130`), not a
+                    // test-only helper. The claim is true of THIS arm's trigger and
+                    // false as the general rule it was phrased as -- so it read as
+                    // precedent, and got cited as one.
                     {
                         let was_exerted = state
                             .combat
@@ -5377,82 +5396,88 @@ pub fn check_triggers_with_timing(
                                 t.entering_object_id = Some(assignment.source);
                             }
                         }
-                        // CR 510.3a / CR 603.2: CardDef-level "WhenDealsCombatDamageToPlayer"
-                        // triggers from AbilityDefinition::Triggered. These are not converted
-                        // to runtime TriggeredAbilityDef (that only happens in enrich_spec_from_def
-                        // for tests), so we collect them here from the card registry.
-                        // The PendingTriggerKind::CardDefETB path looks them up at resolution via
-                        // the card registry fallback (resolution.rs line ~1862) -- these triggers
-                        // were reclassified from Normal to CardDefETB by PB-EF3's A2 fix, since
-                        // `ability_index` here is a raw index into `def.abilities`, not the
-                        // runtime `characteristics.triggered_abilities` vec that `Normal` uses.
-                        if let CombatDamageTarget::Player(damaged_pid) = &assignment.target {
-                            // CR 113.7a: the damage source may have left the battlefield; use LKI.
-                            if let Some(src_obj) = state.fizzle_object(assignment.source) {
-                                if src_obj.zone == ZoneId::Battlefield && src_obj.is_phased_in() {
-                                    let controller = src_obj.controller;
-                                    let source_id = src_obj.id;
-                                    if let Some(def) = src_obj
-                                        .card_id
-                                        .as_ref()
-                                        .and_then(|cid| state.card_registry.get(cid.clone()))
-                                    {
-                                        // CR 603.4 (PB-DP6): gate at queue time. LKI
-                                        // source read via `fizzle_object` above.
-                                        // OOS-DX1-4 Q4 (PB-DX24): same argument as Q3 --
-                                        // the read side (`resolution.rs`) is face-aware.
-                                        // Same queue-time-vs-consume-time residual as Q3
-                                        // (fix cycle, review Finding 7) -- OOS-DX24-8.
-                                        let carddef_indices: Vec<usize> = def
-                                            .effective_abilities(src_obj.is_transformed)
-                                            .iter()
-                                            .enumerate()
-                                            .filter_map(|(idx, a)| match a {
-                                                AbilityDefinition::Triggered {
-                                                    trigger_condition:
-                                                        TriggerCondition::WhenDealsCombatDamageToPlayer,
-                                                    intervening_if,
-                                                    ..
-                                                } => carddef_intervening_if_holds_at_queue_time(
-                                                    state,
-                                                    intervening_if.as_ref(),
-                                                    controller,
-                                                    source_id,
-                                                )
-                                                .then_some(idx),
-                                                _ => None,
-                                            })
-                                            .collect();
-                                        for ability_idx in carddef_indices {
-                                            // PB-EF3 A2 (CR 601.2c/603.3d): `ability_idx` is a
-                                            // raw index into `def.abilities` (this trigger is
-                                            // never lowered into runtime
-                                            // `characteristics.triggered_abilities` -- see
-                                            // comment above). CardDefETB kind keeps the
-                                            // raw-index/card-registry lookup authoritative for
-                                            // both effect and target selection (Throat Slitter's
-                                            // "destroy target nonblack creature that player
-                                            // controls" needs its declared `targets` to survive
-                                            // auto-target selection -- EF-W-MISS-10).
-                                            triggers.push(PendingTrigger {
-                                                ability_index: ability_idx,
-                                                triggering_event: Some(
-                                                    TriggerEvent::SelfDealsCombatDamageToPlayer,
-                                                ),
-                                                entering_object_id: Some(source_id),
-                                                damaged_player: Some(*damaged_pid),
-                                                combat_damage_amount: assignment.amount,
-                                                ..PendingTrigger::blank(
-                                                    source_id,
-                                                    controller,
-                                                    PendingTriggerKind::CardDefETB,
-                                                )
-                                            });
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        // CR 510.3a / CR 603.2 (PB-DX47, `OOS-DX24-4`): the
+                        // runtime lowering above is the SINGLE authoritative
+                        // dispatch for this trigger. A card-registry scan used to
+                        // stand here and push a SECOND `PendingTrigger`
+                        // (`PendingTriggerKind::CardDefETB`) for the same ability,
+                        // justified by a comment claiming the CardDef ability was
+                        // "not converted to runtime `TriggeredAbilityDef` (that
+                        // only happens in `enrich_spec_from_def` for tests)".
+                        //
+                        // Both halves of that claim were false at HEAD, and PB-DX47
+                        // measured the consequence on a game built through the
+                        // PRODUCTION pregame path (`setup::build_initial_state`):
+                        // ONE `CombatDamageDealt` pushed TWO triggers -- `Normal`
+                        // from `collect_triggers_for_event` just above,
+                        // `CardDefETB` from the scan -- and
+                        // `drana_liberator_of_malakir`, a `Complete` deck-legal def
+                        // printing ONE `+1/+1` counter, put TWO on its lone
+                        // attacker.
+                        //
+                        // 1. `build_face_ability_vectors`
+                        //    (`testing/replay_harness.rs`) has a dedicated loop
+                        //    converting exactly this `TriggerCondition` into a
+                        //    `TriggeredAbilityDef { trigger_on:
+                        //    TriggerEvent::SelfDealsCombatDamageToPlayer, .. }`.
+                        //    PB-DX1 even extended that loop (`intervening_if`
+                        //    propagation) without reconciling it with the comment.
+                        // 2. `enrich_spec_from_def` is the PRODUCTION pregame path
+                        //    -- `setup.rs:419/433/440` (commander, opening hand,
+                        //    library) and `fuzz_setup.rs:119/130` -- not a
+                        //    test-only helper. Every object in every real game is
+                        //    built through it.
+                        //
+                        // The lowering is also the CR-correct one of the two, which
+                        // is why it is the survivor rather than merely the
+                        // incumbent: `collect_triggers_for_event` reads
+                        // LAYER-RESOLVED characteristics (CR 613.1f), so Humility /
+                        // Dress Down / any `RemoveAllAbilities` effect suppresses
+                        // the trigger, while a raw registry scan bypasses layers
+                        // entirely; it sees granted and copied abilities; and it
+                        // sees tokens, which carry no `card_id` for a registry scan
+                        // to find.
+                        //
+                        // The scan's own historical justification (PB-EF3 A2 /
+                        // EF-W-MISS-10: Throat Slitter's declared `targets` must
+                        // survive auto-target selection) is DISCHARGED, not
+                        // ignored: the lowering copies `targets` verbatim, and
+                        // `flush_sorted` reads `ab.targets` for a `Normal` trigger
+                        // through the same code path it reads the registry for a
+                        // `CardDefETB` one. `pb_dx47_dispatch_path_roster.rs`
+                        // pins both facts.
+                        //
+                        // The lowering does not carry `modes`: it pre-selects
+                        // mode 0 (CR 700.2b bot fallback). This comment's first two
+                        // drafts each got that wrong, in opposite directions, and
+                        // both were corrected by EXECUTING something:
+                        //
+                        // (1) "ZERO corpus defs pair `modes` with this
+                        //     `TriggerCondition`" -- refuted by
+                        //     `pb_dx47_dispatch_path_roster::r5b` on its first run.
+                        //     The population is ONE, `glissa_sunslayer`, three
+                        //     modes, `Completeness::partial` (so `validate_deck`
+                        //     refuses it and deck-legal exposure is zero).
+                        // (2) "a real capability the fix gives up" -- refuted by
+                        //     `primitives::pb_dx47_modal_trigger_mode_zero::t1`.
+                        //     NOTHING modal is lost, because nothing modal was ever
+                        //     offered: `flush_sorted` hard-codes
+                        //     `modes_chosen = vec![0]` in BOTH arms of its modal
+                        //     branch for any `StackObjectKind::TriggeredAbility`,
+                        //     `Normal` and `CardDefETB` alike, and
+                        //     `resolution.rs`'s modal replacement sits OUTSIDE the
+                        //     `is_carddef_etb` branch, so both kinds resolve
+                        //     `modes.modes[0]`. `modal_trigger` (CR 603.3c) is a
+                        //     standing `AutoChosen` row in
+                        //     `core::decision_site_walk`. Measured: restoring the
+                        //     deleted scan takes that probe from +1 life to +2 --
+                        //     mode 0 TWICE, not a mode the player picked.
+                        //
+                        // `OOS-DX47-3` therefore stays open as the STRUCTURAL gap
+                        // (`TriggeredAbilityDef` has no `modes` field, so the day
+                        // CR 603.3c is actually served the lowering must carry it,
+                        // which is a HASH bump) with its behavioural delta measured
+                        // at ZERO -- not as a regression this batch shipped.
                         // CR 702.115a: Ingest -- "Whenever this creature deals combat
                         // damage to a player, that player exiles the top card of
                         // their library."

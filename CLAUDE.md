@@ -70,8 +70,10 @@
   the `/review` fix cycle inverted BOTH first-draft rider verdicts, see the narrative below;
   **OOS-DP9-16** parked as directed);
   **↻ PB-DX45 SHIPPED** (`scutemob-217`, 2026-09-02; v4 rank 4 — **OOS-DX24-9** ≡ **OOS-DX27-5**
-  CLOSED as ONE defect, cross-cited).
-  **Next dispatch: PB-DX47** (v4 rank 5); ranks 1-4 all shipped.
+  CLOSED as ONE defect, cross-cited);
+  **↻ PB-DX47 SHIPPED** (`scutemob-218`, 2026-09-02; v4 rank 5 — **OOS-DX24-4** CLOSED, the
+  probe-first outcome being the LARGE one: the double-push was REAL, not a dedup).
+  **Next dispatch: PB-DX48** (v4 rank 6); ranks 1-5 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -175,7 +177,10 @@
   **↻ 2026-09-02 — PB-DX45 SHIPPED** (`scutemob-217`; v4 rank 4 — **OOS-DX24-9** ≡ **OOS-DX27-5**
   CLOSED as ONE defect). Coverage **62.8% → 63.0% → 63.1%** (1,136 → **1,137**) on the single
   predicted flip `vampire_gourmand`; PROTOCOL **38 → 39** / HASH **77 → 78**, both gate-computed.
-  **Next dispatch: PB-DX47** (v4 rank 5); ranks 1-4 all shipped.
+  **↻ 2026-09-02 — PB-DX47 SHIPPED** (`scutemob-218`; v4 rank 5 — **OOS-DX24-4** CLOSED).
+  Coverage unmoved at **1,137/1,803 = 63.1%**, **0 flips**, **0 card-def edits of any kind**;
+  PROTOCOL **39** / HASH **78** both gate-executed and UNMOVED. Filed **OOS-DX47-1..7**.
+  **Next dispatch: PB-DX48** (v4 rank 6); ranks 1-5 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -186,6 +191,56 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-02, PB-DX47)**: **4,873 / 0 / 5** full-workspace on branch
+  `scutemob-218` (+12 over the **4,861** baseline, measured on this branch BEFORE any edit and
+  reproducing PB-DX45's close pin exactly), `--workspace --no-fail-fast` to a file, **56**
+  result-producing targets (55 → 56: one new simulator test binary), residual list empty.
+  **Delta itemised by test NAME: 13 additions, 1 leaver, 0 removals** — 9 in the new
+  `crates/engine/tests/core/pb_dx47_dispatch_path_roster.rs`, 2 in the new
+  `crates/simulator/tests/pb_dx47_double_push_probe.rs`, 1 in the new
+  `crates/engine/tests/primitives/pb_dx47_modal_trigger_mode_zero.rs`, and 1 the inversion's
+  successor in `crates/engine/tests/primitives/pb_dx24_trigger_zone_and_index_spaces.rs`.
+  **The leaver is disclosed rather than netted out and it is not a removal**:
+  `test_dx24_when_deals_combat_damage_to_player_reads_the_visible_face_of_a_transformed_attacker`
+  became `test_dx47_transformed_attacker_queues_exactly_one_trigger_off_the_visible_face` — same
+  file, same Q4 property, subject **inverted**, because what it pinned is what this batch deleted.
+  **PROTOCOL 39 / HASH 78 both UNMOVED**, gate-executed (`hash_schema` 36/36, `protocol_schema`
+  17/17) and **predicted in writing before any code changed**, with the reason stated rather than
+  asserted: a suppression adds no type, variant or field to the wire closure and changes no hashed
+  declaration. `history_is_append_only` and `frozen_prefix_is_pinned` green; no pin edited and no
+  history row appended, because none was owed.
+  Coverage **1,137/1,803 = 63.1%** by regeneration, **0 flips** as predicted (clean 1,137 / todo
+  519 / empty 147 all identical), self-dating churn reverted; **0 card-def edits of any kind**, so
+  the empty-diff shortcut was available and was checked.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree. **`npm run build` was
+  NOT run and that is stated rather than omitted** (`node_modules` is absent from this worktree):
+  it is N/A here, because `git diff main..HEAD --numstat -- tools/` is **empty** and the engine
+  diff is `rules/abilities.rs` alone (**+106 / −81**) — `crates/view-model`,
+  `crates/simulator/src`, `crates/card-defs` and `crates/card-types` are all zero.
+  **10 revert rows executed, 10 RED, 0 UNDISCRIMINATED**, with three green-under-revert rows
+  disclosed as such rather than left implicit — including that disabling the `r3` parser's
+  comment-stripping reddens `r3b` and leaves `r3` GREEN, so that stripping is defensive today and
+  load-bearing only for `r3b`'s own guarantee (`OOS-DX47-7`).
+  **Two of the batch's own published claims were refuted by the batch's own gates and corrected
+  in place.** (1) `DECLARING_MEMBERS` was typed from
+  `grep -l WhenDealsCombatDamageToPlayer crates/card-defs/src/defs/*.rs` — **30 files** — and the
+  `all_cards()` walk returns **26 defs**; the four extras name the variant only inside a `// TODO`
+  saying why they cannot use it. That is **SR-36's rule verbatim** (*enumerate `all_cards()` for
+  rosters, never grep source*) broken inside the batch whose subject is a false comment, and
+  `OOS-CARDS2-7`'s shape a second time (`OOS-DX47-2`). (2) `OOS-DX47-3` was published **twice**
+  before it was true, and the second draft is the instructive one. Draft 1 (the engine comment):
+  *"ZERO corpus defs pair `modes` with this `TriggerCondition`"* — refuted by `r5b` on first run, the
+  population is **one** (`glissa_sunslayer`, `partial`, so deck-legal exposure is zero). Draft 2:
+  *"a real capability the fix gives up"* — refuted by execution, and this is the shape the whole
+  batch exists to punish, **a consequence inferred from a code shape and published without anyone
+  running it**. `primitives::pb_dx47_modal_trigger_mode_zero::t1` measures **+1 life (mode 0,
+  once)** at HEAD and **+2** with the scan restored — never +10 or +100. **Nothing modal was ever
+  offered on either path**: `flush_sorted` hard-codes `modes_chosen = vec![0]` in both arms for
+  every trigger kind, `resolution.rs`'s modal replacement sits outside the `is_carddef_etb` branch,
+  and `modal_trigger` (CR 603.3c) is a standing `AutoChosen` row in `core::decision_site_walk`. So
+  the pre-fix engine resolved **mode 0 twice**, and `OOS-DX47-3` is re-scoped to the structural gap
+  alone with its behavioural delta measured at **zero**.
 - **Tests (delta 2026-09-02, PB-DX45)**: **4,861 / 0 / 5** full-workspace on branch
   `scutemob-217` (+26 over the **4,835** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX15a's close pin exactly), `--workspace --no-fail-fast` to a file, **55**
@@ -678,7 +733,102 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-02 — **PB-DX45 SHIPPED** (`scutemob-217`; v4 queue rank 4 —
+- **Last Updated**: 2026-09-02 — **PB-DX47 SHIPPED** (`scutemob-218`; v4 queue rank 5 —
+  **OOS-DX24-4** CLOSED, with four corrections to its own claims recorded in the row).
+  **A probe-first batch whose probe came back with the LARGE answer: the double-push is REAL,
+  and it was live on 18 deck-legal `Complete` defs.**
+  **The experiment ran first and it is the headline.** The seed was filed MEDIUM confidence, the
+  v4 memo explicitly blessed the small outcome ("if a dedup exists, the batch collapses to a
+  comment fix"), and the brief demanded the measurement come before any design. It did, and it was
+  committed before a line of engine source changed (`bb5a2f8e`).
+  `crates/simulator/tests/pb_dx47_double_push_probe.rs` builds through
+  `setup::build_initial_state` — the **production** pregame path, deliberately not
+  `GameStateBuilder`, because the false comment under test claims the hand-built path is the
+  special one, so a hand-built fixture would have proven nothing. Both seats human, no bot RNG;
+  subject `drana_liberator_of_malakir`, `Complete` and deck-legal and **legendary**, so CR 903.6
+  puts it in the command zone by construction rather than leaving the probe to a shuffle. Result:
+  the engine's own `check_triggers` pushed **`{CardDefETB: 1, Normal: 1}`** for one
+  `CombatDamageDealt`, and a card printing **ONE** `+1/+1` counter put **TWO** on its lone
+  attacker.
+  **The justifying comment was false in TWO ways, not one, and the memo only caught one.**
+  `abilities.rs` said the CardDef ability is *"not converted to runtime `TriggeredAbilityDef` (that
+  only happens in `enrich_spec_from_def` for tests)"*. The memo's correction — that
+  `enrich_spec_from_def` IS the production pregame path (`setup.rs:419/433/440`,
+  `fuzz_setup.rs:119/130`) — is right and is the second half. The first half is that
+  **`build_face_ability_vectors` has a dedicated loop converting exactly this `TriggerCondition`**,
+  and PB-DX1 *extended* that loop (`intervening_if` propagation) without anyone reconciling it with
+  the comment. **The same sentence was copy-pasted onto the `WhenExertedAsAttacks` arm, which cites
+  this one as precedent** — and there its CONCLUSION is correct (that condition has no lowering
+  loop) while its stated general PREMISE is false, which is worse than a wrong conclusion because
+  it reads as confirmation (`OOS-DX47-6`). Both corrected.
+  **The fix is one deletion, and the survivor was chosen on CR grounds rather than incumbency.**
+  The card-registry scan is deleted; the layer-resolved runtime lowering is the single dispatcher.
+  It is the CR-correct one of the two on three axes, each a place the scan was *also* wrong:
+  `collect_triggers_for_event` reads layer-resolved characteristics (**CR 613.1f**, so Humility /
+  Dress Down / any `RemoveAllAbilities` suppresses the trigger, where a raw registry scan bypasses
+  layers entirely); it sees granted and copied abilities; and it sees **tokens**, which carry no
+  `card_id` for a registry scan to find.
+  **The scan's own historical justification is DISCHARGED BY EXECUTION.** PB-EF3 A2 / EF-W-MISS-10
+  said `CardDefETB` had to stay authoritative so Throat Slitter's declared `targets` survive
+  auto-target selection. The lowering forwards `targets` verbatim, `flush_sorted` reads them for a
+  `Normal` trigger, and `pbd_damaged_player_filter`'s end-to-end Throat Slitter probe **passes** —
+  once its fixture stops building a **NAKED object**
+  (`ObjectSpec::creature(..).with_card_id(..)`, never enriched), which is a shape no production
+  path can produce and which is the only reason that probe had ever exercised the scan
+  (`OOS-DX47-4`, *with its unmeasured half stated*: how many other tests are green against that
+  shape is UNKNOWN).
+  **The CLASS is swept mechanically, because the defect is "two dispatchers", not "this event".**
+  `r3_no_trigger_condition_has_two_dispatchers` intersects the **34** `TriggerCondition`s the
+  lowering converts with the **6** the `abilities.rs` queue sites registry-scan — both sets parsed
+  from source rather than hand-listed, for `OOS-DX24-4`'s own reason, that **a hand-listed set is a
+  claim and this defect survived five months behind exactly such a claim written as a comment**.
+  The only intersection member is `WheneverYouSacrifice`, allowlisted with the reason stated (its
+  occurrence is a `triggers.retain(..)` POST-FILTER, never a second push) and proven load-bearing
+  by an executed revert.
+  **PB-DX24's own Q4 probe was a PIN ON this defect and its docstring said so** (`OOS-DX47-5`): it
+  filtered by `PendingTriggerKind::CardDefETB` *because* the trigger "is ALSO lowered into the
+  runtime Channel-A vector", so an end-to-end assertion "would be satisfied by Channel A alone".
+  The durable rule is not that PB-DX24 was careless — isolating the path you are changing is
+  correct technique — it is that **the isolation becomes a pin on a defect the moment it is the
+  only thing asserting the count.**
+  **↻ The `/review` (1 MEDIUM / 1 LOW-MEDIUM / 4 LOW / 1 NIT — all seven taken, none declined)
+  DEFEATED this batch's own class gate by execution, and the defeat is this batch's thesis
+  committed inside the gate that states it.** `r3`'s first draft keyed on ONE syntactic form —
+  `trigger_condition:` immediately followed by `TriggerCondition::X`. The reviewer re-created
+  **`OOS-DX24-4` verbatim**, a second `WhenDealsCombatDamageToPlayer` dispatcher written in the
+  BINDING form (`let ... { trigger_condition, .. }` then `matches!`), and **all nine gates in the
+  file stayed GREEN**; only the behavioural probe reddened. Reproduced here before fixing. And the
+  form is not contrived — `collect_graveyard_carddef_triggers` in the same file is a real registry
+  scan written that way, filtering two conditions that ARE in the lowered 34, so the header's *"a
+  second `OOS-DX24-4` is now a red test"* was false about the very family it could not see.
+  *A gate written for one variant measures that variant*, for the fourth time in this queue
+  (PB-DX26, PB-DX43, PB-DX45, now here). **The axis is re-keyed on the MECHANISM**: a registry scan
+  must walk an ability list, so every `TriggerCondition::X` within 3,000 bytes of an
+  `effective_abilities(` / `abilities.iter()` hit is collected, across **five** `rules/` files
+  rather than one (6 → **17** conditions). Over-collection can only make `r3` redder, and each of
+  the three resulting false positives is named with the mechanism that separates it **plus a
+  companion assertion that the mechanism still exists in source** — an allowlist whose reason is
+  not checked is a comment, which is what started this batch. Also taken: the registry axis read
+  only `abilities.rs` while `mana.rs`/`turn_actions.rs`/`replacement.rs`/`resolution.rs` also queue
+  from the registry; `r2`'s ratchet ceiling was **2× its measurement** under a comment claiming *"it
+  cannot grow in silence"* (**a ratchet's slack IS its blind spot** — 40 → 22); the superset table
+  omitted the one axis where the deleted scan was **wider** (CR 113.7a LKI — narrower is CR-correct
+  here, and it now says so); `OOS-DX47-4`'s "population UNMEASURED" was cheap and is now measured
+  (**247** test files / **1,619** `.with_card_id(` sites, **149** files never calling
+  `enrich_spec_from_def` — an upper bound and a search space, not a work list); and a fixed-width
+  byte slice in `r5` that would have **panicked** rather than failed with its own message.
+  Census re-derived and PRINTED (never transcribed): **26** corpus defs declare the trigger, **18**
+  deck-legal `Complete`. **The v4 memo's conditional "18 if real" reproduces EXACTLY**, which is
+  the outcome the re-derivation discipline is FOR; the agreement is kept honest by the inverse
+  oracle-text axis, where the two do not agree (**20** `Complete` defs print the trigger without
+  declaring it, ratcheted).
+  Tests **4,873 / 0 / 5** (+12 over the 4,861 pre-edit baseline, **56** targets, itemised by NAME
+  as 13 additions / 1 disclosed inversion / 0 removals). **PROTOCOL 39 / HASH 78 both
+  gate-executed and UNMOVED**, predicted in writing before any code with the reason stated.
+  Coverage unmoved **63.1%**, 0 flips, 0 card-def edits. All gates clean against the FINAL tree.
+  **10 revert rows, 10 RED.** Filed **OOS-DX47-1..7**. Full record:
+  `memory/primitives/pb-DX47-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-02 — **PB-DX45 SHIPPED** (`scutemob-217`; v4 queue rank 4 —
   **OOS-DX24-9** ≡ **OOS-DX27-5** CLOSED as ONE defect, cross-cited, each row corrected).
   **CR 118.12 makes an optional cost a player decision, and the engine was making it — at TWO
   sites, one of which no document in the chain names.**

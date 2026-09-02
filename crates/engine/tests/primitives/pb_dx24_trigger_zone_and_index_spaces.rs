@@ -1251,18 +1251,38 @@ fn q4_combat_damage_dfc_def() -> CardDefinition {
     }
 }
 
-/// CR 510.3a / OOS-DX1-4 Q4: checked directly against `check_triggers`, NOT
-/// end-to-end through combat -- `WhenDealsCombatDamageToPlayer` is ALSO
-/// lowered into the runtime Channel-A vector by `build_face_ability_vectors`
-/// (already face-aware via `apply_face_change`, an EARLIER and unrelated
-/// mechanism -- PB-OS4b/PB-RS4), so an end-to-end life-total assertion would
-/// be satisfied by Channel A alone and would NOT discriminate Q4's own raw
-/// card-registry scan in `abilities.rs`. Filtering the returned
-/// `PendingTrigger`s by `kind == PendingTriggerKind::CardDefETB` isolates
-/// exactly the code path this batch touches. Revert (restore `def.abilities`
-/// at the Q4 site): zero `CardDefETB` hits (front declares no such ability).
+/// CR 510.3a / OOS-DX1-4 Q4, **INVERTED by PB-DX47** (`OOS-DX24-4`).
+///
+/// # What this test used to assert, and why that was a pin on a defect
+///
+/// It asserted `carddef_hits.len() == 1` — exactly one
+/// `PendingTriggerKind::CardDefETB` trigger from the raw card-registry scan in
+/// `abilities.rs`'s `CombatDamageDealt` arm. Its own doc said, in as many words,
+/// that `WhenDealsCombatDamageToPlayer` "is ALSO lowered into the runtime
+/// Channel-A vector by `build_face_ability_vectors`", and filtered the
+/// `CardDefETB` kind out precisely **to isolate the second path from the first**.
+///
+/// That is `OOS-DX24-4` written down as a passing test: PB-DX24 saw both
+/// dispatch paths, needed only one of them for its own change, and pinned that
+/// one — so the duplication it had just documented went on being green.
+/// PB-DX47 measured the consequence (two `PendingTrigger`s per event; two
+/// `+1/+1` counters from a card printing one) and deleted the registry scan,
+/// leaving the layer-resolved runtime lowering authoritative.
+///
+/// # What it asserts now
+///
+/// The same underlying Q4 property — **the queue site reads the VISIBLE
+/// (back) face of a transformed attacker** — through the surviving path:
+/// zero `CardDefETB` hits (the scan is gone) and exactly one `Normal` hit whose
+/// effect is the BACK face's. The face-awareness this pins is
+/// `apply_face_change`'s re-lowering, which is what made Channel A a superset of
+/// the deleted scan on this axis in the first place.
+///
+/// Discriminating revert: restore the deleted registry scan in
+/// `abilities.rs`'s `CombatDamageDealt` arm — `carddef_hits` goes 0 → 1 and this
+/// test reddens on its first assertion.
 #[test]
-fn test_dx24_when_deals_combat_damage_to_player_reads_the_visible_face_of_a_transformed_attacker() {
+fn test_dx47_transformed_attacker_queues_exactly_one_trigger_off_the_visible_face() {
     let p1 = p(1);
     let p2 = p(2);
     let def = q4_combat_damage_dfc_def();
@@ -1324,23 +1344,58 @@ fn test_dx24_when_deals_combat_damage_to_player_reads_the_visible_face_of_a_tran
         }],
     };
     let triggers = check_triggers(&state, &[event]);
-    let carddef_hits: Vec<_> = triggers
+    let mine: Vec<_> = triggers.iter().filter(|t| t.source == obj_id).collect();
+    let carddef_hits: Vec<_> = mine
         .iter()
-        .filter(|t| t.source == obj_id && t.kind == PendingTriggerKind::CardDefETB)
+        .filter(|t| t.kind == PendingTriggerKind::CardDefETB)
+        .collect();
+    let normal_hits: Vec<_> = mine
+        .iter()
+        .filter(|t| t.kind == PendingTriggerKind::Normal)
         .collect();
 
-    assert_eq!(
-        carddef_hits.len(),
-        1,
-        "CR 510.3a / OOS-DX1-4 Q4: exactly one CardDefETB trigger must be \
-         queued from the back face's WhenDealsCombatDamageToPlayer ability -- \
-         Q4's queue site must read the visible (back) face. Got: {:?}",
-        carddef_hits
+    // `expected_index` is still re-derived above and is still the right answer
+    // for the DELETED path; it is asserted here as the thing that is NOT queued,
+    // so the constant keeps earning its keep instead of becoming dead weight.
+    assert!(
+        carddef_hits.is_empty(),
+        "PB-DX47 (`OOS-DX24-4`): the card-registry scan is DELETED, so no \
+         CardDefETB trigger may be queued for this event. Its back-face card-def \
+         index would have been {expected_index}. Got: {carddef_hits:?}"
     );
     assert_eq!(
-        carddef_hits[0].ability_index, expected_index,
-        "the queued CardDefETB trigger's ability_index must be the BACK \
-         face's card-def index ({expected_index}), not a front-face index"
+        normal_hits.len(),
+        1,
+        "CR 510.3a / OOS-DX1-4 Q4, through the surviving path: exactly ONE \
+         trigger, from the layer-resolved runtime lowering. Got: {mine:?}"
+    );
+
+    // The Q4 property itself: the queued trigger is the BACK face's ability, not
+    // a front-face one. The front face declares no WhenDealsCombatDamageToPlayer
+    // at all, so a front-face read yields zero triggers and the assertion above
+    // already fails -- this pins the EFFECT to make the face read explicit
+    // rather than inferred from a count.
+    let resolved = mtg_engine::rules::layers::expect_characteristics(&state, obj_id);
+    let queued = resolved
+        .triggered_abilities
+        .get(normal_hits[0].ability_index)
+        .expect("the Normal trigger's ability_index must index the runtime vector");
+    assert_eq!(
+        queued.trigger_on,
+        TriggerEvent::SelfDealsCombatDamageToPlayer,
+        "the queued runtime ability must be the combat-damage one"
+    );
+    assert_eq!(
+        queued.effect,
+        back_face
+            .abilities
+            .get(expected_index)
+            .and_then(|a| match a {
+                CardDefAbilityDefinition::Triggered { effect, .. } => Some(effect.clone()),
+                _ => None,
+            }),
+        "Q4: the queued ability's effect must be the BACK face's -- this is the \
+         face-awareness the deleted scan used to be the only pin on"
     );
 }
 
