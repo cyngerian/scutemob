@@ -49,11 +49,12 @@
    * end:
    *
    *   0. blocking decision — iff `option.decision` is present (UI-1). Renders one
-   *                          of five pickers chosen by `decision.answer.shape`:
+   *                          of six pickers chosen by `decision.answer.shape`:
    *                          `Subset` → `DiscardPicker`, `PickOne` →
    *                          `SearchPicker`, `Partition` → `PartitionPicker`,
    *                          `Slots` → the same `TargetPicker` stage 2 uses,
    *                          `PickN` (ENG-1, CR 701.9b) → `DiscardPicker` again,
+   *                          `Confirm` (PB-DX45, CR 118.12) → `ConfirmPicker`,
    *                          templated this time.
    *   1. `ValuePrompt`     — iff `needs_x || modes.length > 0` (CR 601.2b
    *                          announces `{X}`/modes as part of casting, before
@@ -223,6 +224,7 @@
   import DiscardPicker from './DiscardPicker.svelte';
   import SearchPicker from './SearchPicker.svelte';
   import PartitionPicker from './PartitionPicker.svelte';
+  import ConfirmPicker from './ConfirmPicker.svelte';
   import CostPicker from './CostPicker.svelte';
 
   const {
@@ -955,6 +957,22 @@
           movedKey={currentShape.moved_key}
           movedLabel={currentShape.moved_label}
           template={currentShape.template}
+          answerField={currentDecision.answer_field}
+          disabled={loading}
+          onConfirm={onDecisionConfirm}
+          onCancel={cancelChain}
+          onError={onPickerError}
+        />
+      {:else if currentShape?.shape === 'Confirm'}
+        <!-- PB-DX45 (CR 118.12): pay an optional cost, or decline. The first shape
+             with no candidate list — see `ConfirmPicker`'s own doc for why that is
+             a property of the rule rather than a thin payload. -->
+        <ConfirmPicker
+          prompt={currentDecision.prompt}
+          costLabel={currentShape.cost_label}
+          template={currentShape.template}
+          payKey={currentShape.pay_key}
+          defaultPay={currentShape.default}
           answerField={currentDecision.answer_field}
           disabled={loading}
           onConfirm={onDecisionConfirm}
