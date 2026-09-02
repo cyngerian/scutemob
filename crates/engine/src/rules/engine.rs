@@ -28,139 +28,37 @@ use crate::state::game_object::{Designations, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::stubs::FlushResumeSite;
 use crate::state::GameState;
-/// CR 702.21a / CR 603.3b (PB-DX48): the bound on how many *consecutive*
-/// becomes-target waves one command may place.
-///
-/// A wave exists because putting an ability on the stack can itself make a
-/// permanent "become the target" (CR 702.21a), and the trigger that causes is then
-/// "triggered but not yet on the stack" in the SAME CR 603.3b window -- it must be
-/// placed before any player receives priority, not left in the queue until the
-/// next command. See `check_and_flush_triggers` below.
-///
-/// In the corpus this terminates at wave 2 by construction: the only wave-2 trigger
-/// buildable today is Ward's, whose own single target is the TARGETING STACK OBJECT
-/// (`SpellTarget { target: Object(tsid), zone_at_cast: None }`,
-/// `rules/abilities.rs`'s `trigger_targets_opt` chain), and `zone_at_cast: None`
-/// never satisfies the battlefield predicate in
-/// `rules::events::permanent_targeted_events`. The bound therefore truncates
-/// nothing reachable today; it exists so a future `PermanentBecomesTarget` card
-/// whose trigger targets a permanent cannot spin the engine, and it stops with a
-/// `debug_assert!` rather than silently (SR-4: an engine bug, not a rules-correct
-/// fizzle).
-const MAX_BECOMES_TARGET_WAVES: u32 = 16;
-
 /// CR 603.3: Check for triggered abilities arising from events and flush
 /// pending triggers to the stack. Extracted from per-command-arm boilerplate.
 ///
-/// **PB-DX48 (`OOS-ENG2-1` ≡ `OOS-ENG2-2`) made this a bounded fixpoint, and the
-/// reason is the half neither seed states.** Emitting `GameEvent::PermanentTargeted`
-/// from a trigger flush is necessary but not sufficient: this function scanned the
-/// command's events and only THEN called `flush_pending_triggers`, so the events a
-/// flush ITSELF produced were never scanned by anything. A Ward trigger caused by a
-/// *triggered* ability going on the stack would therefore sit in
-/// `state.pending_triggers` until the next command -- i.e. until after priority had
-/// already been granted, which CR 603.3b forbids.
-///
-/// **Wave 0 is byte-for-byte the pre-PB-DX48 pass** (scan everything handed in,
-/// flush once). Waves 1+ scan **only** the `GameEvent::PermanentTargeted` events
-/// appended since the previous wave. That narrowing is deliberate and its residual
-/// is stated rather than left implicit: the other events a flush produces
-/// (`AbilityTriggered`, `TargetsAnnounced`, `PriorityGiven`, ...) are STILL never
-/// fed back through `check_triggers` from this path, so e.g. a Panharmonicon-style
-/// watcher on `AbilityTriggered` still does not see an ability placed by a flush.
-/// Widening wave 1+ to the whole slice is a different, much larger change with its
-/// own CR 603.10a look-back and parity consequences; this batch's subject is the
-/// CR 702.21a dispatch. Filed as `OOS-DX48-1`.
-///
-/// **Exactly-once scanning is what keeps Ward firing ONCE per targeting event**
-/// (CR 702.21a). The cursor is the mechanism: an event is scanned by exactly one
-/// wave. A hook inside `flush_sorted` was tried first and rejected by execution --
-/// it dispatched the same `PermanentTargeted` that this function then re-scanned,
-/// and Ward fired twice.
+/// PB-DX48 note: this is a SINGLE pass, deliberately. The CR 702.21a becomes-target
+/// wave loop lives inside `abilities::flush_pending_triggers`, which is the one
+/// function all six flush sites go through — including
+/// `rules/resolution.rs`'s post-resolution sweep, which this function never runs
+/// after. Adding a second loop here would re-scan the events that one already
+/// dispatched and fire Ward twice; see that function's doc comment for the
+/// execution that established it.
 fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) {
-    let mut scanned = 0usize;
-    for wave in 0..MAX_BECOMES_TARGET_WAVES {
-        // CR 702.21a: waves 1+ look only at the becomes-target events the previous
-        // wave's flush appended (see the doc comment's residual note).
-        //
-        // Wave 0 borrows `events` rather than cloning it. That is not a micro-
-        // optimisation for its own sake: this function runs on essentially every
-        // `Command`, so a per-command clone of the whole event vec would be a real
-        // cost on the `full_turn_4p` bench path for a branch that, in the
-        // overwhelming majority of commands, never runs a second wave at all.
-        //
-        // PB-DX15a (`OOS-DX24-7`): `Simultaneous` here is EXACTLY the pre-PB-DX15a
-        // behaviour, not a new judgement. PB-DX24's fix cycle recorded this call site as
-        // NOT AUDITED for CR 603.10a look-back granularity, and this batch did not audit
-        // it either -- the parameter exists so that status is visible here instead of
-        // buried in a comment in `abilities.rs`.
-        let new_triggers = if wave == 0 {
-            let t = abilities::check_triggers_with_timing(
-                state,
-                events,
-                abilities::EventBatchTiming::Simultaneous,
-            );
-            scanned = events.len();
-            t
-        } else {
-            let slice: Vec<GameEvent> = events[scanned..]
-                .iter()
-                .filter(|e| matches!(e, GameEvent::PermanentTargeted { .. }))
-                .cloned()
-                .collect();
-            scanned = events.len();
-            if slice.is_empty() {
-                // No permanent became the target during the previous wave's flush,
-                // so there is nothing this wave could add. Return before the extra
-                // `flush_pending_triggers` so a command that causes no
-                // becomes-target trigger produces a byte-identical event stream to
-                // the pre-PB-DX48 engine.
-                return;
-            }
-            abilities::check_triggers_with_timing(
-                state,
-                &slice,
-                abilities::EventBatchTiming::Simultaneous,
-            )
-        };
-        let found_any = !new_triggers.is_empty();
-        for t in new_triggers {
-            state.pending_triggers.push_back(t);
-        }
-        if wave > 0 && !found_any {
-            // Nothing new became a target: the fixpoint is reached. Returning here
-            // rather than falling through to another `flush_pending_triggers` keeps
-            // wave 0's event stream byte-identical to the pre-PB-DX48 engine for
-            // every command that causes no becomes-target trigger at all.
-            return;
-        }
-        if wave == 0 {
-            run_delayed_trigger_cleanup(state);
-        }
-        let trigger_events = abilities::flush_pending_triggers(state);
-        events.extend(trigger_events);
-        // CR 603.3d (PB-DP8): a suspended flush owns the continuation. Re-entering
-        // it here would ask its question twice.
-        if state.pending_trigger_targets.is_some() {
-            return;
-        }
-        if wave + 1 == MAX_BECOMES_TARGET_WAVES {
-            debug_assert!(
-                false,
-                "engine invariant: {MAX_BECOMES_TARGET_WAVES} consecutive CR 702.21a \
-                 becomes-target waves in one command. Ward's own trigger targets the \
-                 TARGETING STACK OBJECT with `zone_at_cast: None`, which the battlefield \
-                 predicate in `rules::events::permanent_targeted_events` never matches, \
-                 so a real cascade this deep means a new `PermanentBecomesTarget` card \
-                 whose trigger targets a permanent is looping."
-            );
-        }
+    // PB-DX15a (`OOS-DX24-7`): `Simultaneous` here is EXACTLY the pre-PB-DX15a
+    // behaviour, not a new judgement. PB-DX24's fix cycle recorded this call site as
+    // NOT AUDITED for CR 603.10a look-back granularity, and this batch did not audit
+    // it either -- the parameter exists so that status is visible here instead of
+    // buried in a comment in `abilities.rs`.
+    let new_triggers = abilities::check_triggers_with_timing(
+        state,
+        events,
+        abilities::EventBatchTiming::Simultaneous,
+    );
+    for t in new_triggers {
+        state.pending_triggers.push_back(t);
     }
+    run_delayed_trigger_cleanup(state);
+    let trigger_events = abilities::flush_pending_triggers(state);
+    events.extend(trigger_events);
 }
 
-/// CR 610.3 cleanup, lifted verbatim out of `check_and_flush_triggers` so the
-/// PB-DX48 wave loop runs it exactly where it ran before (wave 0 only) rather than
-/// once per wave.
+/// CR 610.3 cleanup, lifted out of `check_and_flush_triggers` so its body stays
+/// readable; behaviour is unchanged.
 fn run_delayed_trigger_cleanup(state: &mut GameState) {
     // CR 610.3 cleanup: Remove WhenSourceLeavesBattlefield delayed triggers whose
     // source is no longer on the battlefield. This prevents re-firing on subsequent
