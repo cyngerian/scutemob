@@ -399,11 +399,9 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Contagion Clasp", &["proliferate"], None),
     ("Contentious Plan", &["proliferate"], None),
     ("Crippling Fear", &["choose_color_or_type"], None),
-    ("Crossway Troublemakers", &["may_pay_then_effect"], None),
     ("Deflecting Swat", &["change_targets"], None),
     ("Demon's Disciple", &["sacrifice_permanents"], None),
     ("Dictate of Erebos", &["sacrifice_permanents"], None),
-    ("Disciple of Freyalise", &["may_pay_then_effect"], None),
     ("Dreadhorde Invasion", &["bolster_amass"], None),
     ("Dromoka, the Eternal", &["bolster_amass"], None),
     ("Drown in Ichor", &["proliferate"], None),
@@ -418,24 +416,18 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Grave Pact", &["sacrifice_permanents"], None),
     ("Grisly Salvage", &["look_at_top_or_route"], None),
     ("Growing Rites of Itlimoc", &["look_at_top_or_route"], None),
-    ("Hazoret's Monument", &["may_pay_then_effect"], None),
     ("Inexorable Tide", &["proliferate"], None),
     ("Izzet Charm", &["counter_unless_pays"], None),
-    ("Kalastria Highborn", &["may_pay_then_effect"], None),
     ("Karn's Bastion", &["proliferate"], None),
     ("Kindred Dominance", &["choose_color_or_type"], None),
     ("Korvold, Fae-Cursed King", &["sacrifice_permanents"], None),
-    ("Leaf-Crowned Visionary", &["may_pay_then_effect"], None),
     ("Make Disappear", &["counter_unless_pays"], None),
     ("Mana Leak", &["counter_unless_pays"], None),
     ("Mana Tithe", &["counter_unless_pays"], None),
     ("Merciless Executioner", &["sacrifice_permanents"], None),
     ("Metastatic Evangel", &["proliferate"], None),
-    ("Miara, Thorn of the Glade", &["may_pay_then_effect"], None),
     ("Misdirection", &["change_targets"], None),
     ("Morophon, the Boundless", &["choose_color_or_type"], None),
-    ("Nadir Kraken", &["may_pay_then_effect"], None),
-    ("Nether Traitor", &["may_pay_then_effect"], None),
     ("Obelisk of Urd", &["choose_color_or_type"], None),
     ("Pact of the Serpent", &["choose_color_or_type"], None),
     ("Patchwork Banner", &["choose_color_or_type"], None),
@@ -447,14 +439,13 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Roiling Regrowth", &["sacrifice_permanents"], None),
     ("Satyr Wayfinder", &["look_at_top_or_route"], None),
     ("Spell Pierce", &["counter_unless_pays"], None),
-    ("Springbloom Druid", &["may_pay_then_effect"], None),
     ("Staff of Compleation", &["proliferate"], None),
     ("Stubborn Denial", &["counter_unless_pays"], None),
     ("Sword of Truth and Justice", &["proliferate"], None),
     ("Sylvan Messenger", &["look_at_top_or_route"], None),
     (
         "Tainted Observer",
-        &["may_pay_then_effect", "proliferate"],
+        &["proliferate"],
         None,
     ),
     ("Tezzeret's Gambit", &["proliferate"], None),
@@ -492,7 +483,16 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
 /// deleted); `Izzet Charm` still hits `counter_unless_pays` and stays in the union, so the drop
 /// is 11, not 12 -- read off `T6`'s printed number (80), not computed as `91 - 12`, per this
 /// constant's own standing rule.
-const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 80;
+///
+/// **PB-DX45 (2026-09-02, `scutemob-217`): lowered 80 -> 71.** The same shape as ENG-1's
+/// move, on the next row over: CR 118.12's optional cost became a real player choice at
+/// BOTH of the engine's `try_pay_optional_cost` call sites, so `may_pay_then_effect` moved
+/// `AutoChosen` -> `Served { by: "PB-DX45" }`. Ten `Complete` defs hit that row; nine hit it
+/// and nothing else and leave the union entirely, while `Tainted Observer` stays for
+/// `proliferate` -- so the drop is 9, not 10, the same 1-off ENG-1 recorded for
+/// `Izzet Charm`. **71 is read off `T6`'s printed number**, not computed as `80 - 9`, per
+/// this constant's own standing rule; the arithmetic agreeing is a check, not the source.
+const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 71;
 
 const MIN_ROWS: usize = 22;
 const MIN_BASELINE: usize = 50;

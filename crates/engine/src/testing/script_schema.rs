@@ -664,6 +664,22 @@ pub struct EffectChoiceScriptAnswer {
     /// engine, not the script, decides the exact-count vs. up-to legality.
     #[serde(default)]
     pub chosen: Vec<String>,
+    /// PB-DX45: CR 118.12 — for an optional-cost offer
+    /// (`EffectChoiceQuestion::PayOptionalCost`), whether to pay.
+    ///
+    /// `None` (the field omitted) means **pay**, which is
+    /// `default_effect_choice_answer`'s answer and therefore the exact behaviour
+    /// every script written before PB-DX45 already encodes — so no existing
+    /// script changes. `Some(false)` is the DECLINE, a state the pre-PB-DX45
+    /// engine could not produce from any channel.
+    ///
+    /// A `bool` rather than a name list, because CR 118.12's answer space is not
+    /// a set of cards: it is pay or don't. WHICH permanent a `Cost::Sacrifice`
+    /// eats is still the engine's pick (`OOS-DX45-1`) and is deliberately not
+    /// scriptable here — a field that looked like it chose would be a claim this
+    /// engine cannot keep.
+    #[serde(default)]
+    pub pay_optional_cost: Option<bool>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]

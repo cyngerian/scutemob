@@ -23,9 +23,10 @@ use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::{
     AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry, CardType, Command,
-    Cost, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, ManaColor, ManaCost,
-    ObjectId, ObjectSpec, PlayerId, PlayerTarget, SpellTarget, StackObject, StackObjectKind, Step,
-    Target, TargetFilter, TargetRequirement, TypeLine, ZoneId, HASH_SCHEMA_VERSION,
+    Cost, Effect, EffectAmount, EffectChoiceAnswer, EffectChoiceQuestion, GameEvent, GameState,
+    GameStateBuilder, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget,
+    SpellTarget, StackObject, StackObjectKind, Step, Target, TargetFilter, TargetRequirement,
+    TypeLine, ZoneId, HASH_SCHEMA_VERSION,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -45,12 +46,35 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 /// Execute `Effect::MayPayThenEffect { cost, payer: Controller, then }` directly
 /// against `state` for `controller`. Returns (state, events).
+///
+/// PB-DX45: the arm no longer auto-pays. It asks
+/// `EffectChoiceQuestion::PayOptionalCost { cost }` on PB-DP9's CR 608.2d
+/// suspend-and-replay channel, and a bare `execute_effect` call (no
+/// `resolve_top_of_stack` wrapper) cannot answer it -- it just records the
+/// question and returns having applied nothing, which is exactly the "a bare
+/// `execute_effect` measures nothing" trap PB-DX15a hit on `SearchLibrary`. So
+/// bank a `PayOptionalCost { pay: true }` answer for the SAME `Cost` value
+/// BEFORE executing, via `state::test_util::bank_effect_choice_answer`
+/// (`ask_or_consume_effect_choice` compares the banked question structurally
+/// against the one the engine recomputes, so a wrong `cost` re-suspends
+/// instead of passing on a coincidence). This reproduces the pre-PB-DX45
+/// "pay when able" behaviour honestly, through the real answer channel,
+/// rather than the old unconditional auto-pay -- every assertion below is
+/// unchanged from before PB-DX45. Negative-direction tests (insufficient life,
+/// empty hand, no eligible sacrifice target, unfloated mana) are unaffected:
+/// the engine only asks when `can_pay_optional_cost` is already true, so on
+/// those paths the banked answer is simply never consumed.
 fn run_may_pay_then(
     mut state: GameState,
     controller: PlayerId,
     cost: Cost,
     then: Effect,
 ) -> (GameState, Vec<GameEvent>) {
+    test_util::bank_effect_choice_answer(
+        &mut state,
+        EffectChoiceQuestion::PayOptionalCost { cost: cost.clone() },
+        EffectChoiceAnswer::PayOptionalCost { pay: true },
+    );
     let effect = Effect::MayPayThenEffect {
         cost,
         payer: PlayerTarget::Controller,
@@ -1138,7 +1162,7 @@ fn test_counter_unless_pays_noncreature_filter() {
 /// `MayPayThenEffect` discriminant 88 and `CounterUnlessPays` discriminant 89).
 /// If you bumped again, update this test and the `state/hash.rs` history block.
 fn test_hash_schema_version_is_29() {
-    assert_eq!(HASH_SCHEMA_VERSION, 77u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 78u8);
 }
 
 #[test]

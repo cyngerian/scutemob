@@ -2,6 +2,7 @@
 //!
 //! These exist so GameState can compile with all fields from the architecture
 //! doc. Each type will be fully fleshed out in its respective milestone.
+use crate::cards::card_definition::Cost;
 use super::game_object::ObjectId;
 use super::player::PlayerId;
 use super::stack::TriggerData;
@@ -982,6 +983,30 @@ pub enum EffectChoiceQuestion {
         /// is smaller (CR 608.2 "as much as possible").
         up_to: bool,
     },
+    /// PB-DX45: CR 118.12 / CR 608.2d — "[player] may pay [cost]. If they do,
+    /// [effect]." Asked once per eligible payer, at resolution time, by both
+    /// `Effect::MayPayThenEffect` and `Effect::LookAtTopThenPlace`'s
+    /// `place_cost`.
+    ///
+    /// **The answer space is a bool, and it is complete.** Unlike the five
+    /// variants above, this question names no candidate set: CR 118.12 offers
+    /// exactly two answers, pay or decline, and the engine only asks at all when
+    /// `can_pay_optional_cost` is already true — a cost you cannot pay is not a
+    /// choice you have. So there is no "is this id legal" check to make and the
+    /// whole legality of an answer is its variant.
+    ///
+    /// **Hidden information (Architecture Invariant 7): none rides on this
+    /// variant.** `cost` is the printed cost of a public card, and the recipient
+    /// is the player being asked. `private_to()` still returns `Some(player)` —
+    /// the question is addressed to one seat, not hidden from the rest — for the
+    /// same reason `ChooseObject` is.
+    ///
+    /// `cost` is carried so a client can render "Pay {B}?" without a second
+    /// query, which is this type's stated contract ("carrying its full legal
+    /// answer space so a client can render a picker without a second query").
+    /// It is NOT re-derived from the source card at answer time: the engine
+    /// validates against its own recorded question and never against the board.
+    PayOptionalCost { cost: Cost },
 }
 /// CR 608.2d (PB-DP9): the player's answer to an [`EffectChoiceQuestion`].
 ///
@@ -1030,6 +1055,23 @@ pub enum EffectChoiceAnswer {
     /// `!up_to` (clamped to `min(count, candidates.len())`), `<= count` when
     /// `up_to` — see `handle_answer_effect_choice`'s per-variant legality.
     ChooseObject { chosen: Vec<ObjectId> },
+    /// PB-DX45: CR 118.12 — `true` to pay the optional cost, `false` to decline.
+    ///
+    /// **`false` is a state the pre-PB-DX45 engine could not produce.** The old
+    /// `MayPayThenEffect` arm called `try_pay_optional_cost` unconditionally, so
+    /// declining was unreachable from every channel — human, bot and script
+    /// alike. That is why the batch's end-to-end probes assert a DECLINE by its
+    /// resolution EFFECT (the Traitor still in the graveyard, the mana still in
+    /// the pool) rather than by the offer.
+    ///
+    /// A `true` answer is not a promise the cost is still payable: the engine
+    /// re-checks with `can_pay_optional_cost` before charging and fails closed
+    /// if it is not (`try_pay_optional_cost`'s own pre-check). Nothing legal can
+    /// change payability between the ask and the answer — the admission gate
+    /// admits only this command and `Concede` while the block stands — so that
+    /// re-check is belt-and-braces, and it is kept for that reason rather than
+    /// removed as dead.
+    PayOptionalCost { pay: bool },
 }
 /// CR 608.2d (PB-DP9): the one resolution-time choice the engine is currently
 /// blocked on.

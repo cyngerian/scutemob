@@ -56,20 +56,28 @@
 use mtg_engine::rules::engine::BlockingDecision;
 use mtg_engine::{EffectChoiceQuestion, GameState};
 
-/// Row ids that CAN be observed at runtime. These are exactly the five
+/// Row ids that CAN be observed at runtime. These are exactly the
 /// `DecisionClass::Served` rows of `crates/engine/tests/core/decision_site_walk.rs`,
 /// and the correspondence is machine-checked by `decision_gate.rs`'s
 /// `runtime_decision_coverage_roster_matches_rows`.
+///
+/// `may_pay_then_effect` joined on PB-DX45 (CR 118.12): both of the engine's
+/// `try_pay_optional_cost` call sites now ask rather than pay. This list is the
+/// reason the move is not a bookkeeping edit — a row that leaves
+/// [`UNOBSERVABLE_ROW_IDS`] gets a counter that must actually be able to move,
+/// and PB-DX45's simulator channel probe is what makes it move.
 pub const OBSERVABLE_ROW_IDS: &[&str] = &[
     "triggered_targets",
     "search_library",
     "scry",
     "surveil",
     "discard_cards",
+    "may_pay_then_effect",
 ];
 
-/// Row ids with NO runtime hook, and why — one entry per row (17 total: 14
-/// `AutoChosen` + 2 `Gated` + 1 `NoDecision`, per `decision_site_walk.rs::ROWS`). An
+/// Row ids with NO runtime hook, and why — one entry per row (16 total: 13
+/// `AutoChosen` + 2 `Gated` + 1 `NoDecision`, per `decision_site_walk.rs::ROWS`;
+/// `may_pay_then_effect` left this list on PB-DX45). An
 /// `AutoChosen` row is one where the engine takes the choice INLINE and leaves no
 /// artefact; a `Gated` row is barred from `Complete` entirely by the SR-33 family
 /// (`effect_choose_gate.rs`), so no `Complete` def can ever reach it; `wheel_hand` is
@@ -93,11 +101,6 @@ pub const UNOBSERVABLE_ROW_IDS: &[(&str, &str)] = &[
         "sacrifice_permanents",
         "AutoChosen -- picks the n lowest ObjectIds inline; CR 701.21a gives the \
          choice to the controller",
-    ),
-    (
-        "may_pay_then_effect",
-        "AutoChosen -- pays iff affordable inline (CR 118.12); the engine still \
-         chooses on the player's behalf",
     ),
     (
         "choose_color_or_type",
@@ -279,6 +282,18 @@ pub fn row_id_for(state: &GameState, decision: &BlockingDecision) -> Option<&'st
                     // this batch does not own. Extending the audit itself (if
                     // warranted) is a separate task's call to make.
                     EffectChoiceQuestion::ChooseObject { .. } => None,
+                    // PB-DX45: CR 118.12's optional cost IS one of the audit's
+                    // §3.1 rows -- `may_pay_then_effect`, whose site cell used to
+                    // read "pays iff affordable". It moves from `AutoChosen` to
+                    // `Served` in `decision_site_walk.rs::ROWS` and out of
+                    // `UNOBSERVABLE_ROW_IDS` into `OBSERVABLE_ROW_IDS` in the same
+                    // commit as this arm, so the counter can actually move.
+                    //
+                    // `Effect::LookAtTopThenPlace`'s `place_cost` -- the second
+                    // site PB-DX45 repairs -- reaches this same row id, which is
+                    // correct: the row is named for the DECISION (CR 118.12's
+                    // optional cost), not for the `Effect` variant that offers it.
+                    EffectChoiceQuestion::PayOptionalCost { .. } => Some("may_pay_then_effect"),
                 }
             })
         }

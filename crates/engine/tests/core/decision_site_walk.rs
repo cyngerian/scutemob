@@ -360,10 +360,17 @@ pub static ROWS: &[Row] = &[
     Row {
         id: "may_pay_then_effect",
         cr: "118.12",
-        site: "effects/mod.rs::try_pay_optional_cost -- pays iff affordable",
-        class: DecisionClass::AutoChosen {
-            why_not_flagged_is_wrong:
-                "a deterministic-but-legal \"pay when able\" path (CR 118.12) is still the engine choosing on the player's behalf whether to pay",
+        site: "effects/mod.rs (MayPayThenEffect + LookAtTopThenPlace::place_cost) -> EffectChoiceQuestion::PayOptionalCost",
+        class: DecisionClass::Served {
+            by: "PB-DX45",
+            residual: &[
+                "OOS-DX45-1",
+                "OOS-DX45-3",
+                "OOS-DX45-4",
+                "OOS-DX45-5",
+                "OOS-DX45-6",
+                "OOS-DX45-7",
+            ],
         },
         predicate: p_may_pay_then_effect,
     },

@@ -1181,6 +1181,17 @@ pub fn translate_player_action(
                         crate::state::EffectChoiceAnswer::ChooseObject { chosen }
                     }
                 }
+                // PB-DX45 (CR 118.12): pay or decline an optional cost. No id is
+                // named on either side, so unlike every arm above there is
+                // nothing to look up — `spec.pay_optional_cost` IS the answer.
+                // Omitted means pay, which is what `default_effect_choice_answer`
+                // returns and what every pre-PB-DX45 script already encodes.
+                crate::state::EffectChoiceQuestion::PayOptionalCost { .. } => {
+                    match spec.pay_optional_cost {
+                        Some(pay) => crate::state::EffectChoiceAnswer::PayOptionalCost { pay },
+                        None => crate::effects::default_effect_choice_answer(&entry.question),
+                    }
+                }
             };
             Some(Command::AnswerEffectChoice {
                 player,

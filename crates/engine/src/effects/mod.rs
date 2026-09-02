@@ -452,6 +452,23 @@ pub fn default_effect_choice_answer(q: &EffectChoiceQuestion) -> EffectChoiceAns
         } => EffectChoiceAnswer::ChooseObject {
             chosen: candidates.iter().take(*count as usize).copied().collect(),
         },
+        // PB-DX45: CR 118.12 -- `true` is the exact recovery of the pre-batch
+        // auto-pick. `effects/mod.rs`'s two `try_pay_optional_cost` call sites
+        // both paid unconditionally whenever `can_pay_optional_cost` was true,
+        // and the engine only ASKS this question when that predicate is already
+        // true, so a bot submitting this verbatim plays the identical game the
+        // pre-PB-DX45 engine played: the same costs are paid, the same effects
+        // fire, and only the COMMAND TRACE grows an `AnswerEffectChoice`. That
+        // is ENG-1's property restated, and it is what keeps every seeded
+        // simulator fixture and the fuzzer's recorded seeds stable across this
+        // batch.
+        //
+        // It is deliberately NOT `false`. "Decline by default" would be a
+        // strictly safer-looking choice and a behavioural change to every
+        // bot-only game in the tree, which is a different batch.
+        EffectChoiceQuestion::PayOptionalCost { .. } => {
+            EffectChoiceAnswer::PayOptionalCost { pay: true }
+        }
     }
 }
 /// CR 701.23b vs CR 701.23d (PB-DP9): does this search filter state a **quality**
@@ -898,6 +915,9 @@ pub fn handle_answer_effect_choice(
         ) | (
             EffectChoiceQuestion::ChooseObject { .. },
             EffectChoiceAnswer::ChooseObject { .. }
+        ) | (
+            EffectChoiceQuestion::PayOptionalCost { .. },
+            EffectChoiceAnswer::PayOptionalCost { .. }
         )
     );
     if !variants_agree {
@@ -1017,6 +1037,20 @@ pub fn handle_answer_effect_choice(
                 seen.push(*id);
             }
         }
+        // PB-DX45: CR 118.12 -- both answers are legal, always, and that is a
+        // property of the rule rather than a gap in this match.
+        //
+        // The four variants above validate an id set against a recorded answer
+        // space; this question HAS no answer space beyond `{pay, decline}`, and
+        // the engine only asks it when `can_pay_optional_cost` has already
+        // returned true. So there is nothing to check here that check 4 has not
+        // already checked -- the arm exists so that the match stays exhaustive
+        // and a sixth variant is a compile error rather than a silent fallthrough
+        // into the `unreachable!` below.
+        (
+            EffectChoiceQuestion::PayOptionalCost { .. },
+            EffectChoiceAnswer::PayOptionalCost { .. },
+        ) => {}
         // Unreachable: check 4 established variant agreement.
         _ => unreachable!("variant agreement checked above"),
     }
@@ -4657,9 +4691,18 @@ fn execute_effect_inner(
             // M9+: interactive choice to pay or not. For M7, don't pay → apply or_else.
             execute_effect_inner(state, or_else, ctx, events);
         }
-        // CR 118.12: beneficial optional cost. Deterministic path: the payer pays when
-        // able (pay-when-able is a legal, deterministic game choice — architecture
-        // invariant #9); `then` runs only if the cost was actually paid.
+        // CR 118.12: beneficial optional cost. **The payer decides** (PB-DX45,
+        // closing `OOS-DX24-9` ≡ `OOS-DX27-5`).
+        //
+        // This arm used to call `try_pay_optional_cost` unconditionally, under a
+        // comment calling pay-when-able "a legal, deterministic game choice —
+        // architecture invariant #9". That reading does not survive contact with
+        // CR 118.12, which says the player *may* pay: declining is real play
+        // (hold the mana for a counterspell; leave `nether_traitor` in the
+        // graveyard for a larger return window; for a `Cost::Sacrifice`, do not
+        // eat a creature you would rather keep). The choice is now asked on
+        // PB-DP9's CR 608.2d suspend-and-replay channel, exactly like a search
+        // or a scry.
         Effect::MayPayThenEffect { cost, payer, then } => {
             let payer_ids = resolve_player_target_list(state, payer, ctx);
             // Rebind `then`'s implicit controller (`ctx.controller`) to the actual
@@ -4685,9 +4728,48 @@ fn execute_effect_inner(
                 if state.pending_effect_choice.is_some() {
                     break;
                 }
-                // PB-EF1 (CR 109.1): pass the effect source so an optional
+                // CR 118.12: a cost you cannot pay is not a choice you have, so
+                // there is nothing to ask. This is the same DETERMINED
+                // short-circuit `resolve_pending_object_choices` applies when its
+                // answer space admits exactly one legal set — without it, every
+                // `nether_traitor` death trigger with an empty mana pool would
+                // cost a round trip to be told the only legal answer.
+                //
+                // It is also what lets `EffectChoiceQuestion::PayOptionalCost`
+                // carry no candidate list: by the time the question exists,
+                // payability is already established.
+                //
+                // PB-EF1 (CR 109.1): the effect source is threaded so an optional
                 // `Cost::Sacrifice(filter.exclude_self)` ("you may sacrifice another
-                // creature") excludes the source itself.
+                // creature") excludes the source itself — in the payability probe
+                // as well as in the payment.
+                if !can_pay_optional_cost(state, pid, cost, Some(ctx.source)) {
+                    continue;
+                }
+                let pay = match ask_or_consume_effect_choice(
+                    state,
+                    ctx,
+                    pid,
+                    EffectChoiceQuestion::PayOptionalCost { cost: cost.clone() },
+                ) {
+                    Some(EffectChoiceAnswer::PayOptionalCost { pay }) => pay,
+                    Some(other) => {
+                        debug_assert!(
+                            false,
+                            "CR 608.2d: variant mismatch answering a PayOptionalCost: {other:?}"
+                        );
+                        // Release fallback: reproduce the pre-PB-DX45 behaviour
+                        // rather than silently dropping the effect (SR-4 — this is
+                        // an engine bug, not a legal fizzle).
+                        true
+                    }
+                    // Suspended. Apply NOTHING for this payer or any later one —
+                    // the wrapper rolls the whole resolution back.
+                    None => break,
+                };
+                if !pay {
+                    continue;
+                }
                 if let Some(sacrificed) =
                     try_pay_optional_cost(state, pid, cost, Some(ctx.source), events)
                 {
@@ -6358,11 +6440,48 @@ fn execute_effect_inner(
                     continue;
                 }
                 // CR 118.12: interposed cost, paid AFTER the look, BEFORE placing.
-                // Deterministic "pay when able" (invariant #9): the payer pays whenever
-                // able, even into a whiff. `None` (place_cost unset) = no gate.
+                // **The payer decides** (PB-DX45).
+                //
+                // This is the engine's SECOND `try_pay_optional_cost` call site,
+                // and no document in PB-DX45's chain names it — `OOS-DX24-9`,
+                // `OOS-DX27-5`, the v4 memo's row and the task brief all say
+                // `Effect::MayPayThenEffect`. It is the identical CR 118.12
+                // decision one function over, and it was live on a deck-legal
+                // `Complete` def (`birthing_ritual`), so it asks the same
+                // `EffectChoiceQuestion::PayOptionalCost` the other site does.
+                // Population pinned by `tests/core/pb_dx45_may_pay_roster.rs`'s
+                // `r4_second_pay_site_population_is_pinned`.
+                //
+                // `None` (place_cost unset) = no gate and no question: an absent
+                // cost is not an optional one.
                 let placement_allowed = match place_cost {
+                    // CR 118.12: unpayable is not a choice — the same DETERMINED
+                    // short-circuit the `MayPayThenEffect` arm applies.
+                    Some(cost) if !can_pay_optional_cost(state, p, cost, Some(ctx.source)) => false,
                     Some(cost) => {
-                        match try_pay_optional_cost(state, p, cost, Some(ctx.source), events) {
+                        let pay = match ask_or_consume_effect_choice(
+                            state,
+                            ctx,
+                            p,
+                            EffectChoiceQuestion::PayOptionalCost {
+                                cost: (**cost).clone(),
+                            },
+                        ) {
+                            Some(EffectChoiceAnswer::PayOptionalCost { pay }) => pay,
+                            Some(other) => {
+                                debug_assert!(
+                                    false,
+                                    "CR 608.2d: variant mismatch answering a PayOptionalCost:                                      {other:?}"
+                                );
+                                true
+                            }
+                            // Suspended: apply NOTHING. `break`, not `continue` —
+                            // a later payer must not run their look either, since
+                            // the wrapper is about to discard the whole pass.
+                            None => break,
+                        };
+                        pay && match try_pay_optional_cost(state, p, cost, Some(ctx.source), events)
+                        {
                             Some(sacrificed) => {
                                 // PB-OS2/EF10 (CR 608.2c/608.2h): populate the sacrificed-
                                 // creature LKI so `filter`'s `*_cmc_amount` referencing

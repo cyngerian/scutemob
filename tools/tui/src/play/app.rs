@@ -648,6 +648,10 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
                 // PUBLIC objects (battlefield permanents / graveyard cards), but
                 // the formatter stays uniform and prints the class label only.
                 mtg_engine::EffectChoiceQuestion::ChooseObject { .. } => "choose object",
+                // PB-DX45 (CR 118.12): the optional-cost offer. Like ChooseObject
+                // it names no hidden information -- it names no ids at all -- and
+                // the formatter stays uniform, printing the class label only.
+                mtg_engine::EffectChoiceQuestion::PayOptionalCost { .. } => "optional cost",
             };
             format!("P{} must answer a {kind} (CR 608.2d) — press 'r'", player.0)
         }

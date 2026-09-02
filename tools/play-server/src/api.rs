@@ -1411,6 +1411,8 @@ fn question_kind(question: &mtg_engine::EffectChoiceQuestion) -> &'static str {
         EffectChoiceQuestion::Surveil { .. } => "surveil",
         EffectChoiceQuestion::Discard { .. } => "discard",
         EffectChoiceQuestion::ChooseObject { .. } => "choose object",
+        // PB-DX45 (CR 118.12).
+        EffectChoiceQuestion::PayOptionalCost { .. } => "optional cost",
     }
 }
 

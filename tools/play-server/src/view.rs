@@ -44,6 +44,7 @@
 use std::collections::HashMap;
 
 use mtg_engine::cards::card_definition::GiftType;
+use mtg_engine::cards::card_definition::Cost;
 use mtg_engine::{
     AbilityDefinition, AdditionalCost, AltCostKind, AttackTarget, Effect, EffectChoiceAnswer,
     EffectChoiceQuestion, GameState, HybridMana, ManaColor, ManaCost, ModeSelection, ObjectId,
@@ -713,6 +714,36 @@ pub enum AnswerShapeView {
         /// `Subset`'s CR 514.1 default). Sent so "use the default" is one click
         /// and so a test can assert the human drove something else.
         default: Vec<u64>,
+    },
+    /// PB-DX45: CR 118.12 — pay an optional cost, or decline. The answer goes
+    /// into `ActionParamsDto::effect_choice_answer`.
+    ///
+    /// **The first shape with no candidate list**, and that is a property of the
+    /// rule rather than a thin DTO: CR 118.12 offers exactly two answers. The
+    /// four id-bearing shapes above exist because their questions name an answer
+    /// SPACE; this one's answer space is `{pay, decline}` and the engine only
+    /// asks when the cost is already payable.
+    ///
+    /// A client renders two buttons and answers by cloning `template` and
+    /// setting the key named by `pay_key` — the same never-respell-the-variant
+    /// discipline as [`Self::Partition::template`], for the same reason.
+    Confirm {
+        /// The printed cost, formatted for display (`{2}{B}`, `Sacrifice a
+        /// creature`, `Pay 2 life`, …). Display only: the engine validates the
+        /// answer against its OWN recorded question and never against this
+        /// string.
+        cost_label: String,
+        /// See [`Self::Partition::template`] — serialized verbatim, cloned by the
+        /// client, never re-spelled.
+        template: EffectChoiceAnswer,
+        /// The key inside `template`'s single variant object that the boolean
+        /// goes in (`"pay"`).
+        pay_key: String,
+        /// The engine's own default answer — `true`, the exact recovery of the
+        /// pre-PB-DX45 auto-pay. Sent so "accept the default" is one click and so
+        /// a test can assert the human drove the OTHER one, which is the only
+        /// answer the old engine could not produce.
+        default: bool,
     },
 }
 
@@ -2404,6 +2435,34 @@ fn sacrifice_prompt(requirement: &SpellAdditionalCost) -> String {
 /// CR 107.4e (`{W/U}`, `{2/W}`), CR 107.4f (`{W/P}`, `{G/W/P}`), CR 107.3 (`{X}`).
 /// Symbol ORDER follows the printed convention: `{X}` first, then generic, then the
 /// coloured pips in WUBRG order, then `{C}`, then the hybrid and Phyrexian pips.
+/// PB-DX45 (CR 118.12): a human-readable label for an optional cost.
+///
+/// Display only — the engine validates a `PayOptionalCost` answer against its
+/// own recorded question and never against this string, so a formatting change
+/// here can never change what is legal.
+///
+/// **Not exhaustive over `Cost`, deliberately, and the residual is stated
+/// rather than hidden behind a wildcard's silence.** The only costs that can
+/// reach this function are those `can_pay_optional_cost` decides — pinned to
+/// `Mana`, `PayLife`, `DiscardCard`, `Sacrifice` and `Sequence` by
+/// `pb_dx45_may_pay_roster.rs`'s `r2_every_corpus_cost_is_decidable`, which is a
+/// gate on the CORPUS, not on this match. A `Cost` variant outside that set
+/// renders as its own debug-ish name here, which is ugly and correct; it cannot
+/// render as something misleadingly specific.
+fn format_optional_cost(cost: &Cost) -> String {
+    match cost {
+        Cost::Mana(mc) => format_mana_cost_compact(mc),
+        Cost::PayLife(n) => format!("{n} life"),
+        Cost::DiscardCard => "a card from your hand".to_string(),
+        Cost::Sacrifice(_) => "a permanent you sacrifice".to_string(),
+        Cost::Sequence(parts) => parts
+            .iter()
+            .map(format_optional_cost)
+            .collect::<Vec<_>>()
+            .join(" and "),
+        other => format!("{other:?}"),
+    }
+}
 fn format_mana_cost_compact(cost: &ManaCost) -> String {
     let mut parts = Vec::new();
     // CR 107.3: `{X}` is printed before the rest of the cost.
@@ -2899,6 +2958,31 @@ fn blocking_decision_view(
                                 chosen.iter().map(|id| id.0).collect()
                             }
                             _ => Vec::new(),
+                        },
+                    },
+                ),
+                // PB-DX45 (CR 118.12): pay an optional cost, or decline. No
+                // candidate ids at all, so neither `NameIndex` nor
+                // `question_cards` is involved -- there is nothing to label. The
+                // cost is rendered from the question's own `Cost`, which is a
+                // printed characteristic of a public card.
+                EffectChoiceQuestion::PayOptionalCost { cost } => (
+                    "PayOptionalCost",
+                    format!(
+                        "{src}: you may pay {} (CR 118.12)",
+                        format_optional_cost(cost)
+                    ),
+                    AnswerShapeView::Confirm {
+                        cost_label: format_optional_cost(cost),
+                        template: answer.clone(),
+                        pay_key: "pay".to_string(),
+                        default: match answer {
+                            EffectChoiceAnswer::PayOptionalCost { pay } => *pay,
+                            // Unreachable against the engine, which always pairs
+                            // the variants; `true` mirrors
+                            // `default_effect_choice_answer` rather than inventing
+                            // a third behaviour.
+                            _ => true,
                         },
                     },
                 ),

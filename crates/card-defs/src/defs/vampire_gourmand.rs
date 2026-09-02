@@ -70,14 +70,24 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial(
-            "Authored (CR 118.12 sacrifice -> draw + evasion). Stays partial, not Complete: \
-             MayPayThenEffect is pay-when-able (CR 118.12's deterministic 'may' resolution), so \
-             the printed 'you may' is auto-taken by the engine whenever an eligible sacrifice \
-             target exists — the engine will always eat a creature rather than genuinely offering \
-             the choice. Real deviation for a cost this expensive; not yet a blocking player \
-             choice (cf. OOS-DP10-5/OOS-DX4-5 class).",
-        ),
+        // PB-DX45 (`scutemob-217`, 2026-09-02): PROMOTED partial -> Complete. This
+        // def's marker named exactly one blocker — `MayPayThenEffect` being
+        // pay-when-able, so the printed "you may" was auto-taken — and that is the
+        // defect PB-DX45 closed (`OOS-DX24-9` = `OOS-DX27-5`). The sacrifice is now
+        // a real CR 118.12 decision on PB-DP9's CR 608.2d channel, offered to the
+        // controller through `EffectChoiceQuestion::PayOptionalCost` and declinable
+        // from every client. The ruling that promotes it is recorded in
+        // `memory/decisions.md`; it also holds `disciple_of_freyalise` at Complete
+        // and leaves `ruthless_technomancer` at partial, whose marker names a
+        // DIFFERENT, still-live gap (its activated variable-X sacrifice cost).
+        //
+        // The residual is stated rather than left implicit: WHICH creature is
+        // sacrificed is still the engine's lowest-`ObjectId` pick (`OOS-DX45-1`).
+        // That does not bar `Complete` — the same auto-pick governs the whole
+        // `Effect::SacrificePermanents` family (Fleshbag Marauder and its nine
+        // siblings), which has shipped `Complete` throughout — and the ruling says
+        // so in terms rather than leaving the two conventions to be compared.
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

@@ -860,7 +860,30 @@
 ///   version-sentinel-byte-only case, not a payload-bytes case -- the new
 ///   field's and variant's own bytes are exercised by the direct behavioural
 ///   probes in `pb_dx44_split_half_cast.rs`, not by this stream fixture.
-pub const HASH_SCHEMA_VERSION: u8 = 77;
+/// - 78: PB-DX45 (2026-09-02, `OOS-DX24-9` = `OOS-DX27-5` -- CR 118.12, an
+///   optional cost is the PLAYER's decision): `EffectChoiceQuestion` and
+///   `EffectChoiceAnswer` each gain a **sixth** variant, `PayOptionalCost`
+///   (`{ cost: Cost }` / `{ pay: bool }`), with explicit hash discriminant `5`
+///   appended to each match. Both enums have been in the `GameState` serde
+///   closure since v66, reachable via `GameState.pending_effect_choice:
+///   Option<PendingEffectChoice>` and `GameState.effect_choice_answers:
+///   Vector<AnsweredEffectChoice>`. `Cost` and `bool` are both already closure
+///   members (`Cost` via `GameObject`'s activated abilities and via
+///   `Effect::MayPayThenEffect`, which is the very effect this batch repairs),
+///   so the closure's type count is **unchanged (131)** -- only the two enums'
+///   declared shapes move, so `decl_fingerprint` moves.
+///
+///   `stream_fingerprint` MOVES for the v40 reason alone (`HASH_SCHEMA_VERSION`
+///   is the stream's first byte). `canonical_fixture()` records no pending
+///   effect choice and banks no answer, so this is the
+///   v69/v72/v73/v74/v75/v76/v77-style version-sentinel-byte-only case, not a
+///   payload-bytes case -- the new variants' own bytes are exercised by the
+///   direct `HashInto` probes in `pb_dx45_optional_cost.rs`.
+///
+///   Predicted in writing before any code changed
+///   (`memory/primitives/pb-DX45-execution-notes.md` §0.1) and both fingerprints
+///   taken from the failing gates' own output rather than transcribed.
+pub const HASH_SCHEMA_VERSION: u8 = 78;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1351,6 +1374,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // `- 77:` History line above). Closure type count unchanged (131).
         decl_fingerprint: "f26b4ecb26feae3bbeac9096bf6620ac28a22f94a133d018e827e858a1aa8705",
         stream_fingerprint: "948264b073ea1c4ebdae6726dd36935d4140ee8da44e54baefe0d3be137dd5c4",
+    },
+    HashSchemaEpoch {
+        version: 78,
+        // PB-DX45 (2026-09-02, `OOS-DX24-9` = `OOS-DX27-5`):
+        // EffectChoiceQuestion/Answer each gain a sixth variant,
+        // PayOptionalCost (see the `- 78:` History line above). Closure type
+        // count unchanged (131).
+        decl_fingerprint: "15c2ec02557ae2f14ccea83e29193b06271dbf294fe6a939e2bf977a187dbd12",
+        stream_fingerprint: "08220ca0f13da6042898f6257407ca475a6e5f5c92b7ca31ae291816eaa19c80",
     },
 ];
 
@@ -3561,6 +3593,11 @@ impl HashInto for EffectChoiceQuestion {
                 count.hash_into(hasher);
                 up_to.hash_into(hasher);
             }
+            // PB-DX45: PayOptionalCost (CR 118.12) — discriminant 5.
+            EffectChoiceQuestion::PayOptionalCost { cost } => {
+                5u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
         }
     }
 }
@@ -3589,6 +3626,11 @@ impl HashInto for EffectChoiceAnswer {
             EffectChoiceAnswer::ChooseObject { chosen } => {
                 4u8.hash_into(hasher);
                 chosen.hash_into(hasher);
+            }
+            // PB-DX45: PayOptionalCost (CR 118.12) — discriminant 5.
+            EffectChoiceAnswer::PayOptionalCost { pay } => {
+                5u8.hash_into(hasher);
+                pay.hash_into(hasher);
             }
         }
     }
