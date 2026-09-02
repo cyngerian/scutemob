@@ -417,3 +417,32 @@ stated in its own doc comment.
 Full test file: `cargo test -p mtg-engine --test primitives -- pb_dx48 pb_eng2` — 21
 tests, all green at HEAD; `cargo clippy -p mtg-engine --test primitives -- -D
 warnings` clean; `cargo fmt --check` clean on both touched files.
+
+---
+
+## §8 — Two delegated matrices, one of them wrong, and the check that caught it
+
+Both test suites were built by delegated runners and both reported a green revert
+matrix. **One of the two reports was wrong about which assertion was doing the work,
+and it was found by re-executing the revert rather than by reading the report.**
+
+The simulator channel probes (`crates/simulator/tests/pb_dx48_ward_channel.rs`)
+reported "1 row, 3/3 RED". Re-executed here, all three probes are indeed RED — and
+every one of them panics on the **journal / `SpellCountered`** assertion, which the
+tests' own comments label *"corroboration, not the verdict"*. The assertion those
+comments call the verdict, `ward_untouched()` (`damage_marked == 0`), stays **TRUE**
+under the revert. Diagnosis: `limits()` set `max_turns: 1`, so the drive halted before
+the targeting ability could resolve, and "the ward took no damage" was true because
+**nothing resolved**, not because Ward countered anything.
+
+That is `OOS-DX43-7`'s shape — a structurally vacuous assertion passes forever and
+reads as coverage — and it inverts what acceptance criterion 7252 asks for
+("asserted by resolution effects not offers"). Sent back with the measurement, the
+exact four-line revert (the report described a one-line deletion; at HEAD the call is
+wrapped across four, which is why the first reproduction attempt needed a file backup),
+and the requirement to re-run the revert and report the NEW panic lines.
+
+**The durable half is about how a delegated matrix is consumed.** "All rows RED" is a
+true sentence that can be produced by the wrong assertion, and a matrix reports the
+row's colour, not which line coloured it. The check that costs one command — re-run
+the revert, read the PANIC LINE — is the only thing that distinguishes them.
