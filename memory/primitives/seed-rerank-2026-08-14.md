@@ -612,6 +612,35 @@ population, real game outcome, cheap fix, existing deviation pin at
 `pb_eng2_targets_announced.rs:384-392` that instructs the successor to **invert** rather than
 delete. Budget for golden-script / fuzz parity movement, as the ENG-2 handoff warns.
 
+> **↻ CORRECTED 2026-09-02 by `PB-DX48` (`scutemob-219`), which shipped this row. Three of the
+> figures above are grep artefacts; the headline one is not.**
+>
+> * **The 3 deck-legal `Complete` Ward defs REPRODUCE exactly** — `adrix_and_nev_twincasters`,
+>   `miirym_sentinel_wyrm`, `tyrranax_rex`, with costs 2 / 2 / 4. That is the number the rank rested
+>   on and it held.
+> * **"regex `KeywordAbility::Ward\b` … over all 1,803 defs" counts 5 and the truth is 4.**
+>   `vein_ripper` does not declare the variant; the name appears only inside a `// TODO` explaining
+>   why it *cannot*. This memo's stated derivation is a **source regex**, and SR-36's rule is to
+>   enumerate `all_cards()` — the same failure `OOS-DX47-2` filed one batch earlier.
+> * **"the six that do are 5 `partial` + 1 `inert`" is a source-grep count of a MIXED set.** Exactly
+>   **one** def structurally declares `WhenBecomesTarget`/`-ByOpponent` (`goldspan_dragon`,
+>   `partial`); the other five only MENTION the condition in a blocker comment. The conclusion —
+>   **0 deck-legal** — is unaffected.
+> * **"the Disguise/Cloak engine grant adds 0 deck-legal members" is TRUE about declarations and
+>   FALSE about reach, and the difference is a live defect.** `KeywordAbility::Cloak` does not
+>   exist — Cloak is `Effect::Cloak` — so a keyword grep measures zero and reads like a
+>   measurement. `cryptic_coat` is `Complete` and deck-legal, and its ETB Cloak puts a face-down
+>   permanent on the battlefield that the layer walk gives ward {2} **and no Ward triggered
+>   ability**, because Ward is lowered into a `TriggeredAbilityDef` only in `state/builder.rs`.
+>   Filed as **`OOS-DX48-4`**, LIVE rather than latent.
+> * A second live find the census could not see at all: **`brutal_cathar`** is `Complete` and
+>   deck-legal while its back face prints *"Ward—Pay 3 life"* with no Ward mechanism authored
+>   (**`OOS-DX48-7`**). Only an INVERSE oracle-text axis finds it; every structural roster walks
+>   `KeywordAbility::Ward` and is blind to a card whose Ward is unauthored.
+>
+> All five re-derived by `core::pb_dx48_announcement_site_roster`, which PRINTS them
+> (`t_census_report`) rather than restating them.
+
 ### 2.6 The bot refusal surface has collapsed to exactly three seeds, one of which is 72% of it
 
 Re-executed at HEAD (`cargo test -p mtg-simulator --test sim5_bot_cast_discipline`; seeds 0/7/42,
