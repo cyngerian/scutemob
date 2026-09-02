@@ -185,7 +185,60 @@ is measured, so:
    conditional on `zone_at_cast == Some(Battlefield)`, and that is inert because
    `check_triggers`'s own arm already required `zone == Battlefield`.
 
-So: budgeted, paid, unclaimed — reported rather than quietly enjoyed.
+### §4b — Except that the FUZZ half of the budget DID come due, and here it is by name
+
+The paragraphs above are about the TEST SUITE, and they hold. The fuzzer is a separate
+measurement and it was taken separately: the identical invocation
+(`cargo run --profile fuzz --bin mtg-fuzzer -- --games 20 --seed 1 --max-turns 200`)
+on the merge base `7eb0b2e0` in an isolated `git worktree` with its own
+`CARGO_TARGET_DIR`, and on this branch. **The two trees differ in exactly one thing —
+the CR 702.21a dispatch — so any delta is attributable to it by construction.**
+
+| metric | before (`7eb0b2e0`) | after | delta |
+|---|---|---|---|
+| games completed / wins / draws / errors | 20 / 20 / 0 / 0 | 20 / 20 / 0 / 0 | **0** |
+| avg turns per game | 122.3 | 122.3 | **0** |
+| HARD violations, raw / distinct | 185 / 13 | 185 / 13 | **0** |
+| — `player_consistency` | 138 in games [2,3,6,8,9,14,17,19] | identical | **0** |
+| — `attachment_validity` | 47 in games [3,10,13,16,18,20] | identical | **0** |
+| TRANSIENT `no_orphaned_tokens`, raw / distinct | 273 / 62 | **275 / 63** | **+2 / +1** |
+| `SpellCast` census | 905 | 902 | −3 |
+| `LandPlayed` census | 938 | 937 | −1 |
+| casts with ≥1 announced target (CR 601.2c) | 890 total / 106 | 887 / 105 | −3 / −1 |
+| `triggered_targets` decision points | 70 | 69 | −1 |
+| rejections / commands | 2677 / 113366 (23.614 ‰) | 2697 / 113377 (23.788 ‰) | +20 / +11 |
+| — of which, **seed 12** | 69 / 6328 | **89 / 6339** | **+20 / +11** |
+| tap runs (wasted) | 6404 (5154) | 6407 (5157) | +3 |
+
+**Read it as ONE divergence, not eleven.** Every rejection the run gained is in a
+single game (seed 12: +20 of +20), and every other moved figure is downstream of that
+game taking a different path from some turn onward — three fewer casts, one fewer
+land, one more checkpoint at which a token was still un-reaped. `no_orphaned_tokens`
+is the class PB-DX32 classified TRANSIENT precisely because it is checkpoint-weighted
+and self-clearing at the next SBA sweep; **no HARD count moved at all, and no game
+changed outcome.**
+
+**Mechanism, stated as an inference with its premise rather than as a fact.** The
+divergence is caused by the dispatch (the trees' only difference). It is almost
+certainly a **Ward** trigger firing: `PermanentTargeted`'s handler dispatches exactly
+two families, Ward and `PermanentBecomesTarget`, and the census in §1 measures the
+latter at **zero** deck-legal `Complete` members while Ward has three. **The specific
+card is UNIDENTIFIED** and that is stated rather than guessed: the fuzzer writes no
+per-game journal in batch mode and `--replay` prints no card names, so naming it would
+cost instrumentation this batch did not build.
+
+**Correction to the v4 memo §2.8 while re-measuring.** That section recorded
+HARD **106** across 7/20 and TRANSIENT **226** across 12/20 for this exact invocation.
+Neither reproduces: the merge base gives **185** across 13/20 and **273** across 14/20.
+That drift is entirely pre-PB-DX48 (§2.8's census closed 2026-08-14, before PB-DX43,
+PB-DX44, PB-DX15a, PB-DX45 and PB-DX47 all shipped) and is recorded here so the next
+batch re-measures rather than trusting the memo's figures — which is the memo's own
+rule, applied to the memo.
+
+So: the test-suite half of the budget was paid and unclaimed; the fuzz half came due,
+and it came due for **+2 raw / +1 distinct transient reports and twenty rejections in
+one game of twenty**. Reported rather than quietly enjoyed, and reported rather than
+rounded to "no change".
 
 ## §5 — AC 7252's "ward cost paid" branch is UNREACHABLE at HEAD. Stated, not skipped.
 
