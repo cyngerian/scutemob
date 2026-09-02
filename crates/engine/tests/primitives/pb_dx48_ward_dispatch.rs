@@ -60,8 +60,8 @@ use mtg_engine::{
     all_cards, enrich_spec_from_def, process_command, AbilityDefinition, CardDefinition,
     CardEffectTarget, CardId, CardRegistry, CardType, Command, CounterType, Effect, EffectAmount,
     EffectDuration, GameEvent, GameState, GameStateBuilder, KeywordAbility, LoyaltyCost, ManaColor,
-    ManaCost, ObjectId, ObjectSpec, PlayerId, Step, Target, TargetController, TargetFilter,
-    TargetRequirement, TriggeredAbilityDef, TypeLine, ZoneId,
+    ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, Target, TargetController,
+    TargetFilter, TargetRequirement, TriggeredAbilityDef, TypeLine, ZoneId,
 };
 
 // ── Shared helpers ───────────────────────────────────────────────────────────────
@@ -1389,4 +1389,167 @@ fn test_dx48_t8c_bloodrush_site_predicate_agrees_with_the_deleted_unconditional_
         power_after, 3,
         "CR 207.2c + CR 702.21a: the +4/+4 pump never resolved -- power stays base 3"
     );
+}
+
+// ── t9: the CR 603.3d suspension PREFIX (the `/review` MEDIUM) ───────────────
+
+/// CR 702.21a + CR 603.3b/603.3d — a batch member placed BEFORE the batch suspends
+/// still dispatches Ward.
+///
+/// **This probe exists because the `/review` reproduced a real hole and the row that
+/// filed it stated the wrong precondition.** `dispatch_becomes_target_waves`' first
+/// draft tested `pending_trigger_targets.is_some()` at the TOP of its loop and
+/// returned having collected nothing, so every `PermanentTargeted` emitted by the
+/// members `flush_sorted` placed *before* it suspended was dropped on the floor.
+/// Nothing else scans them: every `flush_pending_triggers` caller scans its events
+/// BEFORE the flush, and `Command::ChooseTriggerTargets`' arm sweeps only the RESUMED
+/// events. The draft's comment claimed the resumed call would cover it; that was false
+/// in both halves, and this batch's whole subject is a false comment.
+///
+/// `OOS-DX48-3` filed it as needing "≥3 targeted triggers, ≥2 of them asking" and
+/// "not reproduced". It needs **two** triggers, **one** asking, and it reproduces here.
+///
+/// Shape: p1's artifact ETB targets p2's Ward creature (forced — the ward creature is
+/// the only creature p1 can target, so this member is placed with no question). p2
+/// also controls a permanent whose ETB targets an opponent, and with THREE seats that
+/// slot has two live candidates, so the batch suspends on p2's trigger AFTER p1's has
+/// already been placed and announced.
+///
+/// **Red by revert**: move the `pending_trigger_targets.is_some()` early return in
+/// `abilities::dispatch_becomes_target_waves` back above the slice collection. The
+/// `PermanentTargeted` assertion stays GREEN (the emission was never the broken half)
+/// while the ward-trigger count drops to 0 — which is why the count is the verdict.
+#[test]
+fn test_dx48_t9_a_batch_prefix_dispatches_ward_even_when_the_batch_suspends() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+
+    let ward =
+        ObjectSpec::creature(p2, "Ward Creature", 3, 3).with_keyword(KeywordAbility::Ward(2));
+
+    // p1's member: an ARTIFACT (never its own TargetCreature candidate) whose ETB
+    // targets the only creature on the battlefield -- forced, so it is PLACED, not asked.
+    let relic = ObjectSpec::card(p1, "T48 Prefix Relic")
+        .in_zone(ZoneId::Hand(p1))
+        .with_types(vec![CardType::Artifact])
+        .with_mana_cost(ManaCost {
+            generic: 1,
+            ..Default::default()
+        })
+        .with_triggered_ability(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
+            trigger_on: TriggerEvent::SelfEntersBattlefield,
+            intervening_if: None,
+            description: "deals 1 damage to target creature".to_string(),
+            effect: Some(Effect::DealDamage {
+                source: Some(CardEffectTarget::Source),
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                amount: EffectAmount::Fixed(1),
+            }),
+            etb_filter: None,
+            death_filter: None,
+            combat_damage_filter: None,
+            triggering_creature_filter: None,
+            targets: vec![TargetRequirement::TargetCreature],
+        });
+
+    // p2's member: fires off the SAME `PermanentEnteredBattlefield` event, and its
+    // `TargetOpponent` slot has two live candidates (p1, p3), so it SUSPENDS.
+    let asker = ObjectSpec::enchantment(p2, "T48 Suspending Asker").with_triggered_ability(
+        TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
+            trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
+            intervening_if: None,
+            description: "target opponent loses 1 life".to_string(),
+            effect: Some(Effect::LoseLife {
+                player: PlayerTarget::DeclaredTarget { index: 0 },
+                amount: EffectAmount::Fixed(1),
+            }),
+            etb_filter: None,
+            death_filter: None,
+            combat_damage_filter: None,
+            triggering_creature_filter: None,
+            targets: vec![TargetRequirement::TargetOpponent],
+        },
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .object(ward)
+        .object(asker)
+        .object(relic)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 5);
+    state.turn_mut().priority_holder = Some(p1);
+
+    let relic_id = find_object(&state, "T48 Prefix Relic");
+    let ward_id = find_object(&state, "Ward Creature");
+
+    let (state, _) = process_command(state, cast(p1, relic_id, vec![]))
+        .expect("casting T48 Prefix Relic must succeed");
+    let (state, e1) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
+    let (state, e2) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
+    let (state, e3) = process_command(state, Command::PassPriority { player: p3 }).unwrap();
+    let mut all: Vec<GameEvent> = e1.into_iter().chain(e2).chain(e3).collect();
+
+    // Precondition: the batch really did suspend, and it did so AFTER p1's member was
+    // placed. Without both halves this probe is not about a prefix at all.
+    let entry = state
+        .pending_trigger_targets()
+        .expect("precondition: the CR 603.3d batch must have SUSPENDED")
+        .clone();
+    assert_eq!(
+        permanent_targeted_count(&all, ward_id),
+        1,
+        "precondition: the prefix member was placed and announced its target before \
+         the batch suspended -- the emission was never the broken half"
+    );
+
+    // Answer the outstanding question; the rest of the batch is placed and the
+    // prefix's queued Ward trigger is drained by the resume's own sweep.
+    let default = entry.slots[0]
+        .default
+        .clone()
+        .expect("TargetOpponent has a deterministic default");
+    let (state, e4) = process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player: entry.player,
+            choice_id: entry.choice_id,
+            targets: vec![vec![default.target.clone()]],
+        },
+    )
+    .expect("the engine must accept its own default answer (SR-38)");
+    all.extend(e4);
+
+    // CR 702.21a: EXACTLY ONE ward trigger for the one targeting event -- not zero
+    // (the defect) and not two (the double-dispatch design this batch rejected).
+    assert_eq!(
+        ward_ability_triggered_count(&all, ward_id, p2),
+        1,
+        "CR 702.21a / CR 603.3b: the prefix member's targeting must dispatch Ward \
+         exactly once, even though the batch suspended after it was placed"
+    );
+    assert_eq!(
+        permanent_targeted_count(&all, ward_id),
+        1,
+        "and the emission must still be exactly one -- the resume must not re-announce \
+         the prefix member's target"
+    );
+    let _ = state;
 }

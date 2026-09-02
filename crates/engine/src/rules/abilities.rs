@@ -8463,11 +8463,6 @@ pub(crate) fn dispatch_becomes_target_waves(state: &mut GameState, events: &mut 
     let mut scanned = 0usize;
     let mut wave = 0u32;
     loop {
-        // CR 603.3d (PB-DP8): a suspended flush owns its own continuation; the
-        // resumed call runs this loop again over its own events.
-        if state.pending_trigger_targets.is_some() {
-            return;
-        }
         let slice: Vec<GameEvent> = events[scanned..]
             .iter()
             .filter(|e| matches!(e, GameEvent::PermanentTargeted { .. }))
@@ -8503,6 +8498,32 @@ pub(crate) fn dispatch_becomes_target_waves(state: &mut GameState, events: &mut 
         }
         for t in new_triggers {
             state.pending_triggers.push_back(t);
+        }
+        // CR 603.3d (PB-DP8) — QUEUE, then stop. A suspended flush owns its own
+        // continuation and must not be re-entered here.
+        //
+        // **The queue-then-stop ORDER is the whole of this fix, and the first draft had
+        // it backwards.** That draft tested suspension at the TOP of the loop and
+        // returned having collected nothing, which silently dropped every
+        // `PermanentTargeted` emitted by the members `flush_sorted` placed BEFORE it
+        // suspended — and nothing else ever scans them, because every
+        // `flush_pending_triggers` caller scans its events before the flush and
+        // `Command::ChooseTriggerTargets` sweeps only the RESUMED events. The draft's
+        // comment asserted the resumed call would cover it, and that was false in both
+        // halves: `resume_trigger_flush` never runs this loop, and its caller's sweep
+        // cannot see the prefix. Found by the `/review`, reproduced with TWO triggers
+        // (one asking) rather than the three `OOS-DX48-3` originally claimed, and
+        // pinned by `primitives::pb_dx48_ward_dispatch::test_dx48_t9_...`.
+        //
+        // Queueing is both sufficient and safe. Sufficient: `state.pending_triggers`
+        // survives the suspension, and the resume's own `check_and_flush_triggers` ->
+        // `flush_pending_triggers_once` drains it once the rest of the CR 603.3b batch
+        // is on the stack — which is the CR-correct order anyway. Safe against double
+        // dispatch: the events that produced these triggers have already been consumed
+        // by this loop's cursor and are never scanned again, because the resume starts
+        // from a fresh `events` vec.
+        if state.pending_trigger_targets.is_some() {
+            return;
         }
         events.extend(flush_pending_triggers_once(state));
         wave += 1;
