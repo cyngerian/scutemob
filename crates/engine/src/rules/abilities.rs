@@ -8461,7 +8461,8 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
 /// its middle section's `PermanentTargeted` events to a caller that never scans them.
 pub(crate) fn dispatch_becomes_target_waves(state: &mut GameState, events: &mut Vec<GameEvent>) {
     let mut scanned = 0usize;
-    for wave in 0..MAX_BECOMES_TARGET_WAVES {
+    let mut wave = 0u32;
+    loop {
         // CR 603.3d (PB-DP8): a suspended flush owns its own continuation; the
         // resumed call runs this loop again over its own events.
         if state.pending_trigger_targets.is_some() {
@@ -8476,6 +8477,22 @@ pub(crate) fn dispatch_becomes_target_waves(state: &mut GameState, events: &mut 
         if slice.is_empty() {
             return;
         }
+        // The bound is tested HERE, after establishing that there is genuinely more
+        // work to do, and not at the bottom of the previous iteration: a batch that
+        // needs exactly `MAX_BECOMES_TARGET_WAVES` waves and then finishes is not a
+        // runaway, and asserting on it would be a false positive at the boundary.
+        if wave >= MAX_BECOMES_TARGET_WAVES {
+            debug_assert!(
+                false,
+                "engine invariant: more than {MAX_BECOMES_TARGET_WAVES} consecutive \
+                 CR 702.21a becomes-target waves in one flush. Ward's own trigger targets \
+                 the TARGETING STACK OBJECT with `zone_at_cast: None`, which the \
+                 battlefield predicate in `rules::events::permanent_targeted_events` never \
+                 matches, so a real cascade this deep means a new \
+                 `PermanentBecomesTarget` card whose trigger targets a permanent is looping."
+            );
+            return;
+        }
         // CR 603.3b: every ability of one batch goes on the stack in one window, so
         // the targetings they cause are simultaneous with one another for
         // CR 603.10a's look-back purposes — the same timing every caller passes.
@@ -8488,17 +8505,7 @@ pub(crate) fn dispatch_becomes_target_waves(state: &mut GameState, events: &mut 
             state.pending_triggers.push_back(t);
         }
         events.extend(flush_pending_triggers_once(state));
-        if wave + 1 == MAX_BECOMES_TARGET_WAVES {
-            debug_assert!(
-                false,
-                "engine invariant: {MAX_BECOMES_TARGET_WAVES} consecutive CR 702.21a \
-                 becomes-target waves in one flush. Ward's own trigger targets the \
-                 TARGETING STACK OBJECT with `zone_at_cast: None`, which the battlefield \
-                 predicate in `rules::events::permanent_targeted_events` never matches, \
-                 so a real cascade this deep means a new `PermanentBecomesTarget` card \
-                 whose trigger targets a permanent is looping."
-            );
-        }
+        wave += 1;
     }
 }
 
