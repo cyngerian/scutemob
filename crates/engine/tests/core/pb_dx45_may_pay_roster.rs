@@ -37,7 +37,9 @@
 //! second hand-written tree walk, for PB-DP10's reason: a hand-written walk is a
 //! reachability claim and needs the same enumeration a match arm does.
 
-use crate::decision_site_walk::{def_contains_variant, find_variant_nodes, is_effectively_complete};
+use crate::decision_site_walk::{
+    def_contains_variant, find_variant_nodes, is_effectively_complete,
+};
 use mtg_engine::all_cards;
 use mtg_engine::CardDefinition;
 use serde_json::Value;
@@ -364,7 +366,6 @@ fn r3_inverse_axis_is_pinned() {
     );
 }
 
-
 // ── R4: the SECOND try_pay_optional_cost call site ──────────────────────────
 
 /// Every corpus def whose `Effect::LookAtTopThenPlace` sets a `place_cost` —
@@ -437,7 +438,10 @@ fn t_census_report() {
         .map(|d| d.name.clone())
         .collect();
     println!("=== PB-DX45 census (printed, never transcribed) ===");
-    println!("forward axis (Effect::MayPayThenEffect): {} defs", defs.len());
+    println!(
+        "forward axis (Effect::MayPayThenEffect): {} defs",
+        defs.len()
+    );
     println!("  all:         {:?}", names(&defs));
     println!(
         "  deck-legal Complete: {} -> {:?}",

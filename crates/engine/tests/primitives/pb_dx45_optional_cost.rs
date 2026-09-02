@@ -155,8 +155,16 @@ fn p2_answering_pay_charges_the_cost_and_runs_then() {
         state.pending_effect_choice().is_none(),
         "the banked answer must be consumed, not re-asked"
     );
-    assert_eq!(black_in_pool(&state, p(1)), 0, "CR 118.8: the {{B}} is spent");
-    assert_eq!(life_of(&state, p(1)), 22, "`then` runs only if the cost was paid");
+    assert_eq!(
+        black_in_pool(&state, p(1)),
+        0,
+        "CR 118.8: the {{B}} is spent"
+    );
+    assert_eq!(
+        life_of(&state, p(1)),
+        22,
+        "`then` runs only if the cost was paid"
+    );
 }
 
 #[test]
@@ -356,7 +364,11 @@ fn p6_real_resolution_blocks_and_rolls_back() {
         1,
         "CR 608.1: the roll-back puts the resolving spell back on the stack"
     );
-    assert_eq!(life_of(&state, p(1)), 20, "nothing may be paid before the answer");
+    assert_eq!(
+        life_of(&state, p(1)),
+        20,
+        "nothing may be paid before the answer"
+    );
     let asked: Vec<&GameEvent> = events
         .iter()
         .filter(|e| matches!(e, GameEvent::EffectChoiceRequired { .. }))
@@ -387,7 +399,10 @@ fn p7_declining_a_real_resolution_pays_nothing_and_skips_then() {
     let (state, _) = cast_and_resolve(state, "DX45 Optional Life");
     let state = answer_with(state, false);
 
-    assert!(state.pending_effect_choice().is_none(), "the block must clear");
+    assert!(
+        state.pending_effect_choice().is_none(),
+        "the block must clear"
+    );
     assert!(
         state.stack_objects().is_empty(),
         "CR 608.2m: the spell finishes resolving after the answer"
@@ -458,7 +473,10 @@ fn p9_the_answer_is_validated_against_the_recorded_question() {
             answer: EffectChoiceAnswer::PayOptionalCost { pay: true },
         },
     );
-    assert!(stale.is_err(), "the moment guard must reject a stale choice id");
+    assert!(
+        stale.is_err(),
+        "the moment guard must reject a stale choice id"
+    );
 }
 
 #[test]
@@ -502,7 +520,10 @@ fn p10_each_player_is_asked_separately_and_answers_independently() {
     let mut ctx = EffectContext::new(p(1), ObjectId(0), vec![]);
     execute_effect(&mut state, &effect, &mut ctx);
 
-    assert!(state.pending_effect_choice().is_none(), "both answers consumed");
+    assert!(
+        state.pending_effect_choice().is_none(),
+        "both answers consumed"
+    );
     assert_eq!(
         life_of(&state, p(1)),
         19,
@@ -596,7 +617,11 @@ fn p11_look_at_top_then_place_cost_suspends() {
         pay_question(Cost::PayLife(3))
     );
     assert_eq!(life_of(&state, p(1)), 20, "nothing paid before the answer");
-    assert_eq!(hand_size(&state, p(1)), 0, "nothing placed before the answer");
+    assert_eq!(
+        hand_size(&state, p(1)),
+        0,
+        "nothing placed before the answer"
+    );
 }
 
 #[test]
@@ -630,7 +655,11 @@ fn p12_second_site_decline_and_accept_differ_by_the_answer_alone() {
     );
     run_look_place(&mut accepted, Cost::PayLife(3));
     assert!(accepted.pending_effect_choice().is_none());
-    assert_eq!(life_of(&accepted, p(1)), 17, "accepted: CR 119.4, 3 life paid");
+    assert_eq!(
+        life_of(&accepted, p(1)),
+        17,
+        "accepted: CR 119.4, 3 life paid"
+    );
     assert_eq!(
         hand_size(&accepted, p(1)),
         1,

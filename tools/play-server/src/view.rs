@@ -43,8 +43,8 @@
 
 use std::collections::HashMap;
 
-use mtg_engine::cards::card_definition::GiftType;
 use mtg_engine::cards::card_definition::Cost;
+use mtg_engine::cards::card_definition::GiftType;
 use mtg_engine::{
     AbilityDefinition, AdditionalCost, AltCostKind, AttackTarget, Effect, EffectChoiceAnswer,
     EffectChoiceQuestion, GameState, HybridMana, ManaColor, ManaCost, ModeSelection, ObjectId,

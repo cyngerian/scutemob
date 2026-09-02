@@ -127,16 +127,9 @@ fn start_human_game() -> LocalGame<StubProvider> {
     let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
     bots.insert(p(2), Box::new(HeuristicBot::new(SEED, "p2".to_string())));
     let human: BTreeSet<PlayerId> = [p(1)].into_iter().collect();
-    let (game, _events) = LocalGame::start(
-        fixture(),
-        SEED,
-        StubProvider,
-        bots,
-        human,
-        limits(),
-        true,
-    )
-    .expect("PB-DX45 channel game must start");
+    let (game, _events) =
+        LocalGame::start(fixture(), SEED, StubProvider, bots, human, limits(), true)
+            .expect("PB-DX45 channel game must start");
     game
 }
 
@@ -162,7 +155,10 @@ fn drive_until(
                     .iter()
                     .position(|a| matches!(a, LegalAction::PassPriority))
                     .unwrap_or_else(|| {
-                        panic!("no {label} offer and no PassPriority either: {:?}", d.actions)
+                        panic!(
+                            "no {label} offer and no PassPriority either: {:?}",
+                            d.actions
+                        )
                     });
                 game.submit(
                     d.seq,

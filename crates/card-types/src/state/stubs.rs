@@ -2,11 +2,11 @@
 //!
 //! These exist so GameState can compile with all fields from the architecture
 //! doc. Each type will be fully fleshed out in its respective milestone.
-use crate::cards::card_definition::Cost;
 use super::game_object::ObjectId;
 use super::player::PlayerId;
 use super::stack::TriggerData;
 use super::targeting::SpellTarget;
+use crate::cards::card_definition::Cost;
 use serde::{Deserialize, Serialize};
 // ContinuousEffect has moved to `state/continuous_effect.rs` (M5).
 /// A delayed trigger waiting for a condition (CR 603.7).

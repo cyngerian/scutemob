@@ -443,11 +443,7 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Stubborn Denial", &["counter_unless_pays"], None),
     ("Sword of Truth and Justice", &["proliferate"], None),
     ("Sylvan Messenger", &["look_at_top_or_route"], None),
-    (
-        "Tainted Observer",
-        &["proliferate"],
-        None,
-    ),
+    ("Tainted Observer", &["proliferate"], None),
     ("Tezzeret's Gambit", &["proliferate"], None),
     ("Thirsting Roots", &["proliferate"], None),
     ("Thrummingbird", &["proliferate"], None),
