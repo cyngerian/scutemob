@@ -531,6 +531,10 @@ fn test_look_place_cost_sacrifice_gates_and_parameterizes() {
         .build()
         .unwrap();
 
+    let place_cost = Cost::Sacrifice(TargetFilter {
+        has_card_type: Some(CardType::Creature),
+        ..Default::default()
+    });
     let effect = Effect::LookAtTopThenPlace {
         player: PlayerTarget::Controller,
         count: EffectAmount::Fixed(7),
@@ -542,10 +546,7 @@ fn test_look_place_cost_sacrifice_gates_and_parameterizes() {
             ))),
             ..Default::default()
         },
-        place_cost: Some(Box::new(Cost::Sacrifice(TargetFilter {
-            has_card_type: Some(CardType::Creature),
-            ..Default::default()
-        }))),
+        place_cost: Some(Box::new(place_cost.clone())),
         destination: ZoneTarget::Battlefield { tapped: false },
         rest_to: ZoneTarget::Library {
             owner: PlayerTarget::Controller,
@@ -554,6 +555,21 @@ fn test_look_place_cost_sacrifice_gates_and_parameterizes() {
         optional: true,
     };
     let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
+    // PB-DX45: `Effect::LookAtTopThenPlace`'s `place_cost` is the primitive's
+    // SECOND `try_pay_optional_cost` call site (the batch's own execution
+    // notes flag it as the one no filed seed named) and it now asks
+    // `EffectChoiceQuestion::PayOptionalCost { cost: place_cost }` on the
+    // CR 608.2d suspend-and-replay channel too, exactly like
+    // `Effect::MayPayThenEffect`. A bare `execute_effect` cannot answer it, so
+    // bank a `pay: true` answer for the SAME `Cost` value first
+    // (`state::test_util::bank_effect_choice_answer`) -- `pay: true`
+    // reproduces the pre-PB-DX45 unconditional "pay when able" this test is
+    // pinning.
+    mtg_engine::state::test_util::bank_effect_choice_answer(
+        &mut state,
+        mtg_engine::EffectChoiceQuestion::PayOptionalCost { cost: place_cost },
+        mtg_engine::EffectChoiceAnswer::PayOptionalCost { pay: true },
+    );
     let _events = execute_effect(&mut state, &effect, &mut ctx);
 
     assert!(

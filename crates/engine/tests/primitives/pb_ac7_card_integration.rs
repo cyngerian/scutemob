@@ -102,6 +102,15 @@ fn cast_spell(
 }
 
 /// Pass priority for all listed players once.
+///
+/// PB-DX45: `Effect::MayPayThenEffect` now asks `EffectChoiceQuestion::
+/// PayOptionalCost` on the CR 608.2d suspend-and-replay channel instead of
+/// auto-paying, so a resolution that hits it leaves `pending_effect_choice`
+/// set and every later command (including the next `PassPriority`) is
+/// rejected with `BlockedByPendingDecision`. Drain any such question through
+/// `auto_answer_blocking_decisions` after each pass; its default answer for
+/// `PayOptionalCost` is `pay: true`, byte-identical to the pre-PB-DX45
+/// unconditional pay this file's card-integration tests are pinning.
 fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
     let mut current = state;
@@ -111,6 +120,9 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
         current = s;
         all_events.extend(ev);
     }
+    let (current, pump_events) =
+        mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(current);
+    all_events.extend(pump_events);
     (current, all_events)
 }
 

@@ -636,10 +636,17 @@ fn test_nadir_kraken_on_draw_may_pay_puts_counter_and_token() {
         "CR 603.2: Nadir Kraken's draw trigger should fire when its controller draws"
     );
 
-    // Resolve the trigger from the stack.
+    // Resolve the trigger from the stack. PB-DX45: `Effect::MayPayThenEffect`
+    // no longer auto-pays -- it asks `EffectChoiceQuestion::PayOptionalCost`
+    // on the CR 608.2d suspend-and-replay channel, and a raw two-`PassPriority`
+    // loop has no way to answer it, so it deadlocks against
+    // `GameStateError::BlockedByPendingDecision` once the trigger resolves.
+    // `pass_all` (the helper every other test in this file already uses)
+    // drains that question through `auto_answer_blocking_decisions`, whose
+    // default answer for `PayOptionalCost` is `pay: true` -- byte-identical to
+    // the pre-PB-DX45 unconditional pay this test is pinning.
     while !state.stack_objects().is_empty() {
-        let (s, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
-        let (s, _) = process_command(s, Command::PassPriority { player: p2 }).unwrap();
+        let (s, _) = pass_all(state, &[p1, p2]);
         state = s;
     }
 

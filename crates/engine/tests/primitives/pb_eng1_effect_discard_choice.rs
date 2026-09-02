@@ -737,6 +737,28 @@ fn test_eng1_a_cost_discard_never_suspends() {
     };
     let mut ctx = EffectContext::new(p1, ObjectId(0), vec![]);
     let mut state = state;
+    // PB-DX45: the OUTER `Effect::MayPayThenEffect` wrapper (not
+    // `Cost::DiscardCard` itself) now asks `EffectChoiceQuestion::
+    // PayOptionalCost` on the CR 608.2d suspend-and-replay channel before it
+    // pays anything -- a bare `execute_effect` with no banked answer would
+    // suspend right there (`events` empty, `pending_effect_choice` `Some`),
+    // never even reaching the `Cost::DiscardCard` payment this test is about.
+    // Bank a `pay: true` answer for the SAME cost so the wrapper proceeds to
+    // `try_pay_optional_cost`. This is what actually preserves the test's
+    // claim: `Cost::DiscardCard`'s OWN payment (called directly by
+    // `try_pay_optional_cost`, bypassing `Effect::DiscardCards`'s ask arm)
+    // still never suspends a SECOND time on the way through -- the
+    // `pending_effect_choice().is_none()` assertion below is checked AFTER
+    // the outer question is answered, so it is still discriminating on the
+    // inner cost-payment site, not on the wrapper's own (structurally
+    // separate) question.
+    mtg_engine::state::test_util::bank_effect_choice_answer(
+        &mut state,
+        EffectChoiceQuestion::PayOptionalCost {
+            cost: Cost::DiscardCard,
+        },
+        EffectChoiceAnswer::PayOptionalCost { pay: true },
+    );
     let events = execute_effect(&mut state, &effect, &mut ctx);
 
     // The cost path must have actually run -- a hand of 3 (> 1) means the
