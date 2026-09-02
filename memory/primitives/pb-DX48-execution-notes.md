@@ -45,3 +45,124 @@ reported, not dropped):
 Every movement is to be listed **by NAME with its CR reason**; no assertion is to be weakened to
 absorb one.
 
+---
+
+## §1 — Census, re-verified at HEAD by the INVERSE method
+
+Not by trusting the seed's list and not by trusting the memo's. All
+`push_target_announcement` call sites, minus the sites that emit
+`GameEvent::PermanentTargeted`:
+
+| # | site | dispatch at HEAD (pre-fix) | class |
+|---|---|---|---|
+| 1 | `casting.rs::handle_cast_spell` | **YES** | emitter |
+| 2 | `abilities.rs::handle_activate_ability` | **YES** | emitter |
+| 3 | `abilities.rs::handle_activate_bloodrush` | **YES** | emitter |
+| 4 | `abilities.rs::handle_activate_forecast` | **no** | **MISSING** |
+| 5 | `abilities.rs::flush_sorted` (modular arm, T6) | **no** | **MISSING** |
+| 6 | `abilities.rs::flush_sorted` (main arm, T7) | **no** | **MISSING** |
+| 7 | `abilities.rs::handle_scavenge_card` | **no** | **MISSING** |
+| 8 | `engine.rs::handle_activate_loyalty_ability` | **no** | **MISSING** |
+| 9 | `copy.rs::resolve_cascade` | n/a | `targets: vec![]` (`OOS-ENG2-3`) |
+| 10 | `copy.rs::resolve_discover` | n/a | `targets: vec![]` (`OOS-ENG2-3`) |
+| 11 | `resolution.rs::resolve_top_of_stack_inner` (cipher-copy) | n/a | `targets: vec![]` (`OOS-ENG2-3`) |
+| 12 | `resolution.rs::resolve_top_of_stack_inner` (suspend) | n/a | `targets: vec![]` (`OOS-ENG2-3`) |
+
+**12 = 3 + 5 + 4. The seed's five-site census is EXACT and COMPLETE.** After three
+consecutive batches in which the filed site list was a floor (PB-DX25/25b/25c, and
+again in PB-DX44 and PB-DX47), this one reproduces without correction — worth
+recording because the discipline is only credible if the exceptions are reported too.
+
+The four `OOS-ENG2-3` sites' emptiness was verified individually (`targets: vec![]`
+in the two `copy.rs` struct literals; `StackObject::trigger_default` for the two
+`resolution.rs` sites), not inferred from the in-source comments that claim it.
+
+## §2 — What the seeds do NOT say, and it is the whole batch
+
+**Emitting the event is necessary and not sufficient at the two sites the seed is
+named after.** `rules/engine.rs::check_and_flush_triggers` ran
+`check_triggers(state, events)` and only THEN `flush_pending_triggers(state)`,
+appending the flush's events afterwards. Nothing ever re-read the events a flush
+itself produced. So a `PermanentTargeted` emitted from `flush_sorted` would have
+been read by nothing, the Ward `PendingTrigger` would never have been created, and
+the batch's headline site would have had a behavioural delta of **zero** while
+shipping a diff that looks exactly like a fix.
+
+**A hook inside `flush_sorted` was tried FIRST and defeated BY EXECUTION.** The
+first implementation queued and placed the becomes-target wave at `flush_sorted`'s
+own tail (plus a queue-only call at its suspend return). It works, and it is wrong:
+`Command::ChooseTriggerTargets`'s arm calls `check_and_flush_triggers` over
+`resume_trigger_flush`'s returned events, which contain that same
+`PermanentTargeted` — so the trigger was collected twice and **Ward fired twice**
+(two `AbilityTriggered`, ward stack objects 8 *and* 9, observed). That is why the
+shipped design is a fixpoint with an **exactly-once scan cursor** in
+`check_and_flush_triggers` and no hook in the flush at all, and why the probes assert
+a COUNT rather than presence: a `>= 1` assertion passes on the broken design.
+
+## §3 — Wire: prediction CONFIRMED
+
+`PROTOCOL_VERSION` **39** (`rules/protocol.rs:427`) and `HASH_SCHEMA_VERSION` **78**
+(`state/hash.rs:886`), both **UNMOVED**, gate-executed: `core::hash_schema` and
+`core::protocol_schema` green, including `history_is_append_only` and
+`frozen_prefix_is_pinned`. No pin edited, no history row appended, because none was
+owed. The prediction and its reasoning were committed at `43fc20ab`, before a line of
+source changed.
+
+## §4 — Movement budget: the list is EMPTY, and here is the measured reason
+
+The ENG-2 handoff and the v4 memo row both said *"it will move fuzz and golden
+parity — budget for that."* The full-workspace suite over the engine change alone
+went **4,873 → 4,873, zero regressions**. An empty list is only honest if its reason
+is measured, so:
+
+1. **The SR-9b per-step fingerprint is structurally blind to new events.**
+   `harness_equivalence.rs::fingerprint` is `public_state_hash()` plus each seat's
+   `private_state_hash(pid)` — a hash of GAME STATE. So is
+   `hash_schema::stream_fingerprint_is_pinned`, which hashes the canonical fixture's
+   state. Adding an event moves neither. What WOULD move them is a Ward trigger
+   actually firing, because that changes the stack and can counter a spell.
+2. **No fixture in the tree makes one fire on a new site.** 30 of the 271 golden
+   scripts mention Ward; the one that exercises it
+   (`stack/055_ward_counters_lightning_bolt.json`) targets through
+   `handle_cast_spell`, which was already an emitter and is behaviourally unchanged.
+   `etb-triggers/177_ravenous_tyrranax_rex_draw.json` has a Ward creature and an ETB
+   trigger, but that trigger draws a card and targets nothing.
+3. **The three pre-existing emitter sites are byte-identical after Part A**, which
+   is what confines any movement to the five new sites in the first place. Part A
+   folds three hand-rolled loops into one helper with the identical predicate and the
+   identical emission order (`TargetsAnnounced` first, then the `PermanentTargeted`
+   events); the only textual behavioural difference is bloodrush's push becoming
+   conditional on `zone_at_cast == Some(Battlefield)`, and that is inert because
+   `check_triggers`'s own arm already required `zone == Battlefield`.
+
+So: budgeted, paid, unclaimed — reported rather than quietly enjoyed.
+
+## §5 — AC 7252's "ward cost paid" branch is UNREACHABLE at HEAD. Stated, not skipped.
+
+The criterion asks for both CR 702.21a outcomes. Only one exists in this engine, and
+the measurement is the useful part:
+
+* `effects/mod.rs`'s `Effect::MayPayOrElse` arm destructures `or_else` and **discards
+  `cost` and `payer`**, under a comment saying *"M9+: interactive choice to pay or
+  not. For M7, don't pay → apply or_else."* Ward's builder-synthesized trigger
+  (`state/builder.rs:405-450`) is built on that variant, so the ward cost is never
+  offered to anyone and the targeting spell or ability is countered unconditionally.
+  `mechanics_m_z/ward.rs`'s own module doc says so.
+* **Blast radius of fixing it, measured: ZERO deck-legal `Complete` card defs use
+  `Effect::MayPayOrElse`.** All 15 defs naming it are `known_wrong` (6), `partial` (5)
+  or `inert` (4), and 12 of the 15 name it only inside a `// TODO` explaining why they
+  cannot use it. Ward is the variant's only live consumer.
+* **And that is precisely why it is a separate batch, not a rider here.** Routing it
+  onto PB-DX45's shipped CR 608.2d channel means reusing
+  `EffectChoiceQuestion::PayOptionalCost`, whose `default_effect_choice_answer` returns
+  **`pay: true`** — deliberately, because that recovers `MayPayThenEffect`'s pre-PB-DX45
+  auto-pay. For `MayPayOrElse` the pre-batch behaviour is auto-**decline**, so parity
+  needs `pay: false`; the two cannot share one default without a distinguishing field
+  or a second question variant, and either is a **wire bump** — contradicting this
+  batch's own gate-confirmed `PROTOCOL 39 / HASH 78 UNMOVED` and moving every ward
+  golden script and all eight `mechanics_m_z/ward.rs` tests in the process.
+
+Filed as **`OOS-DX48-2`**. What is exercised instead is the two-sided discrimination
+CR 702.21a itself provides: Ward fires exactly once when an **opponent's** ability
+targets the permanent, and **not at all** when its own controller's does
+(CR 702.21a's "an opponent controls").
