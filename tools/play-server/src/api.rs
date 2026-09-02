@@ -525,14 +525,40 @@ fn validate_decision_params(
             let Some(answer) = params.effect_choice_answer.as_ref() else {
                 return Ok(());
             };
-            match (question, answer) {
-                (
-                    EffectChoiceQuestion::SearchLibrary {
-                        candidates,
-                        may_fail_to_find,
-                    },
-                    EffectChoiceAnswer::SearchLibrary { found },
-                ) => {
+            // **The dispatch is on `question` ALONE, and that is load-bearing**
+            // (PB-DX45). It used to be `match (question, answer)` with a trailing
+            // `_ => Err(...)` meaning "you answered the wrong question" — a
+            // wildcard doing double duty as "and also: any variant this function
+            // has never heard of". PB-DX45 added a sixth `EffectChoiceQuestion`
+            // variant and every legal `PayOptionalCost` answer fell into that arm
+            // and 400'd, so the browser was offered a `Confirm` picker whose
+            // Confirm and Decline buttons both failed. A clean offer followed by
+            // a guaranteed refusal is precisely the SR-38 defect PB-DX29 gated
+            // Fuse to avoid and PB-DX44 then recreated while fixing it; this is
+            // the third instance, and it is fixed STRUCTURALLY rather than by
+            // appending one more arm.
+            //
+            // Matching on `question` first makes the outer match EXHAUSTIVE over
+            // `EffectChoiceQuestion` with no wildcard, so a seventh variant is a
+            // **compile error here** until someone decides what a client may send
+            // for it. The inner `_ => Err(mismatch)` arms are the genuine
+            // wrong-question case, which is what that message was always meant to
+            // describe.
+            let mismatch = || {
+                bad(format!(
+                    "CR 608.2d: this decision asked a {} question; the answer given is a \
+                     different kind",
+                    question_kind(question)
+                ))
+            };
+            match question {
+                EffectChoiceQuestion::SearchLibrary {
+                    candidates,
+                    may_fail_to_find,
+                } => {
+                    let EffectChoiceAnswer::SearchLibrary { found } = answer else {
+                        return Err(mismatch());
+                    };
                     match found {
                         // CR 701.23a.
                         Some(id) => {
@@ -553,22 +579,24 @@ fn validate_decision_params(
                     }
                     Ok(())
                 }
-                (
-                    EffectChoiceQuestion::Scry { looked_at },
-                    EffectChoiceAnswer::Scry { bottom, top },
-                ) => check_partition(looked_at, bottom, top, "scry", "CR 701.22a").map_err(bad),
-                (
-                    EffectChoiceQuestion::Surveil { looked_at },
-                    EffectChoiceAnswer::Surveil { graveyard, top },
-                ) => {
+                EffectChoiceQuestion::Scry { looked_at } => {
+                    let EffectChoiceAnswer::Scry { bottom, top } = answer else {
+                        return Err(mismatch());
+                    };
+                    check_partition(looked_at, bottom, top, "scry", "CR 701.22a").map_err(bad)
+                }
+                EffectChoiceQuestion::Surveil { looked_at } => {
+                    let EffectChoiceAnswer::Surveil { graveyard, top } = answer else {
+                        return Err(mismatch());
+                    };
                     check_partition(looked_at, graveyard, top, "surveil", "CR 701.25a").map_err(bad)
                 }
                 // CR 701.9b (ENG-1): exactly `count`, no duplicates, every one from
                 // the hand this decision offered.
-                (
-                    EffectChoiceQuestion::Discard { hand, count },
-                    EffectChoiceAnswer::Discard { chosen },
-                ) => {
+                EffectChoiceQuestion::Discard { hand, count } => {
+                    let EffectChoiceAnswer::Discard { chosen } = answer else {
+                        return Err(mismatch());
+                    };
                     check_ids(chosen, hand, "discard", "CR 701.9b").map_err(bad)?;
                     if chosen.len() != *count as usize {
                         return Err(bad(format!(
@@ -581,14 +609,14 @@ fn validate_decision_params(
                 // PB-DX28 (CR 115.10 / CR 608.2): every id drawn from `candidates`,
                 // no duplicates, exactly `min(count, candidates.len())` when
                 // `!up_to` ("as much as possible"), `<= count` when `up_to`.
-                (
-                    EffectChoiceQuestion::ChooseObject {
-                        candidates,
-                        count,
-                        up_to,
-                    },
-                    EffectChoiceAnswer::ChooseObject { chosen },
-                ) => {
+                EffectChoiceQuestion::ChooseObject {
+                    candidates,
+                    count,
+                    up_to,
+                } => {
+                    let EffectChoiceAnswer::ChooseObject { chosen } = answer else {
+                        return Err(mismatch());
+                    };
                     check_ids(chosen, candidates, "choose object", "CR 115.10").map_err(bad)?;
                     let expected = (*count as usize).min(candidates.len());
                     if *up_to {
@@ -607,11 +635,19 @@ fn validate_decision_params(
                     }
                     Ok(())
                 }
-                _ => Err(bad(format!(
-                    "CR 608.2d: this decision asked a {} question; the answer given is a \
-                     different kind",
-                    question_kind(question)
-                ))),
+                // PB-DX45 (CR 118.12): the answer space is `{pay, decline}` and
+                // BOTH are legal, always. There is no membership to check, no
+                // count to compare and nothing this validator can add that
+                // `effects::handle_answer_effect_choice` does not already do
+                // against the engine's own recorded question — so the arm is
+                // `Ok(())` on purpose, and it exists so that a seventh variant
+                // cannot reach the client as a silent 400 the way this one did.
+                EffectChoiceQuestion::PayOptionalCost { .. } => {
+                    let EffectChoiceAnswer::PayOptionalCost { .. } = answer else {
+                        return Err(mismatch());
+                    };
+                    Ok(())
+                }
             }
         }
         // CR 603.3d / CR 601.2c (OOS-DP8-2).

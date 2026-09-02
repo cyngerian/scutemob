@@ -567,7 +567,9 @@ fn test_look_place_cost_sacrifice_gates_and_parameterizes() {
     // pinning.
     mtg_engine::state::test_util::bank_effect_choice_answer(
         &mut state,
-        mtg_engine::EffectChoiceQuestion::PayOptionalCost { cost: place_cost },
+        mtg_engine::EffectChoiceQuestion::PayOptionalCost {
+            cost: Box::new(place_cost),
+        },
         mtg_engine::EffectChoiceAnswer::PayOptionalCost { pay: true },
     );
     let _events = execute_effect(&mut state, &effect, &mut ctx);

@@ -442,7 +442,7 @@ pub const PROTOCOL_VERSION: u32 = 39;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "0037ae3c5748b9e3a6a9bdde46b793cfbd7f2ccae5af76819a449fb431bce56a";
+    "4e3b00203568d19fa1c7a680078c86e58e2cfb2083311f07bbaf78b0c3578aab";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -741,7 +741,7 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // EffectChoiceQuestion/Answer each gain a sixth variant,
         // PayOptionalCost (see the `- 39:` History line above). Closure type
         // count unchanged (98).
-        fingerprint: "0037ae3c5748b9e3a6a9bdde46b793cfbd7f2ccae5af76819a449fb431bce56a",
+        fingerprint: "4e3b00203568d19fa1c7a680078c86e58e2cfb2083311f07bbaf78b0c3578aab",
     },
 ];
 

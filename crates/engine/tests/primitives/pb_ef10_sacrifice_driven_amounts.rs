@@ -1275,7 +1275,7 @@ fn test_may_pay_sacrifice_captures_layer_resolved_power() {
     mtg_engine::state::test_util::bank_effect_choice_answer(
         &mut state,
         mtg_engine::EffectChoiceQuestion::PayOptionalCost {
-            cost: sac_cost.clone(),
+            cost: Box::new(sac_cost.clone()),
         },
         mtg_engine::EffectChoiceAnswer::PayOptionalCost { pay: true },
     );

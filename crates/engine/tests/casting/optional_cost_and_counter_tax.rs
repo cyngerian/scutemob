@@ -72,7 +72,9 @@ fn run_may_pay_then(
 ) -> (GameState, Vec<GameEvent>) {
     test_util::bank_effect_choice_answer(
         &mut state,
-        EffectChoiceQuestion::PayOptionalCost { cost: cost.clone() },
+        EffectChoiceQuestion::PayOptionalCost {
+            cost: Box::new(cost.clone()),
+        },
         EffectChoiceAnswer::PayOptionalCost { pay: true },
     );
     let effect = Effect::MayPayThenEffect {

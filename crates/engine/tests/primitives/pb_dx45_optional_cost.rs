@@ -58,7 +58,9 @@ fn black_pool(n: u32) -> ManaPool {
 /// ever diverge, `ask_or_consume_effect_choice`'s structural equality check
 /// re-suspends and the probe fails loudly rather than passing on a coincidence.
 fn pay_question(cost: Cost) -> EffectChoiceQuestion {
-    EffectChoiceQuestion::PayOptionalCost { cost }
+    EffectChoiceQuestion::PayOptionalCost {
+        cost: Box::new(cost),
+    }
 }
 
 fn life_of(state: &GameState, pl: PlayerId) -> i32 {

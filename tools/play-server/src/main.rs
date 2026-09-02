@@ -2415,7 +2415,33 @@ mod tests {
     /// (split, blocker=false). Hits satisfying BOTH halves: **32, 47, 48, 79**. 32 is
     /// the lowest. Measured at 32: 2 attackers across 2 distinct defenders, blockers
     /// exercised.
-    const UI3_SPLIT_COMBAT_SEED: u64 = 32;
+    ///
+    /// *Fifth re-observation* — **PB-DX45 (`scutemob-217`, 2026-09-02): 32 -> 13.**
+    /// One completeness marker moved (`vampire_gourmand` `partial` -> `Complete`, the
+    /// CR 118.12 policy re-adjudication), taking `CORPUS_COMPLETE` 1,136 -> 1,137, so
+    /// `random_deck`'s pool changed and every seeded seat re-dealt. Seed 32 lost its
+    /// split outright and declares a single attacker, `[(449, "Bot-2")]` — the silent
+    /// downgrade the assertion below refuses. Fresh sweep over `seed` ∈ 0..46 (same
+    /// throwaway-probe recipe; probe deleted): **five seeds split** — 0, 13, 26, 28, 36
+    /// — of which **13, 26 and 36** also reach a declared blocker. 13 is the lowest.
+    /// Measured at 13: 2 attackers across 2 distinct defenders, blockers exercised.
+    ///
+    /// **The sweep was bounded at 46 and the reason is a finding, not a shortcut.**
+    /// The probe reaches seed 46 and `drive_until`'s develop policy dies there on an
+    /// SR-38 provider/engine disagreement — the engine refuses `Cast Impact Tremors`
+    /// with *"player does not have enough mana to pay the cost"* against an empty
+    /// excusal register. Earlier sweeps drove 0..80 clean, so this is the re-deal
+    /// exposing a pre-existing disagreement on a seed nobody had driven with THIS
+    /// corpus. Filed as `OOS-DX45-8`; 13 is well below the bound, so nothing about
+    /// this pin depends on it.
+    ///
+    /// **And the standing lesson lands a third time**: PB-DX26 recorded that a stable
+    /// COUNT is not a stable DEAL, and PB-DX45 adds the converse — a count that moves
+    /// by ONE moved exactly one seeded pin in the whole workspace, while
+    /// `pb_dx32_fuzz_output.rs`'s own `MOVED_MSG` predicts its five named sibling
+    /// gates "will redden alongside this one". They did not. Run the sweep; do not
+    /// infer the blast radius from the size of the count change in either direction.
+    const UI3_SPLIT_COMBAT_SEED: u64 = 13;
 
     /// **UI-3 AC 6006**: after attackers are declared, the seat payload says
     /// **which attacker is attacking which defending player**, and after blockers
@@ -7831,6 +7857,8 @@ mod tests {
             "PartitionPicker.svelte",
             "CostPicker.svelte",
             "DiscardPicker.svelte",
+            // PB-DX45 (CR 118.12): the fifth template-copying picker.
+            "ConfirmPicker.svelte",
         ] {
             let (_, text) = sources
                 .iter()
@@ -7911,6 +7939,8 @@ mod tests {
             "PartitionPicker.svelte",
             "CostPicker.svelte",
             "DiscardPicker.svelte",
+            // PB-DX45 (CR 118.12): the fifth.
+            "ConfirmPicker.svelte",
         ] {
             let text = text_of(picker);
             // `onError?.(` and not the bare identifier: the identifier matches the
@@ -7935,8 +7965,12 @@ mod tests {
         let action_bar = text_of("ActionBar.svelte");
         assert_eq!(
             action_bar.matches("onError={onPickerError}").count(),
-            4,
-            "all four template-copying pickers must be given `onPickerError`"
+            5,
+            "all five template-copying pickers must be given `onPickerError` \
+             (PB-DX45 added `ConfirmPicker`, CR 118.12 -- and this ratchet is what \
+             caught it: a new picker wired into `ActionBar` without the error prop \
+             would be a silent dead button, which is exactly the UI-4 symptom this \
+             gate exists for)"
         );
         assert!(
             action_bar.contains("onClientError?.("),
@@ -8861,9 +8895,10 @@ mod tests {
              second path to conceding is the last thing this surface needs"
         );
 
-        // 3. The pickers say Back. All eight, plus the unknown-shape fallback,
-        //    which aborts the same chain.
+        // 3. The pickers say Back. All nine (PB-DX45 added `ConfirmPicker`), plus
+        //    the unknown-shape fallback, which aborts the same chain.
         for picker in [
+            "ConfirmPicker.svelte",
             "DiscardPicker.svelte",
             "SearchPicker.svelte",
             "PartitionPicker.svelte",
@@ -13240,6 +13275,551 @@ mod tests {
             hand.contains(&candidates[0]),
             "the card the DEFAULT would have discarded must still be in hand, or this \
              probe is measuring the engine's fallback and not the human: {hand:?}"
+        );
+    }
+
+    // ── PB-DX45 (`scutemob-217`, closing `OOS-DX24-9` == `OOS-DX27-5`) ────────
+    //
+    // CR 118.12 makes an optional cost a PLAYER decision, answered over PB-DP9's
+    // CR 608.2d suspend-and-replay channel:
+    // `EffectChoiceQuestion::PayOptionalCost { cost }` /
+    // `EffectChoiceAnswer::PayOptionalCost { pay }`. The engine- and
+    // simulator-level probes live in
+    // `crates/engine/tests/primitives/pb_dx45_optional_cost.rs` and
+    // `crates/simulator/tests/pb_dx45_optional_cost_channel.rs`; this section is
+    // the play-server's own end of the same channel.
+    //
+    // **A real, reproducible gap was found while writing these, in a file this
+    // task may not edit** -- see
+    // `test_dx45_the_http_validator_currently_refuses_every_explicit_pay_
+    // optional_cost_answer`'s doc immediately below the fixture helpers. `T1`
+    // (the offer) is a genuine, passing, real-HTTP test. `T2`/`T3` (the
+    // decline/accept) drive the SAME real-HTTP fixture up to the offer and then
+    // answer through `PlaySession::submit` directly rather than through `POST
+    // /api/game/action`, because that endpoint currently 400s on every explicit
+    // `PayOptionalCost` answer -- their own doc comments say so again, so a
+    // reader who only sees one of the two places still gets the caveat.
+
+    /// [`DX45H_SEED`] reproduces the same "index 0 and index 1 land in the
+    /// opening hand" property [`UI1_SEED`]'s doc describes, for a completely
+    /// different deck -- the shuffle is a permutation of POSITIONS, so it does
+    /// not depend on which cards occupy them. Confirmed by a real run, not
+    /// assumed: at this seed p1's opening hand is `[Birthing Ritual, Forest x5,
+    /// Arbor Elf]`.
+    const DX45H_SEED: u64 = UI1_SEED;
+
+    /// `{5}{G}{G}`, mono-green, unreachable inside this fixture's drive window --
+    /// the same [`UI1_COMMANDER`] trick (fix the deck's colour identity with the
+    /// most expensive card in it, and make sure neither seat can afford it).
+    const DX45H_COMMANDER: &str = "old-gnawbone";
+
+    /// `with_probe_cards` lets p2's deck skip both probe cards entirely, so the
+    /// bot seat never has anything to decide with either one.
+    ///
+    /// Arbor Elf (`{G}`, no explicit `completeness:` field, `Complete` by the
+    /// `#[default]` derive) satisfies Birthing Ritual's intervening-if ("if you
+    /// control a creature") AND is the only sacrifice candidate once it is
+    /// cast, with no combat step needed anywhere in the drive. Birthing Ritual
+    /// (`{1}{G}`, `Completeness::Complete`) is the CR 118.12 question source:
+    /// `AtBeginningOfYourEndStep` with `place_cost: Some(Cost::Sacrifice(..))`
+    /// on `Effect::LookAtTopThenPlace` -- so the human's OWN end step, the same
+    /// turn Birthing Ritual resolves, asks a genuine, reachable question.
+    fn dx45h_deck(with_probe_cards: bool) -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = Vec::new();
+        if with_probe_cards {
+            main_deck.push(CardId("arbor-elf".to_string()));
+            main_deck.push(CardId("birthing-ritual".to_string()));
+        }
+        while main_deck.len() < 99 {
+            main_deck.push(CardId("forest".to_string()));
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX45H_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// Install a two-player fixed-deck session through `session::new_game` --
+    /// the `ui1_install` / `ui2_install` precedent. `POST /api/game` cannot
+    /// build this fixture: `session::config_for` hard-codes
+    /// `DeckSource::RandomPerSeat`, and `NewGameDefaults` carries no room for a
+    /// decklist. Nothing about the HTTP path itself is stubbed -- only the deck
+    /// the game starts from, and both of Architecture Invariant 9's gates
+    /// (`validate_deck` inside `build_initial_state`, then
+    /// `check_all_defs_complete` inside `LocalGame::start`) still run for real.
+    fn dx45h_install(state: &SharedState) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: DX45H_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), dx45h_deck(true)),
+                (mtg_engine::PlayerId(2), dx45h_deck(false)),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the PB-DX45 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// Drive p1 -- a land drop, then Arbor Elf, then Birthing Ritual, else pass
+    /// priority -- until the offered decision IS the CR 118.12 offer
+    /// (`kind == "AnswerEffectChoice"` and `decision.question ==
+    /// "PayOptionalCost"`). Returns that view WITHOUT answering it, so callers
+    /// can inspect the offer (T1) or go on to answer it (T2/T3, the finding
+    /// test).
+    ///
+    /// A real run reaches the offer at turn 3's end step, 30 decisions in (see
+    /// this function's own commit history for the exploratory drive that
+    /// established that number); `max_steps` is generous above it so a small
+    /// deal shift turns into a loud failure rather than a silent hang.
+    async fn dx45h_drive_to_pay_optional_cost_offer(
+        state: &SharedState,
+        max_steps: usize,
+    ) -> Value {
+        let p1 = mtg_engine::PlayerId(1);
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            let elf_out = ui2_battlefield_count_by_name(state, p1, "Arbor Elf") > 0;
+            let ritual_out = ui2_battlefield_count_by_name(state, p1, "Birthing Ritual") > 0;
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default();
+            if actions.iter().any(|a| {
+                a["kind"] == "AnswerEffectChoice" && a["decision"]["question"] == "PayOptionalCost"
+            }) {
+                return view;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "step {step}: the game ended before the CR 118.12 offer was reached: {view}"
+            );
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| {
+                    if elf_out {
+                        None
+                    } else {
+                        actions.iter().find(|a| {
+                            a["kind"] == "CastSpell"
+                                && a["label"].as_str().unwrap_or("").contains("Arbor Elf")
+                        })
+                    }
+                })
+                .or_else(|| {
+                    if elf_out && !ritual_out {
+                        actions.iter().find(|a| {
+                            a["kind"] == "CastSpell"
+                                && a["label"]
+                                    .as_str()
+                                    .unwrap_or("")
+                                    .contains("Birthing Ritual")
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .unwrap_or_else(|| {
+                    panic!("step {step}: no PlayLand/CastSpell/PassPriority offered: {actions:?}")
+                });
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": seq(&view), "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!("the CR 118.12 offer was not reached within {max_steps} steps: {view}");
+    }
+
+    /// **T1 -- the browser is offered the `Confirm` shape (CR 118.12), over
+    /// real HTTP.**
+    ///
+    /// A real deck, driven through the real router (`PlayLand` / `CastSpell` /
+    /// `PassPriority`, exactly the calls a browser makes) to the human's own
+    /// end step, where Birthing Ritual's `Effect::LookAtTopThenPlace{
+    /// place_cost: Some(Sacrifice), .. }` suspends and asks. Asserts
+    /// `view::blocking_decision_view`'s `EffectChoiceQuestion::PayOptionalCost`
+    /// arm end to end: the question tag, the answer_field, the `Confirm` shape,
+    /// a non-empty `cost_label`, `pay_key == "pay"`, `default == true`, and
+    /// that `template` carries the `PayOptionalCost` variant KEY -- checked by
+    /// presence (the key exists, and only that key exists), not by a
+    /// hard-coded JSON string, so this does not pass against `template: {}`.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx45_the_browser_is_offered_the_confirm_shape_over_http() {
+        let state = shared_state();
+        dx45h_install(&state);
+        let view = dx45h_drive_to_pay_optional_cost_offer(&state, 200).await;
+        let action = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| {
+                a["kind"] == "AnswerEffectChoice" && a["decision"]["question"] == "PayOptionalCost"
+            })
+            .expect("dx45h_drive_to_pay_optional_cost_offer just found this");
+        let decision = &action["decision"];
+
+        assert_eq!(decision["question"], "PayOptionalCost");
+        assert_eq!(decision["answer_field"], "effect_choice_answer");
+
+        let answer = &decision["answer"];
+        assert_eq!(answer["shape"], "Confirm");
+        assert_eq!(answer["pay_key"], "pay");
+        assert_eq!(
+            answer["default"], true,
+            "the engine's own default is the pre-PB-DX45 auto-pay: {answer}"
+        );
+        let cost_label = answer["cost_label"]
+            .as_str()
+            .expect("cost_label is a string");
+        assert!(
+            !cost_label.is_empty(),
+            "Birthing Ritual's sacrifice cost must render a real label: {answer}"
+        );
+
+        // The variant KEY exists -- asserted by presence, not by a hard-coded
+        // string, so a regression to `template: {}` fails here instead of
+        // sailing through a `template.to_string().contains(...)` check.
+        let template = answer["template"]
+            .as_object()
+            .expect("template is a JSON object");
+        assert_eq!(
+            template.len(),
+            1,
+            "an externally-tagged Rust enum serializes to exactly one key: {template:?}"
+        );
+        assert!(
+            template.contains_key("PayOptionalCost"),
+            "template must carry the PayOptionalCost variant key: {template:?}"
+        );
+        assert_eq!(
+            answer["template"]["PayOptionalCost"]["pay"], true,
+            "the engine's own default answer, serialized verbatim: {answer}"
+        );
+    }
+
+    /// **T2 -- the HTTP validator accepts both `pay` and `decline`, and still
+    /// rejects a genuine mismatch.**
+    ///
+    /// # History
+    ///
+    /// This test used to be named
+    /// `test_dx45_the_http_validator_currently_refuses_every_explicit_pay_
+    /// optional_cost_answer` and pinned a real defect found while writing this
+    /// file: `validate_decision_params` (`tools/play-server/src/api.rs`) had an
+    /// arm for every OTHER `EffectChoiceQuestion` variant and none for
+    /// `PayOptionalCost`, so the trailing wildcard was doing double duty as
+    /// BOTH "reject an unknown variant" and "reject a `PayOptionalCost` answer
+    /// that is not unknown at all" -- every `POST /api/game/action` 400'd on
+    /// ANY explicit `{"PayOptionalCost": {...}}`, for `pay: true` (the engine's
+    /// OWN default!) exactly as for `pay: false`. That is the exact
+    /// clean-offer-then-guaranteed-refusal shape SR-38 exists to catch: `T1`
+    /// still passed throughout, because it only reads the offer and never
+    /// submits an answer.
+    ///
+    /// PB-DX45 fixed it structurally, not by appending one arm:
+    /// `validate_decision_params` now dispatches on `question` ALONE, an
+    /// exhaustive match over `EffectChoiceQuestion` with no wildcard, so a
+    /// SEVENTH variant is a compile error there instead of a silent 400 --
+    /// `EffectChoiceQuestion::PayOptionalCost { .. }` returns `Ok(())`, with an
+    /// in-source comment explaining why (CR 118.12's answer space is `{pay,
+    /// decline}`; there is no membership to check).
+    ///
+    /// # What this version asserts
+    ///
+    /// Both `pay: true` and `pay: false` are accepted (no `"a different kind"`
+    /// 400) -- proving the defect above is gone. A `SearchLibrary` answer
+    /// against the SAME `PayOptionalCost` offer is then submitted and MUST
+    /// still 400 with `"a different kind"`, so this test is not merely
+    /// "everything is accepted now" -- the arm this test exercises is proven to
+    /// still reject a genuine variant mismatch.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx45_the_http_validator_accepts_both_pay_and_decline() {
+        let state = shared_state();
+        dx45h_install(&state);
+        let view = dx45h_drive_to_pay_optional_cost_offer(&state, 200).await;
+        let index = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| {
+                a["kind"] == "AnswerEffectChoice" && a["decision"]["question"] == "PayOptionalCost"
+            })
+            .and_then(|a| a["index"].as_u64())
+            .expect("dx45h_drive_to_pay_optional_cost_offer just found this");
+
+        // Both bools of the real answer variant are accepted -- submitted on a
+        // FRESH game each time, since a successful submission consumes the
+        // decision and the second iteration would otherwise be answering
+        // something that no longer exists.
+        for pay in [true, false] {
+            let state = shared_state();
+            dx45h_install(&state);
+            let view = dx45h_drive_to_pay_optional_cost_offer(&state, 200).await;
+            let (status, body) = post_json(
+                &state,
+                "/api/game/action",
+                json!({
+                    "seq": seq(&view),
+                    "action_index": index,
+                    "params": {"effect_choice_answer": {"PayOptionalCost": {"pay": pay}}}
+                }),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "pay={pay}: an explicit PayOptionalCost answer must be accepted now that \
+                 `validate_decision_params` dispatches on `question` alone: {body}"
+            );
+        }
+
+        // The genuine-mismatch control: a `SearchLibrary` answer against a
+        // `PayOptionalCost` offer must still be refused, and refused for the
+        // SAME reason as before ("a different kind") -- proving the exhaustive
+        // per-question dispatch still discriminates rather than having become
+        // an accept-anything gate.
+        let (status, body) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": index,
+                "params": {"effect_choice_answer": {"SearchLibrary": {"found": null}}}
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "a SearchLibrary answer against a PayOptionalCost offer must still 400, got \
+             {status:?}: {body}"
+        );
+        assert_eq!(body["kind"], "bad_params");
+        assert!(
+            body["error"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("a different kind"),
+            "expected the genuine-mismatch message naming the wrong kind, got {body}"
+        );
+    }
+
+    /// **T2b -- a human DECLINE is answered over real HTTP and Arbor Elf
+    /// survives (CR 118.12).**
+    ///
+    /// Reached over real HTTP up to the offer
+    /// (`dx45h_drive_to_pay_optional_cost_offer`), then answered with a real
+    /// `POST /api/game/action` carrying `{"PayOptionalCost": {"pay": false}}`
+    /// -- no `PlaySession::submit` workaround is needed any more (see
+    /// `test_dx45_the_http_validator_accepts_both_pay_and_decline`'s history
+    /// section for why one used to be). Asserted by the RESOLUTION EFFECT,
+    /// never by the offer (AC 7241's standard): before PB-DX45 a decline was
+    /// not a reachable state through ANY channel -- the old `MayPayThenEffect`
+    /// arm paid whenever `can_pay_optional_cost` was true, which it already is
+    /// by this point in the drive -- so an offer-shaped assertion would pass on
+    /// an engine that asks and pays anyway.
+    ///
+    /// This test and `test_dx45_a_human_accept_is_answered_over_http_and_
+    /// arbor_elf_is_sacrificed` below are a DISCRIMINATING PAIR by
+    /// construction, differing in exactly one JSON bool: a decline-only probe
+    /// cannot tell "the decline works" from "this fixture never sacrifices
+    /// Arbor Elf at all, so of course it survived".
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx45_a_human_decline_is_answered_and_arbor_elf_survives() {
+        let state = shared_state();
+        dx45h_install(&state);
+        let view = dx45h_drive_to_pay_optional_cost_offer(&state, 200).await;
+        let index = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| {
+                a["kind"] == "AnswerEffectChoice" && a["decision"]["question"] == "PayOptionalCost"
+            })
+            .and_then(|a| a["index"].as_u64())
+            .expect("dx45h_drive_to_pay_optional_cost_offer just found this");
+        let (status, body) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": index,
+                "params": {"effect_choice_answer": {"PayOptionalCost": {"pay": false}}}
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "declining the CR 118.12 offer: {body}"
+        );
+
+        let p1 = mtg_engine::PlayerId(1);
+        assert_eq!(
+            ui2_battlefield_count_by_name(&state, p1, "Arbor Elf"),
+            1,
+            "CR 118.12: declined, so the sacrifice cost is never paid and Arbor Elf survives"
+        );
+        let graveyard = ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1));
+        assert!(
+            !graveyard.contains(&"Arbor Elf".to_string()),
+            "Arbor Elf must not be in the graveyard after a decline: {graveyard:?}"
+        );
+    }
+
+    /// **T3 -- the ACCEPT half, over real HTTP, the identical fixture and
+    /// drive, differing only in the `pay` bool in the POST body.**
+    ///
+    /// This test and `test_dx45_a_human_decline_is_answered_and_arbor_elf_
+    /// survives` above are a DISCRIMINATING PAIR: paid, so CR 118.12's
+    /// sacrifice happens: Arbor Elf leaves the battlefield (CR 400.7 -- a NEW
+    /// graveyard object with a new `ObjectId`, so it is checked by NAME, the
+    /// `ui2_zone_names` convention this file uses throughout, never by the
+    /// battlefield `ObjectId`) and the "put a creature card ... onto the
+    /// battlefield" continuation resolves without a further blocking question
+    /// (this deck's remaining library is 92 Forests and nothing else, so
+    /// `Effect::LookAtTopThenPlace`'s optional placement has no legal
+    /// candidate among the seven looked at and no-ops deterministically).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx45_a_human_accept_is_answered_over_http_and_arbor_elf_is_sacrificed() {
+        let state = shared_state();
+        dx45h_install(&state);
+        let view = dx45h_drive_to_pay_optional_cost_offer(&state, 200).await;
+        let index = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| {
+                a["kind"] == "AnswerEffectChoice" && a["decision"]["question"] == "PayOptionalCost"
+            })
+            .and_then(|a| a["index"].as_u64())
+            .expect("dx45h_drive_to_pay_optional_cost_offer just found this");
+        let (status, body) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": index,
+                "params": {"effect_choice_answer": {"PayOptionalCost": {"pay": true}}}
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "accepting the CR 118.12 offer: {body}"
+        );
+
+        let p1 = mtg_engine::PlayerId(1);
+        assert_eq!(
+            ui2_battlefield_count_by_name(&state, p1, "Arbor Elf"),
+            0,
+            "CR 118.12: paid, so the sacrifice cost is paid and Arbor Elf leaves the \
+             battlefield"
+        );
+        let graveyard = ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1));
+        assert!(
+            graveyard.contains(&"Arbor Elf".to_string()),
+            "the sacrificed Arbor Elf must be in the graveyard: {graveyard:?}"
+        );
+    }
+
+    /// **T4 -- a frontend source gate: the client answers the `Confirm` shape
+    /// without ever spelling the engine's variant name.**
+    ///
+    /// Source-level, for the standing reason this file states everywhere else
+    /// -- there is no frontend test harness (plan §8 R7). Both files pinned
+    /// here live directly under `frontend/src/lib/`, inside
+    /// `collect_frontend_files`'s walk root, not behind the `$viewer` alias
+    /// (the UI-4 gap `test_frontend_action_bar_keeps_the_fused_slot_and_
+    /// pitch_wiring`'s own doc names) -- so that gap does not apply and no
+    /// second walk of the shared library is needed here.
+    #[test]
+    fn test_dx45_frontend_answers_the_confirm_shape_without_spelling_the_variant() {
+        let frontend_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&frontend_src, &mut sources);
+
+        let action_bar = sources
+            .iter()
+            .find(|(p, _)| p.ends_with("ActionBar.svelte"))
+            .map(|(_, t)| t.as_str())
+            .expect("ActionBar.svelte is in the frontend walk");
+        let confirm_picker = sources
+            .iter()
+            .find(|(p, _)| p.ends_with("ConfirmPicker.svelte"))
+            .map(|(_, t)| t.as_str())
+            .expect("ConfirmPicker.svelte is in the frontend walk");
+
+        assert!(
+            action_bar.contains("currentShape?.shape === 'Confirm'"),
+            "ActionBar.svelte must dispatch on the Confirm shape"
+        );
+        assert!(
+            action_bar.contains("<ConfirmPicker"),
+            "ActionBar.svelte must mount ConfirmPicker for the Confirm shape"
+        );
+
+        // The rule is about CODE, not PROSE: `ConfirmPicker.svelte`'s own JSDoc
+        // header explains the never-respell-the-variant discipline by naming
+        // the variant it is avoiding ("`template` arrives as
+        // `{\"PayOptionalCost\":{\"pay\":true}}`. ... It never spells
+        // `\"PayOptionalCost\"`") -- so a bare substring ban over the whole file
+        // text is vacuously red on the very file it is meant to pass. Strip
+        // `/* ... */` blocks first (this file's only comment form is JSDoc,
+        // never `//`), then check the code that remains.
+        fn strip_block_comments(text: &str) -> String {
+            let mut out = String::with_capacity(text.len());
+            let mut rest = text;
+            while let Some(start) = rest.find("/*") {
+                out.push_str(&rest[..start]);
+                match rest[start..].find("*/") {
+                    Some(end) => rest = &rest[start + end + 2..],
+                    None => {
+                        rest = "";
+                        break;
+                    }
+                }
+            }
+            out.push_str(rest);
+            out
+        }
+        let confirm_picker_code = strip_block_comments(confirm_picker);
+        assert!(
+            confirm_picker_code.contains("payKey"),
+            "the comment-stripping above must not have eaten the real code too -- \
+             `payKey` is a real identifier this component reads: {confirm_picker_code}"
+        );
+        assert!(
+            !confirm_picker_code.contains("PayOptionalCost"),
+            "ConfirmPicker.svelte's CODE (comments stripped) must never spell the engine's \
+             variant name -- it clones `template` and writes only `payKey`, the same \
+             never-respell-the-variant discipline every other picker in this client follows \
+             (see `AnswerShapeView::Partition::template`'s own doc). The JSDoc header is \
+             allowed to name it in prose; this check does not run over that."
         );
     }
 }

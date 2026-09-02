@@ -4750,7 +4750,9 @@ fn execute_effect_inner(
                     state,
                     ctx,
                     pid,
-                    EffectChoiceQuestion::PayOptionalCost { cost: cost.clone() },
+                    EffectChoiceQuestion::PayOptionalCost {
+                        cost: Box::new(cost.clone()),
+                    },
                 ) {
                     Some(EffectChoiceAnswer::PayOptionalCost { pay }) => pay,
                     Some(other) => {
@@ -6463,9 +6465,7 @@ fn execute_effect_inner(
                             state,
                             ctx,
                             p,
-                            EffectChoiceQuestion::PayOptionalCost {
-                                cost: (**cost).clone(),
-                            },
+                            EffectChoiceQuestion::PayOptionalCost { cost: cost.clone() },
                         ) {
                             Some(EffectChoiceAnswer::PayOptionalCost { pay }) => pay,
                             Some(other) => {

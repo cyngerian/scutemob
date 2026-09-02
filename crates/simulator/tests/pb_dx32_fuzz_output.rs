@@ -957,7 +957,7 @@ fn test_dx32_row_id_for_covers_every_observable_row() {
                 source: ObjectId(1),
             },
             effect_choice_state(EffectChoiceQuestion::PayOptionalCost {
-                cost: mtg_engine::Cost::PayLife(1),
+                cost: Box::new(mtg_engine::Cost::PayLife(1)),
             }),
         ),
     ];

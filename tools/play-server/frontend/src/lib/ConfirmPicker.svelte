@@ -113,11 +113,15 @@
     </span>
   </div>
   <div class="choices">
-    <button class="action-btn pay" {disabled} onclick={() => emit(true)}>
-      Pay {costLabel}
-    </button>
-    <button class="action-btn decline" {disabled} onclick={() => emit(false)}> Decline </button>
-    <button class="action-btn control" {disabled} onclick={() => onCancel?.()}> Back </button>
+    <!-- The three labels are written without surrounding whitespace inside the
+         element on purpose: `main.rs`'s UI-5 gate matches the literal
+         `>Back</button>` across every picker, and it caught this component's
+         first draft, which pretty-printed the label onto its own line. -->
+    <button class="action-btn pay" {disabled} onclick={() => emit(true)}
+      >Pay {costLabel}</button
+    >
+    <button class="action-btn decline" {disabled} onclick={() => emit(false)}>Decline</button>
+    <button class="action-btn control" {disabled} onclick={() => onCancel?.()}>Back</button>
   </div>
 </div>
 

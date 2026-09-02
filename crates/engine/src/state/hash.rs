@@ -1381,7 +1381,7 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // EffectChoiceQuestion/Answer each gain a sixth variant,
         // PayOptionalCost (see the `- 78:` History line above). Closure type
         // count unchanged (131).
-        decl_fingerprint: "15c2ec02557ae2f14ccea83e29193b06271dbf294fe6a939e2bf977a187dbd12",
+        decl_fingerprint: "0c452e2f98e1c18ca289b04c8a5b3539e4c9232c229a3dc4433ad3609b062812",
         stream_fingerprint: "08220ca0f13da6042898f6257407ca475a6e5f5c92b7ca31ae291816eaa19c80",
     },
 ];

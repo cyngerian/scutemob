@@ -755,7 +755,7 @@ fn test_eng1_a_cost_discard_never_suspends() {
     mtg_engine::state::test_util::bank_effect_choice_answer(
         &mut state,
         EffectChoiceQuestion::PayOptionalCost {
-            cost: Cost::DiscardCard,
+            cost: Box::new(Cost::DiscardCard),
         },
         EffectChoiceAnswer::PayOptionalCost { pay: true },
     );

@@ -1006,7 +1006,18 @@ pub enum EffectChoiceQuestion {
     /// answer space so a client can render a picker without a second query").
     /// It is NOT re-derived from the source card at answer time: the engine
     /// validates against its own recorded question and never against the board.
-    PayOptionalCost { cost: Cost },
+    ///
+    /// **`Box`ed, and not for elegance.** `Cost::Sacrifice(TargetFilter)` makes
+    /// `Cost` by far the largest thing reachable from this enum, and an unboxed
+    /// field here inflates EVERY `EffectChoiceQuestion` — including the four
+    /// that carry only a `Vec<ObjectId>` — to that size.
+    /// `clippy::large_enum_variant` said so under `-D warnings` and it was right;
+    /// `Effect::LookAtTopThenPlace`'s own `place_cost: Option<Box<Cost>>` is the
+    /// in-tree precedent. `Box<T>` serializes and hashes transparently as `T`, so
+    /// the WIRE shape is unchanged — but the DECLARATION text is not, and both
+    /// schema fingerprints moved when this box was added. They were re-taken from
+    /// the gates rather than reasoned about.
+    PayOptionalCost { cost: Box<Cost> },
 }
 /// CR 608.2d (PB-DP9): the player's answer to an [`EffectChoiceQuestion`].
 ///
