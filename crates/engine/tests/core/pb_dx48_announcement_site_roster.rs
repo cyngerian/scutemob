@@ -143,25 +143,14 @@ fn declared_ward_cost(def: &CardDefinition) -> Option<u32> {
 // r1 — the push_target_announcement( call-site census
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Every `rules/` file `push_target_announcement` is called from, per the
-/// execution notes' §1 census.
-const SITE_SRCS: &[(&str, &str)] = &[
-    (
-        "rules/abilities.rs",
-        include_str!("../../src/rules/abilities.rs"),
-    ),
-    (
-        "rules/casting.rs",
-        include_str!("../../src/rules/casting.rs"),
-    ),
-    ("rules/copy.rs", include_str!("../../src/rules/copy.rs")),
-    ("rules/engine.rs", include_str!("../../src/rules/engine.rs")),
-    ("rules/events.rs", include_str!("../../src/rules/events.rs")),
-    (
-        "rules/resolution.rs",
-        include_str!("../../src/rules/resolution.rs"),
-    ),
-];
+/// **`SITE_SRCS` was DELETED by the `/review` fix cycle, and the deletion is the
+/// point.** It hardcoded six `rules/` files, and `push_target_announcement` is
+/// `pub(crate)` — so a 13th call site anywhere else in `crates/engine/src` was
+/// invisible to `r1`, proven by the reviewer adding one to `rules/combat.rs` and
+/// watching this gate stay green. `live_sites` and `r1b` now both walk the whole
+/// crate with `walk_rs`, the traversal `r2` already used. Keeping a narrower list
+/// beside a wider one is how the two axes came to disagree about their own search
+/// space in the first place.
 
 const CALL_NEEDLE: &str = "push_target_announcement(";
 
@@ -347,13 +336,48 @@ const PINNED_SITES: &[PinnedSite] = &[
     },
 ];
 
-fn live_sites() -> BTreeSet<(String, String, String)> {
+/// Every `push_target_announcement` call site, as `(file, func, marker, OFFSET)`.
+///
+/// # Two `/review` defeats, both executed, both fixed here
+///
+/// **(a) The set collapsed duplicates.** This returned
+/// `BTreeSet<(file, func, marker)>`, so a SECOND call inside an already-marked site
+/// collapsed into the same tuple and the `len() == 12` floor — a *set* length —
+/// never noticed. The reviewer added a second `push_target_announcement(...)`
+/// directly under the `ENG-2 (A3` one in `handle_activate_forecast` and **`r1`
+/// stayed green**. That is not a hypothetical: a duplicated announcement is
+/// literally the **Ward-fires-twice** shape this batch rejected by execution, so the
+/// gate was blind to its own headline defect. The tuple now carries the byte
+/// OFFSET, which no two distinct calls can share.
+///
+/// **(b) The file list was hardcoded.** `push_target_announcement` is
+/// `pub(crate)`, so a 13th site anywhere else in `crates/engine/src` was invisible;
+/// the reviewer added one to `rules/combat.rs` and `r1` stayed green. That matters
+/// concretely rather than theoretically: `OOS-DX48-6` says the next two dispatch
+/// sites belong in `effects/mod.rs`, which the hardcoded list did not contain.
+/// The scan now walks the whole crate with `walk_rs`, the same traversal `r2`
+/// already used — the two axes disagreeing about their own search space was the
+/// real defect.
+fn live_sites() -> BTreeSet<(String, String, String, usize)> {
+    let root = workspace_root();
+    let src_root = root.join("crates/engine/src");
+    let mut files = Vec::new();
+    walk_rs(&src_root, &mut files);
+    files.sort();
+
     let mut out = BTreeSet::new();
-    for (label, src) in SITE_SRCS {
-        for at in call_site_offsets(src) {
-            let func = enclosing_fn_name(src, at);
-            let marker = nearby_marker(src, at);
-            out.insert((label.to_string(), func, marker));
+    for path in &files {
+        let Ok(src) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        let label = path
+            .strip_prefix(&src_root)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| path.to_string_lossy().to_string());
+        for at in call_site_offsets(&src) {
+            let func = enclosing_fn_name(&src, at);
+            let marker = nearby_marker(&src, at);
+            out.insert((label.clone(), func, marker, at));
         }
     }
     out
@@ -372,28 +396,42 @@ fn pinned_sites() -> BTreeSet<(String, String, String)> {
 #[test]
 fn r1_call_site_census_is_pinned() {
     let live = live_sites();
+    // The CLASSIFICATION compares on (file, func, marker); the COUNT below uses the
+    // offset-carrying set, which is what makes a duplicated call at an already-marked
+    // site visible (the `/review`'s defeat (a) -- see `live_sites`).
+    let live_classified: BTreeSet<(String, String, String)> = live
+        .iter()
+        .map(|(f, n, m, _)| (f.clone(), n.clone(), m.clone()))
+        .collect();
     let pinned = pinned_sites();
     assert_eq!(
-        live,
+        live_classified,
         pinned,
         "PB-DX48 r1: the push_target_announcement( call-site census moved. A new \
          site must be classified in PINNED_SITES with a stated reason before this \
          row can be re-pinned. live only: {:?}; pinned only: {:?}",
-        live.difference(&pinned).collect::<Vec<_>>(),
-        pinned.difference(&live).collect::<Vec<_>>()
+        live_classified.difference(&pinned).collect::<Vec<_>>(),
+        pinned.difference(&live_classified).collect::<Vec<_>>()
     );
-    // Non-vacuity floor: the parser must actually find something in each file it
-    // is pointed at, or this gate is measuring an empty set.
+    // The COUNT is taken over the offset-carrying set, so two calls inside one marked
+    // site are two entries, not one. `/review` defeat (a): as a
+    // `BTreeSet<(file, func, marker)>` this collapsed a duplicated announcement --
+    // which IS the Ward-fires-twice defect -- into a single element and stayed green.
     assert_eq!(
         live.len(),
         12,
-        "r1 non-vacuity: expected 12 real call sites, found {}",
-        live.len()
+        "r1: expected 12 real push_target_announcement call sites across the WHOLE of \
+         crates/engine/src, found {}: {:?}. A duplicated call inside an already-marked \
+         site lands here, not in the classification assert above.",
+        live.len(),
+        live.iter()
+            .map(|(f, n, m, at)| format!("{f}::{n}[{m}]@{at}"))
+            .collect::<Vec<_>>()
     );
     // No UNMARKED site should be hiding in the live set today -- every one of the
     // 12 carries its own ENG-2 marker in source.
     assert!(
-        !live.iter().any(|(_, _, m)| m == "UNMARKED"),
+        !live.iter().any(|(_, _, m, _)| m == "UNMARKED"),
         "r1: an UNMARKED call site exists at HEAD; PINNED_SITES cannot classify a \
          site with no marker, so this indicates a corpus not matching the plan's \
          census"
@@ -410,14 +448,46 @@ fn r1_call_site_census_is_pinned() {
 /// scans is asserted free of one (`OOS-DX32-6`'s class; PB-DX47's `r3b`).
 #[test]
 fn r1b_source_strips_no_block_comments() {
-    for (label, src) in SITE_SRCS {
+    // `/review` defeat (b) widened `r1` from six hardcoded files to the whole crate,
+    // so this bound has to widen with it: checking only `SITE_SRCS` would have left
+    // every other file's block comments unguarded the moment `r1` started reading them.
+    let root = workspace_root();
+    let src_root = root.join("crates/engine/src");
+    let mut files = Vec::new();
+    walk_rs(&src_root, &mut files);
+    files.sort();
+    let mut scanned = 0usize;
+    for path in &files {
+        let Ok(raw) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        scanned += 1;
+        let label = path
+            .strip_prefix(&src_root)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| path.to_string_lossy().to_string());
+        // A naive `raw.contains("/*")` is WRONG here and was measured to be: three
+        // files carry the literal `*/*` inside a `//` or `///` comment (a `*/*`
+        // creature's P/T in `state/diagnostics.rs` and `rules/layers.rs`, a `grep`
+        // glob in `rules/priority.rs`'s doc). Strip line comments FIRST, then look --
+        // which is exactly the distinction the gate exists to police.
+        let stripped = strip_line_comments(&raw);
         assert!(
-            !src.contains("/*"),
-            "PB-DX48 r1b: `{label}` grew a `/* */` block comment, which \
-             strip_line_comments does not remove -- it can now hide or fake a \
-             push_target_announcement( call site from r1. Widen the stripper."
+            !stripped.contains("/*"),
+            "PB-DX48 r1b: `{label}` grew a `/* */` block comment outside a line \
+             comment. `strip_line_comments` does not remove those, and
+             `call_site_offsets` reads the ORIGINAL source, so a block comment can \
+             hide or fake a push_target_announcement( call site from r1. Widen the \
+             stripper (`OOS-DX32-6`'s class; PB-DX47's `r3b`)."
         );
     }
+    // Non-vacuity: the walk must actually have read the crate, or this row asserts
+    // nothing about an empty list.
+    assert!(
+        scanned >= 40,
+        "r1b non-vacuity: only {scanned} files walked under crates/engine/src -- the \
+         traversal is not reaching the crate it claims to guard"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -425,6 +495,12 @@ fn r1b_source_strips_no_block_comments() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PERMANENT_TARGETED_NEEDLE: &str = "GameEvent::PermanentTargeted {";
+
+/// The three fields of `GameEvent::PermanentTargeted` (`rules/events.rs:767`). A
+/// construction must mention all three; the parser asserts it rather than assuming
+/// it, so a payload change surfaces here instead of silently reclassifying a site.
+const PERMANENT_TARGETED_FIELDS: &[&str] =
+    &["target_id", "targeting_stack_id", "targeting_controller"];
 
 fn workspace_root() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -452,16 +528,34 @@ fn walk_rs(dir: &Path, acc: &mut Vec<PathBuf>) {
 /// distinguished from a match-arm destructure by the token immediately following
 /// the opening brace.
 ///
-/// # The heuristic, stated rather than assumed sufficient
+/// # The heuristic, and the `/review` defeat that re-keyed it
 ///
-/// A construction assigns a value to each field (`target_id: id,`); every match
-/// destructure in this tree uses SHORTHAND field patterns (`target_id,`), which
-/// carries no colon. So "does `target_id` end in `:`" separates the two forms as
-/// they are actually written today. **Residual**: a match arm written as
-/// `GameEvent::PermanentTargeted { target_id: renamed, .. } =>` (an explicit
-/// rebind, legal Rust, unused anywhere in this tree) would be misclassified as a
-/// construction. `r2b` checks that no such rebind form exists today, so the
-/// residual is measured rather than merely disclosed.
+/// **First draft, defeated by EXECUTION.** It classified a hit as a construction
+/// only when the token immediately after `{` was literally `target_id:`, on the
+/// reasoning that match destructures use shorthand patterns and carry no colon.
+/// Rust does not constrain struct-variant field order: the reviewer appended a real
+/// second construction written `{ targeting_stack_id, targeting_controller,
+/// target_id }` — it compiles, it is a genuine second dispatch payload source, and
+/// **`r2` stayed GREEN**. The old docstring named only the explicit-rebind residual
+/// and called it "measured rather than merely disclosed"; the likelier form was the
+/// one it could not see. That is this batch's own thesis committed inside the gate
+/// that states it, for the fifth time in this queue (PB-DX26, PB-DX43, PB-DX45,
+/// PB-DX47, now here): *a gate written for one syntactic variant measures that
+/// variant.*
+///
+/// **Re-keyed on the MECHANISM, not on a field name's position.** From the opening
+/// brace, scan to the matching `}` (brace-balanced, so a nested initializer cannot
+/// end the scan early) and classify by what that region and its tail contain:
+///
+/// * a `=>` immediately after the closing brace means a MATCH ARM, whatever the
+///   field order and whatever rebinding it uses — this is the only form that can
+///   legally follow a pattern, so it is a positive discriminator rather than the
+///   absence of one;
+/// * otherwise it is a construction, and all three field names must appear in the
+///   region or the gate fails loudly rather than silently reclassifying.
+///
+/// Over-collection can only make `r2` REDDER, which is the direction a ratchet is
+/// allowed to be wrong in.
 fn permanent_targeted_construction_sites() -> Vec<(String, usize)> {
     let root = workspace_root();
     let src_root = root.join("crates/engine/src");
@@ -470,6 +564,7 @@ fn permanent_targeted_construction_sites() -> Vec<(String, usize)> {
     files.sort();
 
     let mut out = Vec::new();
+    let mut mentions = Vec::new();
     for path in &files {
         let Ok(raw) = std::fs::read_to_string(path) else {
             continue;
@@ -482,14 +577,56 @@ fn permanent_targeted_construction_sites() -> Vec<(String, usize)> {
         let mut from = 0usize;
         while let Some(rel) = stripped[from..].find(PERMANENT_TARGETED_NEEDLE) {
             let at = from + rel;
-            let after = &stripped[at + PERMANENT_TARGETED_NEEDLE.len()..];
-            let trimmed = after.trim_start();
-            if trimmed.starts_with("target_id:") {
+            let body_start = at + PERMANENT_TARGETED_NEEDLE.len();
+            // Brace-balanced scan to the matching `}` so a nested initializer inside
+            // the region cannot end it early.
+            let mut depth = 1usize;
+            let mut end = body_start;
+            for (i, c) in stripped[body_start..].char_indices() {
+                match c {
+                    '{' => depth += 1,
+                    '}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            end = body_start + i;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let region = &stripped[body_start..end];
+            let tail = stripped[end + 1..].trim_start();
+            // A pattern, by either of two positive discriminators:
+            //   * it is followed by `=>`, which only a match arm can be; or
+            //   * it does not bind all three fields, which only a pattern may omit
+            //     (`{ .. }` in a `matches!`, a partial destructure). A CONSTRUCTION
+            //     must name every field -- the type has no `Default`.
+            let names_all = PERMANENT_TARGETED_FIELDS.iter().all(|f| region.contains(f));
+            let is_pattern = tail.starts_with("=>") || !names_all;
+            // The genuinely ambiguous shape is worth failing loudly on rather than
+            // silently bucketing: something that is not a match arm and names SOME but
+            // not all of the fields is either a payload change or a form this parser
+            // does not understand.
+            let names_some = PERMANENT_TARGETED_FIELDS.iter().any(|f| region.contains(f));
+            assert!(
+                !(is_pattern && !tail.starts_with("=>") && names_some && !names_all),
+                "ambiguous GameEvent::PermanentTargeted site in {label} at byte {at}: \
+                 not a match arm, and it names some but not all of \
+                 {PERMANENT_TARGETED_FIELDS:?}. Either the payload changed (update the \
+                 const and the wire gates) or this is a form the parser does not \
+                 understand -- do NOT relax it without re-running the /review's \
+                 field-order experiment, which defeated its first draft."
+            );
+            if is_pattern {
+                mentions.push((label.clone(), at));
+            } else {
                 out.push((label.clone(), at));
             }
             from = at + 1;
         }
     }
+    let _ = &mentions;
     out
 }
 
@@ -1037,8 +1174,8 @@ fn t_census_report() {
 
     println!("r1 -- push_target_announcement( call sites:");
     let live = live_sites();
-    for (file, func, marker) in &live {
-        println!("  [{marker}] {file} :: {func}");
+    for (file, func, marker, at) in &live {
+        println!("  [{marker}] {file} :: {func} @ byte {at}");
     }
     println!("  total: {}", live.len());
     println!("  pinned reasons:");
