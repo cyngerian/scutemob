@@ -88,16 +88,43 @@ been read by nothing, the Ward `PendingTrigger` would never have been created, a
 the batch's headline site would have had a behavioural delta of **zero** while
 shipping a diff that looks exactly like a fix.
 
-**A hook inside `flush_sorted` was tried FIRST and defeated BY EXECUTION.** The
-first implementation queued and placed the becomes-target wave at `flush_sorted`'s
-own tail (plus a queue-only call at its suspend return). It works, and it is wrong:
+**The design was wrong TWICE before it was right, and both corrections came from
+execution or from reading, never from argument.**
+
+*Wrong design 1 — a hook inside `flush_sorted`, defeated BY EXECUTION.* The first
+implementation queued and placed the becomes-target wave at `flush_sorted`'s own tail
+(plus a queue-only call at its suspend return). It works, and it is wrong:
 `Command::ChooseTriggerTargets`'s arm calls `check_and_flush_triggers` over
 `resume_trigger_flush`'s returned events, which contain that same
 `PermanentTargeted` — so the trigger was collected twice and **Ward fired twice**
-(two `AbilityTriggered`, ward stack objects 8 *and* 9, observed). That is why the
-shipped design is a fixpoint with an **exactly-once scan cursor** in
-`check_and_flush_triggers` and no hook in the flush at all, and why the probes assert
-a COUNT rather than presence: a `>= 1` assertion passes on the broken design.
+(two `AbilityTriggered`, ward stack objects 8 *and* 9, observed on a running probe).
+That is why every probe in this batch asserts a COUNT rather than presence: a
+`>= 1` assertion passes on the broken design.
+
+*Wrong design 2 — the fixpoint in `check_and_flush_triggers`, caught by READING the
+other five callers.* It is the caller that most commands go through, the full suite
+was green, and the end-to-end probe passed. It is still short: `rules/resolution.rs`'s
+post-resolution sweep does its own `check_triggers` and THEN calls
+`flush_pending_triggers` with nothing after it, and **`Command::PassPriority` never
+calls `check_and_flush_triggers` at all**. So a triggered ability placed during a
+spell's *resolution* — the ordinary way a targeted ETB trigger reaches the stack —
+would still have dispatched nothing, with the emission in place and every test green.
+The six flush sites do not agree on whether they sweep afterwards, and two of them
+(`resume_trigger_flush`, `drop_departed_trigger_flush`) bypass `flush_pending_triggers`
+entirely.
+
+**Shipped design**: the wave loop lives in `abilities::flush_pending_triggers`, which
+wraps the old body (now `flush_pending_triggers_once`) — the one function all six
+flush sites go through. `check_and_flush_triggers` is restored to a single pass;
+a second loop there would re-scan events the flush already dispatched, which is
+wrong design 1 again one layer up. **The dispatch is a property of flushing, not of
+remembering to sweep afterwards.**
+
+The durable half is not "we found a bug in our own patch". It is that a green full
+suite and a passing end-to-end probe were both satisfied by wrong design 2 — the
+thing that caught it was enumerating the OTHER callers of the function being changed,
+which is the same enumeration discipline this queue has been paying for since
+PB-DX25.
 
 ## §3 — Wire: prediction CONFIRMED
 
