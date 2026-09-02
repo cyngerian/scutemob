@@ -252,9 +252,11 @@ the measurement is the useful part:
   offered to anyone and the targeting spell or ability is countered unconditionally.
   `mechanics_m_z/ward.rs`'s own module doc says so.
 * **Blast radius of fixing it, measured: ZERO deck-legal `Complete` card defs use
-  `Effect::MayPayOrElse`.** All 15 defs naming it are `known_wrong` (6), `partial` (5)
-  or `inert` (4), and 12 of the 15 name it only inside a `// TODO` explaining why they
-  cannot use it. Ward is the variant's only live consumer.
+  `Effect::MayPayOrElse`.** All 15 defs naming it are `known_wrong` (**7**), `partial`
+  (**4**) or `inert` (**4**) — the first draft of this line said 6 / 5 / 4, corrected by
+  the `/review` re-walking the files; the load-bearing conclusion, **zero deck-legal
+  `Complete`**, is unaffected — and 12 of the 15 name it only inside a `// TODO`
+  explaining why they cannot use it. Ward is the variant's only live consumer.
 * **And that is precisely why it is a separate batch, not a rider here — read off the
   source, not inferred.** Routing it onto PB-DX45's shipped CR 608.2d channel means
   reusing `EffectChoiceQuestion::PayOptionalCost`, whose payload is
@@ -460,7 +462,8 @@ four-line `events.extend(permanent_targeted_events(..))` with
 under `-D dead_code`; the four-line wrap is also why the first delegated attempt
 needed a file backup instead of a one-line edit).
 
-* all 11 `primitives::pb_dx48_ward_dispatch` probes RED, plus
+* all 12 `primitives::pb_dx48_ward_dispatch` probes RED (11 at review time, 12 after the fix
+  cycle added `t9`), plus
   `pb_eng2_targets_announced`'s new object-target sibling;
 * all 3 `pb_dx48_ward_channel` probes RED — and after the §8 repair they fail on the
   **damage** assertion, with `c2` reporting `left: 1, right: 0`: the ward creature
@@ -495,3 +498,84 @@ controller) is discriminated by R-A only, and says so in its own doc comment.
 The roster file's own 10 rows (R-A..R-J in
 `core::pb_dx48_announcement_site_roster`) were executed by its author against its
 pinned constants; each is a constant mutation with a named test, and all 10 RED.
+
+---
+
+## §10 — The `/review` fix cycle: 9 findings, all 9 taken, and it found a real dispatch hole
+
+The reviewer had a shell and used it. **Three of this batch's own gates fell to
+mutations it ran**, and one of the two MEDIUMs is a defect in the shipped engine, not in
+a comment.
+
+**1 (MEDIUM, engine) — a suspended batch's PREFIX dropped Ward entirely.**
+`dispatch_becomes_target_waves` tested `pending_trigger_targets.is_some()` at the TOP of
+its loop and returned having collected nothing, so every `PermanentTargeted` emitted by
+the members `flush_sorted` placed BEFORE it suspended was dropped. Nothing else scans
+them: every `flush_pending_triggers` caller scans its events *before* the flush, and
+`Command::ChooseTriggerTargets` sweeps only the RESUMED events. **The loop's own comment
+asserted that the resumed call would cover it, and that was false in both halves** —
+inside the batch whose entire subject is a false comment. Fixed by the ORDER: collect
+and QUEUE into `state.pending_triggers`, *then* stop; the queue survives the suspension
+and the resume's own sweep drains it after the rest of the CR 603.3b batch is placed,
+which is CR-correct anyway, and it cannot double-dispatch because the cursor has already
+consumed those events. Pinned by `t9`, proven RED under the first-draft ordering
+(`left: 0, right: 1`) **with the `PermanentTargeted` assertion staying green** — the
+emission was never the broken half, which is exactly why the ward-trigger COUNT is the
+verdict. `OOS-DX48-3`'s precondition was also wrong: it said "≥3 targeted triggers, ≥2
+asking" and "not reproduced"; it needs **two** triggers, **one** asking.
+
+**2 (MEDIUM, gate) — `r2` defeated by FIELD ORDER.** It classified a construction only
+when the token after `{` was literally `target_id:`. Rust does not constrain
+struct-variant field order; a real second construction written
+`{ targeting_stack_id, targeting_controller, target_id }` compiled and `r2` stayed
+GREEN. The old docstring named only the explicit-rebind residual and called it
+"measured rather than merely disclosed" — the likelier form was the one it could not
+see. Re-keyed on the mechanism: brace-balanced scan to the matching `}`, then positive
+discriminators (a trailing `=>` is a match arm; a region not naming all three fields is
+a pattern), with the ambiguous middle case asserting loudly. **The reviewer's exact
+injection was re-run and now reddens** (`found 2`).
+
+**3 (MEDIUM, gate) — `r1` defeated TWICE.** *(a)* `live_sites` returned a
+`BTreeSet<(file, func, marker)>`, so a second call inside an already-marked site
+collapsed into one element and the `len() == 12` floor never noticed — and a duplicated
+announcement **is** the Ward-fires-twice defect this batch rejected by execution, so the
+gate was blind to its own headline. Now keyed on byte offset; re-run RED (`13` vs `12`).
+*(b)* `SITE_SRCS` hardcoded six `rules/` files while `push_target_announcement` is
+`pub(crate)`, so a 13th site elsewhere was invisible — and that is concrete, because
+`OOS-DX48-6` says the next two dispatch sites belong in `effects/mod.rs`, which the list
+did not contain. `SITE_SRCS` is **deleted**; `r1` and `r1b` now walk the whole crate with
+`walk_rs`, the traversal `r2` already used. **The two axes disagreeing about their own
+search space was the real defect.** Re-run RED, naming the planted site UNMARKED. `r1b`
+widened with it, and its naive `contains("/*")` had to go: three files carry a literal
+`*/*` inside a line comment, so it strips line comments first.
+
+**4 (MEDIUM, doc) — the v4 memo's row-6 strike said the movement budget did NOT come
+due**, with a reason the batch's own fuzz A/B refutes. Commit order explains it: the
+strike (`2ce70e35`) precedes the fuzz measurement (`1eab7cf3`) and was never re-taken.
+That is PB-DX45's "measured table never re-taken" defect, and it matters because the memo
+is what the next dispatcher reads. Corrected to state the split (test suite 0, fuzz
+moved) with the figures.
+
+**5-8 (LOW / NIT, doc)** — `OOS-DX48-4`'s severity cell still read "latent — 0 deck-legal"
+while its own body said LIVE; the published engine line count did not reproduce
+(`+235 / −61` → **+267 / −61**, stale twice, since the doc-comment commit and then the
+Issue-1 fix both landed after it was taken); the `MayPayOrElse` completeness split was
+6/5/4 and is **7/4/4** (conclusion unaffected); "12 probes" beside a list of 11; and
+"Filed OOS-DX48-1..6" beside a registry carrying `-7`. All corrected.
+
+**9 (NIT) — the double `stack_objects()` lookup** in `permanent_targeted_events` is
+**declined, with the reason stated.** It is one linear pass over a list that is
+typically single-digit, it runs per ANNOUNCEMENT rather than per priority cycle, and
+merging it into `announce_targets` would fuse two independently-readable derivations
+whose separation is what lets `r2` assert a single construction site. The reviewer's
+observation that the two lookups "can disagree only in ways that fail silently" is
+correct and is why the second one deliberately does not re-assert: `announce_targets`
+has already `debug_assert!`ed the same lookup one call earlier, and asserting twice for
+one absence only makes the message noisier.
+
+**What the reviewer could NOT break, and verified positively**: no double-dispatch path
+exists (all six `flush_pending_triggers` callers scan before flushing; `PassPriority`
+and `Concede` run no sweep, which is why `handle_concede`'s explicit call is correct and
+non-duplicating); wave 1 provably terminates because the Ward trigger's own target
+carries `zone_at_cast: None`; and R-A and R-B reproduced the published matrices
+row-for-row, with each green row green for its stated reason.
