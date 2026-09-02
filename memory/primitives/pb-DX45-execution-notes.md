@@ -190,3 +190,38 @@ stayed still. Final: `protocol_schema` **17/17**, `hash_schema` **36/36**, with
 regex matched. The first pass caught 44 files and left two green-looking failures behind, both of
 which spell `assert_eq!(mtg_engine::HASH_SCHEMA_VERSION,\n 77u8, ...)` across a line break. The
 second pass is newline-tolerant. Nothing was hand-copied.
+
+---
+
+## §3 — The policy ruling (AC 7242)
+
+Full text: `memory/decisions.md`, "2026-09-02 — A `Complete` marker and CR 118.12's optional cost".
+Summary, and the two things worth reading twice:
+
+* **`OOS-DX27-5`'s central factual claim is wrong.** It says PB-DX27 *"left `ruthless_technomancer`
+  and `vampire_gourmand` at `partial` on the same shape"*. Only `vampire_gourmand`'s marker cites
+  the pay-when-able deviation. `ruthless_technomancer`'s cites its **activated** ability's missing
+  variable-X sacrifice cost, which this batch does not touch. So the re-adjudication is **one flip,
+  not two** — and a batch that had taken the row at its word would have promoted a def whose real
+  blocker is still live.
+* **The residual is ruled rather than left implicit, and the reason is consistency.** WHICH
+  permanent a `Cost::Sacrifice` optional cost eats is still the engine's lowest-`ObjectId` pick
+  (`OOS-DX45-1`). It is held not to bar `Complete` because the identical auto-pick governs
+  `Effect::SacrificePermanents`, whose ten-def Fleshbag / Grave Pact family has shipped `Complete`
+  for the life of the corpus. Ruling one fatal while the other ships would recreate exactly the
+  inconsistency `OOS-DX27-5` was filed about.
+
+### §3.1 The corpus re-deal, and a prediction that did not come true
+
+One marker flip re-deals every seeded fixture (`OOS-CARDS2-3`), and PB-DX27 needed **two**
+reconciliation passes for a single flip, so two were budgeted. **One was enough**, and the
+measured reason is worth recording because it contradicts a warning message this repo prints:
+
+`pb_dx32_fuzz_output.rs`'s `MOVED_MSG` says a `CORPUS_COMPLETE` move means *"expect the seeded
+pins listed in `memory/workstream-state.md` … to move — including this file's OWN other seeded
+gates (T2.2, T3.1, T4.1, T4.3, T6.3), which deal from the same corpus and will redden alongside
+this one."* They did not. Of the whole workspace, exactly **one** seeded pin moved
+(`UI3_SPLIT_COMBAT_SEED`); every named sibling stayed green. That is not a defect in the warning —
+it is right to warn — but "will redden" overstates it, and the honest form is "may redden; re-run
+and see". A single-def pool change can leave most deals untouched, and PB-DX26's lesson runs the
+other way too: **an unstable count is not necessarily an unstable deal.**
