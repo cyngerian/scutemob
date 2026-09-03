@@ -745,6 +745,38 @@ pub enum AnswerShapeView {
         /// answer the old engine could not produce.
         default: bool,
     },
+    /// PB-DX50: CR 702.140c — a two-way choice that is **not** a cost.
+    ///
+    /// **Deliberately NOT [`Self::Confirm`], and the reason is the label rather
+    /// than the payload.** The two shapes carry the same information (a
+    /// template, a boolean key and a default) and `ConfirmPicker` renders them
+    /// as "Pay {cost}" / "Decline". CR 702.140c's question is *over or under*:
+    /// nothing is paid, nothing is declined, and neither answer is the passive
+    /// one. Reusing `Confirm` would put a truthful payload behind a false
+    /// label — which is the defect class this queue keeps filing — so the two
+    /// answers name themselves and the picker renders exactly what it is told.
+    ///
+    /// A client renders two buttons and answers by cloning `template` and
+    /// setting the key named by `choice_key` — the same
+    /// never-respell-the-variant discipline as [`Self::Partition::template`].
+    BinaryChoice {
+        /// The button that submits `true`.
+        true_label: String,
+        /// The button that submits `false`.
+        false_label: String,
+        /// See [`Self::Partition::template`] — serialized verbatim, cloned by the
+        /// client, never re-spelled.
+        template: EffectChoiceAnswer,
+        /// The key inside `template`'s single variant object that the boolean
+        /// goes in (`"on_top"`).
+        choice_key: String,
+        /// The engine's own default answer — `true` for CR 702.140c, the exact
+        /// recovery of the pre-PB-DX50 hard-coded value. Sent so "accept the
+        /// default" is one click and so a test can assert the human drove the
+        /// OTHER one, which is the answer the old engine could not produce at
+        /// resolution time.
+        default: bool,
+    },
 }
 
 /// One card in a blocking decision's answer space, with a seat-redacted label.
@@ -1543,20 +1575,17 @@ fn action_label(action: &LegalAction, names: &NameIndex, state: &GameState) -> S
             format!("Bloodrush {} onto {}", card(*c), card(*target))
         }
         LegalAction::SaddleMount { mount, .. } => format!("Saddle {}", card(*mount)),
-        // CR 702.140a/e (PB-DX29): the two halves of the pair must be
-        // DISTINGUISHABLE in the list, or the human is offered the same button twice
-        // and the choice is invisible. "Over"/"under" rather than the field name,
-        // because that is how the printed card and every player says it.
+        // CR 702.140a (PB-DX50): **no over/under in the label**, because there is no
+        // over/under in the action any more. PB-DX29 rendered "Mutate X over/under Y"
+        // to distinguish the two halves of its `(target, on_top)` pair; CR 702.140c
+        // makes that a RESOLUTION choice, so a human now picks one action per host and
+        // is asked over-or-under when the spell resolves
+        // (`AnswerShapeView::BinaryChoice`). Keeping the word here would name a choice
+        // this button no longer makes.
         LegalAction::CastWithMutate {
             card: c,
             mutate_target,
-            on_top,
-        } => format!(
-            "Mutate {} {} {}",
-            card(*c),
-            if *on_top { "over" } else { "under" },
-            card(*mutate_target)
-        ),
+        } => format!("Mutate {} onto {}", card(*c), card(*mutate_target)),
         LegalAction::TurnFaceUp { permanent, .. } => format!("Turn {} face up", card(*permanent)),
         // CR 606.4 / CR 107.3m (PB-DX29 `/review` L9): name the loyalty COST, not the
         // slot index. Chandra has three loyalty abilities and the old label rendered
@@ -2990,6 +3019,40 @@ fn blocking_decision_view(
                         },
                     },
                 ),
+                // PB-DX50 (CR 702.140c): over or under. Like `PayOptionalCost`
+                // there is no candidate list, but unlike it there is also no
+                // cost -- so this is `BinaryChoice`, not `Confirm`, and the two
+                // labels say what the two answers actually are. `host` IS in
+                // `NameIndex`: it is a battlefield permanent (CR 400.1, public)
+                // and it is this spell's announced target, so no new
+                // `GameState` read is involved (see `test_ui6_view_rs_reads_
+                // game_state_in_exactly_the_three_known_places`).
+                EffectChoiceQuestion::MutateOnTop { host } => {
+                    let host_label = names.label(*host);
+                    (
+                        "MutateOnTop",
+                        format!(
+                            "{src}: put this on top of {host_label}, or under it? \
+                             The topmost card supplies the merged permanent's name, \
+                             mana cost, colours, types and power/toughness \
+                             (CR 702.140c / CR 702.140e)."
+                        ),
+                        AnswerShapeView::BinaryChoice {
+                            true_label: format!("On top of {host_label}"),
+                            false_label: format!("Under {host_label}"),
+                            template: answer.clone(),
+                            choice_key: "on_top".to_string(),
+                            default: match answer {
+                                EffectChoiceAnswer::MutateOnTop { on_top } => *on_top,
+                                // Unreachable against the engine, which always
+                                // pairs the variants; `true` mirrors
+                                // `default_effect_choice_answer` rather than
+                                // inventing a third behaviour.
+                                _ => true,
+                            },
+                        },
+                    )
+                }
             };
             Some(BlockingDecisionView {
                 question: question_tag.to_string(),
@@ -3472,5 +3535,160 @@ mod format_mana_cost_compact_tests {
     #[test]
     fn a_zero_cost_still_renders_as_zero() {
         assert_eq!(format_mana_cost_compact(&ManaCost::default()), "{0}");
+    }
+}
+
+#[cfg(test)]
+mod pb_dx50_binary_choice_wire_shape {
+    use super::*;
+    use mtg_engine::{
+        CardType, EffectChoiceAnswer, EffectChoiceQuestion, GameStateBuilder, ObjectSpec, PlayerId,
+        SubType,
+    };
+    use mtg_simulator::LegalAction;
+
+    /// PB-DX50 `/review` — the `MutateOnTop` decision's **serialized JSON**, asserted
+    /// key by key against what `BinaryChoicePicker.svelte` actually reads.
+    ///
+    /// # Why a wire-shape test and not another source gate
+    ///
+    /// Both halves of this surface — `view.rs`'s `blocking_decision_view` arm and
+    /// `api::validate_decision_params`' arm — were pinned by SOURCE gates only, and
+    /// nothing anywhere constructed the question and looked at the bytes. **PB-DX45
+    /// shipped a 400-on-every-answer defect on exactly this surface**: a clean offer
+    /// followed by a guaranteed refusal, with seven compile-forced consumers updated and
+    /// the eighth — the one that broke — silently taking a wildcard arm. A source gate
+    /// asserting that an arm exists cannot see a field whose name the client does not
+    /// read.
+    ///
+    /// So this asserts the five keys `ActionBar.svelte` reads off the shape
+    /// (`currentShape.true_label` / `.false_label` / `.template` / `.choice_key` /
+    /// `.default`) plus the `shape` tag it dispatches on. The `template` is checked by
+    /// PRESENCE of its single variant key, never against a hard-coded JSON string, so a
+    /// regression to `template: {}` fails here rather than sailing through.
+    ///
+    /// **Revert to watch red**: rename any of those fields in
+    /// [`AnswerShapeView::BinaryChoice`] (or its serde name), or change the `shape` tag.
+    #[test]
+    fn test_dx50_mutate_on_top_serializes_the_keys_the_picker_reads() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut host = ObjectSpec::card(p1, "DX50 Wire Host")
+            .in_zone(mtg_engine::ZoneId::Battlefield)
+            .with_types(vec![CardType::Creature])
+            .with_subtypes(vec![SubType("Wolf".to_string())]);
+        host.power = Some(2);
+        host.toughness = Some(3);
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .object(host)
+            .active_player(p1)
+            .build()
+            .expect("fixture builds");
+        let host_id = *state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == "DX50 Wire Host")
+            .map(|(id, _)| id)
+            .expect("the host is in the state");
+
+        let player_names: HashMap<PlayerId, String> =
+            [(p1, "P1".to_string()), (p2, "P2".to_string())]
+                .into_iter()
+                .collect();
+        let names = NameIndex::from_view(&StateViewModel::from_game_state_for(
+            &state,
+            &player_names,
+            mtg_view_model::Viewer::Seat(p1),
+        ));
+
+        let action = LegalAction::AnswerEffectChoice {
+            choice_id: 7,
+            source: host_id,
+            question: EffectChoiceQuestion::MutateOnTop { host: host_id },
+            answer: EffectChoiceAnswer::MutateOnTop { on_top: true },
+        };
+        let view = blocking_decision_view(&action, p1, &state, &names, &player_names)
+            .expect("the MutateOnTop arm must produce a decision view");
+        let json = serde_json::to_value(&view).expect("BlockingDecisionView serializes");
+
+        assert_eq!(json["question"], "MutateOnTop");
+        assert_eq!(
+            json["answer_field"], "effect_choice_answer",
+            "`api::validate_decision_params` reads the answer out of this \
+             `ActionParamsDto` field; a mismatch is a guaranteed 400 (PB-DX45's own \
+             defect on this exact surface): {json}"
+        );
+
+        let answer = &json["answer"];
+        assert_eq!(
+            answer["shape"], "BinaryChoice",
+            "`ActionBar.svelte` dispatches on this tag; anything else renders NO picker \
+             and the decision is unanswerable from the browser: {answer}"
+        );
+        // The five keys `ActionBar.svelte` passes into the picker, by name.
+        for key in [
+            "true_label",
+            "false_label",
+            "template",
+            "choice_key",
+            "default",
+        ] {
+            assert!(
+                answer.get(key).is_some(),
+                "`BinaryChoicePicker` reads `currentShape.{key}`; a rename here is a \
+                 silently dead control, not a compile error: {answer}"
+            );
+        }
+        assert_eq!(answer["choice_key"], "on_top");
+        assert_eq!(
+            answer["default"], true,
+            "CR 702.140c: the engine's default is the exact recovery of the pre-PB-DX50 \
+             hard-coded `on_top: true`, so bots and replays are unmoved"
+        );
+        let true_label = answer["true_label"]
+            .as_str()
+            .expect("true_label is a string");
+        let false_label = answer["false_label"]
+            .as_str()
+            .expect("false_label is a string");
+        assert!(
+            !true_label.is_empty() && !false_label.is_empty() && true_label != false_label,
+            "the two buttons must be distinguishable and non-empty: \
+             {true_label:?} / {false_label:?}"
+        );
+
+        // The template carries its variant KEY, asserted by presence rather than
+        // against a literal, and `choice_key` must name a key INSIDE it -- which is
+        // the invariant `BinaryChoicePicker` relies on when it clones and mutates.
+        let template = answer["template"]
+            .as_object()
+            .expect("template is a JSON object");
+        assert_eq!(
+            template.len(),
+            1,
+            "an externally-tagged Rust enum serializes to exactly one key: {template:?}"
+        );
+        assert!(
+            template.contains_key("MutateOnTop"),
+            "template must carry the MutateOnTop variant key: {template:?}"
+        );
+        assert_eq!(
+            answer["template"]["MutateOnTop"]["on_top"], true,
+            "`choice_key` is \"on_top\" and the picker writes the boolean THERE; if this \
+             key does not exist in the template the picker mutates a clone that the \
+             server then rejects: {template:?}"
+        );
+
+        // The prompt is a user-visible sentence: no run of collapsed whitespace, which
+        // is how the first draft of this arm rendered (three 30-space gaps from a
+        // single-physical-line `format!`).
+        let prompt = json["prompt"].as_str().expect("prompt is a string");
+        assert!(
+            !prompt.contains("  "),
+            "the prompt must read as one sentence, not a `format!` literal's leading \
+             indentation: {prompt:?}"
+        );
     }
 }

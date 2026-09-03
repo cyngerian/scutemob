@@ -1345,7 +1345,6 @@ fn translate_discard(
         0,      // x_value
         &[],    // collect_evidence_names
         0,      // squad_count
-        false,  // mutate_on_top
         None,   // gift_opponent_name
         None,   // sacrifice_card_name
         &[],    // exert_names

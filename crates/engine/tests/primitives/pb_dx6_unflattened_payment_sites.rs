@@ -1982,12 +1982,12 @@ fn all_phyrexian_attack_tax_still_costs_life() {
 /// `cost_per_creature: ManaCost` is unchanged in shape).
 fn pb_dx6_wire_versions() {
     assert_eq!(
-        PROTOCOL_VERSION, 39,
+        PROTOCOL_VERSION, 40,
         "PROTOCOL_VERSION live sentinel -- PB-DX6 moved it 32->33 (Command::TurnFaceUp \
          + Command::DeclareAttackers both gain hybrid_choices/phyrexian_life_payments)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 78,
+        HASH_SCHEMA_VERSION, 79,
         "HASH_SCHEMA_VERSION live sentinel -- PB-DX21 moved it 72->73 (CombatState \
          gains attackers_declared); PB-DX6 itself left it unmoved at 70 \
          (Command has no HashInto impl; no GameState field added)"

@@ -3,7 +3,7 @@
   "metadata": {
     "id": "script_combat_192",
     "name": "Mutate — Gemrazer cast for mutate onto Canopy Crawler; merge verified, trigger targets and destroys opponent's artifact",
-    "description": "P1 controls Canopy Crawler (2/2 Beast) and Arcane Signet on the battlefield. P2 controls a second Arcane Signet. P1 holds Gemrazer (4/4 Beast, Mutate {1}{G}{G}, Reach, Trample, Whenever this creature mutates destroy target artifact or enchantment an opponent controls). During P1's precombat main phase, P1 casts Gemrazer using its mutate cost ({1}{G}{G}), targeting Canopy Crawler (non-Human creature P1 owns — CR 702.140a). The script verifies: (1) Gemrazer on stack as MutatingCreatureSpell (count 1), (2) after merge resolves — Canopy Crawler still on battlefield as the merged permanent, trigger on stack (count 1 from Whenever this creature mutates) with its declared target auto-selected as P2's Arcane Signet (the only legal opponent-controlled artifact/enchantment — CR 601.2c/603.3d, PB-EF3 EF-W-MISS-10), (3) after trigger resolves — stack empty, Gemrazer (merged permanent) still on P1 battlefield, P1's own Arcane Signet survives (not a legal target — controller filter), P2's Arcane Signet is destroyed. The script also confirms corner case #32 (Mutate Stack Ordering): Gemrazer on top (mutate_on_top: true) is a superset of the over/under choice mechanics.",
+    "description": "P1 controls Canopy Crawler (2/2 Beast) and Arcane Signet on the battlefield. P2 controls a second Arcane Signet. P1 holds Gemrazer (4/4 Beast, Mutate {1}{G}{G}, Reach, Trample, Whenever this creature mutates destroy target artifact or enchantment an opponent controls). During P1's precombat main phase, P1 casts Gemrazer using its mutate cost ({1}{G}{G}), targeting Canopy Crawler (non-Human creature P1 owns — CR 702.140a). The script verifies: (1) Gemrazer on stack as MutatingCreatureSpell (count 1), (2) after merge resolves — Canopy Crawler still on battlefield as the merged permanent, trigger on stack (count 1 from Whenever this creature mutates) with its declared target auto-selected as P2's Arcane Signet (the only legal opponent-controlled artifact/enchantment — CR 601.2c/603.3d, PB-EF3 EF-W-MISS-10), (3) after trigger resolves — stack empty, Gemrazer (merged permanent) still on P1 battlefield, P1's own Arcane Signet survives (not a legal target — controller filter), P2's Arcane Signet is destroyed. The script also confirms corner case #32 (Mutate Stack Ordering): Gemrazer on top is a superset of the over/under choice mechanics -- and since PB-DX50 that choice is answered at RESOLUTION (CR 702.140c) through an answer_effect_choice action, not bound into the cast.",
     "cr_sections_tested": [
       "702.140a",
       "702.140c",
@@ -31,7 +31,7 @@
     "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Gemrazer card definition at crates/card-defs/src/defs/gemrazer.rs: 4/4 Beast, ManaCost {generic:3, green:1}, Mutate {1}{G}{G}, Reach, Trample, AbilityDefinition::Triggered { trigger_condition: TriggerCondition::WhenMutates, effect: Effect::DestroyPermanent { target: EffectTarget::DeclaredTarget { index: 0 } }, targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter { has_card_types: [Artifact, Enchantment], controller: Opponent, .. })] }. Canopy Crawler (2/2 Beast) is a legal mutate target: on battlefield, creature, non-Human, owned by P1 (CR 702.140a). P1's own Arcane Signet is present as a decoy — it does NOT match the trigger's Opponent controller filter, so it is never a candidate. P2's Arcane Signet is the sole legal target and is auto-selected (CR 603.3d deterministic first-match) and destroyed. Mana pool pre-loaded with 1 colorless + 2 green to pay the mutate cost {1}{G}{G} (generic maps to colorless in the engine). The cast_spell_mutate harness action (replay_harness.rs) uses: card_name=card field, target_creature=target_creature field, mutate_on_top field. The mutate trigger (TriggerCondition::WhenMutates) is converted to a runtime TriggeredAbilityDef in enrich_spec_from_def (replay_harness.rs), which fires SelfMutates on GameEvent::CreatureMutated, carrying its declared targets (PB-EF3 A1). At resolution, flush_pending_triggers auto-selects the sole legal opponent artifact via the CR 603.3d target-selection loop (PB-EF3 A2), so Effect::DestroyPermanent resolves against P2's Arcane Signet. Corner case #32 (Mutate Stack Ordering): verified by over/under choice (mutate_on_top: true) and assertion that merged permanent (Canopy Crawler object) remains on battlefield.",
+    "generation_notes": "Gemrazer card definition at crates/card-defs/src/defs/gemrazer.rs: 4/4 Beast, ManaCost {generic:3, green:1}, Mutate {1}{G}{G}, Reach, Trample, AbilityDefinition::Triggered { trigger_condition: TriggerCondition::WhenMutates, effect: Effect::DestroyPermanent { target: EffectTarget::DeclaredTarget { index: 0 } }, targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter { has_card_types: [Artifact, Enchantment], controller: Opponent, .. })] }. Canopy Crawler (2/2 Beast) is a legal mutate target: on battlefield, creature, non-Human, owned by P1 (CR 702.140a). P1's own Arcane Signet is present as a decoy — it does NOT match the trigger's Opponent controller filter, so it is never a candidate. P2's Arcane Signet is the sole legal target and is auto-selected (CR 603.3d deterministic first-match) and destroyed. Mana pool pre-loaded with 1 colorless + 2 green to pay the mutate cost {1}{G}{G} (generic maps to colorless in the engine). The cast_spell_mutate harness action (replay_harness.rs) uses: card_name=card field, target_creature=target_creature field. It NO LONGER has a mutate_on_top field: PB-DX50 moved the over/under choice to resolution time per CR 702.140c, where it is answered by an answer_effect_choice action carrying effect_choice.mutate_on_top. The mutate trigger (TriggerCondition::WhenMutates) is converted to a runtime TriggeredAbilityDef in enrich_spec_from_def (replay_harness.rs), which fires SelfMutates on GameEvent::CreatureMutated, carrying its declared targets (PB-EF3 A1). At resolution, flush_pending_triggers auto-selects the sole legal opponent artifact via the CR 603.3d target-selection loop (PB-EF3 A2), so Effect::DestroyPermanent resolves against P2's Arcane Signet. Corner case #32 (Mutate Stack Ordering): verified by the over/under choice, now answered at resolution (EffectChoiceQuestion::MutateOnTop, on_top=true), and by the assertion that the merged permanent (Canopy Crawler object) remains on battlefield.",
     "disputes": [
       {
         "step_index": null,
@@ -128,7 +128,7 @@
   "script": [
     {
       "step": "precombat_main",
-      "step_note": "P1 casts Gemrazer using its mutate cost {1}{G}{G}, targeting Canopy Crawler (non-Human Beast P1 owns). Gemrazer goes onto the stack as a MutatingCreatureSpell. After both players pass priority, the spell resolves: Gemrazer merges with Canopy Crawler (Gemrazer on top, CR 702.140c). The merge fires a 'whenever this creature mutates' trigger (CR 702.140d), whose declared target (an artifact or enchantment an opponent controls) is auto-selected as P2's Arcane Signet — the only legal candidate. The trigger goes on the stack. Both players pass again; the trigger resolves and destroys P2's Arcane Signet. Stack empties.",
+      "step_note": "P1 casts Gemrazer using its mutate cost {1}{G}{G}, targeting Canopy Crawler (non-Human Beast P1 owns). Gemrazer goes onto the stack as a MutatingCreatureSpell. After both players pass priority, the spell resolves: Gemrazer merges with Canopy Crawler (Gemrazer on top -- chosen AT RESOLUTION, CR 702.140c). The merge fires a 'whenever this creature mutates' trigger (CR 702.140d), whose declared target (an artifact or enchantment an opponent controls) is auto-selected as P2's Arcane Signet — the only legal candidate. The trigger goes on the stack. Both players pass again; the trigger resolves and destroys P2's Arcane Signet. Stack empties.",
       "actions": [
         {
           "type": "assert_state",
@@ -172,12 +172,11 @@
           "action": "cast_spell_mutate",
           "card": "Gemrazer",
           "target_creature": "Canopy Crawler",
-          "mutate_on_top": true,
           "targets": [],
           "mana_paid": null,
           "mana_source": [],
           "cr_ref": "702.140a",
-          "note": "CR 702.140a: P1 casts Gemrazer using its mutate cost {1}{G}{G} (alternative cost). Target is Canopy Crawler — a non-Human creature P1 owns on the battlefield. mutate_on_top: true means Gemrazer's card is placed on top of the merged permanent. The harness cast_spell_mutate action: card_name='Gemrazer', target_creature='Canopy Crawler', mutate_on_top=true. Translates to Command::CastSpell with alt_cost=Mutate, mutate_target=canopy_crawler_id, mutate_on_top=true."
+          "note": "CR 702.140a: P1 casts Gemrazer using its mutate cost {1}{G}{G} (alternative cost). Target is Canopy Crawler -- a non-Human creature P1 owns on the battlefield. **The over/under choice is NOT made here.** This action carried `mutate_on_top: true` until PB-DX50; CR 702.140c makes that decision one taken *as the spell resolves*, so the field was removed from the harness action and from `AdditionalCost::Mutate` alike, and it is answered by the `answer_effect_choice` action below. Translates to Command::CastSpell with alt_cost=Mutate and additional_costs=[Mutate { target: canopy_crawler_id }]."
         },
         {
           "type": "assert_state",
@@ -208,6 +207,20 @@
           ],
           "result": "all_pass",
           "note": "CR 116.3: P1 passes, P2 passes. Stack top resolves (Gemrazer as MutatingCreatureSpell). CR 405.5: LIFO."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "answer_effect_choice",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "effect_choice": {
+            "mutate_on_top": true
+          },
+          "cr_ref": "702.140c",
+          "note": "CR 702.140c / CR 608.2d (PB-DX50): *\"As a mutating creature spell resolves, if its target is legal ... The spell's controller chooses whether the spell is put on top of the creature or on the bottom.\"* The resolution SUSPENDS here on PB-DP9's CR 608.2d channel and p1 answers. `true` is also `default_effect_choice_answer`'s answer, so omitting this action would produce the identical board -- it is written explicitly because the script's whole corner-case-#32 claim is about the over/under mechanic, and a claim answered by a default is not a claim the script exercises. This action REPLACES the `mutate_on_top: true` that the cast_spell_mutate action above carried before PB-DX50."
         },
         {
           "type": "stack_resolve",

@@ -6860,9 +6860,19 @@ pub fn check_triggers_with_timing(
 ///   fires for abilities (CR 602.2b). Determined by looking up the stack object for
 ///   `targeting_stack_id` and checking `StackObjectKind::Spell` (CR 702.140a: a mutating
 ///   creature spell counts too -- see `targeting_is_spell` below; PB-DX25 review Finding 1).
-///   **Latent for the mutate case today**: the mutate target is never entered into
+///   **LIVE as of PB-DX50 (`scutemob-221`), and this comment used to say the opposite.**
+///   It read *"Latent for the mutate case today: the mutate target is never entered into
 ///   `spell_targets` (`OOS-DX25-1`), so no `PermanentBecomesTarget` event is ever raised
-///   for a mutate cast's own target -- this fix only takes effect once that gap closes.
+///   for a mutate cast's own target -- this fix only takes effect once that gap closes."*
+///   PB-DX50 half 1 **is** that gap closing: `casting::handle_cast_spell` now appends the
+///   host to the `StackObject`'s `targets`, `rules::events::permanent_targeted_events`
+///   reads that list, and the `GameEvent::PermanentTargeted` arm above dispatches Ward and
+///   this function from the same place. The comment outlived the commit that falsified it
+///   -- the shape this queue keeps filing (`OOS-DX47-6`, `OOS-DX49-6`), committed by the
+///   batch whose own headline is a false comment, and caught by neither the batch nor its
+///   `/review` until an unrelated finding was being checked. Pinned behaviourally by
+///   `primitives::pb_dx50_mutate_target_legality::test_dx50_t12_whenbecomestarget_fires_for_a_mutate_host`,
+///   so the correction is a red test rather than a second sentence.
 /// - `by_opponent`: `true` restricts to targeting sources controlled by an opponent
 ///   of the trigger source's controller (CR 702.21a-style gate).
 /// - `scope`: `None` = the trigger source itself must be the target ("Whenever this

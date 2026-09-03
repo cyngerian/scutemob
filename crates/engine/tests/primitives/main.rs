@@ -55,6 +55,8 @@ mod pb_dx47_modal_trigger_mode_zero;
 mod pb_dx48_ward_dispatch;
 mod pb_dx49_blanked_saga_sites;
 mod pb_dx4_baseline_triage;
+mod pb_dx50_mutate_on_top_timing;
+mod pb_dx50_mutate_target_legality;
 mod pb_dx5_affected_set_snapshot;
 mod pb_dx6_unflattened_payment_sites;
 mod pb_ef10_sacrifice_driven_amounts;

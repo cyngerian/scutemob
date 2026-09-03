@@ -577,7 +577,6 @@ pub fn action_to_command_with_params(
         LegalAction::CastWithMutate {
             card,
             mutate_target,
-            on_top,
         } => Ok(Command::CastSpell(Box::new(CastSpellData {
             player,
             card: *card,
@@ -591,16 +590,16 @@ pub fn action_to_command_with_params(
             modes_chosen: legal_actions::spell_default_modes(state, *card),
             x_value: 0,
             face_down_kind: None,
-            // CR 702.140a (PB-DX29): the caster's own choice, forwarded from the
-            // action. This used to be hard-coded `true`, so no client in the tree
-            // could mutate UNDER — and CR 702.140e makes the topmost card supply the
-            // merged permanent's name, cost, colours, types and P/T, so the two are
-            // genuinely different permanents. `legal_actions.rs` emits one action per
-            // (target, on_top) pair; see that field's doc for why the choice lives in
-            // the action rather than in `params`.
+            // CR 702.140a: the mutate host. **The over/under choice is NOT here**
+            // (PB-DX50): CR 702.140c makes it a RESOLUTION choice, so
+            // `AdditionalCost::Mutate` has no `on_top` field and `CastWithMutate`
+            // no longer carries one. PB-DX29 had put it on the action, emitting one
+            // offer per `(target, on_top)` pair — which was strictly better than the
+            // hard-coded `true` it replaced and still made the choice at the wrong
+            // moment. The client now answers
+            // `EffectChoiceQuestion::MutateOnTop` when the spell resolves.
             additional_costs: vec![AdditionalCost::Mutate {
                 target: *mutate_target,
-                on_top: *on_top,
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -668,9 +667,11 @@ pub fn action_to_command_with_params(
         // `LegalAction`, and `legal_actions.rs` emits one action per attacking creature
         // — the `PayEcho`/`ChooseDredge` shape); `CastMorphFaceDown`'s empty `targets`
         // is CR 708.2a-CORRECT, since a face-down spell has no text and therefore no
-        // targets; and `CastWithMutate`'s real lost choice is `on_top`, which this batch
-        // offers as a second action dimension rather than as a param (see
-        // `legal_actions.rs`' mutate loop).
+        // targets; and `CastWithMutate`'s real lost choice WAS `on_top`, which PB-DX29
+        // offered as a second action dimension — **and PB-DX50 removed from the action
+        // entirely**, because CR 702.140c makes it a resolution choice
+        // (`EffectChoiceQuestion::MutateOnTop`). So a mutate offer is once again one
+        // action per target.
         LegalAction::ActivateLoyaltyAbility {
             source,
             ability_index,

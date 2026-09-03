@@ -49,13 +49,17 @@
    * end:
    *
    *   0. blocking decision — iff `option.decision` is present (UI-1). Renders one
-   *                          of six pickers chosen by `decision.answer.shape`:
+   *                          of seven pickers chosen by `decision.answer.shape`:
    *                          `Subset` → `DiscardPicker`, `PickOne` →
    *                          `SearchPicker`, `Partition` → `PartitionPicker`,
    *                          `Slots` → the same `TargetPicker` stage 2 uses,
    *                          `PickN` (ENG-1, CR 701.9b) → `DiscardPicker` again,
    *                          `Confirm` (PB-DX45, CR 118.12) → `ConfirmPicker`,
-   *                          templated this time.
+   *                          templated this time, and `BinaryChoice` (PB-DX50,
+   *                          CR 702.140c) → `BinaryChoicePicker`, which is a
+   *                          SEPARATE component from `Confirm` on purpose — its
+   *                          two answers are not pay/decline and must not wear
+   *                          those labels.
    *   1. `ValuePrompt`     — iff `needs_x || modes.length > 0` (CR 601.2b
    *                          announces `{X}`/modes as part of casting, before
    *                          CR 601.2c's target announcement)
@@ -225,6 +229,7 @@
   import SearchPicker from './SearchPicker.svelte';
   import PartitionPicker from './PartitionPicker.svelte';
   import ConfirmPicker from './ConfirmPicker.svelte';
+  import BinaryChoicePicker from './BinaryChoicePicker.svelte';
   import CostPicker from './CostPicker.svelte';
 
   const {
@@ -973,6 +978,24 @@
           template={currentShape.template}
           payKey={currentShape.pay_key}
           defaultPay={currentShape.default}
+          answerField={currentDecision.answer_field}
+          disabled={loading}
+          onConfirm={onDecisionConfirm}
+          onCancel={cancelChain}
+          onError={onPickerError}
+        />
+      {:else if currentShape?.shape === 'BinaryChoice'}
+        <!-- PB-DX50 (CR 702.140c): a two-way choice that is NOT a cost. Deliberately
+             a different component from `Confirm` — see `BinaryChoicePicker`'s own
+             doc for why reusing the pay/decline labels would be a false label on a
+             truthful payload. -->
+        <BinaryChoicePicker
+          prompt={currentDecision.prompt}
+          trueLabel={currentShape.true_label}
+          falseLabel={currentShape.false_label}
+          template={currentShape.template}
+          choiceKey={currentShape.choice_key}
+          defaultChoice={currentShape.default}
           answerField={currentDecision.answer_field}
           disabled={loading}
           onConfirm={onDecisionConfirm}

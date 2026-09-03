@@ -589,7 +589,6 @@ fn r7_additional_cost_has_exactly_fifteen_variants() {
         },
         AdditionalCost::Mutate {
             target: ObjectId(1),
-            on_top: true,
         },
         AdditionalCost::ExileFromHand { card: ObjectId(1) },
     ];

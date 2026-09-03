@@ -178,13 +178,52 @@ fn run_delayed_trigger_cleanup(state: &mut GameState) {
 ///   avoid and PB-DX44 recreated while fixing it. PB-DX45 restructured that match
 ///   to dispatch on `question` ALONE, exhaustively and with no wildcard, so a
 ///   seventh variant is a compile error there too.
-/// * **Obligation (8), added by PB-DX45**: a new `EffectChoiceQuestion` variant
-///   must be added to `api::validate_decision_params`. More generally — and this
-///   is the durable half — **a wildcard arm that encodes a JUDGEMENT ("these two
-///   do not match") cannot also serve as a fallback for the UNKNOWN, and an enum
-///   whose growth is expected should be matched exhaustively at every gate that
-///   decides what a client may send.** Seven compile-forced sites are not
-///   evidence that the eighth is safe; they are the reason nobody looks for it.
+/// * **Obligation (8), added by PB-DX45 and WIDENED by PB-DX50**: **a wildcard arm
+///   that encodes a JUDGEMENT ("these two do not match") cannot also serve as a
+///   fallback for the UNKNOWN, and an enum whose growth is expected must be
+///   matched exhaustively at every site that DECIDES SOMETHING about it.** N
+///   compile-forced sites are not evidence that the N+1th is safe; they are the
+///   reason nobody looks for it.
+///
+///   **PB-DX45 stated this rule and named exactly ONE site,
+///   `api::validate_decision_params`. PB-DX50 found TWO MORE, in the file
+///   PB-DX45 was editing, two functions away** — inside
+///   `effects::handle_answer_effect_choice`, ~30 lines apart:
+///
+///     1. `variants_agree` was a `matches!` over six hardcoded `(question,
+///        answer)` pairs. A seventh variant did not fail to compile; `matches!`
+///        simply returned `false`, so **every legal answer to the new question was
+///        REJECTED** with "answer … does not answer question …". Measured, not
+///        argued: PB-DX50 added the variant, left this construct untouched, and
+///        `cargo check --workspace --all-targets` was GREEN across **eight**
+///        genuinely compile-forced sites while the runtime probe failed.
+///     2. The per-variant legality `match` below it ended in
+///        `_ => unreachable!("variant agreement checked above")`, so fixing (1)
+///        alone converts the rejection into a **panic in release**.
+///
+///   Both are now ONE match dispatched on `question` ALONE — the exact shape
+///   `api::validate_decision_params` already had — with the answer destructured
+///   inside each arm by a `let … else { return Err(mismatch()) }` and **no
+///   wildcard**.
+///
+///   **PB-DX50's own first draft of that fix matched the PAIR with a trailing
+///   `_ =>` and claimed in a comment that a missing arm would be a compile error.
+///   The batch's own revert matrix refuted it by execution**: the N² mismatch
+///   cases force a wildcard, Rust's exhaustiveness checker is satisfied by it, and
+///   the wildcard then silently absorbs a new MATCHING pair too — so deleting the
+///   `MutateOnTop` arm compiled and rejected every legal answer at runtime. The
+///   defect, recreated inside its own repair, behind a comment asserting the
+///   opposite.
+///
+///   **The durable half is therefore twofold.** (i) Writing the general rule down
+///   is not the same as applying it, and a rule that names one site will be read
+///   as being about that site — so this obligation names the MECHANISM: before
+///   adding a variant to `EffectChoiceQuestion` / `EffectChoiceAnswer`, grep for
+///   `matches!` and for `_ =>` arms over them, in the ENGINE as well as in
+///   `tools/`, and convert each to an exhaustive match rather than extending it.
+///   (ii) **"Exhaustive with a wildcard" is not exhaustive.** A match on a TUPLE
+///   of two growing enums cannot be made compile-forced at all; dispatch on ONE of
+///   them and destructure the other.
 ///
 /// **Obligation (7), added by PB-DP9**: a new blocking kind must STATE whether
 /// its pending state belongs in `rules/loop_detection.rs`'s mandatory-state
@@ -720,15 +759,61 @@ pub fn process_command(
             if finish_stack_resolution(&mut state, &mut events) {
                 return Ok((state, events));
             }
-            // CR 603.3: a completed resolution can have produced triggers. Skip
-            // the sweep when the engine is blocked again -- on a later CR 608.2d
-            // choice (the stack object is back and its triggers have not
-            // happened) or on a CR 603.3d flush that `resolve_top_of_stack`'s
-            // tail suspended, where `check_and_flush_triggers` would re-enter a
-            // suspended flush. Mirrors `Command::ChooseTriggerTargets`'s guard.
-            if blocking_decision(&state).is_none() {
-                check_and_flush_triggers(&mut state, &mut events);
-            }
+            // CR 603.3 (PB-DX50, `OOS-DX50-1`): **no sweep is owed here, and running
+            // one DOUBLE-DISPATCHED every trigger the replayed resolution produced.**
+            //
+            // This site used to call `check_and_flush_triggers` under a
+            // `blocking_decision(&state).is_none()` guard, with a comment saying "a
+            // completed resolution can have produced triggers". The premise is true and
+            // the conclusion does not follow: `resolve_top_of_stack_inner`'s own tail
+            // already runs `check_triggers_with_timing` over the same `events`, then
+            // `check_and_apply_sbas`, then `flush_pending_triggers` -- so a second sweep
+            // re-scans the identical slice and queues every trigger a SECOND time.
+            //
+            // `handle_all_passed` -- the ordinary CR 608.1 resolution path -- calls
+            // `resolve_top_of_stack` and then calls NOTHING, for exactly this reason.
+            // This arm is the same resolution reached through a CR 608.2d answer, so it
+            // owes the same nothing.
+            //
+            // # The deleted call did TWO things and only one of them was the defect
+            //
+            // Stated because the paragraphs above argue solely about trigger
+            // double-dispatch, and a reader checking this reasoning would otherwise have
+            // to discover the second half themselves. `check_and_flush_triggers` is
+            // `check_triggers_with_timing` -> **`run_delayed_trigger_cleanup`** ->
+            // `flush_pending_triggers`; `resolve_top_of_stack_inner`'s tail is
+            // `check_triggers_with_timing` -> `check_and_apply_sbas` ->
+            // `flush_pending_triggers`, with **no** cleanup. So deleting the call also
+            // stopped CR 610.3's delayed-trigger reaping from happening at this site; it
+            // now waits for the next command's own sweep.
+            //
+            // **No observable divergence is constructible, and the mechanism is stated
+            // rather than the conclusion asserted.** `run_delayed_trigger_cleanup` prunes
+            // two classes and `check_triggers` is independently immune to both:
+            //
+            //  * `dt.fired` entries -- `collect_delayed_triggers`' scan opens with
+            //    `if dt.fired { continue; }`, so a fired entry surviving an extra pass
+            //    dispatches nothing.
+            //  * `WhenSourceLeavesBattlefield` entries whose source has already gone --
+            //    that scan is gated on `left_battlefield`, the set of objects that left
+            //    **in the batch being checked**, and CR 400.7 gives a returning object a
+            //    NEW `ObjectId`, so a source cannot appear in that set twice.
+            //
+            // The cleanup is therefore hygiene (it keeps `state.delayed_triggers` from
+            // growing) rather than a correctness gate, and its being one command late is
+            // unobservable. **It is also exactly what `handle_all_passed` has always
+            // done**, so this is the two paths agreeing, not a new gap opened in one of
+            // them. If a future change makes `check_triggers` sensitive to a stale
+            // delayed trigger, BOTH sites need the cleanup, not just this one.
+            //
+            // **Measured, not reasoned.** `combat/192_mutate_gemrazer.json` put TWO
+            // copies of Gemrazer's `WhenMutates` trigger on the stack once PB-DX50 made
+            // the mutate resolution suspend here. The defect is **PRE-EXISTING and was
+            // reachable before this batch** -- any suspending resolution whose replay
+            // emits a trigger-producing event hits it, e.g. ENG-1's
+            // `Effect::DiscardCards` feeding a madness or "whenever you discard"
+            // trigger -- it simply had no fixture. Pinned by
+            // `primitives::pb_dx50_mutate_on_top_timing::t7_answering_queues_each_trigger_exactly_once`.
             all_events.extend(events);
         }
         // ── Crew (CR 702.122) ────────────────────────────────────────────

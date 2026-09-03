@@ -7484,172 +7484,362 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
             target,
         } => {
             let controller = stack_obj.controller;
-            let mutate_on_top = stack_obj
-                .additional_costs
-                .iter()
-                .find_map(|c| match c {
-                    AdditionalCost::Mutate { on_top, .. } => Some(*on_top),
-                    _ => None,
-                })
-                .unwrap_or(false);
-            // CR 702.140b: Check if the target is still legal at resolution time.
-            let target_still_legal = {
-                if let Some(target_obj) = state.fizzle_object(target) {
-                    let target_on_battlefield = target_obj.zone == ZoneId::Battlefield;
-                    let target_chars = crate::rules::layers::expect_characteristics(state, target);
-                    let target_is_creature = target_chars.card_types.contains(&CardType::Creature);
-                    let target_is_human = target_chars
-                        .subtypes
-                        .contains(&SubType("Human".to_string()));
-                    let target_owned_by_controller = target_obj.owner == controller;
-                    target_on_battlefield
-                        && target_is_creature
-                        && !target_is_human
-                        && target_owned_by_controller
-                } else {
-                    false
-                }
-            };
-            if !target_still_legal {
-                // CR 702.140b: Illegal target fallback — resolve as a normal creature spell.
-                // The spell enters the battlefield as a regular creature (no merge).
-                let (new_id, _old) =
-                    state.move_object_to_zone(source_object, ZoneId::Battlefield)?;
-                if let Some(obj) = state.expect_object_mut(new_id) {
-                    obj.controller = controller;
-                    obj.cast_alt_cost = Some(AltCostKind::Mutate);
-                    obj.has_summoning_sickness = true;
-                }
-                events.push(GameEvent::PermanentEnteredBattlefield {
-                    player: controller,
-                    object_id: new_id,
-                });
+            // CR 707.10 (PB-DX50 half 3, `OOS-DX50-2`): **a resolving COPY of a mutating
+            // creature spell must not touch the original's card.**
+            //
+            // `copy::copy_spell_on_stack` clones `original.kind` wholesale, so a copy is a
+            // `MutatingCreatureSpell { source_object, .. }` naming the **original's**
+            // `ObjectId`. This arm consulted `is_copy` NOWHERE, so both of its branches
+            // acted on that card: the CR 702.140b fallback called `move_object_to_zone` on
+            // it (putting someone else's spell onto the battlefield and leaving the
+            // original to resolve against a dead id, CR 400.7), and the merge branch built
+            // a `MergedComponent` from it and merged it into the target.
+            //
+            // The `StackObjectKind::Spell` arm above guards exactly this, at `:819`, under
+            // a comment saying *"The source_object belongs to the original spell and must
+            // not be moved by a copy's resolution"* -- and `:8488`'s counter path guards it
+            // a second time for the same stated reason. **This was the third such site and
+            // it was missed.**
+            //
+            // # This is not a third wrong answer; it is the SAME known deviation, applied
+            //
+            // The objection to fixing it in isolation is that a bare `is_copy` guard
+            // encodes *"a copy of a mutate spell does nothing"*, which CR 707.10f
+            // (*"as that copy resolves, it ceases being a copy of a spell and becomes a
+            // token permanent"*) contradicts. True -- and `:819` **already** encodes "a
+            // copy of a permanent spell does nothing" for every other permanent spell in
+            // this game, because CR 707.10f / CR 608.3f are unimplemented engine-wide
+            // (`grep -rn "608.3f\|707.10f" crates/engine/src crates/card-types` returns
+            // nothing; filed as `OOS-DX50-3`). Making this arm agree with `:819` is
+            // consistency, not a new answer, and PB-DX24's trade decides the rest:
+            // **a no-op is auditable; silently consuming another object's card is not.**
+            //
+            // Latent today -- no def in this corpus can copy a creature spell.
+            //
+            // **THE SHAPE IS LOAD-BEARING AND THE FIRST DRAFT GOT IT WRONG.** This guard
+            // shipped as an early `return Ok(events);` and the batch's own `/review`
+            // proved by execution that it HANGS THE GAME: a `return` here leaves
+            // `resolve_top_of_stack_inner` altogether, skipping the shared tail at the
+            // foot of this function -- `check_triggers_with_timing`, `check_and_apply_sbas`,
+            // `flush_pending_triggers` and, fatally,
+            // `priority::grant_priority_to_active_player`. The observed end state was
+            // `priority_holder: None` with `players_passed: {P1, P2}`, no blocking
+            // decision and the original spell stranded on the stack, so every subsequent
+            // `PassPriority` returned `NotPriorityHolder { expected: None }` -- an
+            // unrecoverable game.
+            //
+            // `:819`, the sibling this guard was written to agree with, is an
+            // `if / else if` chain that FALLS THROUGH to that tail. "Agree with `:819`"
+            // was the instruction and copying its condition while dropping its control
+            // flow is not agreement. This is **PB-DP8's own recorded lesson** -- *a guard
+            // that returns early inherits the obligation of the statements it skipped* --
+            // committed inside a batch that had the sentence available to it. An `else`,
+            // not a `return`.
+            if stack_obj.is_copy {
                 events.push(GameEvent::SpellResolved {
                     player: controller,
                     stack_object_id: stack_obj.id,
-                    source_object_id: new_id,
+                    source_object_id: source_object,
                 });
             } else {
-                // CR 729.2: Legal target — merge the spell with the target permanent.
-                // The spell does NOT enter the battlefield separately.
-                // Step 1: Capture the spell's data from the source object BEFORE removing it.
-                let spell_card_id = state
-                    .objects
-                    .get(&source_object)
-                    .and_then(|o| o.card_id.clone());
-                let spell_characteristics = state
-                    .objects
-                    .get(&source_object)
-                    .map(|o| o.characteristics.clone())
-                    .unwrap_or_default();
-                let spell_is_token = state
-                    .objects
-                    .get(&source_object)
-                    .map(|o| o.is_token)
-                    .unwrap_or(false);
-                // Step 2: Build a MergedComponent from the spell's data.
-                let spell_component = MergedComponent {
-                    card_id: spell_card_id,
-                    characteristics: spell_characteristics,
-                    is_token: spell_is_token,
-                };
-                // Step 3: Build a MergedComponent from the target permanent's current data.
-                // This is needed if the target has no components yet (first merge).
-                let target_existing_components = {
-                    if let Some(target_obj) = state.objects.get(&target) {
-                        target_obj.merged_components.clone()
-                    } else {
-                        imbl::Vector::new()
-                    }
-                };
-                let target_card_id = state.objects.get(&target).and_then(|o| o.card_id.clone());
-                let target_characteristics = state
-                    .objects
-                    .get(&target)
-                    .map(|o| o.characteristics.clone())
-                    .unwrap_or_default();
-                let target_is_token = state
-                    .objects
-                    .get(&target)
-                    .map(|o| o.is_token)
-                    .unwrap_or(false);
-                // Step 4: Build the new merged_components vector.
-                // If the target had no components, first record the target itself as component[0].
-                // Then insert the spell component at top (index 0) or bottom (end).
-                let new_components: imbl::Vector<MergedComponent> =
-                    if target_existing_components.is_empty() {
-                        // First merge: target becomes a component, then spell is added.
-                        let target_component = MergedComponent {
-                            card_id: target_card_id,
-                            characteristics: target_characteristics,
-                            is_token: target_is_token,
-                        };
-                        if mutate_on_top {
-                            // Spell on top: [spell, target]
-                            let mut v = imbl::Vector::new();
-                            v.push_back(spell_component);
-                            v.push_back(target_component);
-                            v
-                        } else {
-                            // Spell on bottom: [target, spell]
-                            let mut v = imbl::Vector::new();
-                            v.push_back(target_component);
-                            v.push_back(spell_component);
-                            v
-                        }
-                    } else {
-                        // Subsequent merge: target already has components.
-                        let mut v = target_existing_components;
-                        if mutate_on_top {
-                            // Spell on top: insert at front (index 0).
-                            v.push_front(spell_component);
-                        } else {
-                            // Spell on bottom: append at end.
-                            v.push_back(spell_component);
-                        }
-                        v
-                    };
-                // Step 5: Update the target permanent's merged_components.
-                // CR 729.2c: The merged permanent is the SAME object — its ObjectId is preserved.
-                // No ETB triggers fire. Continuous effects (Auras, Equipment) remain valid.
+                // CR 702.140b / CR 608.2b (PB-DX50, `OOS-DX25-1`): is the mutate host still a
+                // legal target? The four hand-rolled conjuncts that used to sit here
+                // (battlefield / creature / non-Human / owner) are DELETED; this is now the
+                // conjunction of the engine's TWO shared target-legality predicates, and
+                // NEITHER ONE ALONE IS SUFFICIENT:
                 //
-                // CR 729.2a: Also sync base characteristics from the new topmost component
-                // (merged_components[0]). This ensures that trigger scanning and other
-                // raw-characteristics lookups (which bypass the layer system) see the correct
-                // abilities. The layer system's Layer 1 override is consistent with this.
-                if let Some(target_obj) = state.expect_object_mut(target) {
-                    if let Some(top) = new_components.front() {
-                        target_obj.characteristics = top.characteristics.clone();
-                        target_obj.card_id = top.card_id.clone();
+                //  * `is_target_legal` is this engine's CR 608.2b check, and for an object
+                //    target it compares ONLY `obj.zone` against `zone_at_cast`. It is blind to
+                //    the requirement: a host that stayed on the battlefield but stopped being a
+                //    creature, or that became a Human, passes it. Using it alone here would be
+                //    STRICTLY WEAKER than the code it replaces.
+                //  * `casting::validate_targets_inner` re-applies the recorded requirement
+                //    (CR 601.2c) plus hexproof (CR 702.11b), shroud (CR 702.18a) and protection
+                //    (CR 702.16b), all from LAYER-RESOLVED characteristics -- but it has no
+                //    notion of "the zone this was targeted in", so on its own it would accept a
+                //    host that left and returned to the battlefield as a new object.
+                //
+                // Together they are strictly MORE than HEAD ever checked (HEAD missed every
+                // protection-family ability gained in response) and never less. Do not collapse
+                // them to one call.
+                //
+                // **The protection half is a DELIBERATE choice, made explicitly rather than
+                // inherited.** The alternative considered was `validate_object_satisfies_
+                // requirement` (battlefield + creature + non-Human + owner, no protection),
+                // which would also clear the "at least HEAD" bar. It was rejected for the
+                // reason this whole batch exists: `validate_targets_inner` is LITERALLY the
+                // function the cast path runs (`validate_targets_with_source` is a two-line
+                // wrapper around it), so cast-time and resolution-time legality are the same
+                // call with the same requirement -- whereas the narrower function would make
+                // site 1 and site 2 two predicates that merely agree today. It is also
+                // CR-correct: CR 608.2b makes a target illegal when it no longer matches the
+                // targeting requirements, and CR 702.11b / 702.16b / 702.18a are targeting
+                // requirements. Exercised by `t6b` in
+                // `primitives::pb_dx50_mutate_target_legality` (host gains hexproof in
+                // response -> CR 702.140b fallback), which is what stops this being an
+                // unexercised claim. As a bonus it needs no visibility widening:
+                // `validate_object_satisfies_requirement` is private to `casting.rs`.
+                //
+                // **HONESTLY UNDISCRIMINATED, disclosed here and not only in `memory/`.** The
+                // revert matrix for this batch has one row that could not be made to fail:
+                // deleting the `zone_ok` conjunct leaves the ENTIRE workspace green. The reason
+                // is structural rather than a missing probe -- `mutate_target_requirement()` is
+                // a `TargetCreatureWithFilter`, whose arm in
+                // `validate_object_satisfies_requirement` opens with `on_battlefield`, and a
+                // mutate host's `zone_at_cast` is always `Battlefield`, so `is_target_legal`'s
+                // "still in the zone it was targeted in" is SUBSUMED by the requirement today.
+                // It is kept anyway, for two stated reasons rather than by inertia: it is
+                // CR 608.2b's own sentence and belongs at a CR 608.2b site, and it is the only
+                // thing that would still hold if a future edit widened the requirement off the
+                // battlefield. Do not delete it on the grounds that no test fails -- no test
+                // CAN fail, and that is the point of writing it down here.
+                //
+                // **Known engine-wide residual (`OOS-DX50-5`), stated so it is not read as a
+                // mutate quirk.**
+                // `is_target_legal` is zone-only for EVERY spell in this engine, so
+                // protection-gained-in-response is under-checked at the CR 608.2b fizzle gate
+                // in the `StackObjectKind::Spell` arm above and at every other consumer. This
+                // arm is now ahead of them. That asymmetry is deliberate and bounded --
+                // CR 702.140b's consequence for an illegal target is a graceful fallback, not
+                // a fizzle, so getting it right here changes a merge into an ordinary creature
+                // ETB and can never silently delete a spell's effect. Closing the engine-wide
+                // gap is a separate batch.
+                //
+                // The requirement is `casting::mutate_target_requirement()` -- the SAME function
+                // `handle_cast_spell` appended at announcement time, so cast-time and
+                // resolution-time legality are one arithmetic, not two that agree.
+                //
+                // The recorded `SpellTarget` is found by matching `stack_obj.kind`'s own
+                // `target` field against `stack_obj.targets`, NOT by taking the last slot:
+                // `handle_cast_spell` appends the host last, but a `StackObject` reached by
+                // another route (a copy, or a hand-built test fixture predating PB-DX50) need
+                // not honour that convention, and matching on the kind's own field cannot be
+                // wrong about which target is the host. When no recorded entry exists at all
+                // the zone conjunct is simply unavailable and the requirement check stands
+                // alone -- which is exactly HEAD's behaviour, so such a fixture is neither
+                // strengthened nor weakened.
+                let target_still_legal = {
+                    let recorded = stack_obj
+                        .targets
+                        .iter()
+                        .find(|st| st.target == Target::Object(target));
+                    let zone_ok = match recorded {
+                        Some(st) => is_target_legal(state, st),
+                        None => true,
+                    };
+                    let source_chars =
+                        crate::rules::layers::calculate_characteristics(state, source_object);
+                    let requirement_ok = crate::rules::casting::validate_targets_inner(
+                        state,
+                        &[Target::Object(target)],
+                        &[crate::rules::casting::mutate_target_requirement()],
+                        controller,
+                        source_chars.as_ref(),
+                        Some(source_object),
+                    )
+                    .is_ok();
+                    zone_ok && requirement_ok
+                };
+                if !target_still_legal {
+                    // CR 702.140b: Illegal target fallback — resolve as a normal creature spell.
+                    // The spell enters the battlefield as a regular creature (no merge).
+                    let (new_id, _old) =
+                        state.move_object_to_zone(source_object, ZoneId::Battlefield)?;
+                    if let Some(obj) = state.expect_object_mut(new_id) {
+                        obj.controller = controller;
+                        obj.cast_alt_cost = Some(AltCostKind::Mutate);
+                        obj.has_summoning_sickness = true;
                     }
-                    target_obj.merged_components = new_components;
-                }
-                // Step 6: Remove the spell's source_object from state.
-                // CR 729.2b: "The spell leaves its previous zone and becomes part of an object."
-                // The card is absorbed into the target permanent's merged_components.
-                // It is NOT moved to any zone — it simply ceases to exist as a separate entity.
-                let spell_zone = state.objects.get(&source_object).map(|o| o.zone);
-                if let Some(zone) = spell_zone {
-                    if let Some(zone_set) = state.expect_zone_mut(&zone) {
-                        zone_set.remove(&source_object);
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: controller,
+                        object_id: new_id,
+                    });
+                    events.push(GameEvent::SpellResolved {
+                        player: controller,
+                        stack_object_id: stack_obj.id,
+                        source_object_id: new_id,
+                    });
+                } else {
+                    // CR 702.140c (PB-DX50, `OOS-DX29-2`): *"As a mutating creature spell
+                    // resolves, if its target is legal … **The spell's controller chooses
+                    // whether the spell is put on top of the creature or on the bottom.**"*
+                    //
+                    // **Three properties of WHERE this sits, each load-bearing.**
+                    //
+                    //  * It is inside the LEGAL-TARGET branch, because CR 702.140c's own
+                    //    antecedent is "if its target is legal". A spell taking CR 702.140b's
+                    //    fallback merges with nothing, so there is no over/under to choose and
+                    //    asking would offer a decision with no consequence.
+                    //  * It is BEFORE any state mutation in this branch. `ask_resolution_choice`
+                    //    returning `None` means `resolve_top_of_stack`'s wrapper is about to
+                    //    roll the whole resolution back and emit the question, so anything
+                    //    written first would be written twice on the replay -- and every other
+                    //    CR 608.2d site in this engine obeys the same discipline.
+                    //  * It reads `controller`, not the active player: CR 702.140c gives the
+                    //    choice to **the spell's controller** (CR 109.4).
+                    //
+                    // **Determinism (PB-DP9's standing obligation, audited rather than
+                    // asserted).** The replay re-runs this WHOLE arm from the top, so every
+                    // statement before this ask must be a deterministic function of the state.
+                    // Enumerated: `controller` is a field read; `target_still_legal` is
+                    // `is_target_legal` (a zone comparison) conjoined with
+                    // `validate_targets_inner` over a `Vec` of one target and a `Vec` of one
+                    // requirement built by `mutate_target_requirement()`, a constructor with no
+                    // inputs. `calculate_characteristics` is the layer walk, which is
+                    // deterministic by SR-9b. **No `HashMap`/`HashSet` iteration reaches an
+                    // outcome on this path** -- the only container walked is
+                    // `stack_obj.targets`, a `Vec`, by `.find`. So the replay recomputes the
+                    // identical question and `ask_or_consume_effect_choice_core`'s structural
+                    // question-equality check consumes the banked answer rather than tripping
+                    // its SR-4 `debug_assert`.
+                    //
+                    // **Obligation (7) (`rules/engine.rs`, PB-DP9): a new blocking KIND must
+                    // state whether its pending state belongs in `rules/loop_detection.rs`'s
+                    // mandatory-state fingerprint.** This is **not** a new blocking kind. It
+                    // reuses `PendingEffectChoice`/`BlockingDecision::EffectChoice`
+                    // wholesale -- no new `GameState` field, no new `BlockingDecision` variant
+                    // -- so whatever that fingerprint does with a pending effect choice today,
+                    // it does with this one, unchanged. Stated explicitly rather than skipped
+                    // in silence, because "no new field" is the answer and not the absence of
+                    // one.
+                    let mutate_on_top = match crate::effects::ask_resolution_choice(
+                        state,
+                        source_object,
+                        controller,
+                        crate::state::EffectChoiceQuestion::MutateOnTop { host: target },
+                    ) {
+                        Some(crate::state::EffectChoiceAnswer::MutateOnTop { on_top }) => on_top,
+                        // The question suspended: return applying NOTHING, exactly like every
+                        // other CR 608.2d ask in this engine. The wrapper restores the state to
+                        // the moment before this resolution began.
+                        None => return Ok(events),
+                        // Unreachable: `handle_answer_effect_choice` refuses a mismatched pair
+                        // (check 4) before it is ever banked, and `default_effect_choice_answer`
+                        // pairs the variants. Recovering with the default rather than panicking
+                        // keeps a release build on the pre-batch behaviour if it ever happens.
+                        Some(_) => true,
+                    };
+                    // CR 729.2: Legal target — merge the spell with the target permanent.
+                    // The spell does NOT enter the battlefield separately.
+                    // Step 1: Capture the spell's data from the source object BEFORE removing it.
+                    let spell_card_id = state
+                        .objects
+                        .get(&source_object)
+                        .and_then(|o| o.card_id.clone());
+                    let spell_characteristics = state
+                        .objects
+                        .get(&source_object)
+                        .map(|o| o.characteristics.clone())
+                        .unwrap_or_default();
+                    let spell_is_token = state
+                        .objects
+                        .get(&source_object)
+                        .map(|o| o.is_token)
+                        .unwrap_or(false);
+                    // Step 2: Build a MergedComponent from the spell's data.
+                    let spell_component = MergedComponent {
+                        card_id: spell_card_id,
+                        characteristics: spell_characteristics,
+                        is_token: spell_is_token,
+                    };
+                    // Step 3: Build a MergedComponent from the target permanent's current data.
+                    // This is needed if the target has no components yet (first merge).
+                    let target_existing_components = {
+                        if let Some(target_obj) = state.objects.get(&target) {
+                            target_obj.merged_components.clone()
+                        } else {
+                            imbl::Vector::new()
+                        }
+                    };
+                    let target_card_id = state.objects.get(&target).and_then(|o| o.card_id.clone());
+                    let target_characteristics = state
+                        .objects
+                        .get(&target)
+                        .map(|o| o.characteristics.clone())
+                        .unwrap_or_default();
+                    let target_is_token = state
+                        .objects
+                        .get(&target)
+                        .map(|o| o.is_token)
+                        .unwrap_or(false);
+                    // Step 4: Build the new merged_components vector.
+                    // If the target had no components, first record the target itself as component[0].
+                    // Then insert the spell component at top (index 0) or bottom (end).
+                    let new_components: imbl::Vector<MergedComponent> =
+                        if target_existing_components.is_empty() {
+                            // First merge: target becomes a component, then spell is added.
+                            let target_component = MergedComponent {
+                                card_id: target_card_id,
+                                characteristics: target_characteristics,
+                                is_token: target_is_token,
+                            };
+                            if mutate_on_top {
+                                // Spell on top: [spell, target]
+                                let mut v = imbl::Vector::new();
+                                v.push_back(spell_component);
+                                v.push_back(target_component);
+                                v
+                            } else {
+                                // Spell on bottom: [target, spell]
+                                let mut v = imbl::Vector::new();
+                                v.push_back(target_component);
+                                v.push_back(spell_component);
+                                v
+                            }
+                        } else {
+                            // Subsequent merge: target already has components.
+                            let mut v = target_existing_components;
+                            if mutate_on_top {
+                                // Spell on top: insert at front (index 0).
+                                v.push_front(spell_component);
+                            } else {
+                                // Spell on bottom: append at end.
+                                v.push_back(spell_component);
+                            }
+                            v
+                        };
+                    // Step 5: Update the target permanent's merged_components.
+                    // CR 729.2c: The merged permanent is the SAME object — its ObjectId is preserved.
+                    // No ETB triggers fire. Continuous effects (Auras, Equipment) remain valid.
+                    //
+                    // CR 729.2a: Also sync base characteristics from the new topmost component
+                    // (merged_components[0]). This ensures that trigger scanning and other
+                    // raw-characteristics lookups (which bypass the layer system) see the correct
+                    // abilities. The layer system's Layer 1 override is consistent with this.
+                    if let Some(target_obj) = state.expect_object_mut(target) {
+                        if let Some(top) = new_components.front() {
+                            target_obj.characteristics = top.characteristics.clone();
+                            target_obj.card_id = top.card_id.clone();
+                        }
+                        target_obj.merged_components = new_components;
                     }
+                    // Step 6: Remove the spell's source_object from state.
+                    // CR 729.2b: "The spell leaves its previous zone and becomes part of an object."
+                    // The card is absorbed into the target permanent's merged_components.
+                    // It is NOT moved to any zone — it simply ceases to exist as a separate entity.
+                    let spell_zone = state.objects.get(&source_object).map(|o| o.zone);
+                    if let Some(zone) = spell_zone {
+                        if let Some(zone_set) = state.expect_zone_mut(&zone) {
+                            zone_set.remove(&source_object);
+                        }
+                    }
+                    state.objects.remove(&source_object);
+                    // Step 7: Emit CreatureMutated event (CR 702.140d).
+                    // This event fires BEFORE "whenever this creature mutates" triggers are checked,
+                    // so check_triggers below will catch SelfMutates triggers on the merged permanent.
+                    events.push(GameEvent::CreatureMutated {
+                        object_id: target,
+                        player: controller,
+                    });
+                    // Step 8: Emit SpellResolved for the mutating spell.
+                    // source_object_id is the target (merged permanent) since the spell
+                    // became part of it (CR 729.2b). No PermanentEnteredBattlefield (CR 729.2c).
+                    events.push(GameEvent::SpellResolved {
+                        player: controller,
+                        stack_object_id: stack_obj.id,
+                        source_object_id: target,
+                    });
                 }
-                state.objects.remove(&source_object);
-                // Step 7: Emit CreatureMutated event (CR 702.140d).
-                // This event fires BEFORE "whenever this creature mutates" triggers are checked,
-                // so check_triggers below will catch SelfMutates triggers on the merged permanent.
-                events.push(GameEvent::CreatureMutated {
-                    object_id: target,
-                    player: controller,
-                });
-                // Step 8: Emit SpellResolved for the mutating spell.
-                // source_object_id is the target (merged permanent) since the spell
-                // became part of it (CR 729.2b). No PermanentEnteredBattlefield (CR 729.2c).
-                events.push(GameEvent::SpellResolved {
-                    player: controller,
-                    stack_object_id: stack_obj.id,
-                    source_object_id: target,
-                });
             }
         }
         // CR 701.28 / CR 712.18a: Transform trigger resolves — flip the permanent.

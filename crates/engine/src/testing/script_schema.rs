@@ -430,12 +430,6 @@ pub enum ScriptAction {
         /// Ignored for all other action types. `#[serde(default)]` means 0 if absent from JSON.
         #[serde(default)]
         squad_count: u32,
-        /// CR 702.140a: For `cast_spell_mutate`. When true, the mutating spell is placed
-        /// on top of the merged permanent (topmost characteristics from the spell's card).
-        /// When false, placed underneath (topmost characteristics from the existing target).
-        /// Ignored for all other action types.
-        #[serde(default)]
-        mutate_on_top: bool,
         /// CR 602.2: For `activate_ability` with sacrifice-another-permanent cost.
         /// The name of the permanent on the battlefield to sacrifice as part of
         /// the ability's activation cost. `None` for abilities that don't require
@@ -680,6 +674,21 @@ pub struct EffectChoiceScriptAnswer {
     /// engine cannot keep.
     #[serde(default)]
     pub pay_optional_cost: Option<bool>,
+    /// PB-DX50: CR 702.140c — for a mutate over/under offer
+    /// (`EffectChoiceQuestion::MutateOnTop`), whether the spell goes on top.
+    ///
+    /// `None` (the field omitted) means **on top**, which is
+    /// `default_effect_choice_answer`'s answer and therefore the exact behaviour
+    /// `combat/192_mutate_gemrazer.json` encoded with the CAST action's
+    /// `mutate_on_top: true` before this batch moved the choice to resolution
+    /// time. That field is GONE from `Action` — CR 702.140c makes this a
+    /// resolution choice, and a script that could still make it at cast time
+    /// would be scripting a rule the engine no longer has.
+    ///
+    /// A `bool` rather than a name list, for CR 702.140c's own reason: the
+    /// answer space is over-or-under, not a set of cards.
+    #[serde(default)]
+    pub mutate_on_top: Option<bool>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]

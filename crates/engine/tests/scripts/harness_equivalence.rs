@@ -753,16 +753,15 @@ fn translate(
         &[],  // splice
         0,    // escalate_modes
         modes_chosen,
-        None,  // target_creature
-        0,     // x_value
-        &[],   // collect_evidence
-        0,     // squad_count
-        false, // mutate_on_top
-        None,  // gift_opponent
-        None,  // sacrifice_card
-        &[],   // exert
-        None,  // pitch_exile_card
-        None,  // chosen_color
+        None, // target_creature
+        0,    // x_value
+        &[],  // collect_evidence
+        0,    // squad_count
+        None, // gift_opponent
+        None, // sacrifice_card
+        &[],  // exert
+        None, // pitch_exile_card
+        None, // chosen_color
         hybrid_choices,
         phyrexian_life_payments,
         &[],  // discard_cards

@@ -6015,7 +6015,6 @@ mod tests {
                 "Mutate",
                 mtg_engine::AdditionalCost::Mutate {
                     target: mtg_engine::ObjectId(7),
-                    on_top: true,
                 },
             ),
             (
@@ -7941,6 +7940,11 @@ mod tests {
             "DiscardPicker.svelte",
             // PB-DX45 (CR 118.12): the fifth.
             "ConfirmPicker.svelte",
+            // PB-DX50 (CR 702.140c): the sixth. Structurally the same shape as
+            // `ConfirmPicker` and deliberately a different component -- see its own
+            // doc for why "Pay {cost}" / "Decline" is the wrong label for an
+            // over/under question.
+            "BinaryChoicePicker.svelte",
         ] {
             let text = text_of(picker);
             // `onError?.(` and not the bare identifier: the identifier matches the
@@ -7965,8 +7969,8 @@ mod tests {
         let action_bar = text_of("ActionBar.svelte");
         assert_eq!(
             action_bar.matches("onError={onPickerError}").count(),
-            5,
-            "all five template-copying pickers must be given `onPickerError` \
+            6,
+            "all six template-copying pickers must be given `onPickerError` \
              (PB-DX45 added `ConfirmPicker`, CR 118.12 -- and this ratchet is what \
              caught it: a new picker wired into `ActionBar` without the error prop \
              would be a silent dead button, which is exactly the UI-4 symptom this \
@@ -13835,6 +13839,156 @@ mod tests {
              never-respell-the-variant discipline every other picker in this client follows \
              (see `AnswerShapeView::Partition::template`'s own doc). The JSDoc header is \
              allowed to name it in prose; this check does not run over that."
+        );
+    }
+
+    /// **PB-DX50 -- a frontend source gate: the client answers the `BinaryChoice`
+    /// shape, with a picker of its OWN, without ever spelling the engine's variant
+    /// name.**
+    ///
+    /// Source-level, for the standing reason this file states everywhere else --
+    /// there is no frontend test harness (plan §8 R7). All three files pinned here
+    /// live directly under `frontend/src/lib/`, inside `collect_frontend_files`'s
+    /// walk root, not behind the `$viewer` alias.
+    ///
+    /// **The third assertion is the one worth having.** CR 702.140c's answer space
+    /// is a bool with a template and a key, i.e. structurally identical to
+    /// CR 118.12's, so `AnswerShapeView::Confirm` would have WORKED -- and
+    /// `ConfirmPicker` renders "Pay {cost}" / "Decline", which is a false label on
+    /// a truthful payload. This gate fails if a later edit collapses the two.
+    #[test]
+    fn test_dx50_frontend_answers_the_binary_choice_shape_without_spelling_the_variant() {
+        let frontend_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&frontend_src, &mut sources);
+
+        let action_bar = sources
+            .iter()
+            .find(|(p, _)| p.ends_with("ActionBar.svelte"))
+            .map(|(_, t)| t.as_str())
+            .expect("ActionBar.svelte is in the frontend walk");
+        let picker = sources
+            .iter()
+            .find(|(p, _)| p.ends_with("BinaryChoicePicker.svelte"))
+            .map(|(_, t)| t.as_str())
+            .expect("BinaryChoicePicker.svelte is in the frontend walk");
+
+        assert!(
+            action_bar.contains("currentShape?.shape === 'BinaryChoice'"),
+            "ActionBar.svelte must dispatch on the BinaryChoice shape, or a human who \
+             casts a mutate spell gets the visible \"unknown shape\" fallback and the \
+             game DEADLOCKS on a resolution nobody can answer"
+        );
+        assert!(
+            action_bar.contains("<BinaryChoicePicker"),
+            "ActionBar.svelte must mount BinaryChoicePicker for the BinaryChoice shape"
+        );
+        // The two shapes must stay two components. `ConfirmPicker`'s markup is
+        // `Pay {costLabel}` / `Decline`; mounting it for CR 702.140c would put a
+        // pay/decline label on an over/under question.
+        let bc_arm_start = action_bar
+            .find("currentShape?.shape === 'BinaryChoice'")
+            .expect("checked above");
+        let bc_arm = &action_bar[bc_arm_start..];
+        let bc_arm_end = bc_arm.find("{:else").unwrap_or(bc_arm.len());
+        let bc_arm = &bc_arm[..bc_arm_end];
+        assert!(
+            !bc_arm.contains("<ConfirmPicker"),
+            "the BinaryChoice arm must NOT mount ConfirmPicker: its buttons read \
+             \"Pay {{cost}}\" and \"Decline\", and CR 702.140c's answers are over and \
+             under -- neither is a payment and neither is the passive one. Arm: {bc_arm}"
+        );
+
+        // The rule is about CODE, not PROSE -- `ConfirmPicker`'s gate above states
+        // why. Same stripping, same reason.
+        fn strip_block_comments(text: &str) -> String {
+            let mut out = String::with_capacity(text.len());
+            let mut rest = text;
+            while let Some(start) = rest.find("/*") {
+                out.push_str(&rest[..start]);
+                match rest[start..].find("*/") {
+                    Some(end) => rest = &rest[start + end + 2..],
+                    None => {
+                        rest = "";
+                        break;
+                    }
+                }
+            }
+            out.push_str(rest);
+            out
+        }
+        // **The SERVER half, and it is the half the first draft of this gate missed.**
+        // Everything above pins the FRONTEND. If `view.rs` started emitting
+        // `AnswerShapeView::Confirm` for the CR 702.140c question, the browser would
+        // faithfully render `ConfirmPicker` -- "Pay {host}" / "Decline" -- and every
+        // assertion above would stay GREEN, because the `BinaryChoice` arm they check
+        // would simply never be reached.
+        //
+        // **Measured, not reasoned.** The revert was executed: swapping the arm to
+        // `Confirm` and neutralising the `dead_code` error that the now-unconstructed
+        // variant raises left all 121 play-server tests passing. The `dead_code` error
+        // is NOT a substitute for this check -- it is an artefact of `BinaryChoice`
+        // having exactly one construction site today, and it would vanish the moment a
+        // second question used the shape. (PB-DX32 §7 R7's class: a revert that fails to
+        // COMPILE is not a revert that DISCRIMINATES.)
+        //
+        // Brace-matched from the arm head, never a fixed window (PB-DX49 `/review`).
+        {
+            let view_src = std::fs::read_to_string(
+                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/view.rs"),
+            )
+            .expect("src/view.rs is readable");
+            let arm = view_src
+                .find("EffectChoiceQuestion::MutateOnTop { host } => {")
+                .expect("view.rs must have a MutateOnTop arm in the shape dispatch");
+            let bytes = view_src.as_bytes();
+            let mut i = arm + "EffectChoiceQuestion::MutateOnTop { host } => {".len();
+            let mut depth = 1usize;
+            while i < bytes.len() && depth > 0 {
+                match bytes[i] {
+                    b'{' => depth += 1,
+                    b'}' => depth -= 1,
+                    _ => {}
+                }
+                i += 1;
+            }
+            assert!(depth == 0, "unbalanced braces in view.rs's MutateOnTop arm");
+            let body = &view_src[arm..i];
+            // Non-vacuity: the extracted region really is that arm.
+            assert!(
+                body.contains("CR 702.140c") && body.len() < 3000,
+                "the extracted arm must be the MutateOnTop one and must not have \
+                 over-scanned; got {} bytes",
+                body.len()
+            );
+            assert!(
+                body.contains("AnswerShapeView::BinaryChoice"),
+                "view.rs's MutateOnTop arm must build `BinaryChoice`. Arm: {body}"
+            );
+            assert!(
+                !body.contains("AnswerShapeView::Confirm"),
+                "view.rs's MutateOnTop arm must NOT build `Confirm`: `ConfirmPicker` \
+                 renders \"Pay {{cost}}\" and \"Decline\", and CR 702.140c's two answers \
+                 are over and under -- neither is a payment and neither is the passive \
+                 one. That would be a truthful payload behind a false label. Arm: {body}"
+            );
+        }
+
+        let picker_code = strip_block_comments(picker);
+        assert!(
+            picker_code.contains("choiceKey"),
+            "the comment-stripping above must not have eaten the real code too -- \
+             `choiceKey` is a real identifier this component reads: {picker_code}"
+        );
+        assert!(
+            !picker_code.contains("MutateOnTop"),
+            "BinaryChoicePicker.svelte's CODE (comments stripped) must never spell the \
+             engine's variant name -- it clones `template` and writes only `choiceKey`, \
+             the same never-respell-the-variant discipline every other picker in this \
+             client follows. The JSDoc header is allowed to name it in prose; this check \
+             does not run over that."
         );
     }
 }

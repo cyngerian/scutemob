@@ -2819,12 +2819,37 @@ fn test_dp9_roster_enumeration() {
 /// `ChooseObject`, CR 115.10's untargeted-choice channel).
 ///
 /// That branch skips an obligation (offering the choice), so this test is where
-/// the obligation is discharged: **no `Complete` card def puts one of the five
-/// asking effects inside a mana ability.** If this ever reddens, the branch has
+/// the obligation is discharged: **no `Complete` card def puts one of the asking
+/// effects inside a mana ability.** If this ever reddens, the branch has
 /// become live and the card needs a rules decision, not a silent default.
+///
+/// # PB-DX50: this gate's own instruction is no longer sufficient, and that is
+/// # stated here rather than left for the next reader to trip over
+///
+/// The needle list below carries the instruction *"re-derive the list from the
+/// `ask_or_consume_effect_choice` call sites"*. **As of PB-DX50 that is a floor,
+/// not a census.** CR 702.140c's mutate over/under question is asked from
+/// `rules::resolution`'s `StackObjectKind::MutatingCreatureSpell` arm via
+/// `effects::ask_resolution_choice` — it is **not an `Effect` variant at all**, so
+/// no card-def needle can express it and re-deriving from the `Effect`-shaped call
+/// sites will silently miss it.
+///
+/// Its obligation is discharged instead by part **(c)** below: a statement of
+/// STRUCTURAL UNREACHABILITY plus a gate on that statement. A needle scanning for
+/// a variant name that does not exist would measure nothing, and a gate that
+/// cannot fail is a comment — this queue has filed that shape three times.
 ///
 /// The behavioural half is asserted directly: with the gate closed the effect
 /// applies the default and records NO entry.
+///
+/// # PB-DX50 `/review`: part (c) was DEFEATED, and its gate now lives in `core`
+///
+/// Its "exactly one site in the tree" census read three hardcoded files (`mana.rs`,
+/// `effects/mod.rs`, `resolution.rs`) and counted one of the two spellings, so setting
+/// `rules/abilities.rs:290`'s `effect_choice_gate_closed: false` to `true` left this test
+/// **GREEN**. The replacement walks the workspace and counts both spellings; see the
+/// comment at part (c) for why it had to move to another test binary to do that, and for
+/// the two-way link that stops either half being deleted alone.
 fn test_dp9_mana_ability_gate() {
     // (a) The roster obligation.
     // `ManaAbility` carries no `Effect` tree of its own, so the ONLY route into
@@ -2953,4 +2978,42 @@ fn test_dp9_mana_ability_gate() {
         Some("Top"),
         "the default is the identity: the looked-at card stays on top"
     );
+
+    // (c) PB-DX50's SEVENTH channel, discharged by structural unreachability
+    //     rather than by an eighth needle -- see this test's own doc for why a
+    //     card-def needle would measure nothing here.
+    //
+    // The claim: CR 702.140c's mutate over/under question CANNOT be reached from
+    // the gate-closing site. It is asked from
+    // `rules::resolution::resolve_top_of_stack_inner`'s
+    // `StackObjectKind::MutatingCreatureSpell` arm, which by definition is
+    // resolving a STACK OBJECT; the gate is closed only at `rules::mana.rs`'s
+    // `WhenTappedForMana` branch, and CR 605.1b/605.4a make a mana ability resolve
+    // OUTSIDE the stack, so it never enters `resolve_top_of_stack` at all.
+    //
+    // **The gate on that claim lives in `core::pb_dx50_effect_choice_gate_sites`,
+    // not here, and the move is the `/review`'s finding rather than tidying.** Its
+    // first draft lived in this function, read THREE hardcoded files and counted
+    // ONE of the two spellings (`= true`, missing the struct-literal `: true` that
+    // every `EffectContext` in this tree actually uses), so setting
+    // `rules/abilities.rs`'s `effect_choice_gate_closed: false` to `true` left this
+    // test GREEN. The fix is a WORKSPACE walk, and the only workspace-wide source
+    // walk in this tree -- `pb_dx49_saga_blanking_roster::workspace_src_files_checked`,
+    // with its executing non-vacuity floors -- is in the `core` test binary. Cargo
+    // integration-test binaries are separate crates, so `primitives` cannot use it,
+    // and the two remaining options were a second copy of the walk (which
+    // `pb_dx50_mutate_site_roster`'s module doc rejects by name) or a `#[path]`
+    // include, which **SR-9a's `no_stray_test_binaries` gate refuses outright**, and
+    // correctly: an attribute on a `mod` line is a way to look declared while not
+    // being compiled. That gate fired on the first draft of this fix and it was
+    // right. So the census went to `core`, which SR-9a's own layout table calls the
+    // home of "the machine-checked invariant gates". Parts (a) and (b) above need
+    // no walk and stay here.
+    //
+    // The two files are linked in BOTH directions: `g3` there asserts that THIS
+    // function still exists and still carries the pointer below, so neither half
+    // can be deleted while the other goes on claiming to be covered.
+    //
+    // SEE: crates/engine/tests/core/pb_dx50_effect_choice_gate_sites.rs
+    //      (`core::pb_dx50_effect_choice_gate_sites`, tests g1-g4)
 }

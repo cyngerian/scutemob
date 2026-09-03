@@ -238,8 +238,77 @@ pub fn copy_spell_on_stack(
         // had the collect evidence cost paid (CR 707.2 — copies copy choices made during casting).
         evidence_collected: original.evidence_collected,
         is_cast_transformed: false,
-        // CR 707.2: Copies copy choices (entwine, escalate, fuse) but not one-shot
-        // additional costs (sacrifice, discard, squad, offspring, gift, mutate).
+        // CR 707.10 (PB-DX50 half 3) -- the ALLOWLIST of `AdditionalCost` variants a
+        // spell copy inherits. Pinned by
+        // `core::pb_dx50_copy_additional_cost_roster`, so an edit to this list is
+        // visible rather than silent.
+        //
+        // # The comment that used to be here was refuted by the rule it cited
+        //
+        // It said: *"CR 707.2: Copies copy choices (entwine, escalate, fuse) but not
+        // one-shot additional costs (sacrifice, discard, squad, offspring, gift,
+        // mutate)."* Three things wrong with that, in increasing order of importance.
+        //
+        //  1. **Its RULE does not exist.** CR 707.10, verbatim: *"A copy of a spell or
+        //     ability copies both the characteristics of the spell or ability and all
+        //     decisions made for it, including modes, targets, the value of X, **and
+        //     additional or alternative costs**."* CR 707.2's own example list already
+        //     includes an optional additional cost -- *"whether it was **kicked**"*. The
+        //     choice-vs-one-shot-cost dichotomy is invented; "additional cost" is not a
+        //     category the CR excludes. What CR 707.10 actually says is three separate
+        //     things: the copy is TREATED AS HAVING PAID the same costs; it does not
+        //     ACTUALLY pay them; and *"if an effect of the copy refers to objects used
+        //     to pay its costs, it uses the objects used to pay the costs of the
+        //     original"*.
+        //  2. **Its LIST named 6 of the 12 dropped variants**, silently omitting
+        //     `EscapeExile`, `CollectEvidenceExile`, `Assist`, `Replicate`, `Splice`
+        //     and `ExileFromHand`. A reader checking the comment against the code could
+        //     not tell whether those six had been considered.
+        //  3. **The two drops that ARE CR-correct had no stated reason**, so they read
+        //     as instances of the invented rule rather than as the exceptions they are.
+        //     Both reasons are given below.
+        //
+        // # What is propagated, and why, variant by variant
+        //
+        //  * `Entwine` (CR 702.42b), `Fuse` (CR 702.102d), `EscalateModes`
+        //    (CR 702.120a) -- decisions made for the spell, CR 707.10 sentence 2.
+        //    Correct before this batch, for the reason now stated.
+        //  * `Mutate` (CR 702.140a) -- **added by PB-DX50**. The mutate host is a
+        //    TARGET, and CR 707.10 sentence 2 copies targets in as many words. Dropping
+        //    it made a copied mutating creature spell a
+        //    `MutatingCreatureSpell { target }` (the `kind` is cloned wholesale at the
+        //    top of this function) whose `additional_costs` no longer agreed with its
+        //    own `kind` -- two records of one decision, disagreeing.
+        //
+        //    **CR 707.10 sentence 3 -- *"Choices that are normally made on resolution
+        //    are not copied"* -- is satisfied BY CONSTRUCTION rather than by this
+        //    filter.** CR 702.140c makes over/under a resolution choice, and PB-DX50
+        //    half 2 removed `on_top` from this variant entirely, so there is no field
+        //    for the copy to inherit: the copy asks its own question when it resolves.
+        //    That is why `Mutate` can join the allowlist without violating the same
+        //    rule that justifies it.
+        //
+        // # The two CR-correct drops, with the reasons the old comment omitted
+        //
+        //  * `Splice` (CR 702.47c) makes the spliced text part of the spell, i.e. it is
+        //    a TEXT-CHANGING effect, and CR 707.2 excludes text-changing effects from a
+        //    copy. The operative line is `spliced_effects: vec![]` above; this filter
+        //    merely agrees with it.
+        //  * `Mutate`'s over/under -- CR 702.140c / CR 707.10 sentence 3, above.
+        //
+        // # The seven remaining drops are NOT justified here, and that is deliberate
+        //
+        // `Sacrifice`, `Gift`, `Squad` and `Offspring` are dropped **incorrectly** under
+        // CR 707.10, and are FILED rather than fixed: each is latent (no def in this
+        // corpus can copy another card's spell -- `Effect::CopySpellOnStack` has zero
+        // genuine declarations, and the six copy sources are all self-copying instants
+        // or sorceries), and `Squad`/`Offspring` additionally read from inside the
+        // `is_permanent` ETB arm, which CR 707.10f makes unreachable for a copy in this
+        // engine. `Discard`, `EscapeExile` and `ExileFromHand` are dropped in principle
+        // wrongly and are unobservable -- nothing reads them at resolution.
+        // `CollectEvidenceExile`, `Assist` and `Replicate` are correct as-is. Full
+        // per-variant audit with the read sites:
+        // `memory/primitives/pb-DX50-additional-cost-copy-audit.md`.
         additional_costs: original
             .additional_costs
             .iter()
@@ -249,6 +318,7 @@ pub fn copy_spell_on_stack(
                     crate::state::types::AdditionalCost::Entwine
                         | crate::state::types::AdditionalCost::Fuse
                         | crate::state::types::AdditionalCost::EscalateModes { .. }
+                        | crate::state::types::AdditionalCost::Mutate { .. }
                 )
             })
             .cloned()

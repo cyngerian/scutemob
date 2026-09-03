@@ -1,44 +1,52 @@
-//! PB-DX29 — CR 702.140a/c/e: a mutating creature spell can finally go **under**.
+//! PB-DX29 → **PB-DX50**: CR 702.140a/c/e — the over/under choice, and the two
+//! separate things that were wrong with it.
 //!
-//! # What was wrong
+//! # What PB-DX29 fixed, and what it deliberately did not
 //!
-//! `crates/simulator/src/params.rs`' `CastWithMutate` arm built
-//! `AdditionalCost::Mutate { target, on_top: true }` with `on_top` **hard-coded**, and
-//! `LegalAction::CastWithMutate` carried no channel for it. So no client in this tree —
-//! browser, TUI, bot or test harness routing through the mapping table — could ever
-//! mutate a creature UNDER another one.
+//! `params.rs`' `CastWithMutate` arm built `AdditionalCost::Mutate { on_top: true }`
+//! with `on_top` **hard-coded**, so no client in this tree could ever mutate a creature
+//! UNDER another one. PB-DX29 put an `on_top: bool` on `LegalAction::CastWithMutate` and
+//! emitted one offer per `(target, on_top)` pair, making the choice answerable.
 //!
-//! That is not cosmetic. CR 702.140e / CR 729.2a make the **topmost** component supply
+//! It said, in this file, that it was not fixing the timing:
+//!
+//! > CR 702.140c makes the choice a decision taken **as the spell resolves**, and the
+//! > engine captures it at ANNOUNCEMENT. … moving the moment is `OOS-DX29-2` and needs a
+//! > resolution-time `EffectChoiceQuestion`.
+//!
+//! # PB-DX50 is that seed, and this file is REWRITTEN rather than deleted
+//!
+//! The choice now suspends at resolution as `EffectChoiceQuestion::MutateOnTop` on
+//! PB-DP9's CR 608.2d channel. `LegalAction::CastWithMutate` has **no `on_top` field**,
+//! `AdditionalCost::Mutate` has none either, and the mutate offer is one action per
+//! target — the offer count HALVES.
+//!
+//! Two of this file's three tests therefore **invert**, and they are disclosed by name
+//! rather than netted out of a count:
+//!
+//! * `test_dx29_m1_provider_offers_both_on_top_and_under`
+//!   → `test_dx50_m1_provider_offers_exactly_one_action_per_mutate_target`
+//! * `test_dx29_m2_params_forwards_the_actions_on_top_choice`
+//!   → `test_dx50_m2_params_builds_the_mutate_cost_with_no_over_under_answer`
+//!
+//! The third, `m3`, is the proof AC 7302 says must SURVIVE — that mutating UNDER leaves
+//! the host's name on the merged permanent, end to end on real corpus cards — and it is
+//! **re-homed onto the resolution-time answer**, not deleted. It is now proven twice:
+//! through the bot path (default params → the pre-batch `on_top: true`) and through the
+//! human channel (`ActionParams::effect_choice_answer` → UNDER), which is the answer no
+//! channel could produce at resolution time before this batch.
+//!
+//! CR 702.140e / CR 729.2a are why any of it matters: the **topmost** component supplies
 //! the merged permanent's non-ability characteristics — name, card id, mana cost,
-//! colours, types and power/toughness — and `resolution.rs`'s merge site sets
-//! `target_obj.characteristics` and `target_obj.card_id` from `merged_components.front()`.
-//! "Over" and "under" therefore produce genuinely different permanents from the same two
-//! cards, on **six deck-legal `Complete` mutate defs**.
-//!
-//! # The fix, and why it is an ACTION and not a param
-//!
-//! `legal_actions.rs` now emits one `CastWithMutate` per `(target, on_top)` pair, exactly
-//! as it already emitted one per target. That is the `PayEcho` / `ChooseDredge` /
-//! `ActivateBloodrush` idiom this codebase has already ruled correct (PB-DX23 §3) for a
-//! choice fully determined at offer time: no new `ActionParams` field, no wire change, no
-//! picker — the choice IS the button. `on_top: true` is emitted first of each pair, so an
-//! index-choosing bot takes the same action it took before on the same board.
-//!
-//! # The CR deviation this does NOT fix
-//!
-//! CR 702.140c makes the choice a decision taken **as the spell resolves**, and the
-//! engine captures it at ANNOUNCEMENT. Offering it here makes a question the engine
-//! already asks at the wrong moment *answerable* instead of hard-coded; moving the moment
-//! is `OOS-DX29-2` and needs a resolution-time `EffectChoiceQuestion`. Stated here rather
-//! than implied, because a reader who finds this file could otherwise conclude the timing
-//! was checked and found correct.
+//! colours, types and power/toughness — so "over" and "under" are genuinely different
+//! permanents from the same two cards, on **six deck-legal `Complete` mutate defs**.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, AdditionalCost,
-    CardDefinition, Command, GameState, GameStateBuilder, ManaPool, ObjectId, ObjectSpec, PlayerId,
-    Step, ZoneId,
+    CardDefinition, Command, EffectChoiceAnswer, GameState, GameStateBuilder, ManaPool, ObjectId,
+    ObjectSpec, PlayerId, Step, ZoneId,
 };
 use mtg_simulator::build_registry;
 use mtg_simulator::legal_actions::{LegalAction, LegalActionProvider, StubProvider};
@@ -121,141 +129,164 @@ fn mutate_actions(state: &GameState, player: PlayerId) -> Vec<LegalAction> {
         .collect()
 }
 
-/// M1 — CR 702.140a/c: the provider offers **both** halves of the choice, once per
-/// target, and they are distinguishable.
+/// M1 (**INVERTED by PB-DX50**) — CR 702.140a/c: the provider offers exactly **one**
+/// action per legal mutate target, and it carries no over/under answer at all.
 ///
-/// **Revert to watch red**: in `legal_actions.rs`'s mutate loop, replace the
-/// `for on_top in [true, false]` with a single `on_top: true` push.
+/// This test previously asserted the opposite (both halves of a `(target, on_top)`
+/// pair). PB-DX29's pair loop was the right fix for "no client can mutate under" and the
+/// wrong MOMENT for CR 702.140c, which says the controller chooses *as the spell
+/// resolves*. Offering it here meant the opponent saw the choice before deciding whether
+/// to respond, and the controller could not change it afterwards.
+///
+/// **Revert to watch red**: restore `for on_top in [true, false]` around the push in
+/// `legal_actions.rs`'s mutate loop (with a field to put it in) — or, without touching
+/// the type, push each action twice; the count assertion reddens either way.
 #[test]
-fn test_dx29_m1_provider_offers_both_on_top_and_under() {
+fn test_dx50_m1_provider_offers_exactly_one_action_per_mutate_target() {
     let state = mutate_board();
     let host = find_object(&state, HOST);
     let card = find_object(&state, MUTATOR);
 
     let actions = mutate_actions(&state, p(1));
     // Non-vacuity: the board really does produce a mutate offer at all. Without this a
-    // provider that stopped offering mutate entirely would satisfy nothing below but
-    // also fail nothing above.
+    // provider that stopped offering mutate entirely would satisfy the count assertion
+    // below only by accident of arithmetic.
     assert!(
         !actions.is_empty(),
         "precondition (CR 702.140a): a Gemrazer in hand with {{G}}{{G}}{{G}} floating and a \
          non-Human creature owned on the battlefield must produce a mutate offer"
     );
+    // ONE host on the board => ONE offer. Before PB-DX50 this was two.
+    assert_eq!(
+        actions.len(),
+        1,
+        "CR 702.140c (PB-DX50): the over/under choice is made AS THE SPELL RESOLVES, so \
+         the offer layer emits one action per target and not one per (target, on_top) \
+         pair. Got: {actions:?}"
+    );
+    let LegalAction::CastWithMutate {
+        card: c,
+        mutate_target,
+    } = &actions[0]
+    else {
+        unreachable!("filtered above")
+    };
+    assert_eq!(*c, card, "the offer must name the card in hand");
+    assert_eq!(
+        *mutate_target, host,
+        "the offer must name the non-Human creature the caster owns (CR 702.140a)"
+    );
+}
 
-    let flags: BTreeSet<bool> = actions
+/// M2 (**INVERTED by PB-DX50**) — CR 702.140a: the mapping table announces the mutate
+/// HOST and nothing else. There is no over/under value to forward, because CR 702.140c
+/// puts that decision at resolution.
+///
+/// **Revert to watch red**: make `params.rs`'s `CastWithMutate` arm announce something
+/// other than the action's `mutate_target` (e.g. the card itself), or drop the
+/// `AdditionalCost::Mutate` entry entirely.
+#[test]
+fn test_dx50_m2_params_builds_the_mutate_cost_with_no_over_under_answer() {
+    let state = mutate_board();
+    let p1 = p(1);
+    let host = find_object(&state, HOST);
+
+    let actions = mutate_actions(&state, p1);
+    assert_eq!(actions.len(), 1, "M1's precondition, restated");
+    let action = &actions[0];
+    let command = action_to_command_with_params(&state, p1, action, &ActionParams::default())
+        .expect("a mutate offer must map to a command");
+    let Command::CastSpell(cast) = &command else {
+        panic!("CastWithMutate must map to a CastSpell, got {command:?}");
+    };
+    let mutate_entries: Vec<ObjectId> = cast
+        .additional_costs
         .iter()
-        .map(|a| match a {
-            LegalAction::CastWithMutate { on_top, .. } => *on_top,
-            _ => unreachable!("filtered above"),
+        .filter_map(|c| match c {
+            AdditionalCost::Mutate { target } => Some(*target),
+            _ => None,
         })
         .collect();
     assert_eq!(
-        flags,
-        [true, false].into_iter().collect::<BTreeSet<bool>>(),
-        "CR 702.140c: the caster chooses whether the mutating card goes on top or under, so \
-         the provider must offer BOTH. Before PB-DX29 `params.rs` hard-coded `on_top: true` \
-         and no client could ever mutate under. Offered: {actions:?}"
-    );
-
-    // Exactly one action per (target, flag) pair — one host on the board, so two.
-    assert_eq!(
-        actions.len(),
-        2,
-        "one host creature x two on_top values = two offers; got {actions:?}"
-    );
-    for action in &actions {
-        let LegalAction::CastWithMutate {
-            card: c,
-            mutate_target,
-            ..
-        } = action
-        else {
-            unreachable!("filtered above")
-        };
-        assert_eq!(*c, card, "every offer must name the card in hand");
-        assert_eq!(
-            *mutate_target, host,
-            "every offer must name the non-Human creature the caster owns (CR 702.140a)"
-        );
-    }
-
-    // CR 702.140a: the ORDER is pinned, not incidental. `on_top: true` is emitted first
-    // so an index-choosing bot takes the same action it took before PB-DX29 on the same
-    // board — which is why no recorded seed moved.
-    let LegalAction::CastWithMutate { on_top: first, .. } = &actions[0] else {
-        unreachable!()
-    };
-    assert!(
-        *first,
-        "`on_top: true` must be the LOWER index of each pair, so a bot choosing by index \
-         reproduces the pre-PB-DX29 command"
+        mutate_entries,
+        vec![host],
+        "CR 702.140a: exactly one mutate cost, naming the host. The struct has no \
+         `on_top` field at all any more (PB-DX50) -- if this stops compiling because \
+         something re-added one, that is the regression, not the test. Got: {cast:?}"
     );
 }
 
-/// M2 — CR 702.140a: `params.rs` forwards the action's own choice into the
-/// `AdditionalCost::Mutate` it builds, rather than hard-coding it.
+/// M3 (**RE-HOMED by PB-DX50, not deleted**) — CR 702.140e / CR 729.2a, end to end with
+/// the NON-DEFAULT answer, through the **resolution-time** channel.
 ///
-/// **Revert to watch red**: in `params.rs`'s `CastWithMutate` arm, change
-/// `on_top: *on_top` back to `on_top: true`.
+/// This is the assertion AC 7302 requires to survive: mutating UNDER leaves the host's
+/// name on the merged permanent; mutating OVER replaces it. It reads the merged permanent
+/// by NAME (CR 400.7 — and note that a mutate merge deliberately PRESERVES the target's
+/// `ObjectId`, CR 729.2c, so the id survives here where a zone change would have killed
+/// it), and the two answers produce different names from the same two cards.
+///
+/// **Both channels, and the difference between them is the point.** The BOT path submits
+/// the offered action's own `answer` verbatim (`ActionParams::default()`), which is
+/// `default_effect_choice_answer`'s `on_top: true` — the exact recovery of the pre-batch
+/// hard-coded value, and the reason every bot game and fuzz seed is behaviourally
+/// unchanged. The HUMAN channel supplies `effect_choice_answer` and gets UNDER, which is
+/// the answer no channel could produce **at resolution time** before this batch.
+///
+/// **Revert to watch red**: hard-code `mutate_on_top = true` at the ask site in
+/// `resolution.rs`'s `MutatingCreatureSpell` arm; the UNDER half collapses onto the OVER
+/// half and the `assert_ne!` fires.
 #[test]
-fn test_dx29_m2_params_forwards_the_actions_on_top_choice() {
-    let state = mutate_board();
-    let p1 = p(1);
-
-    for action in mutate_actions(&state, p1) {
-        let LegalAction::CastWithMutate { on_top: want, .. } = &action else {
-            unreachable!()
-        };
-        let command = action_to_command_with_params(&state, p1, &action, &ActionParams::default())
-            .expect("a mutate offer must map to a command");
-        let Command::CastSpell(cast) = &command else {
-            panic!("CastWithMutate must map to a CastSpell, got {command:?}");
-        };
-        let got = cast
-            .additional_costs
-            .iter()
-            .find_map(|c| match c {
-                AdditionalCost::Mutate { on_top, .. } => Some(*on_top),
-                _ => None,
-            })
-            .expect("CR 702.140a: the mutate cost must be announced");
-        assert_eq!(
-            got, *want,
-            "the mapping table must forward the ACTION's `on_top`, not a hard-coded value. \
-             action: {action:?}"
-        );
-    }
-}
-
-/// M3 — CR 702.140e / CR 729.2a, **end to end with the NON-DEFAULT answer**. Mutating
-/// UNDER leaves the host's name on the merged permanent; mutating OVER replaces it.
-///
-/// This is the assertion that makes the channel worth having: it reads the merged
-/// permanent by NAME (CR 400.7 — and note that a mutate merge deliberately PRESERVES the
-/// target's `ObjectId`, CR 729.2c, so the id survives here where a zone change would
-/// have killed it), and the two answers produce different names from the same two cards.
-///
-/// **Revert to watch red**: either revert named in M1/M2 collapses this to one outcome.
-#[test]
-fn test_dx29_m3_mutating_under_keeps_the_hosts_characteristics() {
+fn test_dx50_m3_mutating_under_keeps_the_hosts_characteristics() {
     let p1 = p(1);
     let p2 = p(2);
 
-    let outcome = |want_on_top: bool| -> String {
+    // `answer`: `None` = the bot path (submit the offer's own default verbatim);
+    // `Some(v)` = the human channel naming its own answer.
+    let outcome = |answer: Option<bool>| -> String {
         let state = mutate_board();
-        let action = mutate_actions(&state, p1)
-            .into_iter()
-            .find(|a| matches!(a, LegalAction::CastWithMutate { on_top, .. } if *on_top == want_on_top))
-            .unwrap_or_else(|| panic!("no mutate offer with on_top={want_on_top}"));
-        let command = action_to_command_with_params(&state, p1, &action, &ActionParams::default())
-            .expect("mapping must succeed");
+        let actions = mutate_actions(&state, p1);
+        assert_eq!(actions.len(), 1, "M1's precondition, restated");
+        let command =
+            action_to_command_with_params(&state, p1, &actions[0], &ActionParams::default())
+                .expect("mapping must succeed");
         // `process_command` takes ownership, so each branch builds its own state.
         let (state, _events) = process_command(state, command).expect("the mutate cast is legal");
+        // CR 702.140c: nothing has been asked yet -- the opponent still has priority and
+        // must not have learned the choice. This is the whole batch, asserted inside the
+        // end-to-end probe rather than only in the unit file.
+        assert!(
+            state.pending_effect_choice().is_none(),
+            "CR 702.140c: the over/under question must not be asked at announcement"
+        );
         // Both players pass so the spell resolves (CR 117.4).
         let (state, _) = process_command(state, Command::PassPriority { player: p1 })
             .expect("p1 may pass with the spell on the stack");
-        let (state, _) = process_command(state, Command::PassPriority { player: p2 })
+        let (mut state, _) = process_command(state, Command::PassPriority { player: p2 })
             .expect("p2 may pass, resolving the top of the stack");
+
+        // Now the question is live, and it comes through the OFFER LAYER -- not
+        // hand-built -- so this probe exercises the real client path.
+        let offers: Vec<LegalAction> = StubProvider
+            .legal_actions(&state, p1)
+            .into_iter()
+            .filter(|a| matches!(a, LegalAction::AnswerEffectChoice { .. }))
+            .collect();
+        assert_eq!(
+            offers.len(),
+            1,
+            "CR 608.2d: resolution must offer exactly one over/under answer. Got {offers:?}"
+        );
+        let params = match answer {
+            None => ActionParams::default(),
+            Some(on_top) => ActionParams {
+                effect_choice_answer: Some(EffectChoiceAnswer::MutateOnTop { on_top }),
+                ..Default::default()
+            },
+        };
+        let cmd = action_to_command_with_params(&state, p1, &offers[0], &params)
+            .expect("the answer must map to a command");
+        let (next, _) = process_command(state, cmd).expect("both answers are legal (CR 702.140c)");
+        state = next;
 
         let merged: Vec<String> = state
             .objects()
@@ -274,15 +305,32 @@ fn test_dx29_m3_mutating_under_keeps_the_hosts_characteristics() {
 
     // CR 729.2a: the topmost component supplies the merged permanent's characteristics.
     assert_eq!(
-        outcome(true),
+        outcome(Some(true)),
         MUTATOR,
         "mutating OVER must leave the mutating card's name on the merged permanent"
     );
     assert_eq!(
-        outcome(false),
+        outcome(Some(false)),
         HOST,
         "CR 702.140e / CR 729.2a: mutating UNDER must leave the HOST's name, mana cost, types \
-         and P/T on the merged permanent. This is the outcome no client in the tree could \
-         produce before PB-DX29, because `params.rs` hard-coded `on_top: true`."
+         and P/T on the merged permanent. Before PB-DX50 this was reachable only by choosing \
+         it at ANNOUNCEMENT, which is not when CR 702.140c puts the choice."
+    );
+    // The BOT path, submitting the offer's own default verbatim, reproduces the
+    // pre-batch hard-coded `on_top: true`. This is what keeps every bot game, every
+    // recorded fuzz seed and the one golden mutate script behaviourally identical.
+    assert_eq!(
+        outcome(None),
+        MUTATOR,
+        "PB-DX50 §5: `default_effect_choice_answer(MutateOnTop) == {{ on_top: true }}` is \
+         the exact recovery of the pre-batch value, so a bot submitting the default plays \
+         the identical game"
+    );
+    // The pair must DIFFER, or the two halves above are two spellings of one
+    // measurement (this queue's own recurring failure mode).
+    assert_ne!(
+        outcome(Some(true)),
+        outcome(Some(false)),
+        "CR 702.140c/e: the choice must be observable, or it is not a choice"
     );
 }

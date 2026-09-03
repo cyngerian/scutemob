@@ -814,10 +814,7 @@ fn test_cast_self_from_graveyard_brokkos_requires_mutate() {
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
         face_down_kind: None,
-        additional_costs: vec![mtg_engine::AdditionalCost::Mutate {
-            target: target_id,
-            on_top: true,
-        }],
+        additional_costs: vec![mtg_engine::AdditionalCost::Mutate { target: target_id }],
     }));
     let result_with_mutate = process_command(state, cmd_mutate);
     assert!(
