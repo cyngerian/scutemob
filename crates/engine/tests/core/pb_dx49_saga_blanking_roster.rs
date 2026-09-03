@@ -737,11 +737,18 @@ fn def_by_name(name: &str) -> CardDefinition {
 /// the Aura can no longer be attached to it at all: CR 303.4a refuses the cast and
 /// CR 704.5m detaches it. **Pair A is not reachable.**
 ///
-/// *This vacates no behavioural coverage, and that was checked rather than assumed*: no test
-/// or fixture outside this roster file names `Imprisoned in the Moon`, and PB-DX49's
-/// deck-legal blanker × Saga coverage rests on **Pair B** (`Reality Shift` ×
-/// `Binding the Old Gods`, `r4b`), which is unconditional and never sat behind
-/// `OOS-DX20-10`. Pair A was a classification, not a fixture.
+/// *This vacates no behavioural coverage.* The conclusion holds; the FIRST DRAFT of this
+/// sentence justified it with a claim that was false when it was written, and the correction
+/// is recorded here rather than quietly swapped, because a stated reason is the half the next
+/// batch reuses. The draft said *"no test or fixture outside this roster file names
+/// `Imprisoned in the Moon`"*. At the merge base **five** `.rs` files named it, one of them a
+/// test file — `primitives::pb_dx20_keyword_carried_target_requirements`, in a LIVE
+/// `assert_eq!(.., vec!["Imprisoned in the Moon"])`, which is precisely the wrong-way-round
+/// pin PB-DX20b had to invert. The true reason is narrower and still sufficient: that
+/// reference was a **roster pin**, not a Pair-A behavioural fixture, and **no fixture anywhere
+/// ever drove Pair A** — it was a classification. PB-DX49's deck-legal blanker × Saga coverage
+/// rests on **Pair B** (`Reality Shift` × `Binding the Old Gods`, `r4b`), which is
+/// unconditional and never sat behind `OOS-DX20-10`.
 ///
 /// The row is kept, keyed on the mechanism, so that widening the Aura back to
 /// `EnchantTarget::Permanent` — or adding `Enchantment` to its `has_card_types` — resurrects

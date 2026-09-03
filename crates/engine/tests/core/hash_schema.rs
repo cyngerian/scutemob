@@ -209,6 +209,12 @@ const BASELINE_STREAM_FINGERPRINT: &str =
 // became a superseded row and joined the frozen prefix.
 // PB-DX50 (2026-09-03): re-pinned on the 78→79 bump — version 78 became a
 // superseded row and joined the frozen prefix. (PB-DX45 did the same on 77→78.)
+// PB-DX20b (2026-09-03): re-pinned on the 79→80 bump — version 79 became a
+// superseded row and joined the frozen prefix. Appended in the `/review` fix
+// cycle: the digest below moved in `0be8d904` while this log did not, so for
+// one commit the current value was attributed to PB-DX50's 78→79 re-pin. That
+// is what this log exists to prevent, and every prior re-pinning batch had
+// extended it.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
     "23dae2bcb0f40e7e5474b62a04e633e42226d7e30acf81894969d983f2d2c90b";
 

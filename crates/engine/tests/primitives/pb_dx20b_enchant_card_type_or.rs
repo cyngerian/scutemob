@@ -27,6 +27,15 @@
 //! * `t8` — `breath_of_fury`, the stage-0 census find no seed row and no memo cell names:
 //!   a printed *"you control"* that was simply dropped.
 //! * `t9` — the two arithmetics agree, measured END TO END.
+//! * `t10` — the per-FIELD MAPPING matrix (`/review` finding 2). Each `EnchantFilter` field
+//!   must land in its OWN `TargetFilter` slot and in no other. `r5` decides by field NAME and
+//!   `t9` compares two consumers of the SAME lowering, so a field wired into the wrong slot is
+//!   invisible to both — see `t10`'s own docstring for the three planted classes and which gate
+//!   catches which.
+//! * `t11` — CR 704.5m as a **transition** (`/review` finding 5). `t6`/`t6b` build the
+//!   attachment already illegal (or already legal) and run the FIRST sweep; `t11` attaches
+//!   legally, sweeps and asserts survival, then changes the host's type at Layer 4 and sweeps
+//!   again.
 //!
 //! ## `t9` is a CONSISTENCY pin, and that is stated rather than implied
 //!
@@ -57,6 +66,15 @@
 //!    — targets the requirement had accepted — so it is decisive in the *refusing* direction.
 //!    Anyone tempted to delete the gate as "already covered upstream" should read R3 and R10
 //!    together in `memory/primitives/pb-DX20b-execution-notes.md`.
+//! 3. **`t10` and `t11` were each ISOLATED by a plant, not merely shown to redden.** Under the
+//!    swap `basic: f.nonbasic, nonbasic: f.basic` in `casting::enchant_filter_to_target_filter`,
+//!    `t10` is the **only** red row in this file (10 green) and the core roster's 7 rows and the
+//!    simulator channel's 4 are green too — which is the reviewer's defeat reproduced here
+//!    before it was fixed. Under a plant that makes the CR 704.5m SBA read the host's **base**
+//!    `Characteristics` instead of `expect_characteristics` — the raw-characteristics defect
+//!    `legal_actions.rs:1276` really has, described in the channel suite's `c4` docstring —
+//!    `t11` is the **only** red row (11 green, `t6` and `t6b` among them). Neither row rides on
+//!    another's coverage.
 //!
 //! `t9` is written end to end — offer, cast and SBA on real boards — rather than by calling
 //! the two functions directly, because **both are `pub(crate)`**:
@@ -93,7 +111,7 @@ use mtg_engine::{
     process_command, spell_target_requirements, start_game, CardDefinition, CardRegistry, CardType,
     Command, EnchantControllerConstraint, EnchantFilter, EnchantTarget, GameEvent, GameState,
     GameStateBuilder, GameStateError, KeywordAbility, ManaPool, ObjectId, ObjectSpec, PlayerId,
-    Step, SubType, SuperType, Target, TargetController, TargetRequirement, ZoneId,
+    Step, SubType, SuperType, Target, TargetController, TargetFilter, TargetRequirement, ZoneId,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -993,5 +1011,505 @@ fn t9_offer_lowering_cast_and_sba_agree_across_the_filter_matrix() {
          agrees trivially and discriminates nothing.",
         legal_cells,
         cells
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// t10 — the per-FIELD MAPPING matrix
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// One `EnchantFilter` field under test: the filter that moves ONLY that field, and the one
+/// `TargetFilter` slot the lowering must move in response.
+struct MapRow {
+    /// The field's name. It is the same name in both structs — the lowering is
+    /// name-preserving by design, and that is precisely what makes `r5`'s name-keyed check
+    /// blind to a mis-wiring.
+    field: &'static str,
+    /// An `EnchantFilter` with ONLY this field off its default.
+    filter: EnchantFilter,
+    /// Applied to the baseline lowering to build the expected `TargetFilter`.
+    expect: fn(&mut TargetFilter),
+}
+
+/// The seven `EnchantFilter` slots, compared one at a time and by NAME, so the failure message
+/// can say which slot moved instead of printing two structs and leaving the diff to the reader.
+///
+/// Written out rather than derived: a derived comparison would be `tf == base`, which is the
+/// assertion this helper exists to *decompose*.
+fn responsible_slots_that_moved(base: &TargetFilter, tf: &TargetFilter) -> Vec<&'static str> {
+    let mut out = Vec::new();
+    if tf.has_card_type != base.has_card_type {
+        out.push("has_card_type");
+    }
+    if tf.has_card_types != base.has_card_types {
+        out.push("has_card_types");
+    }
+    if tf.has_subtype != base.has_subtype {
+        out.push("has_subtype");
+    }
+    if tf.has_subtypes != base.has_subtypes {
+        out.push("has_subtypes");
+    }
+    if tf.basic != base.basic {
+        out.push("basic");
+    }
+    if tf.nonbasic != base.nonbasic {
+        out.push("nonbasic");
+    }
+    if tf.controller != base.controller {
+        out.push("controller");
+    }
+    out
+}
+
+/// The same decomposition on the INPUT side — a fixture guard. A row that sets two
+/// `EnchantFilter` fields is no longer a per-field row, and would make `t10` report a
+/// two-slot move as a mapping bug.
+fn enchant_slots_that_moved(f: &EnchantFilter) -> Vec<&'static str> {
+    let base = EnchantFilter::default();
+    let mut out = Vec::new();
+    if f.has_card_type != base.has_card_type {
+        out.push("has_card_type");
+    }
+    if f.has_card_types != base.has_card_types {
+        out.push("has_card_types");
+    }
+    if f.has_subtype != base.has_subtype {
+        out.push("has_subtype");
+    }
+    if f.has_subtypes != base.has_subtypes {
+        out.push("has_subtypes");
+    }
+    if f.basic != base.basic {
+        out.push("basic");
+    }
+    if f.nonbasic != base.nonbasic {
+        out.push("nonbasic");
+    }
+    if f.controller != base.controller {
+        out.push("controller");
+    }
+    out
+}
+
+/// The `TargetFilter` the engine's own lowering produces for `f`, read back through the public
+/// query surface.
+///
+/// `casting::enchant_filter_to_target_filter` is `pub(crate)` and this file does not widen a
+/// visibility for a test's convenience (module doc). `queries::spell_target_requirements`
+/// returns the lowering's output verbatim — `enchant_target_to_requirement`'s `Filtered` arm is
+/// literally `TargetPermanentWithFilter(enchant_filter_to_target_filter(f))` — so this reads the
+/// real mapping, not a re-implementation of it.
+fn lowered_target_filter(f: &EnchantFilter) -> TargetFilter {
+    let p1 = p(1);
+    let p2 = p(2);
+    // No candidate permanent: `t10`'s subject is the MAPPING, not whether anything matches it.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(synthetic_aura(p1, f, ZoneId::Hand(p1)))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .expect("t10 board builds");
+    let aura = find_object(&state, "T9 Aura");
+    let reqs = spell_target_requirements(&state, aura, &[], None, false);
+    assert_eq!(
+        reqs.len(),
+        1,
+        "CR 303.4a: an Aura spell announces exactly one target; got {:?}",
+        reqs
+    );
+    match &reqs[0] {
+        TargetRequirement::TargetPermanentWithFilter(tf) => tf.clone(),
+        other => panic!(
+            "PB-DX20b t10: `EnchantTarget::Filtered` must lower to TargetPermanentWithFilter — \
+             that IS the mapping under test; got {:?}",
+            other
+        ),
+    }
+}
+
+fn map_rows() -> Vec<MapRow> {
+    vec![
+        MapRow {
+            field: "has_card_type",
+            filter: EnchantFilter {
+                has_card_type: Some(CardType::Enchantment),
+                ..Default::default()
+            },
+            expect: |tf| tf.has_card_type = Some(CardType::Enchantment),
+        },
+        MapRow {
+            field: "has_card_types",
+            filter: EnchantFilter {
+                has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                ..Default::default()
+            },
+            expect: |tf| tf.has_card_types = vec![CardType::Creature, CardType::Planeswalker],
+        },
+        MapRow {
+            field: "has_subtype",
+            filter: EnchantFilter {
+                has_subtype: Some(SubType("Goblin".to_string())),
+                ..Default::default()
+            },
+            expect: |tf| tf.has_subtype = Some(SubType("Goblin".to_string())),
+        },
+        MapRow {
+            field: "has_subtypes",
+            filter: EnchantFilter {
+                has_subtypes: vec![SubType("Forest".to_string()), SubType("Plains".to_string())],
+                ..Default::default()
+            },
+            expect: |tf| {
+                tf.has_subtypes = vec![SubType("Forest".to_string()), SubType("Plains".to_string())]
+            },
+        },
+        MapRow {
+            field: "basic",
+            filter: EnchantFilter {
+                basic: true,
+                ..Default::default()
+            },
+            expect: |tf| tf.basic = true,
+        },
+        MapRow {
+            field: "nonbasic",
+            filter: EnchantFilter {
+                nonbasic: true,
+                ..Default::default()
+            },
+            expect: |tf| tf.nonbasic = true,
+        },
+        MapRow {
+            field: "controller",
+            filter: EnchantFilter {
+                controller: EnchantControllerConstraint::You,
+                ..Default::default()
+            },
+            expect: |tf| tf.controller = TargetController::You,
+        },
+    ]
+}
+
+/// The seven fields `EnchantFilter` carries at HEAD, as `t10`'s row set must cover them.
+///
+/// This is a SECOND pin of the same list `r5` pins in
+/// `crates/engine/tests/core/pb_dx20b_enchant_line_roster.rs`, and the duplication is
+/// deliberate rather than lazy: the two live in different test targets and cannot share a
+/// constant, and `r5` is the row that keys the list to the struct's own declaration. If an
+/// eighth field is added, `r5` reddens on the declaration and this floor reddens on the
+/// coverage — an eighth field that is lowered but never per-field mapped would otherwise slip
+/// past `t10` in silence.
+const T10_FIELDS: &[&str] = &[
+    "basic",
+    "controller",
+    "has_card_type",
+    "has_card_types",
+    "has_subtype",
+    "has_subtypes",
+    "nonbasic",
+];
+
+#[test]
+/// CR 702.5a — **the per-field MAPPING matrix.** Each `EnchantFilter` field must land in its
+/// OWN `TargetFilter` slot, and in no other.
+///
+/// ## Why this is not `r5`'s job and not `t9`'s — both were defeated by the same plant
+///
+/// `/review` finding 2 proved this by execution, and the plant is two swapped lines in
+/// `casting::enchant_filter_to_target_filter`:
+///
+/// ```text
+///         basic: f.nonbasic,
+///         nonbasic: f.basic,
+/// ```
+///
+/// With that in the tree, **all 23 of PB-DX20b's own new tests stayed GREEN** — while
+/// `ossification` and `dimensional_exile` (both `Complete`, both deck-legal, both declaring
+/// `has_card_type: Land, basic: true, controller: You`) refused every basic land and accepted
+/// only nonbasic ones. Two live cards, wrong in the browser, and this batch's whole suite
+/// silent.
+///
+/// The 23 were **re-executed here rather than accepted from the report**, and they reproduce
+/// exactly: 10 in this file, 7 in `core::pb_dx20b_enchant_line_roster` (`r5` among them),
+/// 4 in `mtg-simulator`'s `pb_dx20b_enchant_offer_channel`, the `play-server` HTTP probe
+/// `test_dx20b_imprisoned_offer_excludes_the_artifact_over_http`, and
+/// `core::pb_dx49_saga_blanking_roster::r4a_pair_a_is_dead_since_oos_dx20_10_closed`. With
+/// `t10` in the tree the swap reddens `t10` and nothing else.
+///
+/// The reasons are structural and neither gate can be repaired into covering the other:
+///
+/// * **`r5` decides by field NAME.** It asserts *declared ⊆ lowered*, where "lowered" is the
+///   set of `f.<name>` reads in the function body. A swap reads both names, so both sets are
+///   unchanged and `r5` is green by construction. `r5` catches a field that is never READ; it
+///   is blind to a field that is read into the wrong slot.
+/// * **`t9` compares two CONSUMERS of the same lowering.** The offer, the cast and the CR 704.5m
+///   SBA all consume `enchant_filter_to_target_filter`'s output — PB-DX20b's own structural
+///   change is what made that true — so a wrong lowering makes all three wrong in the same
+///   direction and they agree perfectly. `t9`'s own docstring already says it is a consistency
+///   pin; this row is the correctness pin for the mapping itself.
+///
+/// The swap survived only because three tests in
+/// `crates/engine/tests/mechanics_e_l/enchant.rs` — a file PB-DX20b never touched — happen to
+/// exercise `basic` and `nonbasic` behaviourally. Relying on that is relying on a neighbour.
+///
+/// ## Why a row per FIELD, when only one PAIR can be swapped — three classes, all executed
+///
+/// A compile-silent SWAP needs two fields of the same type, and `EnchantFilter`'s only
+/// same-typed pair at HEAD is `basic`/`nonbasic` (both `bool`). Every other field has a distinct
+/// type, so exchanging two of them would not compile — *today*. On that axis alone one row for
+/// the bool pair would do. Two further classes are why there are seven:
+///
+/// | planted defect | `r5` | `t10` |
+/// |---|---|---|
+/// | SWAP — `basic: f.nonbasic, nonbasic: f.basic` | **green** | **RED** (`moved ["nonbasic"], want ["basic"]`) |
+/// | DROP — `basic: false`, the read deleted | **RED** (`declared but never read: ["basic"]`) | **RED** (`moved [], want ["basic"]`) |
+/// | DISCARD — `has_subtypes: f.has_subtypes.iter().take(0).cloned().collect()` | **green** | **RED** (`moved [], want ["has_subtypes"]`) |
+///
+/// Every cell above was executed, not reasoned. The DROP row is the one `r5` already covers,
+/// and it is stated rather than claimed for this row: `r5` keys on the `f.<name>` READ, so
+/// deleting the read reddens it. The DISCARD row is what `r5` structurally cannot see — the
+/// token appears, the value never arrives — which is `OOS-DX7-2`'s shape one struct over, and it
+/// is compile-silent for **all seven** fields regardless of their types. That is why the matrix
+/// is per-field rather than one row for the bool pair.
+///
+/// ## What each row asserts
+///
+/// (a) the field's own slot carries the mapped value, and (b) **every other slot** is still at
+/// the baseline — where the baseline is the lowering of `EnchantFilter::default()`, taken from
+/// the engine rather than assumed. (b) is what turns a swap into a red test: under the plant
+/// above, the `basic` row moves `nonbasic` and vice versa, so both rows fail on (a) *and* on (b).
+///
+/// The final `assert_eq!` compares the WHOLE `TargetFilter`, so a lowering that started writing
+/// a slot outside the seven — `legendary`, `is_token`, `max_cmc` — also reddens. PB-DX20 §3.4
+/// chose `..Default::default()` deliberately; this row is what keeps that choice honest.
+fn t10_every_enchant_filter_field_maps_to_its_own_target_filter_slot() {
+    let base = lowered_target_filter(&EnchantFilter::default());
+    let rows = map_rows();
+
+    // ── Coverage floor: every declared field has a row. See `T10_FIELDS`.
+    let covered: std::collections::BTreeSet<&str> = rows.iter().map(|r| r.field).collect();
+    let expected: std::collections::BTreeSet<&str> = T10_FIELDS.iter().copied().collect();
+    assert_eq!(
+        covered,
+        expected,
+        "PB-DX20b t10: the row set must cover every EnchantFilter field exactly once. \
+         rows only: {:?}; pinned only: {:?}",
+        covered.difference(&expected).collect::<Vec<_>>(),
+        expected.difference(&covered).collect::<Vec<_>>()
+    );
+
+    for row in &rows {
+        // ── Fixture guard: the row really moves exactly one INPUT field.
+        let moved_in = enchant_slots_that_moved(&row.filter);
+        assert_eq!(
+            moved_in,
+            vec![row.field],
+            "PB-DX20b t10 fixture: the `{}` row must set exactly that field on its \
+             EnchantFilter — a row that moves two inputs cannot attribute a two-slot output \
+             move to a mapping bug. Moved: {:?}",
+            row.field,
+            moved_in
+        );
+
+        let tf = lowered_target_filter(&row.filter);
+
+        // ── (b), by NAME, so the message says which slot went where.
+        let moved_out = responsible_slots_that_moved(&base, &tf);
+        assert_eq!(
+            moved_out,
+            vec![row.field],
+            "CR 702.5a / `/review` finding 2: `EnchantFilter.{}` must land in \
+             `TargetFilter.{}` and in NO other slot. The lowering moved {:?} instead. This is \
+             the class `r5` cannot see (it decides by field NAME, and a mis-wiring reads both \
+             names) and `t9` cannot see (it compares two consumers of THIS lowering, so a wrong \
+             mapping makes them agree). baseline={:?} got={:?}",
+            row.field,
+            row.field,
+            moved_out,
+            base,
+            tf
+        );
+
+        // ── (a) + everything outside the seven slots, in one total comparison.
+        let mut want = base.clone();
+        (row.expect)(&mut want);
+        assert_eq!(
+            tf, want,
+            "CR 702.5a: `EnchantFilter.{}` did not arrive in `TargetFilter.{}` with its own \
+             value. A field whose read appears in the function body but whose VALUE never \
+             reaches the TargetFilter is `OOS-DX7-2`'s shape, and `r5` — which keys on the \
+             read, not on the value — is green for it.",
+            row.field, row.field
+        );
+
+        // ── Non-vacuity: a row that changed nothing would satisfy nothing above except by
+        //    making `moved_out` empty, which the assertion catches — but say it directly, so a
+        //    future edit that makes the baseline and the row identical fails HERE with a
+        //    message about the fixture.
+        assert_ne!(
+            tf, base,
+            "PB-DX20b t10 non-vacuity: the `{}` row lowered to the baseline TargetFilter, so it \
+             measures nothing. Its distinguishing value is no longer distinguishing.",
+            row.field
+        );
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// t11 — CR 704.5m as a TRANSITION: legally attached, then made illegal
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[test]
+/// CR 704.5m / 613.1d — an Aura that is **legally** attached and then *becomes* illegally
+/// attached is put into its owner's graveyard at the next state-based check.
+///
+/// ## Why this row exists — `t6`/`t6b` do not cover it, and AC 7309 names it
+///
+/// `t6` and `t6b` build the board with the Aura **already** attached to a printed-illegal (or
+/// printed-legal) permanent and run the FIRST state-based sweep. That is a from-the-start
+/// illegality: no sweep ever observed the attachment as legal. The case CR 704.5m actually
+/// fires in during a real game is the other one — the Aura is attached legally (by resolving,
+/// by an effect that puts it onto the battlefield attached, by a control change) and the board
+/// then moves under it.
+///
+/// The two are different because a SBA that only ever sees the illegal state cannot
+/// distinguish "this was never legal" from "this stopped being legal", and an implementation
+/// that latched the legality at attach time — cached it on the `GameObject`, or checked it only
+/// on the attach event — would pass `t6`, pass `t6b`, and leave the Aura on the board forever.
+/// This row is the only thing in the file that separates those two implementations.
+///
+/// ## How the transition is produced, and why it is a real one
+///
+/// The precondition is **executed, not assumed**: the first sweep runs with the Aura on a
+/// vanilla 2/2 creature and is asserted NOT to detach it, and the host's layer-resolved card
+/// types are asserted to contain `Creature` at that instant. Only then is the board changed.
+///
+/// The change is a **Layer 4 type-changing continuous effect** (CR 613.1d) —
+/// `EffectLayer::TypeChange` + `LayerModification::SetCardTypes({Artifact})` filtered to the
+/// host alone — so the host stops being a creature the way the rules say a permanent stops
+/// being a creature, and `sba::matches_enchant_target` has to reach it through
+/// `calculate_characteristics`. It is **not** produced by editing the host's base
+/// `Characteristics` (which would make the layer axis untested) and **not** by moving the Aura
+/// (which is CR 704.5m's other antecedent and a different claim).
+///
+/// **Disclosed rather than glossed**: the continuous effect is installed by pushing onto
+/// `state.continuous_effects_mut()` rather than by resolving a card that grants it. No card in
+/// this fixture makes another permanent an artifact, and `GameStateBuilder::build()` registers
+/// no statics at all (`OOS-DX43-6`), so there is no card-driven route on this board. What that
+/// costs is stated precisely: the *installation* is synthetic, the *evaluation* is not — the
+/// effect goes through the same layer walk every real effect does, and it is installed AFTER a
+/// state-based sweep has already run and passed, which is the property this row is about. The
+/// same construct is how `crates/engine/tests/mechanics_e_l/enchant.rs` builds its layer
+/// fixtures (`test_animate_land_pt_and_types_via_chained_or_awaken`).
+///
+/// CR 400.7: the detached Aura is a NEW object in the graveyard, so the battlefield `ObjectId`
+/// is dead there and the destination is asserted by NAME and ZONE — the same discipline `t6`
+/// uses, and the reason `aura_fell_off`'s event check and the zone check are two separate
+/// assertions rather than one lookup.
+fn t11_a_legally_attached_aura_falls_off_when_the_host_changes_type() {
+    use mtg_engine::{
+        check_and_apply_sbas, ContinuousEffect, EffectDuration, EffectFilter, EffectId,
+        EffectLayer, LayerModification,
+    };
+
+    // ── Phase 1: attach legally, sweep, and prove the sweep left it alone.
+    let (state, aura) = attached_board(ObjectSpec::creature(p(1), "Attach Victim", 2, 2));
+    let (fell_first, mut after) = aura_fell_off(state, aura);
+    assert!(
+        !fell_first,
+        "PRECONDITION: Imprisoned in the Moon on a creature is LEGALLY attached (\"Enchant \
+         creature, land, or planeswalker\") and the first state-based sweep must leave it \
+         alone. If this fires the probe never had a legal state to transition out of, and \
+         everything below would measure a from-the-start illegality — which is `t6`'s subject, \
+         not this row's."
+    );
+
+    let victim = find_object(&after, "Attach Victim");
+    let before_types = mtg_engine::calculate_characteristics(&after, victim)
+        .expect("the host is on the battlefield")
+        .card_types
+        .clone();
+    assert!(
+        before_types.contains(&CardType::Creature),
+        "PRECONDITION: the host must be a creature at the instant the first sweep passed, or \
+         the sweep passed for some other reason. Layer-resolved types: {:?}",
+        before_types
+    );
+    assert_eq!(
+        after
+            .objects()
+            .get(&aura)
+            .and_then(|a| a.attached_to)
+            .as_ref(),
+        Some(&victim),
+        "PRECONDITION: the Aura must still be attached to the host after the first sweep"
+    );
+
+    // ── Phase 2: the transition. CR 613.1d, Layer 4 — the host becomes an artifact and stops
+    //    being a creature. Nothing about the Aura moves.
+    after.continuous_effects_mut().push_back(ContinuousEffect {
+        id: EffectId(70_451),
+        source: None,
+        layer: EffectLayer::TypeChange,
+        modification: LayerModification::SetCardTypes([CardType::Artifact].into_iter().collect()),
+        filter: EffectFilter::SingleObject(victim),
+        duration: EffectDuration::Indefinite,
+        condition: None,
+        is_cda: false,
+        affected_set: None,
+        timestamp: 900_000,
+    });
+
+    let now_types = mtg_engine::calculate_characteristics(&after, victim)
+        .expect("the host is still on the battlefield")
+        .card_types
+        .clone();
+    assert!(
+        !now_types.contains(&CardType::Creature) && now_types.contains(&CardType::Artifact),
+        "PRECONDITION: the Layer 4 effect must actually have changed the host's LAYER-RESOLVED \
+         types — if it had not, the SBA below would be asked the same question as phase 1 and \
+         this row would silently become a duplicate of `t6b`. Types: {:?}",
+        now_types
+    );
+
+    // ── Phase 3: the next state-based check. CR 704.5m.
+    let events = check_and_apply_sbas(&mut after);
+    let fired = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::AuraFellOff { object_id, .. } if *object_id == aura));
+    assert!(
+        fired,
+        "CR 704.5m: the host is now an artifact and nothing else, which \"Enchant creature, \
+         land, or planeswalker\" does not admit, so the Aura is illegally attached and its \
+         controller puts it into its owner's graveyard. It was LEGALLY attached one sweep ago \
+         — a legality latched at attach time passes `t6` and `t6b` and fails only here. \
+         Events: {:?}",
+        events
+    );
+
+    // CR 400.7 — the detached Aura is a NEW object; assert the destination by name and zone.
+    let in_graveyard = after.objects().iter().any(|(_, o)| {
+        o.characteristics.name == "Imprisoned in the Moon" && o.zone == ZoneId::Graveyard(p(1))
+    });
+    assert!(
+        in_graveyard,
+        "CR 704.5m: the detached Aura goes to its OWNER's graveyard. `AuraFellOff` alone says \
+         it came off, never where it landed. Objects at rest: {:?}",
+        after
+            .objects()
+            .iter()
+            .map(|(_, o)| (o.characteristics.name.clone(), o.zone))
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        !after
+            .objects()
+            .iter()
+            .any(|(_, o)| o.characteristics.name == "Imprisoned in the Moon"
+                && o.zone == ZoneId::Battlefield),
+        "CR 704.5m: no copy of the Aura may remain on the battlefield after it falls off"
     );
 }

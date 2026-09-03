@@ -173,10 +173,16 @@ PB-DX49 wrote that row to go RED and demand re-adjudication rather than silently
 did exactly that. Re-adjudicated, not deleted:
 `r4a_pair_a_is_dead_since_oos_dx20_10_closed` **computes** the death from the intersection of
 the two type sets, so widening the filter — or reverting to `Permanent` — resurrects the pair
-loudly. Verified that this vacates no behavioural coverage: nothing outside that one roster file
-names *Imprisoned in the Moon*, and PB-DX49's deck-legal blanker × Saga coverage rests on Pair B
-(`Reality Shift` × `Binding the Old Gods`), which never sat behind `OOS-DX20-10`. The rename is
-disclosed as this batch's single leaver.
+loudly. It vacates no behavioural coverage — **but the first draft of the reason was false, and
+the `/review` proved it.** The draft said *"nothing outside that one roster file names Imprisoned
+in the Moon"*; `git grep -ln` at the merge base returns **five** `.rs` files, one of them
+`primitives::pb_dx20_keyword_carried_target_requirements`, which named it in a LIVE `assert_eq!`
+— the wrong-way-round pin this batch inverts. The conclusion survives on the narrower true
+reason: that reference was a **roster pin**, not a Pair-A fixture, and no fixture anywhere ever
+drove Pair A. PB-DX49's deck-legal blanker × Saga coverage rests on Pair B (`Reality Shift` ×
+`Binding the Old Gods`), which never sat behind `OOS-DX20-10`. Corrected in the test's own doc
+comment as well as here: **a right conclusion with a wrong premise is still a finding**, because
+the premise is what the next batch reuses. The rename is disclosed as this batch's single leaver.
 
 `ReachRow.enchant` also had to change type: `EnchantTarget::Filtered` carries `Vec`s and
 `REACH_ROWS` is a `const`. It now pins a const-expressible card-type slice — which is the part
@@ -208,16 +214,17 @@ that only checked the field list would have been satisfied by the update that hi
 
 ## §4 — Tests
 
-**5,013 / 0 / 5** full-workspace on branch `scutemob-222`, **60** result-producing targets
+**5,015 / 0 / 5** full-workspace on branch `scutemob-222`, **60** result-producing targets
 (59 → 60: one new simulator test binary), `--workspace --no-fail-fast` to a file, residual list
 empty. Baseline **4,991 / 0 / 5** over 59 targets, measured on this branch BEFORE any edit and
 reproducing PB-DX50's close pin exactly.
 
-**Delta itemised by test NAME by set-diffing the two run logs: 23 additions, 1 leaver, 0
-removals, 0 renames-without-a-successor.** The single leaver is
+**Delta itemised by test NAME by set-diffing the two run logs: 25 additions, 1 leaver, 0
+removals, 0 renames-without-a-successor.** (23 at the batch's close; §10's fix cycle adds `t10`
+and `t11` and changes no name.) The single leaver is
 `pb_dx49_saga_blanking_roster::r4a_pair_a_depends_on_oos_dx20_10`, whose successor
 `r4a_pair_a_is_dead_since_oos_dx20_10_closed` is in the additions — §2.4 has the adjudication.
-Honest reading: **22 genuine additions and 1 re-adjudicated rename.**
+Honest reading: **24 genuine additions and 1 re-adjudicated rename.**
 
 **A measurement error caught inside this batch's own close-out, worth recording because it
 produces a plausible-looking wrong answer.** The first NAME delta was taken with
@@ -379,7 +386,8 @@ Two further disclosures in the probes' own docs rather than only here:
 
 ## §9 — Gates, against the FINAL tree
 
-- `cargo test --workspace --no-fail-fast` → **5,013 / 0 / 5**, 60 targets.
+- `cargo test --workspace --no-fail-fast` → **5,013 / 0 / 5**, 60 targets **at the batch's own
+  close**; **5,015 / 0 / 5** after §10's `/review` fix cycle, which is the figure to quote.
 - `cargo clippy --workspace --all-targets -- -D warnings` → clean.
 - `cargo fmt --check` → clean. `tools/check-defs-fmt.sh` → clean, 1,803 defs.
 - `npm run build` → **NOT run, and that is stated rather than omitted.** `node_modules` is
@@ -397,3 +405,164 @@ Two further disclosures in the probes' own docs rather than only here:
   both 0** — every consumer of the Enchant restriction lives in the engine, which was measured
   before the design was chosen rather than asserted after. `tools/play-server/src/main.rs` is
   **+386 / −0**, entirely inside its `#[cfg(test)]` module.
+
+---
+
+## §10 — The `/review` fix cycle
+
+**8 findings: 2 MEDIUM, 5 LOW, 1 NIT. All eight taken, none declined.** The reviewer had a
+shell and used it: two of the eight were proved by planting code and running the suite, and both
+of those are real holes in this batch's own gates.
+
+### Finding 1 (MEDIUM) — a right conclusion with a false premise, in three places
+
+The Pair-A re-adjudication justified *"this vacates no behavioural coverage"* with *"no test or
+fixture outside this roster file names `Imprisoned in the Moon`"*. **False when written**, proved
+by `git grep -ln ... main -- '*.rs'`: **five** files named it at the merge base, one of them
+`primitives::pb_dx20_keyword_carried_target_requirements`, in a LIVE
+`assert_eq!(.., vec!["Imprisoned in the Moon"])` — which is exactly the wrong-way-round pin this
+batch inverts. It was committed in `0be8d904`, **the same commit that edited the file
+contradicting it**.
+
+The conclusion survives on a narrower true reason: that reference was a **roster pin**, not a
+Pair-A behavioural fixture, and no fixture anywhere ever drove Pair A. Corrected in the test's own
+doc comment, in CLAUDE.md and here — **a stated reason is the half the next batch reuses, so a
+right conclusion with a wrong premise is a finding, not a nit.**
+
+### Finding 2 (MEDIUM, PROVED) — `r5` is a PRESENCE gate and the batch's narrative read it as a mapping gate
+
+`r5` asserts `declared ⊆ lowered` **by field NAME**. A field read into the WRONG `TargetFilter`
+slot keeps both names present, so `r5` is blind to it — and so is `t9`, because both the offer
+path and the SBA path now consume the **same** lowering, so a wrong lowering makes them agree
+perfectly. **That is this batch's own unification turning a differential probe into a blind one**,
+and §3's sentence *"the only thing standing between that and a silently unenforced restriction"*
+read wider than the gate's actual subject.
+
+The reviewer swapped two lines in the lowering (`basic: f.nonbasic, nonbasic: f.basic`) and **all
+23 of this batch's new tests stayed green** — while the plant is live-wrong on two deck-legal
+`Complete` defs (`ossification`, `dimensional_exile` both declare `basic: true`, so they would
+refuse every basic land). It was caught only by three pre-existing tests in
+`mechanics_e_l/enchant.rs`, a file this batch never touches.
+
+**Closed by `t10`**, a per-field mapping matrix: for each of the seven fields, lower an
+`EnchantFilter` with only that field moved, read the real `TargetFilter` back through
+`spell_target_requirements`, and assert whole-struct equality against `baseline + that one slot`.
+Three plant classes executed:
+
+| plant | `r5` | `t10` |
+|---|---|---|
+| SWAP `basic` ↔ `nonbasic` | green | **RED** |
+| DROP (`basic: false` hard-coded) | **RED** | **RED** |
+| DISCARD (`has_subtypes: …take(0)…`) | green | **RED** |
+
+**Re-executed independently by the coordinator**, not accepted from the report: with the swap
+planted, `t10` is the *only* one of the twelve primitives probes that reddens (`11 passed;
+1 failed`), and `t9` stays green — the blindness reproduces exactly. Restored, re-run green,
+`git diff -- crates/engine/src` empty.
+
+**And the fix cycle corrected the FINDING's own reasoning.** The brief said a dropped field is
+compile-silent for all seven, which is why every field needs a row. That is wrong — a **drop** is
+caught by `r5` (executed above). The class that is silent for all seven and that only `t10`
+catches is the **discard**: the `f.<name>` read is present, so `r5` is satisfied, and the value
+never arrives. **That is `OOS-DX7-2`'s shape one struct over** — a coverage predicate that cannot
+tell `self.f.hash_into()` from `self.f.is_some().hash_into()`. Recorded in `t10`'s own docstring.
+
+### Finding 3 (LOW, PROVED) — `r5`'s parser took one `pub ` per line
+
+`pub nonbasic: bool, pub sneaky_zone: bool,` on one line hid the second field: declared,
+serialized, hashed, never lowered, `r5` green. Reproduced, then fixed to scan **every** `pub `
+occurrence — the repair `r1b` already embodied for the printed-line parser. The mitigation is
+stated rather than used as an excuse: `cargo fmt --check` rejects that declaration, so the hole is
+latent, not live — **but a gate that is correct only because a different gate is green has a reach
+nobody has measured.**
+
+### Finding 5 (LOW) — the CR 704.5m TRANSITION was untested
+
+`t6`/`t6b` build the board with the Aura already attached to a printed-illegal permanent. Nothing
+exercised a **legally** attached Aura *becoming* illegal — which is the case AC 7309 names and the
+ordinary way CR 704.5m fires. **Closed by `t11`**: attach to a vanilla 2/2, sweep, assert it
+SURVIVES and that the host's layer-resolved types contain `Creature` at that instant; install a
+Layer-4 `SetCardTypes({Artifact})` on the host (CR 613.1d); assert the resolved types actually
+moved; sweep again and assert `AuraFellOff` plus the Aura in its owner's graveyard by NAME and
+ZONE (CR 400.7 — the old id is dead). **Isolated by a plant rather than merely shown to redden**:
+giving the SBA raw `obj.characteristics` instead of `expect_characteristics` — the exact defect
+`legal_actions.rs:1276` really has (`OOS-DX20b-1`) — reddens `t11` and leaves `t6`/`t6b` green.
+
+### Finding 6 (LOW) — `c4`'s assertion (2) was near-tautological
+
+Imprisoned's own Layer 4 makes the enchanted permanent a **Land**, one of the three printed-legal
+types, so *"the host's layer-resolved types intersect {Creature, Land, Planeswalker}"* held for
+any host under any declaration. Replaced by two falsifiable claims — (2a) the host's **printed**
+types are in the printed-legal set, (2b) the resolved types contain `Land`, which asserts Layer 4
+actually applied instead of narrating it — **and** disclosed, because the reviewer's preferred
+remedy is not achievable on this fixture and that was measured rather than assumed: with (1)
+temporarily deleted, `c4` under R-A is **GREEN**, since a widening cannot move a bot that takes
+the first candidate in ascending `ObjectId` order and the creature is lowest on this board. The
+plants that *would* move the pick redden `c4` on its precondition instead, so (2a) is never
+reached. The module-doc revert table now says `c4: RED` is carried by **(1)** in every column.
+
+### Finding 4, 7, 8 (LOW / NIT) — record and hygiene
+
+- **4**: both `FROZEN_HISTORY_PREFIX_DIGEST` provenance logs were re-pinned without appending a
+  PB-DX20b line, so for one commit the current digest was attributed to PB-DX50's 78 → 79 re-pin.
+  Every prior re-pinning batch had extended that chain. Appended to both, with the incident noted
+  in the comment.
+- **7**: this batch's own struck memo row 9 had **8** cells against a 7-column header, so a
+  renderer drops the strike note entirely. Repaired by folding it into the wire cell (rows 5 and
+  8's shape). **A correction to the finding**: it said rows 6 and 7 do the same — re-measured,
+  both are 7 cells and render correctly. The audit did find a real one: **rank 5 (PB-DX47) has 6
+  cells**, a MISSING cell, so its wire column vanishes. Filed as `OOS-DX20b-7` and deliberately
+  **not** repaired, for `OOS-DX50-11`'s reason. *And this row's own first draft was malformed the
+  same way* — it wrote the header illustratively with two unescaped pipes — caught by running the
+  check on itself before committing, which is the argument for making that check a gate.
+- **8**: only the `Filtered` arm was unified; the eight flat variants remain two hand-written
+  copies whose agreement is asserted by a doc table, covering **16 of the corpus's 23**
+  declarations, and `CreatureOrPlaneswalker` is now exactly expressible as a `Filtered` filter
+  with zero users. Filed as `OOS-DX20b-6`.
+
+### Gates after the fix cycle, re-run against the FINAL tree
+
+- `cargo test --workspace --no-fail-fast` → **5,015 / 0 / 5**, **60** targets (+2 over the batch's
+  own close: `t10`, `t11`; findings 3 and 6 edited existing tests in place, so **0 name changes and
+  0 leavers** in the fix cycle). Delta vs the pre-edit baseline: **25 additions, 1 leaver, 0
+  removals**.
+- `clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --check` clean;
+  `tools/check-defs-fmt.sh` clean (1,803 defs).
+- `git diff --numstat` over `crates/engine/src`, `crates/card-types/src`, `crates/card-defs`,
+  `crates/simulator/src`, `crates/view-model` and `tools/` — **empty for the fix cycle**: every
+  finding was closed in test or doc surfaces, and all nine transient reverts were restored from
+  byte copies and verified.
+- Registry audited whole against `main`: **412 rows vs 405**, 7 new ids, **0 lost**, **no existing
+  row's cell count changed**, all 7 new rows exactly 4 cells.
+
+---
+
+## §11 — Seeds filed, and the dispatch-hygiene-8 pass
+
+`docs/audits/decision-point-audit.md` grepped for `OOS-DX20b` **before** filing: **0 rows**, so
+nothing was double-filed (dispatch hygiene 5).
+
+| seed | one line | severity of the fact, not the fix |
+|---|---|---|
+| `OOS-DX20b-1` | `legal_actions.rs:1276` reads RAW printed card types for `DeclareAttackers` eligibility; `tapped`/`Defender`/`Haste` come from the same raw struct three lines away | LIVE, pre-existing, SR-38 offer soundness |
+| `OOS-DX20b-2` | adding an `EnchantFilter` field is compile-silent workspace-wide; `r5` + `t10` are the only guards, and the class is every `Default`-constructed config struct in the tree | test-infrastructure, class |
+| `OOS-DX20b-3` | `curse_of_opulence.rs:20`'s blocker TODO is still false (`OOS-DX20-4`'s instance), now with a machine-checked counter-statement beside it | documentation |
+| `OOS-DX20b-4` | `EnchantFilter` cannot express a ZONE restriction and `animate_dead` prints one; 0 corpus exposure, census-gated | latent |
+| `OOS-DX20b-5` | a test-NAME delta taken with `sort` + `comm` under a UTF-8 locale FABRICATES a removal — the one signal the standing close-out criterion exists to catch | evidence integrity, tree-wide |
+| `OOS-DX20b-6` | only the `Filtered` arm was unified; the eight flat `EnchantTarget` variants are still two hand-written copies (16 of 23 declarations) whose agreement is a doc table, and `CreatureOrPlaneswalker` is now a redundant second spelling with zero users | hygiene, unguarded |
+| `OOS-DX20b-7` | the v4 memo's §4 table has a row with a MISSING cell (rank 5, PB-DX47), so its wire column vanishes — `OOS-DX50-11`'s class, one file over | doc-integrity, gate-shaped |
+
+**Dispatch hygiene 8 executed AFTER the fix cycle, not before it** — which is the whole point of
+the rule, and it caught this batch's own drift: the first draft of every headline surface said
+`OOS-DX20b-1..5`, and the `/review` fix cycle filed `-6` and `-7`. Re-checked against the registry
+and corrected in CLAUDE.md (two places), the v4 memo row, the registry's own closure row and the
+workstream-state handoff. Also re-checked and consistent after the fix cycle:
+
+- **dispositions**: `OOS-DX20-10` and `OOS-DX20-5` are CLOSED in the registry and are described as
+  CLOSED in all four narrative surfaces; no disposition was inverted by the fix cycle.
+- **counts**: tests **5,015 / 0 / 5** over 60 targets, delta **25 / 1 / 0**, quoted identically in
+  CLAUDE.md's tests bullet, its Last Updated narrative and the memo row.
+- **next dispatch**: **PB-DX18, v4 rank 10** in CLAUDE.md (two places), the memo banner and the
+  workstream-state claims table.
+- **registry integrity**, audited whole against `main`: 412 rows vs 405, 7 new ids, **0 lost**, no
+  existing row's cell count changed, all 7 new rows exactly 4 cells.

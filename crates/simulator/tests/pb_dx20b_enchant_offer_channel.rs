@@ -94,6 +94,17 @@
 //! offered, so no over-wide revert can redden either of them whatever they assert.
 //! That is exactly why R-C exists — and R-C reddens both. No row in the matrix is
 //! honestly UNDISCRIMINATED.
+//!
+//! **`c4`'s RED is carried by assertion (1) in every column, and that is disclosed here rather
+//! than left to the row to imply** (`/review` finding 6). `c4` makes three assertions; only the
+//! candidate-set one moves under any revert in this table. Its assertion (2) was a tautology in
+//! the first draft — Imprisoned's own Layer-4 effect makes the host a Land, so a
+//! layer-resolved-types check held for any host under any declaration — and is now a real claim
+//! read off the host's PRINTED types, which is a strengthening and still not a verdict: the
+//! bot's host pick is unchanged by a widening (lowest `ObjectId` wins and the creature is
+//! lowest), and the two plants that would move it make the bot stop casting the Aura entirely,
+//! so `c4` reddens on its precondition rather than on (2). All of that was executed; `c4`'s own
+//! docstring has the measurements.
 
 use std::collections::{BTreeSet, HashMap};
 
@@ -503,14 +514,47 @@ fn c3_a_land_target_resolves_and_the_aura_is_attached_to_it() {
 ///    and still attached at the halt. That is the `sba::matches_enchant_target` half
 ///    of the batch — PB-DX20b rewrote it to call the same lowering the cast path uses,
 ///    and if the two disagreed the CR 704.5m SBA would have binned this Aura to the
-///    graveyard some steps after it resolved. Note the CR subtlety that makes this
-///    self-consistent rather than lucky: Imprisoned's own Layer-4 effect turns the
-///    enchanted permanent into a **Land**, which is one of the three types its Enchant
-///    line admits, so a correct engine keeps the attachment.
+///    graveyard some steps after it resolved. **This is CORROBORATION, not the verdict**
+///    — see the paragraph below, which is `/review` finding 6.
 /// 3. **The rejection census, by class.** `rejection_count() == 0` is NOT asserted and
 ///    that is deliberate: this fixture reproduces a **pre-existing** SR-38 defect that
 ///    has nothing to do with PB-DX20b, and pinning zero would have meant either
 ///    deleting the witness that finds it or asserting something false. See below.
+///
+/// # Assertion (2) is corroboration, and the first draft of it was a TAUTOLOGY
+///
+/// `/review` finding 6. The first draft asserted that the host's **layer-resolved** card types
+/// intersect `{Creature, Land, Planeswalker}`. Imprisoned's own Layer-4 effect makes the
+/// enchanted permanent *"a colorless land"* — which is one of the three — so that assertion held
+/// for **any** host under **any** declaration, including the pre-batch `EnchantTarget::Permanent`
+/// this probe exists to catch. It could not fail. Worse, the docstring above narrated exactly
+/// that mechanism and presented it as the reason the assertion is sound, when it is the reason
+/// the assertion is empty.
+///
+/// It is now split into two claims that can each be false: **(2a)** the host's **printed** card
+/// types are in the printed-legal set (a Sol Ring or an Anointed Procession host fails it), and
+/// **(2b)** the host's layer-resolved types contain `Land`, which asserts Imprisoned's Layer 4
+/// actually applied rather than leaving it to prose.
+///
+/// **And that is still not enough to make (2) the verdict, which is stated rather than implied.**
+/// Measured, not argued — every line below was executed:
+///
+/// * under **R-A** (`has_card_types` emptied, i.e. the pre-batch "any permanent" reach) `c4`
+///   panics at assertion **(1)**, the candidate set;
+/// * with assertion (1) temporarily deleted, `c4` under R-A is **GREEN** — the bot's host pick
+///   does not move, because `plan_targets` takes the first candidate, `legal_targets_per_slot`
+///   walks in ascending `ObjectId`, and the creature has the lowest id on this board. A widening
+///   therefore cannot change the pick at all;
+/// * two further plants that *do* move the pick — declaring `[Artifact]` (host would be the
+///   Sol Ring) and `[Enchantment]` (host would be the Anointed Procession) — redden `c4` on its
+///   **precondition** instead: with those declarations the bot never casts the Aura, so (2a) is
+///   not reached. "All rows RED" produced by the wrong assertion is PB-DX48's own finding, so
+///   the panic LINE was read in each case rather than the pass/fail bit.
+///
+/// So the module-doc revert table's `c4: RED` is carried by **(1)** in every column, and (2a)/(2b)
+/// are corroboration whose failure would be a finding but whose success is not a proof. Making
+/// them the verdict needs a fixture whose lowest-`ObjectId` battlefield permanent is *not*
+/// printed-legal, which this board cannot be — the artifact is also its `{C}{C}` mana source.
 ///
 /// # The pre-existing defect this fixture reproduces (`legal_actions.rs:1276`)
 ///
@@ -597,6 +641,40 @@ fn c4_the_bot_path_sees_the_same_offer_set_and_its_aura_stays_attached() {
     let host = aura_permanent
         .attached_to
         .expect("CR 704.5m: an Aura on the battlefield attached to nothing is binned by the SBA");
+    // (2a) The Enchant restriction, asserted on the host's PRINTED card types.
+    //
+    // `/review` finding 6: the first draft asserted that the host's LAYER-RESOLVED types
+    // intersect {Creature, Land, Planeswalker}, and that assertion is near-tautological —
+    // Imprisoned's own Layer-4 effect makes the enchanted permanent a **Land**, which is one of
+    // the three, so it held for ANY host under ANY declaration, including the pre-batch
+    // `EnchantTarget::Permanent`. Read off the base `Characteristics` instead: the layer walk
+    // never writes them back, so this is what the card is printed as, and it is a claim that can
+    // be false — a Sol Ring or an Anointed Procession host fails it.
+    let printed_types: Vec<String> = game
+        .state()
+        .objects()
+        .get(&host)
+        .expect("the enchanted permanent must still exist")
+        .characteristics
+        .card_types
+        .iter()
+        .map(|t| format!("{t:?}"))
+        .collect();
+    assert!(
+        printed_types
+            .iter()
+            .any(|t| t == "Creature" || t == "Land" || t == "Planeswalker"),
+        "CR 702.5a/704.5m: the bot-cast Aura is attached to '{}', whose PRINTED card types are \
+         {printed_types:?} — none of which its printed Enchant line \"Enchant creature, land, \
+         or planeswalker\" admits. `sba::enchant_filter_matches` and \
+         `casting::enchant_filter_to_target_filter` have diverged.",
+        name_of(game.state(), host)
+    );
+
+    // (2b) …and the reason the attachment SURVIVES the CR 704.5m sweep, asserted rather than
+    // narrated: Imprisoned's own Layer-4 effect really did make the host a Land (CR 613.1d).
+    // Without this the pair reads as "the SBA happened not to fire"; with it, the CR subtlety
+    // that makes a correct engine keep this attachment is measured on the bot path.
     let host_types: Vec<String> = mtg_engine::calculate_characteristics(game.state(), host)
         .expect("the enchanted permanent must still exist")
         .card_types
@@ -604,13 +682,11 @@ fn c4_the_bot_path_sees_the_same_offer_set_and_its_aura_stays_attached() {
         .map(|t| format!("{t:?}"))
         .collect();
     assert!(
-        host_types
-            .iter()
-            .any(|t| t == "Creature" || t == "Land" || t == "Planeswalker"),
-        "CR 702.5a/704.5m: the bot-cast Aura is attached to '{}', whose LAYER-RESOLVED \
-         card types are {host_types:?} — none of which its printed Enchant line admits. \
-         `sba::enchant_filter_matches` and `casting::enchant_filter_to_target_filter` \
-         have diverged.",
+        host_types.iter().any(|t| t == "Land"),
+        "CR 613.1d: Imprisoned in the Moon makes the enchanted permanent \"a colorless land\", \
+         so the host's LAYER-RESOLVED types must contain Land — that is why CR 704.5m leaves \
+         the Aura attached to a permanent whose printed type is Creature. Got {host_types:?} \
+         for '{}'.",
         name_of(game.state(), host)
     );
 

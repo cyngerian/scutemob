@@ -210,7 +210,7 @@
   `breath_of_fury` — all keyword-declaration changes, **no `Completeness` marker moved**, so the
   `CORPUS_COMPLETE` SET is unmoved and no seeded fixture was re-dealt); **PROTOCOL 40 → 41 /
   HASH 79 → 80**, ONE bump each, both gate-computed and both predicted in writing before any
-  code, type counts predicted unchanged and confirmed at 98 / 131. Filed **OOS-DX20b-1..5**.
+  code, type counts predicted unchanged and confirmed at 98 / 131. Filed **OOS-DX20b-1..7** (`-6` and `-7` by the `/review` fix cycle, after the first draft of these lines said `-1..5` — dispatch hygiene 8's exact case, caught by re-checking this cell against the registry AFTER the fix cycle rather than before it).
   **Next dispatch: PB-DX18** (v4 rank 10); ranks 1-9 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
@@ -222,12 +222,13 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-03, PB-DX20b)**: **5,013 / 0 / 5** full-workspace on branch
-  `scutemob-222` (+22 over the **4,991** baseline, measured on this branch BEFORE any edit and
+- **Tests (delta 2026-09-03, PB-DX20b)**: **5,015 / 0 / 5** full-workspace on branch
+  `scutemob-222` (+24 over the **4,991** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX50's close pin exactly), `--workspace --no-fail-fast` to a file, **60**
   result-producing targets (59 → 60: one new simulator test binary), residual list empty.
-  **Delta itemised by test NAME by set-diffing the two run logs: 23 additions, 1 leaver, 0
-  removals.** The single leaver is disclosed and is not a removal:
+  **Delta itemised by test NAME by set-diffing the two run logs: 25 additions, 1 leaver, 0
+  removals** (23 at the batch's close, +2 in the `/review` fix cycle — `t10` and `t11`; the fix
+  cycle's other two findings edited existing tests in place, so it added 0 leavers and 0 renames).** The single leaver is disclosed and is not a removal:
   `pb_dx49_saga_blanking_roster::r4a_pair_a_depends_on_oos_dx20_10` became
   `..._is_dead_since_oos_dx20_10_closed`, because **PB-DX49's Pair A existed only because of the
   defect this batch closed** and that row was written to go red and demand re-adjudication rather
@@ -1051,7 +1052,13 @@
   **re-adjudicated, not deleted**: the death is now COMPUTED from the intersection of the two type
   sets, so a widening resurrects the pair loudly. Verified it vacates no behavioural coverage —
   nothing outside that roster file names the card, and PB-DX49's deck-legal coverage rests on
-  Pair B, which never sat behind this seed. The rename is this batch's single test leaver.
+  Pair B, which never sat behind this seed — **and the first draft of that justification was
+  itself false, which the `/review` caught**: it said *"nothing outside that roster file names
+  the card"*, while at the merge base five files did, one of them the very PB-DX20 roster pin
+  this batch inverts. The conclusion survives on the narrower true reason — that reference was a
+  roster PIN and no fixture ever drove Pair A — and the correction is recorded in the test's own
+  doc, because a stated reason is the half the next batch reuses. The rename is this batch's
+  single test leaver.
   **AND A LIVE, PRE-EXISTING SR-38 DEFECT FOUND BY EXECUTION**: `legal_actions.rs:1276` builds the
   `DeclareAttackers` eligible list from **raw printed** `obj.characteristics.card_types`, never
   `calculate_characteristics` — so once Imprisoned resolves and its Layer-4 effect makes the
@@ -1059,13 +1066,13 @@
   refuses. `status.tapped`, `Defender` and `Haste` are read from the same raw struct three lines
   away, so a *granted* Defender is equally invisible. Byte-identical under revert, so pre-existing;
   filed `OOS-DX20b-1` and pinned by CLASS and COUNT rather than asserted away.
-  Tests **5,013 / 0 / 5** (+22 over the 4,991 pre-edit baseline, **60** targets, itemised by NAME
-  as 23 additions / 1 disclosed leaver / 0 removals). **PROTOCOL 40 → 41 / HASH 79 → 80, one bump
+  Tests **5,015 / 0 / 5** (+24 over the 4,991 pre-edit baseline, **60** targets, itemised by NAME
+  as 25 additions / 1 disclosed leaver / 0 removals). **PROTOCOL 40 → 41 / HASH 79 → 80, one bump
   each, predicted in writing before any code including the unchanged type counts (98 / 131).**
   Coverage unmoved **63.1%**, **0 flips**, 3 card-def edits with no `Completeness` marker moved.
   All gates clean against the FINAL tree; benches measured over four runs and *no regression
   demonstrated*, with the same-code repeatability band shown to be wider than the effect. Filed
-  **OOS-DX20b-1..5**. Full record: `memory/primitives/pb-DX20b-execution-notes.md`; handoff:
+  **OOS-DX20b-1..7**. Full record: `memory/primitives/pb-DX20b-execution-notes.md`; handoff:
   `memory/workstream-state.md`.
 - **Prior**: 2026-09-03 — **PB-DX50 SHIPPED** (`scutemob-221`; v4 queue rank 8 —
   **OOS-DX25-1** and **OOS-DX29-2** both CLOSED). **CR 702.140a says a mutate spell *targets* its

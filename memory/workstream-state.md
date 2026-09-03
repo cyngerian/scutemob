@@ -21,7 +21,7 @@
 
 **Shipped**: v4 queue **rank 9**. **`OOS-DX20-10` ≡ `OOS-DX20-5` CLOSED as ONE defect**,
 cross-cited — both rows named the same expressiveness gap, and the memo's §1 pairing was right.
-Filed **`OOS-DX20b-1..5`**. **Next dispatch: PB-DX18** (v4 rank 10).
+Filed **`OOS-DX20b-1..7`** (`-6`/`-7` by the `/review` fix cycle). **Next dispatch: PB-DX18** (v4 rank 10).
 
 **The defect.** CR 702.5a: *"Enchant is a static ability … The enchant ability restricts what an
 Aura spell can target and what an Aura can enchant."* `imprisoned_in_the_moon` (`Complete`,

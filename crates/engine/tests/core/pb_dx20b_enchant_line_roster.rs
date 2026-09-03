@@ -1173,6 +1173,25 @@ fn matching_brace(src: &str, open: usize) -> Option<usize> {
 
 /// Every field name parsed out of `pub struct EnchantFilter`'s own declaration in
 /// `crates/card-types/src/state/types.rs`.
+///
+/// ## Every `pub ` in the body, not one per LINE — and the first draft took one per line
+///
+/// `/review` finding 3, proved by planting `pub nonbasic: bool, pub sneaky_zone: bool,` on a
+/// single line: a line-oriented parser takes the FIRST `pub ` and stops, so the second field is
+/// declared, serialized (`#[serde(default)]` is inherited from the line's attribute), hashed and
+/// stored, is never lowered — and `r5` stays GREEN, because the field it cannot see is absent
+/// from BOTH sides of its subset check. That is `r5`'s own subject matter committed inside
+/// `r5`'s own parser.
+///
+/// **The mitigation is stated rather than the hole being overclaimed**: `cargo fmt --check`
+/// rejects two struct fields on one line, so the defect is only reachable in an unformatted
+/// tree — a state this repository's gates already refuse. It is repaired anyway, because a
+/// gate that is correct only because a *different* gate is green is a gate whose reach nobody
+/// has measured, and because the repair costs four lines.
+///
+/// The scan mirrors [`lowered_enchant_filter_fields`]'s needle discipline: a hit only counts
+/// when the byte before it is not an identifier character, so `xpub ` / `_pub ` cannot mint a
+/// phantom field.
 fn declared_enchant_filter_fields() -> BTreeSet<String> {
     let path = workspace_root().join("crates/card-types/src/state/types.rs");
     let raw = std::fs::read_to_string(&path).expect("types.rs is readable");
@@ -1188,18 +1207,25 @@ fn declared_enchant_filter_fields() -> BTreeSet<String> {
     let body = &src[open + 1..end];
 
     let mut out = BTreeSet::new();
-    for line in body.lines() {
-        let t = line.trim();
-        let Some(rest) = t.strip_prefix("pub ") else {
-            continue;
+    let bytes = body.as_bytes();
+    let mut i = 0usize;
+    while let Some(rel) = body[i..].find("pub ") {
+        let at = i + rel;
+        // Reject `xpub ` / `_pub ` — the keyword must stand on its own.
+        let standalone = at == 0 || {
+            let prev = bytes[at - 1];
+            !(prev.is_ascii_alphanumeric() || prev == b'_')
         };
-        let name: String = rest
-            .chars()
-            .take_while(|c| c.is_alphanumeric() || *c == '_')
-            .collect();
-        if !name.is_empty() {
-            out.insert(name);
+        if standalone {
+            let name: String = body[at + 4..]
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
+            if !name.is_empty() {
+                out.insert(name);
+            }
         }
+        i = at + 4;
     }
     out
 }
