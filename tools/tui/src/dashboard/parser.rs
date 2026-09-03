@@ -160,12 +160,18 @@ fn parse_corner_case_audit(root: &Path) -> anyhow::Result<CornerCaseAudit> {
         let count: u32 = cells[1].parse().unwrap_or(0);
         match cells[0].to_lowercase().as_str() {
             "covered" => audit.covered = count,
+            "partial" => audit.partial = count,
             "gap" => audit.gap = count,
+            "deferred" => audit.deferred = count,
             _ => {}
         }
     }
-    audit.total = audit.covered + audit.gap;
-    // Also add partial/deferred to total
+    // PB-DX49 (`scutemob-220`): the Partial and Deferred rows were parsed into nothing and the
+    // total was `covered + gap`, under a comment that said "Also add partial/deferred to total"
+    // and never did. That was invisible while both rows read 0; corner case #36 moved to
+    // **PARTIAL** in this batch, which would have made the dashboard report 35 of 35 for a
+    // 36-case audit. Summing every status is what makes the total the audit's own row count.
+    audit.total = audit.covered + audit.partial + audit.gap + audit.deferred;
     Ok(audit)
 }
 

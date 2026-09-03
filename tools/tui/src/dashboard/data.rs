@@ -113,7 +113,12 @@ impl MilestoneStatus {
 #[derive(Debug, Default)]
 pub struct CornerCaseAudit {
     pub covered: u32,
+    /// PB-DX49: the audit's Summary table has always had Partial and Deferred rows; nothing
+    /// read them, so `total` was `covered + gap` and silently under-reported the moment a case
+    /// sat in either. Corner case #36 is `PARTIAL` as of `scutemob-220`.
+    pub partial: u32,
     pub gap: u32,
+    pub deferred: u32,
     pub total: u32,
 }
 

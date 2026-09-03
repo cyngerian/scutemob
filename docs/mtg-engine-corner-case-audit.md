@@ -1,6 +1,6 @@
 # Corner Case Correctness Audit
 
-<!-- last_updated: 2026-03-08 -->
+<!-- last_updated: 2026-09-03 -->
 
 > **⚠️ Audit stamp stale — refresh deferred (noted 2026-07-18).** The case-level
 > statuses below were last re-audited 2026-03-08 and have **not** been re-run against the
@@ -22,10 +22,18 @@
 
 | Status | Count | % |
 |--------|-------|---|
-| Covered | 32 | 89% |
-| Partial | 0 | 0% |
-| Gap | 4 | 11% |
+| Covered | 35 | 97% |
+| Partial | 1 | 3% |
+| Gap | 0 | 0% |
 | Deferred | 0 | 0% |
+
+> **Re-measured 2026-09-03 (PB-DX49, `scutemob-220`).** This summary said `32 / 0 / 4 / 0` and had
+> been stale by three closures since before 2026-08-14 — `scutemob-212` re-measured the *row*
+> census (35 COVERED / 1 GAP) and corrected CLAUDE.md, but **not this table**, which is the one
+> `tools/tui/src/dashboard/parser.rs` machine-reads. `OOS-RR4-3`'s finding (ii) is therefore only
+> half discharged at HEAD, and the surviving half is the half a tool depends on. Derivation:
+> `grep -oE '\*\*(COVERED|PARTIAL|GAP|DEFERRED)\*\*' docs/mtg-engine-corner-case-audit.md | sort | uniq -c`
+> over the coverage table below.
 
 **Card definition gaps**: 0 (all 12 fixed in M9.4)
 
@@ -70,7 +78,7 @@
 | 33 | Sylvan Library + Draw Replacement | 614 | **COVERED** | `test_cc33_sylvan_library_draw_tracking` in `replacement_effects.rs` — `cards_drawn_this_turn` tracking verified | M9.4 S4 |
 | 34 | Reveillark + Karmic Guide Loop | 726, 104.4b | **COVERED** | `test_loop_detection_threshold_is_three` in `loop_detection.rs` — detection algorithm in `rules/loop_detection.rs` | M9.4 S10 |
 | 35 | Storm + Copying | 702.40, 707.10 | **COVERED** | `test_storm_creates_copies`, `test_spell_copy_is_not_cast` in `storm_copy.rs` | M9.4 S8 |
-| 36 | Blood Moon + Urza's Saga (Layer 4 vs 6, Saga SBA) | 714.4, 613.1d, 613.1f, 613.7 | **GAP** | No test — requires Saga gained-ability tracking + updated CR 714.4 SBA logic (June 2025 rules change) | — |
+| 36 | Blood Moon + Urza's Saga (Layer 4 vs 6, Saga SBA) | 714.4, 613.1d, 613.1f, 613.7, 305.7, 708.2a | **PARTIAL** | **Engine half COVERED** by PB-DX49 (`scutemob-220`): CR 714.4's "with one or more chapter abilities" exemption now reads the layer axis at all five behavioural sites through one read-only query (`rules::saga::saga_view`), covering both blanking channels (Layer-6 `RemoveAllAbilities` and CR 708.2a face-down) — `primitives::pb_dx49_blanked_saga_sites`, `core::pb_dx49_saga_blanking_roster`, `simulator::pb_dx49_saga_blanking_channel`. **Card half still open**: `urzas_saga.rs` is `Completeness::partial` with chapters I/II as `GainLife(0)` placeholders, so the *famous* pair is not deck-legal and the interaction cannot be constructed from a legal deck. Gated on `OOS-RR4-2` (authoring), **not** on "Saga gained-ability tracking" — that remediation note was wrong at HEAD and is corrected here: `LayerModification::AddManaAbility` / `AddActivatedAbility` + `EffectFilter::Source` + `Effect::ApplyContinuousEffect` all ship with corpus users. | PB-DX49 (engine) / `OOS-RR4-2` (card) |
 
 ---
 

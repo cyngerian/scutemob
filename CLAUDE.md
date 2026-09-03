@@ -2281,10 +2281,16 @@
   replay viewer), ~112 approved scripts, ~1934 harness tests, 6-player suite, 54 property invariants
 - `benches/`: criterion (priority_cycle_4p 23µs, sba_check 14µs, full_turn_4p 205µs)
 - `tools/replay-viewer/`: axum + Svelte 5, 5 API endpoints, 12 components, diff highlighting, keyboard nav
-- 36 corner cases: **35 COVERED, 1 GAP, 0 DEFERRED** (re-measured 2026-08-14 by `scutemob-212`
+- 36 corner cases: **35 COVERED, 1 PARTIAL, 0 GAP, 0 DEFERRED** (re-measured 2026-09-03 by
+  `scutemob-220`/PB-DX49, which moved #36 GAP → PARTIAL: its **engine** half is covered and its
+  **card** half is still gated on `urzas_saga` authoring (`OOS-RR4-2`). Prior measurement
+  2026-08-14 by `scutemob-212`
   from `docs/mtg-engine-corner-case-audit.md` itself — the previous "32 COVERED, 4 GAP" was stale
-  by three closures. The one remaining GAP is **#36, Blood Moon + Urza's Saga**, now seeded as
-  `OOS-RR4-1`/`-2`/`-3` and ranked in `memory/primitives/seed-rerank-2026-08-14.md` §4)
+  by three closures, and the audit's own **Summary table** — the one
+  `tools/tui/src/dashboard/parser.rs` machine-reads — was still saying `32 / 0 / 4 / 0` until
+  PB-DX49 fixed it, so `OOS-RR4-3`'s finding (ii) was only half discharged and the surviving half
+  was the half a tool depended on. `OOS-RR4-1` and `OOS-RR4-3` are CLOSED; `OOS-RR4-2` (the card
+  half) stays open and ranked in `memory/primitives/seed-rerank-2026-08-14.md` §4)
 
 ---
 
