@@ -198,3 +198,35 @@ Site 3 matters twice over:
 
 **Not a site**: `crates/simulator/src/targeting.rs` (mutate's target rides on the action, per
 PB-DX29 — checked, not assumed) and `tools/play-server/src/view.rs` (labelling only).
+
+---
+
+## §4 A correction to THIS PLAN, made before it shipped
+
+§1.1 item 3 said site 2 (the CR 702.140b re-check) should "delete the four hand-rolled checks and
+replace them with `is_target_legal`". **That is a regression, and the plan was wrong.**
+
+`resolution::is_target_legal` (`resolution.rs:8418`) checks, for an object target, exactly one
+thing:
+
+```rust
+Target::Object(id) => state.objects.get(id)
+    .map(|obj| Some(obj.zone) == spell_target.zone_at_cast).unwrap_or(false)
+```
+
+Zone, and nothing else. HEAD's mutate block checks battlefield **and** creature-ness **and**
+non-Human **and** owner. So "delegate to the shared helper" would have *removed* three checks in the
+name of removing duplication — the failure mode is that **the shared thing was weaker than the
+duplicated thing**, and "one arithmetic" is only an improvement when the arithmetic that survives is
+the RIGHT one.
+
+Site 2 as shipped is the conjunction: `is_target_legal` (CR 608.2b's own zone sentence) **AND**
+`validate_object_satisfies_requirement` re-applied to the requirement recorded on the stack object
+at announcement. That is strictly stronger than HEAD — it adds hexproof / shroud / protection gained
+*in response*, which CR 608.2b requires and HEAD missed — and never weaker.
+
+**A related engine-wide deviation, found by this batch and deliberately NOT fixed**: because
+`is_target_legal` is zone-only, *every* spell in this engine under-checks CR 608.2b at resolution —
+a target that stays put but stops satisfying the requirement, or gains hexproof/protection in
+response, is still treated as legal. That is not a mutate defect and it is far outside this batch.
+Filed, not fixed.
