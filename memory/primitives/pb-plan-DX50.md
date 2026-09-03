@@ -230,3 +230,25 @@ at announcement. That is strictly stronger than HEAD — it adds hexproof / shro
 a target that stays put but stops satisfying the requirement, or gains hexproof/protection in
 response, is still treated as legal. That is not a mutate defect and it is far outside this batch.
 Filed, not fixed.
+
+---
+
+## §5 The movement budget, ENUMERATED before Half 2 runs
+
+PB-DX15a's lesson was a budget that was written and never came due; PB-DX48's was one that came due
+and was rounded to "no change". This one is enumerated up front so it can be checked either way.
+
+| Surface | Measured population at HEAD | Why it moves |
+|---|---|---|
+| `HASH_SCHEMA_VERSION` sentinels | **45** (43 spelled `78u8`, 2 spelled `78`) | Half 2's bump. Re-pinned **by symbol**, and BOTH spellings enumerated first — PB-DX45 re-pinned 44 and then found 2 more, because a re-pin is only as wide as the spelling its regex matched. No reverse-order (`78u8, HASH_SCHEMA_VERSION`) spelling exists; checked, not assumed. |
+| `PROTOCOL_VERSION` sentinels | **11** (all spelled `39`) | same |
+| History rows | 2 (`HASH_SCHEMA_HISTORY`, `PROTOCOL_HISTORY`) | **APPEND** only; no shipped row edited. Both `FROZEN_HISTORY_PREFIX_DIGEST`s re-pinned. |
+| Golden scripts | **1** — `test-data/generated-scripts/combat/192_mutate_gemrazer.json` | It casts mutate with `mutate_on_top: true` in its command JSON. Half 2 deletes that field, and SR-9c makes script JSON **strict**, so the script must be edited. Its SR-9b per-step fingerprint moves for BOTH halves (Half 1 records targets on the stack object; Half 2 inserts an `AnswerEffectChoice`). |
+| `crates/simulator/tests/pb_dx29_mutate_on_top.rs` | 3 tests | M1 (`provider_offers_both_on_top_and_under`) and M2 (`params_forwards_the_actions_on_top_choice`) **invert** — the provider stops offering the pair. M3 (`mutating_under_keeps_the_hosts_characteristics`) is the proof the criterion says must survive; it is **re-homed** onto the resolution-time answer, not deleted. All three disclosed by name as leavers/renames. |
+| Mutate offer count | one action per `(target, on_top)` → one per `target` | **Halves.** Any seeded observation that counts offers moves. |
+| Coverage | predicted **0 flips, 0 card-def edits** | this batch adds no card-def capability |
+
+**Behavioural identity is preserved for every existing bot game, fuzz seed and golden script** by
+`default_effect_choice_answer(MutateOnTop) == { on_top: true }` — the exact recovery of the
+pre-batch hard-coded value, the same argument ENG-1 and PB-DX45 made. `replay_harness.rs:402-409`
+auto-answers with that default, so only the COMMAND TRACE grows.
