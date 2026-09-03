@@ -5717,7 +5717,7 @@ pub(crate) fn mutate_target_requirement() -> TargetRequirement {
     TargetRequirement::TargetCreatureWithFilter(TargetFilter {
         // CR 702.140a "non-Human".
         exclude_subtypes: vec![SubType("Human".to_string())],
-        // CR 702.140a "with the same owner as this spell" — see the deviation note above.
+        // CR 702.140a "with the same owner as this spell" — see the deviation note above; filed as `OOS-DX50-4`.
         owner: TargetOwner::You,
         ..Default::default()
     })

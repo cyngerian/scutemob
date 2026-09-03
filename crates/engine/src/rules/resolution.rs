@@ -7577,7 +7577,8 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
             // battlefield. Do not delete it on the grounds that no test fails -- no test
             // CAN fail, and that is the point of writing it down here.
             //
-            // **Known engine-wide residual, stated so it is not read as a mutate quirk.**
+            // **Known engine-wide residual (`OOS-DX50-5`), stated so it is not read as a
+            // mutate quirk.**
             // `is_target_legal` is zone-only for EVERY spell in this engine, so
             // protection-gained-in-response is under-checked at the CR 608.2b fizzle gate
             // in the `StackObjectKind::Spell` arm above and at every other consumer. This
