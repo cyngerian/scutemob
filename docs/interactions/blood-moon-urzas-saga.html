@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Moon and the Saga</title>
+<meta name="description" content="How the scutemob MTG rules engine resolves Blood Moon + Urza's Saga — a two-layer deconstruction, from table talk to engine internals.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --ground: #f6f0e3;
+    --ink: #2b2318;
+    --muted: #6f6353;
+    --moon: #b8382a;
+    --gold: #8f6f2a;
+    --panel: #eee5cf;
+    --panel-2: #e7dcc2;
+    --line: #d8cbae;
+    --code-bg: #efe8d6;
+    --shadow: 0 1px 3px rgba(43, 35, 24, 0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #141021;
+      --ink: #e9e1d1;
+      --muted: #a99cc0;
+      --moon: #e0584a;
+      --gold: #d5ad55;
+      --panel: #1e1830;
+      --panel-2: #251d3c;
+      --line: #372e52;
+      --code-bg: #1a1429;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #141021;
+    --ink: #e9e1d1;
+    --muted: #a99cc0;
+    --moon: #e0584a;
+    --gold: #d5ad55;
+    --panel: #1e1830;
+    --panel-2: #251d3c;
+    --line: #372e52;
+    --code-bg: #1a1429;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 1.0625rem;
+    line-height: 1.65;
+  }
+
+  .wrap { max-width: 44rem; margin: 0 auto; padding: 0 1.25rem 5rem; }
+
+  /* ---------- Hero ---------- */
+  header.hero { text-align: center; padding: 3rem 1.25rem 1.5rem; }
+  header.hero .moonmark { display: block; margin: 0 auto 1rem; }
+  h1 {
+    font-family: Cinzel, "Times New Roman", serif;
+    font-weight: 700;
+    font-size: clamp(1.7rem, 6vw, 2.6rem);
+    letter-spacing: 0.04em;
+    margin: 0 0 0.5rem;
+    text-wrap: balance;
+  }
+  .hero .sub {
+    color: var(--muted);
+    font-size: 1rem;
+    max-width: 34rem;
+    margin: 0 auto;
+    text-wrap: balance;
+  }
+  .hero .verdict {
+    display: inline-block;
+    margin-top: 1.25rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--moon);
+    background: var(--panel);
+    font-size: 0.95rem;
+    text-align: left;
+    border-radius: 2px;
+  }
+
+  /* ---------- Layer toggle ---------- */
+  nav.layers {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--ground);
+    border-bottom: 1px solid var(--line);
+    padding: 0.6rem 1.25rem;
+    display: flex; justify-content: center; gap: 0.5rem;
+  }
+  nav.layers button {
+    font-family: Cinzel, serif;
+    font-weight: 600;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 0.5rem 0.9rem;
+    cursor: pointer;
+  }
+  nav.layers button[aria-selected="true"] {
+    color: var(--ground);
+    background: var(--moon);
+    border-color: var(--moon);
+  }
+  nav.layers button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  body[data-layer="table"] #engine-room { display: none; }
+  body[data-layer="engine"] #at-the-table { display: none; }
+
+  /* ---------- Chapters ---------- */
+  section.part { padding-top: 2rem; }
+  .chapter { display: flex; gap: 1rem; margin-top: 2.5rem; }
+  .chapter .badge {
+    flex: none;
+    width: 2.6rem; height: 2.6rem;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--gold);
+    color: var(--gold);
+    font-family: Cinzel, serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    border-radius: 2px;
+    margin-top: 0.2rem;
+  }
+  .chapter h2, .chapter h3 {
+    font-family: Cinzel, serif;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    font-size: 1.25rem;
+    margin: 0.35rem 0 0.6rem;
+    text-wrap: balance;
+  }
+  .chapter .body { min-width: 0; }
+
+  h2.plain {
+    font-family: Cinzel, serif;
+    font-weight: 600;
+    font-size: 1.35rem;
+    letter-spacing: 0.03em;
+    margin: 2.5rem 0 0.75rem;
+    text-wrap: balance;
+  }
+
+  p { margin: 0 0 1rem; }
+  .muted { color: var(--muted); }
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+
+  /* ---------- Rules quotes ---------- */
+  blockquote.cr {
+    margin: 1.25rem 0;
+    padding: 0.9rem 1.1rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--gold);
+    border-radius: 2px;
+    font-size: 0.98rem;
+  }
+  blockquote.cr .rn {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    color: var(--gold);
+    display: block;
+    margin-bottom: 0.3rem;
+    letter-spacing: 0.05em;
+  }
+  blockquote.cr mark {
+    background: transparent;
+    color: var(--moon);
+    font-weight: 600;
+  }
+
+  code, pre {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.85em;
+  }
+  code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 2px; }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+  pre code { background: transparent; padding: 0; }
+
+  /* ---------- Figures ---------- */
+  figure { margin: 1.5rem 0; }
+  figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+  figcaption {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-align: center;
+    text-wrap: balance;
+  }
+  .diagram-frame {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 1rem 0.5rem;
+    overflow-x: auto;
+  }
+
+  /* ---------- Tables ---------- */
+  .tablewrap { overflow-x: auto; margin: 1.25rem 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.92rem;
+    min-width: 30rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.5rem 0.7rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  td.yes { color: var(--gold); font-weight: 600; }
+  td.no  { color: var(--moon); font-weight: 600; }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 3rem auto;
+    max-width: 10rem;
+  }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  a { color: var(--moon); }
+</style>
+</head>
+<body data-layer="table">
+
+<header class="hero">
+  <svg class="moonmark" width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="A blood moon rising over three saga chapter markers">
+    <circle cx="36" cy="28" r="17" fill="none" stroke="var(--moon)" stroke-width="2.5"/>
+    <path d="M 27 20 A 17 17 0 0 0 27 36 A 13 13 0 0 1 27 20 Z" fill="var(--moon)" opacity="0.55"/>
+    <rect x="16" y="54" width="10" height="10" fill="none" stroke="var(--gold)" stroke-width="1.5"/>
+    <rect x="31" y="54" width="10" height="10" fill="none" stroke="var(--gold)" stroke-width="1.5"/>
+    <rect x="46" y="54" width="10" height="10" fill="none" stroke="var(--gold)" stroke-width="1.5"/>
+    <text x="21" y="61.5" text-anchor="middle" font-size="7" fill="var(--gold)" font-family="serif">I</text>
+    <text x="36" y="61.5" text-anchor="middle" font-size="7" fill="var(--gold)" font-family="serif">II</text>
+    <text x="51" y="61.5" text-anchor="middle" font-size="7" fill="var(--gold)" font-family="serif">III</text>
+  </svg>
+  <h1>The Moon and the Saga</h1>
+  <p class="sub">How a rules engine resolves one of Magic's strangest interactions —
+  <strong>Blood Moon</strong> meets <strong>Urza's Saga</strong> — told twice:
+  once for the table, once for the engineers.</p>
+  <p class="verdict"><strong>The verdict up front:</strong> under Blood Moon, Urza's Saga
+  becomes a Mountain that taps for <code>{R}</code>, loses all three chapters,
+  and — this is the strange part — <em>is never sacrificed</em>. It just sits there. Forever.</p>
+</header>
+
+<nav class="layers" role="tablist" aria-label="Explanation depth">
+  <button role="tab" id="tab-table" aria-selected="true" aria-controls="at-the-table" onclick="setLayer('table')">I &middot; At the Table</button>
+  <button role="tab" id="tab-engine" aria-selected="false" aria-controls="engine-room" onclick="setLayer('engine')">II &middot; The Engine Room</button>
+</nav>
+
+<main class="wrap">
+
+<!-- ============================================================ -->
+<!-- LAYER I — AT THE TABLE                                       -->
+<!-- ============================================================ -->
+<section class="part" id="at-the-table" role="tabpanel" aria-labelledby="tab-table">
+
+  <h2 class="plain">A simplified model of the engine</h2>
+  <p>The engine never trusts what is printed on a card. Every time it needs to know what a
+  permanent <em>is</em> — its types, its abilities, its power — it starts from the printed card
+  and pushes it through a pipeline of <strong>layers</strong>: first effects that change what
+  the card <em>is</em> (its types), then effects that change what it <em>does</em> (its
+  abilities). What comes out the far end is the only version of the card the game ever sees.</p>
+
+  <figure>
+    <div class="diagram-frame">
+    <svg viewBox="0 0 640 150" role="img" aria-label="The printed card passes through a type-changing layer, then an ability-changing layer, before the game reads it">
+      <defs>
+        <marker id="arr1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <g fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="10"  y="40" width="130" height="70" rx="2"/>
+        <rect x="200" y="40" width="130" height="70" rx="2" stroke="var(--moon)"/>
+        <rect x="390" y="40" width="130" height="70" rx="2" stroke="var(--moon)"/>
+        <rect x="570" y="55" width="60" height="40" rx="2"/>
+        <line x1="140" y1="75" x2="196" y2="75" marker-end="url(#arr1)"/>
+        <line x1="330" y1="75" x2="386" y2="75" marker-end="url(#arr1)"/>
+        <line x1="520" y1="75" x2="566" y2="75" marker-end="url(#arr1)"/>
+      </g>
+      <g fill="currentColor" font-family="'JetBrains Mono',monospace" font-size="12" text-anchor="middle">
+        <text x="75"  y="70">the printed</text>
+        <text x="75"  y="88">card</text>
+        <text x="265" y="70">layer 4</text>
+        <text x="265" y="88">types change</text>
+        <text x="455" y="70">layer 6</text>
+        <text x="455" y="88">abilities change</text>
+        <text x="600" y="79">the game</text>
+      </g>
+      <g fill="var(--moon)" font-family="'JetBrains Mono',monospace" font-size="10" text-anchor="middle">
+        <text x="265" y="30">Blood Moon acts here</text>
+        <text x="455" y="30">…and its consequences here</text>
+      </g>
+    </svg>
+    </div>
+    <figcaption>The engine's reality pipeline. Blood Moon rewrites the middle; the game only ever reads the right edge.</figcaption>
+  </figure>
+
+  <p>Urza's Saga is a <em>Saga</em> — an enchantment that tells a story in chapters. It
+  collects a <strong>lore counter</strong> each turn, each counter unlocks a chapter ability,
+  and when the story is finished (counters &ge; final chapter), the Saga is sacrificed.
+  Blood Moon says seven small words: <em>&ldquo;Nonbasic lands are Mountains.&rdquo;</em>
+  Watch what those words do to the story.</p>
+
+  <div class="chapter">
+    <div class="badge">I</div>
+    <div class="body">
+      <h3>The Moon changes what the Saga is</h3>
+      <p>Blood Moon acts in the type-changing layer. It replaces the Saga's <em>land</em>
+      subtypes with one word: Mountain. But here is the first subtlety —
+      <strong>&ldquo;Saga&rdquo; is not a land subtype.</strong> It is an <em>enchantment</em>
+      subtype, so the Moon cannot touch it. The permanent comes out of the pipeline as an
+      <em>Enchantment Land — Mountain Saga</em>. Still a Saga. Still telling a story.
+      In an early version of the engine, Blood Moon wrongly stripped card types too
+      (an artifact land stopped being an artifact); the engine now replaces
+      <em>only the land subtypes</em>, exactly as printed.</p>
+    </div>
+  </div>
+
+  <div class="chapter">
+    <div class="badge">II</div>
+    <div class="body">
+      <h3>Becoming a Mountain has consequences</h3>
+      <p>The rules say a land that becomes a Mountain <strong>loses its printed abilities</strong>
+      and gains the one intrinsic ability every Mountain has: <code>{T}: Add {R}</code>.
+      Nobody prints that text on a Mountain — the game just knows. The engine does the same:
+      the moment the pipeline resolves the type change, it derives the red mana ability out of
+      thin air and deletes the chapters. Our Saga now has <em>zero chapter abilities</em>.</p>
+
+      <figure>
+        <div class="diagram-frame">
+        <svg viewBox="0 0 620 220" role="img" aria-label="Urza's Saga before and after Blood Moon: three chapters and no mana ability become no chapters and tap for red">
+          <defs>
+            <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--moon)"/>
+            </marker>
+          </defs>
+          <g fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="15"  y="15" width="230" height="190" rx="4"/>
+            <rect x="375" y="15" width="230" height="190" rx="4" stroke="var(--moon)"/>
+          </g>
+          <line x1="255" y1="110" x2="365" y2="110" stroke="var(--moon)" stroke-width="1.5" marker-end="url(#arr2)"/>
+          <text x="310" y="98" text-anchor="middle" font-size="11" fill="var(--moon)" font-family="'JetBrains Mono',monospace">Blood Moon</text>
+          <g font-family="'JetBrains Mono',monospace" font-size="11.5" fill="currentColor">
+            <text x="30" y="40" font-weight="bold">Urza's Saga</text>
+            <text x="30" y="60" opacity="0.75">Enchantment Land —</text>
+            <text x="30" y="76" opacity="0.75">Urza's Saga</text>
+            <text x="30" y="104">I — gains {T}: Add {C}</text>
+            <text x="30" y="124">II — gains Construct maker</text>
+            <text x="30" y="144">III — tutor an artifact</text>
+            <text x="30" y="180" opacity="0.75">sacrificed after III</text>
+            <text x="390" y="40" font-weight="bold">Urza's Saga</text>
+            <text x="390" y="60" opacity="0.75">Enchantment Land —</text>
+            <text x="390" y="76" fill="var(--moon)">Mountain</text>
+            <text x="447" y="76" opacity="0.75">Saga</text>
+            <text x="390" y="112" fill="var(--moon)">{T}: Add {R}</text>
+            <text x="390" y="144" opacity="0.6">(no chapters)</text>
+            <text x="390" y="180" fill="var(--gold)">never sacrificed</text>
+          </g>
+        </svg>
+        </div>
+        <figcaption>Same permanent, two realities. The Moon rewrites the middle of the pipeline; the Saga subtype and the story's strange ending survive on the right.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="chapter">
+    <div class="badge">III</div>
+    <div class="body">
+      <h3>Seven words keep it alive</h3>
+      <p>Here is the heart of the whole interaction. The sacrifice rule for Sagas contains a
+      quiet qualifier: it only applies to a Saga
+      <strong>&ldquo;with one or more chapter abilities.&rdquo;</strong>
+      Our Moon-struck Saga has zero. So the sacrifice check simply <em>never fires</em> —
+      and neither does the rule that adds a lore counter each turn, because it carries the
+      same qualifier.</p>
+      <p>Why do the rules bother with that clause? Because of an arithmetic trap. A Saga with
+      no chapters has a final chapter number of <strong>0</strong> — and every Saga always has
+      at least zero counters. Without the qualifier, <em>counters &ge; final chapter</em> would
+      always be true, and a blanked Saga would be sacrificed the instant the game looked at it.
+      The seven words flip the outcome from &ldquo;dies immediately&rdquo; to
+      &ldquo;lives forever.&rdquo;</p>
+
+      <figure>
+        <div class="diagram-frame">
+        <svg viewBox="0 0 620 210" role="img" aria-label="The sacrifice decision: a Saga with no chapter abilities exits the check early and lives; with chapters, counters at or past the final chapter mean sacrifice">
+          <defs>
+            <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <g fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="15"  y="70" width="180" height="60" rx="2"/>
+            <rect x="255" y="70" width="170" height="60" rx="2"/>
+            <rect x="480" y="15" width="125" height="50" rx="2" stroke="var(--gold)"/>
+            <rect x="480" y="145" width="125" height="50" rx="2" stroke="var(--moon)"/>
+            <line x1="195" y1="100" x2="251" y2="100" marker-end="url(#arr3)"/>
+            <line x1="425" y1="85"  x2="476" y2="45"  marker-end="url(#arr3)"/>
+            <line x1="425" y1="115" x2="476" y2="165" marker-end="url(#arr3)"/>
+          </g>
+          <g fill="currentColor" font-family="'JetBrains Mono',monospace" font-size="11.5" text-anchor="middle">
+            <text x="105" y="94">has one or more</text>
+            <text x="105" y="112">chapter abilities?</text>
+            <text x="340" y="94">counters &ge;</text>
+            <text x="340" y="112">final chapter?</text>
+          </g>
+          <g font-family="'JetBrains Mono',monospace" font-size="11" text-anchor="middle">
+            <text x="542" y="37" fill="var(--gold)">no sacrifice —</text>
+            <text x="542" y="53" fill="var(--gold)">it just lives</text>
+            <text x="542" y="167" fill="var(--moon)">sacrificed</text>
+            <text x="542" y="183" fill="var(--moon)">(story over)</text>
+          </g>
+          <g font-family="'JetBrains Mono',monospace" font-size="10" fill="currentColor" opacity="0.7">
+            <text x="222" y="92" text-anchor="middle">yes</text>
+            <text x="448" y="55" text-anchor="middle">no</text>
+            <text x="448" y="150" text-anchor="middle">yes</text>
+          </g>
+          <text x="105" y="160" text-anchor="middle" font-size="10.5" fill="var(--gold)" font-family="'JetBrains Mono',monospace">no &rarr; exits here.</text>
+          <text x="105" y="176" text-anchor="middle" font-size="10.5" fill="var(--gold)" font-family="'JetBrains Mono',monospace">This is the Moon-struck Saga.</text>
+          <line x1="105" y1="130" x2="105" y2="146" stroke="var(--gold)" stroke-width="1.5"/>
+        </svg>
+        </div>
+        <figcaption>The sacrifice check, as the engine now asks it. The left question is the seven words; a blanked Saga never reaches the arithmetic on the right.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="chapter">
+    <div class="badge">IV</div>
+    <div class="body">
+      <h3>And if the Moon sets&hellip;</h3>
+      <p>One more subtlety the engine had to get right. The rule that gives a Saga its very
+      first lore counter — the one it gets as it enters the battlefield — does <em>not</em>
+      carry the seven-word qualifier. So a Saga played under Blood Moon still quietly takes
+      that first counter, even though nothing else happens. If Blood Moon later leaves the
+      battlefield, the chapters return, the counter is still there, and the story
+      <strong>resumes at chapter II</strong> — it does not restart. The engine gets this
+      right because it suppressed only what the rules say to suppress, not everything
+      that looked suppressed.</p>
+    </div>
+  </div>
+
+  <h2 class="plain">What this looks like in a real game</h2>
+  <p>Honesty corner: in the engine today, this exact pairing can't yet be assembled from a
+  legal deck — Urza's Saga's first two chapters (&ldquo;this Saga gains an ability&rdquo;)
+  are still on the card-authoring worklist, and the engine refuses to start a game containing
+  any card it can't fully simulate. The <em>machinery</em> above is fully built and proven —
+  using a stand-in: a Saga turned <strong>face down</strong> (via Reality Shift's manifest)
+  also has zero chapter abilities, and the engine proves the whole
+  no-counters / no-chapters / no-sacrifice behaviour on that pair in real games, both
+  directions. Want the deeper story? Switch to
+  <strong>II &middot; The Engine Room</strong> above.</p>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- LAYER II — THE ENGINE ROOM                                   -->
+<!-- ============================================================ -->
+<section class="part" id="engine-room" role="tabpanel" aria-labelledby="tab-engine">
+
+  <h2 class="plain">The rules, verbatim</h2>
+  <p>Everything below hangs on four rules. The engine's test suite cites these by number;
+  the highlighted phrase in 714.4 is what the whole interaction turns on.</p>
+
+  <blockquote class="cr">
+    <span class="rn">CR 714.4</span>
+    If the number of lore counters on a Saga permanent <mark>with one or more chapter
+    abilities</mark> is greater than or equal to its final chapter number, and it isn't the
+    source of a chapter ability that has triggered but not yet left the stack, that Saga's
+    controller sacrifices it. This state-based action doesn't use the stack.
+  </blockquote>
+
+  <blockquote class="cr">
+    <span class="rn">CR 714.2d</span>
+    A Saga's final chapter number is the greatest value among chapter abilities it has.
+    <mark>If a Saga somehow has no chapter abilities, its final chapter number is 0.</mark>
+  </blockquote>
+
+  <blockquote class="cr">
+    <span class="rn">CR 714.3a / 714.3b</span>
+    As a Saga &hellip; enters the battlefield, its controller puts a lore counter on it.
+    &nbsp;/&nbsp; As a player's precombat main phase begins, that player puts a lore counter
+    on each Saga they control <mark>with one or more chapter abilities</mark>.
+  </blockquote>
+
+  <blockquote class="cr">
+    <span class="rn">CR 708.2a</span>
+    If a face-up permanent is turned face down &hellip; it becomes a 2/2 face-down creature
+    with <mark>no text, no name, no subtypes</mark>, and no mana cost.
+  </blockquote>
+
+  <p>The seven words in 714.4 are an <strong>exemption clause</strong>, and 714.2d is why it
+  must exist: <code>lore &ge; 0</code> is always true, so without the clause a blanked Saga
+  would be sacrificed instantly by the state-based-action loop. With it, the check never
+  applies. Note two asymmetries that matter later: 714.3<strong>b</strong> (the per-turn
+  counter) carries the clause, but 714.3<strong>a</strong> (the ETB counter) does not; and
+  708.2a removes <em>subtypes</em>, which a Layer-6 ability-removal never does
+  (CR 613.1f removes abilities, not subtypes).</p>
+
+  <h2 class="plain">Three batches, one interaction</h2>
+  <p>The engine work landed across three primitive batches. Each fixed a different link:</p>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th>batch</th><th>rule</th><th>what changed</th></tr></thead>
+    <tbody>
+      <tr><td><code>PB-DX27</code></td><td>CR 613.1d</td>
+        <td><code>LayerModification::SetLandTypes</code> — Blood Moon replaces <em>only land
+        subtypes</em>. Before this, it stripped the Artifact card type from artifact lands.
+        The Saga subtype survives because <code>ALL_LAND_TYPES</code> contains
+        <code>"Urza's"</code> but not <code>"Saga"</code> (CR 205.3h: Saga is an enchantment
+        subtype).</td></tr>
+      <tr><td><code>PB-DX43</code></td><td>CR 305.6 / 305.7</td>
+        <td>The intrinsic <code>{T}: Add {R}</code> is <em>derived</em> at the end of the
+        layer-4 walk for any object with the land type and a basic land subtype — no printed
+        text needed. CR 305.7's ability-<em>loss</em> was folded into
+        <code>SetLandTypes</code> itself, because leaving it as Blood Moon's own Layer-6
+        removal would have wiped the derived mana ability too and broken Blood Moon
+        entirely.</td></tr>
+      <tr><td><code>PB-DX49</code></td><td>CR 714</td>
+        <td>Every CR 714 decision now reads the <em>layer-resolved</em> card instead of the
+        printed one, through a single query. This is the exemption clause becoming real.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 class="plain">The bug that was</h2>
+  <p>Before PB-DX49, all five CR 714 decision sites read the <strong>printed</strong>
+  definition. Printed, Urza's Saga always has three chapters — so the engine would have kept
+  adding lore counters, kept firing chapter triggers, and <em>sacrificed the Saga anyway</em>.
+  Blood Moon would have <strong>killed</strong> the Saga instead of preserving it: the exact
+  inverse of the famous interaction, wrong at every site, and wrong at rest (no later event
+  self-heals it).</p>
+
+  <h2 class="plain">The fix: one question, asked once</h2>
+  <p>The shipped shape is a single read-only query, <code>rules::saga::saga_view</code>, that
+  answers every CR 714 question — <em>is this still a Saga? which chapter abilities does it
+  retain after layer resolution? what is its final chapter?</em> — consumed by all five
+  behavioural sites. Under it sits one ability-blanking predicate,
+  <code>layers::abilities_are_blanked</code>, which covers <strong>both</strong> ways a
+  permanent can lose its abilities, and delegates classification to an exhaustive,
+  no-wildcard <code>match</code> over every layer-modification variant — so if a future batch
+  adds a <em>third</em> blanking channel, the compiler refuses to build until it is
+  classified. After code review, &ldquo;exactly one such predicate exists in the tree&rdquo;
+  is machine-enforced, not just asserted.</p>
+
+  <figure>
+    <div class="diagram-frame">
+    <svg viewBox="0 0 640 330" role="img" aria-label="Five CR 714 sites consult one saga_view query, which consults one blanking predicate, which delegates to an exhaustive classifier; two resolution sites are deliberately excluded">
+      <defs>
+        <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <g fill="none" stroke="currentColor" stroke-width="1.3">
+        <rect x="10"  y="12"  width="215" height="34" rx="2"/>
+        <rect x="10"  y="56"  width="215" height="34" rx="2"/>
+        <rect x="10"  y="100" width="215" height="34" rx="2"/>
+        <rect x="10"  y="144" width="215" height="34" rx="2"/>
+        <rect x="10"  y="188" width="215" height="34" rx="2"/>
+        <rect x="10"  y="248" width="215" height="46" rx="2" stroke-dasharray="5 4" opacity="0.55"/>
+        <rect x="300" y="95"  width="140" height="52" rx="2" stroke="var(--moon)" stroke-width="2"/>
+        <rect x="300" y="185" width="140" height="52" rx="2"/>
+        <rect x="490" y="185" width="140" height="52" rx="2"/>
+        <line x1="225" y1="29"  x2="296" y2="105" marker-end="url(#arr4)"/>
+        <line x1="225" y1="73"  x2="296" y2="112" marker-end="url(#arr4)"/>
+        <line x1="225" y1="117" x2="296" y2="119" marker-end="url(#arr4)"/>
+        <line x1="225" y1="161" x2="296" y2="128" marker-end="url(#arr4)"/>
+        <line x1="225" y1="205" x2="296" y2="137" marker-end="url(#arr4)"/>
+        <line x1="370" y1="147" x2="370" y2="181" marker-end="url(#arr4)"/>
+        <line x1="440" y1="211" x2="486" y2="211" marker-end="url(#arr4)"/>
+      </g>
+      <g fill="currentColor" font-family="'JetBrains Mono',monospace" font-size="10.5">
+        <text x="18" y="33">sba: 714.4 sacrifice</text>
+        <text x="18" y="77">sba: chapter-on-stack guard</text>
+        <text x="18" y="121">turn: 714.3b lore counter</text>
+        <text x="18" y="165">replacement: 714.3a ETB</text>
+        <text x="18" y="209">replacement: 714.2b triggers</text>
+        <text x="18" y="268" opacity="0.6">resolution.rs &times;2 — excluded:</text>
+        <text x="18" y="284" opacity="0.6">CR 113.7a, on-stack ability</text>
+        <text x="18" y="300" opacity="0.6">is independent of its source</text>
+      </g>
+      <g font-family="'JetBrains Mono',monospace" font-size="11" text-anchor="middle">
+        <text x="370" y="117" fill="var(--moon)">saga_view</text>
+        <text x="370" y="133" fill="var(--moon)">(one query)</text>
+        <text x="370" y="207" fill="currentColor">abilities_are_</text>
+        <text x="370" y="222" fill="currentColor">blanked</text>
+        <text x="560" y="207" fill="currentColor">exhaustive</text>
+        <text x="560" y="222" fill="currentColor">classifier</text>
+      </g>
+      <g font-family="'JetBrains Mono',monospace" font-size="9.5" fill="currentColor" opacity="0.7" text-anchor="middle">
+        <text x="385" y="168">asks</text>
+        <text x="463" y="203">no wildcard arm:</text>
+        <text x="463" y="232">new channel =</text>
+        <text x="463" y="244">compile error</text>
+      </g>
+    </svg>
+    </div>
+    <figcaption>All five CR 714 sites consult <code>saga_view</code>; one blanking predicate serves it; an exhaustive classifier makes an unclassified new blanking channel a build failure. The dashed sites are excluded on purpose — an ability already on the stack survives its source (CR 113.7a) — and say so in-source, so nobody &ldquo;finishes the job.&rdquo;</figcaption>
+  </figure>
+
+  <h2 class="plain">Two blanking channels, one deliberate difference</h2>
+  <p>Face-down is not a side note — it is the <em>second, independent door</em> into
+  &ldquo;a Saga with no chapter abilities,&rdquo; and CR 714.4 doesn't care which door was
+  used. Reality Shift makes its victim's controller <strong>manifest</strong> the top card of
+  their library; if that card is a Saga, it enters as an anonymous 2/2 with — per 708.2a — no
+  abilities and <em>no subtypes</em>. The two channels agree on almost everything and differ
+  on exactly one measured point:</p>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th></th><th>Layer-6 blanked (Blood Moon)</th><th>face down (manifest)</th></tr></thead>
+    <tbody>
+      <tr><td>still a Saga?</td><td class="yes">yes — 613.1f removes abilities, not subtypes</td><td class="no">no — 708.2a removes subtypes</td></tr>
+      <tr><td>ETB lore counter (714.3a)?</td><td class="yes">yes — 714.3a has no exemption clause</td><td class="no">no — not a Saga at all</td></tr>
+      <tr><td>per-turn counter (714.3b)?</td><td class="no">no</td><td class="no">no</td></tr>
+      <tr><td>chapter triggers (714.2b)?</td><td class="no">no</td><td class="no">no</td></tr>
+      <tr><td>sacrificed (714.4)?</td><td class="no">never</td><td class="no">never</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>That single differing row is load-bearing. The original defect filing treated the
+  surviving ETB counter as part of the bug; reading the rule showed it is <em>correct</em> —
+  and it matters, because if Blood Moon later leaves, the Saga still holds that counter and
+  <strong>resumes at chapter II</strong> rather than restarting at I. One query, two fields
+  (&ldquo;is it a Saga&rdquo; vs &ldquo;does it retain chapters&rdquo;), and each site asks
+  the field its rule actually reads. The engine had this inconsistency half-built already:
+  the ETB-trigger queue checked face-down while the Saga sites didn't — the same subsystem,
+  disagreeing with itself.</p>
+
+  <h2 class="plain">Why the Moon carries the blanking, not a Layer-6 removal</h2>
+  <p>An engineering wrinkle worth savouring: Blood Moon's card def carries essentially
+  <em>one</em> static — <code>SetLandTypes(Mountain)</code> — and the engine derives both the
+  ability loss (CR 305.7) and the <code>{T}: Add {R}</code> grant (CR 305.6) from the type
+  change itself. The obvious alternative, giving Blood Moon its own Layer-6
+  <code>RemoveAllAbilities</code>, fails twice: it would timestamp-race other Layer-6
+  <em>grants</em> (Chromatic Lantern's, The World Tree's — CR 305.7's last sentence forbids
+  removing abilities granted by other effects), and it would delete the engine's own derived
+  mana ability, breaking Blood Moon outright. A grep-shaped moral came out of this in
+  testing: after the change, the two moons blank abilities through a variant no
+  <code>RemoveAllAbilities</code> string-search can see — the blanker census that used a grep
+  agreed with reality <em>by coincidence of totals, not membership</em>. The census now calls
+  the classifier instead of grepping for a name.</p>
+
+  <h2 class="plain">What is proven, and what is not</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>claim</th><th>status</th></tr></thead>
+    <tbody>
+      <tr><td>Blood Moon: nonbasic lands are <em>Enchantment/Artifact&hellip; Land — Mountain</em>, printed abilities gone, tap for <code>{R}</code></td><td class="yes">proven (PB-DX27 + PB-DX43 probes)</td></tr>
+      <tr><td>Blanked Saga: no per-turn counters, no chapter fires, survives lore &ge; final; un-blanked twin is sacrificed</td><td class="yes">proven both directions, real games, human + bot channels</td></tr>
+      <tr><td>Face-down channel (manifest)</td><td class="yes">proven on the deck-legal pair <code>reality_shift</code> &times; <code>binding_the_old_gods</code></td></tr>
+      <tr><td>The famous pair itself, in a legal game</td><td class="no">not yet — <code>urzas_saga</code> is <code>partial</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <p>The last row deserves its footnote. <code>urzas_saga.rs</code> exists, but chapters I
+  and II are literal <code>GainLife(0)</code> placeholders behind TODOs, so the deck
+  validator — which refuses any card the engine can't fully simulate (an architecture
+  invariant: no mid-game surprises, ever) — rejects it. The corner-case audit therefore marks
+  this interaction <strong>PARTIAL</strong>: engine half covered, card half gated on
+  authoring the two &ldquo;this Saga gains an ability&rdquo; chapters. Notably, the
+  primitives for that <em>already exist</em> with corpus users
+  (<code>AddManaAbility</code> / <code>AddActivatedAbility</code> +
+  <code>EffectFilter::Source</code>) — an earlier note claiming a missing
+  &ldquo;gained-ability tracking&rdquo; primitive was checked and found wrong. What remains
+  is ordinary card work, not engine work.</p>
+
+  <p class="muted">Cost of the design, disclosed rather than buried: routing every SBA pass
+  through the layer-aware query costs a real ~1.7% on the state-based-action microbench —
+  measured against the merge base in an isolated worktree after a first
+  &ldquo;no regression&rdquo; claim from a branch-only run was refuted in review. The
+  residual is inherent to asking one honest question instead of five cheap wrong ones.</p>
+
+  <footer>
+    Built from the scutemob engine record: primitive batches PB-DX27, PB-DX43 and PB-DX49
+    (corner-case audit #36), with rules text verified verbatim against the Comprehensive
+    Rules. Shipped with 41 new tests, both wire-compatibility gates unmoved, and one
+    ability-blanking predicate — enforced by the compiler, not by promise.
+  </footer>
+
+</section>
+</main>
+
+<script>
+  function setLayer(layer) {
+    document.body.dataset.layer = layer;
+    document.getElementById('tab-table').setAttribute('aria-selected', layer === 'table');
+    document.getElementById('tab-engine').setAttribute('aria-selected', layer === 'engine');
+    window.scrollTo({ top: 0 });
+  }
+</script>
+</body>
+</html>
