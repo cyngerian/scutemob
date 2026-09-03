@@ -291,3 +291,69 @@ PB-DX28 shipped and has been wrong through two batches that each corrected its t
 The durable half is not "someone forgot": it is that **a claim was corrected where it was noticed
 rather than where it lived**, so the correction did not generalise. Fixed here, and both copies now
 point at the gate's own list as the single source rather than restating it.
+
+---
+
+## §7 Half 3 — the 15-variant audit, its verdicts, and where I overrule it
+
+Full audit: `memory/primitives/pb-DX50-additional-cost-copy-audit.md`. Every sharp claim in it was
+**re-verified by the coordinator rather than accepted** (the standing rule that a delegated report is
+a claim like any other). All four checked claims held:
+
+* CR 707.10's text, read verbatim from the rules server.
+* The `MutatingCreatureSpell` arm contains **zero** `is_copy` checks (`grep -c` over `:7481-7660`),
+  while the `Spell` arm guards exactly this at `:819` under a comment saying *"The source_object
+  belongs to the original spell and must not be moved by a copy's resolution."*
+* `Effect::CopySpellOnStack` has **zero** genuine declarations — both grep hits are comments
+  (`plumb_the_forbidden.rs:42`, `complete_the_circuit.rs:6`). **SR-36 for the fifth consecutive
+  batch in this queue.**
+* The `Gift` (`:619-628`) and `Sacrifice` (`:634-644`) read sites are where the audit says.
+
+### §7.1 The comment's RULE is refuted by the rule it cites
+
+`copy.rs:241-242` invents a choice-vs-cost dichotomy:
+
+> *CR 707.2: Copies copy choices (entwine, escalate, fuse) but not one-shot additional costs
+> (sacrifice, discard, squad, offspring, gift, mutate).*
+
+CR 707.10, verbatim: *"A copy of a spell or ability copies both the characteristics of the spell or
+ability and all decisions made for it, including modes, targets, the value of X, **and additional or
+alternative costs**."* The dichotomy does not exist. What the CR actually says is three separate
+things — the copy is treated as having paid; it does not actually pay; and *"if an effect of the copy
+refers to objects used to pay its costs, it uses the objects used to pay the costs of the
+original."* That last clause makes dropping `Sacrifice` affirmatively wrong.
+
+The comment's **list** also names 6 of the 12 dropped variants, silently omitting `EscapeExile`,
+`CollectEvidenceExile`, `Assist`, `Replicate`, `Splice`, `ExileFromHand`.
+
+### §7.2 CR 707.10 settles Half 3 better than the criterion's own wording
+
+The criterion asks for *"a copied mutate spell keeps its Mutate entry with a defined `on_top`
+answer."* CR 707.10's third sentence is: **"Choices that are normally made on resolution are not
+copied."** Once Half 2 makes `on_top` a resolution-time choice (CR 702.140c), the copy **must not**
+inherit it — it makes its own. So the honest shape is: propagate `Mutate { target }` (a target IS
+copied, sentence 2), and the `on_top` answer is defined by the copy asking at its own resolution
+(sentence 3), which after Half 2 is automatic because the field no longer exists.
+
+### §7.3 Disposition — 15 of 15, and the two I take
+
+| Verdict | Variants |
+|---|---|
+| **FIX** | `Mutate` (allowlist; CR 707.10 sentence 2) — plus the `is_copy` hole in the mutate resolution arm |
+| **FILE** | `Sacrifice` (MEDIUM), `Gift` (MEDIUM), `Squad` (LOW-MED), `Offspring` (LOW), and CR 707.10f/608.3f unimplemented (MEDIUM) |
+| **CORRECT-AS-IS** | `Discard`, `EscapeExile`, `CollectEvidenceExile`, `Assist`, `Replicate`, `EscalateModes`, `Splice`, `Entwine`, `Fuse`, `ExileFromHand` |
+
+Every FILE gets a registry row with the defect sentence above it. **No silent skips.**
+
+### §7.4 Where I overrule the audit
+
+It argues the `is_copy` hole must not be patched in isolation because that "would encode *a copy of a
+mutate spell does nothing*, which is a third wrong answer", and that CR 707.10f must be decided
+first. **I take the fix anyway, and the reason is the reason it is not a third answer.**
+`resolution.rs:819` **already** encodes "a copy of a permanent spell does nothing", for every other
+permanent spell in the game. Making the mutate arm agree with it is not a new wrong answer, it is the
+*same* known deviation applied consistently — while leaving it alone means a resolving copy calls
+`move_object_to_zone` on the **original's card**, or merges the original's card into the target.
+
+That is PB-DX24's trade, verbatim: **a no-op is auditable; silently consuming another object's card
+is not.** The consistency fix removes a state-corruption path; CR 707.10f is filed, not smuggled in.
