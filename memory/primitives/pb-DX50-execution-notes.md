@@ -182,3 +182,153 @@ consecutive batch** in this queue.
 
 **One failure mode, two prior batches: a claim corrected where it was noticed rather than where it
 lives does not generalise, and neither does a rule.**
+
+---
+
+## §8 `/review` fix cycle — 7 findings, all taken, plus 1 the review did not have
+
+Coordinator-fixed before this cycle and **not** redone here: the HIGH (the `is_copy` guard's
+early `return Ok(events);` skipping the shared resolution tail, `5565d588`) and a
+LOW-MEDIUM registry-row corruption (`OOS-DX50-11` filed).
+
+### (a) HIGH-adjacent — `r4` was GREEN through the entire hang
+
+**Reproduced first.** `r4` asserted only `body.contains("stack_obj.is_copy")`, which BOTH
+the correct `else` shape and the hanging `return` shape satisfy. Re-planting the first
+draft (`return Ok(events);` inside the `is_copy` branch) gave, on one command each:
+`primitives::pb_dx50_mutate_on_top_timing::t8` **RED** (`priority_holder = None,
+players_passed = {P1, P2}`) and `core::pb_dx50_copy_additional_cost_roster` **4/4 GREEN**.
+
+Both halves shipped, and the behavioural one is the one that would have caught it:
+
+* **`t8_a_resolving_copy_of_a_mutate_spell_still_grants_priority`** — mints the copy through
+  the production `rules::copy::copy_spell_on_stack` (never hand-built: `copy.rs` cloning
+  `original.kind` wholesale IS the defect, so a fixture with a fresh `source_object` cannot
+  express it), passes both seats, and asserts `priority_holder.is_some()`, that the ORIGINAL
+  survives, and that it goes on to ask its own CR 702.140c question.
+* **`r4` gains two conjuncts**: exactly ONE `return Ok(events)` in the arm, and it must sit
+  AFTER the `ask_resolution_choice(` call and on a `None =>` line. Comments are stripped
+  first and that is **load-bearing, not defensive** — the arm's own doc quotes the defective
+  line verbatim, so an unstripped scan fails on the CORRECT code.
+
+**Executed defeats**: (1) the first-draft `return` → `left: 2, right: 1` on the count
+conjunct; (2) rewriting the suspend as `None => { return Ok(events); }` → RED on the idiom
+conjunct. Defeat (2) is behaviour-NEUTRAL, so the idiom conjunct is a FORM gate; its cost
+(it also fires on an honest `if answer.is_none() { return }` refactor) is stated at the
+site, with the instruction to widen the accepted idiom rather than delete the check.
+
+### (b) MEDIUM — `r3` policed the DEFINITION; all four copies lived in the CONSUMER
+
+**Both of the reviewer's defeats reproduced GREEN** (4/4 roster tests) before any fix, by
+planting in `crates/simulator/src/legal_actions.rs`: (1) a host predicate omitting the
+non-Human conjunct; (2) `SubType(String::from("Hum") + "an")`.
+
+Root cause named precisely: `legal_actions.rs` contains **zero** occurrences of
+`mutate_target_requirement` — it calls `queries::legal_mutate_hosts` — so conjunct 1's set
+equality over files naming the predicate could never see it.
+
+Shipped:
+
+* **`simulator::pb_dx50_mutate_legality_channel::c6`** (behavioural, load-bearing): the
+  offered host set must EQUAL `queries::legal_mutate_hosts`' live return value, on a
+  four-class board (legal Wolf / Human / **shroud** / opponent-owned), with non-vacuity
+  asserted in both directions.
+* **`r3` conjunct 3** (structural): every workspace file CONSTRUCTING
+  `LegalAction::CastWithMutate` must call `legal_mutate_hosts` exactly once, and the
+  identifier it iterates must be the one that call binds — **bound exactly once**, which is
+  what catches defeat 2's shadowing rebind.
+* **`r3b`** gains synthetic discrimination for the construction-vs-pattern helper.
+
+**Executed re-runs against the fixed gates**: defeat 1 → `r3` RED (`legal_mutate_hosts` 0
+times) **and** `c6` RED (`offered={2,3,4} engine={2}`); defeat 2 → `r3` RED (`bound 2 times
+… SHADOWING rebind`). **`c6` is GREEN under defeat 2 and that is reported, not hidden**: that
+copy is a no-op *today* because `legal_mutate_hosts` already excludes Humans, which is
+precisely why the structural conjunct is not redundant — *a redundant second predicate is
+not wrong until the first one changes, and then it is wrong silently.*
+
+Conjunct 2's recall bound is **corrected in place**: it claimed *"the only way to express
+CR 702.140a's non-Human is a `"Human"` subtype literal"*. False, and refuted by execution. A
+string-literal census cannot be made concatenation-proof; it is now labelled a tripwire.
+
+### (c) LOW-MEDIUM — the CR 605.4a gate-site census, defeated two ways at once
+
+**Reproduced**: `rules/abilities.rs`'s `effect_choice_gate_closed: false` → `true`, test
+GREEN. Two holes: three hardcoded files (not including `abilities.rs`), and the assignment
+spelling only (every `EffectContext` in this tree is a struct LITERAL — five such sites).
+
+Shipped as a NEW core module, **`core::pb_dx50_effect_choice_gate_sites` (g1-g4)**, walking
+`workspace_src_files_checked()` and counting both spellings. **The first draft of this fix
+extracted the shared walk to `crates/engine/tests/shared/` behind `#[path]`, and SR-9a's
+`no_stray_test_binaries` gate refused it in three separate assertions — correctly**
+(*"Attributes, `pub mod`, `#[path]`, and inline `mod x { … }` are all ways to look declared
+while not being compiled"*). The gate was obeyed, not weakened: the census moved to `core`,
+which SR-9a's own layout table calls the home of the machine-checked invariant gates, and
+`pb_dp9_effect_choice` keeps parts (a) and (b) plus a pointer. **`g3` links the two files in
+both directions** so neither can be deleted while the other claims coverage.
+
+**Executed defeats**: the reviewer's own → `g1` RED naming both sites; deleting the pointer
+from `pb_dp9_effect_choice.rs` → `g3` RED.
+
+### (d) LOW — the double-sweep deletion also removed `run_delayed_trigger_cleanup`
+
+Documented at the site, with the **mechanism** rather than the conclusion. No divergence is
+constructible and the reason is now stated: `collect_delayed_triggers` opens with
+`if dt.fired { continue; }`, and its `WhenSourceLeavesBattlefield` scan is gated on the
+CURRENT batch's `left_battlefield` set, which CR 400.7 makes un-repeatable for one id. So
+the cleanup is hygiene, not a correctness gate, and being one command late is unobservable.
+`handle_all_passed` has always had the same property, so this is the two paths agreeing.
+**No divergence was found; if a future change makes `check_triggers` sensitive to a stale
+delayed trigger, BOTH sites need the cleanup.**
+
+### (e) LOW — the ~30-space prompt
+
+`view.rs`'s `MutateOnTop` prompt was one physical line with three 30-space gaps. Fixed with
+string continuations, and **pinned** by (f)'s new test (`!prompt.contains("  ")`), which was
+executed RED against the restored bad literal.
+
+### (f) LOW — nothing constructed a `MutateOnTop` question and looked at the bytes
+
+New `view.rs` unit test **`pb_dx50_binary_choice_wire_shape::test_dx50_mutate_on_top_serializes_the_keys_the_picker_reads`**:
+builds a real state, a real `NameIndex`, calls `blocking_decision_view`, serializes, and
+asserts `question` / `answer_field` / `shape` / the five keys `ActionBar.svelte` passes into
+`BinaryChoicePicker` / `choice_key == "on_top"` / `default == true` / the template's single
+variant key by PRESENCE / that `choice_key` names a key inside the template.
+
+**Executed defeats**: `choice_key` `"on_top"` → `"onTop"` → RED; `#[serde(rename)]` on
+`false_label` → RED naming the key. **This test also tripped play-server's own
+`test_no_socket_symbol_appears_in_the_test_region` gate** (the word "binds" in a comment
+under a test attribute); reworded rather than the gate weakened.
+
+### (g) NIT — stale assertion message in `mechanics_m_z/mutate.rs`
+
+Corrected, and it now states WHY (half 2 deleted the field) rather than just dropping the
+dead words.
+
+### A finding neither the coordinator nor the reviewer had
+
+While checking (d), `rules/abilities.rs`'s `collect_permanent_becomes_target_triggers` doc
+was found to read:
+
+> **Latent for the mutate case today**: the mutate target is never entered into
+> `spell_targets` (`OOS-DX25-1`), so no `PermanentBecomesTarget` event is ever raised for a
+> mutate cast's own target — this fix only takes effect once that gap closes.
+
+**PB-DX50 half 1 IS that gap closing.** The comment survived the commit that falsified it —
+`OOS-DX47-6`/`OOS-DX49-6`'s exact shape, committed by the batch whose own headline is a
+false comment, and caught by neither the batch nor its `/review`. Corrected, and pinned
+behaviourally rather than replaced with a second sentence:
+**`primitives::pb_dx50_mutate_target_legality::test_dx50_t12_whenbecomestarget_fires_for_a_mutate_host`**
+fires a `WhenBecomesTarget { scope: creature you control }` trigger off a mutate host,
+count `== 1`. Executed revert (stop appending the host to `targets`) → `left: 0, right: 1`.
+
+### Gates, all against the FINAL tree
+
+`cargo test --workspace --no-fail-fast` **4,991 / 0 / 5**, **59** result-producing targets,
+residual list empty. **+8 over the 4,983 pre-fix-cycle pin, 0 removals, 0 renames, 0
+leavers** — `t8`, `c6`, `t12`, the play-server wire-shape test, and `g1`-`g4`. Targets
+unmoved at 59: the new gate is a MODULE in `core`, not a new binary.
+**PROTOCOL 40 / HASH 79 both gate-executed and UNMOVED** (`hash_schema` 36/36,
+`protocol_schema` 17/17) — nothing here adds a type, variant or field.
+`clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+`tools/check-defs-fmt.sh` clean (1,803 defs), `npm run build` green (160 modules).
+**0 card-def edits.**

@@ -12,8 +12,22 @@
 //! * **`r2`** — the INVERSE, oracle-text axis: defs whose printed text says "Mutate"
 //!   while declaring no marker. A structural axis cannot see these by construction.
 //! * **`r3` / `r3b`** — the source gate: there is exactly ONE mutate target-legality
-//!   predicate in the workspace, and its call sites are exactly the three behavioural
-//!   sites PB-DX50 unified.
+//!   predicate in the workspace, its call sites are exactly the three behavioural sites
+//!   PB-DX50 unified, **and the offer layer's host list is derived from
+//!   `queries::legal_mutate_hosts` rather than merely agreeing with it** (conjunct 3, the
+//!   `/review`'s finding — see below).
+//!
+//! # `r3`'s first draft policed the DEFINITION and the copies live in the CONSUMER
+//!
+//! The `/review` defeated `r3` **twice**, with all four tests in this file GREEN both
+//! times, by planting a second host predicate in `crates/simulator/src/legal_actions.rs`
+//! — the offer layer, which contains **zero** occurrences of `mutate_target_requirement`
+//! because it calls `queries::legal_mutate_hosts`, so conjunct 1's set equality over
+//! files that name the predicate could never see it. Both defeats are reproduced,
+//! executed and now RED; the fixes are conjunct 3 here plus the behavioural
+//! `pb_dx50_mutate_legality_channel::c6`. The durable half: **all four of the hand-rolled
+//! copies this batch deleted lived in consumers, and a gate on the definition is blind to
+//! every one of them by construction.**
 //!
 //! **The gate walks the WHOLE WORKSPACE, and that is not a stylistic choice.** PB-DX48's
 //! equivalent gate was defeated because it walked one crate; PB-DX49's `r6` was defeated
@@ -251,6 +265,56 @@ fn is_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
 }
 
+/// How many times `src` **constructs** a `LegalAction::CastWithMutate`, as opposed to
+/// pattern-matching one.
+///
+/// **Discriminated by what FOLLOWS the brace-matched block, never by its fields.** The
+/// obvious keys are both wrong here and both were tried: "contains `mutate_target:`"
+/// misclassifies `view.rs`'s renaming pattern `{ card: c, mutate_target }`, and any
+/// field-name key is PB-DX48's `r2` defect verbatim (*it fell to FIELD ORDER, because Rust
+/// does not constrain it*). What is invariant is the grammar: a match pattern is followed
+/// by `=>` or by `|` (an or-pattern's next alternative); an expression is followed by
+/// anything else. The live tree has 5 patterns and 1 construction and this separates them.
+fn constructions_of_cast_with_mutate(src: &str) -> usize {
+    let needle = "LegalAction::CastWithMutate";
+    let bytes = src.as_bytes();
+    let mut count = 0usize;
+    let mut from = 0usize;
+    while let Some(rel) = src[from..].find(needle) {
+        let at = from + rel;
+        from = at + needle.len();
+        // Skip to the `{` that opens the pattern-or-struct body.
+        let Some(open_rel) = src[from..].find('{') else {
+            continue;
+        };
+        // Anything other than whitespace between the path and the brace means this is
+        // not a `Path { .. }` form at all (e.g. a doc reference); skip it.
+        if !src[from..from + open_rel].trim().is_empty() {
+            continue;
+        }
+        let mut i = from + open_rel + 1;
+        let mut depth = 1usize;
+        while i < bytes.len() && depth > 0 {
+            match bytes[i] {
+                b'{' => depth += 1,
+                b'}' => depth -= 1,
+                _ => {}
+            }
+            i += 1;
+        }
+        if depth != 0 {
+            panic!("unbalanced braces after {needle} -- fail closed");
+        }
+        let tail = src[i..].trim_start();
+        let is_pattern = tail.starts_with("=>") || tail.starts_with('|');
+        if !is_pattern {
+            count += 1;
+        }
+        from = i;
+    }
+    count
+}
+
 /// CR 702.140a — there is exactly ONE mutate target-legality predicate in the workspace,
 /// and exactly three consumers of it.
 ///
@@ -265,9 +329,16 @@ fn is_ident_byte(b: u8) -> bool {
 /// 1. **The definition is unique and its call sites are exactly the known set.** A new
 ///    consumer is fine — it is the shared predicate, that is the point — but it must be
 ///    declared here, so nobody adds one silently while believing they added a copy.
-/// 2. **Nothing outside the predicate hand-rolls the non-Human conjunct.** The only way to
-///    express CR 702.140a's "non-Human" is a `"Human"` subtype literal, so the census of
-///    that literal across the workspace is the mechanism. Comments are stripped first
+/// 2. **Nothing outside the predicate hand-rolls the non-Human conjunct**, in the obvious
+///    spelling. **Its recall bound is now MEASURED rather than claimed, and the claim it
+///    replaces was wrong**: this used to say *"the only way to express CR 702.140a's
+///    non-Human is a `"Human"` subtype literal"*. The `/review` refuted it by execution
+///    with `SubType(String::from("Hum") + "an")`, which is the same predicate and carries
+///    no such literal. **A string-literal census cannot be made concatenation-proof**, so
+///    conjunct 2 is a cheap tripwire for the copy written the obvious way, and the
+///    load-bearing checks for the consumer are conjunct 3 (structural, keyed on the
+///    binding) and `simulator::pb_dx50_mutate_legality_channel::c6` (behavioural). The
+///    census of that literal across the workspace is the mechanism. Comments are stripped first
 ///    (PB-DX49's `/review` finding: a `//`-only stripper leaves `/* */` blocks visible, and
 ///    this file's own module doc quotes the deleted predicate verbatim), so a gate that
 ///    did not strip would be satisfied by its own documentation.
@@ -395,6 +466,162 @@ fn r3_exactly_one_mutate_target_legality_predicate_in_the_workspace() {
          `mutate_target_requirement`'s body (definition at {def_at}, literal at \
          {human_at}). Some other code in this file is deciding non-Human-ness."
     );
+
+    // ── Conjunct 3: the CONSUMER, which is where all four copies actually lived ──
+    //
+    // **The `/review` defeated conjuncts 1 and 2 twice, and both defeats are the same
+    // structural fact: this gate polices the DEFINITION and the consumer never names
+    // it.** `crates/simulator/src/legal_actions.rs` — the offer layer, the single most
+    // likely place for a fifth hand-rolled predicate, and the crate three of the four
+    // historical copies were NOT in — contains zero occurrences of
+    // `mutate_target_requirement`, because it calls `queries::legal_mutate_hosts`. So
+    // conjunct 1's set equality could never see it. Planted there, with all four roster
+    // tests GREEN both times:
+    //
+    //  1. a second host predicate omitting the non-Human conjunct (the literal SR-38
+    //     defect: a Human host offered, then refused by the cast path);
+    //  2. one spelling the subtype `SubType(String::from("Hum") + "an")`, invisible to
+    //     conjunct 2's `"Human"` census by construction.
+    //
+    // Defeat 2 is the one that decides the design here: **a string-literal scan cannot be
+    // made concatenation-proof**, so conjunct 2's real recall bound is "a hand-rolled
+    // copy written in the obvious way", and it is stated as that below rather than
+    // claimed as a census. The load-bearing assertion for the consumer is BEHAVIOURAL —
+    // `simulator::pb_dx50_mutate_legality_channel::c6` asserts the offered host set IS
+    // `legal_mutate_hosts`' live return value on a board carrying a legal host, a Human,
+    // a shroud host and an opponent-owned one. Both defeats redden it.
+    //
+    // What this conjunct adds on top is the structural half a behavioural probe cannot
+    // give: that the offer's host list is *derived from* the query rather than merely
+    // agreeing with it today. Keyed on the MECHANISM — the identifier the
+    // `LegalAction::CastWithMutate` construction iterates must be the one bound from
+    // `legal_mutate_hosts` — not on a file list, because a file list is what conjunct 1
+    // was.
+    let mut construction_sites: Vec<String> = Vec::new();
+    for (label, path) in &files {
+        let src = strip_comments(&std::fs::read_to_string(path).expect("read source"));
+        if constructions_of_cast_with_mutate(&src) == 0 {
+            continue;
+        }
+        construction_sites.push(label.clone());
+
+        let n_query = token_count(&src, "legal_mutate_hosts");
+        assert_eq!(
+            n_query, 1,
+            "PB-DX50: {label} constructs `LegalAction::CastWithMutate` and calls \
+             `queries::legal_mutate_hosts` {n_query} time(s). It must call it EXACTLY \
+             once, and use that answer. Zero means a hand-rolled CR 702.140a predicate \
+             has reappeared in the offer layer -- the SR-38 shape this batch deleted, \
+             where a host is offered and then refused by the cast path. More than one \
+             means two host sets, and nothing here says which one reaches the offer."
+        );
+
+        // The binding the query produces, by name...
+        let q_at = src
+            .find("legal_mutate_hosts")
+            .expect("checked non-zero above");
+        let stmt_start = src[..q_at]
+            .rfind("let ")
+            .expect("the query's result must be bound with `let`");
+        let bound: String = src[stmt_start + 4..]
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        assert!(
+            !bound.is_empty(),
+            "{label}: could not read the identifier bound from `legal_mutate_hosts`"
+        );
+
+        // ...bound EXACTLY ONCE, which is the conjunct that catches the `/review`'s
+        // second defeat. That one did not replace the query call; it SHADOWED its
+        // result --
+        //
+        //     let non_human_own = queries::legal_mutate_hosts(..);
+        //     let human = SubType(String::from("Hum") + "an");   // the concatenation
+        //     let non_human_own = non_human_own.into_iter().filter(..).collect();
+        //
+        // -- so the query is still called, the loop still iterates a variable of that
+        // name, and every other conjunct here stays green. It is also invisible to the
+        // BEHAVIOURAL probe (`simulator::pb_dx50_mutate_legality_channel::c6`), and that
+        // is not a gap in the probe: the filter is a no-op TODAY, because
+        // `legal_mutate_hosts` already excludes Humans. **A redundant second predicate
+        // is not wrong until the first one changes, and then it is wrong silently** --
+        // which is the entire thesis of `OOS-DX24-4` and of this batch. So the honest
+        // instrument is structural, and it keys on the rebinding rather than on the
+        // spelling of "Human", because a string-literal census is exactly what the
+        // concatenation defeated.
+        let mut bindings = 0usize;
+        let needle_let = format!("let {bound}");
+        let mut from = 0usize;
+        while let Some(rel) = src[from..].find(&needle_let) {
+            let at = from + rel;
+            let end = at + needle_let.len();
+            if src.as_bytes().get(end).is_none_or(|b| !is_ident_byte(*b)) {
+                bindings += 1;
+            }
+            from = end;
+        }
+        assert_eq!(
+            bindings, 1,
+            "PB-DX50: `{bound}` -- the host list the mutate offer iterates -- is bound \
+             {bindings} times in {label}. It must be bound EXACTLY once, from \
+             `queries::legal_mutate_hosts`. A second `let {bound}` is a SHADOWING \
+             rebind: the query is still called, the loop still reads a variable of that \
+             name, and a hand-rolled CR 702.140a predicate has been spliced in between. \
+             That copy is a no-op only for as long as it happens to agree with \
+             `legal_mutate_hosts`, and nothing makes it agree."
+        );
+
+        // ...must be the one the construction iterates. Brace-matched from the `for`
+        // header, never a byte window (PB-DX49's `/review` caught a fixed-width scan
+        // over-running into the next arm by a kilobyte).
+        let header = format!("for &target in &{bound} {{");
+        let for_at = src.find(&header).unwrap_or_else(|| {
+            panic!(
+                "PB-DX50: {label} binds `{bound}` from `legal_mutate_hosts`, but the \
+                 `LegalAction::CastWithMutate` construction does not sit in a \
+                 `{header}` loop. The offer's host list must BE the engine's answer, \
+                 not a set filtered or replaced afterwards -- see \
+                 `simulator::pb_dx50_mutate_legality_channel::c6`."
+            )
+        });
+        let bytes = src.as_bytes();
+        let mut i = for_at + header.len();
+        let mut depth = 1usize;
+        while i < bytes.len() && depth > 0 {
+            match bytes[i] {
+                b'{' => depth += 1,
+                b'}' => depth -= 1,
+                _ => {}
+            }
+            i += 1;
+        }
+        assert!(
+            depth == 0,
+            "{label}: unbalanced braces in the offer loop -- fail closed"
+        );
+        let loop_body = &src[for_at..i];
+        assert!(
+            constructions_of_cast_with_mutate(loop_body) > 0,
+            "PB-DX50: {label}'s `LegalAction::CastWithMutate` is constructed OUTSIDE the \
+             loop over `{bound}` (the identifier bound from `legal_mutate_hosts`), so \
+             its `mutate_target` comes from somewhere this gate cannot vouch for."
+        );
+        assert_eq!(
+            constructions_of_cast_with_mutate(loop_body),
+            constructions_of_cast_with_mutate(&src),
+            "PB-DX50: {label} constructs `LegalAction::CastWithMutate` somewhere outside \
+             the loop over the engine's own answer. Every offered mutate host must come \
+             from `legal_mutate_hosts`."
+        );
+    }
+    assert_eq!(
+        construction_sites,
+        vec!["crates/simulator/src/legal_actions.rs".to_string()],
+        "PB-DX50: `LegalAction::CastWithMutate` must be constructed in exactly one place \
+         in the workspace. A second offer site is a second place for a CR 702.140a \
+         predicate to grow. Found: {construction_sites:?}"
+    );
 }
 
 /// `r3`'s own discrimination proof, on SYNTHETIC input rather than by trusting the live
@@ -442,4 +669,32 @@ fn r3b_the_gate_primitives_discriminate() {
         strip_comments("let x = SubType(\"Human\".to_string());").contains("\"Human\""),
         "strip_comments must NOT hide real code -- otherwise r3's conjunct 2 is vacuous"
     );
+
+    // Conjunct 3's construction-vs-pattern discriminator, on synthetic input. Every
+    // shape below is copied from a REAL site in this workspace, so the separation is
+    // proven against the forms that exist rather than against invented ones.
+    assert_eq!(
+        constructions_of_cast_with_mutate(
+            "actions.push(LegalAction::CastWithMutate { card: obj.id, mutate_target: t });"
+        ),
+        1,
+        "a construction must count"
+    );
+    for pattern in [
+        // heuristic_bot.rs:304
+        "LegalAction::CastWithMutate { .. } => 50,",
+        // params.rs:577 -- shorthand bindings, no colons
+        "LegalAction::CastWithMutate {\n card,\n mutate_target,\n } => Ok(x),",
+        // view.rs:1585 -- a RENAMING pattern, which carries `card:` and would be
+        // misclassified by any field-name key.
+        "LegalAction::CastWithMutate {\n card: c,\n mutate_target,\n } => format!(\"x\"),",
+        // view.rs:1494 -- an or-pattern alternative, followed by `|` rather than `=>`.
+        "| LegalAction::CastWithMutate { card, .. }\n | LegalAction::CastMorphFaceDown { card, .. } => Some(*card),",
+    ] {
+        assert_eq!(
+            constructions_of_cast_with_mutate(pattern),
+            0,
+            "a match PATTERN must not count as a construction: {pattern:?}"
+        );
+    }
 }

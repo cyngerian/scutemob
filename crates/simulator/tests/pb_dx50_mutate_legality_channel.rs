@@ -570,3 +570,154 @@ fn c5_deck_legal_gemrazer_onto_adrix_fires_ward_exactly_once() {
          counts above is an artefact of a legend-rule sacrifice"
     );
 }
+
+// ── c6 — the offer set IS the engine's answer, on a four-class board ────────────
+
+/// A board carrying one of every class the CR 702.140a decision has to separate, so the
+/// equality below cannot be satisfied by accident:
+///
+/// | host | class | CR |
+/// |---|---|---|
+/// | `DX50C Wolf Host` | legal | — |
+/// | `DX50C Human Host` | Human, p1's | CR 702.140a's "non-Human" |
+/// | `DX50C Shroud Host` | shroud, p1's | CR 702.18a |
+///
+/// **The `/review` proposed "a hexproof host" here and it would NOT have discriminated.**
+/// CR 702.11b is *"can't be the target of spells **your opponents control**"*, and this
+/// mutate is cast by the host's own controller, so a hexproof host of p1's is a perfectly
+/// legal mutate target — the first draft of this fixture asserted otherwise and the
+/// engine's own answer refuted it (`{Wolf, Hexproof}`, not `{Wolf}`). Shroud (CR 702.18a,
+/// *"can't be the target of spells or abilities"*, full stop) is the protection-family
+/// class that actually separates here, which is why `c1` uses it too.
+/// | `DX50C Foreign Host` | owned by p2 | CR 702.140a's "same owner as this spell" |
+fn four_class_board() -> GameState {
+    let p1 = p(1);
+    let p2 = p(2);
+    let mut beast = ObjectSpec::card(p1, BEAST)
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(CardId("dx50c-mutating-beast".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_subtypes(vec![SubType("Beast".to_string())])
+        .with_keyword(KeywordAbility::Mutate)
+        .with_mana_cost(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        });
+    beast.power = Some(4);
+    beast.toughness = Some(4);
+
+    let mk = |owner: PlayerId, name: &str, sub: &str, kw: Option<KeywordAbility>| {
+        let mut o = ObjectSpec::card(owner, name)
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(CardId("dx50c-wolf-host".to_string()))
+            .with_types(vec![CardType::Creature])
+            .with_subtypes(vec![SubType(sub.to_string())])
+            .controlled_by(owner);
+        o.power = Some(2);
+        o.toughness = Some(3);
+        if let Some(k) = kw {
+            o = o.with_keyword(k);
+        }
+        o
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![beast_def(), host_def()]))
+        .object(beast)
+        .object(mk(p1, HOST, "Wolf", None))
+        .object(mk(p1, "DX50C Human Host", "Human", None))
+        .object(mk(
+            p1,
+            "DX50C Shroud Host",
+            "Wolf",
+            Some(KeywordAbility::Shroud),
+        ))
+        .object(mk(p2, "DX50C Foreign Host", "Wolf", None))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
+    pool.add(ManaColor::Green, 4);
+    pool.add(ManaColor::Colorless, 4);
+    state.turn_mut().priority_holder = Some(p1);
+    state
+}
+
+/// **The consumer gate, behaviourally.** The set of hosts the offer layer emits is
+/// EXACTLY `queries::legal_mutate_hosts`' answer — not a set that agrees with it on this
+/// board, but the same set, asserted against the engine's own live return value.
+///
+/// # Why this exists on top of `core::pb_dx50_mutate_site_roster::r3`
+///
+/// `r3`'s first draft polices the DEFINITION (`mutate_target_requirement`'s uniqueness and
+/// its call sites) and is structurally blind to the CONSUMER — and the consumer is where
+/// **all four** historical hand-rolled copies lived. `crates/simulator/src/legal_actions.rs`
+/// never names `mutate_target_requirement` at all; it calls `queries::legal_mutate_hosts`.
+/// The batch's own `/review` defeated `r3` twice by planting a second host predicate there,
+/// with **all four roster tests green** both times:
+///
+/// 1. one omitting CR 702.140a's non-Human conjunct — the literal SR-38 defect, a Human
+///    host offered and then refused by the cast path;
+/// 2. one spelling the subtype `SubType(String::from("Hum") + "an")`, which no `"Human"`
+///    string-literal census can see.
+///
+/// **A source scan for a string literal cannot be made evasion-proof**, and pretending
+/// otherwise is how a gate becomes a comment. So the load-bearing assertion moves here,
+/// to a place where the offer layer's answer has to equal the engine's, whatever either
+/// one is spelled like.
+///
+/// **Revert to watch red**: replace `legal_mutate_hosts(state, player, obj.id)` in
+/// `legal_actions.rs` with any hand-rolled filter — both of the defeats above redden this.
+#[test]
+fn c6_the_offered_host_set_is_exactly_the_engines_own_answer() {
+    let state = four_class_board();
+    let beast_id = find_object(&state, BEAST);
+
+    let engine_answer: std::collections::BTreeSet<ObjectId> =
+        mtg_engine::rules::queries::legal_mutate_hosts(&state, p(1), beast_id)
+            .into_iter()
+            .collect();
+    let offered: std::collections::BTreeSet<ObjectId> = mutate_offers(&state)
+        .iter()
+        .map(|a| match a {
+            LegalAction::CastWithMutate { mutate_target, .. } => *mutate_target,
+            other => panic!("filtered to CastWithMutate, got {other:?}"),
+        })
+        .collect();
+
+    // Non-vacuity, stated in both directions, because set equality between two empty sets
+    // is the failure mode this probe is most exposed to.
+    let legal_host = find_object(&state, HOST);
+    assert_eq!(
+        engine_answer,
+        [legal_host]
+            .into_iter()
+            .collect::<std::collections::BTreeSet<_>>(),
+        "precondition: on this four-class board the engine's own CR 702.140a answer is \
+         exactly the Wolf. If this moved, the FIXTURE changed, not the offer layer -- \
+         re-derive before touching `legal_actions.rs`. Answer: {engine_answer:?}"
+    );
+    let creatures_on_battlefield = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .iter()
+        .filter(|o| o.characteristics.card_types.contains(&CardType::Creature))
+        .count();
+    assert_eq!(
+        creatures_on_battlefield, 4,
+        "precondition: four candidate hosts are present, so the answer being ONE is a \
+         real filter rather than an empty board"
+    );
+
+    assert_eq!(
+        offered, engine_answer,
+        "SR-38 / CR 702.140a: the mutate offer set must BE \
+         `queries::legal_mutate_hosts`' answer, not a second predicate that agrees with \
+         it. A host in `offered` but not in the engine's answer is a clean offer followed \
+         by a guaranteed refusal; a host in the engine's answer but not `offered` is a \
+         legal play no client can make. offered={offered:?} engine={engine_answer:?}"
+    );
+}

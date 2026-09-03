@@ -775,6 +775,37 @@ pub fn process_command(
             // This arm is the same resolution reached through a CR 608.2d answer, so it
             // owes the same nothing.
             //
+            // # The deleted call did TWO things and only one of them was the defect
+            //
+            // Stated because the paragraphs above argue solely about trigger
+            // double-dispatch, and a reader checking this reasoning would otherwise have
+            // to discover the second half themselves. `check_and_flush_triggers` is
+            // `check_triggers_with_timing` -> **`run_delayed_trigger_cleanup`** ->
+            // `flush_pending_triggers`; `resolve_top_of_stack_inner`'s tail is
+            // `check_triggers_with_timing` -> `check_and_apply_sbas` ->
+            // `flush_pending_triggers`, with **no** cleanup. So deleting the call also
+            // stopped CR 610.3's delayed-trigger reaping from happening at this site; it
+            // now waits for the next command's own sweep.
+            //
+            // **No observable divergence is constructible, and the mechanism is stated
+            // rather than the conclusion asserted.** `run_delayed_trigger_cleanup` prunes
+            // two classes and `check_triggers` is independently immune to both:
+            //
+            //  * `dt.fired` entries -- `collect_delayed_triggers`' scan opens with
+            //    `if dt.fired { continue; }`, so a fired entry surviving an extra pass
+            //    dispatches nothing.
+            //  * `WhenSourceLeavesBattlefield` entries whose source has already gone --
+            //    that scan is gated on `left_battlefield`, the set of objects that left
+            //    **in the batch being checked**, and CR 400.7 gives a returning object a
+            //    NEW `ObjectId`, so a source cannot appear in that set twice.
+            //
+            // The cleanup is therefore hygiene (it keeps `state.delayed_triggers` from
+            // growing) rather than a correctness gate, and its being one command late is
+            // unobservable. **It is also exactly what `handle_all_passed` has always
+            // done**, so this is the two paths agreeing, not a new gap opened in one of
+            // them. If a future change makes `check_triggers` sensitive to a stale
+            // delayed trigger, BOTH sites need the cleanup, not just this one.
+            //
             // **Measured, not reasoned.** `combat/192_mutate_gemrazer.json` put TWO
             // copies of Gemrazer's `WhenMutates` trigger on the stack once PB-DX50 made
             // the mutate resolution suspend here. The defect is **PRE-EXISTING and was

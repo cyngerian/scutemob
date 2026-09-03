@@ -843,3 +843,168 @@ fn test_dx50_t11_noncreature_host_is_still_refused() {
         "the refusal is now the CR 115 targeting one, got {err:?}"
     );
 }
+
+// ── t12: the claim `abilities.rs` made about this batch, now that it is false ────
+
+const WATCHER: &str = "DX50 Target Watcher";
+
+/// CR 601.2c / CR 602.2b — `TriggerCondition::WhenBecomesTarget` fires for a **mutate
+/// host**, because the host is now a real announced target.
+///
+/// # This probe exists because PB-DX50 falsified a comment and nobody noticed
+///
+/// `rules/abilities.rs`'s `collect_permanent_becomes_target_triggers` carried, from
+/// PB-DX25's fix cycle until this batch's `/review`:
+///
+/// > **Latent for the mutate case today**: the mutate target is never entered into
+/// > `spell_targets` (`OOS-DX25-1`), so no `PermanentBecomesTarget` event is ever raised
+/// > for a mutate cast's own target — this fix only takes effect once that gap closes.
+///
+/// **That gap is exactly what PB-DX50 half 1 closed**, and the comment survived the
+/// commit that made it wrong. It is the shape this queue keeps filing (`OOS-DX47-6`,
+/// `OOS-DX49-6`) committed by the batch whose own headline is a false comment — and
+/// neither the batch nor its `/review` caught it; it surfaced while checking an unrelated
+/// finding.
+///
+/// So the correction is not another sentence. `permanent_targeted_events` reads
+/// `stack_obj.targets` and `abilities.rs`'s `GameEvent::PermanentTargeted` arm dispatches
+/// Ward **and** `collect_permanent_becomes_target_triggers` from the same place, so the
+/// two halves cannot diverge — but `t3` only ever exercised the Ward half, and the
+/// `PermanentBecomesTarget` half had no mutate coverage at all. This is it.
+///
+/// **Revert to watch red**: stop appending the mutate host to the `StackObject`'s
+/// `targets` in `casting::handle_cast_spell` — i.e. restore the pre-PB-DX50 behaviour the
+/// deleted comment described.
+#[test]
+fn test_dx50_t12_whenbecomestarget_fires_for_a_mutate_host() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // A watcher p1 controls, printing "Whenever a creature you control becomes the
+    // target of a spell, gain 1 life". `scope: Some(..)` is the non-self form, so the
+    // host does not need to carry the trigger itself.
+    let watcher_def = CardDefinition {
+        card_id: CardId("dx50-target-watcher".to_string()),
+        name: WATCHER.to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            subtypes: [SubType("Wizard".to_string())].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text:
+            "Whenever a creature you control becomes the target of a spell, you gain 1 life."
+                .to_string(),
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition:
+                mtg_card_types::cards::card_definition::TriggerCondition::WhenBecomesTarget {
+                    scope: Some(Box::new(mtg_engine::TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    })),
+                    by_opponent: false,
+                    include_abilities: false,
+                },
+            effect: Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            intervening_if: None,
+            targets: vec![],
+            modes: None,
+            trigger_zone: Default::default(),
+        }],
+        power: Some(1),
+        toughness: Some(1),
+        ..Default::default()
+    };
+
+    let defs: std::collections::HashMap<String, CardDefinition> = [
+        (BEAST.to_string(), beast_def(vec![])),
+        (HOST.to_string(), host_def()),
+        (WATCHER.to_string(), watcher_def.clone()),
+    ]
+    .into_iter()
+    .collect();
+
+    // Enriched from the def: `ObjectSpec::card` mints a NAKED object and the trigger has
+    // to reach `Characteristics::triggered_abilities` for `check_triggers` to see it.
+    let watcher = mtg_engine::enrich_spec_from_def(
+        ObjectSpec::card(p1, WATCHER)
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(CardId("dx50-target-watcher".to_string()))
+            .with_types(vec![CardType::Creature]),
+        &defs,
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![
+            beast_def(vec![]),
+            host_def(),
+            watcher_def,
+        ]))
+        .object(beast_spec(p1))
+        .object(host_spec(p1, p1, vec!["Wolf"]))
+        .object(watcher)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
+    pool.add(ManaColor::Green, 4);
+    pool.add(ManaColor::Colorless, 4);
+    state.turn_mut().priority_holder = Some(p1);
+
+    // Non-vacuity: the trigger really did survive enrichment onto the object.
+    let watcher_id = find_object(&state, WATCHER);
+    assert_eq!(
+        state
+            .objects()
+            .get(&watcher_id)
+            .expect("watcher exists")
+            .characteristics
+            .triggered_abilities
+            .len(),
+        1,
+        "fixture: the WhenBecomesTarget trigger must be lowered onto the watcher, or \
+         this probe measures a naked object rather than the engine"
+    );
+
+    let card = find_object(&state, BEAST);
+    let host = find_object(&state, HOST);
+    let (state, events) = process_command(state, mutate_cast(p1, card, host, vec![]))
+        .expect("CR 702.140a: the mutate cast is legal");
+
+    // The count is `== 1`, never `>= 1` (PB-DX48's standard).
+    let fired = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                GameEvent::AbilityTriggered { source_object_id, .. }
+                if *source_object_id == watcher_id
+            )
+        })
+        .count();
+    assert_eq!(
+        fired, 1,
+        "CR 601.2c: the mutate host is an announced target, so a \
+         `WhenBecomesTarget {{ scope: creature you control }}` trigger fires EXACTLY \
+         once. `abilities.rs` claimed this was \"latent ... until that gap closes\" -- \
+         PB-DX50 half 1 closed it, and the comment outlived the commit. Events: \
+         {events:#?}"
+    );
+    assert!(
+        state
+            .stack_objects()
+            .iter()
+            .any(|so| matches!(so.kind, StackObjectKind::TriggeredAbility { .. })),
+        "the trigger reaches the stack (CR 603.3), not just the event log"
+    );
+}

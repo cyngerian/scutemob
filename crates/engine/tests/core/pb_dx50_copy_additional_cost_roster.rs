@@ -373,4 +373,94 @@ fn r4_the_mutate_resolution_arm_guards_on_is_copy() {
          COPY moves or merges the ORIGINAL's card. The sibling `Spell` arm has guarded \
          this since before PB-DX50, under a comment saying exactly why."
     );
+
+    // ── The conjunct the `/review` proved this gate needed ──────────────────────
+    //
+    // The assertion above is satisfied by BOTH shapes of the guard: the correct
+    // `if … { … } else { … }` and the first draft's
+    // `if stack_obj.is_copy { … return Ok(events); }`. The second HANGS THE GAME --
+    // `return` leaves `resolve_top_of_stack_inner` altogether, skipping
+    // `check_triggers_with_timing`, `check_and_apply_sbas`, `flush_pending_triggers` and
+    // `priority::grant_priority_to_active_player`, so both seats have passed and nobody
+    // holds priority. **`r4` was green through the entire episode**, which is the whole
+    // finding: a needle that both the fix and the defect contain measures nothing.
+    //
+    // # Why POSITION, and not "the arm contains no `return`"
+    //
+    // The arm has exactly one LEGITIMATE early return -- CR 608.2d's suspend, the
+    // `None => return Ok(events)` arm of the `ask_resolution_choice` match, which is
+    // every other suspending site's idiom in this engine and must stay allowed. Two
+    // candidate discriminators were available and both are used, because each catches
+    // what the other misses:
+    //
+    //  * **position** -- every `return Ok(events)` must sit AFTER the
+    //    `ask_resolution_choice(` call. This is the one that catches the shipped defect:
+    //    the first draft's return was at the HEAD of the arm, ~13,000 bytes earlier.
+    //  * **the surrounding arm** -- each one must be on a line carrying `None =>`. This
+    //    catches a second early return added *below* the ask (say in the merge branch),
+    //    which position alone would wave through.
+    //
+    // **The second conjunct is a FORM gate and its cost is stated, not hidden.** The
+    // executed defeat that proves it discriminates -- rewriting the suspend as
+    // `None => { return Ok(events); }` -- is behaviour-NEUTRAL, so this conjunct will
+    // also fire on an honest reformatting, and on the equally honest
+    // `if answer.is_none() { return Ok(events); }` refactor. That is a deliberate trade
+    // in this project's direction (*a ratchet's slack IS its blind spot*, PB-DX47): the
+    // defect class it uniquely catches is a NEW early return placed below the ask, in
+    // the merge branch, after state has been written -- which neither the count nor the
+    // position conjunct can see, because the count stays 1 if the suspend return is what
+    // it replaced. **If it fires on a refactor, widen the accepted idiom here; do not
+    // delete the check.**
+    //
+    // Comments are stripped first, and that is load-bearing here rather than defensive:
+    // the arm's own doc quotes the defective line verbatim (*"shipped as an early
+    // `return Ok(events);`"*) while explaining why it is wrong, so an unstripped scan
+    // would find a `return Ok(events)` at the head of the arm and fail on the CORRECT
+    // code -- fail-open's opposite, a gate that can only be satisfied by deleting the
+    // explanation.
+    let stripped = strip_comments(body);
+    let ask = stripped.find("ask_resolution_choice(").expect(
+        "the mutate arm must ask CR 702.140c's over/under question via \
+         `ask_resolution_choice` -- if this moved, re-derive the position anchor below \
+         rather than deleting it",
+    );
+    let returns: Vec<usize> = stripped
+        .match_indices("return Ok(events)")
+        .map(|(i, _)| i)
+        .collect();
+    assert_eq!(
+        returns.len(),
+        1,
+        "the MutatingCreatureSpell arm must contain EXACTLY ONE `return Ok(events)` \
+         (CR 608.2d's suspend). Found {}. A second early return skips the shared \
+         resolution tail -- `check_triggers_with_timing`, `check_and_apply_sbas`, \
+         `flush_pending_triggers` and `priority::grant_priority_to_active_player` -- \
+         which strands the stack with nobody holding priority. See \
+         `primitives::pb_dx50_mutate_on_top_timing::t8`.",
+        returns.len()
+    );
+    for at in returns {
+        assert!(
+            at > ask,
+            "a `return Ok(events)` sits at byte {at} of the MutatingCreatureSpell arm, \
+             BEFORE the CR 608.2d ask at byte {ask}. That is the first draft's \
+             `is_copy` guard shape and it HANGS THE GAME: the shared resolution tail \
+             (SBAs, trigger flush, `grant_priority_to_active_player`) is skipped, so \
+             both seats have passed and `priority_holder` is None. The sibling `:819` \
+             guard is an `if / else if` chain that FALLS THROUGH to that tail -- use an \
+             `else`, not a `return`."
+        );
+        let line_start = stripped[..at].rfind('\n').map_or(0, |i| i + 1);
+        let line_end = stripped[at..].find('\n').map_or(stripped.len(), |i| at + i);
+        let line = &stripped[line_start..line_end];
+        assert!(
+            line.contains("None =>"),
+            "the only permitted `return Ok(events)` in this arm is CR 608.2d's suspend \
+             (`None => return Ok(events)`), where returning without applying anything is \
+             the documented contract and `resolve_top_of_stack` rolls the resolution \
+             back. This one is on `{}`, which is a different control-flow decision and \
+             inherits the obligations of every statement it skips (PB-DP8).",
+            line.trim()
+        );
+    }
 }

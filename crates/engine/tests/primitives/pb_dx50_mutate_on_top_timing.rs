@@ -651,3 +651,108 @@ fn t7_answering_queues_each_trigger_exactly_once() {
             .collect::<Vec<_>>()
     );
 }
+
+// ── t8: half 3's `is_copy` guard, BEHAVIOURALLY ──────────────────────────────
+
+/// CR 707.10 / CR 400.7 (`OOS-DX50-2`) — a resolving **copy** of a mutating creature
+/// spell must not touch the original's card, **and must still reach the shared
+/// resolution tail.**
+///
+/// # Why this test exists at all, when `core::pb_dx50_copy_additional_cost_roster::r4`
+/// # already "pins" the guard
+///
+/// It does not pin it. `r4` asserts that the `MutatingCreatureSpell` arm's body
+/// *contains the string* `stack_obj.is_copy`, and that assertion is satisfied by BOTH
+/// shapes of the guard — the correct `if … { … } else { … }` and the first draft's
+/// `if stack_obj.is_copy { … return Ok(events); }`. The `/review` proved by execution
+/// that the second shape **hangs the game**: `return` leaves
+/// `resolve_top_of_stack_inner` entirely, skipping `check_triggers_with_timing`,
+/// `check_and_apply_sbas`, `flush_pending_triggers` and — fatally —
+/// `priority::grant_priority_to_active_player`, so the observed end state was
+/// `priority_holder: None` with both seats already passed, no blocking decision, and the
+/// ORIGINAL spell stranded on the stack forever. `r4` was green through all of it.
+///
+/// **A source gate that matches a needle both the fix and the defect contain measures
+/// nothing.** This probe is what discriminates: it asserts the *consequence* (someone
+/// holds priority afterwards, and the original is still resolvable) rather than the
+/// spelling. `r4` gains a positional conjunct in the same commit, but this is the one
+/// that would have caught it.
+///
+/// The copy is minted through the production path, `rules::copy::copy_spell_on_stack`,
+/// not hand-built — the whole defect is that `copy.rs` clones `original.kind` wholesale,
+/// so a hand-built `StackObject` with a fresh `source_object` would have been a fixture
+/// that cannot express the bug.
+///
+/// **Revert to watch red**: change the `if stack_obj.is_copy { … } else { … }` in
+/// `resolution.rs`'s `MutatingCreatureSpell` arm back to
+/// `if stack_obj.is_copy { … return Ok(events); }`.
+#[test]
+fn t8_a_resolving_copy_of_a_mutate_spell_still_grants_priority() {
+    let (state, _host) = cast_mutate();
+    let original_stack_id = state
+        .stack_objects()
+        .last()
+        .expect("the mutate spell is on the stack")
+        .id;
+
+    // Mint the copy through the production path. `_choose_new_targets: false` is
+    // CR 707.10a's leave-unchanged fallback.
+    let mut state = state;
+    let (copy_id, _ev) =
+        mtg_engine::rules::copy::copy_spell_on_stack(&mut state, original_stack_id, p(1), false)
+            .expect("copying a stack object is legal");
+    assert_eq!(
+        state.stack_objects().len(),
+        2,
+        "fixture: the copy sits above the original"
+    );
+    let copy = state
+        .stack_objects()
+        .iter()
+        .find(|so| so.id == copy_id)
+        .expect("the copy is on the stack");
+    assert!(copy.is_copy, "fixture: `copy_spell_on_stack` sets is_copy");
+    assert!(
+        matches!(copy.kind, StackObjectKind::MutatingCreatureSpell { .. }),
+        "fixture: `copy.rs` clones `original.kind` wholesale, which is the whole defect \
+         -- the copy names the ORIGINAL's card in its `source_object`"
+    );
+
+    // Both seats pass: CR 117.4 resolves the top object, which is the copy.
+    state.turn_mut().priority_holder = Some(p(1));
+    let (state, _events) = resolve_top(state);
+
+    // THE ASSERTION. A `return` in the copy branch skips
+    // `priority::grant_priority_to_active_player` and leaves nobody holding priority
+    // with both seats already passed -- an unrecoverable game, not a slow one.
+    assert!(
+        state.turn().priority_holder.is_some(),
+        "CR 117.3a: a copy's resolution must still hand priority back. \
+         priority_holder = {:?}, players_passed = {:?}, blocking_decision = {:?}. \
+         An early `return` in the `is_copy` branch skips the shared resolution tail.",
+        state.turn().priority_holder,
+        state.turn().players_passed,
+        state.blocking_decision().is_some()
+    );
+
+    // And the original really is still there, still resolvable -- so the copy consumed
+    // nothing of the original's (CR 400.7: the card is untouched).
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "the copy resolved and the ORIGINAL is still on the stack"
+    );
+    assert_eq!(
+        state.stack_objects()[0].id,
+        original_stack_id,
+        "the survivor is the original, not the copy"
+    );
+    // Non-vacuity for the "still resolvable" half: the original goes on to ask its own
+    // CR 702.140c question, which it could not do if the copy had moved its card.
+    let (state, _) = resolve_top(state);
+    assert!(
+        state.pending_effect_choice().is_some(),
+        "CR 702.140c: the ORIGINAL still resolves normally after the copy -- if the copy \
+         had consumed its `source_object` this would be a dead `ObjectId` (CR 400.7)"
+    );
+}

@@ -2841,6 +2841,15 @@ fn test_dp9_roster_enumeration() {
 ///
 /// The behavioural half is asserted directly: with the gate closed the effect
 /// applies the default and records NO entry.
+///
+/// # PB-DX50 `/review`: part (c) was DEFEATED, and its gate now lives in `core`
+///
+/// Its "exactly one site in the tree" census read three hardcoded files (`mana.rs`,
+/// `effects/mod.rs`, `resolution.rs`) and counted one of the two spellings, so setting
+/// `rules/abilities.rs:290`'s `effect_choice_gate_closed: false` to `true` left this test
+/// **GREEN**. The replacement walks the workspace and counts both spellings; see the
+/// comment at part (c) for why it had to move to another test binary to do that, and for
+/// the two-way link that stops either half being deleted alone.
 fn test_dp9_mana_ability_gate() {
     // (a) The roster obligation.
     // `ManaAbility` carries no `Effect` tree of its own, so the ONLY route into
@@ -2982,71 +2991,29 @@ fn test_dp9_mana_ability_gate() {
     // `WhenTappedForMana` branch, and CR 605.1b/605.4a make a mana ability resolve
     // OUTSIDE the stack, so it never enters `resolve_top_of_stack` at all.
     //
-    // The gate on the claim, and it is not decoration: it fails if the resolution
-    // ask ever starts taking a `gate_closed` value from anywhere but the literal
-    // `false` this reasoning rests on, and it fails if a SECOND site ever learns to
-    // close the gate. Both are the ways the claim could stop being true.
-    {
-        let mana_src = std::fs::read_to_string(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/rules/mana.rs"),
-        )
-        .expect("rules/mana.rs is readable");
-        let effects_src = std::fs::read_to_string(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/effects/mod.rs"),
-        )
-        .expect("src/effects/mod.rs is readable");
-        let resolution_src = std::fs::read_to_string(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/rules/resolution.rs"),
-        )
-        .expect("src/rules/resolution.rs is readable");
-
-        // Conjunct 1: exactly ONE site in the tree closes the gate, and it is in
-        // `rules/mana.rs`. Counted as ASSIGNMENTS (`= true`), never as mentions:
-        // the field name appears in doc comments in three files.
-        let mana_closes = mana_src.matches("effect_choice_gate_closed = true").count();
-        assert_eq!(
-            mana_closes, 1,
-            "rules/mana.rs must close the CR 605.4a gate at exactly one site; found \
-             {mana_closes}"
-        );
-        for (name, src) in [
-            ("effects/mod.rs", &effects_src),
-            ("rules/resolution.rs", &resolution_src),
-        ] {
-            assert_eq!(
-                src.matches("effect_choice_gate_closed = true").count(),
-                0,
-                "{name} must not close the CR 605.4a gate -- if a second site learns to, \
-                 PB-DX50's structural-unreachability argument for the mutate ask needs \
-                 re-deriving rather than trusting"
-            );
-        }
-
-        // Conjunct 2: the resolution-side asker passes a LITERAL `false`, so no
-        // caller can smuggle a closed gate into a stack resolution.
-        let asker = effects_src
-            .find("pub(crate) fn ask_resolution_choice")
-            .expect("PB-DX50's resolution-side asker must exist");
-        let body_end = effects_src[asker..]
-            .find("\n}\n")
-            .map(|i| asker + i)
-            .expect("the asker has a body");
-        let body = &effects_src[asker..body_end];
-        assert!(
-            body.contains(
-                "ask_or_consume_effect_choice_core(state, false, source, player, question)"
-            ),
-            "`ask_resolution_choice` must pass a LITERAL `false` for the CR 605.4a gate -- \
-             a stack resolution is never a mana ability, and taking the value from a \
-             parameter would make that a caller's promise instead of a fact. Body: {body}"
-        );
-
-        // Conjunct 3 (non-vacuity): the mutate arm really does call it, so conjuncts
-        // 1 and 2 are about a live path rather than a dead helper.
-        assert!(
-            resolution_src.contains("crate::effects::ask_resolution_choice("),
-            "the MutatingCreatureSpell arm must be a real caller of `ask_resolution_choice`, \
-             or this whole sub-gate is vacuous"
-        );
-    }
+    // **The gate on that claim lives in `core::pb_dx50_effect_choice_gate_sites`,
+    // not here, and the move is the `/review`'s finding rather than tidying.** Its
+    // first draft lived in this function, read THREE hardcoded files and counted
+    // ONE of the two spellings (`= true`, missing the struct-literal `: true` that
+    // every `EffectContext` in this tree actually uses), so setting
+    // `rules/abilities.rs`'s `effect_choice_gate_closed: false` to `true` left this
+    // test GREEN. The fix is a WORKSPACE walk, and the only workspace-wide source
+    // walk in this tree -- `pb_dx49_saga_blanking_roster::workspace_src_files_checked`,
+    // with its executing non-vacuity floors -- is in the `core` test binary. Cargo
+    // integration-test binaries are separate crates, so `primitives` cannot use it,
+    // and the two remaining options were a second copy of the walk (which
+    // `pb_dx50_mutate_site_roster`'s module doc rejects by name) or a `#[path]`
+    // include, which **SR-9a's `no_stray_test_binaries` gate refuses outright**, and
+    // correctly: an attribute on a `mod` line is a way to look declared while not
+    // being compiled. That gate fired on the first draft of this fix and it was
+    // right. So the census went to `core`, which SR-9a's own layout table calls the
+    // home of "the machine-checked invariant gates". Parts (a) and (b) above need
+    // no walk and stay here.
+    //
+    // The two files are linked in BOTH directions: `g3` there asserts that THIS
+    // function still exists and still carries the pointer below, so neither half
+    // can be deleted while the other goes on claiming to be covered.
+    //
+    // SEE: crates/engine/tests/core/pb_dx50_effect_choice_gate_sites.rs
+    //      (`core::pb_dx50_effect_choice_gate_sites`, tests g1-g4)
 }

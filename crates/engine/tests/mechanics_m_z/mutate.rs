@@ -293,7 +293,12 @@ fn test_mutate_resolution_basic_merge() {
             .additional_costs
             .iter()
             .any(|c| matches!(c, AdditionalCost::Mutate { .. })),
-        "mutate_on_top should be propagated to stack object via additional_costs"
+        "CR 702.140a: the cast must record an `AdditionalCost::Mutate` entry on the \
+         stack object. This message used to say \"mutate_on_top should be propagated\" \
+         -- PB-DX50 half 2 DELETED that field, because CR 702.140c makes the over/under \
+         choice a RESOLUTION choice; the assertion below it was already checking only \
+         that the variant is present. The entry that remains carries the host, which \
+         the arm above asserts."
     );
 
     // Resolve: all players pass priority.
