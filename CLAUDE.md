@@ -841,7 +841,14 @@
   the identical thing**. Ward-declaring population is **4**, not 5 (`vein_ripper` names the variant
   only inside a `// TODO` explaining why it cannot use it). `WhenBecomesTarget` has **1** structural
   declaration, not 6 (the other five are comment mentions). And **two LIVE finds where the brief
-  said latent**: `KeywordAbility::Cloak` **does not exist** (Cloak is `Effect::Cloak`), so a grep
+  said latent**: `KeywordAbility::Cloak` — *this narrative said the variant **does not exist**, and
+  **that is false at HEAD**; it is a unit variant at `card-types/src/state/types.rs:1696`,
+  discriminant 157, beside `KeywordAbility::Manifest` at `:1689`. Corrected in place 2026-09-03 by
+  PB-DX49 (`scutemob-220`), whose `r5c` proves the discrimination on synthetic input. **PB-DX48's
+  CONCLUSION survives and its measurement was right** — zero corpus defs declare either marker, so
+  the grep's zero was the true population; what was wrong is the stated REASON, which is the more
+  dangerous half, because a reason is what the next batch reuses.* Cloak is reached through
+  `Effect::Cloak`, so a grep for the keyword
   measured zero and read like a measurement — `cryptic_coat` is `Complete`, deck-legal, and its ETB
   Cloak puts a face-down permanent on the battlefield that the layer walk gives ward {2} **and no
   Ward triggered ability** (`OOS-DX48-4`, LIVE not latent); and an **INVERSE oracle-text axis**

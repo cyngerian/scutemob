@@ -96,11 +96,28 @@ opponent controls"*.
 `OOS-RR4-1` as filed: *"a Layer-6 `LayerModification::RemoveAllAbilities` (13 corpus defs, **8**
 deck-legal `Complete`)"*. Its 2026-08-14 correction re-measures the **numerator** — 13 is a bare
 `RemoveAllAbilities` grep that counts two comment mentions; the qualified path returns **9** at
-HEAD — and leaves the **denominator** untouched. Deck-legal `Complete` at HEAD is **6**, not 8:
-`final_showdown` is `partial`, `oko_thief_of_crowns` is `known_wrong` and
-`vraska_betrayals_sting` is `partial`. (Orientation figures from a source grep; the authoritative
-numbers are PRINTED by `core::pb_dx49_saga_blanking_roster::t_census_report`, which walks
-`all_cards()` per SR-36.)
+HEAD — and leaves the **denominator** untouched.
+
+**↻ CORRECTED by the `all_cards()` walk (`r3`). The paragraph above was this batch's own first
+draft and it was wrong, in the direction that matters most.** The measured population is
+**11 defs / 8 deck-legal `Complete`**, and every figure in the chain — the row's 13, the row's own
+correction to 9, and this batch's orientation figure of 6 deck-legal — was produced by grepping
+for the string `RemoveAllAbilities`. **That is the wrong question.** PB-DX43 moved CR 305.7's
+ability loss into `LayerModification::SetLandTypes`, so `blood_moon` and `magus_of_the_moon` are
+blankers again *through a different variant*, and no `RemoveAllAbilities` grep can see them. Only
+"decide by **calling** `modification_blanks_abilities`" — which `r3` does — counts a blanker as a
+blanker.
+
+**And the deck-legal `8` agrees with the row by coincidence, not by measurement**, which is the
+sharper finding: the row's 8 was 8-of-13 `RemoveAllAbilities` defs; the true 8 is **six**
+`RemoveAllAbilities` defs plus **the two moons**. *An agreeing number is not an agreeing
+membership* — and a batch that had checked only the total would have recorded the row as
+confirmed.
+
+So this batch reproduced SR-36's failure mode in its own §1.3 orientation pass, one batch after
+PB-DX48 reproduced it and two after PB-DX47 filed `OOS-DX47-2` for it. The authoritative figures
+are PRINTED by `core::pb_dx49_saga_blanking_roster::t_census_report`; nothing in this document is
+transcribed from a grep any more.
 
 ### 1.4 A standing gate fired on this batch's own work, and it was right
 
@@ -186,3 +203,115 @@ The plan named `resolution.rs:2194` / `:2225` (taken from the registry row, whic
 2026-08-14). At HEAD they are ~`:2267` and ~`:2298` — the same two
 `AbilityDefinition::SagaChapter { effect, .. }` arms. Both carry the CR 113.7a comment now, so the
 next reader finds them by symbol rather than by a line number that will drift again.
+
+---
+
+## 3. The census (AC 7282) — every figure walked from `all_cards()` and PRINTED by a test
+
+`crates/engine/tests/core/pb_dx49_saga_blanking_roster.rs`, 20 tests, registered at
+`core/main.rs:47`. `--test core` goes 632 → **652** passing. Everything below is printed by
+`t_census_report` under `--nocapture`; nothing here is transcribed from a grep.
+
+### 3.1 Saga side — the population is **3**, not the 4 every prior document says
+
+| def | completeness | chapters |
+|---|---|---|
+| `binding_the_old_gods` | **`Complete`** (by `#[default]` derive) | front I / II / III |
+| `fable_of_the_mirror_breaker` | `partial` | front I / II / III |
+| `urzas_saga` | `partial` | front I / II / III |
+
+Deck-legal subset: **1** — `{binding_the_old_gods}`, exactly as §1g predicted.
+
+**`song_of_freyalise` is not a member.** It declares `abilities: vec![]` and names `SagaChapter`
+only in two `// TODO`s and its `Completeness::inert` note. §1g's 4, `OOS-RR4-1`'s 4, this batch's
+plan and this batch's own orientation pass all counted it, all from a source grep. **This is
+SR-36's failure mode for the fourth consecutive batch in this queue** — `OOS-CARDS2-7` →
+`OOS-DX47-2` → PB-DX48 → here. It is `r2`'s member, not `r1`'s.
+
+### 3.2 Saga side, INVERSE (oracle-text axis) — 4 defs, residual **1**
+
+The residual is `song_of_freyalise`: it *prints* a Saga and *declares* no chapters. The two axes
+do not nest, which is the whole reason both exist.
+
+### 3.3 Blanker side — **11 defs / 11 modification sites / 8 deck-legal `Complete`**
+
+`blood_moon` (`SetLandTypes` / `AllNonbasicLands` / ✔), `darksteel_mutation`
+(`RemoveAllAbilities` / `AttachedCreature` / ✔), `eaten_by_piranhas` (✔), `final_showdown`
+(`AllCreatures` / ✘ `partial`), `imprisoned_in_the_moon` (**`AttachedPermanent`** / ✔),
+`kasminas_transmutation` (✔), `kenriths_transformation` (✔), `magus_of_the_moon`
+(`SetLandTypes` / ✔), `oko_thief_of_crowns` (`DeclaredTarget` / ✘ `known_wrong`), `turn`
+(`DeclaredTarget` / ✔), `vraska_betrayals_sting` (✘ `partial`).
+
+See §1.3 for why every previous figure — 13, 9 and this batch's own 6 — was measuring the wrong
+thing, and why the deck-legal 8 agreeing with the row is a coincidence of totals rather than of
+membership.
+
+### 3.4 Pairs — both reproduce exactly, and there is a **fourth** blanker nobody named
+
+- **Pair A** (`imprisoned_in_the_moon` × `binding_the_old_gods`) reproduces. Its dependency on
+  **`OOS-DX20-10`** is keyed structurally on the declared
+  `KeywordAbility::Enchant(EnchantTarget::Permanent)` plus `EffectFilter::AttachedPermanent`, so
+  **fixing that seed reddens `r4a`** rather than silently vacating a probe. Stated in the test's
+  own doc comment, not only here.
+- **Pair B** (`reality_shift` × `binding_the_old_gods`) reproduces and is **unconditional** —
+  `reality_shift` is `Complete` and declares `Effect::Manifest`; CR 708.2a does the rest.
+- **`oko_thief_of_crowns` is a fourth blanker that can reach an enchantment, and no document names
+  it.** Its +1 prints *"target artifact or creature"* and declares a bare
+  `TargetRequirement::TargetPermanent`, so it can blank a Saga. It is `known_wrong` (its own marker
+  cites the missing `has_card_types`), so the deck-legal blast radius is **0** — but promoting it
+  without narrowing the target creates a third blanker × Saga pair. Filed `OOS-DX49-4`.
+- **The moons reach an enchantment only through an enchantment LAND** — i.e. Urza's Saga, corner
+  case #36's own pair — so they are gated on `OOS-RR4-2`, which is what `r4d` pins.
+- **"Five creature-only blankers" is seven**, by three distinct restricting mechanisms
+  (`AttachedCreature`, `AllCreatures`, `TargetCreature`), and `r4c` asserts all three stay
+  represented so a widening of any one is visible.
+
+### 3.5 `urzas_saga` authoring is explicitly NOT taken
+
+`r4d` pins `urzas_saga`'s completeness as **not** `Complete`, with the reason in the test: the
+famous Blood Moon × Urza's Saga pair fails `validate_deck`, the card half is **`OOS-RR4-2`**,
+ranked separately, and this batch does not author or promote it. That is why corner case #36 goes
+to **PARTIAL** and not to COVERED.
+
+### 3.6 A false claim in CLAUDE.md's PB-DX48 narrative, corrected in place
+
+That narrative states *"`KeywordAbility::Cloak` **does not exist** (Cloak is `Effect::Cloak`)"*.
+**False at HEAD**: it is a unit variant at `card-types/src/state/types.rs:1696`, discriminant 157,
+beside `KeywordAbility::Manifest` at `:1689`. **PB-DX48's conclusion survives and its measurement
+was right** — zero corpus defs declare either marker — but the stated *reason* is wrong, and a
+reason is the half the next batch reuses. Corrected in CLAUDE.md with attribution; `r5c` proves
+the discrimination on synthetic input, because the corpus cannot.
+
+### 3.7 A second face-down channel that behaves oppositely, pinned
+
+`r5` measures the face-down **effect** channel: **3** defs — `cryptic_coat` (`Effect::Cloak`,
+`Complete`), `reality_shift` (`Effect::Manifest`, `Complete`), `write_into_being`
+(`Effect::Manifest`, not `Complete`). Those arms never reach `apply_self_etb_from_definition`
+(§1.2). The morph/megamorph/disguise **cast** path *does*. `r5d` pins that no corpus Saga declares
+a face-down cast keyword, on **both** spellings — the `KeywordAbility` marker and the
+`AbilityDefinition::Morph { cost }` carrier — since checking one would measure one.
+
+### 3.8 Gate-integrity work the roster carries beyond the ask
+
+- **Clause-scoped target attribution.** `ability_targets` is read per-`AbilityDefinition`, not
+  per-def, and `r4e` proves it load-bearing by measuring both readings of `Turn // Burn`:
+  def-scoped sees `{TargetCreature, TargetAny}`, clause-scoped sees `{TargetCreature}`. A
+  def-scoped read would let the **blanking** half be widened to `TargetPermanent` while the Burn
+  half's `TargetCreature` kept `r4c` green — PB-DX45's `/review` finding, applied pre-emptively.
+- **Two executed revert probes on the site roster `r6`, both RED, both restored** (verified by an
+  empty `git diff --stat`): (a) a `saga_view(` occurrence planted in `rules/combat.rs` — a file no
+  hardcoded list would contain — reddens the pinned set, which closes **PB-DX48's `SITE_SRCS`
+  defeat**; (b) a **duplicated** `saga_view` call inside the already-pinned `check_saga_sbas`
+  reddens the offset-carrying count (6 vs 5), which closes **PB-DX48's set-collapse defeat**. That
+  second one matters concretely: a duplicated CR 714 query is how a Saga takes two lore counters in
+  one main phase.
+- `strip_comments` handles `//` **and** `/* */` with offsets preserved (`OOS-DX32-6`), and
+  `r6b_comment_stripping_is_load_bearing` proves each half separately, plus that a real call
+  survives and that `fn saga_view(` is not a call. `r6b_resolution_is_not_a_consumer` additionally
+  asserts `resolution.rs` still *mentions* `saga_view` in prose, so its zero cannot become a
+  **vacuous** zero by someone deleting the CR 113.7a comment.
+- `r3b` proves the `CardType::Land` fixture is load-bearing (a default `Characteristics` drops both
+  moons from the blanker set) and that a **nonbasic** `SetLandTypes` payload is correctly not a
+  blanker.
+- Every roster carries a non-vacuity floor or a synthetic discrimination test; `r2`'s
+  empty-residual risk is bounded by an `oracle.len() >= 4` floor.
