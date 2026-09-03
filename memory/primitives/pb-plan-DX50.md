@@ -357,3 +357,44 @@ permanent spell in the game. Making the mutate arm agree with it is not a new wr
 
 That is PB-DX24's trade, verbatim: **a no-op is auditable; silently consuming another object's card
 is not.** The consistency fix removes a state-corruption path; CR 707.10f is filed, not smuggled in.
+
+---
+
+## §8 Half 2's real hazard: adding an `EffectChoiceQuestion` variant is NOT compile-forced
+
+Found by reading `effects::handle_answer_effect_choice` before writing Half 2, not by tripping on it.
+There are **two** independent non-compile-forced traps, in one function, ~30 lines apart:
+
+1. **`variants_agree` (`effects/mod.rs:914-934`) is a `matches!` over a hardcoded list of six
+   `(question, answer)` pairs.** A seventh variant does not fail to compile — `matches!` simply
+   returns `false` for the unlisted pair, so **every legal `MutateOnTop` answer is rejected** with
+   *"answer … does not answer question …"*. A clean offer followed by a guaranteed refusal: the SR-38
+   shape, from the engine side this time.
+2. **The per-variant legality `match` immediately below ends in
+   `_ => unreachable!("variant agreement checked above")`.** So a batch that fixes trap 1 and forgets
+   trap 2 does not get a rejection — it gets a **panic in release**.
+
+### §8.1 The finding is not the traps, it is that PB-DX45 already wrote the rule
+
+`rules/engine.rs:181-187` carries **obligation (8), added by PB-DX45**:
+
+> *a new `EffectChoiceQuestion` variant must be added to `api::validate_decision_params`. More
+> generally — and this is the durable half — **a wildcard arm that encodes a JUDGEMENT ("these two do
+> not match") cannot also serve as a fallback for the UNKNOWN, and an enum whose growth is expected
+> should be matched exhaustively at every gate that decides what a client may send.** Seven
+> compile-forced sites are not evidence that the eighth is safe; they are the reason nobody looks for
+> it.*
+
+That is a precise and correct statement of exactly these two traps — and it names only
+`api::validate_decision_params`. The two sites above are **in the same file PB-DX45 was editing, two
+functions away**, and were not fixed.
+
+**This is the second instance of the identical shape in this one batch** (§6.1 is the first:
+PB-DX45's review corrected a stale sentence in `effects/mod.rs` and left its twin in `mana.rs`
+three channels stale). Two prior batches, one failure mode: **a claim corrected where it was noticed
+rather than where it lives does not generalise, and neither does a rule.** Writing the general rule
+down is not the same as applying it.
+
+Half 2 therefore (a) fixes both traps structurally — `variants_agree` becomes an exhaustive `match`
+on the pair so a seventh variant is a compile error, and the `unreachable!()` tail goes with it —
+and (b) makes obligation (8) name the mechanism rather than one function.
