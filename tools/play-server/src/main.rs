@@ -10919,6 +10919,392 @@ mod tests {
         );
     }
 
+    // ── PB-DX20b -- CR 702.5a's printed Enchant line, over the REAL HTTP API ──
+    //
+    // `OOS-DX20-10` (HIGH). `imprisoned_in_the_moon` prints "Enchant creature, land,
+    // or planeswalker" and declared `EnchantTarget::Permanent` until PB-DX20b, which
+    // also admitted artifacts and enchantments -- and PB-DX20 is what made that
+    // widened offer CLICKABLE in a browser. So the wire-shaped exclusion is the whole
+    // point of this probe: the assertion that matters is that Sol Ring, a real
+    // `Complete` deck-legal artifact sitting on the battlefield at the moment of the
+    // ask, is NOT in `target_slots[0].candidates` while the Islands are.
+    //
+    // The simulator-side half (the offer SET, the accept-every-offer sweep, the
+    // attach-by-resolution-effect drive and the bot path) is
+    // `crates/simulator/tests/pb_dx20b_enchant_offer_channel.rs`. This is the HTTP
+    // half: a real `POST /api/game/action` through `app(state.clone()).oneshot(..)`,
+    // answered with a NON-DEFAULT target (the UI-4/SIM-6 standard).
+
+    /// {3}{U}{U}{U}, mono-blue, `Complete` -- fixes CR 903.5c colour identity for a
+    /// deck holding Imprisoned in the Moon, and at mana value 6 it is never
+    /// affordable inside this fixture's two-turn window, so it cannot perturb the
+    /// drive (the `T5_DX23_COMMANDER` / `DX20_T6_COMMANDER` rationale).
+    /// `sol-ring` is colourless and so constrains identity not at all.
+    const DX20B_COMMANDER: &str = "arcanis-the-omnipotent";
+
+    /// **Read off an executed sweep, not reasoned to** (the `UI1_SEED` /
+    /// `DX20_T6_SEED` precedent). A throwaway scratch test -- written, run, deleted,
+    /// never committed -- swept seeds 1..=800 directly against
+    /// `setup::build_initial_state`'s dealt hand and library for this exact
+    /// `DeckSource::Fixed` pair, looking for a seat-1 opening where BOTH `sol-ring`
+    /// and `imprisoned-in-the-moon` are reachable within the first few draws. Eleven
+    /// seeds qualified; **five put both cards in the opening seven** (87, 146, 184,
+    /// 752, 778) and 87 is the first of them, which is the only reason it was chosen
+    /// over the other four.
+    const DX20B_SEED: u64 = 87;
+
+    /// Sol Ring + Imprisoned in the Moon + 97 Islands. Almost-all-basics on purpose,
+    /// the `ui1_deck` rationale: those two are the ONLY castable non-land cards in
+    /// the whole 99, so the drive's "play a land, else cast Sol Ring, else pass"
+    /// policy can never be confused about what to do.
+    ///
+    /// **Sol Ring is not decoration and is not merely the artifact witness** -- it is
+    /// also two of the three mana that pay `{2}{U}`, so the class under exclusion is
+    /// load-bearing in the fixture rather than a prop that could be deleted without
+    /// anyone noticing.
+    fn dx20b_human_deck() -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = vec![
+            CardId("sol-ring".to_string()),
+            CardId("imprisoned-in-the-moon".to_string()),
+        ];
+        while main_deck.len() < 99 {
+            main_deck.push(CardId("island".to_string()));
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX20B_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    fn dx20b_bot_deck() -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX20B_COMMANDER.to_string()),
+            main_deck: (0..99).map(|_| CardId("island".to_string())).collect(),
+        }
+    }
+
+    /// Install through `session::new_game` -- the same constructor the real handler
+    /// uses, running the same two Invariant-9 gates (`validate_deck`,
+    /// `check_all_defs_complete`). See [`ui1_install`]'s doc for why
+    /// `POST /api/game` cannot express a `DeckSource::Fixed` game.
+    fn dx20b_install(state: &SharedState) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: DX20B_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), dx20b_human_deck()),
+                (mtg_engine::PlayerId(2), dx20b_bot_deck()),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the PB-DX20b fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// Every permanent on the battlefield in this seat payload, as
+    /// `(object_id, name, card_types)`.
+    fn dx20b_battlefield(view: &Value) -> Vec<(u64, String, Vec<String>)> {
+        view["state"]["zones"]["battlefield"]
+            .as_object()
+            .expect("battlefield is an object keyed by player name")
+            .values()
+            .filter_map(|permanents| permanents.as_array())
+            .flatten()
+            .map(|p| {
+                (
+                    p["object_id"].as_u64().expect("object_id is a number"),
+                    p["name"].as_str().unwrap_or_default().to_string(),
+                    p["card_types"]
+                        .as_array()
+                        .map(|ts| {
+                            ts.iter()
+                                .filter_map(|t| t.as_str().map(str::to_string))
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                )
+            })
+            .collect()
+    }
+
+    /// Drive the human seat: play a land every chance, cast Sol Ring the moment it is
+    /// offered, otherwise pass -- UNTIL "Cast Imprisoned in the Moon" is offered AT
+    /// ALL. Returns that view and the option itself, submitting NOTHING for it.
+    ///
+    /// The search predicate is deliberately **label alone** -- it does not also
+    /// require a populated `candidates` array. That is `pb-review-DX20.md`'s E5
+    /// finding applied here rather than rediscovered: a drive that filters on the
+    /// property the test is named for turns every failure of that property into a
+    /// misleading "the game ended without the card ever being offered" panic inside
+    /// the drive loop, instead of a clean failure at the assertion that advertises
+    /// it.
+    async fn dx20b_drive_to_imprisoned(state: &SharedState, max_steps: usize) -> (Value, Value) {
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            if !view["decision"].is_null() {
+                if let Some(found) = view["decision"]["actions"].as_array().and_then(|actions| {
+                    actions.iter().find(|a| {
+                        a["kind"] == "CastSpell" && a["label"] == "Cast Imprisoned in the Moon"
+                    })
+                }) {
+                    return (view.clone(), found.clone());
+                }
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} without Imprisoned in the Moon ever \
+                 being offered: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| {
+                    actions
+                        .iter()
+                        .find(|a| a["kind"] == "CastSpell" && a["label"] == "Cast Sol Ring")
+                })
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!("Imprisoned in the Moon was never offered within {max_steps} steps");
+    }
+
+    /// **CR 702.5a / CR 303.4a -- the printed Enchant line reaches the browser, and
+    /// the artifact is NOT in it (`OOS-DX20-10`, HIGH).**
+    ///
+    /// A REAL HTTP round trip through `app(state.clone()).oneshot(..)` (the same
+    /// router `main()` serves), not a `view::decision_view` call -- stated per the
+    /// dispatch brief's instruction to say which was done.
+    ///
+    /// Four things are asserted and each is a different failure mode:
+    ///
+    /// 1. **Sol Ring is on the battlefield** at the moment of the ask. Without this
+    ///    non-vacuity floor, assertion 2 would pass on a board that simply has no
+    ///    artifact -- the exclusion would be measuring nothing.
+    /// 2. **`target_slots[0].candidates` does not contain Sol Ring.** This is the
+    ///    HIGH. Before PB-DX20b this array contained it, and PB-DX20 is what made it
+    ///    a clickable button.
+    /// 3. **The candidates DO contain the lands**, so the fix is not the obvious
+    ///    over-correction (narrowing to `Creature`, which is exactly what
+    ///    `kayas_ghostform` shipped for years -- `OOS-DX20-5`). Asserting only 2
+    ///    would pass on an engine that offers nothing at all.
+    /// 4. **A NON-DEFAULT answer is accepted and resolves onto the chosen land**, so
+    ///    game state distinguishes the human's answer from any fallback. `attached_to`
+    ///    is read back out of the seat payload rather than trusting the 200: a cast
+    ///    can be accepted and the Aura can still fail to attach (CR 704.5m would then
+    ///    bin it), which is the silent-fizzle shape `OOS-CARDS1-2` was filed for.
+    ///
+    /// The non-default answer is measured, not hoped for: at `DX20B_SEED` the offer
+    /// carries **two** candidates -- the human's own Island and the BOT's Island --
+    /// and this probe picks the last, i.e. an OPPONENT's permanent. That is as far
+    /// from "the engine's own first choice" as this board can get.
+    ///
+    /// # What this HTTP probe does NOT cover, stated rather than left to be assumed
+    ///
+    /// PB-DX45's disclosure standard. A `play-server` session installs from a DECK
+    /// and plays it out, so the only permanents on the board at the moment of the ask
+    /// are the ones the drive could actually put there in two turns: Islands and Sol
+    /// Ring. So over HTTP this probe exercises the **Land** class (offered, chosen,
+    /// resolved) and the **Artifact** class (present, excluded) and **nothing else**.
+    ///
+    /// The three untested-over-HTTP combinations are named individually:
+    ///
+    /// * (Creature   x HTTP) -- printed-legal, not on this board;
+    /// * (Planeswalker x HTTP) -- printed-legal, not on this board;
+    /// * (Enchantment x HTTP) -- printed-ILLEGAL, not on this board, so the
+    ///   enchantment half of the exclusion is asserted only on the simulator side.
+    ///
+    /// All five classes ARE covered, as an exact SET in both directions, by
+    /// `crates/simulator/tests/pb_dx20b_enchant_offer_channel.rs::c1`, which calls the
+    /// identical pair (`action_target_requirements` + `legal_targets_per_slot`) that
+    /// `view::action_option_view` calls two lines above the JSON this probe reads. The
+    /// untested combination is therefore *(three card types x the HTTP transport)*
+    /// alone, and the transport itself is exercised here on the two classes that
+    /// matter most -- the one the HIGH is about and the one the fix must not lose.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx20b_imprisoned_offer_excludes_the_artifact_over_http() {
+        let state = shared_state();
+        dx20b_install(&state);
+
+        let (view, imprisoned) = dx20b_drive_to_imprisoned(&state, 4_000).await;
+
+        // (1) Non-vacuity floor.
+        let battlefield = dx20b_battlefield(&view);
+        let sol_ring = battlefield
+            .iter()
+            .find(|(_, name, _)| name == "Sol Ring")
+            .unwrap_or_else(|| {
+                panic!(
+                    "precondition: Sol Ring must be ON THE BATTLEFIELD when the Aura is \
+                     offered, or the exclusion below measures nothing. Board: \
+                     {battlefield:?}"
+                )
+            })
+            .clone();
+        assert!(
+            sol_ring.2.iter().any(|t| t == "Artifact"),
+            "Sol Ring must render as an Artifact for this probe to be about card \
+             TYPES at all: {sol_ring:?}"
+        );
+        let lands: Vec<u64> = battlefield
+            .iter()
+            .filter(|(_, _, types)| types.iter().any(|t| t == "Land"))
+            .map(|(id, _, _)| *id)
+            .collect();
+
+        let candidates = imprisoned["target_slots"][0]["candidates"]
+            .as_array()
+            .unwrap_or_else(|| {
+                panic!(
+                    "the Aura's offer must carry one target slot with a candidate \
+                     array: {:?}",
+                    imprisoned["target_slots"]
+                )
+            })
+            .clone();
+        let candidate_ids: Vec<u64> = candidates
+            .iter()
+            .map(|c| c["value"]["Object"].as_u64().unwrap_or(u64::MAX))
+            .collect();
+
+        // (2) THE HIGH.
+        assert!(
+            !candidate_ids.contains(&sol_ring.0),
+            "CR 702.5a -- 'Enchant creature, land, or planeswalker'. Sol Ring is an \
+             ARTIFACT and the browser was offered it as a target. That is \
+             OOS-DX20-10 verbatim: candidates were {candidates:?}"
+        );
+
+        // (3) The other direction.
+        assert!(
+            !lands.is_empty(),
+            "precondition: at least one land must be on the battlefield: {battlefield:?}"
+        );
+        for land in &lands {
+            assert!(
+                candidate_ids.contains(land),
+                "CR 702.5a: a Land IS a printed-legal target, so land {land} must be \
+                 offered. Missing it means the declaration was narrowed too far -- the \
+                 OOS-DX20-5 shape. Candidates: {candidates:?}, board: {battlefield:?}"
+            );
+        }
+
+        // (4) A NON-DEFAULT answer: the LAST candidate, never `candidates[0]`.
+        assert!(
+            candidates.len() >= 2,
+            "this probe needs at least two candidates for its answer to be \
+             distinguishable from the engine's own default; got {candidates:?}"
+        );
+        let chosen = candidates.last().expect("non-empty").clone();
+        assert_ne!(
+            chosen["value"], candidates[0]["value"],
+            "the answer must not be candidates[0] -- an echo of the default proves \
+             nothing about the human's choice reaching the engine"
+        );
+        let chosen_id = chosen["value"]["Object"]
+            .as_u64()
+            .expect("an object target carries an object id");
+
+        let before_commands = command_count(&view);
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": imprisoned["index"],
+                "params": { "targets": [chosen["value"].clone()] },
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "POST /api/game/action with a printed-legal Land target must return 200: \
+             {after}"
+        );
+        assert!(
+            command_count(&after) > before_commands,
+            "the command count should have advanced past {before_commands}, got {:?}",
+            command_count(&after)
+        );
+
+        // The RESOLUTION EFFECT, read back off the wire. Pass priority until the Aura
+        // is a battlefield permanent.
+        let mut view = after;
+        let mut attached_to = None;
+        for step in 0..200 {
+            if let Some(p) = view["state"]["zones"]["battlefield"]
+                .as_object()
+                .expect("battlefield is an object")
+                .values()
+                .filter_map(|ps| ps.as_array())
+                .flatten()
+                .find(|p| p["name"] == "Imprisoned in the Moon")
+            {
+                attached_to = p["attached_to"].as_u64();
+                break;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} before the Aura resolved: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PassPriority")
+                .unwrap_or_else(|| panic!("no PassPriority at step {step}: {view}"));
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": pick["index"], "params": {}}),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "step {step} passing: {next}");
+            view = next;
+        }
+        assert_eq!(
+            attached_to,
+            Some(chosen_id),
+            "CR 303.4a/CR 702.5a: the resolved Aura must be attached to the LAND the \
+             human chose ({chosen_id}). A 200 alone would not have caught a cast that \
+             is accepted and then fails to attach."
+        );
+    }
+
     // ── PB-DX23 -- the human dredge channel (CR 702.52a, 400.1; plan §5 T5.1) ──
     //
     // Q6 (the play-server shape): NO new `AnswerShapeView` variant, NO new
