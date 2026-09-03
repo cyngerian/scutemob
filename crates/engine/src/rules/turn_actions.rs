@@ -382,32 +382,32 @@ fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
     // Collect Sagas controlled by the active player that have chapter abilities.
     //
-    // The candidate list is materialised before the CR 714 query is asked: `saga_view`
-    // takes `&GameState`, which cannot be borrowed while `state.objects` is iterated out
-    // of the same `&mut GameState`.
-    let candidates: Vec<ObjectId> = state
-        .objects
-        .iter()
-        .filter(|(_, obj)| {
-            obj.controller == active
-                && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
-                && obj.is_phased_in()
-                && obj.card_id.is_some()
-        })
-        .map(|(id, _)| *id)
-        .collect();
-    let sagas: Vec<ObjectId> = candidates
-        .into_iter()
-        // CR 714.3b: "each Saga they control **with one or more chapter abilities**" --
-        // the clause is in the rule, so this reads the RETAINED chapters. A permanent
-        // whose abilities are blanked (CR 613.1f Layer-6 `RemoveAllAbilities`, CR 305.7,
-        // or CR 708.2a face-down) has none and takes no lore counter.
-        //
-        // CR 712.8e is preserved inside the view: a permanent showing a non-Saga back
-        // face is not a Saga (this used to be spelled out here and in `sba.rs`; the two
-        // now read one query).
-        .filter(|id| saga_view(state, *id).has_chapters())
-        .collect();
+    // `saga_view` takes `&GameState` and this function holds a `&mut`; one immutable
+    // reborrow lets the object walk and the query share it, so the walk stays lazy and no
+    // intermediate candidate `Vec` is built (see `sba.rs`'s note — the first draft's
+    // materialisation cost ~+6% on the `sba_check` bench at the sibling site).
+    let sagas: Vec<ObjectId> = {
+        let s: &GameState = state;
+        s.objects
+            .iter()
+            .filter(|(_, obj)| {
+                obj.controller == active
+                    && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
+                    && obj.is_phased_in()
+                    && obj.card_id.is_some()
+            })
+            // CR 714.3b: "each Saga they control **with one or more chapter abilities**" --
+            // the clause is in the rule, so this reads the RETAINED chapters. A permanent
+            // whose abilities are blanked (CR 613.1f Layer-6 `RemoveAllAbilities`, CR 305.7,
+            // or CR 708.2a face-down) has none and takes no lore counter.
+            //
+            // CR 712.8e is preserved inside the view: a permanent showing a non-Saga back
+            // face is not a Saga (this used to be spelled out here and in `sba.rs`; the two
+            // now read one query).
+            .filter(|(id, _)| saga_view(s, **id).has_chapters())
+            .map(|(id, _)| *id)
+            .collect()
+    };
     for saga_id in sagas {
         let old_count = state
             .expect_object(saga_id)

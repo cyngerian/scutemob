@@ -205,15 +205,16 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-03, PB-DX49)**: **4,934 / 0 / 5** full-workspace on branch
-  `scutemob-220` (+34 over the **4,900** baseline, measured on this branch BEFORE any edit and
+- **Tests (delta 2026-09-03, PB-DX49)**: **4,941 / 0 / 5** full-workspace on branch
+  `scutemob-220` (+41 over the **4,900** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX48's close pin exactly), `--workspace --no-fail-fast` to a file, **58**
   result-producing targets (57 → 58: one new simulator test binary), residual list empty.
-  **Delta itemised by test NAME by set-diffing the two run logs: 34 additions, 0 removals,
+  **Delta itemised by test NAME by set-diffing the two run logs: 41 additions, 0 removals,
   0 leavers, 0 renames** — 10 in the new
-  `crates/engine/tests/primitives/pb_dx49_blanked_saga_sites.rs`, 20 in the new
-  `crates/engine/tests/core/pb_dx49_saga_blanking_roster.rs`, 4 in the new
-  `crates/simulator/tests/pb_dx49_saga_blanking_channel.rs`. **"0 leavers" is literal here** — the
+  `crates/engine/tests/primitives/pb_dx49_blanked_saga_sites.rs`, **24** in the new
+  `crates/engine/tests/core/pb_dx49_saga_blanking_roster.rs` (20 shipped, +4 in the `/review` fix
+  cycle), 4 in the new `crates/simulator/tests/pb_dx49_saga_blanking_channel.rs`, and **3** in
+  `tools/tui/src/dashboard/parser.rs`'s new `#[cfg(test)]` module (the `/review`'s LOW 7). **"0 leavers" is literal here** — the
   three `fire_saga_chapter_triggers` call sites in the test tree lost a parameter and were edited
   **in place**, so no test name changed.
   **PROTOCOL 39 / HASH 78 both UNMOVED**, gate-executed and **predicted in writing before any code
@@ -241,8 +242,21 @@
   an untracked file and the tracked figure alone understates the change by a whole module.
   `crates/view-model` and `crates/simulator/src` are both **0**: every consumer of CR 714 lives in
   the engine, which was measured before the design was chosen rather than asserted after.
+  **Benches: a REAL ~1.7% regression, published as one rather than as "inside the historical band"**
+  — and the first draft of this line said the latter, from a branch-only measurement against a
+  remembered figure, which is PB-DX28's re-take MEDIUM that PB-DX45 already repeated once. The
+  `/review` ran the A/B this batch had not and measured **~+6% `sba_check` / ~+2.4% `full_turn_4p`**.
+  The cause was a `Vec` of every phased-in battlefield permanent materialised before the query, which
+  **was never necessary**: one immutable reborrow (`let s: &GameState = state;`) lets the walk and
+  the query share the borrow. After that fix, matched-set A/B against merge base `be7f29a5` in an
+  isolated worktree — `sba_check` 14.685-14.751 → **14.954-14.989 µs (+1.7%, non-overlapping, REAL)**,
+  `priority_cycle_4p` +1.7%, `priority_cycle_6p` +1.9%, `full_turn_4p` and `full_turn_6p` both
+  **noise** (intervals overlap), `board_wipe_4p` **−5% (faster)**. The residual is inherent to the
+  mandated design — `saga_view` takes an `ObjectId` and re-resolves it, one hash probe per
+  battlefield permanent per SBA check — and **threading the caller's object through instead would
+  shave it and re-create the drift this batch exists to remove.**
   **Revert matrix: 4 rows executed across two files, all discriminating, 0 UNDISCRIMINATED**, plus
-  two executed source-gate defeats. Engine R-A (the query stops consulting `abilities_are_blanked`)
+  **seven** executed source-gate defeats in the `/review` fix cycle. Engine R-A (the query stops consulting `abilities_are_blanked`)
   reddens **7 of 10**; R-B (drop the face-down conjunct from `is_saga_permanent`) reddens exactly
   `t2`/`t7`, which is what proves `t7` discriminates a different line rather than riding on R-A.
   Channel R-A reddens `c1`/`c3`/`c4`; channel R-B (site 1 alone re-reads the printed def) reddens
@@ -251,7 +265,7 @@
   CR 113.7a exclusion, which a correct fix must not break, and `c2` has no blanking at all.
   **One row is honestly UNDISCRIMINATED and it is disclosed in the test file's own module doc**:
   sites 3 and 5 chain on the channel path (`turn_actions.rs` only calls
-  `fire_saga_chapter_triggers` for a Saga it just countered), so with site 3 fixed no site-5-only
+  `fire_saga_chapter_triggers` for a Saga it just placed a lore counter on), so with site 3 fixed no site-5-only
   revert can redden anything in the channel suite; `primitives::…::t5` is what exercises site 5
   alone.
 - **Tests (delta 2026-09-02, PB-DX48)**: **4,900 / 0 / 5** full-workspace on branch
@@ -921,10 +935,33 @@
   regression hides in*. **And one claim in CLAUDE.md's own PB-DX48 narrative was refuted**:
   `KeywordAbility::Cloak` **does** exist (`types.rs:1696`); PB-DX48's conclusion and measurement
   both survive, but the stated reason was wrong, and a reason is the half the next batch reuses.
-  Tests **4,934 / 0 / 5** (+34 over the 4,900 pre-edit baseline, **58** targets, itemised by NAME as
-  34 additions / 0 removals / 0 leavers / 0 renames). **PROTOCOL 39 / HASH 78 both gate-executed and
+  **↻ The `/review` (2 MEDIUM / 1 LOW-MEDIUM / 4 LOW / 1 NIT — all eight taken, none declined)
+  DEFEATED THREE OF THIS BATCH'S OWN CLAIMS BY EXECUTION, and one of them was printed in bold in
+  production source.** *(1)* **"There is exactly one ability-blanking predicate in this tree" was
+  TRUE AND UNENFORCED.** The reviewer appended a second hand-rolled predicate to `turn_actions.rs` —
+  the exact pre-PB-DX43 shape whose 26-def regression this batch's own doc comment narrates — and
+  **all 652 core tests stayed GREEN**. That is `OOS-DX49-6`'s own shape, a comment asserting a
+  property the code does not enforce, inside the batch that filed it. Closed by `r7`, keyed on the
+  mechanism and carrying a **second conjunct** that re-checks each allowlisted site's function body,
+  because set equality cannot catch a predicate added *inside* an already-allowlisted function.
+  **The finding's own prescribed needle was itself PB-DX47's defect** — the qualified
+  `LayerModification::RemoveAllAbilities` is evaded by a `use` import — so `r7` keys on the bare name
+  at word boundaries. *(2)* **The bench claim was refuted**; see the bench paragraph above. *(3)*
+  **`saga.rs` claimed a seed that did not exist** (*"Stated residual (seeded…)"*, and `OOS-DX49-3` is
+  a different residual) — filed as **`OOS-DX49-9`**. Also taken: `r6` walked one crate while
+  `saga_view` is `pub` (a consumer planted in the simulator crate kept it green — PB-DX48's
+  `SITE_SRCS` defeat one crate up; now a **workspace** walk, 14 roots / 148 files, with executing
+  non-vacuity floors); `modification_blanks_abilities` could be widened silently for any zero-corpus
+  variant (`SwitchPowerToughness` → `true` left the whole engine green while **`r3` stayed green
+  too** — now `r8`, all **33** variants gated against the enum's own declaration); `r5b`'s
+  4,000-byte window **was already over-scanning** by 520 and 1,116 bytes into the next arm, not
+  merely at risk of it (now brace-matched and fail-closed — and the superseded window was proven to
+  PASS on a planted call the new one catches); the `tools/tui` repair shipped untested; and a
+  "countered" typo.
+  Tests **4,941 / 0 / 5** (+41 over the 4,900 pre-edit baseline, **58** targets, itemised by NAME as
+  41 additions / 0 removals / 0 leavers / 0 renames). **PROTOCOL 39 / HASH 78 both gate-executed and
   UNMOVED**, predicted in writing before any code. Coverage unmoved **63.1%**, **0 flips**, **0
-  card-def edits**. All gates clean against the FINAL tree. Filed **OOS-DX49-1..8**. Full record:
+  card-def edits**. All gates clean against the FINAL tree. Filed **OOS-DX49-1..9**. Full record:
   `memory/primitives/pb-DX49-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-09-02 — **PB-DX48 SHIPPED** (`scutemob-219`; v4 queue rank 6 —
   **OOS-ENG2-1** ≡ **OOS-ENG2-2** FILED *and* CLOSED, cross-cited; **OOS-ENG2-3** FILED and

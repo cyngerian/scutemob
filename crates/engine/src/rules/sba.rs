@@ -831,70 +831,48 @@ fn check_planeswalker_sbas(
 fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
     use crate::rules::saga::saga_view;
     let mut events = Vec::new();
-    // Collect battlefield permanents first, then ask the CR 714 query about each.
-    // `saga_view` needs `&GameState`, which cannot be taken while `state.objects` is being
-    // iterated out of the same `&mut GameState` -- so the candidate list is materialised
-    // first. The pair carried through is everything the filter needs from the object
-    // itself; everything CR 714 needs comes from the view.
-    let candidates: Vec<(ObjectId, crate::state::player::PlayerId, u32)> = state
-        .objects
-        .iter()
-        .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
-        .map(|(id, obj)| {
-            (
-                *id,
-                obj.controller,
-                obj.counters.get(&CounterType::Lore).copied().unwrap_or(0),
-            )
-        })
-        .collect();
-    let sagas: Vec<(ObjectId, crate::state::player::PlayerId)> = candidates
-        .into_iter()
-        .filter_map(|(id, controller, lore_count)| {
-            // CR 714.4 says "a Saga permanent **with one or more chapter abilities**", and
-            // CR 714.2d takes the final chapter number from the chapter abilities it
-            // **has** -- so this reads the retained chapters, not the printed ones. A
-            // permanent under a Layer-6 `RemoveAllAbilities` (CR 613.1f) or turned face
-            // down (CR 708.2a) has none, `final_chapter()` is `None`, and it is outside
-            // this rule entirely rather than being sacrificed on a threshold of 0.
-            //
-            // PB-OS4b (CR 712.8d/e, 714.4) is preserved inside the view: it scans the
-            // currently-visible face, so a transformed Saga (e.g. Fable of the
-            // Mirror-Breaker's back face) whose back face has no SagaChapter abilities is
-            // correctly excluded from this sacrifice check.
-            let Some(final_ch) = saga_view(state, id).final_chapter() else {
-                return None; // Not a Saga, or its chapter abilities are gone.
-            };
-            // Check lore counter count.
-            if lore_count >= final_ch {
-                Some((id, controller))
-            } else {
-                None
-            }
-        })
-        .collect();
+    // `saga_view` takes `&GameState`, and this function holds a `&mut`. **One immutable
+    // reborrow** (`let s: &GameState = state;`) lets the object walk and the query share it,
+    // so no intermediate `Vec` of battlefield permanents is needed.
+    //
+    // That is not a stylistic preference. The first draft materialised every phased-in
+    // battlefield permanent into a `Vec` before asking the query, and the `/review`'s A/B
+    // against the merge base measured the cost at **~+6% on the `sba_check` bench** — this
+    // runs on every state-based-action check, which is the hottest loop in the engine.
+    // Reborrowing keeps the walk lazy, so a non-Saga costs one registry miss and nothing else.
+    let sagas: Vec<(ObjectId, crate::state::player::PlayerId)> = {
+        let s: &GameState = state;
+        s.objects
+            .iter()
+            .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
+            .filter_map(|(id, obj)| {
+                // CR 714.4 says "a Saga permanent **with one or more chapter abilities**",
+                // and CR 714.2d takes the final chapter number from the chapter abilities it
+                // **has** -- so this reads the retained chapters, not the printed ones. A
+                // permanent under a Layer-6 `RemoveAllAbilities` (CR 613.1f) or turned face
+                // down (CR 708.2a) has none, `final_chapter()` is `None`, and it is outside
+                // this rule entirely rather than being sacrificed on a threshold of 0.
+                //
+                // PB-OS4b (CR 712.8d/e, 714.4) is preserved inside the view: it scans the
+                // currently-visible face, so a transformed Saga (e.g. Fable of the
+                // Mirror-Breaker's back face) whose back face has no SagaChapter abilities is
+                // correctly excluded from this sacrifice check.
+                let final_ch = saga_view(s, *id).final_chapter()?;
+                let lore_count = obj.counters.get(&CounterType::Lore).copied().unwrap_or(0);
+                if lore_count >= final_ch {
+                    Some((*id, obj.controller))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    };
     for (saga_id, _controller) in sagas {
         // CR 714.4: Don't sacrifice if a chapter ability from this Saga is still on the stack.
         //
         // The stack entries are materialised before the query is asked, for the same
         // reason the candidate list above is: `saga_view` takes `&GameState`, which cannot
         // be borrowed while `state.stack_objects` is iterated out of the same `&mut`.
-        let pending_indices: Vec<usize> = state
-            .stack_objects
-            .iter()
-            .filter_map(|so| {
-                if let StackObjectKind::TriggeredAbility {
-                    source_object,
-                    ability_index,
-                    ..
-                } = &so.kind
-                {
-                    (*source_object == saga_id).then_some(*ability_index)
-                } else {
-                    None
-                }
-            })
-            .collect();
         let has_pending_chapter = {
             // Check if the ability at this index is a SagaChapter. PB-OS4b
             // (CR 712.8d/e): `SagaView::chapters` carries enumeration indices into the
@@ -905,8 +883,23 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
             // This reads the SAME view as the outer filter above, so the two cannot
             // disagree: a blanked Saga is excluded by the outer `final_chapter()` being
             // `None` and never reaches this guard at all.
-            let view = saga_view(state, saga_id);
-            pending_indices.iter().any(|i| view.is_chapter_index(*i))
+            //
+            // One immutable reborrow again (see the walk above), so the stack scan and the
+            // query share it and no intermediate `Vec` of indices is built.
+            let s: &GameState = state;
+            let view = saga_view(s, saga_id);
+            s.stack_objects.iter().any(|so| {
+                if let StackObjectKind::TriggeredAbility {
+                    source_object,
+                    ability_index,
+                    ..
+                } = &so.kind
+                {
+                    *source_object == saga_id && view.is_chapter_index(*ability_index)
+                } else {
+                    false
+                }
+            })
         };
         if has_pending_chapter {
             continue; // Don't sacrifice yet — chapter ability still on the stack.

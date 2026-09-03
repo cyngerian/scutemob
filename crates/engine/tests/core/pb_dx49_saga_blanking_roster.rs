@@ -54,7 +54,22 @@
 //!   CR 714.3a's site (`OOS-DX49-2`), and that the *other* face-down channel (the
 //!   morph/disguise cast path, which **does** reach it) has no corpus Saga member.
 //! * **r6** — the site roster: exactly which functions consume `saga::saga_view`, and the
-//!   CR 113.7a exclusion asserted as a **zero**.
+//!   CR 113.7a exclusion asserted as a **zero**. Walked over **workspace source** — every
+//!   `crates/*/src` and `tools/*/src` bar `crates/card-defs/src` — not over one crate.
+//! * **r7** — the ability-blanking **variant-naming** roster: every site in workspace source
+//!   that names `LayerModification::RemoveAllAbilities` or `::SetLandTypes` itself, rather
+//!   than asking `layers::modification_blanks_abilities`. `replacement.rs` asserts in bold
+//!   that *"there must be exactly one blanking predicate in the tree"*; before this row that
+//!   claim was **ungated**, and the `/review` proved it by appending a second hand-rolled
+//!   predicate to `turn_actions.rs` — the exact pre-PB-DX43 shape whose 26-def regression
+//!   `layers.rs`'s own doc comment narrates — with the whole `--test core` target GREEN.
+//! * **r8** — `modification_blanks_abilities` classified **exhaustively**: one instance of
+//!   every `LayerModification` variant, with the variant set gated against the enum's own
+//!   declaration. PB-DX43's `f3_..._recognises_both_channels_and_no_others` pins 2 positives
+//!   and 5 hand-picked negatives out of 33, so *"and no others"* was an overclaim, and this
+//!   file made it load-bearing at a second site: the `/review` moved
+//!   `SwitchPowerToughness` into the `true` arm and the entire `-p mtg-engine` set stayed
+//!   green, because r3 only reddens where the **corpus** happens to reach.
 //! * **`t_census_report`** — PRINTS every population above, with names, under
 //!   `--nocapture`. PB-DX8's rule: a figure that no test prints is a figure that was
 //!   transcribed.
@@ -64,8 +79,9 @@ use std::path::{Path, PathBuf};
 
 use mtg_engine::rules::layers::modification_blanks_abilities;
 use mtg_engine::{
-    all_cards, AbilityDefinition, CardDefinition, CardType, Characteristics, EnchantTarget,
-    KeywordAbility, LayerModification,
+    all_cards, AbilityDefinition, ActivatedAbility, CardDefinition, CardType, Characteristics,
+    Color, EffectAmount, EnchantTarget, KeywordAbility, LayerModification, ManaAbility, ObjectId,
+    PlayerId, SubType, SuperType,
 };
 use serde_json::Value;
 
@@ -1292,14 +1308,33 @@ fn r5b_manifest_and_cloak_do_not_reach_the_self_etb_site() {
          effects/mod.rs for this assertion to mean anything; found {arms:?}"
     );
     for (needle, at) in arms {
-        // The arm body, bounded generously: 4,000 bytes is far more than either arm spans
-        // (each is ~16 lines) and is the window inside which a call to the self-ETB site
-        // would have to appear if it existed.
-        let mut end = (at + 4_000).min(stripped.len());
-        while end > at && !stripped.is_char_boundary(end) {
-            end -= 1;
-        }
-        let body = &stripped[at..end];
+        // **The arm's own closing brace, not a byte window** (`/review` FINDING 4). The
+        // first draft scanned a fixed 4,000 bytes after the pattern, which fails OPEN the
+        // day either arm outgrows it -- silently under-scanning past the very call this row
+        // exists to catch -- and over-scans into the FOLLOWING arm until then. Measured and
+        // PRINTED by `t_census_report`, never transcribed (PB-DX8's rule -- and the first
+        // draft of this comment was wrong by 2 bytes because it quoted a figure taken in a
+        // different unit): the Manifest arm's body is **3,413** bytes and Cloak's **2,820**,
+        // and the superseded window ran **520** bytes past the Manifest arm's own closing
+        // brace. So it was reading the next arm, and was 520 bytes of arm growth away from
+        // failing open. Both directions are wrong; the bound is now a measurement.
+        let (open, end) = match_arm_body_span(&stripped, at).unwrap_or_else(|| {
+            panic!(
+                "OOS-DX49-2: could not bound the {needle} arm's body by brace matching \
+                 (pattern at byte {at}). This row FAILS CLOSED rather than falling back to \
+                 a byte window: an unbounded scan is not a measurement of the arm."
+            )
+        });
+        let body = &stripped[open..=end];
+        // Non-vacuity floor: a bounding bug that returned an empty or near-empty span would
+        // satisfy the `!contains` assertion below while measuring nothing.
+        assert!(
+            body.len() >= 200,
+            "OOS-DX49-2: the {needle} arm's measured body is only {} bytes, which is too \
+             small to be the real arm -- the brace bounding has broken and the assertion \
+             below would pass vacuously",
+            body.len()
+        );
         assert!(
             !body.contains("apply_self_etb_from_definition"),
             "OOS-DX49-2: the {needle} arm now calls apply_self_etb_from_definition. That \
@@ -1325,6 +1360,186 @@ fn workspace_root() -> PathBuf {
 
 fn engine_src() -> PathBuf {
     workspace_root().join("crates/engine/src")
+}
+
+/// Every `<crate>/src` and `<tool>/src` directory in the workspace, **except**
+/// `crates/card-defs/src`.
+///
+/// **This is the fix for the `/review`'s FINDING 2, and the finding is PB-DX48's defeat one
+/// crate up.** PB-DX48's `SITE_SRCS` named six `rules/` files while the function it policed
+/// was `pub(crate)`; this file's first draft answered that by walking `crates/engine/src` --
+/// the whole *crate* -- while `rules::saga::saga_view` is `pub`. The reviewer added a
+/// `saga_view` consumer to `crates/simulator/src/lib.rs` and `r6` stayed **green**. A gate's
+/// reach must be at least as wide as its subject's visibility.
+///
+/// `crates/card-defs/src` is excluded deliberately and the exclusion is stated rather than
+/// silent: it is ~1,800 generated-shaped declaration files, and a card def naming
+/// `LayerModification::RemoveAllAbilities` is a *declaration* (r3's subject, walked from
+/// `all_cards()`), never a predicate.
+fn workspace_src_roots() -> Vec<PathBuf> {
+    let root = workspace_root();
+    let mut out = Vec::new();
+    for base in ["crates", "tools"] {
+        let Ok(entries) = std::fs::read_dir(root.join(base)) else {
+            continue;
+        };
+        let mut dirs: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
+        dirs.sort();
+        for dir in dirs {
+            if dir.file_name().is_some_and(|n| n == "card-defs") {
+                continue;
+            }
+            let src = dir.join("src");
+            if src.is_dir() {
+                out.push(src);
+            }
+        }
+    }
+    out
+}
+
+/// Every `.rs` file under [`workspace_src_roots`], as `(workspace-relative label, path)`.
+fn workspace_src_files() -> Vec<(String, PathBuf)> {
+    let root = workspace_root();
+    let mut out = Vec::new();
+    for src_root in workspace_src_roots() {
+        let mut files = Vec::new();
+        walk_rs(&src_root, &mut files);
+        files.sort();
+        for path in files {
+            let label = path
+                .strip_prefix(&root)
+                .map(|p| p.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_else(|_| path.to_string_lossy().to_string());
+            out.push((label, path));
+        }
+    }
+    out.sort();
+    out
+}
+
+/// [`workspace_src_files`] with its **non-vacuity floors executed**.
+///
+/// A walk that silently returns `[]` -- a moved directory, a renamed crate, a `read_dir`
+/// that errors -- makes every gate built on it pass while measuring nothing, which is the
+/// failure mode both `r6` and `r7` exist to prevent in the code they police. Measured at
+/// HEAD: **14** roots, **148** files. The floors are set well below both so ordinary churn
+/// does not trip them, and `t_census_report` PRINTS the live figures so the gap between
+/// floor and reality stays visible rather than being trusted.
+fn workspace_src_files_checked() -> Vec<(String, PathBuf)> {
+    let roots = workspace_src_roots();
+    assert!(
+        roots.len() >= 8,
+        "PB-DX49: the workspace source walk found only {} `src` roots (measured 14 at HEAD). \
+         Every gate built on this walk is vacuous until it is fixed; roots: {:?}",
+        roots.len(),
+        roots
+    );
+    assert!(
+        roots.iter().any(|r| r.ends_with("crates/engine/src")),
+        "PB-DX49: the workspace source walk does not contain crates/engine/src, which is the \
+         crate every pinned site lives in; roots: {roots:?}"
+    );
+    let files = workspace_src_files();
+    assert!(
+        files.len() >= 100,
+        "PB-DX49: the workspace source walk found only {} .rs files (measured 148 at HEAD); \
+         the walk has gone vacuous",
+        files.len()
+    );
+    files
+}
+
+/// The offset of the `}` matching the `{` at `open`, skipping `"..."` string literals.
+///
+/// Returns `None` on unbalanced input, so every caller **fails closed** rather than
+/// falling back to a byte window.
+fn matching_brace(src: &str, open: usize) -> Option<usize> {
+    let b = src.as_bytes();
+    if b.get(open) != Some(&b'{') {
+        return None;
+    }
+    let mut depth = 0usize;
+    let mut i = open;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i];
+        if in_str {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == b'"' {
+                in_str = false;
+            }
+        } else {
+            match c {
+                b'"' => in_str = true,
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(i);
+                    }
+                }
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// The `(open brace, close brace)` span of the `match` arm whose PATTERN starts at
+/// `pattern_at`.
+///
+/// The needle this file searches with (`Effect::Manifest {`) ends at the **pattern's**
+/// brace, so a naive brace match closes the pattern, not the body. This walks
+/// pattern-braces -> `=>` -> body-brace -> matching close, and refuses (`None`) when the arm
+/// body is not a block, because in that case the next `{` belongs to a LATER arm and
+/// bounding on it would silently widen the scan.
+fn match_arm_body_span(src: &str, pattern_at: usize) -> Option<(usize, usize)> {
+    let pat_open = src[pattern_at..].find('{').map(|r| pattern_at + r)?;
+    let pat_end = matching_brace(src, pat_open)?;
+    let arrow = src[pat_end..].find("=>").map(|r| pat_end + r)?;
+    let body_open = src[arrow..].find('{').map(|r| arrow + r)?;
+    // Fail closed on a non-block arm body: `=> foo(),` would otherwise bound on the NEXT
+    // arm's brace.
+    if !src[arrow + 2..body_open].trim().is_empty() {
+        return None;
+    }
+    let body_end = matching_brace(src, body_open)?;
+    Some((body_open, body_end))
+}
+
+/// The `(open brace, close brace)` span of the function enclosing byte offset `at`, or
+/// `None` when `at` is not inside any function body (a top-level `enum` / `const`).
+fn enclosing_fn_span(src: &str, at: usize) -> Option<(usize, usize)> {
+    let mut decl: Option<usize> = None;
+    let mut off = 0usize;
+    for line in src.split_inclusive('\n') {
+        if off >= at {
+            break;
+        }
+        let trimmed = line.trim_start();
+        let indent = line.len() - trimmed.len();
+        if trimmed.starts_with("fn ")
+            || trimmed.starts_with("pub fn ")
+            || trimmed.starts_with("pub(crate) fn ")
+        {
+            decl = Some(off + indent);
+        }
+        off += line.len();
+    }
+    let decl = decl?;
+    let open = src[decl..].find('{').map(|r| decl + r)?;
+    let end = matching_brace(src, open)?;
+    if end < at {
+        // The last `fn` before `at` closed before it: `at` sits between items.
+        None
+    } else {
+        Some((open, end))
+    }
 }
 
 fn walk_rs(dir: &Path, acc: &mut Vec<PathBuf>) {
@@ -1434,30 +1649,31 @@ fn saga_view_call_offsets(src: &str) -> Vec<usize> {
     out
 }
 
-/// Every `saga_view` call site in `crates/engine/src`, as `(file, enclosing fn, OFFSET)`.
+/// Every `saga_view` call site in **workspace source**, as `(file, enclosing fn, OFFSET)`.
 ///
 /// **Keyed on the mechanism, not on a hardcoded file list.** PB-DX48's `/review` defeated
 /// exactly that construct: `SITE_SRCS` named six `rules/` files while the function it
-/// policed was `pub(crate)`, so a site added anywhere else stayed invisible. This walks the
-/// whole crate. The OFFSET is in the tuple for PB-DX48's other defeat: as a
-/// `BTreeSet<(file, func)>` a **duplicated** call inside an already-pinned function
-/// collapses into one element, and a duplicated CR 714 query is precisely how a Saga would
-/// take two lore counters in one precombat main phase.
+/// policed was `pub(crate)`, so a site added anywhere else stayed invisible.
+///
+/// **This file's first draft answered that defeat one directory too narrowly and lost to it
+/// again** (`/review` FINDING 2): it walked `crates/engine/src` while `rules::saga::saga_view`
+/// is `pub`, so the reviewer added a consumer to `crates/simulator/src/lib.rs` and `r6`
+/// stayed green -- PB-DX48's defeat one *crate* up rather than one *directory* up. The walk
+/// is now [`workspace_src_files_checked`]: every `crates/*/src` and `tools/*/src` bar
+/// `crates/card-defs/src`, with the walk's own non-vacuity floors executed, and labels
+/// workspace-relative so a same-named file in two crates cannot collide.
+///
+/// The OFFSET is in the tuple for PB-DX48's other defeat: as a `BTreeSet<(file, func)>` a
+/// **duplicated** call inside an already-pinned function collapses into one element, and a
+/// duplicated CR 714 query is precisely how a Saga would take two lore counters in one
+/// precombat main phase.
 fn live_saga_view_sites() -> BTreeSet<(String, String, usize)> {
-    let src_root = engine_src();
-    let mut files = Vec::new();
-    walk_rs(&src_root, &mut files);
-    files.sort();
     let mut out = BTreeSet::new();
-    for path in &files {
-        let Ok(raw) = std::fs::read_to_string(path) else {
+    for (label, path) in workspace_src_files_checked() {
+        let Ok(raw) = std::fs::read_to_string(&path) else {
             continue;
         };
         let src = strip_comments(&raw);
-        let label = path
-            .strip_prefix(&src_root)
-            .map(|p| p.to_string_lossy().replace('\\', "/"))
-            .unwrap_or_else(|_| path.to_string_lossy().to_string());
         for at in saga_view_call_offsets(&src) {
             out.insert((label.clone(), enclosing_fn_name(&src, at), at));
         }
@@ -1476,7 +1692,7 @@ struct PinnedSagaSite {
 /// The five behavioural sites, and only those.
 const PINNED_SAGA_SITES: &[PinnedSagaSite] = &[
     PinnedSagaSite {
-        file: "rules/sba.rs",
+        file: "crates/engine/src/rules/sba.rs",
         func: "check_saga_sbas",
         cr: "CR 714.4",
         reason: "site 1 -- the final-chapter threshold. `final_chapter()` returns None when \
@@ -1484,21 +1700,21 @@ const PINNED_SAGA_SITES: &[PinnedSagaSite] = &[
                  Saga from the sacrifice entirely rather than giving it a threshold of 0",
     },
     PinnedSagaSite {
-        file: "rules/sba.rs",
+        file: "crates/engine/src/rules/sba.rs",
         func: "check_saga_sbas",
         cr: "CR 714.4",
         reason: "site 2 -- the 'chapter ability has triggered but not yet left the stack' \
                  guard, via `is_chapter_index`",
     },
     PinnedSagaSite {
-        file: "rules/turn_actions.rs",
+        file: "crates/engine/src/rules/turn_actions.rs",
         func: "precombat_main_actions",
         cr: "CR 714.3b",
         reason: "site 3 -- the precombat lore counter, gated on `has_chapters()` because \
                  714.3b says 'with one or more chapter abilities' explicitly",
     },
     PinnedSagaSite {
-        file: "rules/replacement.rs",
+        file: "crates/engine/src/rules/replacement.rs",
         func: "apply_self_etb_from_definition",
         cr: "CR 714.3a",
         reason: "site 4 -- the ETB lore counter, gated on `is_saga_permanent` and NOT on \
@@ -1507,7 +1723,7 @@ const PINNED_SAGA_SITES: &[PinnedSagaSite] = &[
                  face-down one does not (CR 708.2a strips subtypes)",
     },
     PinnedSagaSite {
-        file: "rules/replacement.rs",
+        file: "crates/engine/src/rules/replacement.rs",
         func: "fire_saga_chapter_triggers",
         cr: "CR 714.2b",
         reason: "site 5 -- the chapter triggers, enumerated from the view's retained \
@@ -1630,6 +1846,670 @@ fn r6b_comment_stripping_is_load_bearing() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// r7 — the ability-blanking VARIANT-NAMING roster
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The two `LayerModification` variants that `layers::modification_blanks_abilities`
+/// classifies as blanking at HEAD (r8 pins that set exhaustively).
+const BLANKING_VARIANTS: &[&str] = &["RemoveAllAbilities", "SetLandTypes"];
+
+/// The tokens that turn "names a blanking variant" into "IS a blanking predicate".
+///
+/// A predicate must do two things: name the variant **and** decide whether the effect
+/// carrying it applies to some object. The reviewer's defeat is the canonical shape --
+/// `matches!(e.modification, LayerModification::RemoveAllAbilities) && effect_applies_to_object(..)`
+/// over `state.continuous_effects` -- so the second conjunct is what
+/// [`r7_blanking_variant_naming_sites_are_pinned`] checks inside each allowlisted site.
+/// **This is the checkable half of every allowlist reason below**: PB-DX47's rule is that an
+/// allowlist whose reason is not checked is a comment.
+const PREDICATE_TOKENS: &[&str] = &["effect_applies_to_object", "continuous_effects"];
+
+/// One site that names an ability-blanking `LayerModification` variant itself.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct VariantNamingSite {
+    file: String,
+    func: String,
+    variant: String,
+    offset: usize,
+}
+
+/// Every ability-blanking variant name in `raw`, comment-stripped, keyed by
+/// `(file, enclosing fn, variant)` with its byte offset.
+///
+/// **Matched on the bare variant name at word boundaries, not on the
+/// `LayerModification::` prefix.** A second predicate written as
+/// `use LayerModification::RemoveAllAbilities;` + `matches!(m, RemoveAllAbilities)` is the
+/// same defect in a different spelling, and PB-DX47's finding was precisely that *a gate
+/// written for one syntactic form measures that form*. Over-collection (a variant name
+/// inside a string literal, say) can only make `r7` redder -- an unclassified site fails the
+/// set assertion -- never greener.
+fn variant_naming_sites_in(label: &str, raw: &str) -> Vec<VariantNamingSite> {
+    let src = strip_comments(raw);
+    let is_ident = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+    let mut out = Vec::new();
+    for variant in BLANKING_VARIANTS {
+        let mut from = 0usize;
+        while let Some(rel) = src[from..].find(variant) {
+            let at = from + rel;
+            from = at + variant.len();
+            if is_ident(src[..at].chars().next_back())
+                || is_ident(src[at + variant.len()..].chars().next())
+            {
+                continue;
+            }
+            out.push(VariantNamingSite {
+                file: label.to_string(),
+                func: enclosing_fn_name(&src, at),
+                variant: (*variant).to_string(),
+                offset: at,
+            });
+        }
+    }
+    out.sort();
+    out
+}
+
+/// Every blanking-variant naming site in workspace source.
+fn live_variant_naming_sites() -> Vec<VariantNamingSite> {
+    let mut out = Vec::new();
+    for (label, path) in workspace_src_files_checked() {
+        let Ok(raw) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        out.extend(variant_naming_sites_in(&label, &raw));
+    }
+    out.sort();
+    out
+}
+
+/// Why an allowlisted site is not a second blanking predicate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NamingKind {
+    /// `modification_blanks_abilities` itself -- THE classifier.
+    Classifier,
+    /// The layer walk's application arms: it performs the modification, it does not decide
+    /// whether abilities are blanked.
+    Application,
+    /// CR 613.8 dependency / representative-modification bookkeeping.
+    Dependency,
+    /// A declaration of the variant in a registry enumeration.
+    Registry,
+    /// The state hasher's exhaustive match: it hashes the variant, it decides nothing.
+    Hashing,
+    /// The `enum LayerModification` declaration itself.
+    Declaration,
+}
+
+struct NamingSiteRow {
+    file: &'static str,
+    func: &'static str,
+    variants: &'static [&'static str],
+    kind: NamingKind,
+    reason: &'static str,
+}
+
+/// **The allowlist, re-derived at HEAD rather than trusted from the finding's sketch.**
+///
+/// Seven `(file, fn)` sites carrying **11** `(file, fn, variant)` triples. The finding's
+/// suggested list named `layers.rs`'s classifier "and the layer walk's application arms",
+/// `state/hash.rs` and `state/ability_definition_registry.rs`; the walk adds `depends_on`
+/// and `representative_modifications` (two more `layers.rs` functions) and the **enum
+/// declaration itself** in `crates/card-types`, and finds **no** test fixture in `src`.
+const BLANKING_NAMING_SITES: &[NamingSiteRow] = &[
+    NamingSiteRow {
+        file: "crates/card-types/src/state/continuous_effect.rs",
+        func: "UNKNOWN",
+        variants: &["RemoveAllAbilities", "SetLandTypes"],
+        kind: NamingKind::Declaration,
+        reason: "The `pub enum LayerModification` declaration. Checkable half: both offsets \
+                 must lie INSIDE the enum's own brace span, so a predicate added to an `impl \
+                 LayerModification` block further down the same file is a new row, not this \
+                 one. (`enclosing_fn_name` reports UNKNOWN because no `fn` precedes the \
+                 declaration in that file -- an honest label, not a miss.)",
+    },
+    NamingSiteRow {
+        file: "crates/engine/src/rules/layers.rs",
+        func: "apply_layer_modification",
+        variants: &["RemoveAllAbilities", "SetLandTypes"],
+        kind: NamingKind::Application,
+        reason: "The layer walk's application arms: they PERFORM the modification on an \
+                 object the caller already selected. They never scan `continuous_effects` \
+                 and never call `effect_applies_to_object`, which is what the kind check \
+                 below asserts rather than asserts about.",
+    },
+    NamingSiteRow {
+        file: "crates/engine/src/rules/layers.rs",
+        func: "depends_on",
+        variants: &["SetLandTypes"],
+        kind: NamingKind::Dependency,
+        reason: "CR 613.8 dependency detection -- 'does applying A change what B does'. It \
+                 compares two modifications; it answers no question about any object's \
+                 abilities.",
+    },
+    NamingSiteRow {
+        file: "crates/engine/src/rules/layers.rs",
+        func: "modification_blanks_abilities",
+        variants: &["RemoveAllAbilities", "SetLandTypes"],
+        kind: NamingKind::Classifier,
+        reason: "THE classifier. It is the one function allowed to name these variants as a \
+                 classification, and r3 decides its whole roster by CALLING it. Its own \
+                 exhaustiveness (no wildcard arm) is r8's subject.",
+    },
+    NamingSiteRow {
+        file: "crates/engine/src/rules/layers.rs",
+        func: "representative_modifications",
+        variants: &["SetLandTypes"],
+        kind: NamingKind::Dependency,
+        reason: "Builds the representative modification set the CR 613.8 dependency check \
+                 compares; same non-predicate shape as `depends_on`.",
+    },
+    NamingSiteRow {
+        file: "crates/engine/src/state/ability_definition_registry.rs",
+        func: "all_ability_definitions",
+        variants: &["RemoveAllAbilities"],
+        kind: NamingKind::Registry,
+        reason: "A declaration inside the SR-5-adjacent ability-definition enumeration: it \
+                 lists the variant so the registry is exhaustive, and decides nothing.",
+    },
+    NamingSiteRow {
+        file: "crates/engine/src/state/hash.rs",
+        func: "hash_into",
+        variants: &["RemoveAllAbilities", "SetLandTypes"],
+        kind: NamingKind::Hashing,
+        reason: "The state hasher's exhaustive `LayerModification` match (SR-8). It hashes \
+                 the variant; a hasher that answered a rules question would be a far larger \
+                 finding than this row.",
+    },
+];
+
+/// **CR 613.1f / CR 305.7: there is exactly ONE ability-blanking predicate in this tree, and
+/// this is the row that makes that an assertion instead of a sentence.**
+///
+/// `rules/replacement.rs` asserts it in bold and `pb-DX49-execution-notes.md` §2.1 says it
+/// was "verified by enumeration" -- a one-time enumeration, i.e. a claim with no gate. The
+/// `/review` appended a second hand-rolled predicate to `rules/turn_actions.rs`
+/// (`matches!(e.modification, LayerModification::RemoveAllAbilities) && effect_applies_to_object(..)`)
+/// and the whole `--test core` target stayed **GREEN (652 passed)**. That shape is not
+/// hypothetical: it is verbatim the pre-PB-DX43 IG-1 suppressor whose 26-def regression
+/// `layers.rs`'s own doc comment narrates, because it cannot see CR 305.7's `SetLandTypes`
+/// channel.
+///
+/// **Keyed on the MECHANISM**: a second predicate must NAME a blanking variant itself rather
+/// than ask `modification_blanks_abilities`. So every naming site in workspace source is
+/// collected and set-compared against the allowlist above, and each allowlisted site is then
+/// re-checked for the second conjunct a predicate needs (`PREDICATE_TOKENS`) -- which catches
+/// a predicate planted INSIDE an already-allowlisted function, where set equality alone
+/// would not.
+///
+/// **Stated recall bound.** Duplication within one `(file, fn, variant)` triple is invisible
+/// to the set: `apply_layer_modification` legitimately names each variant once, and a second
+/// naming inside it would collapse. That direction is covered by the `PREDICATE_TOKENS`
+/// check, not by the count -- unlike `r6`, where a duplicated CALL is itself the defect and
+/// the offset therefore rides in the tuple.
+#[test]
+fn r7_blanking_variant_naming_sites_are_pinned() {
+    let live = live_variant_naming_sites();
+    let live_triples: BTreeSet<(String, String, String)> = live
+        .iter()
+        .map(|s| (s.file.clone(), s.func.clone(), s.variant.clone()))
+        .collect();
+    let pinned: BTreeSet<(String, String, String)> = BLANKING_NAMING_SITES
+        .iter()
+        .flat_map(|r| {
+            r.variants
+                .iter()
+                .map(|v| (r.file.to_string(), r.func.to_string(), (*v).to_string()))
+        })
+        .collect();
+    assert_eq!(
+        live_triples,
+        pinned,
+        "PB-DX49 r7: a site names LayerModification::RemoveAllAbilities or ::SetLandTypes \
+         itself instead of asking layers::modification_blanks_abilities. If it is a second \
+         BLANKING PREDICATE, that is the finding, not the fix -- it will not see CR 305.7's \
+         channel and reproduces the 26-def regression PB-DX43's /review closed. If it is \
+         not, classify it in BLANKING_NAMING_SITES with a kind and a reason. live only: \
+         {:?}; pinned only: {:?}",
+        live_triples.difference(&pinned).collect::<Vec<_>>(),
+        pinned.difference(&live_triples).collect::<Vec<_>>()
+    );
+    assert!(
+        !live.is_empty(),
+        "PB-DX49 r7: zero naming sites found -- the walk or the needles have gone vacuous, \
+         and the set assertion above would then be comparing two empty sets"
+    );
+
+    // The checkable half of every reason: no allowlisted site is a predicate.
+    let enum_span = layer_modification_enum_span();
+    for site in &live {
+        let row = BLANKING_NAMING_SITES
+            .iter()
+            .find(|r| r.file == site.file && r.func == site.func)
+            .expect("set equality above proves every live site is classified");
+        let raw = std::fs::read_to_string(workspace_root().join(&site.file))
+            .expect("a file the walk just read is readable");
+        let src = strip_comments(&raw);
+        if row.kind == NamingKind::Declaration {
+            assert!(
+                site.offset >= enum_span.0 && site.offset <= enum_span.1,
+                "PB-DX49 r7 ({}::{}): classified as the enum DECLARATION, but byte {} lies \
+                 outside `pub enum LayerModification`'s own span {:?}. Reason on file: {}",
+                site.file,
+                site.func,
+                site.offset,
+                enum_span,
+                row.reason
+            );
+            continue;
+        }
+        let (open, end) = enclosing_fn_span(&src, site.offset).unwrap_or_else(|| {
+            panic!(
+                "PB-DX49 r7 ({}::{}): could not bound the enclosing function around byte \
+                 {}, so the 'this is not a predicate' check cannot be performed. This row \
+                 FAILS CLOSED rather than skipping the check.",
+                site.file, site.func, site.offset
+            )
+        });
+        let body = &src[open..=end];
+        for token in PREDICATE_TOKENS {
+            assert!(
+                !body.contains(token),
+                "PB-DX49 r7 ({}::{}): this site names LayerModification::{} AND its \
+                 enclosing function contains `{}` -- which together is a second \
+                 ability-blanking PREDICATE, the exact shape the /review planted in \
+                 turn_actions.rs and the exact shape that cannot see CR 305.7's SetLandTypes \
+                 channel. Call layers::modification_blanks_abilities instead. Reason \
+                 previously on file for this site: {}",
+                site.file,
+                site.func,
+                site.variant,
+                token,
+                row.reason
+            );
+        }
+    }
+}
+
+/// **The reviewer's defeat, reproduced as a unit test on synthetic source.**
+///
+/// The end-to-end proof (planting the predicate in `rules/turn_actions.rs` and watching `r7`
+/// go red) was executed once and is recorded in the execution notes; this row is what keeps
+/// it executable forever, since the tree cannot ship with the defect planted.
+#[test]
+fn r7b_extractor_sees_a_hand_rolled_predicate() {
+    let planted = "fn saga_abilities_are_blanked(state: &GameState, id: ObjectId) -> bool {\n\
+         \x20   state.continuous_effects.iter().any(|e| {\n\
+         \x20       matches!(e.modification, LayerModification::RemoveAllAbilities)\n\
+         \x20           && effect_applies_to_object(state, e, id)\n\
+         \x20   })\n\
+         }\n";
+    let sites = variant_naming_sites_in("crates/engine/src/rules/turn_actions.rs", planted);
+    assert_eq!(
+        sites.len(),
+        1,
+        "the extractor must see the planted predicate's variant name exactly once; got {sites:?}"
+    );
+    assert_eq!(sites[0].func, "saga_abilities_are_blanked");
+    assert_eq!(sites[0].variant, "RemoveAllAbilities");
+    assert!(
+        !BLANKING_NAMING_SITES
+            .iter()
+            .any(|r| r.file == sites[0].file && r.func == sites[0].func),
+        "and it must NOT be in the allowlist, which is what makes r7's set assertion fail"
+    );
+    // Even if someone allowlisted it, the reason check would refuse it: the enclosing
+    // function carries both predicate tokens.
+    let src = strip_comments(planted);
+    let (open, end) =
+        enclosing_fn_span(&src, sites[0].offset).expect("the planted fn must be boundable");
+    let body = &src[open..=end];
+    for token in PREDICATE_TOKENS {
+        assert!(
+            body.contains(token),
+            "the planted predicate must carry `{token}`, or r7's second conjunct proves nothing"
+        );
+    }
+
+    // The UNQUALIFIED spelling is the same defect and must also be seen: a gate written for
+    // one syntactic form measures that form (PB-DX47).
+    let bare = "use LayerModification::RemoveAllAbilities;\nfn p(m: &LayerModification) -> bool {\n    matches!(m, RemoveAllAbilities)\n}\n";
+    assert_eq!(
+        variant_naming_sites_in("x.rs", bare).len(),
+        2,
+        "BOTH unqualified spellings must be visible -- the `use LayerModification::X;` import \
+         and the bare `matches!(m, X)` that the import enables. A needle keyed on the \
+         `LayerModification::` prefix would see the import alone and MISS the predicate, \
+         which is PB-DX47's finding exactly: a gate written for one syntactic form measures \
+         that form"
+    );
+    // A comment mention is not a site (SR-36's rule, and r6b's `strip_comments`).
+    let commented = "fn f() {\n    // LayerModification::RemoveAllAbilities is not used here\n}\n";
+    assert!(
+        variant_naming_sites_in("x.rs", commented).is_empty(),
+        "a prose mention is not a naming site -- OOS-CARDS2-7 / OOS-DX47-2's shape"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// r8 — modification_blanks_abilities, classified EXHAUSTIVELY
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The `(open, close)` brace span of `pub enum LayerModification` in comment-stripped
+/// `crates/card-types/src/state/continuous_effect.rs`.
+fn layer_modification_enum_span() -> (usize, usize) {
+    let path = workspace_root().join("crates/card-types/src/state/continuous_effect.rs");
+    let raw = std::fs::read_to_string(&path).expect("continuous_effect.rs is readable");
+    let src = strip_comments(&raw);
+    let decl = src
+        .find("pub enum LayerModification")
+        .expect("`pub enum LayerModification` is declared in continuous_effect.rs");
+    let open = src[decl..]
+        .find('{')
+        .map(|r| decl + r)
+        .expect("the enum has a body");
+    let end = matching_brace(&src, open).expect("the enum body is balanced");
+    (open, end)
+}
+
+/// Every variant name **parsed from the enum's own declaration**.
+///
+/// Gated against the declaration rather than hand-listed, for `OOS-DX28-1`'s reason and
+/// PB-DX43's `TOKEN_SPEC_FIELDS` repair: a hand-listed set is a claim, and the claim this
+/// file needs is *"r8 classified all of them"*.
+fn declared_layer_modification_variants() -> BTreeSet<String> {
+    let path = workspace_root().join("crates/card-types/src/state/continuous_effect.rs");
+    let raw = std::fs::read_to_string(&path).expect("continuous_effect.rs is readable");
+    let src = strip_comments(&raw);
+    let (open, end) = layer_modification_enum_span();
+    let body = &src[open + 1..end];
+    let mut out = BTreeSet::new();
+    let mut depth = 0i32;
+    let mut start = 0usize;
+    let bytes = body.as_bytes();
+    let push = |seg: &str, out: &mut BTreeSet<String>| {
+        let mut t = seg.trim();
+        // Strip any leading `#[..]` attributes.
+        while let Some(rest) = t.strip_prefix('#') {
+            let Some(close) = rest.find(']') else { break };
+            t = rest[close + 1..].trim_start();
+        }
+        let name: String = t
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        if !name.is_empty() {
+            out.insert(name);
+        }
+    };
+    for i in 0..bytes.len() {
+        match bytes[i] {
+            b'{' | b'(' | b'[' => depth += 1,
+            b'}' | b')' | b']' => depth -= 1,
+            b',' if depth == 0 => {
+                push(&body[start..i], &mut out);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    push(&body[start..], &mut out);
+    out
+}
+
+/// One instance of **every** `LayerModification` variant.
+///
+/// Payloads are the cheapest legal thing in every case -- r8 asks a classification question,
+/// and `modification_blanks_abilities` reads a payload in exactly one arm (`SetLandTypes`,
+/// CR 305.7's basic-land-type conjunct), which is exercised in both directions.
+fn every_layer_modification() -> Vec<(&'static str, LayerModification)> {
+    use LayerModification as M;
+    let sub = |s: &str| SubType(s.to_string());
+    vec![
+        ("CopyOf", M::CopyOf(ObjectId(1))),
+        ("SetController", M::SetController(PlayerId(1))),
+        (
+            "SetTypeLine",
+            M::SetTypeLine {
+                supertypes: [SuperType::Legendary].into_iter().collect(),
+                card_types: [CardType::Land].into_iter().collect(),
+                subtypes: [sub("Mountain")].into_iter().collect(),
+            },
+        ),
+        (
+            "AddCardTypes",
+            M::AddCardTypes([CardType::Creature].into_iter().collect()),
+        ),
+        (
+            "RemoveCardTypes",
+            M::RemoveCardTypes([CardType::Creature].into_iter().collect()),
+        ),
+        (
+            "AddSubtypes",
+            M::AddSubtypes([sub("Swamp")].into_iter().collect()),
+        ),
+        ("LoseAllSubtypes", M::LoseAllSubtypes),
+        ("RemoveSuperType", M::RemoveSuperType(SuperType::Legendary)),
+        ("AddAllCreatureTypes", M::AddAllCreatureTypes),
+        (
+            "SetCreatureTypes",
+            M::SetCreatureTypes([sub("Frog")].into_iter().collect()),
+        ),
+        (
+            "SetCardTypes",
+            M::SetCardTypes([CardType::Creature].into_iter().collect()),
+        ),
+        (
+            "SetLandTypes",
+            M::SetLandTypes([sub("Mountain")].into_iter().collect()),
+        ),
+        (
+            "SetColors",
+            M::SetColors([Color::Blue].into_iter().collect()),
+        ),
+        (
+            "AddColors",
+            M::AddColors([Color::Blue].into_iter().collect()),
+        ),
+        ("BecomeColorless", M::BecomeColorless),
+        ("AddKeyword", M::AddKeyword(KeywordAbility::Flying)),
+        (
+            "AddKeywords",
+            M::AddKeywords([KeywordAbility::Flying].into_iter().collect()),
+        ),
+        ("RemoveAllAbilities", M::RemoveAllAbilities),
+        ("RemoveKeyword", M::RemoveKeyword(KeywordAbility::Flying)),
+        (
+            "AddActivatedAbility",
+            M::AddActivatedAbility(Box::<ActivatedAbility>::default()),
+        ),
+        ("AddManaAbility", M::AddManaAbility(ManaAbility::default())),
+        (
+            "SetPtViaCda",
+            M::SetPtViaCda {
+                power: 1,
+                toughness: 1,
+            },
+        ),
+        (
+            "SetPtDynamic",
+            M::SetPtDynamic {
+                power: Box::new(EffectAmount::Fixed(1)),
+                toughness: Box::new(EffectAmount::Fixed(1)),
+            },
+        ),
+        ("SetPtToManaValue", M::SetPtToManaValue),
+        (
+            "SetPowerToughness",
+            M::SetPowerToughness {
+                power: 1,
+                toughness: 1,
+            },
+        ),
+        (
+            "SetBothDynamic",
+            M::SetBothDynamic {
+                amount: Box::new(EffectAmount::Fixed(1)),
+            },
+        ),
+        ("ModifyPower", M::ModifyPower(1)),
+        ("ModifyToughness", M::ModifyToughness(1)),
+        ("ModifyBoth", M::ModifyBoth(1)),
+        (
+            "ModifyBothDynamic",
+            M::ModifyBothDynamic {
+                amount: Box::new(EffectAmount::Fixed(1)),
+                negate: false,
+            },
+        ),
+        (
+            "ModifyPowerDynamic",
+            M::ModifyPowerDynamic {
+                amount: Box::new(EffectAmount::Fixed(1)),
+                negate: false,
+            },
+        ),
+        (
+            "ModifyToughnessDynamic",
+            M::ModifyToughnessDynamic {
+                amount: Box::new(EffectAmount::Fixed(1)),
+                negate: false,
+            },
+        ),
+        ("SwitchPowerToughness", M::SwitchPowerToughness),
+    ]
+}
+
+/// **CR 613.1f / CR 305.7: the blanking classification is exhaustive, and every negative is
+/// asserted rather than inferred from the corpus.**
+///
+/// `/review` FINDING 3: the reviewer moved `LayerModification::SwitchPowerToughness` into
+/// `modification_blanks_abilities`' `true` arm and the entire `-p mtg-engine` test set stayed
+/// **green**. `SetTypeLine` and `LoseAllSubtypes` redden `r3` only because the corpus happens
+/// to declare them, so before this row the classifier was gated **exactly where the corpus
+/// reaches** -- and PB-DX43's `f3_..._recognises_both_channels_and_no_others` pins 2
+/// positives and 5 hand-picked negatives out of 33 variants, so its "and no others" was an
+/// overclaim this file inherited and then made load-bearing at a second site (r3 decides its
+/// whole roster by calling this function).
+///
+/// A variant that flips to `true` here is a **new ability-blanking channel**: it silently
+/// joins r3's roster, silently changes `layers::abilities_are_blanked`, and therefore
+/// silently changes which permanents CR 714's five sites treat as having no chapter
+/// abilities.
+#[test]
+fn r8_modification_blanks_abilities_is_exhaustively_classified() {
+    let built = every_layer_modification();
+    let built_names: BTreeSet<String> = built.iter().map(|(n, _)| (*n).to_string()).collect();
+    let declared = declared_layer_modification_variants();
+    assert_eq!(
+        built_names,
+        declared,
+        "PB-DX49 r8: `every_layer_modification()` is out of sync with the enum's own \
+         declaration in crates/card-types/src/state/continuous_effect.rs. A NEW \
+         LayerModification variant must be constructed here and classified below before it \
+         can arrive unclassified -- which is the whole point of gating the list against the \
+         declaration rather than hand-listing it. built only: {:?}; declared only: {:?}",
+        built_names.difference(&declared).collect::<Vec<_>>(),
+        declared.difference(&built_names).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        built.len(),
+        33,
+        "PB-DX49 r8: 33 LayerModification variants measured at HEAD, {} built. If the enum \
+         genuinely grew, re-pin this count DELIBERATELY -- a silent count change is how a \
+         fourth blanking channel arrives.",
+        built.len()
+    );
+
+    // CardType::Land in the fixture, so CR 305.7's own precondition is satisfiable and the
+    // SetLandTypes arm is REACHABLE. Without it that arm answers `false` for fixture reasons
+    // and r8 would pin a positive set of one while claiming to have tested both channels.
+    let chars = land_characteristics();
+    let positives: BTreeSet<&str> = built
+        .iter()
+        .filter(|(_, m)| modification_blanks_abilities(m, &chars))
+        .map(|(n, _)| *n)
+        .collect();
+    let expected: BTreeSet<&str> = ["RemoveAllAbilities", "SetLandTypes"].into_iter().collect();
+    assert_eq!(
+        positives,
+        expected,
+        "PB-DX49 r8: the ability-blanking classification moved. CR 613.1f's \
+         RemoveAllAbilities and CR 305.7's SetLandTypes-with-a-basic-payload are the only \
+         two channels; anything else classified `true` is a THIRD channel and every CR 714 \
+         site, r3's roster and layers::abilities_are_blanked change with it. Anything \
+         removed is a channel this engine has stopped honouring. classified only: {:?}; \
+         expected only: {:?}",
+        positives.difference(&expected).collect::<Vec<_>>(),
+        expected.difference(&positives).collect::<Vec<_>>()
+    );
+
+    // CR 305.7's own precondition, both conjuncts, on the exhaustive path as well as r3b's:
+    // a NONBASIC payload is not a blanker even on a land.
+    let nonbasic =
+        LayerModification::SetLandTypes([SubType("Gate".to_string())].into_iter().collect());
+    assert!(
+        !modification_blanks_abilities(&nonbasic, &chars),
+        "CR 305.7 applies only when the payload names one or more BASIC land types; a \
+         SetLandTypes(Gate) that blanked abilities would blank every Gate-setting effect's \
+         target"
+    );
+    // And the two positives are not fixture artefacts: RemoveAllAbilities blanks regardless
+    // of card type, SetLandTypes does not.
+    let plain = Characteristics::default();
+    assert!(modification_blanks_abilities(
+        &LayerModification::RemoveAllAbilities,
+        &plain
+    ));
+    assert!(!modification_blanks_abilities(
+        &LayerModification::SetLandTypes([SubType("Mountain".to_string())].into_iter().collect()),
+        &plain
+    ));
+}
+
+/// **The arm bounding is a measurement, not a window** (`/review` FINDING 4), proven on
+/// synthetic source in both failure directions.
+#[test]
+fn r5e_match_arm_bounding_is_a_measurement_not_a_window() {
+    let src = "match e {\n    Effect::Manifest { player } => {\n        let x = 1;\n    }\n    \
+               Effect::Cloak { player } => {\n        apply_self_etb_from_definition(s, id);\n    \
+               }\n}\n";
+    let manifest_at = src.find("Effect::Manifest {").expect("fixture");
+    let (open, end) = match_arm_body_span(src, manifest_at).expect("the Manifest arm is a block");
+    assert!(
+        !src[open..=end].contains("apply_self_etb_from_definition"),
+        "OVER-SCAN direction: the bound must stop at the arm's OWN closing brace. A fixed \
+         byte window runs into the NEXT arm -- `t_census_report` prints how far -- and would \
+         redden on a call that is not in the arm at all"
+    );
+    let cloak_at = src.find("Effect::Cloak {").expect("fixture");
+    let (open2, end2) = match_arm_body_span(src, cloak_at).expect("the Cloak arm is a block");
+    assert!(
+        src[open2..=end2].contains("apply_self_etb_from_definition"),
+        "UNDER-SCAN direction: a call anywhere inside the arm's own body must be seen, \
+         however far in -- which is what a too-small fixed window silently stops doing"
+    );
+
+    // A non-block arm body must FAIL CLOSED: the next `{` belongs to a later arm.
+    let non_block = "match e {\n    Effect::Manifest { player } => manifest(player),\n    \
+                     Effect::Cloak { player } => {\n        apply_self_etb_from_definition();\n    \
+                     }\n}\n";
+    assert!(
+        match_arm_body_span(
+            non_block,
+            non_block.find("Effect::Manifest {").expect("fixture")
+        )
+        .is_none(),
+        "a non-block arm body must fail closed rather than silently bounding on a later \
+         arm's brace"
+    );
+    // Unbalanced input fails closed too.
+    assert!(
+        match_arm_body_span("Effect::Manifest { player } => {\n    oops", 0).is_none(),
+        "unbalanced input must fail closed"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // t_census_report — every population, PRINTED
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1743,6 +2623,86 @@ fn t_census_report() {
     for p in PINNED_SAGA_SITES {
         eprintln!("  {:<28} {:<28} {}", p.file, p.func, p.cr);
         eprintln!("      {}", p.reason);
+    }
+
+    // The walk r6 and r7 both rest on: PRINTED, so the gap between the non-vacuity floors
+    // and reality is visible rather than trusted (the floors are 8 roots / 100 files).
+    let roots = workspace_src_roots();
+    let files = workspace_src_files();
+    eprintln!(
+        "\nworkspace source walk: {} `src` roots, {} .rs files (card-defs excluded)",
+        roots.len(),
+        files.len()
+    );
+
+    let naming = live_variant_naming_sites();
+    eprintln!(
+        "\nr7 -- blanking-variant naming sites: {} triples across {} (file, fn) sites",
+        naming.len(),
+        naming
+            .iter()
+            .map(|s| (s.file.clone(), s.func.clone()))
+            .collect::<BTreeSet<_>>()
+            .len()
+    );
+    for site in &naming {
+        eprintln!(
+            "  {:<52} {:<32} {:<20} @ byte {}",
+            site.file, site.func, site.variant, site.offset
+        );
+    }
+    eprintln!("r7 -- classification:");
+    for row in BLANKING_NAMING_SITES {
+        eprintln!(
+            "  {:<52} {:<32} {:?} {:?}",
+            row.file, row.func, row.variants, row.kind
+        );
+        eprintln!("      {}", row.reason);
+    }
+
+    let chars = land_characteristics();
+    let built = every_layer_modification();
+    eprintln!(
+        "\nr8 -- LayerModification variants classified: {} ({} declared in the enum)",
+        built.len(),
+        declared_layer_modification_variants().len()
+    );
+    for (name, m) in &built {
+        if modification_blanks_abilities(m, &chars) {
+            eprintln!("  BLANKS  {name}");
+        }
+    }
+    eprintln!(
+        "  (all {} others classified false against a Land fixture)",
+        built
+            .iter()
+            .filter(|(_, m)| !modification_blanks_abilities(m, &chars))
+            .count()
+    );
+
+    // r5b's measured arm spans -- the figures that make "3,413 / 2,820 vs a 4,000-byte
+    // window" a measurement rather than a remembered number.
+    let effects = strip_comments(
+        &std::fs::read_to_string(engine_src().join("effects/mod.rs")).expect("readable"),
+    );
+    eprintln!("\nr5b -- measured match-arm spans in effects/mod.rs:");
+    for needle in ["Effect::Manifest {", "Effect::Cloak {"] {
+        if let Some(at) = effects.find(needle) {
+            if let Some((open, end)) = match_arm_body_span(&effects, at) {
+                // How far the superseded fixed window (4,000 bytes from the PATTERN) ran
+                // past the arm's own closing brace. Positive = it over-scanned into the
+                // next arm by that much, and was that many bytes of arm growth away from
+                // failing open; negative would mean it was ALREADY failing open.
+                let overscan = (at + 4_000) as i64 - end as i64;
+                eprintln!(
+                    "  {:<20} body = {} bytes; the superseded 4,000-byte window ran {} bytes \
+                     past this arm's own closing brace",
+                    needle,
+                    end - open,
+                    overscan
+                );
+            }
+        }
     }
     eprintln!();
 }

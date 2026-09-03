@@ -115,7 +115,7 @@ impl SagaView {
 /// - **CR 714.2b** needs the ability to exist at the moment counters are put on, so the
 ///   chapter list is what decides which triggers fire — none, while blanked.
 ///
-/// # Stated residual (seeded, deliberately not fixed here)
+/// # Stated residual — filed as `OOS-DX49-9`, deliberately not fixed here
 ///
 /// `is_saga_permanent` uses *printed chapter abilities* as the Saga-ness proxy — the same
 /// proxy all five sites already used — rather than the layer-resolved `SubType("Saga")`. A

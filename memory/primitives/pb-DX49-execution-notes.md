@@ -398,8 +398,12 @@ filter matches nothing. A fact about `EffectFilter` and a departed source, not a
 
 ## 5. Gates, against the FINAL tree
 
-- Tests **4,934 / 0 / 5**, **58** result-producing targets (57 → 58), residual list empty.
-  **34 additions / 0 removals / 0 leavers / 0 renames**, by set-diffing the two run logs.
+- Tests **4,941 / 0 / 5**, **58** result-producing targets (57 → 58), residual list empty.
+  **41 additions / 0 removals / 0 leavers / 0 renames**, by set-diffing the two run logs — 10 engine
+  probes, **24** roster rows (20 shipped, +4 in the `/review` fix cycle), 4 channel probes, and 3 in
+  `tools/tui`'s new `#[cfg(test)]` module. "0 leavers" is literal: the three
+  `fire_saga_chapter_triggers` call sites lost a parameter and were edited **in place**, so no test
+  name changed.
 - **PROTOCOL 39 / HASH 78 both UNMOVED**, gate-executed (`protocol.rs:427` = 39, `hash.rs:886` = 78)
   and predicted in writing at `57d1dc42` before any code changed. `history_is_append_only` and
   `frozen_prefix_is_pinned` green; no pin edited and no history row appended, because none was owed.
@@ -407,9 +411,140 @@ filter matches nothing. A fact about `EffectFilter` and a departed source, not a
   byte-identical), self-dating churn reverted. **0 card-def edits of any kind.**
 - `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
   `tools/check-defs-fmt.sh` clean (1,803 defs).
-- **Benches inside the historical band, and they were run because this batch put work on the SBA hot
-  path**: `sba_check` **14.93-15.04 µs** (historical 14.5), `full_turn_4p` **219.6-221.0 µs** (band
-  213-223), `priority_cycle_4p` **25.7-26.2 µs** (band 23.8-26.0). Stated as one run, so the
-  supportable claim is *no regression*, not an improvement. The `printed.is_empty()` short-circuit
-  in `saga_view` (§2.4) is what keeps `sba_check` in band; without it every phased-in battlefield
-  permanent would clone `Characteristics` and walk the active continuous effects on every SBA check.
+- **Benches — see §6. The first version of this line was WRONG and the `/review` refuted it by
+  running the A/B this batch had not.**
+
+---
+
+## 6. The `/review` fix cycle — 2 MEDIUM, 1 LOW-MEDIUM, 4 LOW, 1 NIT; all 8 taken, none declined
+
+The reviewer had a shell and used it. **Three findings are defeats by execution of this batch's own
+claims**, and one of those is a claim the batch printed in bold in production source.
+
+### 6.1 MEDIUM — "there is exactly one ability-blanking predicate in this tree" was UNGATED
+
+`replacement.rs` asserted it in bold; §2.1 above said "verified by enumeration". Both were **true
+and unenforced**. The reviewer appended a second hand-rolled predicate to `turn_actions.rs` —
+`matches!(e.modification, LayerModification::RemoveAllAbilities) && effect_applies_to_object(..)`,
+**the exact pre-PB-DX43 shape whose 26-def regression this batch's own doc comment narrates** — and
+all 652 core tests stayed **GREEN**. That is `OOS-DX49-6`'s own shape (a comment asserting a
+property the code does not enforce) inside the batch that filed it.
+
+**Fixed** by `r7_blanking_variant_naming_sites_are_pinned`, keyed on the mechanism: every
+comment-stripped occurrence of a blanking variant name across **workspace** source, keyed
+`(file, enclosing fn, variant)`, set-compared to an allowlist whose every entry carries a `kind` and
+a reason — **plus a second conjunct** that re-checks each allowlisted site's enclosing function body
+for the tokens a predicate needs beyond naming the variant (`effect_applies_to_object`,
+`continuous_effects`), because set equality alone cannot catch a predicate added **inside** an
+already-allowlisted function. Both defeats executed RED, including that in-place one.
+
+**Three things the finding got wrong, found by re-deriving instead of trusting it.** Its sketched
+allowlist was short by three (`layers.rs::depends_on` and `::representative_modifications` — the
+CR 613.8 dependency machinery — and the enum declaration itself in `crates/card-types`); there is
+**no** test fixture in `src`, so "plus one if present" is empty; and **its prescribed needle was
+itself PB-DX47's defect** — keying on the *qualified* `LayerModification::RemoveAllAbilities` is
+evaded by `use LayerModification::RemoveAllAbilities;` + `matches!(m, RemoveAllAbilities)`. `r7`
+keys on the **bare name at word boundaries**, and `r7b` proves both spellings are seen.
+
+Measured allowlist: **7 `(file, fn)` sites / 11 triples**.
+
+### 6.2 MEDIUM — the bench claim was refuted by an A/B this batch had not run
+
+§5's first draft reported branch-only figures against a *remembered* historical number and concluded
+*no regression*. **That is PB-DX28's "re-take the measured table" MEDIUM, which PB-DX45 already
+repeated once.** The reviewer built the merge base in an isolated worktree with its own
+`CARGO_TARGET_DIR` and measured **~+6% `sba_check` / ~+2.4% `full_turn_4p`**, non-overlapping
+confidence intervals, twice.
+
+**The finding was right, and the mechanism was the one this batch had already identified and then
+not acted on**: `check_saga_sbas` materialised a `Vec` of *every* phased-in battlefield permanent
+before asking the query. That `Vec` was never necessary — `saga_view` takes `&GameState` and the
+function holds a `&mut`, so **one immutable reborrow** (`let s: &GameState = state;`) lets the walk
+and the query share it. All three walk sites now do that; the walk stays lazy and nothing is
+materialised.
+
+**The honest A/B, re-run after the fix — matched set, same hardware, same session, merge base
+`be7f29a5` in an isolated worktree vs this branch:**
+
+| bench | merge base | branch | delta |
+|---|---|---|---|
+| `sba_check` | 14.685-14.751 µs | 14.954-14.989 µs | **+1.7%** (non-overlapping — REAL) |
+| `priority_cycle_4p` | 24.185-24.434 µs | 24.634-24.808 µs | **+1.7%** (non-overlapping — REAL) |
+| `priority_cycle_6p` | 38.156-38.416 µs | 38.860-39.170 µs | **+1.9%** (non-overlapping — REAL) |
+| `full_turn_4p` | 216.72-218.91 µs | 217.18-218.51 µs | **noise** (intervals overlap) |
+| `full_turn_6p` | 345.85-346.84 µs | 344.36-346.96 µs | **noise** (intervals overlap) |
+| `board_wipe_4p` | 122.88-125.20 µs | 117.57-118.03 µs | **−5%** (branch FASTER) |
+
+**Stated plainly: there is a real ~1.7% regression on the SBA and priority-cycle benches, and it is
+published as a regression rather than as "inside the historical band".** The reborrow took
+`full_turn_4p` from a measured ~+2.4% to noise and `sba_check` from ~+6% to +1.7%. The residual is
+inherent to the mandated design: `saga_view` re-resolves the object through `fizzle_object` because
+it takes an `ObjectId` rather than the caller's `&GameObject`, which is one hash probe per
+battlefield permanent per SBA check. **Threading the object through instead would shave it and would
+re-create the drift this batch exists to remove** — five sites deriving CR 714 from their own local
+view is the defect, not the cost. The `printed.is_empty()` short-circuit (§2.4) is doing its job:
+without it the same walk would clone `Characteristics` and scan every active continuous effect.
+
+### 6.3 LOW-MEDIUM — a production doc comment claimed a seed that did not exist
+
+`rules/saga.rs` said *"Stated residual (seeded, deliberately not fixed here)"*. The reviewer grepped
+the registry: `OOS-DX49-1..8` contained nothing about the Saga-ness proxy — `OOS-DX49-3` covers a
+**different** residual. **The batch's own headline shape, one layer down.** Filed as
+**`OOS-DX49-9`**; the comment now names the row.
+
+### 6.4 LOW — `r6`'s reach was one crate while `saga_view` is `pub`
+
+A `saga_view` consumer planted in `crates/simulator/src/lib.rs` left `r6` **green** — PB-DX48's
+`SITE_SRCS` defeat one crate up rather than one directory up, and the module doc overclaimed
+("the whole crate", as if that answered it). Walk widened to **workspace** source
+(`crates/*/src` + `tools/*/src`, minus `crates/card-defs`), with executing non-vacuity floors
+(≥ 8 roots, engine root present, ≥ 100 files) so a broken path returning `[]` cannot make either
+`r6` or `r7` pass. Measured: **14 roots / 148 files**, printed by the census. Defeat re-run RED.
+
+### 6.5 LOW — the classifier could be widened silently for any zero-corpus variant
+
+Moving `SwitchPowerToughness` into the `true` arm left the **entire** engine test set green: `r3`
+gates the classifier only where the corpus reaches, and PB-DX43's
+`f3_..._and_no_others` pins 2 positives against 5 hand-picked negatives out of 33 — an overclaim
+this batch inherited and then made load-bearing at a second site. **Fixed** by
+`r8_modification_blanks_abilities_is_exhaustively_classified`: one instance of **all 33** variants,
+with the constructed name set gated against the variant names **parsed from the enum's own
+declaration** so a 34th cannot arrive unclassified; positives asserted as exactly
+`{RemoveAllAbilities, SetLandTypes}`; nonbasic `SetLandTypes` asserted false; both positives
+re-asserted against a default `Characteristics` so neither is a fixture artefact. Defeat RED — and
+under it **`r3` stayed green**, corroborating the finding's premise by execution.
+
+### 6.6 LOW — `r5b`'s 4,000-byte window failed open, and was ALREADY over-scanning
+
+The finding framed this as conditional (*"if either arm grows past 4,000"*). **It is not
+conditional.** Measured and now printed: the `Effect::Manifest` arm body is **3,413** bytes and
+`Effect::Cloak` **2,820**, so the old window ran **520** and **1,116** bytes *past* each arm's own
+closing brace into the next arm — while sitting 520 bytes of growth from failing open. Replaced with
+`match_arm_body_span`, which brace-matches the arm's own body (skipping string literals) and
+**panics with a fail-closed message** on unbalanced or non-block input; no fixed backstop remains.
+**Both halves proven by execution**: a planted `apply_self_etb_from_definition` call behind ~1.2 kB
+of filler reddens the new gate, and with that identical plant in place the *superseded* window
+**passed** — the old gate failing open on the exact call it exists to catch, demonstrated rather
+than argued.
+
+### 6.7 LOW — the `tools/tui` parser repair had no test
+
+`OOS-DX49-6`'s own fix shipped untested in a crate with two `#[test]`s, neither touching it. The
+parse is split into `parse_corner_case_audit_content(&str)` and three tests added: the sum
+(RED-proven by reverting `total` to `covered + gap` → `left: 35, right: 36`), a non-vacuity case
+(rows outside `## Summary` must not count, so the sibling's 35/1/0/0 is evidence the section was
+found), and the stop-at-next-heading case.
+
+### 6.8 NIT — `CLAUDE.md` said `fire_saga_chapter_triggers` is called "for a Saga it just countered"
+
+Should be "just placed a lore counter on"; a reader takes "countered" as a stack action. Fixed.
+
+### 6.9 What the reviewer verified and did NOT find a problem with
+
+Recorded because a clean result is evidence too: the **CR 714.3a correction is right** (rule text
+pulled independently); **no probe is vacuous** (the face-down conjunct reddens `t2`/`t4` from one
+site and `t2`/`t7` from the other, both executed); **both channel reverts reproduce exactly**; corner
+case #36 is genuinely PARTIAL; the `KeywordAbility::Cloak` correction to PB-DX48 is itself correct;
+the `corner-cases.md` CR 305.7 rewrite is verbatim-accurate; and **no CR 714 reader was missed** —
+`grep -rn SagaChapter` over `crates/` + `tools/` leaves only the deliberate CR 113.7a pair, the
+registry declaration and comments. **Every published figure reproduced except the benches.**
