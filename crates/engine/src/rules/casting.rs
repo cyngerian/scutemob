@@ -89,7 +89,6 @@ pub fn handle_cast_spell(
     let mut offspring_paid: bool = false;
     let mut gift_opponent: Option<crate::state::PlayerId> = None;
     let mut mutate_target: Option<ObjectId> = None;
-    let mut _mutate_on_top: bool = false;
     let mut exile_from_hand_card: Option<ObjectId> = None;
     for cost in &additional_costs {
         match cost {
@@ -130,9 +129,11 @@ pub fn handle_cast_spell(
             AdditionalCost::Gift { opponent } => {
                 gift_opponent = Some(*opponent);
             }
-            AdditionalCost::Mutate { target, on_top } => {
+            // PB-DX50: the over/under half is GONE from this struct -- CR 702.140c
+            // makes it a resolution choice, asked by `rules::resolution`'s
+            // `MutatingCreatureSpell` arm on the CR 608.2d channel.
+            AdditionalCost::Mutate { target } => {
                 mutate_target = Some(*target);
-                _mutate_on_top = *on_top;
             }
             AdditionalCost::ExileFromHand { card } => {
                 exile_from_hand_card = Some(*card);

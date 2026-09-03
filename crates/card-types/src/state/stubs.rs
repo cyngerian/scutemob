@@ -1018,6 +1018,34 @@ pub enum EffectChoiceQuestion {
     /// schema fingerprints moved when this box was added. They were re-taken from
     /// the gates rather than reasoned about.
     PayOptionalCost { cost: Box<Cost> },
+    /// PB-DX50: CR 702.140c / CR 608.2d — "As a mutating creature spell
+    /// resolves, if its target is legal … **The spell's controller chooses
+    /// whether the spell is put on top of the creature or on the bottom.**"
+    ///
+    /// **The answer space is a bool, and it is complete.** Like
+    /// `PayOptionalCost` and unlike the four id-set variants, this question
+    /// names no candidate set: CR 702.140c offers exactly two answers, over or
+    /// under. So there is no "is this id legal" check to make and the whole
+    /// legality of an answer is its variant. It is deliberately the
+    /// `PayOptionalCost` shape, not the `ChooseObject` shape.
+    ///
+    /// **Hidden information (Architecture Invariant 7): none rides on this
+    /// variant, and the reason is NOT `SearchLibrary`'s.** `host` is a permanent
+    /// on the **battlefield**, which CR 400.1 makes a public zone — every player
+    /// can already see the creature being mutated onto, and its id is already on
+    /// the wire as the spell's announced target (PB-DX50 Half 1 puts it in
+    /// `StackObject.targets`, which `GameEvent::TargetsAnnounced` publishes).
+    /// `private_to()` still returns `Some(player)` — the question is *addressed*
+    /// to one seat, not hidden from the rest — for the same reason
+    /// `ChooseObject` and `PayOptionalCost` are.
+    ///
+    /// `host` is carried so a client can render "over or under Adrix?" without a
+    /// second query, which is this type's stated contract ("carrying its full
+    /// legal answer space so a client can render a picker without a second
+    /// query"). It is NOT re-derived from the stack object at answer time: the
+    /// engine validates against its own recorded question and never against the
+    /// board.
+    MutateOnTop { host: ObjectId },
 }
 /// CR 608.2d (PB-DP9): the player's answer to an [`EffectChoiceQuestion`].
 ///
@@ -1083,6 +1111,18 @@ pub enum EffectChoiceAnswer {
     /// re-check is belt-and-braces, and it is kept for that reason rather than
     /// removed as dead.
     PayOptionalCost { pay: bool },
+    /// PB-DX50: CR 702.140c — `true` puts the mutating creature spell ON TOP of
+    /// the target creature, `false` puts it on the bottom.
+    ///
+    /// **`false` is a state the pre-PB-DX50 engine could not produce at
+    /// resolution time.** Before this batch the value was captured at
+    /// ANNOUNCEMENT and rode in `AdditionalCost::Mutate { on_top }`, so the
+    /// opponent learned the choice before deciding whether to respond, and the
+    /// controller could not change it after seeing the responses — the exact
+    /// inversion CR 702.140c's "as … resolves" forbids. CR 702.140e is what
+    /// makes it load-bearing: the topmost card supplies the merged permanent's
+    /// name, mana cost, colours, types and P/T.
+    MutateOnTop { on_top: bool },
 }
 /// CR 608.2d (PB-DP9): the one resolution-time choice the engine is currently
 /// blocked on.

@@ -883,7 +883,39 @@
 ///   Predicted in writing before any code changed
 ///   (`memory/primitives/pb-DX45-execution-notes.md` §0.1) and both fingerprints
 ///   taken from the failing gates' own output rather than transcribed.
-pub const HASH_SCHEMA_VERSION: u8 = 78;
+/// - 79: PB-DX50 (2026-09-03, `OOS-DX29-2` -- CR 702.140c, the mutate over/under
+///   choice is made **as the spell resolves**): TWO edits, each of which would
+///   move this fingerprint on its own.
+///
+///   (a) `EffectChoiceQuestion` and `EffectChoiceAnswer` each gain a **seventh**
+///   variant, `MutateOnTop` (`{ host: ObjectId }` / `{ on_top: bool }`), with
+///   explicit hash discriminant `6` appended to each match. Both enums have been
+///   in the `GameState` serde closure since v66, reachable via
+///   `GameState.pending_effect_choice: Option<PendingEffectChoice>` and
+///   `GameState.effect_choice_answers: Vector<AnsweredEffectChoice>`.
+///
+///   (b) `AdditionalCost::Mutate` **LOSES** its `on_top: bool` field, reachable
+///   via `StackObject.additional_costs`. The variant's hash discriminant stays
+///   `11` -- the variant did not move, only its payload shrank.
+///
+///   `ObjectId` and `bool` are both already closure members, and the removal
+///   deletes no type, so the closure's type count is **unchanged (131)** -- only
+///   the two enums' and `AdditionalCost`'s declared shapes move, so
+///   `decl_fingerprint` moves.
+///
+///   `stream_fingerprint` MOVES for the v40 reason alone (`HASH_SCHEMA_VERSION`
+///   is the stream's first byte). `canonical_fixture()` records no pending effect
+///   choice, banks no answer and carries no `AdditionalCost::Mutate`, so this is
+///   the v69/v72/v73/v74/v75/v76/v77/v78-style version-sentinel-byte-only case,
+///   not a payload-bytes case -- the new variants' own bytes are exercised by the
+///   behavioural probes in `pb_dx50_mutate_on_top_timing.rs`.
+///
+///   Predicted in writing before any code changed (`memory/primitives/
+///   pb-plan-DX50.md` §0.3, "PROTOCOL 39 -> 40 and HASH 78 -> 79, ONE bump each",
+///   with the type counts predicted unchanged at 98/131) and both fingerprints
+///   taken from the failing gates' own output rather than transcribed. **Both
+///   predictions held, counts included.**
+pub const HASH_SCHEMA_VERSION: u8 = 79;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1383,6 +1415,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // count unchanged (131).
         decl_fingerprint: "0c452e2f98e1c18ca289b04c8a5b3539e4c9232c229a3dc4433ad3609b062812",
         stream_fingerprint: "08220ca0f13da6042898f6257407ca475a6e5f5c92b7ca31ae291816eaa19c80",
+    },
+    HashSchemaEpoch {
+        version: 79,
+        // PB-DX50 (2026-09-03, `OOS-DX29-2`): EffectChoiceQuestion/Answer each
+        // gain a seventh variant, MutateOnTop, AND `AdditionalCost::Mutate` loses
+        // its `on_top` field (see the `- 79:` History line above). Closure type
+        // count unchanged (131).
+        decl_fingerprint: "2ae8246bea046d5f97761448cda955477145c60b760edb56c2d9a1d7bb974f41",
+        stream_fingerprint: "1e180a0ea3cb32fbbf5893e09e36372ed161a1a37dd517398bc8b63fbcbb6dc5",
     },
 ];
 
@@ -3598,6 +3639,11 @@ impl HashInto for EffectChoiceQuestion {
                 5u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
+            // PB-DX50: MutateOnTop (CR 702.140c) — discriminant 6.
+            EffectChoiceQuestion::MutateOnTop { host } => {
+                6u8.hash_into(hasher);
+                host.hash_into(hasher);
+            }
         }
     }
 }
@@ -3631,6 +3677,11 @@ impl HashInto for EffectChoiceAnswer {
             EffectChoiceAnswer::PayOptionalCost { pay } => {
                 5u8.hash_into(hasher);
                 pay.hash_into(hasher);
+            }
+            // PB-DX50: MutateOnTop (CR 702.140c) — discriminant 6.
+            EffectChoiceAnswer::MutateOnTop { on_top } => {
+                6u8.hash_into(hasher);
+                on_top.hash_into(hasher);
             }
         }
     }
@@ -4884,10 +4935,14 @@ impl HashInto for AdditionalCost {
                 10u8.hash_into(hasher);
                 opponent.hash_into(hasher);
             }
-            AdditionalCost::Mutate { target, on_top } => {
+            // PB-DX50: `on_top` REMOVED (CR 702.140c makes it a resolution
+            // choice; it now lives on `EffectChoiceQuestion::MutateOnTop`, hashed
+            // through `PendingEffectChoice`/`AnsweredEffectChoice`). The
+            // discriminant is unchanged at 11 -- the variant did not move, only
+            // its payload shrank.
+            AdditionalCost::Mutate { target } => {
                 11u8.hash_into(hasher);
                 target.hash_into(hasher);
-                on_top.hash_into(hasher);
             }
             AdditionalCost::ExileFromHand { card } => {
                 14u8.hash_into(hasher);

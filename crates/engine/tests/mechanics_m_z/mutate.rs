@@ -72,6 +72,38 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
     (current, all_events)
 }
 
+/// PB-DX50 (CR 702.140c): a mutating creature spell with a LEGAL target now **suspends**
+/// at resolution to ask its controller over-or-under, on PB-DP9's CR 608.2d channel.
+/// Answer it, and return the events the answer's replayed resolution produced.
+///
+/// Deliberately NOT folded into `pass_all`: `pass_all` is used by the CR 702.140b
+/// illegal-target fallback test too, and that path asks NOTHING (CR 702.140c's own
+/// antecedent is "if its target is legal"). Hiding the ask inside the pass helper would
+/// make an ask on the fallback path invisible.
+fn answer_mutate(state: GameState, on_top: bool) -> (GameState, Vec<GameEvent>) {
+    let pending = state
+        .pending_effect_choice()
+        .cloned()
+        .expect("CR 702.140c: a legal-target mutate resolution must ask over-or-under");
+    assert!(
+        matches!(
+            pending.question,
+            mtg_engine::EffectChoiceQuestion::MutateOnTop { .. }
+        ),
+        "the pending question must be CR 702.140c's, got {:?}",
+        pending.question
+    );
+    process_command(
+        state,
+        Command::AnswerEffectChoice {
+            player: pending.player,
+            choice_id: pending.choice_id,
+            answer: mtg_engine::EffectChoiceAnswer::MutateOnTop { on_top },
+        },
+    )
+    .expect("both answers are legal (CR 702.140c)")
+}
+
 /// A mock mutating creature (Gemrazer-like): 4/4 Beast with Mutate and Reach.
 fn mock_mutating_beast_def() -> CardDefinition {
     CardDefinition {
@@ -233,10 +265,7 @@ fn test_mutate_resolution_basic_merge() {
             prototype: false,
             modes_chosen: vec![],
             x_value: 0,
-            additional_costs: vec![AdditionalCost::Mutate {
-                target: wolf_id,
-                on_top: true,
-            }],
+            additional_costs: vec![AdditionalCost::Mutate { target: wolf_id }],
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -263,12 +292,14 @@ fn test_mutate_resolution_basic_merge() {
         stack_obj
             .additional_costs
             .iter()
-            .any(|c| matches!(c, AdditionalCost::Mutate { on_top: true, .. })),
+            .any(|c| matches!(c, AdditionalCost::Mutate { .. })),
         "mutate_on_top should be propagated to stack object via additional_costs"
     );
 
     // Resolve: all players pass priority.
     let (state, _) = pass_all(state, &[p1, p2]);
+    // CR 702.140c (PB-DX50): the resolution suspends to ask over-or-under.
+    let (state, _) = answer_mutate(state, true);
 
     // CR 729.2: After resolution, the wolf's ObjectId should still be on the battlefield.
     // The merged permanent uses the wolf's ObjectId (CR 729.2c). Its displayed name is the
@@ -419,10 +450,7 @@ fn test_mutate_validation_rejects_human_target() {
             prototype: false,
             modes_chosen: vec![],
             x_value: 0,
-            additional_costs: vec![AdditionalCost::Mutate {
-                target: human_id,
-                on_top: true,
-            }],
+            additional_costs: vec![AdditionalCost::Mutate { target: human_id }],
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -513,10 +541,7 @@ fn test_mutate_resolution_illegal_target_fallback() {
             prototype: false,
             modes_chosen: vec![],
             x_value: 0,
-            additional_costs: vec![AdditionalCost::Mutate {
-                target: wolf_id,
-                on_top: true,
-            }],
+            additional_costs: vec![AdditionalCost::Mutate { target: wolf_id }],
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -754,10 +779,7 @@ fn test_mutate_trigger_fires() {
             prototype: false,
             modes_chosen: vec![],
             x_value: 0,
-            additional_costs: vec![AdditionalCost::Mutate {
-                target: wolf_id,
-                on_top: true,
-            }],
+            additional_costs: vec![AdditionalCost::Mutate { target: wolf_id }],
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -766,7 +788,10 @@ fn test_mutate_trigger_fires() {
     .unwrap_or_else(|e| panic!("CastSpell with mutate failed: {:?}", e));
 
     // Resolve the mutating spell (all players pass priority once).
-    let (state, events) = pass_all(state, &[p1, p2]);
+    let (state, _pre_answer_events) = pass_all(state, &[p1, p2]);
+    // CR 702.140c (PB-DX50): answer the over/under question; the replayed
+    // resolution's events are the ones the trigger assertions below read.
+    let (state, events) = answer_mutate(state, true);
 
     // CR 702.140d: CreatureMutated event should have been emitted.
     let mutated_event = events.iter().any(
@@ -877,10 +902,7 @@ fn test_mutate_under_uses_target_characteristics() {
             prototype: false,
             modes_chosen: vec![],
             x_value: 0,
-            additional_costs: vec![AdditionalCost::Mutate {
-                target: wolf_id,
-                on_top: false,
-            }],
+            additional_costs: vec![AdditionalCost::Mutate { target: wolf_id }],
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -890,6 +912,9 @@ fn test_mutate_under_uses_target_characteristics() {
 
     // Resolve.
     let (state, _) = pass_all(state, &[p1, p2]);
+    // CR 702.140c (PB-DX50): UNDER is now answered at RESOLUTION, not bound into
+    // `AdditionalCost::Mutate` at announcement.
+    let (state, _) = answer_mutate(state, false);
 
     let wolf_obj = state
         .objects()
@@ -1029,10 +1054,7 @@ fn test_mutate_gemrazer_trigger_queued_after_merge() {
             prototype: false,
             modes_chosen: vec![],
             x_value: 0,
-            additional_costs: vec![AdditionalCost::Mutate {
-                target: wolf_id,
-                on_top: true,
-            }],
+            additional_costs: vec![AdditionalCost::Mutate { target: wolf_id }],
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -1041,7 +1063,9 @@ fn test_mutate_gemrazer_trigger_queued_after_merge() {
     .unwrap_or_else(|e| panic!("CastSpell with mutate (Gemrazer) failed: {:?}", e));
 
     // Resolve: all players pass priority.
-    let (state, events) = pass_all(state, &[p1, p2]);
+    let (state, _pre_answer_events) = pass_all(state, &[p1, p2]);
+    // CR 702.140c (PB-DX50): answer the over/under question.
+    let (state, events) = answer_mutate(state, true);
 
     // CR 702.140d: CreatureMutated event should have been emitted.
     assert!(
@@ -1432,7 +1456,6 @@ fn test_mutate_onto_face_down_creature_accepted() {
             x_value: 0,
             additional_costs: vec![AdditionalCost::Mutate {
                 target: wolf_game_id, // the face-down wolf
-                on_top: true,
             }],
             face_down_kind: None,
             hybrid_choices: vec![],
@@ -1539,10 +1562,7 @@ fn test_mutate_stack_object_has_mutate_additional_cost() {
             prototype: false,
             modes_chosen: vec![],
             x_value: 0,
-            additional_costs: vec![AdditionalCost::Mutate {
-                target: wolf_id,
-                on_top: true,
-            }],
+            additional_costs: vec![AdditionalCost::Mutate { target: wolf_id }],
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],

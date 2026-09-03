@@ -285,8 +285,24 @@ pub enum AdditionalCost {
     Offspring,
     /// Choose an opponent to receive a gift (Gift — CR 702.174).
     Gift { opponent: PlayerId },
-    /// Target a non-Human creature to mutate onto (Mutate — CR 702.140).
-    Mutate { target: ObjectId, on_top: bool },
+    /// Target a non-Human creature to mutate onto (Mutate — CR 702.140a).
+    ///
+    /// **`on_top` was REMOVED by PB-DX50.** CR 702.140c makes the over/under
+    /// decision a *resolution* choice — *"As a mutating creature spell resolves,
+    /// if its target is legal … The spell's controller chooses whether the spell
+    /// is put on top of the creature or on the bottom"* — and this struct is
+    /// built at ANNOUNCEMENT, so carrying it here published the choice to the
+    /// opponent before they decided whether to respond and froze it for the
+    /// controller afterwards. It is now
+    /// `EffectChoiceQuestion::MutateOnTop`, asked on PB-DP9's CR 608.2d channel
+    /// inside the mutate resolution arm's legal-target branch.
+    ///
+    /// A pleasant consequence rather than the reason: CR 707.10's *"Choices that
+    /// are normally made on resolution are not copied"* is now satisfied **by
+    /// construction** for a copied mutate spell, because there is no field for
+    /// the copy to inherit. `rules::copy` propagates this variant (CR 707.10
+    /// sentence 2 copies targets) and the copy asks its own question.
+    Mutate { target: ObjectId },
     /// CR 118.9: The specific card exiled from hand as (part of) a pitch alternative cost
     /// (Force of Will, Force of Vigor, Force of Negation). The `card` is the ObjectId of
     /// the exiled card at the time it was exiled (dead after the zone change, kept for

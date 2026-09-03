@@ -285,10 +285,7 @@ fn test_dx25_counterspell_counters_a_mutate_spell() {
             prototype: false,
             modes_chosen: vec![],
             x_value: 0,
-            additional_costs: vec![AdditionalCost::Mutate {
-                target: wolf_id,
-                on_top: true,
-            }],
+            additional_costs: vec![AdditionalCost::Mutate { target: wolf_id }],
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],

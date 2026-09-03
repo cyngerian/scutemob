@@ -2819,9 +2819,25 @@ fn test_dp9_roster_enumeration() {
 /// `ChooseObject`, CR 115.10's untargeted-choice channel).
 ///
 /// That branch skips an obligation (offering the choice), so this test is where
-/// the obligation is discharged: **no `Complete` card def puts one of the five
-/// asking effects inside a mana ability.** If this ever reddens, the branch has
+/// the obligation is discharged: **no `Complete` card def puts one of the asking
+/// effects inside a mana ability.** If this ever reddens, the branch has
 /// become live and the card needs a rules decision, not a silent default.
+///
+/// # PB-DX50: this gate's own instruction is no longer sufficient, and that is
+/// # stated here rather than left for the next reader to trip over
+///
+/// The needle list below carries the instruction *"re-derive the list from the
+/// `ask_or_consume_effect_choice` call sites"*. **As of PB-DX50 that is a floor,
+/// not a census.** CR 702.140c's mutate over/under question is asked from
+/// `rules::resolution`'s `StackObjectKind::MutatingCreatureSpell` arm via
+/// `effects::ask_resolution_choice` — it is **not an `Effect` variant at all**, so
+/// no card-def needle can express it and re-deriving from the `Effect`-shaped call
+/// sites will silently miss it.
+///
+/// Its obligation is discharged instead by part **(c)** below: a statement of
+/// STRUCTURAL UNREACHABILITY plus a gate on that statement. A needle scanning for
+/// a variant name that does not exist would measure nothing, and a gate that
+/// cannot fail is a comment — this queue has filed that shape three times.
 ///
 /// The behavioural half is asserted directly: with the gate closed the effect
 /// applies the default and records NO entry.
@@ -2953,4 +2969,84 @@ fn test_dp9_mana_ability_gate() {
         Some("Top"),
         "the default is the identity: the looked-at card stays on top"
     );
+
+    // (c) PB-DX50's SEVENTH channel, discharged by structural unreachability
+    //     rather than by an eighth needle -- see this test's own doc for why a
+    //     card-def needle would measure nothing here.
+    //
+    // The claim: CR 702.140c's mutate over/under question CANNOT be reached from
+    // the gate-closing site. It is asked from
+    // `rules::resolution::resolve_top_of_stack_inner`'s
+    // `StackObjectKind::MutatingCreatureSpell` arm, which by definition is
+    // resolving a STACK OBJECT; the gate is closed only at `rules::mana.rs`'s
+    // `WhenTappedForMana` branch, and CR 605.1b/605.4a make a mana ability resolve
+    // OUTSIDE the stack, so it never enters `resolve_top_of_stack` at all.
+    //
+    // The gate on the claim, and it is not decoration: it fails if the resolution
+    // ask ever starts taking a `gate_closed` value from anywhere but the literal
+    // `false` this reasoning rests on, and it fails if a SECOND site ever learns to
+    // close the gate. Both are the ways the claim could stop being true.
+    {
+        let mana_src = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/rules/mana.rs"),
+        )
+        .expect("rules/mana.rs is readable");
+        let effects_src = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/effects/mod.rs"),
+        )
+        .expect("src/effects/mod.rs is readable");
+        let resolution_src = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/rules/resolution.rs"),
+        )
+        .expect("src/rules/resolution.rs is readable");
+
+        // Conjunct 1: exactly ONE site in the tree closes the gate, and it is in
+        // `rules/mana.rs`. Counted as ASSIGNMENTS (`= true`), never as mentions:
+        // the field name appears in doc comments in three files.
+        let mana_closes = mana_src.matches("effect_choice_gate_closed = true").count();
+        assert_eq!(
+            mana_closes, 1,
+            "rules/mana.rs must close the CR 605.4a gate at exactly one site; found \
+             {mana_closes}"
+        );
+        for (name, src) in [
+            ("effects/mod.rs", &effects_src),
+            ("rules/resolution.rs", &resolution_src),
+        ] {
+            assert_eq!(
+                src.matches("effect_choice_gate_closed = true").count(),
+                0,
+                "{name} must not close the CR 605.4a gate -- if a second site learns to, \
+                 PB-DX50's structural-unreachability argument for the mutate ask needs \
+                 re-deriving rather than trusting"
+            );
+        }
+
+        // Conjunct 2: the resolution-side asker passes a LITERAL `false`, so no
+        // caller can smuggle a closed gate into a stack resolution.
+        let asker = effects_src
+            .find("pub(crate) fn ask_resolution_choice")
+            .expect("PB-DX50's resolution-side asker must exist");
+        let body_end = effects_src[asker..]
+            .find("\n}\n")
+            .map(|i| asker + i)
+            .expect("the asker has a body");
+        let body = &effects_src[asker..body_end];
+        assert!(
+            body.contains(
+                "ask_or_consume_effect_choice_core(state, false, source, player, question)"
+            ),
+            "`ask_resolution_choice` must pass a LITERAL `false` for the CR 605.4a gate -- \
+             a stack resolution is never a mana ability, and taking the value from a \
+             parameter would make that a caller's promise instead of a fact. Body: {body}"
+        );
+
+        // Conjunct 3 (non-vacuity): the mutate arm really does call it, so conjuncts
+        // 1 and 2 are about a live path rather than a dead helper.
+        assert!(
+            resolution_src.contains("crate::effects::ask_resolution_choice("),
+            "the MutatingCreatureSpell arm must be a real caller of `ask_resolution_choice`, \
+             or this whole sub-gate is vacuous"
+        );
+    }
 }

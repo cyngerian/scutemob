@@ -552,9 +552,6 @@ pub fn translate_player_action(
     // as an additional cost. 0 = not paid. N = paid N times -> N token copies on ETB.
     // Ignored for all other action types.
     squad_count: u32,
-    // CR 702.140a: For `cast_spell_mutate`. True = spell goes on top of merged permanent.
-    // False = spell goes underneath the existing target. Ignored for all other action types.
-    mutate_on_top: bool,
     // CR 702.174a: For `cast_spell` with gift. The name of the opponent who receives the
     // gift benefit. `None` means the gift was not promised. Ignored for all other action types.
     gift_opponent_name: Option<&str>,
@@ -1189,6 +1186,19 @@ pub fn translate_player_action(
                 crate::state::EffectChoiceQuestion::PayOptionalCost { .. } => {
                     match spec.pay_optional_cost {
                         Some(pay) => crate::state::EffectChoiceAnswer::PayOptionalCost { pay },
+                        None => crate::effects::default_effect_choice_answer(&entry.question),
+                    }
+                }
+                // PB-DX50 (CR 702.140c): over or under. Same shape as the arm
+                // above and for the same reason — the answer space is a bool, so
+                // there is no id to look up. Omitted means ON TOP, which is
+                // `default_effect_choice_answer`'s answer and the exact value the
+                // one mutate script encoded at CAST time before this batch.
+                crate::state::EffectChoiceQuestion::MutateOnTop { .. } => {
+                    match spec.mutate_on_top {
+                        Some(on_top) => {
+                            crate::state::EffectChoiceAnswer::MutateOnTop { on_top }
+                        }
                         None => crate::effects::default_effect_choice_answer(&entry.question),
                     }
                 }
@@ -1998,8 +2008,14 @@ pub fn translate_player_action(
         }
         // CR 702.140a: Cast a creature spell using its mutate alternative cost, merging it
         // with a target non-Human creature the caster owns. `target_creature_name` names the
-        // target creature on the battlefield. `mutate_on_top` controls whether the mutating
-        // spell becomes the topmost component (true) or the bottom component (false).
+        // target creature on the battlefield.
+        //
+        // **The over/under choice is NOT made here** (PB-DX50). CR 702.140c makes it a
+        // RESOLUTION choice, so this action's `mutate_on_top` field is gone; the script
+        // answers it with an `answer_effect_choice` step carrying
+        // `effect_choice.mutate_on_top`, and a script that omits that step gets ON TOP,
+        // which is `default_effect_choice_answer`'s answer and the exact value every
+        // pre-PB-DX50 script encoded here.
         // On legal merge the spell does not enter the battlefield separately (CR 729.2b).
         "cast_spell_mutate" => {
             let card_id = find_in_hand(state, player, card_name?)?;
@@ -2019,10 +2035,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 x_value: 0,
                 face_down_kind: None,
-                additional_costs: vec![AdditionalCost::Mutate {
-                    target: target_id,
-                    on_top: mutate_on_top,
-                }],
+                additional_costs: vec![AdditionalCost::Mutate { target: target_id }],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
             })))

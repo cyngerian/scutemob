@@ -7484,14 +7484,47 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
             target,
         } => {
             let controller = stack_obj.controller;
-            let mutate_on_top = stack_obj
-                .additional_costs
-                .iter()
-                .find_map(|c| match c {
-                    AdditionalCost::Mutate { on_top, .. } => Some(*on_top),
-                    _ => None,
-                })
-                .unwrap_or(false);
+            // CR 707.10 (PB-DX50 half 3, `OOS-DX50-2`): **a resolving COPY of a mutating
+            // creature spell must not touch the original's card.**
+            //
+            // `copy::copy_spell_on_stack` clones `original.kind` wholesale, so a copy is a
+            // `MutatingCreatureSpell { source_object, .. }` naming the **original's**
+            // `ObjectId`. This arm consulted `is_copy` NOWHERE, so both of its branches
+            // acted on that card: the CR 702.140b fallback called `move_object_to_zone` on
+            // it (putting someone else's spell onto the battlefield and leaving the
+            // original to resolve against a dead id, CR 400.7), and the merge branch built
+            // a `MergedComponent` from it and merged it into the target.
+            //
+            // The `StackObjectKind::Spell` arm above guards exactly this, at `:819`, under
+            // a comment saying *"The source_object belongs to the original spell and must
+            // not be moved by a copy's resolution"* -- and `:8488`'s counter path guards it
+            // a second time for the same stated reason. **This was the third such site and
+            // it was missed.**
+            //
+            // # This is not a third wrong answer; it is the SAME known deviation, applied
+            //
+            // The objection to fixing it in isolation is that a bare `is_copy` guard
+            // encodes *"a copy of a mutate spell does nothing"*, which CR 707.10f
+            // (*"as that copy resolves, it ceases being a copy of a spell and becomes a
+            // token permanent"*) contradicts. True -- and `:819` **already** encodes "a
+            // copy of a permanent spell does nothing" for every other permanent spell in
+            // this game, because CR 707.10f / CR 608.3f are unimplemented engine-wide
+            // (`grep -rn "608.3f\|707.10f" crates/engine/src crates/card-types` returns
+            // nothing; filed as `OOS-DX50-3`). Making this arm agree with `:819` is
+            // consistency, not a new answer, and PB-DX24's trade decides the rest:
+            // **a no-op is auditable; silently consuming another object's card is not.**
+            //
+            // Latent today -- no def in this corpus can copy a creature spell -- so no
+            // behavioural test can redden. Pinned structurally by
+            // `core::pb_dx50_copy_additional_cost_roster::r4`.
+            if stack_obj.is_copy {
+                events.push(GameEvent::SpellResolved {
+                    player: controller,
+                    stack_object_id: stack_obj.id,
+                    source_object_id: source_object,
+                });
+                return Ok(events);
+            }
             // CR 702.140b / CR 608.2b (PB-DX50, `OOS-DX25-1`): is the mutate host still a
             // legal target? The four hand-rolled conjuncts that used to sit here
             // (battlefield / creature / non-Human / owner) are DELETED; this is now the
@@ -7609,6 +7642,65 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                     source_object_id: new_id,
                 });
             } else {
+                // CR 702.140c (PB-DX50, `OOS-DX29-2`): *"As a mutating creature spell
+                // resolves, if its target is legal … **The spell's controller chooses
+                // whether the spell is put on top of the creature or on the bottom.**"*
+                //
+                // **Three properties of WHERE this sits, each load-bearing.**
+                //
+                //  * It is inside the LEGAL-TARGET branch, because CR 702.140c's own
+                //    antecedent is "if its target is legal". A spell taking CR 702.140b's
+                //    fallback merges with nothing, so there is no over/under to choose and
+                //    asking would offer a decision with no consequence.
+                //  * It is BEFORE any state mutation in this branch. `ask_resolution_choice`
+                //    returning `None` means `resolve_top_of_stack`'s wrapper is about to
+                //    roll the whole resolution back and emit the question, so anything
+                //    written first would be written twice on the replay -- and every other
+                //    CR 608.2d site in this engine obeys the same discipline.
+                //  * It reads `controller`, not the active player: CR 702.140c gives the
+                //    choice to **the spell's controller** (CR 109.4).
+                //
+                // **Determinism (PB-DP9's standing obligation, audited rather than
+                // asserted).** The replay re-runs this WHOLE arm from the top, so every
+                // statement before this ask must be a deterministic function of the state.
+                // Enumerated: `controller` is a field read; `target_still_legal` is
+                // `is_target_legal` (a zone comparison) conjoined with
+                // `validate_targets_inner` over a `Vec` of one target and a `Vec` of one
+                // requirement built by `mutate_target_requirement()`, a constructor with no
+                // inputs. `calculate_characteristics` is the layer walk, which is
+                // deterministic by SR-9b. **No `HashMap`/`HashSet` iteration reaches an
+                // outcome on this path** -- the only container walked is
+                // `stack_obj.targets`, a `Vec`, by `.find`. So the replay recomputes the
+                // identical question and `ask_or_consume_effect_choice_core`'s structural
+                // question-equality check consumes the banked answer rather than tripping
+                // its SR-4 `debug_assert`.
+                //
+                // **Obligation (7) (`rules/engine.rs`, PB-DP9): a new blocking KIND must
+                // state whether its pending state belongs in `rules/loop_detection.rs`'s
+                // mandatory-state fingerprint.** This is **not** a new blocking kind. It
+                // reuses `PendingEffectChoice`/`BlockingDecision::EffectChoice`
+                // wholesale -- no new `GameState` field, no new `BlockingDecision` variant
+                // -- so whatever that fingerprint does with a pending effect choice today,
+                // it does with this one, unchanged. Stated explicitly rather than skipped
+                // in silence, because "no new field" is the answer and not the absence of
+                // one.
+                let mutate_on_top = match crate::effects::ask_resolution_choice(
+                    state,
+                    source_object,
+                    controller,
+                    crate::state::EffectChoiceQuestion::MutateOnTop { host: target },
+                ) {
+                    Some(crate::state::EffectChoiceAnswer::MutateOnTop { on_top }) => on_top,
+                    // The question suspended: return applying NOTHING, exactly like every
+                    // other CR 608.2d ask in this engine. The wrapper restores the state to
+                    // the moment before this resolution began.
+                    None => return Ok(events),
+                    // Unreachable: `handle_answer_effect_choice` refuses a mismatched pair
+                    // (check 4) before it is ever banked, and `default_effect_choice_answer`
+                    // pairs the variants. Recovering with the default rather than panicking
+                    // keeps a release build on the pre-batch behaviour if it ever happens.
+                    Some(_) => true,
+                };
                 // CR 729.2: Legal target — merge the spell with the target permanent.
                 // The spell does NOT enter the battlefield separately.
                 // Step 1: Capture the spell's data from the source object BEFORE removing it.

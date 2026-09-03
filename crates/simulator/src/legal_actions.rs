@@ -397,36 +397,22 @@ pub enum LegalAction {
         /// The card with Mutate in the player's hand.
         card: ObjectId,
         /// A non-Human creature the caster owns on the battlefield.
+        ///
+        /// # There is no over/under field, and that is PB-DX50
+        ///
+        /// PB-DX29 carried an `on_top: bool` here and this provider emitted one
+        /// action per `(target, on_top)` pair, which was strictly better than the
+        /// `params.rs`-hard-coded `true` it replaced — no client in the tree could
+        /// mutate under before it. Its own doc stated the residual honestly:
+        /// *"CR 702.140c makes this a decision taken as the spell resolves, and the
+        /// engine captures it at ANNOUNCEMENT … The timing itself is `OOS-DX29-2`."*
+        ///
+        /// That seed is this batch. The choice now suspends at resolution as
+        /// `EffectChoiceQuestion::MutateOnTop` on PB-DP9's CR 608.2d channel, so the
+        /// mutate offer is **one action per target** again and the offer count
+        /// HALVES. That is not a lost capability — it is the capability arriving at
+        /// the moment CR 702.140c puts it, after the opponent has had priority.
         mutate_target: ObjectId,
-        /// CR 702.140a — **the caster's choice**: does the mutating card go on TOP of
-        /// the target creature, or under it?
-        ///
-        /// It is not decoration. CR 702.140e makes the **topmost** card supply the
-        /// merged permanent's non-ability characteristics — name, mana cost, colours,
-        /// types and power/toughness — so "on top" and "under" produce genuinely
-        /// different permanents from the same two cards.
-        ///
-        /// # Why this lives in the ACTION rather than in `ActionParams`
-        ///
-        /// PB-DX29. `params.rs` hard-coded `on_top: true` and `CastWithMutate` carried
-        /// no channel for it, so **no client in the tree could ever mutate under**.
-        /// Carrying it here means the provider emits one action per
-        /// `(target, on_top)` pair, exactly as it already emits one per target — the
-        /// `PayEcho` / `ChooseDredge` / `ActivateBloodrush` idiom this codebase has
-        /// already ruled correct for a choice that is fully determined at offer time
-        /// (PB-DX23 §3). It needs no new params field, no new wire shape, and no
-        /// picker: the choice IS the button.
-        ///
-        /// # The CR deviation this does NOT fix, stated rather than implied
-        ///
-        /// CR 702.140c makes this a decision taken **as the spell resolves**, and the
-        /// engine captures it at ANNOUNCEMENT (`casting.rs` binds it into the
-        /// `AdditionalCost` and `resolution.rs` reads it back off the stack object).
-        /// Offering the choice here does not move that timing — it makes a choice the
-        /// engine already asks at the wrong moment *answerable* instead of hard-coded.
-        /// The timing itself is `OOS-DX29-2` and needs a resolution-time
-        /// `EffectChoiceQuestion` on PB-DX28's suspend-and-replay channel.
-        on_top: bool,
     },
     /// CR 702.37e / CR 702.168b / CR 701.40b / CR 701.58b: Turn a face-down permanent
     /// face up. This is a special action (no stack, no priority needed beyond having it).
@@ -646,7 +632,9 @@ pub trait LegalActionProvider: Send + Sync {
 /// - Mutate: `LegalAction::CastWithMutate` emitted when a card in hand has
 ///   `KeywordAbility::Mutate` (and `AbilityDefinition::MutateCost`) and the player
 ///   owns a non-Human creature on the battlefield. Mutate is an alternative cost —
-///   random_bot casts with `alt_cost: Some(AltCostKind::Mutate)` and `mutate_on_top: true`.
+///   random_bot casts with `alt_cost: Some(AltCostKind::Mutate)`; the over/under choice
+///   is no longer part of the cast at all (PB-DX50, CR 702.140c) — it is answered at
+///   resolution through `EffectChoiceQuestion::MutateOnTop`.
 /// - Enrage/Alliance (B12), Collect Evidence (B13), Blood tokens/Reconfigure (B14):
 ///   all passive or handled via existing `ActivateAbility`/`CastSpell` paths — no new
 ///   `LegalAction` variants needed.
@@ -1719,29 +1707,22 @@ impl LegalActionProvider for StubProvider {
                         continue;
                     }
 
-                    // CR 702.140a (PB-DX29): one action per valid mutate target × the
-                    // caster's on-top/under choice, target-major.
+                    // CR 702.140a (PB-DX50): **one action per valid mutate target**,
+                    // and no longer one per `(target, on_top)` pair.
                     //
-                    // `on_top: true` is emitted FIRST of each pair, so the pre-PB-DX29
-                    // behaviour — which hard-coded `true` — is the lower index of the
-                    // pair. **That is weaker than it first reads, and the `/review`
-                    // (L5) caught the overclaim**: because the loop is target-MAJOR,
-                    // index stability against the pre-batch offer holds for the FIRST
-                    // target only; with two or more legal hosts every later target's
-                    // index shifts by one per preceding target. Nothing in the tree
-                    // broke (the full suite is green and no seeded fixture reaches a
-                    // mutate cast), and an index-choosing bot picking a *different*
-                    // legal mutate is a strategy difference rather than an illegality —
-                    // but the guarantee is "the first pair is stable", not "every bot
-                    // reproduces its old command".
+                    // PB-DX29's pair loop is deleted with its field: CR 702.140c makes
+                    // over/under a choice made "as [the spell] resolves", so offering it
+                    // here offered it at the wrong moment — before the opponent had
+                    // priority, and unchangeable afterwards. The mutate offer count
+                    // therefore HALVES, which is the movement this batch budgeted for in
+                    // writing. Index stability against the pre-PB-DX50 offer is NOT
+                    // claimed and no seeded fixture in the tree reaches a mutate cast
+                    // (measured, not assumed).
                     for &target in &non_human_own {
-                        for on_top in [true, false] {
-                            actions.push(LegalAction::CastWithMutate {
-                                card: obj.id,
-                                mutate_target: target,
-                                on_top,
-                            });
-                        }
+                        actions.push(LegalAction::CastWithMutate {
+                            card: obj.id,
+                            mutate_target: target,
+                        });
                     }
                 }
             }

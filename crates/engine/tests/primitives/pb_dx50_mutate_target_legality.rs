@@ -245,10 +245,7 @@ fn mutate_cast(player: PlayerId, card: ObjectId, host: ObjectId, targets: Vec<Ta
         prototype: false,
         modes_chosen: vec![],
         x_value: 0,
-        additional_costs: vec![AdditionalCost::Mutate {
-            target: host,
-            on_top: true,
-        }],
+        additional_costs: vec![AdditionalCost::Mutate { target: host }],
         face_down_kind: None,
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
@@ -667,7 +664,30 @@ fn test_dx50_t7d_an_undisturbed_mutate_still_merges() {
 
     let (state, _) = process_command(state, mutate_cast(p1, beast_id, host_id, vec![]))
         .expect("CR 702.140a: a legal mutate cast must succeed");
-    let (state, events) = pass_all(state, &[p1, p2]);
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // CR 702.140c (PB-DX50, half 2): the LEGAL-target branch suspends to ask the
+    // controller over-or-under. The `t7*` fallback probes above reach the CR 702.140b
+    // branch, which asks nothing -- so this non-vacuity partner is also the pin that the
+    // ask fires on exactly the branch CR 702.140c names and not on the other one.
+    let pending = state
+        .pending_effect_choice()
+        .cloned()
+        .expect("CR 702.140c: a legal-target mutate resolution asks over-or-under");
+    assert_eq!(
+        pending.question,
+        mtg_engine::EffectChoiceQuestion::MutateOnTop { host: host_id },
+        "the question names the host"
+    );
+    let (state, events) = process_command(
+        state,
+        Command::AnswerEffectChoice {
+            player: p1,
+            choice_id: pending.choice_id,
+            answer: mtg_engine::EffectChoiceAnswer::MutateOnTop { on_top: true },
+        },
+    )
+    .expect("both answers are legal (CR 702.140c)");
 
     assert!(
         !events

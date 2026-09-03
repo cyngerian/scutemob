@@ -745,6 +745,38 @@ pub enum AnswerShapeView {
         /// answer the old engine could not produce.
         default: bool,
     },
+    /// PB-DX50: CR 702.140c — a two-way choice that is **not** a cost.
+    ///
+    /// **Deliberately NOT [`Self::Confirm`], and the reason is the label rather
+    /// than the payload.** The two shapes carry the same information (a
+    /// template, a boolean key and a default) and `ConfirmPicker` renders them
+    /// as "Pay {cost}" / "Decline". CR 702.140c's question is *over or under*:
+    /// nothing is paid, nothing is declined, and neither answer is the passive
+    /// one. Reusing `Confirm` would put a truthful payload behind a false
+    /// label — which is the defect class this queue keeps filing — so the two
+    /// answers name themselves and the picker renders exactly what it is told.
+    ///
+    /// A client renders two buttons and answers by cloning `template` and
+    /// setting the key named by `choice_key` — the same
+    /// never-respell-the-variant discipline as [`Self::Partition::template`].
+    BinaryChoice {
+        /// The button that submits `true`.
+        true_label: String,
+        /// The button that submits `false`.
+        false_label: String,
+        /// See [`Self::Partition::template`] — serialized verbatim, cloned by the
+        /// client, never re-spelled.
+        template: EffectChoiceAnswer,
+        /// The key inside `template`'s single variant object that the boolean
+        /// goes in (`"on_top"`).
+        choice_key: String,
+        /// The engine's own default answer — `true` for CR 702.140c, the exact
+        /// recovery of the pre-PB-DX50 hard-coded value. Sent so "accept the
+        /// default" is one click and so a test can assert the human drove the
+        /// OTHER one, which is the answer the old engine could not produce at
+        /// resolution time.
+        default: bool,
+    },
 }
 
 /// One card in a blocking decision's answer space, with a seat-redacted label.
@@ -1543,20 +1575,17 @@ fn action_label(action: &LegalAction, names: &NameIndex, state: &GameState) -> S
             format!("Bloodrush {} onto {}", card(*c), card(*target))
         }
         LegalAction::SaddleMount { mount, .. } => format!("Saddle {}", card(*mount)),
-        // CR 702.140a/e (PB-DX29): the two halves of the pair must be
-        // DISTINGUISHABLE in the list, or the human is offered the same button twice
-        // and the choice is invisible. "Over"/"under" rather than the field name,
-        // because that is how the printed card and every player says it.
+        // CR 702.140a (PB-DX50): **no over/under in the label**, because there is no
+        // over/under in the action any more. PB-DX29 rendered "Mutate X over/under Y"
+        // to distinguish the two halves of its `(target, on_top)` pair; CR 702.140c
+        // makes that a RESOLUTION choice, so a human now picks one action per host and
+        // is asked over-or-under when the spell resolves
+        // (`AnswerShapeView::BinaryChoice`). Keeping the word here would name a choice
+        // this button no longer makes.
         LegalAction::CastWithMutate {
             card: c,
             mutate_target,
-            on_top,
-        } => format!(
-            "Mutate {} {} {}",
-            card(*c),
-            if *on_top { "over" } else { "under" },
-            card(*mutate_target)
-        ),
+        } => format!("Mutate {} onto {}", card(*c), card(*mutate_target)),
         LegalAction::TurnFaceUp { permanent, .. } => format!("Turn {} face up", card(*permanent)),
         // CR 606.4 / CR 107.3m (PB-DX29 `/review` L9): name the loyalty COST, not the
         // slot index. Chandra has three loyalty abilities and the old label rendered
@@ -2990,6 +3019,37 @@ fn blocking_decision_view(
                         },
                     },
                 ),
+                // PB-DX50 (CR 702.140c): over or under. Like `PayOptionalCost`
+                // there is no candidate list, but unlike it there is also no
+                // cost -- so this is `BinaryChoice`, not `Confirm`, and the two
+                // labels say what the two answers actually are. `host` IS in
+                // `NameIndex`: it is a battlefield permanent (CR 400.1, public)
+                // and it is this spell's announced target, so no new
+                // `GameState` read is involved (see `test_ui6_view_rs_reads_
+                // game_state_in_exactly_the_three_known_places`).
+                EffectChoiceQuestion::MutateOnTop { host } => {
+                    let host_label = names.label(*host);
+                    (
+                        "MutateOnTop",
+                        format!(
+                            "{src}: put this on top of {host_label}, or under it?                              The topmost card supplies the merged permanent's name,                              mana cost, colours, types and power/toughness                              (CR 702.140c / CR 702.140e)."
+                        ),
+                        AnswerShapeView::BinaryChoice {
+                            true_label: format!("On top of {host_label}"),
+                            false_label: format!("Under {host_label}"),
+                            template: answer.clone(),
+                            choice_key: "on_top".to_string(),
+                            default: match answer {
+                                EffectChoiceAnswer::MutateOnTop { on_top } => *on_top,
+                                // Unreachable against the engine, which always
+                                // pairs the variants; `true` mirrors
+                                // `default_effect_choice_answer` rather than
+                                // inventing a third behaviour.
+                                _ => true,
+                            },
+                        },
+                    )
+                }
             };
             Some(BlockingDecisionView {
                 question: question_tag.to_string(),

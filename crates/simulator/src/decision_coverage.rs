@@ -294,6 +294,16 @@ pub fn row_id_for(state: &GameState, decision: &BlockingDecision) -> Option<&'st
                     // correct: the row is named for the DECISION (CR 118.12's
                     // optional cost), not for the `Effect` variant that offers it.
                     EffectChoiceQuestion::PayOptionalCost { .. } => Some("may_pay_then_effect"),
+                    // PB-DX50: CR 702.140c's over/under choice has no row in
+                    // `decision_site_walk.rs::ROWS` -- that table's 22 rows are
+                    // sourced from `docs/audits/decision-point-audit.md` §3.1,
+                    // which never enumerated the mutate arm at all (it is a
+                    // `StackObjectKind` resolution arm, not an `Effect` site, so
+                    // the audit's own walk could not see it). Recorded explicitly
+                    // as "no row" here, mirroring `ChooseObject` above, rather
+                    // than forcing a 23rd row into a table this batch does not
+                    // own. That the audit missed it is filed, not smuggled in.
+                    EffectChoiceQuestion::MutateOnTop { .. } => None,
                 }
             })
         }

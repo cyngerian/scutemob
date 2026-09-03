@@ -652,6 +652,12 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
                 // it names no hidden information -- it names no ids at all -- and
                 // the formatter stays uniform, printing the class label only.
                 mtg_engine::EffectChoiceQuestion::PayOptionalCost { .. } => "optional cost",
+                // PB-DX50 (CR 702.140c): the mutate over/under offer. It names
+                // exactly one id (`host`), and that id is a BATTLEFIELD permanent
+                // (CR 400.1, public) which is already this spell's announced
+                // target -- but the formatter stays uniform and prints the class
+                // label only, for the same reason the two arms above do.
+                mtg_engine::EffectChoiceQuestion::MutateOnTop { .. } => "mutate over/under",
             };
             format!("P{} must answer a {kind} (CR 608.2d) — press 'r'", player.0)
         }

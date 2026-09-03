@@ -469,6 +469,36 @@ pub fn default_effect_choice_answer(q: &EffectChoiceQuestion) -> EffectChoiceAns
         EffectChoiceQuestion::PayOptionalCost { .. } => {
             EffectChoiceAnswer::PayOptionalCost { pay: true }
         }
+        // PB-DX50: CR 702.140c -- `true` is the exact recovery of the pre-batch
+        // hard-coded value, and that is LOAD-BEARING rather than a taste call.
+        //
+        // Before this batch `on_top` was captured at announcement and defaulted
+        // to `true` at every channel that produced one: `params.rs` built
+        // `AdditionalCost::Mutate { on_top: <the action's own value> }` from a
+        // `CastWithMutate` whose `on_top: true` member `legal_actions.rs` emitted
+        // FIRST of each pair, `random_bot` cast with `mutate_on_top: true`, and
+        // the one golden script that casts mutate wrote `mutate_on_top: true`.
+        // A bot submitting this answer verbatim therefore plays the identical
+        // game the pre-PB-DX50 engine played -- the same permanent ends up on
+        // top, the same characteristics apply under CR 702.140e -- and only the
+        // COMMAND TRACE grows an `AnswerEffectChoice`. That is ENG-1's and
+        // PB-DX45's property restated, and it is what keeps every bot game,
+        // every recorded fuzz seed and `combat/192_mutate_gemrazer.json`
+        // behaviourally identical across this batch.
+        //
+        // `replay_harness.rs`'s `answer_effect_choice` auto-answer path consumes
+        // exactly this, so a script that does not spell the choice out gets the
+        // pre-batch behaviour by construction.
+        //
+        // It is deliberately NOT `false`. The pre-batch COPY path did read
+        // `unwrap_or(false)` (`resolution.rs`, before this batch) -- but a copy
+        // is not what this default is recovering, and defaulting to `false`
+        // would be a behavioural change to every ordinary mutate cast in the
+        // tree in order to preserve one unreachable path (no corpus def can copy
+        // a creature spell; see `pb-DX50-additional-cost-copy-audit.md`).
+        EffectChoiceQuestion::MutateOnTop { .. } => {
+            EffectChoiceAnswer::MutateOnTop { on_top: true }
+        }
     }
 }
 /// CR 701.23b vs CR 701.23d (PB-DP9): does this search filter state a **quality**
@@ -556,37 +586,88 @@ fn ask_or_consume_effect_choice(
     player: PlayerId,
     question: EffectChoiceQuestion,
 ) -> Option<EffectChoiceAnswer> {
+    // The only two things this decision reads off an `EffectContext`. Split out
+    // by PB-DX50 so `rules::resolution`'s `MutatingCreatureSpell` arm -- which has
+    // no `EffectContext` and is not an `Effect` at all -- can ask CR 702.140c's
+    // question on the SAME channel rather than growing a second implementation of
+    // the ask/bank/suspend protocol.
+    ask_or_consume_effect_choice_core(
+        state,
+        ctx.effect_choice_gate_closed,
+        ctx.source,
+        player,
+        question,
+    )
+}
+/// CR 608.2d (PB-DX50): ask a resolution-time question from a site that is **not**
+/// an `Effect` and therefore has no [`EffectContext`].
+///
+/// `gate_closed` is passed as `false`, and that is a structural fact rather than a
+/// convenient default: `EffectContext::effect_choice_gate_closed` is set at
+/// **exactly one site in the tree**, `rules::mana`'s `WhenTappedForMana`
+/// triggered-mana-ability branch, which calls `execute_effect` directly. A mana
+/// ability resolves **outside the stack** (CR 605.1b / CR 605.4a), so it can never
+/// be reached from `resolve_top_of_stack_inner`, which by definition is resolving a
+/// stack object. There is no code path from that branch to this function.
+///
+/// Callers must be **inside a `resolve_top_of_stack` resolution**, because the
+/// abort-and-replay protocol depends on that wrapper: on `None` the whole
+/// resolution is rolled back to the moment before it began and the question is
+/// emitted. Asking from anywhere else records an entry nothing will ever replay.
+pub(crate) fn ask_resolution_choice(
+    state: &mut GameState,
+    source: ObjectId,
+    player: PlayerId,
+    question: EffectChoiceQuestion,
+) -> Option<EffectChoiceAnswer> {
+    ask_or_consume_effect_choice_core(state, false, source, player, question)
+}
+/// The body of [`ask_or_consume_effect_choice`], parameterised by the two values
+/// it actually reads off an [`EffectContext`]. See both thin callers above.
+fn ask_or_consume_effect_choice_core(
+    state: &mut GameState,
+    effect_choice_gate_closed: bool,
+    ctx_source: ObjectId,
+    player: PlayerId,
+    question: EffectChoiceQuestion,
+) -> Option<EffectChoiceAnswer> {
     // CR 605.1b / 605.4a: a mana ability resolves outside the stack. There is no
     // stack object to roll back to, so the choice cannot be offered; the default
     // applies. See `EffectContext::effect_choice_gate_closed`.
-    if ctx.effect_choice_gate_closed {
+    if effect_choice_gate_closed {
         // Not an assertion, deliberately. CR 605.4a leaves no room for an
         // announcement here -- a mana ability resolves immediately and outside
         // the stack -- so applying the default IS the defined behaviour, not a
         // swallowed failure (SR-4). The obligation this branch skips (offering
         // the choice) is discharged instead by
         // `tests/primitives/pb_dp9_effect_choice.rs::test_dp9_mana_ability_gate`,
-        // which asserts no `Complete` card def puts one of the SIX asking
-        // channels inside a mana ability: `Effect::SearchLibrary`, `Scry`,
-        // `Surveil`, `DiscardCards`, -- since PB-DX28 -- the CR 115.10
-        // untargeted choice, keyed on `EffectTarget::ChosenObject` because its
-        // carriers (`MoveZone`/`AddCounter`/`UntapPermanent`) are far too
-        // generic to serve as needles, and -- since PB-DX45 -- CR 118.12's
-        // optional cost, which needs TWO needles because it is asked at two
-        // sites (`Effect::MayPayThenEffect`, and `Effect::LookAtTopThenPlace`
-        // qualified by its `place_cost` field).
+        // which asserts no `Complete` card def puts an asking channel inside a
+        // mana ability.
         //
-        // **This sentence has now been wrong twice, in the same way.** It said
-        // "the four asking effects" for the whole of PB-DX28's implement phase
-        // while the gate already checked five (caught by that batch's `/review`,
-        // an instance of `OOS-DX28-6`); it then said FIVE for the whole of
-        // PB-DX45's implement phase while the gate checked five and the engine
-        // asked six -- so this time the COMMENT was right about the gate and both
-        // were wrong about the engine. Caught by PB-DX45's `/review`, which
-        // proved it by planting a `MayPayThenEffect` inside a mana ability and
-        // watching the gate stay green. Whoever adds a seventh channel: re-derive
-        // the list from the `ask_or_consume_effect_choice` call sites, do not
-        // append to it from this comment.
+        // **The channel list is deliberately NOT restated here.** Read that
+        // gate's own `NEEDLES` array; it is the single source. This sentence
+        // enumerated the channels for three batches and was wrong in TWO of
+        // them: it said "the four asking effects" through PB-DX28's implement
+        // phase while the gate already checked five (`OOS-DX28-6`), then said
+        // FIVE through PB-DX45's while the engine asked six -- proved by
+        // planting a `MayPayThenEffect` inside a mana ability and watching the
+        // gate stay green. PB-DX50 then found the byte-identical sentence in
+        // `rules/mana.rs` still saying FOUR, i.e. **PB-DX45's correction was
+        // applied where the claim was noticed rather than where it lived, so it
+        // did not generalise.** Restating a list in a comment is what makes that
+        // failure mode available; pointing at the list removes it.
+        //
+        // **A seventh channel exists as of PB-DX50 and is NOT card-def
+        // reachable**, which is why the gate's own instruction ("re-derive the
+        // list from the `ask_or_consume_effect_choice` call sites") stops being
+        // sufficient: CR 702.140c's mutate over/under question is asked from
+        // `rules::resolution`'s `MutatingCreatureSpell` arm through
+        // `ask_resolution_choice`, not from any `Effect` variant, so no card-def
+        // needle can express it. Its discharge is a statement of structural
+        // unreachability plus a gate on that statement
+        // (`test_dx50_mutate_ask_is_structurally_unreachable_from_a_mana_ability`),
+        // because a needle scanning for a variant name that does not exist would
+        // measure nothing, and a gate that cannot fail is a comment.
         //
         // If that assertion ever reddens, this branch has become live
         // and the card in question needs a rules decision, not a silent
@@ -647,7 +728,7 @@ fn ask_or_consume_effect_choice(
     state.pending_effect_choice = Some(PendingEffectChoice {
         choice_id: 0,
         player,
-        source: ctx.source,
+        source: ctx_source,
         question,
         index: 0,
     });
@@ -909,37 +990,44 @@ pub fn handle_answer_effect_choice(
             choice_id, entry.choice_id
         )));
     }
-    // 4. Variant agreement: a `Scry` answer to a `Surveil` question is not
-    //    merely wrong, it is a different rule.
-    let variants_agree = matches!(
-        (&entry.question, &answer),
-        (
-            EffectChoiceQuestion::SearchLibrary { .. },
-            EffectChoiceAnswer::SearchLibrary { .. }
-        ) | (
-            EffectChoiceQuestion::Scry { .. },
-            EffectChoiceAnswer::Scry { .. }
-        ) | (
-            EffectChoiceQuestion::Surveil { .. },
-            EffectChoiceAnswer::Surveil { .. }
-        ) | (
-            EffectChoiceQuestion::Discard { .. },
-            EffectChoiceAnswer::Discard { .. }
-        ) | (
-            EffectChoiceQuestion::ChooseObject { .. },
-            EffectChoiceAnswer::ChooseObject { .. }
-        ) | (
-            EffectChoiceQuestion::PayOptionalCost { .. },
-            EffectChoiceAnswer::PayOptionalCost { .. }
-        )
-    );
-    if !variants_agree {
-        return Err(GameStateError::InvalidCommand(format!(
-            "CR 608.2d: answer {:?} does not answer question {:?}",
-            answer, entry.question
-        )));
-    }
-    // 5. Per-variant legality, against the recorded question only.
+    // 4 + 5, in ONE exhaustive match: variant agreement AND per-variant legality.
+    //
+    // # Why these were merged (PB-DX50 §8) — a structural fix, not an appended arm
+    //
+    // They used to be two constructs ~30 lines apart, and **both were traps that a new
+    // `EffectChoiceQuestion` variant does not trip at compile time**:
+    //
+    //  1. Agreement was a `matches!` over a hardcoded list of `(question, answer)`
+    //     pairs. An unlisted pair simply returns `false`, so **every legal answer to a
+    //     new question was REJECTED** with "answer … does not answer question …" — a
+    //     clean offer followed by a guaranteed refusal, the SR-38 shape from the engine
+    //     side. Measured, not argued: PB-DX50 added the seventh variant, left this
+    //     construct untouched, and `cargo check --workspace --all-targets` was GREEN
+    //     across **eight** genuinely compile-forced sites, while
+    //     `primitives::pb_dx50_mutate_on_top_timing::t_trap_a` failed at runtime with
+    //     exactly that message.
+    //  2. The legality match below ended in `_ => unreachable!("variant agreement
+    //     checked above")`. So a batch that fixed (1) and missed (2) would have turned
+    //     the rejection into a **panic in release**.
+    //
+    // Matching the PAIR exhaustively, with no wildcard, makes an eighth variant a
+    // **compile error here** until someone decides what a client may send for it. The
+    // explicit `(q, a)` mismatch arms are the genuine wrong-question case, which is what
+    // that message was always meant to describe.
+    //
+    // **This is `rules::engine.rs`'s obligation (8), which PB-DX45 WROTE and did not
+    // fully APPLY** — it named `api::validate_decision_params` alone, and these two sites
+    // are in the file PB-DX45 was editing, two functions away. That obligation now names
+    // the mechanism instead of one function.
+    //
+    // Rust's exhaustiveness checker cannot demand that every mismatch pair be spelled
+    // out (there are N² of them), so the mismatch side is one `_` arm at the END of the
+    // pair match. That is safe in a way the old wildcard was not: the MATCHING pairs are
+    // all listed above it, so an unlisted new variant cannot silently fall through to
+    // "these two do not match" — it fails to compile at the `EffectChoiceQuestion` level
+    // first, because every arm below binds a specific question variant and together they
+    // must cover the enum. Proven by execution: deleting any one matching arm is a
+    // non-exhaustive-patterns error, not a silent rejection.
     match (&entry.question, &answer) {
         (
             EffectChoiceQuestion::SearchLibrary {
@@ -1064,8 +1152,23 @@ pub fn handle_answer_effect_choice(
             EffectChoiceQuestion::PayOptionalCost { .. },
             EffectChoiceAnswer::PayOptionalCost { .. },
         ) => {}
-        // Unreachable: check 4 established variant agreement.
-        _ => unreachable!("variant agreement checked above"),
+        // PB-DX50: CR 702.140c -- both answers are legal, always, for the same reason
+        // as the arm above: the answer space is `{on top, under}` and the engine only
+        // asks once the target is legal (CR 702.140c's own antecedent). Nothing to
+        // check beyond the variant, which the pair match has already checked.
+        (EffectChoiceQuestion::MutateOnTop { .. }, EffectChoiceAnswer::MutateOnTop { .. }) => {}
+        // The GENUINE wrong-question case, and the only thing this arm has ever been
+        // meant to describe. It is reachable, unlike the `unreachable!()` it replaced:
+        // a `Scry` answer to a `Surveil` question is not merely wrong, it is a
+        // different rule. **It is NOT a fallback for an unknown question** -- see the
+        // header: an unlisted question variant is a compile error above, because the
+        // matching arms must cover `EffectChoiceQuestion` exhaustively.
+        _ => {
+            return Err(GameStateError::InvalidCommand(format!(
+                "CR 608.2d: answer {:?} does not answer question {:?}",
+                answer, entry.question
+            )));
+        }
     }
     // 6. The bank must not grow without bound (see the constant's doc).
     if state.effect_choice_answers.len() >= MAX_EFFECT_CHOICES_PER_RESOLUTION {

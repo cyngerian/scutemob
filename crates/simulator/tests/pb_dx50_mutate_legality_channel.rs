@@ -201,9 +201,11 @@ fn c2_the_same_host_without_shroud_is_offered() {
     let offers = mutate_offers(&state);
     assert_eq!(
         offers.len(),
-        2,
-        "PB-DX29: the offer layer emits one action per (host, on_top) pair, so one legal \
-         host yields exactly two actions. Offers: {offers:#?}"
+        1,
+        "PB-DX50: the offer layer emits ONE action per legal host. It emitted two before \
+         (one per `(host, on_top)` pair) until CR 702.140c moved the over/under choice to \
+         resolution time -- that halving is the movement this batch budgeted in writing. \
+         Offers: {offers:#?}"
     );
     for o in &offers {
         match o {
@@ -229,7 +231,11 @@ fn c3_every_offered_mutate_is_accepted_and_announces_its_host() {
     let state = board(None, p(1));
     let host_id = find_object(&state, HOST);
     let offers = mutate_offers(&state);
-    assert_eq!(offers.len(), 2, "precondition: two offers to drive");
+    assert_eq!(
+        offers.len(),
+        1,
+        "precondition: one offer to drive (PB-DX50 halved the mutate offer count)"
+    );
 
     for offer in &offers {
         let command = action_to_command_with_params(&state, p(1), offer, &ActionParams::default())
@@ -306,9 +312,10 @@ fn c4b_an_opponent_controlled_but_caster_owned_host_is_still_offered() {
     let offers = mutate_offers(&state);
     assert_eq!(
         offers.len(),
-        2,
+        1,
         "CR 702.140a / CR 108.3: the host axis is OWNERSHIP, not control -- a host the \
-         caster owns but an opponent controls is legal. Offers: {offers:#?}"
+         caster owns but an opponent controls is legal. One offer per host since PB-DX50. \
+         Offers: {offers:#?}"
     );
     // And the engine agrees: the offer is accepted.
     let command = action_to_command_with_params(&state, p(1), &offers[0], &ActionParams::default())
@@ -487,11 +494,12 @@ fn c5_deck_legal_gemrazer_onto_adrix_fires_ward_exactly_once() {
     let offers = mutate_offers(&state);
     assert_eq!(
         offers.len(),
-        2,
+        1,
         "SR-38: `Gemrazer` onto `Adrix and Nev, Twincasters` is a legal mutate \
          (CR 702.140a: non-Human, owned by the caster), so the real offer layer must emit \
-         one action per (host, on_top) pair. Ward does NOT make a target illegal -- it \
-         taxes it (CR 702.21a). Offers: {offers:#?}"
+         one action for it -- one per host since PB-DX50 moved the over/under choice to \
+         resolution (CR 702.140c). Ward does NOT make a target illegal -- it taxes it \
+         (CR 702.21a). Offers: {offers:#?}"
     );
     let offer = offers
         .iter()

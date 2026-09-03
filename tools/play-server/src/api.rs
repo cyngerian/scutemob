@@ -648,6 +648,16 @@ fn validate_decision_params(
                     };
                     Ok(())
                 }
+                // PB-DX50 (CR 702.140c): the answer space is `{on top, under}`
+                // and BOTH are legal, always — the engine only asks once the
+                // target is legal, and CR 702.140c states no restriction on the
+                // choice. Same shape and same reason as the arm above.
+                EffectChoiceQuestion::MutateOnTop { .. } => {
+                    let EffectChoiceAnswer::MutateOnTop { .. } = answer else {
+                        return Err(mismatch());
+                    };
+                    Ok(())
+                }
             }
         }
         // CR 603.3d / CR 601.2c (OOS-DP8-2).
@@ -1449,6 +1459,8 @@ fn question_kind(question: &mtg_engine::EffectChoiceQuestion) -> &'static str {
         EffectChoiceQuestion::ChooseObject { .. } => "choose object",
         // PB-DX45 (CR 118.12).
         EffectChoiceQuestion::PayOptionalCost { .. } => "optional cost",
+        // PB-DX50 (CR 702.140c).
+        EffectChoiceQuestion::MutateOnTop { .. } => "mutate over/under",
     }
 }
 

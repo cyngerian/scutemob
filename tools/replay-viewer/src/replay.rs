@@ -239,7 +239,6 @@ impl ReplaySession {
                         x_value,
                         collect_evidence_cards,
                         squad_count,
-                        mutate_on_top,
                         ..
                     } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
@@ -274,7 +273,6 @@ impl ReplaySession {
                                 *x_value,
                                 collect_evidence_cards,
                                 *squad_count,
-                                *mutate_on_top,
                                 None, // gift_opponent_name — not yet wired in replay viewer UI
                                 None, // sacrifice_card_name — not yet wired in replay viewer UI
                                 &[],  // exert_names — not yet wired in replay viewer UI

@@ -875,8 +875,21 @@ fn fire_mana_triggered_abilities(
                 // a swallowed failure (SR-4). The skipped obligation is
                 // discharged by `tests/primitives/pb_dp9_effect_choice.rs`'s
                 // `test_dp9_mana_ability_gate` roster assertion, which proves no
-                // `Complete` card def actually does this (four asking effects
-                // now: SearchLibrary, Scry, Surveil, DiscardCards).
+                // `Complete` card def actually does this.
+                //
+                // **The channel list is deliberately NOT restated here.** This
+                // sentence used to end "(four asking effects now: SearchLibrary,
+                // Scry, Surveil, DiscardCards)" and was, at the time PB-DX50
+                // found it, THREE channels stale -- it had been wrong since
+                // PB-DX28 and stayed wrong through PB-DX45, whose `/review`
+                // caught and corrected the byte-identical sentence in
+                // `effects/mod.rs` and never asked whether it lived anywhere
+                // else. The durable half is not "someone forgot": it is that **a
+                // claim corrected where it was noticed rather than where it lived
+                // did not generalise.** So both copies now point at the gate's
+                // own needle list as the single source instead of restating it.
+                // Read `test_dp9_mana_ability_gate`'s `NEEDLES` for the current
+                // set.
                 ctx.effect_choice_gate_closed = true;
                 let mut mana_events = execute_effect(state, effect, &mut ctx);
                 // Tag ManaAdded events with no source (triggered mana is not the original tap).

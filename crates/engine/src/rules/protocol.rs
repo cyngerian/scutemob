@@ -424,7 +424,27 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   (`memory/primitives/pb-DX45-execution-notes.md` §0.1, including the
 ///   unchanged type count) and taken from the failing gate's own output rather
 ///   than transcribed (PB-DX8's rule).
-pub const PROTOCOL_VERSION: u32 = 39;
+/// - 40: PB-DX50 (2026-09-03, `OOS-DX29-2` — CR 702.140c, the mutate over/under
+///   choice is made **as the spell resolves**): TWO edits, each of which would
+///   move this digest on its own.
+///
+///   (a) `EffectChoiceQuestion` and `EffectChoiceAnswer` each gain a **seventh**
+///   variant, `MutateOnTop` (`{ host: ObjectId }` and `{ on_top: bool }`), both
+///   enums reachable since v31 from `GameEvent::EffectChoiceRequired.question`
+///   and `Command::AnswerEffectChoice.answer`.
+///
+///   (b) `AdditionalCost::Mutate` **LOSES** its `on_top: bool` field, reachable
+///   from `Command::CastSpell`'s `CastSpellData.additional_costs`. That half is
+///   the one a prediction from the new variants alone would have missed, and it
+///   is why the plan named both.
+///
+///   `ObjectId` and `bool` are already closure members and the removal deletes no
+///   type, so the closure's type count is **98 -> 98, unchanged** (the same shape
+///   as `- 39`, `- 38` and `- 33`). Predicted in writing before any code changed
+///   (`memory/primitives/pb-plan-DX50.md` §0.3, including the unchanged type
+///   count) and taken from the failing gate's own output rather than transcribed
+///   (PB-DX8's rule).
+pub const PROTOCOL_VERSION: u32 = 40;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -442,7 +462,7 @@ pub const PROTOCOL_VERSION: u32 = 39;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "4e3b00203568d19fa1c7a680078c86e58e2cfb2083311f07bbaf78b0c3578aab";
+    "fbfe9b6c9696d5146dcf3f3ed9b3733c70d333a12e8d42450da45836d089ceed";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -742,6 +762,14 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PayOptionalCost (see the `- 39:` History line above). Closure type
         // count unchanged (98).
         fingerprint: "4e3b00203568d19fa1c7a680078c86e58e2cfb2083311f07bbaf78b0c3578aab",
+    },
+    ProtocolEpoch {
+        version: 40,
+        // PB-DX50 (2026-09-03, `OOS-DX29-2`): EffectChoiceQuestion/Answer each
+        // gain a seventh variant, MutateOnTop, AND `AdditionalCost::Mutate` loses
+        // its `on_top` field (see the `- 40:` History line above). Closure type
+        // count unchanged (98).
+        fingerprint: "fbfe9b6c9696d5146dcf3f3ed9b3733c70d333a12e8d42450da45836d089ceed",
     },
 ];
 
