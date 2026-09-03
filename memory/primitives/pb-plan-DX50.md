@@ -252,3 +252,42 @@ and was rounded to "no change". This one is enumerated up front so it can be che
 `default_effect_choice_answer(MutateOnTop) == { on_top: true }` — the exact recovery of the
 pre-batch hard-coded value, the same argument ENG-1 and PB-DX45 made. `replay_harness.rs:402-409`
 auto-answers with that default, so only the COMMAND TRACE grows.
+
+---
+
+## §6 PB-DP9's mana-ability obligation: the discharge is NOT an eighth needle
+
+`ask_or_consume_effect_choice`'s CR 605.4a branch fires on `ctx.effect_choice_gate_closed`, which is
+set at **exactly one site in the tree** — `rules/mana.rs:880`, inside the `WhenTappedForMana`
+triggered-mana-ability branch that calls `execute_effect` directly. `test_dp9_mana_ability_gate`
+discharges the skipped obligation by walking card defs for asking-`Effect` variants nested inside a
+`WhenTappedForMana` trigger.
+
+**The mutate ask is not an `Effect` variant and cannot be reached from that site.** A mutating
+creature spell resolves through `resolve_top_of_stack_inner`'s own `match` arm; a mana ability
+resolves outside the stack and never enters it. So the honest discharge is a **statement of
+structural unreachability plus a gate on that statement** — not an eighth card-def needle, which
+would scan for a variant name that does not exist and therefore measure nothing. A gate that cannot
+fail is a comment; this queue has filed that shape three times already.
+
+It also means the gate's own instruction — *"re-derive the list from the
+`ask_or_consume_effect_choice` call sites"* — stops being sufficient the moment Half 2 lands, because
+one asking site is no longer reachable from a card def at all. That is said in the gate rather than
+left for the next reader to trip over.
+
+### §6.1 A stale claim found while checking this, in a file nobody re-checked
+
+`rules/mana.rs:878-879` says, in-source:
+
+> *the skipped obligation is discharged by … `test_dp9_mana_ability_gate` … (**four** asking effects
+> now: SearchLibrary, Scry, Surveil, DiscardCards)*
+
+The gate checks **seven**. This is the **same sentence** PB-DX45's `/review` caught one channel
+short in `effects/mod.rs` — and that fix corrected the `effects/mod.rs` copy only. **Nobody checked
+whether the sentence existed anywhere else.** It does, and this copy is *three* channels stale
+(missing `ChosenObject`, `MayPayThenEffect` and `LookAtTopThenPlace`), i.e. it was already wrong when
+PB-DX28 shipped and has been wrong through two batches that each corrected its twin.
+
+The durable half is not "someone forgot": it is that **a claim was corrected where it was noticed
+rather than where it lived**, so the correction did not generalise. Fixed here, and both copies now
+point at the gate's own list as the single source rather than restating it.
