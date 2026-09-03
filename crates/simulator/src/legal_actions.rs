@@ -1658,23 +1658,22 @@ impl LegalActionProvider for StubProvider {
         // otherwise sorcery-speed). StubProvider conservatively emits at sorcery-speed only
         // for creature spells (the common case — almost all mutate cards are creatures).
         if is_main_phase && stack_empty && is_active {
-            // Collect non-Human creatures the player OWNS on the battlefield.
-            let non_human_own: Vec<ObjectId> = state
-                .objects_in_zone(&ZoneId::Battlefield)
-                .into_iter()
-                .filter(|o| {
-                    // Owner check (not controller — CR 702.140a says "you own").
-                    o.owner == player
-                        && o.characteristics.card_types.contains(&CardType::Creature)
-                        && !o
-                            .characteristics
-                            .subtypes
-                            .contains(&mtg_engine::SubType("Human".to_string()))
-                })
-                .map(|o| o.id)
-                .collect();
-
-            if !non_human_own.is_empty() {
+            // PB-DX50 (`OOS-DX25-1`): the legal-host set is the ENGINE's answer, per
+            // candidate mutate card, and is no longer computed here.
+            //
+            // What used to sit here was a FOURTH hand-rolled copy of the CR 702.140a
+            // predicate -- `o.owner == player && card_types.contains(Creature) &&
+            // !subtypes.contains("Human")` -- and it read `o.characteristics` RAW rather
+            // than layer-resolved, so it was blind to the layer system entirely. PB-DX50
+            // routes the cast path through the full CR 115 machinery (hexproof CR 702.11b,
+            // shroud CR 702.18a, protection CR 702.16b, layer-resolved types), so keeping
+            // the loose copy here would have offered a mutate onto a hexproofed host and
+            // then refused the cast -- SR-38's clean-offer-then-guaranteed-refusal shape.
+            //
+            // The set is now per-CARD rather than hoisted out of the loop, because
+            // protection (CR 702.16b) is a property of the (source, target) PAIR: two
+            // different mutate cards in hand can have different legal host sets.
+            {
                 let hand = ZoneId::Hand(player);
                 for obj in state.objects_in_zone(&hand) {
                     if !obj
@@ -1706,6 +1705,17 @@ impl LegalActionProvider for StubProvider {
                     };
 
                     if !can_afford(state, player, &mutate_cost) {
+                        continue;
+                    }
+
+                    // CR 702.140a (PB-DX50): the engine decides host legality, via the
+                    // SAME `casting::mutate_target_requirement()` + `validate_targets_inner`
+                    // the cast path validates with. `obj.id` is passed as the source so
+                    // protection-from-source (CR 702.16b) is evaluated against the spell
+                    // that would actually be cast.
+                    let non_human_own =
+                        mtg_engine::rules::queries::legal_mutate_hosts(state, player, obj.id);
+                    if non_human_own.is_empty() {
                         continue;
                     }
 

@@ -7492,23 +7492,102 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                     _ => None,
                 })
                 .unwrap_or(false);
-            // CR 702.140b: Check if the target is still legal at resolution time.
+            // CR 702.140b / CR 608.2b (PB-DX50, `OOS-DX25-1`): is the mutate host still a
+            // legal target? The four hand-rolled conjuncts that used to sit here
+            // (battlefield / creature / non-Human / owner) are DELETED; this is now the
+            // conjunction of the engine's TWO shared target-legality predicates, and
+            // NEITHER ONE ALONE IS SUFFICIENT:
+            //
+            //  * `is_target_legal` is this engine's CR 608.2b check, and for an object
+            //    target it compares ONLY `obj.zone` against `zone_at_cast`. It is blind to
+            //    the requirement: a host that stayed on the battlefield but stopped being a
+            //    creature, or that became a Human, passes it. Using it alone here would be
+            //    STRICTLY WEAKER than the code it replaces.
+            //  * `casting::validate_targets_inner` re-applies the recorded requirement
+            //    (CR 601.2c) plus hexproof (CR 702.11b), shroud (CR 702.18a) and protection
+            //    (CR 702.16b), all from LAYER-RESOLVED characteristics -- but it has no
+            //    notion of "the zone this was targeted in", so on its own it would accept a
+            //    host that left and returned to the battlefield as a new object.
+            //
+            // Together they are strictly MORE than HEAD ever checked (HEAD missed every
+            // protection-family ability gained in response) and never less. Do not collapse
+            // them to one call.
+            //
+            // **The protection half is a DELIBERATE choice, made explicitly rather than
+            // inherited.** The alternative considered was `validate_object_satisfies_
+            // requirement` (battlefield + creature + non-Human + owner, no protection),
+            // which would also clear the "at least HEAD" bar. It was rejected for the
+            // reason this whole batch exists: `validate_targets_inner` is LITERALLY the
+            // function the cast path runs (`validate_targets_with_source` is a two-line
+            // wrapper around it), so cast-time and resolution-time legality are the same
+            // call with the same requirement -- whereas the narrower function would make
+            // site 1 and site 2 two predicates that merely agree today. It is also
+            // CR-correct: CR 608.2b makes a target illegal when it no longer matches the
+            // targeting requirements, and CR 702.11b / 702.16b / 702.18a are targeting
+            // requirements. Exercised by `t6b` in
+            // `primitives::pb_dx50_mutate_target_legality` (host gains hexproof in
+            // response -> CR 702.140b fallback), which is what stops this being an
+            // unexercised claim. As a bonus it needs no visibility widening:
+            // `validate_object_satisfies_requirement` is private to `casting.rs`.
+            //
+            // **HONESTLY UNDISCRIMINATED, disclosed here and not only in `memory/`.** The
+            // revert matrix for this batch has one row that could not be made to fail:
+            // deleting the `zone_ok` conjunct leaves the ENTIRE workspace green. The reason
+            // is structural rather than a missing probe -- `mutate_target_requirement()` is
+            // a `TargetCreatureWithFilter`, whose arm in
+            // `validate_object_satisfies_requirement` opens with `on_battlefield`, and a
+            // mutate host's `zone_at_cast` is always `Battlefield`, so `is_target_legal`'s
+            // "still in the zone it was targeted in" is SUBSUMED by the requirement today.
+            // It is kept anyway, for two stated reasons rather than by inertia: it is
+            // CR 608.2b's own sentence and belongs at a CR 608.2b site, and it is the only
+            // thing that would still hold if a future edit widened the requirement off the
+            // battlefield. Do not delete it on the grounds that no test fails -- no test
+            // CAN fail, and that is the point of writing it down here.
+            //
+            // **Known engine-wide residual, stated so it is not read as a mutate quirk.**
+            // `is_target_legal` is zone-only for EVERY spell in this engine, so
+            // protection-gained-in-response is under-checked at the CR 608.2b fizzle gate
+            // in the `StackObjectKind::Spell` arm above and at every other consumer. This
+            // arm is now ahead of them. That asymmetry is deliberate and bounded --
+            // CR 702.140b's consequence for an illegal target is a graceful fallback, not
+            // a fizzle, so getting it right here changes a merge into an ordinary creature
+            // ETB and can never silently delete a spell's effect. Closing the engine-wide
+            // gap is a separate batch.
+            //
+            // The requirement is `casting::mutate_target_requirement()` -- the SAME function
+            // `handle_cast_spell` appended at announcement time, so cast-time and
+            // resolution-time legality are one arithmetic, not two that agree.
+            //
+            // The recorded `SpellTarget` is found by matching `stack_obj.kind`'s own
+            // `target` field against `stack_obj.targets`, NOT by taking the last slot:
+            // `handle_cast_spell` appends the host last, but a `StackObject` reached by
+            // another route (a copy, or a hand-built test fixture predating PB-DX50) need
+            // not honour that convention, and matching on the kind's own field cannot be
+            // wrong about which target is the host. When no recorded entry exists at all
+            // the zone conjunct is simply unavailable and the requirement check stands
+            // alone -- which is exactly HEAD's behaviour, so such a fixture is neither
+            // strengthened nor weakened.
             let target_still_legal = {
-                if let Some(target_obj) = state.fizzle_object(target) {
-                    let target_on_battlefield = target_obj.zone == ZoneId::Battlefield;
-                    let target_chars = crate::rules::layers::expect_characteristics(state, target);
-                    let target_is_creature = target_chars.card_types.contains(&CardType::Creature);
-                    let target_is_human = target_chars
-                        .subtypes
-                        .contains(&SubType("Human".to_string()));
-                    let target_owned_by_controller = target_obj.owner == controller;
-                    target_on_battlefield
-                        && target_is_creature
-                        && !target_is_human
-                        && target_owned_by_controller
-                } else {
-                    false
-                }
+                let recorded = stack_obj
+                    .targets
+                    .iter()
+                    .find(|st| st.target == Target::Object(target));
+                let zone_ok = match recorded {
+                    Some(st) => is_target_legal(state, st),
+                    None => true,
+                };
+                let source_chars =
+                    crate::rules::layers::calculate_characteristics(state, source_object);
+                let requirement_ok = crate::rules::casting::validate_targets_inner(
+                    state,
+                    &[Target::Object(target)],
+                    &[crate::rules::casting::mutate_target_requirement()],
+                    controller,
+                    source_chars.as_ref(),
+                    Some(source_object),
+                )
+                .is_ok();
+                zone_ok && requirement_ok
             };
             if !target_still_legal {
                 // CR 702.140b: Illegal target fallback — resolve as a normal creature spell.

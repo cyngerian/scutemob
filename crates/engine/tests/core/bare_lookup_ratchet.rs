@@ -148,7 +148,7 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // answers the predicate `false` (does not match), the exact same shape as every
     // other predicate-read site already ceilinged in this file.
     ("src/rules/abilities.rs", 75),
-    ("src/rules/casting.rs", 34),
+    ("src/rules/casting.rs", 33),
     // PB-DP4 (2026-07-26): 16 -> 15. `has_uncosted_attack_target` (new, CR 508.1d)
     // deduplicates the two copy-pasted `has_cant_attack_owner` bare
     // `state.restrictions.iter().any(|r| ... state.objects.get(&r.source) ...)` lookups

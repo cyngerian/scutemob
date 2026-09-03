@@ -594,3 +594,50 @@ pub fn dredge_options(state: &GameState, player: PlayerId) -> Vec<(ObjectId, u32
     options.sort_by_key(|(id, _)| *id);
     options
 }
+
+/// CR 702.140a (PB-DX50, `OOS-DX25-1`) — the battlefield permanents `caster` may
+/// legally name as the mutate host when casting `card` with the mutate alternative
+/// cost, in ascending `ObjectId` order.
+///
+/// **This exists because the offer layer had a FOURTH copy of the predicate, and it was
+/// the wrong one.** `StubProvider` (`crates/simulator/src/legal_actions.rs`) built its
+/// mutate offers from a hand-rolled `owner == player && card_types.contains(Creature)
+/// && !subtypes.contains("Human")` filter that read `o.characteristics` **RAW** rather
+/// than layer-resolved, so it was blind to the layer system entirely: a creature
+/// animated by a continuous effect was invisible to it, and a creature turned into a
+/// Human by a type-changing effect was still offered. With PB-DX50 tightening the cast
+/// path with the full CR 115 target-legality machinery (hexproof CR 702.11b, shroud
+/// CR 702.18a, protection CR 702.16b), leaving that copy in place would have shipped an
+/// SR-38 defect — a clean offer followed by a guaranteed refusal, which is the exact
+/// shape PB-DX29 gated Fuse to avoid, PB-DX44 re-created while fixing it, and PB-DX45
+/// shipped and had to fix. This batch would have been the fourth.
+///
+/// Delegates the whole decision to `legal_targets_per_slot` over
+/// `casting::mutate_target_requirement()` — the SAME requirement `handle_cast_spell`
+/// appends and the SAME `validate_targets_inner` it validates with — so no CR 115 logic
+/// is duplicated outside the engine.
+///
+/// `card` is the mutate card itself (in hand), passed as the `source` so that
+/// protection-from-source qualities (CR 702.16b) are evaluated against the spell that
+/// would be cast, exactly as at cast time.
+///
+/// Advisory only (module doc): a value returned here can still be rejected by
+/// `handle_cast_spell`, which re-validates independently.
+pub fn legal_mutate_hosts(state: &GameState, caster: PlayerId, card: ObjectId) -> Vec<ObjectId> {
+    let per_slot = legal_targets_per_slot(
+        state,
+        caster,
+        card,
+        std::slice::from_ref(&casting::mutate_target_requirement()),
+    );
+    per_slot
+        .into_iter()
+        .next()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|t| match t {
+            Target::Object(id) => Some(id),
+            Target::Player(_) => None,
+        })
+        .collect()
+}

@@ -1376,7 +1376,7 @@ fn engine_src() -> PathBuf {
 /// silent: it is ~1,800 generated-shaped declaration files, and a card def naming
 /// `LayerModification::RemoveAllAbilities` is a *declaration* (r3's subject, walked from
 /// `all_cards()`), never a predicate.
-fn workspace_src_roots() -> Vec<PathBuf> {
+pub(super) fn workspace_src_roots() -> Vec<PathBuf> {
     let root = workspace_root();
     let mut out = Vec::new();
     for base in ["crates", "tools"] {
@@ -1399,7 +1399,7 @@ fn workspace_src_roots() -> Vec<PathBuf> {
 }
 
 /// Every `.rs` file under [`workspace_src_roots`], as `(workspace-relative label, path)`.
-fn workspace_src_files() -> Vec<(String, PathBuf)> {
+pub(super) fn workspace_src_files() -> Vec<(String, PathBuf)> {
     let root = workspace_root();
     let mut out = Vec::new();
     for src_root in workspace_src_roots() {
@@ -1426,7 +1426,7 @@ fn workspace_src_files() -> Vec<(String, PathBuf)> {
 /// HEAD: **14** roots, **148** files. The floors are set well below both so ordinary churn
 /// does not trip them, and `t_census_report` PRINTS the live figures so the gap between
 /// floor and reality stays visible rather than being trusted.
-fn workspace_src_files_checked() -> Vec<(String, PathBuf)> {
+pub(super) fn workspace_src_files_checked() -> Vec<(String, PathBuf)> {
     let roots = workspace_src_roots();
     assert!(
         roots.len() >= 8,
@@ -1571,7 +1571,7 @@ fn walk_rs(dir: &Path, acc: &mut Vec<PathBuf>) {
 /// Deliberately naive about string literals containing `//` or `/*` — over-stripping can
 /// only DELETE apparent call sites, which makes `r6`'s pinned-set assertion redder (a
 /// pinned site would go missing), never greener.
-fn strip_comments(src: &str) -> String {
+pub(super) fn strip_comments(src: &str) -> String {
     let bytes = src.as_bytes();
     let mut out = String::with_capacity(src.len());
     let mut i = 0usize;

@@ -1376,42 +1376,19 @@ pub fn handle_cast_spell(
                     .into(),
             ));
         }
-        // Validate the mutate target.
-        if let Some(target_id) = mutate_target {
-            let target_obj = state.objects.get(&target_id).ok_or_else(|| {
-                GameStateError::InvalidCommand("mutate: target creature not found".into())
-            })?;
-            // CR 702.140a: target must be on the battlefield.
-            if target_obj.zone != ZoneId::Battlefield {
-                return Err(GameStateError::InvalidCommand(
-                    "mutate: target must be on the battlefield (CR 702.140a)".into(),
-                ));
-            }
-            // CR 702.140a: target must be a creature (by layer-resolved characteristics).
-            // SR-14: target_id was just fetched present at the `state.objects.get` above with
-            // no intervening zone change, so its characteristics are never absent here.
-            let target_chars = expect_characteristics(state, target_id);
-            if !target_chars.card_types.contains(&CardType::Creature) {
-                return Err(GameStateError::InvalidCommand(
-                    "mutate: target must be a creature (CR 702.140a)".into(),
-                ));
-            }
-            // CR 702.140a: target must NOT be a Human.
-            if target_chars
-                .subtypes
-                .contains(&SubType("Human".to_string()))
-            {
-                return Err(GameStateError::InvalidCommand(
-                    "mutate: cannot mutate onto a Human creature (CR 702.140a)".into(),
-                ));
-            }
-            // CR 702.140a: target must be owned by the caster ("same owner as this spell").
-            if target_obj.owner != player {
-                return Err(GameStateError::InvalidCommand(
-                    "mutate: target must be owned by you (CR 702.140a)".into(),
-                ));
-            }
-        }
+        // PB-DX50 (`OOS-DX25-1`): the four hand-rolled target checks that used to sit
+        // HERE -- battlefield, creature, non-Human, owner -- are DELETED. CR 702.140a
+        // says the mutate cost makes the spell TARGET its host, so the host is a real
+        // CR 115 target and must go through the real CR 115 machinery: the requirement
+        // `mutate_target_requirement()` is appended to this cast's announced target list
+        // further down (search `cast_with_mutate` near `announced_requirements`), and
+        // `validate_targets_with_source` then applies the whole of CR 601.2c plus
+        // hexproof (CR 702.11b), shroud (CR 702.18a) and protection (CR 702.16b) -- none
+        // of which the four hand-rolled conjuncts checked.
+        //
+        // The three checks kept above are about the SPELL, not the target (is a host
+        // named at all, does the card have Mutate, is it a creature spell), so they have
+        // no CR 115 equivalent and stay open-coded here.
     }
     // Step 1i: Validate dash mutual exclusion (CR 702.109a / CR 118.9a).
     // Dash is an alternative cost -- cannot combine with other alternative costs.
@@ -3788,6 +3765,42 @@ pub fn handle_cast_spell(
     let announced_requirements: Vec<TargetRequirement> = mode_targets_active
         .clone()
         .unwrap_or_else(|| requirements.clone());
+    // CR 702.140a (PB-DX50, `OOS-DX25-1`): a mutate cast TARGETS its host. Append the
+    // shared `mutate_target_requirement()` and the announced host to the lists this cast
+    // is validated against and records onto its `StackObject`, so from here down the
+    // mutate host is an ordinary CR 115 target of this spell.
+    //
+    // **APPEND, never prepend.** `CardEffectTarget::DeclaredTarget { index }` is a
+    // positional index into the spell's own declared target list; putting the host last
+    // leaves every pre-existing index unchanged. Pinned by
+    // `primitives::pb_dx50_mutate_target_legality`'s index-stability probe.
+    //
+    // Both branches below are fed from these two bindings, so the append is correct for
+    // the positional (per-mode, CR 700.2c/700.2f) branch too -- appending one requirement
+    // and one target keeps `targets.len() == requirements.len()` and leaves every
+    // pre-existing position fixed. No shipped card pairs Mutate with
+    // `ModeSelection.mode_targets` (mutate cards are vanilla-shaped creature spells), but
+    // this is written to be CORRECT rather than to rely on that.
+    //
+    // Overload is structurally unreachable here rather than merely unused: `alt_cost` is
+    // a single `Option<AltCostKind>` (`rules/command.rs`), and `cast_with_mutate` /
+    // `cast_with_overload` are two disjoint arms of it -- one `Command::CastSpell` can
+    // select at most one, so the `casting_with_overload` branch above (which forces
+    // `requirements = vec![]` and rejects any declared target) can never run for a mutate
+    // cast. Deliberately not defended against with a second guard.
+    let (announced_requirements, targets): (Vec<TargetRequirement>, Vec<Target>) =
+        match (cast_with_mutate, mutate_target) {
+            (true, Some(host)) => {
+                let mut reqs = announced_requirements;
+                let mut tgts = targets;
+                reqs.push(mutate_target_requirement());
+                tgts.push(Target::Object(host));
+                (reqs, tgts)
+            }
+            // `cast_with_mutate` with no host is already rejected by Step 1h-mutate above;
+            // this arm exists only so the match is total.
+            _ => (announced_requirements, targets),
+        };
     let spell_targets = if mode_targets_active.is_some() {
         // CR 700.2c/700.2f: per-mode target validation is POSITIONAL, not best-fit — slice
         // offsets computed at resolution time (resolution.rs) depend on declaration order
@@ -5657,6 +5670,56 @@ pub(crate) fn enchant_target_to_requirement(et: &EnchantTarget) -> TargetRequire
             ..Default::default()
         }),
     }
+}
+/// CR 702.140a (PB-DX50, `OOS-DX25-1`) — the `TargetRequirement` a mutate cast's
+/// host choice is. Modelled exactly on `enchant_target_to_requirement` above, and for
+/// the same reason: a keyword-carried target restriction that lived only as a
+/// hand-rolled conjunct is a restriction the shared CR 115 machinery cannot see.
+///
+/// > CR 702.140a: "Mutate [cost] means '[cost]: This spell **targets** a non-Human
+/// > creature with the same owner as this spell. …'"
+///
+/// Consumed by, and by nothing else, the THREE behavioural sites that decide mutate
+/// target legality — so all three are one arithmetic rather than three that agree:
+///
+/// 1. `handle_cast_spell` (cast-time announcement + CR 601.2c validation), where it is
+///    APPENDED to the spell's declared requirement list. Appending, never prepending, is
+///    what keeps every pre-existing `CardEffectTarget::DeclaredTarget { index }`
+///    positionally valid.
+/// 2. `rules::resolution`'s `StackObjectKind::MutatingCreatureSpell` arm (CR 702.140b
+///    re-validation at resolution).
+/// 3. `rules::queries::legal_mutate_hosts` (the offer layer). Before PB-DX50 the
+///    simulator's `StubProvider` kept a FOURTH hand-rolled copy that read
+///    `o.characteristics` RAW rather than layer-resolved, so it was blind to the layer
+///    system entirely.
+///
+/// Everything not named is `..Default::default()` **on purpose** (PB-DX20 §3.4's rule):
+/// a future `TargetFilter` field must not silently acquire meaning here. In particular
+/// `exclude_self` stays `false` — the mutating spell is on the stack, never a legal
+/// battlefield host, so the CR 115.7a self-target guard is not the mechanism that
+/// excludes it.
+///
+/// `TargetRequirement::TargetCreatureWithFilter` already implies "on the battlefield and
+/// a creature" (`validate_object_satisfies_requirement`'s arm opens with
+/// `on_battlefield && is_creature`), read from LAYER-RESOLVED characteristics — so an
+/// animated non-creature host, or a creature turned into a Human by a type-changing
+/// effect, is classified correctly at all three sites for the first time.
+///
+/// **KNOWN CR DEVIATION, deliberately preserved rather than fixed here.** CR 702.140a
+/// says the host has the same owner as *this spell*; `TargetOwner::You` means the same
+/// owner as *the caster*. The two diverge only when a player casts a spell they do not
+/// own (Gonti, Lord of Luxury; Bolas's Citadel). HEAD's hand-rolled check was
+/// `target_obj.owner != player`, i.e. the caster, so `TargetOwner::You` is exactly
+/// behaviour-preserving. Closing the gap needs a new `TargetOwner` variant, which is a
+/// wire change out of this half's scope — reported as a seed, not silently corrected.
+pub(crate) fn mutate_target_requirement() -> TargetRequirement {
+    TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+        // CR 702.140a "non-Human".
+        exclude_subtypes: vec![SubType("Human".to_string())],
+        // CR 702.140a "with the same owner as this spell" — see the deviation note above.
+        owner: TargetOwner::You,
+        ..Default::default()
+    })
 }
 /// CR 303.4a — `base`, plus the Aura's keyword-carried target requirement when it has
 /// one. Returns `base` unchanged for every non-Aura spell, and for an Aura whose `base`
