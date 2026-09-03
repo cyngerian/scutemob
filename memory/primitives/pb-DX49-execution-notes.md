@@ -315,3 +315,101 @@ a face-down cast keyword, on **both** spellings — the `KeywordAbility` marker 
   blanker.
 - Every roster carries a non-vacuity floor or a synthetic discrimination test; `r2`'s
   empty-residual risk is bounded by an `oracle.len() >= 4` floor.
+
+---
+
+## 4. Reachability (AC 7281) — both directions, human seat and bot path
+
+`crates/simulator/tests/pb_dx49_saga_blanking_channel.rs`, 4 probes, all green.
+`binding_the_old_gods` — the only deck-legal `Complete` corpus Saga — via `card_name_to_id` +
+`enrich_spec_from_def`, never a stand-in. Printed final chapter **3**, derived from the def rather
+than hard-coded. Two seedings per probe: **leg A `lore = 1`** (the 1 → 2 crossing fires chapter II)
+and **leg B `lore = 3`** (the only seeding at which CR 714.4's own comparison is reached).
+
+| probe | channel actually driven | lore `CounterAdded` | chapter `AbilityTriggered` | Saga zone | resolution effect |
+|---|---|---|---|---|---|
+| c1 blanked, leg A | human seat, `LocalGame` + `HumanChoice` | **0** | **0** | battlefield ×1 | Forest still in library |
+| c1 blanked, leg B | same | **0** (lore 3 ≥ final 3) | — | battlefield ×1, graveyard ×0 | — |
+| c2 un-blanked, leg A | human **answers** the CR 701.19a search | **1** | **1** exactly | battlefield ×1 | Forest **on the battlefield, tapped**; library ×0 |
+| c2 un-blanked, leg B | same | — | **0** | battlefield ×0, **graveyard ×1** | — |
+| c3 blanked / un-blanked | pure bot: `StubProvider` + `Bot::choose_action` + `process_command` | **0** / **1** | **0** / **1** | survives / sacrificed | Forest in library / on the battlefield |
+| c4 face-down manifest | human seat, against a face-up control differing in one input | **0** vs **1** | **0** vs **1** | never sacrificed | — |
+
+Every drive stops at **turn 1, `Step::PreCombatMain`, stack and `pending_triggers` both empty**, and
+re-asserts that settlement as an explicit precondition.
+
+### 4.1 Channel revert matrix
+
+| row | revert | result |
+|---|---|---|
+| **R-A** | `layers::abilities_are_blanked` short-circuited to `false` | **c1, c3, c4 RED**, each on its own first assertion (`CounterAdded left: 1, right: 0`) |
+| **R-B** | site 1 alone re-reads the printed def's max chapter (sites 3 and 5 keep the fix) | **c1, c3, c4 RED on leg B**, each naming CR 714.4 — which proves leg B load-bearing **independently of site 3** |
+
+**`c2` is GREEN under both, and that is a stated CONTROL rather than an undiscriminated row**: c2
+has no blanking, so a revert of the blanking predicate must not move it.
+
+R-B's first run failed on a *lore* assertion (`left: 0, right: 3`) rather than on the sacrifice
+claim — a sacrificed Saga's `ObjectId` is dead, so `lore()` reads 0. Leg B was reordered to assert
+battlefield membership first and re-run, so the messages now name the rule they are about. **"All
+rows RED" is a true sentence the wrong assertion can produce** — PB-DX48's lesson, applied.
+
+### 4.2 Three things this file could NOT prove, stated rather than worked around
+
+1. **Site 5 in isolation is honestly UNDISCRIMINATED here, and the module doc says so.** Sites 3 and
+   5 are chained on this path — `turn_actions.rs` only calls `fire_saga_chapter_triggers` for a Saga
+   it just placed a counter on — so with site 3 fixed a blanked Saga never reaches site 5 and no
+   site-5-only revert can redden anything in this file. `primitives::…::t5` exercises site 5 alone.
+2. **CR 714.3a (site 4) is not exercised by this file at all.** The fixture uses `GameStateBuilder`,
+   not `setup::build_initial_state`, because the production pregame path cannot place a *named* Saga
+   on the battlefield with a *chosen* lore count — which is the independent variable. The Saga
+   therefore never *enters*. Cost stated in the doc: no deck validation, no mulligan, no opening
+   hand.
+3. **The face-down state is poked, not created through a channel.** `GameStateBuilder` has no
+   face-down setter, so c4 sets `status.face_down` + `face_down_as = Some(FaceDownKind::Manifest)`
+   directly — the exact conjunct the engine reads. Everything c4 *asserts about* runs on the real
+   command path.
+
+### 4.3 The trap this file fell into and closed
+
+**`GameStateBuilder::build()` defaults to `Step::PreCombatMain`** — which is exactly the stopping
+point every settle-detecting drive hunts for. The bot-path drive, which unlike `LocalGame::start`
+does not call `start_game`, satisfied *"settled at turn-1 precombat main with an empty stack"*
+**before issuing a single command**, and asserted its verdict against a board no command had
+touched. **This is PB-DX48's shape reached through a different door** — a drive that stopped because
+it never started, wearing the same assertion as one that stopped because resolution finished, except
+that here the vacuity came from the *fixture's default* rather than the drive's endpoint. Closed
+three ways (seed `Step::Untap`, call `start_game`, and assert the drive has **not** already arrived
+*before* the loop in both drives) and filed as a class in `OOS-DX49-8`, because every
+`GameStateBuilder` fixture in the tree inherits the same default.
+
+### 4.4 A live defect found while choosing the verdict — `OOS-DX49-1`
+
+`binding_the_old_gods`' chapter I destroys nothing. See the registry row; the important
+methodological point is that it was found **by execution while looking for something else**, not by
+a code read, and that it is filed with **no probe** on purpose.
+
+Chapter III was rejected as the observable effect for a related reason worth recording: its
+deathtouch grant is an `EffectFilter::CreaturesYouControl` continuous effect that resolves its
+controller through `state.objects.get(&source_id)` at layer-application time, and chapter III is the
+*final* chapter, so CR 714.4 sacrifices the Saga in the same window — the source id is gone and the
+filter matches nothing. A fact about `EffectFilter` and a departed source, not about CR 714.
+
+---
+
+## 5. Gates, against the FINAL tree
+
+- Tests **4,934 / 0 / 5**, **58** result-producing targets (57 → 58), residual list empty.
+  **34 additions / 0 removals / 0 leavers / 0 renames**, by set-diffing the two run logs.
+- **PROTOCOL 39 / HASH 78 both UNMOVED**, gate-executed (`protocol.rs:427` = 39, `hash.rs:886` = 78)
+  and predicted in writing at `57d1dc42` before any code changed. `history_is_append_only` and
+  `frozen_prefix_is_pinned` green; no pin edited and no history row appended, because none was owed.
+- Coverage **1,137/1,803 = 63.1%** by regeneration, **0 flips** as predicted (clean 1,137 / todo 519
+  byte-identical), self-dating churn reverted. **0 card-def edits of any kind.**
+- `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs).
+- **Benches inside the historical band, and they were run because this batch put work on the SBA hot
+  path**: `sba_check` **14.93-15.04 µs** (historical 14.5), `full_turn_4p` **219.6-221.0 µs** (band
+  213-223), `priority_cycle_4p` **25.7-26.2 µs** (band 23.8-26.0). Stated as one run, so the
+  supportable claim is *no regression*, not an improvement. The `printed.is_empty()` short-circuit
+  in `saga_view` (§2.4) is what keeps `sba_check` in band; without it every phased-in battlefield
+  permanent would clone `Characteristics` and walk the active continuous effects on every SBA check.

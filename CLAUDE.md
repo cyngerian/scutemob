@@ -75,8 +75,11 @@
   probe-first outcome being the LARGE one: the double-push was REAL, not a dedup);
   **↻ PB-DX48 SHIPPED** (`scutemob-219`, 2026-09-02; v4 rank 6 — **OOS-ENG2-1** ≡ **OOS-ENG2-2**
   FILED *and* CLOSED and **OOS-ENG2-3** FILED and NARROWED, none of the three having had a
-  registry row).
-  **Next dispatch: PB-DX49** (v4 rank 7); ranks 1-6 all shipped.
+  registry row);
+  **↻ PB-DX49 SHIPPED** (`scutemob-220`, 2026-09-03; v4 rank 7 — **OOS-RR4-1** and rider
+  **OOS-RR4-3** both CLOSED; corner case **#36 GAP → PARTIAL**, the engine half of the
+  corner-case audit's last open GAP).
+  **Next dispatch: PB-DX50** (v4 rank 8); ranks 1-7 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -187,7 +190,11 @@
   CLOSED, **OOS-ENG2-3** NARROWED). Coverage unmoved at **1,137/1,803 = 63.1%**, **0 flips**,
   **0 card-def edits of any kind**; PROTOCOL **39** / HASH **78** both gate-executed and UNMOVED.
   Filed **OOS-DX48-1..7**.
-  **Next dispatch: PB-DX49** (v4 rank 7); ranks 1-6 all shipped.
+  **↻ 2026-09-03 — PB-DX49 SHIPPED** (`scutemob-220`; v4 rank 7 — **OOS-RR4-1** CLOSED and rider
+  **OOS-RR4-3** CLOSED). Coverage unmoved at **1,137/1,803 = 63.1%**, **0 flips**, **0 card-def
+  edits of any kind**; PROTOCOL **39** / HASH **78** both gate-executed and UNMOVED, predicted in
+  writing before any code. Filed **OOS-DX49-1..8**.
+  **Next dispatch: PB-DX50** (v4 rank 8); ranks 1-7 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -198,6 +205,55 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-03, PB-DX49)**: **4,934 / 0 / 5** full-workspace on branch
+  `scutemob-220` (+34 over the **4,900** baseline, measured on this branch BEFORE any edit and
+  reproducing PB-DX48's close pin exactly), `--workspace --no-fail-fast` to a file, **58**
+  result-producing targets (57 → 58: one new simulator test binary), residual list empty.
+  **Delta itemised by test NAME by set-diffing the two run logs: 34 additions, 0 removals,
+  0 leavers, 0 renames** — 10 in the new
+  `crates/engine/tests/primitives/pb_dx49_blanked_saga_sites.rs`, 20 in the new
+  `crates/engine/tests/core/pb_dx49_saga_blanking_roster.rs`, 4 in the new
+  `crates/simulator/tests/pb_dx49_saga_blanking_channel.rs`. **"0 leavers" is literal here** — the
+  three `fire_saga_chapter_triggers` call sites in the test tree lost a parameter and were edited
+  **in place**, so no test name changed.
+  **PROTOCOL 39 / HASH 78 both UNMOVED**, gate-executed and **predicted in writing before any code
+  changed** (`57d1dc42`), with the reason stated rather than asserted: the batch adds free functions
+  and one engine-internal struct that is not reachable from the `Command`/`GameEvent`/`Effect`/
+  `Characteristics` closure, and adds no field to any hashed type — the whole change is a *read* of
+  `state.continuous_effects` and `obj.status.face_down`, both already hashed. `history_is_append_only`
+  and `frozen_prefix_is_pinned` green on both; no pin edited, no history row appended, because none
+  was owed. **The counterfactual is stated because §1g's row is why it matters**: lowering
+  `AbilityDefinition::SagaChapter` into `Characteristics` would have moved BOTH fingerprints, which
+  is exactly why the continuous-effect-scan design was mandated.
+  Coverage **1,137/1,803 = 63.1%** by regeneration, **0 flips** as predicted (clean 1,137 / todo 519
+  identical), self-dating churn reverted; **0 card-def edits of any kind** —
+  `git diff main..HEAD --numstat` over `crates/card-defs` and `crates/card-types` is **empty**, so
+  the shortcut was available and the regeneration was run anyway.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree. **`npm run build` was
+  NOT run and that is stated rather than omitted**: it is N/A here, because
+  `git diff main..HEAD --numstat -- tools/play-server tools/play-frontend` is **empty** and
+  `node_modules` is absent from this worktree. `tools/` is **not** zero, and the first draft of this
+  line would have implied it was: `tools/tui/src/dashboard/{parser.rs,data.rs,tabs/dashboard.rs}`
+  each move a few lines, for `OOS-DX49-6`.
+  **Engine lines**: `git diff --numstat` over `crates/engine/src` is **+253 / −180** tracked, **plus
+  the new untracked `rules/saga.rs` (178 lines)** — stated separately, because `--numstat` cannot see
+  an untracked file and the tracked figure alone understates the change by a whole module.
+  `crates/view-model` and `crates/simulator/src` are both **0**: every consumer of CR 714 lives in
+  the engine, which was measured before the design was chosen rather than asserted after.
+  **Revert matrix: 4 rows executed across two files, all discriminating, 0 UNDISCRIMINATED**, plus
+  two executed source-gate defeats. Engine R-A (the query stops consulting `abilities_are_blanked`)
+  reddens **7 of 10**; R-B (drop the face-down conjunct from `is_saga_permanent`) reddens exactly
+  `t2`/`t7`, which is what proves `t7` discriminates a different line rather than riding on R-A.
+  Channel R-A reddens `c1`/`c3`/`c4`; channel R-B (site 1 alone re-reads the printed def) reddens
+  the same three on their `lore = 3` leg, proving that leg load-bearing independently of site 3.
+  **`t8` and `c2` are green under both reverts as STATED CONTROLS, not as gaps** — `t8` is the
+  CR 113.7a exclusion, which a correct fix must not break, and `c2` has no blanking at all.
+  **One row is honestly UNDISCRIMINATED and it is disclosed in the test file's own module doc**:
+  sites 3 and 5 chain on the channel path (`turn_actions.rs` only calls
+  `fire_saga_chapter_triggers` for a Saga it just countered), so with site 3 fixed no site-5-only
+  revert can redden anything in the channel suite; `primitives::…::t5` is what exercises site 5
+  alone.
 - **Tests (delta 2026-09-02, PB-DX48)**: **4,900 / 0 / 5** full-workspace on branch
   `scutemob-219` (+27 over the **4,873** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX47's close pin exactly), `--workspace --no-fail-fast` to a file, **57**
@@ -794,7 +850,83 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-02 — **PB-DX48 SHIPPED** (`scutemob-219`; v4 queue rank 6 —
+- **Last Updated**: 2026-09-03 — **PB-DX49 SHIPPED** (`scutemob-220`; v4 queue rank 7 —
+  **OOS-RR4-1** CLOSED and rider **OOS-RR4-3** CLOSED). **The engine half of corner case #36 —
+  the audit's last open GAP — closes, and #36 goes to PARTIAL rather than COVERED, because the
+  card half is honestly still open.**
+  **Every CR 714 decision read the PRINTED card definition, at five sites, and none consulted the
+  layer axis.** A permanent whose abilities are blanked kept accruing lore counters (CR 714.3b),
+  kept firing chapter triggers (CR 714.2b) and was sacrificed anyway (CR 714.4) — it behaved as if
+  nothing had happened to it. Shipped shape: `layers::abilities_are_blanked` is now **the**
+  ability-blanking predicate (CR 708.2a face-down plus the continuous-effect scan, with the
+  classification delegated to PB-DX43's exhaustive no-wildcard `modification_blanks_abilities`, so
+  a fourth channel is a compile error), IG-1 in `queue_carddef_etb_triggers` was refactored to
+  consume it so **exactly one such predicate exists in the tree**, and `rules::saga::saga_view`
+  answers every CR 714 question once for all five sites. `resolution.rs`'s two chapter-effect
+  lookups are deliberately **not** consumers — CR 113.7a makes an ability on the stack independent
+  of its source — and now say so at each site, so a later batch cannot "finish the job".
+  **THE SEED'S OWN PRESCRIPTION WOULD HAVE MADE THE FIX CR-WRONG, AND ONLY READING THE RULE
+  CAUGHT IT.** `OOS-RR4-1` says a fix to the first three sites *"leaves a blanked Saga still taking
+  its ETB counter"*, i.e. it treats the surviving counter as part of the defect. **CR 714.3a has no
+  "with one or more chapter abilities" clause** — CR 714.3b and CR 714.4 both carry it and 714.3a
+  does not (verified verbatim). CR 613.1f removes abilities, **not subtypes**, so a Layer-6-blanked
+  permanent is still a Saga and still takes its counter; only CR 708.2a's *"no text, no name, **no
+  subtypes**"* makes a face-down permanent not a Saga. Suppressing the counter would have produced
+  a **second** wrong outcome — an un-blanking would fire chapter I instead of resuming at chapter
+  II, because CR 714.2b needs the ability to exist at the instant counters are put on. So site 4
+  asks TWO questions and the query answers them from two fields; `t6` pins the pair at exactly
+  **1** lore counter and exactly **0** chapter triggers.
+  **THE CENSUS REFUTED THREE PUBLISHED FIGURES AND ONE OF THEM WAS THIS BATCH'S OWN.** The Saga
+  population is **3**, not the 4 in §1g, in the registry row, in this batch's plan and in its own
+  orientation pass — `song_of_freyalise` declares `abilities: vec![]` and names `SagaChapter` only
+  in two `// TODO`s and its `inert` note. **SR-36's failure mode for the fourth consecutive batch in
+  this queue** (`OOS-CARDS2-7` → `OOS-DX47-2` → PB-DX48 → here). The blanker population is
+  **11 / 8**, not 13 / 8 and not the row's own corrected 9: **every figure in that chain grepped the
+  string `RemoveAllAbilities`, which is the wrong question**, because PB-DX43 moved CR 305.7's
+  ability loss into `SetLandTypes` and both moons are blankers again through a variant no such grep
+  can see. Only deciding by **calling** `modification_blanks_abilities` counts a blanker as a
+  blanker. **And the deck-legal 8 agrees with the row by coincidence of TOTALS, not of MEMBERSHIP**
+  — the row's 8 was 8-of-13 `RemoveAllAbilities` defs; the true 8 is six of those **plus the two
+  moons**. A batch that checked only the total would have recorded the row as confirmed. A **fourth**
+  blanker that can reach an enchantment was found and no document names it (`oko_thief_of_crowns`,
+  a bare `TargetPermanent` for a printed *"target artifact or creature"*; `known_wrong`, so 0
+  deck-legal blast radius — `OOS-DX49-4`).
+  **A LIVE DEFECT FOUND BY EXECUTION, ON A DECK-LEGAL `Complete` CARD, AND DELIBERATELY LEFT
+  UNPINNED.** While the channel probes were choosing an observable resolution effect,
+  `binding_the_old_gods`' chapter I — *"Destroy target nonland permanent an opponent controls"* —
+  **destroyed nothing**, with one legal target on the board and the trigger measurably on the stack.
+  `fire_saga_chapter_triggers` queues a `Normal` trigger whose `ability_index` indexes
+  `def.effective_abilities(..)`, while `flush_sorted`'s requirement lookup reads
+  `obj.characteristics.triggered_abilities[ability_index]` — a different index space — and
+  `grep -c SagaChapter crates/engine/src/rules/abilities.rs` returns **0**. Empty requirements, no
+  CR 603.3d announcement, `DeclaredTarget { index: 0 }` resolving at nothing. Filed as
+  **`OOS-DX49-1`** with **no probe**, because a probe asserting today's behaviour would have to be
+  inverted by whoever fixes it, and nothing this batch touched is on that path.
+  **RIDER `OOS-RR4-3` CLOSED HONESTLY, AND THE LIVE HALF IS THE HALF A TOOL READS.** Each of its
+  three findings was re-verified at HEAD *before* any document was touched. (i) **WITHDRAWN** — its
+  own 2026-08-14 inversion stands and `corner-cases.md:468` is correct at HEAD; not edited.
+  (ii) only **HALF** discharged: CLAUDE.md was fixed by `scutemob-212`, but the audit's own
+  **Summary table** still read `32 / 0 / 4 / 0` — and that table, not the row census, is what
+  `tools/tui/src/dashboard/parser.rs` machine-reads. (iii) live and fixed. **A fourth error in the
+  same §36 that no document named** was also corrected, and it is the one a test would have been
+  written from: the *"Entry order matters for retained abilities"* paragraph was wrong **on the CR
+  itself** — CR 305.7 says verbatim *"this doesn't remove any abilities that were granted to the
+  land by other effects"*, and Blood Moon has no Layer-6 effect at HEAD. Row 36 is **PARTIAL**, not
+  COVERED; the card half stays gated on `urzas_saga` authoring (`OOS-RR4-2`), which this batch
+  explicitly did not take.
+  **Two standing gates fired on this batch's own work and both were answered, not weakened**: the
+  ability-definition registry's `SagaChapter` site roster (four files → `saga.rs` + `resolution.rs`,
+  which is the refactor's own success signal) and SR-25's `bare_lookup_ratchet` on `sba.rs`, whose
+  ceiling was **lowered** 7 → 6 rather than left stale-high — *a stale-high ceiling is slack a
+  regression hides in*. **And one claim in CLAUDE.md's own PB-DX48 narrative was refuted**:
+  `KeywordAbility::Cloak` **does** exist (`types.rs:1696`); PB-DX48's conclusion and measurement
+  both survive, but the stated reason was wrong, and a reason is the half the next batch reuses.
+  Tests **4,934 / 0 / 5** (+34 over the 4,900 pre-edit baseline, **58** targets, itemised by NAME as
+  34 additions / 0 removals / 0 leavers / 0 renames). **PROTOCOL 39 / HASH 78 both gate-executed and
+  UNMOVED**, predicted in writing before any code. Coverage unmoved **63.1%**, **0 flips**, **0
+  card-def edits**. All gates clean against the FINAL tree. Filed **OOS-DX49-1..8**. Full record:
+  `memory/primitives/pb-DX49-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-02 — **PB-DX48 SHIPPED** (`scutemob-219`; v4 queue rank 6 —
   **OOS-ENG2-1** ≡ **OOS-ENG2-2** FILED *and* CLOSED, cross-cited; **OOS-ENG2-3** FILED and
   NARROWED. **None of the three had a registry row** — all were filed into ENG-2's handoff prose,
   which is the 61-of-208 blind spot the v4 re-rank measured).
