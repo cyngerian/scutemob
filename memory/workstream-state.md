@@ -86,12 +86,15 @@ rather than left stale-high. *A stale-high ceiling is slack a regression hides i
 PB-DX48's conclusion and its measurement both survive — zero corpus defs declare it — but the stated
 *reason* was wrong, and a reason is the half the next batch reuses.
 
-**Numbers.** Tests **4,934 / 0 / 5** (+34 over the 4,900 pre-edit baseline, **58** targets; 34
+**Numbers.** Tests **4,941 / 0 / 5** (+41 over the 4,900 pre-edit baseline, **58** targets; 41
 additions / 0 removals / 0 leavers / 0 renames by NAME). **PROTOCOL 39 / HASH 78 both gate-executed
 and UNMOVED**, predicted in writing before any code. Coverage unmoved **63.1%**, 0 flips, **0
-card-def edits**. clippy / fmt / check-defs-fmt clean against the FINAL tree. Benches in band
-(`sba_check` 14.93-15.04 µs), run deliberately because this batch put work on the SBA hot path.
-Filed **OOS-DX49-1..8**. Full record: `memory/primitives/pb-DX49-execution-notes.md`.
+card-def edits**. clippy / fmt / check-defs-fmt clean against the FINAL tree. **Benches: a REAL ~1.7% regression on `sba_check` and both `priority_cycle` benches**, published as
+one rather than as "in band" — the `/review` refuted this batch's first, branch-only claim by running
+the merge-base A/B it had not. `full_turn_4p`/`full_turn_6p` are noise and `board_wipe_4p` is 5%
+FASTER. See the execution notes §6.2 for the matched-set table and why the residual is inherent to
+the mandated design.
+Filed **OOS-DX49-1..9**. Full record: `memory/primitives/pb-DX49-execution-notes.md`.
 
 ---
 

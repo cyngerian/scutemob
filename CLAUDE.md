@@ -193,7 +193,7 @@
   **↻ 2026-09-03 — PB-DX49 SHIPPED** (`scutemob-220`; v4 rank 7 — **OOS-RR4-1** CLOSED and rider
   **OOS-RR4-3** CLOSED). Coverage unmoved at **1,137/1,803 = 63.1%**, **0 flips**, **0 card-def
   edits of any kind**; PROTOCOL **39** / HASH **78** both gate-executed and UNMOVED, predicted in
-  writing before any code. Filed **OOS-DX49-1..8**.
+  writing before any code. Filed **OOS-DX49-1..9**.
   **Next dispatch: PB-DX50** (v4 rank 8); ranks 1-7 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
