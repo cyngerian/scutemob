@@ -31,13 +31,17 @@
 //! And `c3`'s real verdict is that `process_command` **accepts** a command the offer layer
 //! produced — the literal statement of SR-38 — not that a picker rendered.
 
+use std::collections::HashMap;
+
 use mtg_engine::{
-    process_command, CardDefinition, CardId, CardRegistry, CardType, Command, GameEvent, GameState,
-    GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step,
-    SubType, TypeLine, ZoneId,
+    all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition, CardId,
+    CardRegistry, CardType, Command, GameEvent, GameState, GameStateBuilder, KeywordAbility,
+    ManaColor, ManaCost, ManaPool, ObjectId, ObjectSpec, PlayerId, Step, SubType, SuperType,
+    TypeLine, ZoneId,
 };
 use mtg_simulator::{
-    action_to_command_with_params, ActionParams, LegalAction, LegalActionProvider, StubProvider,
+    action_to_command_with_params, build_registry, ActionParams, LegalAction, LegalActionProvider,
+    StubProvider,
 };
 
 fn p(n: u64) -> PlayerId {
@@ -316,5 +320,245 @@ fn c4b_an_opponent_controlled_but_caster_owned_host_is_still_offered() {
             |e| matches!(e, GameEvent::PermanentTargeted { target_id, .. } if *target_id == host_id)
         ),
         "CR 702.21a: the announcement reaches the event log on the ownership-axis board too"
+    );
+}
+
+// ── c5 — the DECK-LEGAL proof, on two real corpus cards ─────────────────────────
+
+/// The corpus's mutator: `Complete`, deck-legal, mutate `{1}{G}{G}`, a Beast (so not
+/// itself a Human, and its name is unambiguous against the host's). Same card
+/// `pb_dx29_mutate_on_top.rs` drives.
+const REAL_MUTATOR: &str = "Gemrazer";
+/// The corpus's Ward host: `Complete`, deck-legal,
+/// `AbilityDefinition::Keyword(KeywordAbility::Ward(2))`, and *Legendary Creature —
+/// Merfolk Wizard*, i.e. **non-Human**, so CR 702.140a admits it as a mutate host.
+const REAL_WARD_HOST: &str = "Adrix and Nev, Twincasters";
+
+/// Every card definition keyed by NAME — the shape `enrich_spec_from_def` wants, mirroring
+/// `pb_dx29_mutate_on_top.rs`'s own helper rather than inventing a second idiom.
+fn card_defs_by_name() -> HashMap<String, CardDefinition> {
+    all_cards()
+        .into_iter()
+        .map(|d| (d.name.clone(), d))
+        .collect()
+}
+
+/// CR 702.21a / CR 702.140a — **the deck-legal proof, and the only probe in this batch
+/// that touches real corpus cards.**
+///
+/// Every other probe in PB-DX50 uses synthetic defs. That is the shape this project keeps
+/// punishing: PB-DX43's *existence is never sufficiency*, and PB-DX47's finding that a
+/// probe was green only because its fixture was a naked `ObjectSpec::card()` — a shape no
+/// production path can produce. So this one builds through `build_registry()` +
+/// `card_name_to_id` + `enrich_spec_from_def`, the production pregame path, and names two
+/// cards a player can legally put in a deck today.
+///
+/// **Board**: P1 OWNS `Adrix and Nev, Twincasters` (CR 702.140a's axis is OWNERSHIP,
+/// CR 108.3) and P2 CONTROLS it (CR 702.21a's axis is CONTROL, CR 109.4 — an ordinary
+/// Mind Control position). P1 casts `Gemrazer` for its mutate cost targeting Adrix.
+///
+/// **Verdict, by COUNT and never `>= 1`** (PB-DX48's rule: a double-dispatch design
+/// satisfies every `>= 1` assertion in the tree): exactly one `PermanentTargeted` naming
+/// Adrix, and exactly one Ward `AbilityTriggered` whose `source_object_id` is Adrix and
+/// whose controller is P2.
+///
+/// **CR 704.5j (the legend rule) was CHECKED, not assumed, and it does not perturb this
+/// fixture.** The rule fires only when ONE player controls two or more legendary
+/// permanents with the same name. P2 controls exactly one Adrix and P1 controls no
+/// legendary permanent at all, so no SBA applies; the assertion below re-checks that
+/// explicitly rather than trusting the reading. The merge itself is never reached — the
+/// verdict is taken at ANNOUNCEMENT, with the ward trigger sitting on top of the still-
+/// unresolved mutating creature spell — so the question of what the merged permanent's
+/// name and supertypes would be (CR 729.2a) never arises here either.
+#[test]
+fn c5_deck_legal_gemrazer_onto_adrix_fires_ward_exactly_once() {
+    let defs = card_defs_by_name();
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Preconditions on the real defs, asserted rather than assumed. If a future card-def
+    // edit demotes either card or removes the Ward marker, this probe must say WHY it
+    // stopped being a deck-legal proof instead of quietly becoming a different test.
+    let mutator_def = defs
+        .get(REAL_MUTATOR)
+        .unwrap_or_else(|| panic!("{REAL_MUTATOR} must exist in all_cards()"));
+    let host_def = defs
+        .get(REAL_WARD_HOST)
+        .unwrap_or_else(|| panic!("{REAL_WARD_HOST} must exist in all_cards()"));
+    assert_eq!(
+        mutator_def.completeness,
+        mtg_engine::cards::Completeness::Complete,
+        "AC 7301 asks for a DECK-LEGAL fixture: {REAL_MUTATOR} must be Complete"
+    );
+    assert_eq!(
+        host_def.completeness,
+        mtg_engine::cards::Completeness::Complete,
+        "AC 7301 asks for a DECK-LEGAL fixture: {REAL_WARD_HOST} must be Complete"
+    );
+    assert!(
+        host_def.abilities.iter().any(|a| matches!(
+            a,
+            mtg_engine::AbilityDefinition::Keyword(KeywordAbility::Ward(_))
+        )),
+        "{REAL_WARD_HOST} must declare KeywordAbility::Ward -- without it this probe \
+         measures nothing about CR 702.21a"
+    );
+    assert!(
+        !host_def
+            .types
+            .subtypes
+            .contains(&SubType("Human".to_string())),
+        "CR 702.140a: the host must be non-Human. {REAL_WARD_HOST} is a Merfolk Wizard."
+    );
+    assert!(
+        host_def.types.supertypes.contains(&SuperType::Legendary),
+        "precondition for the CR 704.5j check below: {REAL_WARD_HOST} really is legendary, \
+         so the legend-rule question is a real one and not a hypothetical"
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .with_registry(build_registry())
+        // Mana in the POOL, not on lands: `can_afford` answers "the pool alone covers
+        // this" first, so the offer this probe reads is not entangled with the mana
+        // solver (`pb_dx29_mutate_on_top.rs`'s own reasoning).
+        .player_mana(
+            p1,
+            ManaPool {
+                green: 3,
+                ..Default::default()
+            },
+        )
+        .object(enrich_spec_from_def(
+            ObjectSpec::card(p1, REAL_MUTATOR)
+                .with_card_id(card_name_to_id(REAL_MUTATOR))
+                .in_zone(ZoneId::Hand(p1)),
+            &defs,
+        ))
+        // Owned by p1 (CR 702.140a), controlled by p2 (CR 702.21a).
+        .object(enrich_spec_from_def(
+            ObjectSpec::card(p1, REAL_WARD_HOST)
+                .with_card_id(card_name_to_id(REAL_WARD_HOST))
+                .in_zone(ZoneId::Battlefield)
+                .controlled_by(p2),
+            &defs,
+        ))
+        .build()
+        .expect("PB-DX50 deck-legal mutate fixture must build");
+    state.turn_mut().priority_holder = Some(p1);
+
+    let gemrazer_id = find_object(&state, REAL_MUTATOR);
+    let adrix_id = find_object(&state, REAL_WARD_HOST);
+    assert_eq!(
+        state.objects().get(&adrix_id).unwrap().owner,
+        p1,
+        "precondition: CR 108.3 -- p1 OWNS Adrix"
+    );
+    assert_eq!(
+        state.objects().get(&adrix_id).unwrap().controller,
+        p2,
+        "precondition: CR 109.4 -- p2 CONTROLS Adrix, which is what makes CR 702.21a's \
+         'an opponent controls' clause reachable at all"
+    );
+
+    // CR 704.5j: the legend rule fires only when ONE player controls two or more legendary
+    // permanents with the same name. Checked by counting, not by reading the rule.
+    let legendary_per_controller: HashMap<PlayerId, usize> = state
+        .objects()
+        .values()
+        .filter(|o| {
+            o.zone == ZoneId::Battlefield
+                && o.characteristics.supertypes.contains(&SuperType::Legendary)
+        })
+        .fold(HashMap::new(), |mut acc, o| {
+            *acc.entry(o.controller).or_insert(0) += 1;
+            acc
+        });
+    assert!(
+        legendary_per_controller.values().all(|n| *n <= 1),
+        "CR 704.5j: no player may control two legendary permanents here, or an SBA would \
+         remove one and perturb every count below. Measured: {legendary_per_controller:?}"
+    );
+
+    // The offer layer must OFFER this host -- SR-38's half, on real cards.
+    let offers = mutate_offers(&state);
+    assert_eq!(
+        offers.len(),
+        2,
+        "SR-38: `Gemrazer` onto `Adrix and Nev, Twincasters` is a legal mutate \
+         (CR 702.140a: non-Human, owned by the caster), so the real offer layer must emit \
+         one action per (host, on_top) pair. Ward does NOT make a target illegal -- it \
+         taxes it (CR 702.21a). Offers: {offers:#?}"
+    );
+    let offer = offers
+        .iter()
+        .find(|a| matches!(a, LegalAction::CastWithMutate { mutate_target, .. } if *mutate_target == adrix_id))
+        .expect("one of the offers must name Adrix as the host");
+
+    // Offer -> production mapping -> engine. Never hand-assembled.
+    let command = action_to_command_with_params(&state, p1, offer, &ActionParams::default())
+        .expect("the production mapping must build a Command for its own offer");
+    let (after, events) = process_command(state.clone(), command)
+        .expect("SR-38: an action the offer layer emitted must be accepted by the engine");
+    // CR 400.7: moving hand -> stack makes a NEW object, so the post-cast Gemrazer has a
+    // DIFFERENT ObjectId. The first draft of this line asserted the ids were equal and was
+    // refuted on its first run -- recorded rather than quietly corrected, because it is the
+    // engine's #1 bug class and this file should not read as if it were unaware of it.
+    let stack_gemrazer = find_object(&after, REAL_MUTATOR);
+    assert_ne!(
+        stack_gemrazer, gemrazer_id,
+        "CR 400.7: the cast created a new object; the hand id is dead"
+    );
+    assert_eq!(
+        after.objects().get(&stack_gemrazer).unwrap().zone,
+        ZoneId::Stack,
+        "the Gemrazer card is in the Stack zone while its spell is on the stack"
+    );
+
+    let targeted = events
+        .iter()
+        .filter(|e| {
+            matches!(e, GameEvent::PermanentTargeted { target_id, .. } if *target_id == adrix_id)
+        })
+        .count();
+    assert_eq!(
+        targeted, 1,
+        "CR 702.21a: EXACTLY one PermanentTargeted naming Adrix. Before PB-DX50 this was \
+         ZERO -- the mutate host never entered the StackObject's `targets`, which is the \
+         only thing `permanent_targeted_events` reads. Events: {events:#?}"
+    );
+
+    let ward_triggers = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                GameEvent::AbilityTriggered { controller, source_object_id, .. }
+                if *source_object_id == adrix_id && *controller == p2
+            )
+        })
+        .count();
+    assert_eq!(
+        ward_triggers, 1,
+        "CR 702.21a: EXACTLY one Ward AbilityTriggered, controlled by Adrix's CONTROLLER \
+         p2. This is `OOS-DX25-1`'s headline, on two deck-legal `Complete` corpus cards \
+         cast through the real offer layer and the real command mapping. Events: \
+         {events:#?}"
+    );
+    assert_eq!(
+        after.stack_objects().len(),
+        2,
+        "the mutating creature spell plus the ward trigger on top of it"
+    );
+    assert!(
+        after
+            .objects()
+            .get(&adrix_id)
+            .is_some_and(|o| o.zone == ZoneId::Battlefield),
+        "CR 704.5j did not fire: Adrix is still on the battlefield, so nothing about the \
+         counts above is an artefact of a legend-rule sacrifice"
     );
 }
