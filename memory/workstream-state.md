@@ -15,7 +15,85 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**PB-DX48 shipped `scutemob-219` 2026-09-02; v4 ranks 1-6 all shipped; next dispatch PB-DX49, v4 rank 7**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX49 shipped `scutemob-220` 2026-09-03; v4 ranks 1-7 all shipped; next dispatch PB-DX50, v4 rank 8**)
+
+## Worker Handoff (PB-DX49, `scutemob-220`) — the rule the seed quoted is not the rule that applies
+
+**Shipped**: v4 queue **rank 7**. **`OOS-RR4-1` CLOSED** and rider **`OOS-RR4-3` CLOSED**. Corner
+case **#36 GAP → PARTIAL** — the engine half of the corner-case audit's last open GAP closes, and
+#36 is deliberately **not** marked COVERED, because the card half (`urzas_saga` authoring,
+`OOS-RR4-2`) is genuinely still open and this batch did not take it.
+
+**The defect.** Every CR 714 decision — *is this a Saga*, *what is its final chapter number*,
+*which chapter abilities does it still have* — was taken independently at five sites, each by
+reading the **printed** card definition and none by consulting the layer axis. A permanent whose
+abilities were blanked kept accruing lore counters (CR 714.3b), kept firing chapter triggers
+(CR 714.2b) and was sacrificed anyway (CR 714.4).
+
+**Shipped shape.** `layers::abilities_are_blanked` is now **the** ability-blanking predicate — CR
+708.2a face-down plus the continuous-effect scan, with classification delegated to PB-DX43's
+exhaustive no-wildcard `modification_blanks_abilities` so a fourth channel is a compile error. IG-1
+in `queue_carddef_etb_triggers` was refactored to consume it, so **exactly one such predicate exists
+in the tree** (verified by enumeration across engine, simulator, view-model and `tools/`).
+`rules::saga::saga_view` answers every CR 714 question once, for all five sites.
+`resolution.rs`'s two chapter-effect lookups are deliberately **not** consumers (CR 113.7a) and say
+so at each site, so a successor cannot "finish the job".
+
+### Read this before taking anything adjacent
+
+**1. The seed's prescription would have made the fix CR-wrong, and only reading the rule caught it.**
+`OOS-RR4-1` treats a blanked Saga's surviving ETB lore counter as part of the defect. **CR 714.3a
+has no *"with one or more chapter abilities"* clause** — 714.3b and 714.4 both do. CR 613.1f removes
+abilities, **not subtypes**, so a Layer-6-blanked permanent is still a Saga and still takes its
+counter; only CR 708.2a (*"no text, no name, **no subtypes**"*) makes a face-down permanent not a
+Saga. Suppressing it produces a **second** wrong outcome: an un-blanking would fire chapter I
+instead of resuming at chapter II. **Site 4 asks two questions, and the query answers them from two
+fields.** If you touch CR 714, read the rule, not the seed.
+
+**2. A grep for a variant name is not a census of a behaviour.** Every blanker figure in this
+seed's chain (13, its own corrected 9, and this batch's own orientation 6) grepped the string
+`RemoveAllAbilities`. PB-DX43 moved CR 305.7's ability loss into `SetLandTypes`, so **both moons are
+blankers again through a variant no such grep can see**. The measured population is **11 / 8** and
+comes from *calling* `modification_blanks_abilities`. **The deck-legal 8 agrees with the row by
+coincidence of totals, not of membership** — a batch checking only the total would have recorded the
+row as confirmed. Saga side is likewise **3**, not 4 (`song_of_freyalise` names `SagaChapter` only in
+`// TODO`s and its `inert` note): **SR-36's failure mode for the fourth consecutive batch in this
+queue.**
+
+**3. `OOS-DX49-1` is LIVE on a deck-legal `Complete` def and is deliberately UNPINNED.**
+`binding_the_old_gods`' chapter I destroys nothing: `SagaChapter` is never lowered into
+`chars.triggered_abilities` (`grep -c SagaChapter crates/engine/src/rules/abilities.rs` → **0**), so
+`flush_sorted`'s requirement lookup returns empty, no CR 603.3d announcement happens, and
+`DeclaredTarget { index: 0 }` resolves at nothing. Found **by execution while looking for something
+else**. No probe was written, on purpose: a probe asserting today's behaviour would have to be
+inverted by whoever fixes it. **PB-DX49 decides which chapters exist; this is what a chapter that
+exists can target.** They are different subsystems and nothing here touches that path.
+
+**4. `GameStateBuilder::build()` defaults to `Step::PreCombatMain`** — the exact state a
+settle-detecting drive hunts for. This batch's bot-path probe satisfied *"settled at turn-1
+precombat main"* **before issuing a single command**. PB-DX48's shape through a different door: the
+vacuity came from the fixture's default, not the drive's endpoint. Closed here three ways; filed as
+a class in `OOS-DX49-8`, because every `GameStateBuilder` fixture inherits the same default. **If
+you write a drive-until-settled probe, assert the drive has not already arrived before the loop.**
+
+**5. Two standing gates fired on this batch's own work and both were right.** The ability-definition
+registry's `SagaChapter` site roster (four files → `saga.rs` + `resolution.rs` — the refactor's own
+success signal), and SR-25's `bare_lookup_ratchet` on `sba.rs`, whose ceiling was **lowered** 7 → 6
+rather than left stale-high. *A stale-high ceiling is slack a regression hides in.*
+
+**6. One claim in CLAUDE.md's own PB-DX48 narrative was refuted and corrected in place.**
+`KeywordAbility::Cloak` **does** exist (`card-types/src/state/types.rs:1696`, discriminant 157).
+PB-DX48's conclusion and its measurement both survive — zero corpus defs declare it — but the stated
+*reason* was wrong, and a reason is the half the next batch reuses.
+
+**Numbers.** Tests **4,934 / 0 / 5** (+34 over the 4,900 pre-edit baseline, **58** targets; 34
+additions / 0 removals / 0 leavers / 0 renames by NAME). **PROTOCOL 39 / HASH 78 both gate-executed
+and UNMOVED**, predicted in writing before any code. Coverage unmoved **63.1%**, 0 flips, **0
+card-def edits**. clippy / fmt / check-defs-fmt clean against the FINAL tree. Benches in band
+(`sba_check` 14.93-15.04 µs), run deliberately because this batch put work on the SBA hot path.
+Filed **OOS-DX49-1..8**. Full record: `memory/primitives/pb-DX49-execution-notes.md`.
+
+---
 
 ## Worker Handoff (PB-DX48, `scutemob-219`) — emitting the event is not dispatching it
 
