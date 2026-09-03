@@ -990,7 +990,8 @@ pub fn handle_answer_effect_choice(
             choice_id, entry.choice_id
         )));
     }
-    // 4 + 5, in ONE exhaustive match: variant agreement AND per-variant legality.
+    // 4 + 5, in ONE exhaustive match on the QUESTION: variant agreement AND per-variant
+    // legality.
     //
     // # Why these were merged (PB-DX50 §8) — a structural fix, not an appended arm
     //
@@ -1010,58 +1011,87 @@ pub fn handle_answer_effect_choice(
     //     checked above")`. So a batch that fixed (1) and missed (2) would have turned
     //     the rejection into a **panic in release**.
     //
-    // Matching the PAIR exhaustively, with no wildcard, makes an eighth variant a
-    // **compile error here** until someone decides what a client may send for it. The
-    // explicit `(q, a)` mismatch arms are the genuine wrong-question case, which is what
-    // that message was always meant to describe.
+    // Both are now ONE match, dispatched on `question` alone -- see the next block for
+    // why "on `question` alone" is the load-bearing half and why the obvious pair match
+    // is NOT.
     //
     // **This is `rules::engine.rs`'s obligation (8), which PB-DX45 WROTE and did not
     // fully APPLY** — it named `api::validate_decision_params` alone, and these two sites
     // are in the file PB-DX45 was editing, two functions away. That obligation now names
     // the mechanism instead of one function.
     //
-    // Rust's exhaustiveness checker cannot demand that every mismatch pair be spelled
-    // out (there are N² of them), so the mismatch side is one `_` arm at the END of the
-    // pair match. That is safe in a way the old wildcard was not: the MATCHING pairs are
-    // all listed above it, so an unlisted new variant cannot silently fall through to
-    // "these two do not match" — it fails to compile at the `EffectChoiceQuestion` level
-    // first, because every arm below binds a specific question variant and together they
-    // must cover the enum. Proven by execution: deleting any one matching arm is a
-    // non-exhaustive-patterns error, not a silent rejection.
-    match (&entry.question, &answer) {
-        (
-            EffectChoiceQuestion::SearchLibrary {
-                candidates,
-                may_fail_to_find,
-            },
-            EffectChoiceAnswer::SearchLibrary { found },
-        ) => match found {
-            Some(id) => {
-                if !candidates.contains(id) {
-                    return Err(GameStateError::InvalidCommand(format!(
-                        "CR 701.23a: {id:?} is not among the cards this search found"
-                    )));
+    // # The dispatch is on `question` ALONE, and that is the whole fix
+    //
+    // **The first draft of this fix matched the PAIR with a trailing `_ =>` mismatch arm,
+    // and its comment claimed a missing arm would be a compile error. THAT CLAIM WAS
+    // FALSE, and this batch's own revert matrix defeated it by execution**: deleting the
+    // `(MutateOnTop, MutateOnTop)` arm compiled cleanly, fell through to the wildcard,
+    // and rejected every legal answer at runtime -- i.e. `variants_agree`'s exact defect,
+    // recreated inside the fix for it, behind a comment asserting the opposite. That is
+    // `rules::engine.rs` obligation (8)'s own subject matter committed inside the repair,
+    // and it was caught only because every revert row had to DEMONSTRATE red.
+    //
+    // A pair match cannot be made compile-forced: the N² mismatch cases require a
+    // wildcard, and Rust's exhaustiveness checker is satisfied by it -- so the wildcard
+    // silently absorbs a new MATCHING pair too. The fix is
+    // `api::validate_decision_params`'s shape, which PB-DX45 arrived at for the identical
+    // reason one crate over: **dispatch on `question` alone, exhaustively and with NO
+    // wildcard, and destructure the answer inside each arm with a
+    // `let ... else { return Err(mismatch()) }`.** An eighth `EffectChoiceQuestion`
+    // variant is then a compile error here, and the mismatch path describes the genuine
+    // wrong-question case and nothing else.
+    //
+    // Re-proven by execution after the restructure: deleting the `MutateOnTop` arm gives
+    // `error[E0004]: non-exhaustive patterns: `&EffectChoiceQuestion::MutateOnTop { .. }`
+    // not covered`.
+    let mismatch = || {
+        GameStateError::InvalidCommand(format!(
+            "CR 608.2d: answer {:?} does not answer question {:?}",
+            answer, entry.question
+        ))
+    };
+    match &entry.question {
+        EffectChoiceQuestion::SearchLibrary {
+            candidates,
+            may_fail_to_find,
+        } => {
+            let EffectChoiceAnswer::SearchLibrary { found } = &answer else {
+                return Err(mismatch());
+            };
+            match found {
+                Some(id) => {
+                    if !candidates.contains(id) {
+                        return Err(GameStateError::InvalidCommand(format!(
+                            "CR 701.23a: {id:?} is not among the cards this search found"
+                        )));
+                    }
+                }
+                None => {
+                    // CR 701.23b vs 701.23d.
+                    if !*may_fail_to_find {
+                        return Err(GameStateError::InvalidCommand(
+                            "CR 701.23d: this search must find a card".into(),
+                        ));
+                    }
                 }
             }
-            None => {
-                // CR 701.23b vs 701.23d.
-                if !*may_fail_to_find {
-                    return Err(GameStateError::InvalidCommand(
-                        "CR 701.23d: this search must find a card".into(),
-                    ));
-                }
-            }
-        },
-        (EffectChoiceQuestion::Scry { looked_at }, EffectChoiceAnswer::Scry { bottom, top }) => {
+        }
+        EffectChoiceQuestion::Scry { looked_at } => {
+            let EffectChoiceAnswer::Scry { bottom, top } = &answer else {
+                return Err(mismatch());
+            };
             validate_partition(looked_at, bottom, top, "CR 701.22a")?;
         }
-        (
-            EffectChoiceQuestion::Surveil { looked_at },
-            EffectChoiceAnswer::Surveil { graveyard, top },
-        ) => {
+        EffectChoiceQuestion::Surveil { looked_at } => {
+            let EffectChoiceAnswer::Surveil { graveyard, top } = &answer else {
+                return Err(mismatch());
+            };
             validate_partition(looked_at, graveyard, top, "CR 701.25a")?;
         }
-        (EffectChoiceQuestion::Discard { hand, count }, EffectChoiceAnswer::Discard { chosen }) => {
+        EffectChoiceQuestion::Discard { hand, count } => {
+            let EffectChoiceAnswer::Discard { chosen } = &answer else {
+                return Err(mismatch());
+            };
             // CR 701.9b: exactly `count`, no duplicates, every one from the hand
             // the ENGINE recorded. Nothing is re-derived from the board and
             // nothing positional is trusted from the wire.
@@ -1094,14 +1124,14 @@ pub fn handle_answer_effect_choice(
                 seen.push(*id);
             }
         }
-        (
-            EffectChoiceQuestion::ChooseObject {
-                candidates,
-                count,
-                up_to,
-            },
-            EffectChoiceAnswer::ChooseObject { chosen },
-        ) => {
+        EffectChoiceQuestion::ChooseObject {
+            candidates,
+            count,
+            up_to,
+        } => {
+            let EffectChoiceAnswer::ChooseObject { chosen } = &answer else {
+                return Err(mismatch());
+            };
             // PB-DX28: CR 115.10 / CR 608.2 -- no duplicates, every id drawn
             // from the question's own candidates, and the count matches the
             // question's shape: exactly `min(count, candidates.len())` when
@@ -1144,31 +1174,23 @@ pub fn handle_answer_effect_choice(
         // The four variants above validate an id set against a recorded answer
         // space; this question HAS no answer space beyond `{pay, decline}`, and
         // the engine only asks it when `can_pay_optional_cost` has already
-        // returned true. So there is nothing to check here that check 4 has not
-        // already checked -- the arm exists so that the match stays exhaustive
-        // and a sixth variant is a compile error rather than a silent fallthrough
-        // into the `unreachable!` below.
-        (
-            EffectChoiceQuestion::PayOptionalCost { .. },
-            EffectChoiceAnswer::PayOptionalCost { .. },
-        ) => {}
+        // returned true. So there is nothing to check beyond the variant, which the
+        // `let ... else` below checks -- the arm exists so that the match stays
+        // exhaustive and a seventh variant is a compile error rather than a silent
+        // fallthrough.
+        EffectChoiceQuestion::PayOptionalCost { .. } => {
+            let EffectChoiceAnswer::PayOptionalCost { .. } = &answer else {
+                return Err(mismatch());
+            };
+        }
         // PB-DX50: CR 702.140c -- both answers are legal, always, for the same reason
         // as the arm above: the answer space is `{on top, under}` and the engine only
-        // asks once the target is legal (CR 702.140c's own antecedent). Nothing to
-        // check beyond the variant, which the pair match has already checked.
-        (EffectChoiceQuestion::MutateOnTop { .. }, EffectChoiceAnswer::MutateOnTop { .. }) => {}
-        // The GENUINE wrong-question case, and the only thing this arm has ever been
-        // meant to describe. It is reachable, unlike the `unreachable!()` it replaced:
-        // a `Scry` answer to a `Surveil` question is not merely wrong, it is a
-        // different rule. **It is NOT a fallback for an unknown question** -- see the
-        // header: an unlisted question variant is a compile error above, because the
-        // matching arms must cover `EffectChoiceQuestion` exhaustively.
-        _ => {
-            return Err(GameStateError::InvalidCommand(format!(
-                "CR 608.2d: answer {:?} does not answer question {:?}",
-                answer, entry.question
-            )));
-        }
+        // asks once the target is legal (CR 702.140c's own antecedent).
+        EffectChoiceQuestion::MutateOnTop { .. } => {
+            let EffectChoiceAnswer::MutateOnTop { .. } = &answer else {
+                return Err(mismatch());
+            };
+        } // NO WILDCARD ARM. That absence is the fix -- see the header.
     }
     // 6. The bank must not grow without bound (see the constant's doc).
     if state.effect_choice_answers.len() >= MAX_EFFECT_CHOICES_PER_RESOLUTION {

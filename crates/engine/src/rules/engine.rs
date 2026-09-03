@@ -201,13 +201,29 @@ fn run_delayed_trigger_cleanup(state: &mut GameState) {
 ///        `_ => unreachable!("variant agreement checked above")`, so fixing (1)
 ///        alone converts the rejection into a **panic in release**.
 ///
-///   Both are now ONE exhaustive `match` on the pair. **The durable half is not
-///   that PB-DX45 missed two sites — it is that writing the general rule down is
-///   not the same as applying it, and a rule that names one site will be read as
-///   being about that site.** So this obligation now names the MECHANISM: before
+///   Both are now ONE match dispatched on `question` ALONE — the exact shape
+///   `api::validate_decision_params` already had — with the answer destructured
+///   inside each arm by a `let … else { return Err(mismatch()) }` and **no
+///   wildcard**.
+///
+///   **PB-DX50's own first draft of that fix matched the PAIR with a trailing
+///   `_ =>` and claimed in a comment that a missing arm would be a compile error.
+///   The batch's own revert matrix refuted it by execution**: the N² mismatch
+///   cases force a wildcard, Rust's exhaustiveness checker is satisfied by it, and
+///   the wildcard then silently absorbs a new MATCHING pair too — so deleting the
+///   `MutateOnTop` arm compiled and rejected every legal answer at runtime. The
+///   defect, recreated inside its own repair, behind a comment asserting the
+///   opposite.
+///
+///   **The durable half is therefore twofold.** (i) Writing the general rule down
+///   is not the same as applying it, and a rule that names one site will be read
+///   as being about that site — so this obligation names the MECHANISM: before
 ///   adding a variant to `EffectChoiceQuestion` / `EffectChoiceAnswer`, grep for
 ///   `matches!` and for `_ =>` arms over them, in the ENGINE as well as in
 ///   `tools/`, and convert each to an exhaustive match rather than extending it.
+///   (ii) **"Exhaustive with a wildcard" is not exhaustive.** A match on a TUPLE
+///   of two growing enums cannot be made compile-forced at all; dispatch on ONE of
+///   them and destructure the other.
 ///
 /// **Obligation (7), added by PB-DP9**: a new blocking kind must STATE whether
 /// its pending state belongs in `rules/loop_detection.rs`'s mandatory-state

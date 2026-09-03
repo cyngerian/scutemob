@@ -13919,6 +13919,63 @@ mod tests {
             out.push_str(rest);
             out
         }
+        // **The SERVER half, and it is the half the first draft of this gate missed.**
+        // Everything above pins the FRONTEND. If `view.rs` started emitting
+        // `AnswerShapeView::Confirm` for the CR 702.140c question, the browser would
+        // faithfully render `ConfirmPicker` -- "Pay {host}" / "Decline" -- and every
+        // assertion above would stay GREEN, because the `BinaryChoice` arm they check
+        // would simply never be reached.
+        //
+        // **Measured, not reasoned.** The revert was executed: swapping the arm to
+        // `Confirm` and neutralising the `dead_code` error that the now-unconstructed
+        // variant raises left all 121 play-server tests passing. The `dead_code` error
+        // is NOT a substitute for this check -- it is an artefact of `BinaryChoice`
+        // having exactly one construction site today, and it would vanish the moment a
+        // second question used the shape. (PB-DX32 §7 R7's class: a revert that fails to
+        // COMPILE is not a revert that DISCRIMINATES.)
+        //
+        // Brace-matched from the arm head, never a fixed window (PB-DX49 `/review`).
+        {
+            let view_src = std::fs::read_to_string(
+                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/view.rs"),
+            )
+            .expect("src/view.rs is readable");
+            let arm = view_src
+                .find("EffectChoiceQuestion::MutateOnTop { host } => {")
+                .expect("view.rs must have a MutateOnTop arm in the shape dispatch");
+            let bytes = view_src.as_bytes();
+            let mut i = arm + "EffectChoiceQuestion::MutateOnTop { host } => {".len();
+            let mut depth = 1usize;
+            while i < bytes.len() && depth > 0 {
+                match bytes[i] {
+                    b'{' => depth += 1,
+                    b'}' => depth -= 1,
+                    _ => {}
+                }
+                i += 1;
+            }
+            assert!(depth == 0, "unbalanced braces in view.rs's MutateOnTop arm");
+            let body = &view_src[arm..i];
+            // Non-vacuity: the extracted region really is that arm.
+            assert!(
+                body.contains("CR 702.140c") && body.len() < 3000,
+                "the extracted arm must be the MutateOnTop one and must not have \
+                 over-scanned; got {} bytes",
+                body.len()
+            );
+            assert!(
+                body.contains("AnswerShapeView::BinaryChoice"),
+                "view.rs's MutateOnTop arm must build `BinaryChoice`. Arm: {body}"
+            );
+            assert!(
+                !body.contains("AnswerShapeView::Confirm"),
+                "view.rs's MutateOnTop arm must NOT build `Confirm`: `ConfirmPicker` \
+                 renders \"Pay {{cost}}\" and \"Decline\", and CR 702.140c's two answers \
+                 are over and under -- neither is a payment and neither is the passive \
+                 one. That would be a truthful payload behind a false label. Arm: {body}"
+            );
+        }
+
         let picker_code = strip_block_comments(picker);
         assert!(
             picker_code.contains("choiceKey"),

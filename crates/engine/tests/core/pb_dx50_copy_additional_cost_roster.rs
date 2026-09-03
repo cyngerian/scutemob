@@ -231,12 +231,28 @@ fn r1_the_copy_allowlist_is_exactly_the_classified_set() {
     }
 }
 
-/// **r2** — the comment-stripping in `allowlist_body` is load-bearing, and the brace
-/// matcher does not over-scan.
+/// **r2** — the brace matcher does not over-scan, and the extractor is not vacuous.
 ///
-/// Non-vacuity for `r1`: without stripping, a variant NAMED IN PROSE inside the filter
-/// would count as allowlisted; without brace matching, the window could run past the
-/// `matches!` into the neighbouring field initialisers.
+/// # HONESTLY UNDISCRIMINATED, disclosed here and not only in `memory/`
+///
+/// The revert matrix for this batch has one row that could not be made to fail: **making
+/// `strip_comments` the identity leaves `r1` GREEN.** The reason is structural, not a
+/// missing probe — the brace-matched region is the inside of `copy.rs`'s `matches!(..)`,
+/// and there are no comments in there today; every variant named in prose sits ABOVE the
+/// `additional_costs:` anchor and is therefore outside the window by construction.
+///
+/// So the stripping is **defensive, not currently load-bearing**, and it is kept for one
+/// stated reason rather than by inertia: the day someone annotates a variant inside the
+/// `matches!` — `// AdditionalCost::Gift, see the audit` is exactly the shape this
+/// codebase writes — `r1`'s `!body.contains(..)` half would go silently green on a
+/// variant that is still dropped. This is PB-DX47's `r3`/`r3b` finding recurring: a guard
+/// whose subject is empty today is not a guard nobody needs, it is a guard nobody can
+/// currently prove. **Do not delete it on the grounds that no test fails — no test CAN
+/// fail, and that is the point of writing it down here.**
+///
+/// What `r2` DOES discriminate is the brace matcher: a fixed-width window that ran past
+/// the `matches!` into the neighbouring field initialisers would make `r1`'s `!contains`
+/// half silently green, and the size bound below catches it.
 #[test]
 fn r2_the_allowlist_extractor_is_neither_vacuous_nor_over_wide() {
     let body = allowlist_body();
@@ -251,14 +267,19 @@ fn r2_the_allowlist_extractor_is_neither_vacuous_nor_over_wide() {
          `r1`'s `!contains` half would go silently green. Body: {body}",
         body.len()
     );
+    // The stripping itself is DEFENSIVE, not currently load-bearing — see this test's
+    // own doc for the disclosure and for why it stays anyway.
     assert!(!body.contains("//"), "comments must be stripped: {body}");
-    // The prose above the filter names every dropped variant. If stripping ever
-    // regressed, this is the exact input that would defeat `r1`.
+    // The prose that WOULD defeat `r1` if the window ever widened: `copy.rs`'s comment
+    // names every dropped variant, a few hundred bytes above the anchor. This assertion
+    // is what makes the size bound above a real bound rather than an arbitrary number —
+    // it pins that the defeating input exists and is nearby.
     let src = engine_src("rules/copy.rs");
     assert!(
         src.contains("`Sacrifice`, `Gift`, `Squad` and `Offspring` are dropped"),
-        "copy.rs's own comment must name the dropped variants — `r1`'s stripping is only \
-         load-bearing while it does, and this is the input that proves it"
+        "copy.rs's own comment must name the dropped variants — that prose is the input \
+         a wider window would swallow, and the size bound above is only meaningful while \
+         it exists"
     );
 }
 
