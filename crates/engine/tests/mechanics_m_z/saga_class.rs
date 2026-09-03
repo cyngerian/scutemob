@@ -214,12 +214,11 @@ fn saga_multiple_chapters_can_trigger_cr714_2c() {
     // Set lore to 0 — then manually add 2 counters to cross chapters 1 AND 2.
     *state.pending_triggers_mut() = imbl::Vector::new();
 
-    // Use the fire_saga_chapter_triggers function directly.
-    let registry = state.card_registry().clone();
-    let def = registry.get(CardId("test-saga".to_string())).unwrap();
-    let _events = mtg_engine::rules::replacement::fire_saga_chapter_triggers(
-        &mut state, saga_id, p1, 0, 2, def,
-    );
+    // Use the fire_saga_chapter_triggers function directly. PB-DX49: the chapter list
+    // comes from `rules::saga::saga_view`, which resolves `saga_id` through the state's own
+    // registry, so the def no longer needs to be passed in.
+    let _events =
+        mtg_engine::rules::replacement::fire_saga_chapter_triggers(&mut state, saga_id, p1, 0, 2);
 
     // Both chapter 1 (was < 1, now >= 1) and chapter 2 (was < 2, now >= 2) should trigger.
     assert_eq!(

@@ -169,7 +169,12 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // defender bookkeeping, which `queries::attack_tax_total` (a pure total, no new
     // public type) has no use for.
     ("src/rules/combat.rs", 16),
-    ("src/rules/sba.rs", 7),
+    // PB-DX49 (2026-09-03): 7 → 6. `check_saga_sbas`'s chapter-still-on-stack guard used
+    // to re-fetch the Saga with a bare `state.objects.get(&saga_id)` to read
+    // `is_transformed` and `card_id`; it now asks `rules::saga::saga_view`, which resolves
+    // the object through `fizzle_object` internally. One bare lookup converted, so the
+    // ceiling comes down with it rather than leaving slack a future regression can hide in.
+    ("src/rules/sba.rs", 6),
     ("src/rules/replacement.rs", 24),
     ("src/rules/turn_actions.rs", 7),
     // PB-OS11 (2026-07-19): 7 → 8. One new NONSWALLOW predicate read:

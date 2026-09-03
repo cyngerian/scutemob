@@ -139,6 +139,17 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
 
 fn parse_corner_case_audit(root: &Path) -> anyhow::Result<CornerCaseAudit> {
     let content = fs::read_to_string(root.join("docs/mtg-engine-corner-case-audit.md"))?;
+    Ok(parse_corner_case_audit_content(&content))
+}
+
+/// The Summary-table parse, split out from the file read so it is testable.
+///
+/// PB-DX49 `/review` LOW 7: the repair below shipped with **no test**, in a crate holding two
+/// `#[test]`s neither of which touched this function — so the exact drift it fixes (a status
+/// row parsed into nothing, a total that under-reports) could recur the same way it arrived.
+/// `OOS-DX49-6` calls that shape "this queue's most frequent"; leaving it untested inside the
+/// fix for it is the same mistake one layer down.
+fn parse_corner_case_audit_content(content: &str) -> CornerCaseAudit {
     let mut audit = CornerCaseAudit::default();
     let mut in_summary = false;
 
@@ -160,13 +171,19 @@ fn parse_corner_case_audit(root: &Path) -> anyhow::Result<CornerCaseAudit> {
         let count: u32 = cells[1].parse().unwrap_or(0);
         match cells[0].to_lowercase().as_str() {
             "covered" => audit.covered = count,
+            "partial" => audit.partial = count,
             "gap" => audit.gap = count,
+            "deferred" => audit.deferred = count,
             _ => {}
         }
     }
-    audit.total = audit.covered + audit.gap;
-    // Also add partial/deferred to total
-    Ok(audit)
+    // PB-DX49 (`scutemob-220`): the Partial and Deferred rows were parsed into nothing and the
+    // total was `covered + gap`, under a comment that said "Also add partial/deferred to total"
+    // and never did. That was invisible while both rows read 0; corner case #36 moved to
+    // **PARTIAL** in this batch, which would have made the dashboard report 35 of 35 for a
+    // 36-case audit. Summing every status is what makes the total the audit's own row count.
+    audit.total = audit.covered + audit.partial + audit.gap + audit.deferred;
+    audit
 }
 
 // ─── milestone-reviews.md ───────────────────────────────────────────────────
@@ -712,5 +729,65 @@ fn parse_worker_status(root: &Path) -> Option<WorkerStatus> {
         None
     } else {
         Some(ws)
+    }
+}
+
+#[cfg(test)]
+mod corner_case_audit_parse_tests {
+    use super::parse_corner_case_audit_content;
+
+    /// The shape of the real `docs/mtg-engine-corner-case-audit.md` Summary table at HEAD.
+    const SUMMARY: &str = "\
+# Corner Case Correctness Audit
+
+## Summary
+
+| Status | Count | % |
+|--------|-------|---|
+| Covered | 35 | 97% |
+| Partial | 1 | 3% |
+| Gap | 0 | 0% |
+| Deferred | 0 | 0% |
+
+## Corner Case Coverage Table
+
+| # | Name | Status |
+|---|------|--------|
+| 36 | Blood Moon + Urza's Saga | **PARTIAL** |
+";
+
+    #[test]
+    fn every_status_row_is_parsed_and_the_total_is_their_sum() {
+        let a = parse_corner_case_audit_content(SUMMARY);
+        assert_eq!((a.covered, a.partial, a.gap, a.deferred), (35, 1, 0, 0));
+        // The regression this test exists for: `total` was `covered + gap`, which reads 35
+        // for a 36-case audit the moment a case sits in Partial.
+        assert_eq!(
+            a.total, 36,
+            "total must be the sum of ALL four statuses -- a 36-case audit reporting 35 is the              exact under-count PB-DX49 fixed"
+        );
+    }
+
+    /// Non-vacuity: the parser must not be reading zeros because it never found the section.
+    /// Without this, a rename of `## Summary` would leave the test above asserting 0 == 0.
+    #[test]
+    fn a_missing_summary_section_yields_zeros_rather_than_a_silent_pass() {
+        let a = parse_corner_case_audit_content("# No summary here\n\n| Covered | 35 | 97% |\n");
+        assert_eq!(
+            (a.covered, a.partial, a.gap, a.deferred, a.total),
+            (0, 0, 0, 0, 0),
+            "rows outside the Summary section must not be counted -- this is what makes the              sibling test's 35/1/0/0 evidence that the section was actually found"
+        );
+    }
+
+    /// The Summary parse must stop at the next `##` heading, or the coverage table's own
+    /// rows would be counted as statuses.
+    #[test]
+    fn the_coverage_table_below_the_summary_is_not_counted() {
+        let a = parse_corner_case_audit_content(SUMMARY);
+        assert_eq!(
+            a.covered, 35,
+            "the coverage table's `| 36 | ... | **PARTIAL** |` row sits after a `## ` heading              and must not reach the status match"
+        );
     }
 }

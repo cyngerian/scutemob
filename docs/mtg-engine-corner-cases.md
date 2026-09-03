@@ -1,6 +1,6 @@
 # MTG Rules Engine: Corner Case Interaction Test Reference
 
-<!-- last_updated: 2026-02-23 -->
+<!-- last_updated: 2026-09-03 -->
 
 > This document catalogs known difficult interactions that any MTG rules engine must handle
 > correctly. Each entry describes the interaction, what rules subsystem it stress-tests,
@@ -473,9 +473,22 @@ The owner should choose to apply the commander replacement first to avoid giving
 - No further lore counters are added while Blood Moon is in effect, so no new chapter abilities trigger.
 - Alpine Moon (which explicitly says "lose all abilities" in its text) applies in Layer 6 and will override gained abilities, unlike Blood Moon.
 
-**Entry order matters for retained abilities**:
-- Blood Moon entered *before* Urza's Saga chapters resolved → chapter gains have *later* timestamps → gained abilities survive (Layer 6 timestamp ordering).
-- Blood Moon entered *after* Urza's Saga chapters resolved → Blood Moon has *later* timestamp in Layer 6 → gained abilities are removed.
+**Entry order does NOT matter for retained abilities** (corrected 2026-09-03 by PB-DX49,
+`scutemob-220`; the paragraph this replaces asserted the opposite and was wrong on the CR itself,
+not merely on this engine):
+- CR 305.7's last-but-two sentence is explicit — *"Note that this doesn't remove any abilities
+  that were granted to the land by other effects."* Blood Moon's ability loss is a **Layer 4**
+  consequence of setting the land's subtype (CR 305.7 / 613.1d), not an independent Layer 6
+  removal, so **every** Layer 6 grant applies strictly after it regardless of timestamp. Gained
+  abilities survive whichever order the permanents entered.
+- The replaced paragraph reasoned from "Blood Moon has a *later* timestamp **in Layer 6**", which
+  requires Blood Moon to have a Layer 6 effect. It does not. `crates/card-defs/src/defs/blood_moon.rs`
+  carried a Layer 6 `RemoveAllAbilities` until **PB-DX43** (`scutemob-213`, 2026-08-14) deleted it
+  and moved CR 305.7's loss into the Layer 4 `SetLandTypes` arm — which is also what makes CR
+  305.7's own "granted by other effects" sentence true in this engine.
+- Alpine Moon, whose printed text really does say "loses all abilities", keeps a genuine Layer 6
+  removal and therefore **does** interact with timestamps. That contrast is the point: the entry-order
+  rule belongs to Alpine Moon, not to Blood Moon.
 
 **CR sections**: 714.4 (Saga sacrifice SBA — updated June 2025), 613.1d (layer 4 type-changing), 613.1f (layer 6 ability-adding/removing), 613.7 (timestamp ordering within layers)
 

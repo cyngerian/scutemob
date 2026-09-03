@@ -234,7 +234,10 @@ fn render_summary_lines(f: &mut Frame, area: Rect, app: &App) {
             Span::styled("Corner Cases: ", Style::default().fg(Color::Gray)),
             Span::styled(
                 format!("{}/{}", cc.covered, cc.total),
-                Style::default().fg(if cc.gap > 0 {
+                // PB-DX49: `partial` counts too — a PARTIAL case is not a covered one, and
+                // keying the colour on `gap` alone turned 35/36 green the moment #36 moved
+                // from GAP to PARTIAL.
+                Style::default().fg(if cc.gap > 0 || cc.partial > 0 {
                     Color::Yellow
                 } else {
                     Color::Green

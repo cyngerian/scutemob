@@ -178,10 +178,18 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
         },
         A::SagaChapter { .. } => AbilityHandling::Handled {
             sites: &[
-                "crates/engine/src/rules/replacement.rs",
+                // PB-DX49: the four sites that used to name this variant directly
+                // (`replacement.rs`, `sba.rs`, `turn_actions.rs`, and `replacement.rs`
+                // again) now ask `rules::saga::saga_view` instead, which is the only
+                // place the CR 714 chapter list is derived. That is the point of the
+                // batch — five sites reading the printed def independently is how a
+                // blanked Saga kept accruing lore counters and firing chapters.
+                "crates/engine/src/rules/saga.rs",
+                // CR 113.7a: `resolution.rs` still names the variant DELIBERATELY. An
+                // ability already on the stack exists independently of its source, so
+                // the two chapter-effect lookups there must keep reading the printed
+                // def rather than the view. Both carry a source comment saying so.
                 "crates/engine/src/rules/resolution.rs",
-                "crates/engine/src/rules/sba.rs",
-                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
         A::ClassLevel { .. } => AbilityHandling::Handled {

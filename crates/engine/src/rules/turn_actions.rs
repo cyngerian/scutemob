@@ -377,37 +377,38 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
 /// counter on each Saga they control with one or more chapter abilities.
 /// This turn-based action doesn't use the stack.
 fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
-    use crate::cards::card_definition::AbilityDefinition;
+    use crate::rules::saga::saga_view;
     let active = state.turn.active_player;
     let mut events = Vec::new();
     // Collect Sagas controlled by the active player that have chapter abilities.
-    let sagas: Vec<(ObjectId, crate::state::player::CardId)> = state
-        .objects
-        .iter()
-        .filter(|(_, obj)| {
-            obj.controller == active
-                && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
-                && obj.is_phased_in()
-                && obj.card_id.is_some()
-        })
-        .filter_map(|(id, obj)| {
-            let cid = obj.card_id.as_ref()?;
-            let def = state.card_registry.get(cid.clone())?;
-            // CR 714.3b / 712.8e: "each Saga they control with one or more chapter
-            // abilities" -- a permanent showing a non-Saga back face is not a Saga
-            // (matches rules/sba.rs:843).
-            let has_chapters = def
-                .effective_abilities(obj.is_transformed)
-                .iter()
-                .any(|a| matches!(a, AbilityDefinition::SagaChapter { .. }));
-            if has_chapters {
-                Some((*id, cid.clone()))
-            } else {
-                None
-            }
-        })
-        .collect();
-    for (saga_id, card_id) in sagas {
+    //
+    // `saga_view` takes `&GameState` and this function holds a `&mut`; one immutable
+    // reborrow lets the object walk and the query share it, so the walk stays lazy and no
+    // intermediate candidate `Vec` is built (see `sba.rs`'s note — the first draft's
+    // materialisation cost ~+6% on the `sba_check` bench at the sibling site).
+    let sagas: Vec<ObjectId> = {
+        let s: &GameState = state;
+        s.objects
+            .iter()
+            .filter(|(_, obj)| {
+                obj.controller == active
+                    && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
+                    && obj.is_phased_in()
+                    && obj.card_id.is_some()
+            })
+            // CR 714.3b: "each Saga they control **with one or more chapter abilities**" --
+            // the clause is in the rule, so this reads the RETAINED chapters. A permanent
+            // whose abilities are blanked (CR 613.1f Layer-6 `RemoveAllAbilities`, CR 305.7,
+            // or CR 708.2a face-down) has none and takes no lore counter.
+            //
+            // CR 712.8e is preserved inside the view: a permanent showing a non-Saga back
+            // face is not a Saga (this used to be spelled out here and in `sba.rs`; the two
+            // now read one query).
+            .filter(|(id, _)| saga_view(s, **id).has_chapters())
+            .map(|(id, _)| *id)
+            .collect()
+    };
+    for saga_id in sagas {
         let old_count = state
             .expect_object(saga_id)
             .and_then(|o| o.counters.get(&CounterType::Lore).copied())
@@ -422,16 +423,13 @@ fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
             counter: CounterType::Lore,
             count: new_count,
         });
-        // Fire chapter triggers for the newly-crossed thresholds.
-        // Clone the registry Arc to avoid borrow conflict with &mut state.
-        let registry = state.card_registry.clone();
-        if let Some(def) = registry.get(card_id) {
-            #[allow(clippy::needless_borrow)]
-            let chapter_evts = super::replacement::fire_saga_chapter_triggers(
-                state, saga_id, active, old_count, new_count, &def,
-            );
-            events.extend(chapter_evts);
-        }
+        // Fire chapter triggers for the newly-crossed thresholds. The chapter list comes
+        // from the same `saga_view` this loop's membership was decided by, so producer and
+        // filter cannot disagree about which abilities exist.
+        let chapter_evts = super::replacement::fire_saga_chapter_triggers(
+            state, saga_id, active, old_count, new_count,
+        );
+        events.extend(chapter_evts);
     }
     // PB-AC6 / CR 505.1a / 603.2b: Generic CardDef first-main-phase trigger sweep.
     //

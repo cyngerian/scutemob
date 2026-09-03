@@ -1858,6 +1858,67 @@ pub fn modification_blanks_abilities(
     }
 }
 
+/// CR 613.1f / CR 305.7 / CR 708.2a — **the** ability-blanking predicate: does anything
+/// leave this permanent with no abilities at all?
+///
+/// This is the single question "are `id`'s abilities gone", asked once for the whole
+/// engine. Two channels reach it today:
+///
+/// 1. **CR 708.2a face-down** — *"no text, no name, no subtypes, and no mana cost"*. A
+///    face-down permanent has no abilities by definition, and (load-bearing elsewhere) no
+///    subtypes either, so it is not a Saga / not an Equipment / not anything.
+/// 2. **A continuous effect whose modification blanks abilities** — CR 613.1f's Layer-6
+///    `RemoveAllAbilities`, and CR 305.7's Layer-4 `SetLandTypes` with a basic payload.
+///
+/// **The classification of channel 2 is delegated to [`modification_blanks_abilities`]
+/// rather than matched here** (PB-DX43 `/review` Issue 1). That function is exhaustive
+/// over `LayerModification` with **no wildcard arm**, so a *fourth* channel is a compile
+/// error until someone classifies it. The alternative — a local `matches!` — is exactly
+/// what was wrong before: `replacement.rs`'s IG-1 suppressor used to read
+/// `e.layer == EffectLayer::Ability && matches!(e.modification, RemoveAllAbilities)`,
+/// correct while Layer-6 `RemoveAllAbilities` was the only blanking channel and silently
+/// wrong the moment PB-DX43 made CR 305.7's ability loss a **Layer-4** consequence of
+/// `SetLandTypes`. Blood Moon and Magus of the Moon dropped their Layer-6 static in that
+/// batch, so the scan stopped seeing them and 26 nonbasic land defs (the ten Karoos, the
+/// six Temples, the five gain-lands, ...) began firing CardDef ETB triggers off a land
+/// whose abilities were gone — with the whole suite green. **Keying on the modification
+/// rather than on the layer is what makes a third channel impossible to add silently.**
+///
+/// The effect filter is evaluated against the object's **stored** `obj.characteristics`,
+/// never against `calculate_characteristics`. That is IG-1's deliberate choice and this
+/// function does not change it: CardDef abilities are not in `chars`, so the layer-resolved
+/// characteristics cannot answer this question anyway, and re-entering the layer walk from
+/// here would reopen `OOS-SIM2-6`'s recursion. The same `chars` is handed to
+/// [`modification_blanks_abilities`] because CR 305.7 is scoped to **lands** — a
+/// modification alone cannot answer a rule with a type precondition.
+///
+/// A missing object yields `false`: that is a CR 400.7 fizzle (nothing here to blank),
+/// not a blank.
+pub fn abilities_are_blanked(state: &GameState, id: ObjectId) -> bool {
+    // Channel 1 — CR 708.2a. The `face_down_as.is_some()` conjunct is the same one
+    // `layers.rs`'s face-down characteristics path and `replacement.rs`'s CR 708.3 return
+    // already use, and it is there to distinguish morph/manifest/cloak (a face-down
+    // *permanent*) from Foretell/Hideaway's unrelated `face_down` usage on cards in other
+    // zones. Do not invent a second spelling of this test.
+    let Some(obj) = state.fizzle_object(id) else {
+        return false;
+    };
+    if obj.status.face_down && obj.face_down_as.is_some() {
+        return true;
+    }
+    // Channel 2 — the continuous-effect scan.
+    let obj_zone = obj.zone;
+    let chars = obj.characteristics.clone();
+    state
+        .continuous_effects
+        .iter()
+        .filter(|e| is_effect_active(state, e))
+        .any(|e| {
+            modification_blanks_abilities(&e.modification, &chars)
+                && effect_applies_to_object(state, e, id, obj_zone, &chars)
+        })
+}
+
 /// Apply a single layer modification to the given characteristics.
 ///
 /// `state` is needed for Layer 1 copy effects to look up the target object's

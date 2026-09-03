@@ -2264,6 +2264,19 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                             intervening_if,
                                             ..
                                         } => Some((effect.clone(), intervening_if.clone())),
+                                        // CR 113.7a: an ability on the stack exists
+                                        // INDEPENDENTLY of its source. This chapter
+                                        // ability has already triggered; blanking the
+                                        // Saga now (CR 613.1f `RemoveAllAbilities`,
+                                        // CR 305.7, CR 708.2a face-down) neither counters
+                                        // it nor changes it. **This site is deliberately
+                                        // NOT a consumer of `rules::saga::saga_view`** —
+                                        // PB-DX49 wired the five sites that ask "does this
+                                        // permanent HAVE the ability" and deliberately
+                                        // excluded the two that ask "what does this
+                                        // already-triggered ability DO". Wiring the query
+                                        // here would make a blanked Saga's chapter fizzle,
+                                        // which CR 113.7a forbids. Do not "finish the job".
                                         crate::cards::card_definition::AbilityDefinition::SagaChapter {
                                             effect, ..
                                         } => Some((effect.clone(), None)),
@@ -2295,6 +2308,13 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                     intervening_if,
                                     ..
                                 } => Some((effect.clone(), intervening_if.clone())),
+                                // CR 113.7a: an ability on the stack exists
+                                // INDEPENDENTLY of its source (CardDefETB index space).
+                                // Same exclusion as the sibling arm above: blanking the
+                                // Saga after this chapter went on the stack does not
+                                // counter or change it, so this site deliberately reads
+                                // the printed def and is **NOT** a consumer of
+                                // `rules::saga::saga_view`. Do not "finish the job".
                                 crate::cards::card_definition::AbilityDefinition::SagaChapter {
                                     effect,
                                     ..
