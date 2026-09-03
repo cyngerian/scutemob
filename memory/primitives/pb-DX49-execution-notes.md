@@ -101,3 +101,13 @@ HEAD — and leaves the **denominator** untouched. Deck-legal `Complete` at HEAD
 `vraska_betrayals_sting` is `partial`. (Orientation figures from a source grep; the authoritative
 numbers are PRINTED by `core::pb_dx49_saga_blanking_roster::t_census_report`, which walks
 `all_cards()` per SR-36.)
+
+### 1.4 A standing gate fired on this batch's own work, and it was right
+
+`state::ability_definition_registry::handling` (SR-5's ability-definition sibling) declares, per
+`AbilityDefinition` variant, **which source files name it**. `A::SagaChapter` listed four:
+`replacement.rs`, `resolution.rs`, `sba.rs`, `turn_actions.rs`. After this batch, three of those
+stop naming the variant at all — they ask `rules::saga::saga_view` — so the roster is now
+`saga.rs` (the one derivation) **plus `resolution.rs`, which still names it deliberately** under
+CR 113.7a. The gate forced that update rather than letting the roster rot, which is the third
+consecutive batch in which a standing declaration gate caught its own author.
