@@ -332,3 +332,124 @@ unmoved at 59: the new gate is a MODULE in `core`, not a new binary.
 `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
 `tools/check-defs-fmt.sh` clean (1,803 defs), `npm run build` green (160 modules).
 **0 card-def edits.**
+
+
+---
+
+## §9 The `/review` — 1 HIGH / 1 MEDIUM / 2 LOW-MEDIUM / 3 LOW / 1 NIT, all eight taken
+
+### §9.1 The HIGH was caused by the coordinator's own instruction
+
+The `is_copy` guard added to the `MutatingCreatureSpell` resolution arm — which the coordinator
+ordered, **explicitly overruling the copy audit's advice to defer it** (plan §7.4) — shipped as an
+early `return Ok(events);`.
+
+The instruction was *"make the mutate arm agree with `resolution.rs:819`"*. The implementation copied
+`:819`'s **condition** and dropped its **control flow**: `:819` is an `if / else if` chain that FALLS
+THROUGH to the shared resolution tail. A `return` there leaves `resolve_top_of_stack_inner`
+altogether, skipping `check_triggers_with_timing`, `check_and_apply_sbas`, `flush_pending_triggers`
+and — fatally — `priority::grant_priority_to_active_player`. Executed by the reviewer:
+
+```
+priority_holder = None   players_passed = {P1, P2}   pending_effect_choice = None   stack len = 1
+PassPriority(P1) -> Err(NotPriorityHolder { expected: None, actual: PlayerId(1) })
+PassPriority(P2) -> Err(NotPriorityHolder { expected: None, actual: PlayerId(2) })
+```
+
+An unrecoverable game, and **new** — with the guard disabled the arm suspends legally.
+
+**This is PB-DP8's own recorded lesson, verbatim: *a guard that returns early inherits the obligation
+of the statements it skipped*.** That sentence is in this repository, in `docs/audits/`, written by a
+prior batch on this same queue, and it was committed against anyway. The durable half is narrower and
+more useful than "read the lessons": **"agree with site X" is an instruction about behaviour, and
+copying a condition while dropping the control flow around it is not agreement.** When a guard is
+added beside an existing one, the thing to copy is the *shape*, and the check is "what runs after the
+site I am imitating, and does my version still reach it?"
+
+**The batch's own `r4` gate stayed GREEN through all of it** — it asserted only that the arm's body
+contains `stack_obj.is_copy`, which is true of both the correct and the hanging shape. Closed with
+two conjuncts (position relative to the ask, and the `None =>` idiom) plus **`t8`**, a behavioural
+probe that mints the copy through the production `rules::copy::copy_spell_on_stack` and asserts
+`priority_holder.is_some()` — the one that would actually have caught it.
+
+### §9.2 Two of this batch's own gates were defeated by execution
+
+* **`r3`** ("exactly ONE mutate target-legality predicate in the workspace") was defeated **twice**,
+  both green with all four roster tests passing: a second host-legality predicate in
+  `legal_actions.rs` **omitting the non-Human conjunct** (the literal SR-38 defect), and one spelling
+  the subtype as `SubType(String::from("Hum") + "an")`. Cause: the gate does set-equality over
+  `mutate_target_requirement` tokens in three NAMED files and keys conjunct 2 on the `"Human"`
+  literal — **so it polices the DEFINITION and is blind to the CONSUMER, and the consumer is where
+  all four historical hand-rolled copies lived.** Closed with a consumer-keyed conjunct plus `c6`, a
+  behavioural probe asserting the offered host set *equals* `queries::legal_mutate_hosts`' live
+  answer.
+* **The CR 605.4a site census** in `test_dp9_mana_ability_gate` claimed *"exactly one site in the
+  tree"* closes the gate, and stayed GREEN when `abilities.rs:290`'s
+  `effect_choice_gate_closed: false` was flipped to `true` — defeated **two ways at once**: it read
+  three files while `abilities.rs` is also an `EffectContext` construction site, and its needle was
+  the assignment form `= true` while five sites use the struct-literal `: true`. Both closed.
+
+### §9.3 The coordinator's registry edit destroyed a word
+
+The `OOS-DX29-2` closure split that row by column. **The row has carried SIX cells in a four-column
+table since it was filed** — its own `` `Entwine | Fuse | EscalateModes` `` uses unescaped pipes — so
+the edit appended its closure to a fragment ending `` (`Entwine `` and **overwrote the cell holding
+`Fuse`**, briefly recording the propagation allowlist as two variants instead of three.
+
+Repaired, pipes escaped, and the incident written into the row itself. A sweep of every `OOS-`/`PB-`
+row found **five** carrying the hazard; the other four are deliberately **not** repaired — they are
+not this batch's rows, each needs its intended column split *inferred* rather than mechanically
+restored, and **a confident mis-repair is worse than a row known to be malformed**. Filed as
+`OOS-DX50-11` with the gate that would have caught all five and refused the bad edit. It matters
+because the registry is machine-read: PB-DX49 closed `OOS-RR4-3` on precisely the finding that *the
+table a tool reads is not the prose a human reads*.
+
+### §9.4 A false comment neither the batch nor the review had seen
+
+Found by the fix-cycle runner while investigating an unrelated finding.
+`abilities.rs::collect_permanent_becomes_target_triggers` still read:
+
+> **Latent for the mutate case today**: the mutate target is never entered into `spell_targets`
+> (`OOS-DX25-1`), so no `PermanentBecomesTarget` event is ever raised for a mutate cast's own target
+> — this fix only takes effect once that gap closes.
+
+**PB-DX50 half 1 *is* that gap closing.** The comment outlived the commit that falsified it — inside
+the batch whose headline is a false comment, and missed by the batch AND by the review. Corrected,
+and pinned **behaviourally** rather than swapped for another sentence:
+`test_dx50_t12_whenbecomestarget_fires_for_a_mutate_host`, revert-proven `left: 0, right: 1`.
+
+### §9.5 Two coordinator prescriptions were refuted while being applied
+
+* **"Use a hexproof host" for `c6`'s board would not have discriminated.** CR 702.11b is *"can't be
+  the target of spells **your opponents control**"*, and this mutate is cast by the host's own
+  controller — so a hexproof host of the caster's is a perfectly legal target. The engine's own
+  answer refuted the first draft (`{Wolf, Hexproof}`, not `{Wolf}`). Switched to **Shroud**
+  (CR 702.18a, no controller clause).
+* **"Reuse `workspace_src_files_checked()`" could not be applied as written** — that walk lives in
+  the `core` test binary and `pb_dp9_effect_choice` is in `primitives`, which are separate crates.
+  The first attempt extracted it behind `#[path]` and **SR-9a's `no_stray_test_binaries` gate refused
+  it in three separate assertions**, correctly. The gate was obeyed rather than weakened: the census
+  moved to `core`, with `g3` linking the two files in both directions.
+
+### §9.6 Dispatch hygiene 8 earned its keep on this batch's own summaries
+
+Re-checking every headline surface against the registry **after** the fix cycle found the v4 memo's
+row-8 cell still saying `OOS-DX50-1..10`, because `-11` was filed *by* the fix cycle, after that
+summary was written. Corrected. This is the rule's exact case, and it is worth noting that the error
+was invisible to every check made before the fix cycle ran.
+
+---
+
+## §10 Final numbers
+
+* Tests **4,991 / 0 / 5**, **59** targets, residual empty. Baseline **4,941 / 58**.
+  Delta by NAME: **53 additions, 3 leavers, 0 removals, 0 renames** (leavers = PB-DX29's mutate
+  trio: 2 inversions + 1 re-home, each with a named `test_dx50_*` successor).
+* **PROTOCOL 39 → 40 / HASH 78 → 79**, one bump each, predicted per half before any code and
+  gate-computed after; type counts unchanged at **98 / 131**.
+* **47 HASH + 13 PROTOCOL** sentinels re-pinned, **0 stale survivors** (verified with an independent
+  multi-line regex, because the plan's own same-line one is what produced the wrong census).
+* Coverage **1,137/1,803 = 63.1%**, **0 flips**, **0 card-def edits of any kind**.
+* clippy / `fmt --check` / `check-defs-fmt.sh` (1,803) / `npm run build` all clean against the FINAL
+  tree.
+* **Benches not measured, so nothing claimed.**

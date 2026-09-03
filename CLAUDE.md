@@ -79,7 +79,9 @@
   **↻ PB-DX49 SHIPPED** (`scutemob-220`, 2026-09-03; v4 rank 7 — **OOS-RR4-1** and rider
   **OOS-RR4-3** both CLOSED; corner case **#36 GAP → PARTIAL**, the engine half of the
   corner-case audit's last open GAP).
-  **Next dispatch: PB-DX50** (v4 rank 8); ranks 1-7 all shipped.
+  **↻ PB-DX50 SHIPPED** (`scutemob-221`, 2026-09-03; v4 rank 8 — **OOS-DX25-1** and
+  **OOS-DX29-2** both CLOSED, each row corrected against three of its own claims).
+  **Next dispatch: PB-DX20b** (v4 rank 9); ranks 1-8 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -194,7 +196,12 @@
   **OOS-RR4-3** CLOSED). Coverage unmoved at **1,137/1,803 = 63.1%**, **0 flips**, **0 card-def
   edits of any kind**; PROTOCOL **39** / HASH **78** both gate-executed and UNMOVED, predicted in
   writing before any code. Filed **OOS-DX49-1..9**.
-  **Next dispatch: PB-DX50** (v4 rank 8); ranks 1-7 all shipped.
+  **↻ 2026-09-03 — PB-DX50 SHIPPED** (`scutemob-221`; v4 rank 8 — **OOS-DX25-1** and
+  **OOS-DX29-2** both CLOSED). Coverage unmoved at **1,137/1,803 = 63.1%**, **0 flips**,
+  **0 card-def edits of any kind**; **PROTOCOL 39 → 40 / HASH 78 → 79**, ONE bump each, both
+  gate-computed and both predicted PER HALF in writing before any code — the legality half moved
+  neither fingerprint and the timing half moved each once. Filed **OOS-DX50-1..11**.
+  **Next dispatch: PB-DX20b** (v4 rank 9); ranks 1-8 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -205,6 +212,47 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-03, PB-DX50)**: **4,991 / 0 / 5** full-workspace on branch
+  `scutemob-221` (+50 over the **4,941** baseline, measured on this branch BEFORE any edit and
+  reproducing PB-DX49's close pin exactly), `--workspace --no-fail-fast` to a file, **59**
+  result-producing targets (58 → 59: one new simulator test binary), residual list empty.
+  **Delta itemised by test NAME by set-diffing the two run logs: 53 additions, 3 leavers, 0
+  removals, 0 renames.** The three leavers are **disclosed individually and none is a removal** —
+  they are PB-DX29's mutate trio: `test_dx29_m1_provider_offers_both_on_top_and_under` and
+  `test_dx29_m2_params_forwards_the_actions_on_top_choice` are **inversions** (the provider stops
+  offering the over/under pair, because the choice is no longer made at cast time), and
+  `test_dx29_m3_mutating_under_keeps_the_hosts_characteristics` is **re-homed** onto the
+  resolution-time answer, which is the proof AC 7302 required be preserved. Each has a named
+  `test_dx50_*` successor in the additions. Honest reading: **50 genuine additions, 2 inversions,
+  1 re-home.**
+  **PROTOCOL 39 → 40 / HASH 78 → 79, ONE bump each**, both taken from the failing gates' own
+  output and **both predicted in writing, per half, before any production line changed**
+  (`595e4e28`): Half 1 (target legality) was predicted to move **neither** fingerprint and moved
+  neither; Half 2 (CR 702.140c timing) was predicted to move each **once** and did. Type counts
+  predicted unchanged at **98 / 131** and confirmed at 98 / 131. History rows appended, never
+  edited; both `FROZEN_HISTORY_PREFIX_DIGEST`s re-pinned; `history_is_append_only` and
+  `frozen_prefix_is_pinned` green on both. **The sentinel census in this batch's own plan was
+  WRONG and its own survivor check reproduced the error**: the plan published 45 HASH + 11
+  PROTOCOL from a same-line regex *while explicitly citing PB-DX45's lesson that a re-pin is only
+  as wide as the spelling its regex matched*; the truth is **47 + 13**, the extras spelling the
+  assertion across a line break. Re-verified with an independent multi-line scan: **0 stale
+  survivors**. *A survivor check written with the same regex as the re-pin is not a check.*
+  Coverage **1,137/1,803 = 63.1%** by regeneration, **0 flips** as predicted (clean 1,137 / todo
+  519 / empty 147 identical), self-dating churn reverted; **0 card-def edits of any kind** —
+  `git diff main..HEAD --numstat` over `crates/card-defs` and `crates/card-types/src/cards` is
+  **empty**, so the shortcut was available and the regeneration was run anyway.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), **`npm run build` green** — all against the FINAL
+  tree. `npm run build` was RUN rather than declared N/A, because `tools/` is **not** zero here:
+  `play-server/src/{main,view,api}.rs`, `ActionBar.svelte` and the new `BinaryChoicePicker.svelte`
+  all move, and `tui/play/app.rs` and `replay-viewer/src/replay.rs` follow the deleted field.
+  **Engine lines**: `crates/engine/src` is **+665 / −149** across halves 2-3 on top of Half 1's
+  `casting.rs` / `queries.rs` / `resolution.rs`; `crates/view-model` is **0**.
+  **Benches: NOT measured, and therefore nothing is claimed.** Nothing this batch touches is on
+  `sba_check` / `priority_cycle` / `full_turn`, and the two changes that could move anything both
+  *remove* work (one fewer trigger sweep per answered choice, half as many mutate offers). That is
+  a reason to expect no regression, not a measurement — stated as such rather than published as a
+  band, which is the claim PB-DX49's `/review` refuted.
 - **Tests (delta 2026-09-03, PB-DX49)**: **4,941 / 0 / 5** full-workspace on branch
   `scutemob-220` (+41 over the **4,900** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX48's close pin exactly), `--workspace --no-fail-fast` to a file, **58**
@@ -864,7 +912,85 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-03 — **PB-DX49 SHIPPED** (`scutemob-220`; v4 queue rank 7 —
+- **Last Updated**: 2026-09-03 — **PB-DX50 SHIPPED** (`scutemob-221`; v4 queue rank 8 —
+  **OOS-DX25-1** and **OOS-DX29-2** both CLOSED). **CR 702.140a says a mutate spell *targets* its
+  host, and the engine had never modelled that as a target at all.**
+  The choice lived in `AdditionalCost::Mutate` and never entered `spell_targets`, which is the only
+  thing `GameEvent::PermanentTargeted` is built from — so **Ward never fired on a mutate cast**, and
+  the mutate validator checked zone, creature-ness, non-Human and owner **and nothing else**: no
+  hexproof, no shroud, no protection, on 6 deck-legal `Complete` defs that PB-DX29 had just made
+  human-reachable. Shipped shape: `casting::mutate_target_requirement()` is ONE synthesized
+  `TargetRequirement` (PB-DX20's `enchant_target_to_requirement` idiom) consumed by cast validation,
+  by announcement and by the CR 702.140b re-check; the host is APPENDED to `spell_targets`, so
+  PB-DX48's `push_target_announcement` dispatches Ward with **no new code**. CR 702.140c's over/under
+  choice moves to **resolution time** on PB-DP9's CR 608.2d channel.
+  **THE SEED'S OWN PRESCRIPTION WOULD HAVE MADE THE FIX CR-WRONG, AND ONLY READING THE RULE CAUGHT
+  IT.** `OOS-DX25-1` says to route the host into `spell_targets` so CR 608.2b re-validation sees it.
+  **CR 702.140b is an explicit EXCEPTION to CR 608.2b** — *"if its target is illegal, it ceases to be
+  a mutating creature spell and continues resolving as a creature spell"* — so it does **not** fizzle,
+  and obeying the seed would have regressed a behaviour the engine already got right. It does not
+  regress as shipped for a **structural** reason rather than a checked one: the fizzle gate lives
+  inside the `StackObjectKind::Spell` arm and `MutatingCreatureSpell` is a disjoint arm. That is the
+  kind of load-bearing accident a later batch deletes by "unifying the two arms", so `t7`/`t7b`/`t7c`
+  pin it, each asserting the fallback fires **and** that no `SpellFizzled` is emitted.
+  **THE SITE LIST WAS SHORT BY ONE AND THE MISSING SITE IS THE ONE THAT WOULD HAVE BROKEN.** Both
+  seeds and the v4 row name two sites. The third is `legal_actions.rs`'s `non_human_own` offer
+  enumeration — a fourth hand-rolled copy, reading **raw** characteristics. Tightening the cast path
+  while it kept a looser predicate is *a clean offer followed by a guaranteed refusal*: the SR-38
+  shape PB-DX29 gated Fuse to avoid, PB-DX44 recreated and PB-DX45 shipped — **this batch would have
+  been the fourth**. Fixed; the offer layer reads layer-resolved characteristics for the first time,
+  and its host set had to become **per-CARD**, which no document anticipated, because protection is a
+  property of the *(source, target)* pair.
+  **THIS BATCH'S OWN PLAN WAS REFUTED THREE TIMES BY EXECUTION, AND THE COORDINATOR TWICE.** (i) The
+  plan told the implementer to delegate the CR 702.140b re-check to `is_target_legal` — which checks
+  **only the cast-time zone**, so "one arithmetic" would have DELETED three checks; *the shared thing
+  was weaker than the duplicated thing*. Corrected before shipping. (ii) The plan's sentinel census
+  (45/11) was produced by a same-line regex **while citing PB-DX45's lesson that a re-pin is only as
+  wide as its regex**; the truth is 47/13, and the first survivor check used the same regex and
+  reported zero. (iii) The coordinator's prescription "make the pairing an exhaustive `match` on the
+  pair" **does not work** — an N² tuple match cannot be made compile-forced — and the first draft
+  followed it and shipped a comment claiming the opposite, refuted by its own revert matrix.
+  **A PRE-EXISTING ENGINE-WIDE DEFECT, FOUND BY EXECUTION**: `Command::AnswerEffectChoice` swept
+  triggers `resolve_top_of_stack_inner`'s tail had already swept, so **every trigger a replayed
+  CR 608.2d resolution produced was queued TWICE** — on every PB-DP9 / ENG-1 / PB-DX28 / PB-DX45
+  channel, reachable before this batch, with no fixture to show it. Found because golden script 192
+  put two Gemrazer triggers on the stack. `handle_all_passed`, the ordinary CR 608.1 path, calls
+  `resolve_top_of_stack` and then **nothing** — verified in source. Filed and closed as
+  `OOS-DX50-1`.
+  **↻ The `/review` (1 HIGH / 1 MEDIUM / 2 LOW-MEDIUM / 3 LOW / 1 NIT — all eight taken, none
+  declined) FOUND A HANG CAUSED BY THE COORDINATOR'S OWN INSTRUCTION.** The `is_copy` guard added to
+  the mutate arm — which the coordinator ordered, overruling the copy audit's advice to defer it —
+  shipped as an early `return Ok(events);`. The instruction was *"make it agree with
+  `resolution.rs:819`"*, and it copied `:819`'s **condition** while dropping its **control flow**:
+  `:819` is an `if/else if` chain that FALLS THROUGH to the shared resolution tail. The `return`
+  skips `check_triggers_with_timing`, `check_and_apply_sbas`, `flush_pending_triggers` and
+  `grant_priority_to_active_player`, leaving `priority_holder: None` with both players passed and the
+  spell stranded — every subsequent `PassPriority` returning `NotPriorityHolder { expected: None }`,
+  an **unrecoverable game**, proven by execution. **That is PB-DP8's own recorded lesson — *a guard
+  that returns early inherits the obligation of the statements it skipped* — committed inside a batch
+  that had the sentence available to it.** The batch's own `r4` gate stayed GREEN throughout.
+  Also taken: **`r3` was defeated TWICE** (it polices the requirement's DEFINITION and is blind to
+  its CONSUMER — and the consumer is where all four historical hand-rolled copies lived); the
+  CR 605.4a site census was defeated two ways at once (wrong file set **and** blind to the
+  struct-literal spelling of its own needle); a 30-space run in a user-visible browser prompt; and
+  **a false comment neither the batch nor the review had seen** — `abilities.rs` still said the
+  mutate target *"is never entered into `spell_targets`… this fix only takes effect once that gap
+  closes"*, and **PB-DX50 half 1 IS that gap closing**, so the comment outlived the commit that
+  falsified it (`OOS-DX47-6`'s shape, inside the batch whose headline is a false comment). Pinned
+  behaviourally by `t12` rather than swapped for another sentence.
+  **AND THE COORDINATOR'S REGISTRY EDIT DESTROYED A WORD.** The `OOS-DX29-2` closure split that row
+  by column, but it has carried **6 cells in a 4-column table since it was filed** (its own
+  `Entwine | Fuse | EscalateModes` uses unescaped pipes), so the edit appended to a fragment and
+  **overwrote the cell holding `Fuse`**. Repaired, pipes escaped, incident recorded in the row. A
+  sweep found **five** such rows; the other four are deliberately NOT repaired and are filed as
+  `OOS-DX50-11` with the gate that would have caught all five — *the registry is machine-read, which
+  is the finding PB-DX49 closed `OOS-RR4-3` on.*
+  Tests **4,991 / 0 / 5** (+50 over the 4,941 pre-edit baseline, **59** targets, itemised by NAME as
+  53 additions / 0 removals / 3 disclosed leavers / 0 renames). **PROTOCOL 39 → 40 / HASH 78 → 79,
+  one bump each, predicted per half in writing before any code.** Coverage unmoved **63.1%**, **0
+  flips**, **0 card-def edits**. All gates clean against the FINAL tree. Filed **OOS-DX50-1..11**.
+  Full record: `memory/primitives/pb-DX50-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-03 — **PB-DX49 SHIPPED** (`scutemob-220`; v4 queue rank 7 —
   **OOS-RR4-1** CLOSED and rider **OOS-RR4-3** CLOSED). **The engine half of corner case #36 —
   the audit's last open GAP — closes, and #36 goes to PARTIAL rather than COVERED, because the
   card half is honestly still open.**

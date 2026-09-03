@@ -15,7 +15,141 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**PB-DX49 shipped `scutemob-220` 2026-09-03; v4 ranks 1-7 all shipped; next dispatch PB-DX50, v4 rank 8**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX50 shipped `scutemob-221` 2026-09-03; v4 ranks 1-8 all shipped; next dispatch PB-DX20b, v4 rank 9**)
+
+## Worker Handoff (PB-DX50, `scutemob-221`) — a target the engine never modelled, and a rule that is an exception
+
+**Shipped**: v4 queue **rank 8**. **`OOS-DX25-1` CLOSED** and **`OOS-DX29-2` CLOSED** (its two
+surviving halves — timing and the copy path; its `on_top`-channel half had already been closed by
+PB-DX29 itself and the row said so). Filed **`OOS-DX50-1..11`**, of which **-1** and **-2** are
+also closed here.
+
+**The defect.** CR 702.140a: a spell cast for its mutate cost *"becomes a mutating creature spell
+and **targets** a non-Human creature with the same owner as this spell."* The engine carried that
+choice in `AdditionalCost::Mutate` and **never put it into `spell_targets`** — the only list
+`GameEvent::PermanentTargeted` is derived from. So **Ward never fired on a mutate cast**, no
+becomes-the-target trigger ever saw one, and the mutate validator checked zone, creature-ness,
+non-Human and owner **and nothing else**: no hexproof, no shroud, no protection. Live on **6
+deck-legal `Complete` defs** from the moment PB-DX29 made mutate human-reachable from the browser.
+CR 702.140c compounds it: the over/under choice belongs at **resolution**, and the engine took it at
+announcement, so an opponent learned it before responding.
+
+---
+
+### The four things worth carrying forward
+
+**1. THE SEED'S OWN PRESCRIPTION WOULD HAVE MADE THE FIX CR-WRONG, AND ONLY READING THE RULE CAUGHT
+IT.** `OOS-DX25-1` says to route the host into `spell_targets` so that *"CR 608.2b re-validation"*
+sees it. **CR 702.140b is an explicit EXCEPTION to CR 608.2b**: *"As a mutating creature spell begins
+resolving, if its target is illegal, it ceases to be a mutating creature spell and continues
+resolving as a creature spell."* It does **not** fizzle. A batch that obeyed the seed would have
+handed the host to the generic fizzle gate and regressed a behaviour the engine already got right.
+It does not regress as shipped for a **structural** reason rather than a checked one — the fizzle
+gate lives inside the `StackObjectKind::Spell` arm and `MutatingCreatureSpell` is a **disjoint** arm
+with no gate of its own — which is exactly the kind of load-bearing accident a later batch deletes by
+"unifying the two arms". Pinned by `t7`/`t7b`/`t7c`, each asserting the fallback fires **and** that
+no `SpellFizzled` is emitted. *A prescription in a seed is a claim like any other; read the rule.*
+
+**2. "ONE ARITHMETIC" IS AN IMPROVEMENT ONLY WHEN THE SURVIVING ARITHMETIC IS THE RIGHT ONE.** The
+plan told the implementer to replace the CR 702.140b re-check's four hand-rolled conjuncts with the
+shared `is_target_legal`. That function checks, for an object target, **only** that it is still in
+its cast-time zone — so the shared thing was **weaker than the duplicated thing**, and delegating to
+it would have *deleted* three checks in the name of removing duplication. Corrected before shipping;
+site 2 is now `is_target_legal` **AND** `validate_targets_inner` re-applied to the recorded
+requirement, which is strictly more than HEAD ever checked. The implementer then improved on the
+coordinator's own follow-up by choosing `validate_targets_inner` — **literally the function the cast
+path runs** — over the narrower per-object predicate, so cast-time and resolution-time legality are
+the *same call*, not two predicates that agree today. `is_target_legal`'s zone-only reading is an
+engine-wide CR 608.2b under-check, filed as `OOS-DX50-5`.
+
+**3. A SITE LIST IS A FLOOR — AND THE MISSING SITE WAS THE ONE THAT WOULD HAVE BROKEN.** Both seeds
+and the v4 row name two enforcement sites; there are **three**. The third is
+`crates/simulator/src/legal_actions.rs`'s `non_human_own` offer enumeration — a fourth hand-rolled
+copy of the predicate, reading **raw** `o.characteristics` rather than layer-resolved ones.
+Tightening cast-time legality while it kept a looser predicate is *a clean offer followed by a
+guaranteed refusal*: the SR-38 shape PB-DX29 gated Fuse to avoid, PB-DX44 re-created while fixing it
+and PB-DX45 shipped — **this batch would have been the fourth in a row.** Fixed by routing it through
+`queries::legal_mutate_hosts`, so the offer layer reads layer-resolved characteristics for the first
+time. Its host set also had to become **per-CARD**, which no document anticipated: protection
+(CR 702.16b) is a property of the *(source, target)* pair, so two mutate cards in hand can have
+different legal host sets.
+
+**4. A RULE WRITTEN DOWN IS NOT A RULE APPLIED — THREE INSTANCES, FROM THREE DIFFERENT BATCHES.**
+(i) `mana.rs:878` said the CR 605.4a gate covers *"four asking effects"* while it checked **seven** —
+the same sentence PB-DX45's `/review` caught one short in `effects/mod.rs`, whose fix corrected the
+copy it noticed and never asked whether the sentence lived elsewhere. Fixed by **deleting** the
+restated list so both copies point at the gate's own `NEEDLES`. (ii) `rules/engine.rs`'s
+**obligation (8)**, added by PB-DX45, states the compile-forcing rule precisely and names exactly one
+site; `effects::handle_answer_effect_choice` had **two** non-compile-forced traps ~30 lines apart, in
+the file PB-DX45 was editing. (iii) `abilities.rs`'s `collect_permanent_becomes_target_triggers` said
+the mutate target *"is never entered into `spell_targets`… this fix only takes effect once that gap
+closes"* — **and PB-DX50 half 1 IS that gap closing**, so the comment outlived the commit that
+falsified it, missed by both the batch and the review. *A claim corrected where it was noticed
+rather than where it lives does not generalise, and neither does a rule.*
+
+---
+
+### What the `/review` found, and why the HIGH is the most useful thing in this batch
+
+**1 HIGH / 1 MEDIUM / 2 LOW-MEDIUM / 3 LOW / 1 NIT — all eight taken, none declined.**
+
+**The HIGH was caused by the coordinator's own instruction.** The `is_copy` guard added to the mutate
+resolution arm — which the coordinator ordered, explicitly **overruling** the copy audit's advice to
+defer it — shipped as an early `return Ok(events);`. The instruction was *"make it agree with
+`resolution.rs:819`"*, and the implementation copied `:819`'s **condition** while dropping its
+**control flow**: `:819` is an `if / else if` chain that FALLS THROUGH to the shared resolution tail.
+A `return` there skips `check_triggers_with_timing`, `check_and_apply_sbas`, `flush_pending_triggers`
+and `grant_priority_to_active_player`, leaving `priority_holder: None` with both players passed and
+the spell stranded — **an unrecoverable game**, proven by execution. That is **PB-DP8's own recorded
+lesson** — *a guard that returns early inherits the obligation of the statements it skipped* —
+committed inside a batch that had the sentence available to it. **The batch's own `r4` gate stayed
+GREEN throughout**, because it asserted only that the arm's body contains `stack_obj.is_copy`.
+
+**Two of this batch's own gates were defeated by execution.** `r3` ("exactly one mutate
+target-legality predicate in the workspace") was defeated **twice** — it polices the requirement's
+**definition** across three named files and is blind to its **consumer**, and the consumer is where
+all four historical hand-rolled copies lived. The CR 605.4a site census was defeated **two ways at
+once**: it read three files while `abilities.rs` is also an `EffectContext` construction site, and
+its needle was the assignment form while five sites use the struct-literal initialiser. Both re-keyed
+and both defeats re-run RED.
+
+**And the coordinator's registry edit destroyed a word.** The `OOS-DX29-2` closure split that row by
+column, but it has carried **six cells in a four-column table since it was filed** — its own
+`` `Entwine | Fuse | EscalateModes` `` uses unescaped pipes — so the edit appended to a fragment
+ending `` (`Entwine `` and **overwrote the cell holding `Fuse`**. Repaired, pipes escaped, and the
+incident recorded in the row itself. A sweep found **five** such rows; the other four are
+deliberately **not** repaired (not this batch's rows, and a confident mis-repair is worse than a row
+known to be malformed) and are filed as `OOS-DX50-11` with the gate that would have caught all five
+and refused the bad edit. **This matters because the registry is machine-read** — PB-DX49 closed
+`OOS-RR4-3` on exactly the finding that *the table a tool reads is not the prose a human reads*.
+
+---
+
+### Numbers (all re-verified by the coordinator, not accepted from the implementers)
+
+* Tests **4,991 / 0 / 5**, **59** targets. Baseline **4,941 / 58**, measured on this branch before
+  any edit and reproducing PB-DX49's close pin exactly. Delta by NAME: **53 additions, 3 leavers, 0
+  removals, 0 renames**; the three leavers are PB-DX29's mutate trio (2 inversions + 1 re-home),
+  each with a named `test_dx50_*` successor.
+* **PROTOCOL 39 → 40 / HASH 78 → 79**, ONE bump each, **predicted per half before any code**
+  (`595e4e28`) and gate-computed after. Type counts predicted and confirmed unchanged at **98 / 131**.
+* **47 HASH + 13 PROTOCOL sentinels** re-pinned, **0 stale survivors** — the plan published 45 + 11
+  from a same-line regex *while citing PB-DX45's lesson that a re-pin is only as wide as its regex*,
+  and its first survivor check used the same regex. **A survivor check written with the same regex as
+  the re-pin is not a check.**
+* Coverage **1,137/1,803 = 63.1%**, **0 flips**, **0 card-def edits of any kind**.
+* clippy / `fmt --check` / `check-defs-fmt.sh` (1,803) / `npm run build` all clean against the FINAL
+  tree. **Benches not measured, so nothing claimed** — the two changes that could move anything both
+  *remove* work, which is a reason to expect no regression, not a measurement.
+
+### For the next batch
+
+* **Next dispatch is `PB-DX20b`** (v4 rank 9), not `PB-DX51`.
+* `OOS-DX50-3` (CR 707.10f / 608.3f unimplemented engine-wide) is the **bound four other filed rows
+  rest on** — closing it makes `OOS-DX50-2`, `-8`, `-9` and half of `-7` live at once.
+* `OOS-DX50-11` is gate-shaped and cheap: re-split every registry row and assert 4 cells.
+* `Effect::CopySpellOnStack` has **zero** genuine declarations — both grep hits are comments. SR-36's
+  failure mode for the **fifth consecutive batch** in this queue. Walk `all_cards()`, never grep.
 
 ## Worker Handoff (PB-DX49, `scutemob-220`) — the rule the seed quoted is not the rule that applies
 
