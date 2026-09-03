@@ -167,3 +167,34 @@ the honest closure, and it is a consequence of Half 2 rather than a patch to `co
 * CR 702.140f (effects referring to the mutating spell refer to the mutated permanent) — untouched.
 * The `permanent_targeted_events` one-event-per-SLOT reading (PB-DX48 deliberately preserved it) —
   untouched.
+
+---
+
+## §3 The enforcement-site census — the brief named TWO of THREE
+
+Both seeds and the queue row describe two sites: cast-time validation (`casting.rs:1379-1412`)
+and the CR 702.140b resolution check (`resolution.rs:7495`). Derived at HEAD by grepping for the
+predicate's own shape (a non-Human + creature + owner conjunct) rather than for the word "mutate",
+there are **three behavioural sites**, and the third is the one that would have broken:
+
+| # | Site | What it decides | Named by the brief? |
+|---|---|---|---|
+| 1 | `casting.rs:1379-1412` (`handle_cast_spell`) | is this announced mutate target legal | yes |
+| 2 | `resolution.rs:7495` (`MutatingCreatureSpell` arm) | is it STILL legal at resolution (CR 702.140b) | yes |
+| 3 | **`legal_actions.rs:1662-1675`** (`StubProvider`, `non_human_own`) | **which targets are OFFERED** | **NO** |
+
+Site 3 matters twice over:
+
+* **SR-38.** Half 1 tightens site 1 with hexproof / shroud / protection / "can't be the target of".
+  If site 3 keeps its own looser predicate, the engine offers a mutate onto a hexproofed creature
+  and then refuses the cast — *a clean offer followed by a guaranteed refusal*, which is the exact
+  defect shape PB-DX29 gated Fuse to avoid, PB-DX44 re-created while fixing it, and PB-DX45 shipped
+  and had to fix. **This batch would be the fourth.** A batch that took the seeds' two-site list at
+  its word ships that defect.
+* **It reads `o.characteristics` RAW**, not `expect_characteristics` — so it is blind to the layer
+  system. A creature animated into a non-Human, or turned into a Human by a type-changing effect,
+  is classified from its printed types. Sites 1 and 2 both read layer-resolved characteristics.
+  That divergence is independent of this batch and is filed.
+
+**Not a site**: `crates/simulator/src/targeting.rs` (mutate's target rides on the action, per
+PB-DX29 — checked, not assumed) and `tools/play-server/src/view.rs` (labelling only).
