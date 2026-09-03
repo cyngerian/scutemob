@@ -53,6 +53,7 @@ mod pb_dx3b_stale_blocker_bucket;
 mod pb_dx45_optional_cost;
 mod pb_dx47_modal_trigger_mode_zero;
 mod pb_dx48_ward_dispatch;
+mod pb_dx49_blanked_saga_sites;
 mod pb_dx4_baseline_triage;
 mod pb_dx5_affected_set_snapshot;
 mod pb_dx6_unflattened_payment_sites;

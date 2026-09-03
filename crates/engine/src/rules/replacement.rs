@@ -2005,23 +2005,43 @@ pub fn apply_self_etb_from_definition(
             }
         }
     }
-    // CR 714.3a: As a Saga enters the battlefield, its controller puts a lore counter on it.
-    // This is a turn-based action that happens as part of the ETB event.
-    // PB-RS4 (CR 714.3a / 712.8d/e): only the face that is actually showing can make
-    // this permanent a Saga.
-    let has_saga_chapters = def
-        .effective_abilities(entering_is_transformed)
-        .iter()
-        .any(|a| matches!(a, AbilityDefinition::SagaChapter { .. }));
-    if has_saga_chapters {
+    // CR 714.3a: "As a Saga **without the read ahead ability** enters the battlefield, its
+    // controller puts a lore counter on it." This is a turn-based action that happens as
+    // part of the ETB event.
+    //
+    // **Note what CR 714.3a does NOT say: there is no "with one or more chapter abilities"
+    // clause here**, unlike CR 714.3b and CR 714.4, which both carry it explicitly. So this
+    // site asks TWO different questions and the answers come apart per blanking channel:
+    //
+    // - the **lore counter** is gated on `is_saga_permanent` — CR 613.1f removes abilities,
+    //   not subtypes, so a permanent entering under a Layer-6 `RemoveAllAbilities` is still
+    //   a Saga and still gets its counter. Suppressing it would be CR-*wrong*, and
+    //   observably so: if the blanker later leaves, a Saga that entered with 1 lore counter
+    //   must resume at chapter II rather than firing chapter I. Under CR 708.2a, by
+    //   contrast, a face-down permanent has **no subtypes** and so is not a Saga at all —
+    //   `is_saga_permanent` is false and no counter is placed.
+    // - the **chapter triggers** are gated on the chapters the permanent RETAINS, which is
+    //   `fire_saga_chapter_triggers`'s own enumeration of `saga_view(..).chapters` below.
+    //   CR 714.2b needs the ability to exist at the moment counters are put on, so a
+    //   blanked Saga fires nothing — which, combined with keeping the counter, is exactly
+    //   the correct outcome above.
+    //
+    // (This corrects `OOS-RR4-1`'s own claim that a blanked Saga must not take its ETB
+    // counter. That is right for the face-down channel and wrong for the Layer-6 one.)
+    //
+    // PB-RS4 (CR 714.3a / 712.8d/e) is preserved inside the view: only the face that is
+    // actually showing can make this permanent a Saga.
+    let saga_view = crate::rules::saga::saga_view(state, new_id);
+    if saga_view.is_saga_permanent {
         // SR-14: new_id is the permanent that just entered — live here.
         if let Some(obj) = state.expect_object_mut(new_id) {
             let current = obj.counters.get(&CounterType::Lore).copied().unwrap_or(0);
             obj.counters.insert(CounterType::Lore, current + 1);
         }
         // Fire chapter triggers for the initial lore counter (counter went from 0 to 1).
-        #[allow(clippy::needless_borrow)]
-        let chapter_evts = fire_saga_chapter_triggers(state, new_id, controller, 0, 1, &def);
+        // Unconditional here: the trigger side is decided by the view's `chapters`, inside
+        // the callee, which is the second of the two questions above.
+        let chapter_evts = fire_saga_chapter_triggers(state, new_id, controller, 0, 1);
         evts.extend(chapter_evts);
     }
     // CR 716.2d: When a Class enters the battlefield, set its level to 1.
@@ -2050,39 +2070,42 @@ pub fn apply_self_etb_from_definition(
 /// face's *effective* ability list — the same namespace every consumer that resolves
 /// a CardDef ability index resolves it against (`effective_abilities(obj.is_transformed)`).
 /// That is eight sites in the tree, not just the SagaChapter-specific ones: e.g.
-/// `resolution.rs:1996`/`:2028` (SagaChapter effect lookup), `resolution.rs:2066`
-/// (modal-trigger `modes` lookup), `sba.rs:889` (CR 714.4 "chapter still on the
-/// stack" guard), `abilities.rs:7004`/`:7082`/`:7210`/`:8379` (`once_per_turn`,
-/// `has_ability_targets`, `ability_targets`, flush-time lookup). The face signal is
-/// read live from `saga_id`'s `is_transformed` flag (not threaded as a parameter):
-/// this fn is `pub` and called from `turn_actions.rs` and directly from tests, and
-/// every existing caller already holds a live, up-to-date object at call time.
+/// `resolution.rs`'s two SagaChapter effect lookups, its modal-trigger `modes` lookup,
+/// `sba.rs`'s CR 714.4 "chapter still on the stack" guard, and `abilities.rs`'s
+/// `once_per_turn` / `has_ability_targets` / `ability_targets` / flush-time lookups.
+///
+/// **The chapter list comes from [`crate::rules::saga::saga_view`], not from a
+/// `CardDefinition` parameter.** The `def: &CardDefinition` argument this function used to
+/// take is gone deliberately: keeping it would leave two parallel enumerations of the same
+/// index space — one here and one in the view — which is exactly the producer/consumer
+/// drift `pb_rs4_face_aware_residuals` exists to police. The view derives the identical
+/// list from the registry, reads the face signal live from `saga_id`, and additionally
+/// consults the layer axis, so a permanent whose abilities are blanked (CR 613.1f,
+/// CR 305.7, CR 708.2a) queues nothing — which is what CR 714.2b requires, since the
+/// ability has to exist at the moment the counters are put on.
+///
+/// **Behavioural delta, disclosed rather than discovered later:** when `saga_id` has already
+/// departed (CR 400.7 — a legal fizzle), the old body still enumerated the passed `def` and
+/// pushed triggers naming a dead id. The view returns no chapters for a missing object and
+/// this function pushes nothing. That is the CR-correct answer: a departed Saga has no
+/// ability to trigger.
 pub fn fire_saga_chapter_triggers(
     state: &mut GameState,
     saga_id: ObjectId,
     controller: PlayerId,
     old_count: u32,
     new_count: u32,
-    def: &crate::cards::card_definition::CardDefinition,
 ) -> Vec<GameEvent> {
-    use crate::cards::card_definition::AbilityDefinition;
     use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
-    // CR 400.7: `saga_id` may have departed its zone since the caller looked it up
-    // (a legal fizzle, not an engine bug) -- default to front-face indexing.
-    let is_transformed = state
-        .fizzle_object(saga_id)
-        .map(|o| o.is_transformed)
-        .unwrap_or(false);
     let evts = Vec::new();
-    for (ability_index, ability) in def.effective_abilities(is_transformed).iter().enumerate() {
-        if let AbilityDefinition::SagaChapter { chapter, .. } = ability {
-            // CR 714.2b: Trigger fires if count crossed the chapter threshold.
-            if old_count < *chapter && new_count >= *chapter {
-                state.pending_triggers.push_back(PendingTrigger {
-                    ability_index,
-                    ..PendingTrigger::blank(saga_id, controller, PendingTriggerKind::Normal)
-                });
-            }
+    let view = crate::rules::saga::saga_view(state, saga_id);
+    for (ability_index, chapter) in view.chapters {
+        // CR 714.2b: Trigger fires if count crossed the chapter threshold.
+        if old_count < chapter && new_count >= chapter {
+            state.pending_triggers.push_back(PendingTrigger {
+                ability_index,
+                ..PendingTrigger::blank(saga_id, controller, PendingTriggerKind::Normal)
+            });
         }
     }
     evts
@@ -2118,65 +2141,19 @@ pub fn queue_carddef_etb_triggers(
     use crate::effects::{execute_effect, EffectContext};
     use crate::state::stubs::{ETBSuppressFilter, PendingTrigger, PendingTriggerKind};
     use crate::state::types::{CounterType, KeywordAbility, SubType};
-    // CR 708.3: Face-down permanents have no triggered abilities.
+    // CR 708.3 + IG-1 (CR 603.2, CR 305.7, CR 613.1f): a permanent with no abilities has
+    // no triggered abilities, so nothing is queued. Both channels — face-down (CR 708.2a)
+    // and a blanking continuous effect — are one question, asked once, by
+    // `layers::abilities_are_blanked`. **There is exactly one ability-blanking predicate
+    // in this tree**; the rationale for delegating the modification classification (and
+    // the 26-def regression that taught it) lives on that function's doc comment.
+    //
     // CR 400.7: `new_id` is passed in by the caller; an earlier ETB replacement in the
-    // same batch (or a harness) may leave no live object for this id, so its absence is
-    // a legal fizzle (no permanent here means no face-down suppression to apply).
-    if let Some(obj) = state.fizzle_object(new_id) {
-        if obj.status.face_down && obj.face_down_as.is_some() {
-            return Vec::new();
-        }
-    }
-    // IG-1 (CR 603.2, CR 305.7, CR 613): If any active continuous effect blanks the
-    // entering permanent's abilities, its CardDef triggered abilities are suppressed —
-    // do not queue any ETB triggers.
-    //
-    // CardDef triggers are not in `chars.triggered_abilities`, so the layer-resolved
-    // characteristics cannot answer this on their own; the active effects have to be
-    // examined directly.
-    //
-    // **The classification is delegated to `layers::modification_blanks_abilities`,
-    // and the layer filter is deliberately gone** (PB-DX43 `/review` Issue 1). This
-    // used to read `e.layer == EffectLayer::Ability && matches!(e.modification,
-    // LayerModification::RemoveAllAbilities)` — correct while a Layer-6
-    // `RemoveAllAbilities` was the only way to blank abilities, and silently wrong the
-    // moment PB-DX43 made CR 305.7's loss a **Layer-4** consequence of `SetLandTypes`.
-    // Blood Moon and Magus of the Moon dropped their Layer-6 static in that batch, so
-    // this scan stopped seeing them and 26 nonbasic land defs (the ten Karoos, the six
-    // Temples, the five gain-lands, ...) began firing CardDef ETB triggers off a land
-    // whose abilities are gone. Keying on the modification rather than on the layer is
-    // what makes a third channel impossible to add silently: that function is
-    // exhaustive over `LayerModification` with no wildcard arm.
-    {
-        use crate::rules::layers;
-        let abilities_removed = state
-            .continuous_effects
-            .iter()
-            .filter(|e| layers::is_effect_active(state, e))
-            .any(|e| {
-                // Check if this effect's filter applies to new_id.
-                // We need base characteristics to evaluate filter predicates.
-                // Use the object's stored characteristics as the filter basis.
-                // CR 400.7: `new_id` may name a permanent that already left (an earlier
-                // same-batch ETB replacement, or a harness call); absence defaults to
-                // Exile/empty chars, i.e. the suppressor simply does not apply.
-                let obj_zone = state
-                    .fizzle_object(new_id)
-                    .map(|o| o.zone)
-                    .unwrap_or(crate::state::zone::ZoneId::Exile);
-                let chars = state
-                    .fizzle_object(new_id)
-                    .map(|o| o.characteristics.clone())
-                    .unwrap_or_default();
-                // The blanking classification needs the same `chars` the filter is evaluated
-                // against, because CR 305.7 is scoped to lands — so it is asked here rather
-                // than in a `.filter` above.
-                layers::modification_blanks_abilities(&e.modification, &chars)
-                    && layers::effect_applies_to_object(state, e, new_id, obj_zone, &chars)
-            });
-        if abilities_removed {
-            return Vec::new();
-        }
+    // same batch (or a harness) may leave no live object for this id, so its absence is a
+    // legal fizzle — the predicate answers `false` and the ordinary queueing path below
+    // simply finds nothing to queue.
+    if crate::rules::layers::abilities_are_blanked(state, new_id) {
+        return Vec::new();
     }
     // IG-2 (CR 614.16a): If any active ETB suppressor on the battlefield applies
     // to this entering permanent, its CardDef ETB triggered abilities are suppressed.

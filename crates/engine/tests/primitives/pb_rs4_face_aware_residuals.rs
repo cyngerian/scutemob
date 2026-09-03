@@ -579,7 +579,7 @@ fn test_saga_chapter_trigger_index_matches_effective_face() {
     }
     *state.pending_triggers_mut() = imbl::Vector::new();
 
-    let _events = fire_saga_chapter_triggers(&mut state, saga_id, p1, 0, 1, &def);
+    let _events = fire_saga_chapter_triggers(&mut state, saga_id, p1, 0, 1);
 
     assert!(
         state.pending_triggers().is_empty(),
@@ -692,7 +692,7 @@ fn test_saga_chapter_trigger_index_resolves_to_back_faces_chapter_position() {
     }
     *state.pending_triggers_mut() = imbl::Vector::new();
 
-    let _events = fire_saga_chapter_triggers(&mut state, saga_id, p1, 0, 1, &def);
+    let _events = fire_saga_chapter_triggers(&mut state, saga_id, p1, 0, 1);
 
     let pending: Vec<_> = state.pending_triggers().iter().collect();
     assert_eq!(
