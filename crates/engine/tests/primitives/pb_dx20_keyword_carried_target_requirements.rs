@@ -773,29 +773,32 @@ fn test_dx20_t4_roster_gates_over_all_cards() {
         aura_with_spell
     );
 
-    // 5. **DEVIATION, pinned wrong-way-round (review finding C1 / OOS-DX20-10).**
+    // 5. **INVERTED by PB-DX20b (`scutemob-222`) -- `OOS-DX20-10` is CLOSED.**
     //    `EnchantTarget::Permanent` is almost always a WIDENING of a printed
     //    multi-type restriction ("creature, land, or planeswalker" etc admits
-    //    artifacts and enchantments too) -- `imprisoned_in_the_moon` (`Complete`,
-    //    deck-legal) declares it for exactly such a printed line, and PB-DX20 makes
-    //    the widened offer human-reachable. Fixing it needs `EnchantFilter`/
-    //    `EnchantTarget` card-type-OR expressiveness that does not exist today and
-    //    would move `HASH_SCHEMA_VERSION` -- out of this batch's scope (OOS-DX20-10).
-    //    This assertion is written the WRONG way round, mirroring PB-DX19's
-    //    `deviation_animated_nexus_does_not_count_toward_metalcraft` precedent: it
-    //    pins the SET of `Complete` Aura defs declaring `EnchantTarget::Permanent`
-    //    at exactly `{"Imprisoned in the Moon"}` rather than asserting the set is
-    //    empty, so the wrongness is discoverable (a second member appearing here is
-    //    a NEW HIGH, not a silent pass) rather than merely remembered. When
-    //    `OOS-DX20-10`'s successor adds the expressiveness `imprisoned_in_the_moon`
-    //    needs, THIS assertion is the one to invert.
+    //    artifacts and enchantments too). PB-DX20 could not express such a line --
+    //    `EnchantFilter` had `has_card_type` (ONE type) and `has_subtypes` (an OR
+    //    over SUBtypes) and no OR over card TYPES -- so it pinned the one offending
+    //    `Complete` def (`imprisoned_in_the_moon`) wrong-way-round at
+    //    `{"Imprisoned in the Moon"}` and named THIS assertion as the one to invert
+    //    when the expressiveness arrived.
     //
-    //    **Revert executed** (temporarily changing `imprisoned_in_the_moon.rs`'s
-    //    declared `EnchantTarget` to `CreatureOrPlaneswalker`, then restoring):
-    //    reddened as `left: [] right: ["Imprisoned in the Moon"]`, confirming the
-    //    assertion discriminates the card's presence/absence in this roster. `git
-    //    diff -- crates/card-defs/` confirmed empty after restore. Verbatim failure
-    //    in `scratchpad/dx20-reverts.md`.
+    //    PB-DX20b added `EnchantFilter::has_card_types` (the OR over card types) and
+    //    repaired the def to
+    //    `Filtered(EnchantFilter { has_card_types: [Creature, Land, Planeswalker] })`,
+    //    so the assertion is now the ordinary way round: **no `Complete` Aura def may
+    //    declare `EnchantTarget::Permanent`.** A new member appearing here is a fresh
+    //    instance of `OOS-DX20-10` -- check the def's printed Enchant line before
+    //    accepting it, because a printed line naming any narrower class than "any
+    //    permanent" must be declared as a `Filtered` filter, not widened to
+    //    `Permanent`.
+    //
+    //    The bare `EnchantTarget::Permanent` variant is deliberately NOT deleted: a
+    //    card really can print "Enchant permanent" -- `Song of the Dryads` does,
+    //    verbatim (MCP-verified 2026-09-03; it is NOT in this corpus today, so the
+    //    variant has zero `Complete` users, which is exactly what this assertion now
+    //    says). The roster is also restricted to `Complete` defs, so a
+    //    `partial`/`known_wrong` def may still carry `Permanent` without reddening it.
     let permanent_complete_auras: Vec<&str> = aura_defs
         .iter()
         .filter(|d| matches!(d.completeness, Completeness::Complete))
@@ -808,14 +811,13 @@ fn test_dx20_t4_roster_gates_over_all_cards() {
         .collect();
     assert_eq!(
         permanent_complete_auras,
-        vec!["Imprisoned in the Moon"],
-        "OOS-DX20-10: the roster of `Complete` Aura defs declaring \
-         EnchantTarget::Permanent moved from the pinned {{\"Imprisoned in the \
-         Moon\"}} -- if a NEW member appeared, check its oracle text before assuming \
-         it belongs here (`Permanent` is almost always a widening of a printed \
-         multi-type restriction); if `imprisoned_in_the_moon` itself is gone, \
-         OOS-DX20-10 was closed and this assertion should be INVERTED to EMPTY, got \
-         {:?}",
+        Vec::<&str>::new(),
+        "OOS-DX20-10 (closed by PB-DX20b): no `Complete` Aura def may declare \
+         EnchantTarget::Permanent unless its printed Enchant line really is \
+         \"Enchant permanent\". `Permanent` is almost always a WIDENING of a printed \
+         multi-type restriction -- read the def's oracle text and express the printed \
+         line with EnchantFilter (`has_card_types` is the OR over card types) rather \
+         than adding a member here, got {:?}",
         permanent_complete_auras
     );
 

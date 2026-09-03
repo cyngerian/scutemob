@@ -670,6 +670,20 @@ fn r3b_land_fixture_is_load_bearing_for_the_cr_305_7_channel() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// The first `KeywordAbility::Enchant(..)` target this def declares, across every face.
+/// The `has_card_types` OR-set of a declared `EnchantTarget::Filtered`, or `None` for every
+/// other variant (including "no Enchant keyword at all").
+///
+/// Split out by PB-DX20b: `EnchantTarget::Filtered` carries an `EnchantFilter` whose `Vec`
+/// fields cannot be written in a `const`, so `REACH_ROWS` pins the card-type set rather than
+/// the whole value — and that set is exactly what decides reach, which is this roster's
+/// question.
+fn enchant_filter_card_types(declared: &Option<EnchantTarget>) -> Option<Vec<CardType>> {
+    match declared {
+        Some(EnchantTarget::Filtered(f)) => Some(f.has_card_types.clone()),
+        _ => None,
+    }
+}
+
 fn declared_enchant_target(def: &CardDefinition) -> Option<EnchantTarget> {
     for (_, abilities) in all_ability_lists(def) {
         for ability in abilities {
@@ -707,42 +721,76 @@ fn def_by_name(name: &str) -> CardDefinition {
         .clone()
 }
 
-/// **Pair A** — `Imprisoned in the Moon` × `Binding the Old Gods`.
+/// **Pair A** — `Imprisoned in the Moon` × `Binding the Old Gods` — is **DEAD**, and this
+/// row is its re-adjudication rather than its deletion.
 ///
-/// This pair exists **only because of `OOS-DX20-10`**. Imprisoned in the Moon prints
-/// *"Enchant creature, land, or planeswalker"* and declares
-/// `KeywordAbility::Enchant(EnchantTarget::Permanent)` — `EnchantFilter` has no OR over
-/// card types, so PB-DX20 pinned the over-wide declaration wrong-way-round instead of
-/// fixing it. An enchantment is a permanent, so the Aura can legally be attached to a Saga
-/// today, its Layer-6 `RemoveAllAbilities` applies through `EffectFilter::AttachedPermanent`,
-/// and the blanked Saga is the CR 714 subject of this batch.
+/// PB-DX49 wrote this row wrong-way-round: the pair existed **only because of
+/// `OOS-DX20-10`**. Imprisoned in the Moon prints *"Enchant creature, land, or
+/// planeswalker"* and declared `KeywordAbility::Enchant(EnchantTarget::Permanent)`, because
+/// `EnchantFilter` had no OR over card **types**. An enchantment is a permanent, so the Aura
+/// could legally be attached to a Saga, its Layer-6 `RemoveAllAbilities` applied through
+/// `EffectFilter::AttachedPermanent`, and the blanked Saga was a CR 714 subject.
 ///
-/// **The assertion is keyed on the declared `EnchantTarget`, deliberately.** When
-/// `OOS-DX20-10` is fixed, this row goes RED and has to be re-adjudicated, rather than
-/// silently vacating every PB-DX49 probe that rests on the pair being reachable. A probe
-/// that quietly stops testing anything is worse than one that fails.
+/// **PB-DX20b (`scutemob-222`) closed `OOS-DX20-10`.** The def now declares
+/// `Filtered(EnchantFilter { has_card_types: [Creature, Land, Planeswalker] })`, and
+/// `Binding the Old Gods` is `Enchantment — Saga` with none of those three card types, so
+/// the Aura can no longer be attached to it at all: CR 303.4a refuses the cast and
+/// CR 704.5m detaches it. **Pair A is not reachable.**
+///
+/// *This vacates no behavioural coverage, and that was checked rather than assumed*: no test
+/// or fixture outside this roster file names `Imprisoned in the Moon`, and PB-DX49's
+/// deck-legal blanker × Saga coverage rests on **Pair B** (`Reality Shift` ×
+/// `Binding the Old Gods`, `r4b`), which is unconditional and never sat behind
+/// `OOS-DX20-10`. Pair A was a classification, not a fixture.
+///
+/// The row is kept, keyed on the mechanism, so that widening the Aura back to
+/// `EnchantTarget::Permanent` — or adding `Enchantment` to its `has_card_types` — resurrects
+/// the pair loudly instead of silently.
 #[test]
-fn r4a_pair_a_depends_on_oos_dx20_10() {
+fn r4a_pair_a_is_dead_since_oos_dx20_10_closed() {
     let aura = def_by_name("Imprisoned in the Moon");
+    let declared = declared_enchant_target(&aura);
+    let card_types = enchant_filter_card_types(&declared).unwrap_or_else(|| {
+        panic!(
+            "OOS-DX20-10 (closed by PB-DX20b): Imprisoned in the Moon prints 'Enchant \
+             creature, land, or planeswalker' and must declare that as \
+             EnchantTarget::Filtered with a has_card_types OR. It declares {declared:?}. If \
+             it has been widened back to Permanent, OOS-DX20-10 has REOPENED and Pair A \
+             (Imprisoned x Binding the Old Gods) is live again -- re-adjudicate this row, do \
+             not delete it."
+        )
+    });
     assert_eq!(
-        declared_enchant_target(&aura),
-        Some(EnchantTarget::Permanent),
-        "OOS-DX20-10: Imprisoned in the Moon prints 'Enchant creature, land, or \
-         planeswalker' and declares EnchantTarget::Permanent. Pair A (Imprisoned x Binding \
-         the Old Gods) is reachable ONLY because of that over-wide declaration. If this \
-         assertion fails, OOS-DX20-10 has been fixed and Pair A must be re-adjudicated -- \
-         do not delete this row, and do not assume the PB-DX49 probes that use the pair are \
-         still exercising anything."
+        card_types,
+        vec![CardType::Creature, CardType::Land, CardType::Planeswalker],
+        "CR 702.5a: the printed Enchant line is exactly 'creature, land, or planeswalker'. \
+         If Enchantment appears in this set, Pair A is live again."
     );
     assert!(
         is_effectively_complete(&aura),
-        "Pair A is only a LIVE pair if the Aura is deck-legal"
+        "the Aura is deck-legal, so a widening here would be a LIVE defect, not a latent one"
     );
+    let saga = def_by_name("Binding the Old Gods");
     assert!(
-        is_effectively_complete(&def_by_name("Binding the Old Gods")),
-        "Pair A is only a LIVE pair if the Saga is deck-legal"
+        is_effectively_complete(&saga),
+        "the Saga is deck-legal, so its unreachability from this Aura is what kills the pair"
     );
-    // The blanking modification must reach the ATTACHED permanent, not just some creature.
+    // The pair is dead because the two type sets are DISJOINT -- computed, not asserted.
+    let saga_types: BTreeSet<CardType> = saga.types.card_types.iter().cloned().collect();
+    let overlap: Vec<&CardType> = card_types
+        .iter()
+        .filter(|ct| saga_types.contains(ct))
+        .collect();
+    assert!(
+        overlap.is_empty(),
+        "PAIR A RESURRECTED: Imprisoned in the Moon's Enchant filter now admits a card type \
+         Binding the Old Gods has ({overlap:?}), so the Aura can blank the Saga again. \
+         PB-DX49's CR 714 analysis assumed this pair was gone -- re-adjudicate before \
+         accepting."
+    );
+    // The blanking modification still reaches the ATTACHED permanent, not just some
+    // creature. This is unchanged by PB-DX20b and is what makes the row's warning real:
+    // the ONLY thing standing between this Aura and a Saga is the Enchant filter above.
     let filters: BTreeSet<Option<String>> = blanking_sites()
         .into_iter()
         .filter(|s| s.card == "Imprisoned in the Moon")
@@ -753,8 +801,8 @@ fn r4a_pair_a_depends_on_oos_dx20_10() {
         [Some("AttachedPermanent".to_string())]
             .into_iter()
             .collect(),
-        "CR 613.1f: Imprisoned in the Moon's RemoveAllAbilities must apply to the attached \
-         PERMANENT (not AttachedCreature), or the pair is not reachable through the Aura"
+        "CR 613.1f: Imprisoned in the Moon's RemoveAllAbilities applies to the attached \
+         PERMANENT (not AttachedCreature) -- so only the Enchant filter keeps it off a Saga"
     );
 }
 
@@ -797,13 +845,28 @@ fn r4b_pair_b_is_unconditional() {
     );
 }
 
+/// A const-expressible pin on a def's declared `KeywordAbility::Enchant` target.
+///
+/// PB-DX20b: `EnchantTarget::Filtered` carries an `EnchantFilter` whose `Vec` fields cannot
+/// be written in a `const`, so the pin names the discriminating part rather than the whole
+/// value. For this roster the discriminating part is the card-type OR-set, because that is
+/// exactly what decides whether the Aura can reach an enchantment.
+#[derive(Debug)]
+enum EnchantPin {
+    /// The def declares `EnchantTarget::Creature`.
+    Creature,
+    /// The def declares `EnchantTarget::Filtered` whose `has_card_types` is exactly this
+    /// slice, in this order.
+    FilteredCardTypes(&'static [CardType]),
+}
+
 /// One blanker's reach, and the mechanism that decides it.
 struct ReachRow {
     card: &'static str,
     /// Can this blanker's modification land on an *enchantment* (and therefore on a Saga)?
     can_reach_enchantment: bool,
     /// The declared `KeywordAbility::Enchant` target, if the def is an Aura.
-    enchant: Option<EnchantTarget>,
+    enchant: Option<EnchantPin>,
     /// `TargetRequirement` variants that the BLANKING ABILITY itself must still declare for
     /// the classification to hold. Empty when the classification does not rest on a target
     /// requirement.
@@ -833,7 +896,7 @@ const REACH_ROWS: &[ReachRow] = &[
     ReachRow {
         card: "Darksteel Mutation",
         can_reach_enchantment: false,
-        enchant: Some(EnchantTarget::Creature),
+        enchant: Some(EnchantPin::Creature),
         requires_target_variants: &[],
         requires_filters: &["AttachedCreature"],
         reason: "CR 303.4a: 'Enchant creature' -- the Aura can only legally attach to a \
@@ -842,7 +905,7 @@ const REACH_ROWS: &[ReachRow] = &[
     ReachRow {
         card: "Eaten by Piranhas",
         can_reach_enchantment: false,
-        enchant: Some(EnchantTarget::Creature),
+        enchant: Some(EnchantPin::Creature),
         requires_target_variants: &[],
         requires_filters: &["AttachedCreature"],
         reason: "CR 303.4a: 'Enchant creature'.",
@@ -859,18 +922,27 @@ const REACH_ROWS: &[ReachRow] = &[
     ReachRow {
         card: "Imprisoned in the Moon",
         can_reach_enchantment: true,
-        enchant: Some(EnchantTarget::Permanent),
+        enchant: Some(EnchantPin::FilteredCardTypes(&[
+            CardType::Creature,
+            CardType::Land,
+            CardType::Planeswalker,
+        ])),
         requires_target_variants: &[],
         requires_filters: &["AttachedPermanent"],
-        reason: "PAIR A. Reachable ONLY because of OOS-DX20-10 -- the printed 'Enchant \
-                 creature, land, or planeswalker' is declared as EnchantTarget::Permanent, \
-                 because EnchantFilter has no OR over card types. An enchantment is a \
-                 permanent, so the Aura can attach to a Saga today. See r4a.",
+        reason: "PAIR A IS DEAD (PB-DX20b closed OOS-DX20-10). The printed 'Enchant \
+                 creature, land, or planeswalker' is now declared as \
+                 Filtered(has_card_types: [Creature, Land, Planeswalker]) instead of the \
+                 over-wide EnchantTarget::Permanent, so an Enchantment -- Saga such as \
+                 Binding the Old Gods is no longer a legal attachment. It stays classified \
+                 `can_reach_enchantment: true` for Blood Moon's reason, not its own former \
+                 one: an enchantment that is ALSO a land or a creature still matches, i.e. \
+                 Urza's Saga, which r4d pins as `partial` (OOS-RR4-2). Not deck-legal \
+                 today. See r4a.",
     },
     ReachRow {
         card: "Kasmina's Transmutation",
         can_reach_enchantment: false,
-        enchant: Some(EnchantTarget::Creature),
+        enchant: Some(EnchantPin::Creature),
         requires_target_variants: &[],
         requires_filters: &["AttachedCreature"],
         reason: "CR 303.4a: 'Enchant creature'.",
@@ -878,7 +950,7 @@ const REACH_ROWS: &[ReachRow] = &[
     ReachRow {
         card: "Kenrith's Transformation",
         can_reach_enchantment: false,
-        enchant: Some(EnchantTarget::Creature),
+        enchant: Some(EnchantPin::Creature),
         requires_target_variants: &[],
         requires_filters: &["AttachedCreature"],
         reason: "CR 303.4a: 'Enchant creature'.",
@@ -942,15 +1014,20 @@ fn r4_blanker_reach_is_pinned() {
     );
     for row in REACH_ROWS {
         let def = def_by_name(row.card);
-        assert_eq!(
-            declared_enchant_target(&def),
-            row.enchant,
+        let declared = declared_enchant_target(&def);
+        let enchant_pin_holds = match &row.enchant {
+            None => declared.is_none(),
+            Some(EnchantPin::Creature) => declared == Some(EnchantTarget::Creature),
+            Some(EnchantPin::FilteredCardTypes(want)) => {
+                enchant_filter_card_types(&declared).as_deref() == Some(*want)
+            }
+        };
+        assert!(
+            enchant_pin_holds,
             "PB-DX49 r4 ({}): the declared EnchantTarget moved, so the reach classification \
              (can_reach_enchantment = {}) no longer rests on what it was measured against. \
-             Reason on file: {}",
-            row.card,
-            row.can_reach_enchantment,
-            row.reason
+             Pinned {:?}, declared {:?}. Reason on file: {}",
+            row.card, row.can_reach_enchantment, row.enchant, declared, row.reason
         );
         let own: Vec<&BlankingSite> = sites.iter().filter(|s| s.card == row.card).collect();
         assert!(
