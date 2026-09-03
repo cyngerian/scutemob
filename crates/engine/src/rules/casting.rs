@@ -34,8 +34,8 @@ use crate::state::stubs::PendingTriggerKind;
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::turn::Step;
 use crate::state::types::{
-    AffinityTarget, AltCostKind, CardType, EnchantControllerConstraint, EnchantTarget,
-    KeywordAbility, SubType,
+    AffinityTarget, AltCostKind, CardType, EnchantControllerConstraint, EnchantFilter,
+    EnchantTarget, KeywordAbility, SubType,
 };
 use crate::state::zone::ZoneId;
 use crate::state::{GameState, PendingTrigger};
@@ -5630,7 +5630,7 @@ pub(crate) fn card_def_target_requirements(
 /// | `Planeswalker` | `TargetPlaneswalker` | YES |
 /// | `Player` | `TargetPlayer` | YES on objects (CR 702.5d forbids attaching to a permanent — the object-side catch-all rejects); on the player side this is `TargetPlayer`-legal by CR 702.5d, but no def in the corpus carries this today and the attachment path (`GameObject.attached_to: Option<ObjectId>`) has no player variant — `OOS-DX20-2`, gated by a T4 roster assertion |
 /// | `CreatureOrPlaneswalker` | `TargetPermanentWithFilter{ has_card_types: [Creature, Planeswalker] }` | YES — NOT `TargetAny`, which also accepts players (CR 702.5d forbids that for a non-Player Enchant) |
-/// | `Filtered(f)` | `TargetPermanentWithFilter(EnchantFilter -> TargetFilter, §3.3)` | YES, field by field — see the six-field mapping below |
+/// | `Filtered(f)` | `TargetPermanentWithFilter(EnchantFilter -> TargetFilter, §3.3)` | YES, field by field — the lowering is `enchant_filter_to_target_filter` below, which carries all SEVEN fields and is the same function `super::sba::enchant_filter_matches` calls |
 ///
 /// **CR 702.5c is NOT implemented, deliberately and identically on both sides**:
 /// `super::sba::get_enchant_target` returns only the FIRST `Enchant` keyword via
@@ -5654,22 +5654,51 @@ pub(crate) fn enchant_target_to_requirement(et: &EnchantTarget) -> TargetRequire
                 ..Default::default()
             })
         }
-        EnchantTarget::Filtered(f) => TargetRequirement::TargetPermanentWithFilter(TargetFilter {
-            // §3.3: every `EnchantFilter` field maps 1:1 onto `TargetFilter`. Everything
-            // else stays `..Default::default()` on purpose (§3.4) so a future
-            // `TargetFilter` field cannot silently acquire meaning here.
-            has_card_type: f.has_card_type,
-            has_subtype: f.has_subtype.clone(),
-            has_subtypes: f.has_subtypes.clone(),
-            basic: f.basic,
-            nonbasic: f.nonbasic,
-            controller: match f.controller {
-                EnchantControllerConstraint::Any => TargetController::Any,
-                EnchantControllerConstraint::You => TargetController::You,
-                EnchantControllerConstraint::Opponent => TargetController::Opponent,
-            },
-            ..Default::default()
-        }),
+        EnchantTarget::Filtered(f) => {
+            TargetRequirement::TargetPermanentWithFilter(enchant_filter_to_target_filter(f))
+        }
+    }
+}
+
+/// CR 702.5a / 303.4a / 205.4a — the single lowering of an `EnchantFilter` onto a
+/// `TargetFilter` (PB-DX20 §3.3, extracted by PB-DX20b).
+///
+/// **This is the only place in the engine that knows what an `EnchantFilter` field means.**
+/// PB-DX20 left two independent arithmetics — this mapping (the cast/offer path) and a
+/// hand-rolled six-field predicate in `super::sba::enchant_filter_matches` (the CR 303.4a
+/// gate and the CR 704.5m SBA) — and two hand-written copies drift the moment a field is
+/// added. PB-DX20b rewrote the `sba.rs` side to call THIS function and hand off to
+/// `effects::matches_filter`, so both sides are now one arithmetic by construction rather
+/// than by two copies agreeing.
+///
+/// All **seven** `EnchantFilter` fields are carried:
+///
+/// | `EnchantFilter` | `TargetFilter` | checked by |
+/// |---|---|---|
+/// | `has_card_type` | `has_card_type` | `effects::matches_filter` |
+/// | `has_card_types` | `has_card_types` (OR) | `effects::matches_filter` |
+/// | `has_subtype` | `has_subtype` | `effects::matches_filter` |
+/// | `has_subtypes` | `has_subtypes` (OR) | `effects::matches_filter` |
+/// | `basic` | `basic` | `effects::matches_filter` |
+/// | `nonbasic` | `nonbasic` | `effects::matches_filter` |
+/// | `controller` | `controller` | `validate_object_satisfies_requirement`, **not** `matches_filter` — controller is not a characteristic |
+///
+/// Everything else stays `..Default::default()` on purpose (PB-DX20 §3.4): a future
+/// `TargetFilter` field must not silently acquire meaning here.
+pub(crate) fn enchant_filter_to_target_filter(f: &EnchantFilter) -> TargetFilter {
+    TargetFilter {
+        has_card_type: f.has_card_type,
+        has_card_types: f.has_card_types.clone(),
+        has_subtype: f.has_subtype.clone(),
+        has_subtypes: f.has_subtypes.clone(),
+        basic: f.basic,
+        nonbasic: f.nonbasic,
+        controller: match f.controller {
+            EnchantControllerConstraint::Any => TargetController::Any,
+            EnchantControllerConstraint::You => TargetController::You,
+            EnchantControllerConstraint::Opponent => TargetController::Opponent,
+        },
+        ..Default::default()
     }
 }
 /// CR 702.140a (PB-DX50, `OOS-DX25-1`) — the `TargetRequirement` a mutate cast's

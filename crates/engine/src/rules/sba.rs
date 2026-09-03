@@ -1042,44 +1042,46 @@ pub(crate) fn matches_enchant_target(
 /// CR 702.5a / 303.4 — Evaluate an `EnchantFilter` against layer-resolved characteristics
 /// and the relative controllers of the Aura and its target.
 ///
-/// Checks (all must pass):
-/// - `has_card_type`: target must have this card type.
-/// - `has_subtype`: target must have this subtype (AND — single).
-/// - `has_subtypes`: target must have at least one of these (OR — Vec). Empty = no restriction.
-/// - `basic`: if true, target must have the Basic supertype (CR 205.4a).
-/// - `nonbasic`: if true, target must NOT have the Basic supertype (CR 205.4a).
-/// - `controller`: `You` = target_controller must equal aura_controller; `Opponent` = must differ.
+/// **This function owns no arithmetic of its own** (PB-DX20b). It lowers the filter through
+/// `super::casting::enchant_filter_to_target_filter` — the single place that knows what an
+/// `EnchantFilter` field means — and hands the characteristic half to
+/// `crate::effects::matches_filter`.
+///
+/// *Why `matches_filter` is the right predicate*: it is exactly the predicate
+/// `casting::validate_object_satisfies_requirement` already runs on the cast/offer path for
+/// the `TargetRequirement::TargetPermanentWithFilter` that the SAME lowering produces
+/// (`casting::enchant_target_to_requirement`'s `Filtered` arm). Before PB-DX20b this
+/// function hand-rolled a parallel six-field predicate, so the CR 303.4a gate + CR 704.5m SBA
+/// and the cast/offer path were two independent arithmetics that agreed only by inspection —
+/// and adding a seventh `EnchantFilter` field to one of them would have silently gone
+/// unenforced in the other. They are now one arithmetic by construction.
+///
+/// *Coverage*: `matches_filter` checks all six characteristic-side fields the lowering
+/// carries — `has_card_type` (`effects/mod.rs:10375`), `basic` (`:10401`), `nonbasic`
+/// (`:10409`), `has_subtype` (`:10416`), `has_subtypes` (`:10422`) and `has_card_types`
+/// (`:10458`). Every other `TargetFilter` field is left at `Default` by the lowering and is
+/// inert in `matches_filter` (each is an `Option::None`, an empty collection or a `false`
+/// flag whose branch is skipped), so the hand-off widens nothing.
+///
+/// *The controller clause stays here, split off, and that is stated rather than left to be
+/// discovered*: `matches_filter` takes only `Characteristics`, and controller is not a
+/// characteristic — it is a property of the `GameObject`. The lowering does carry
+/// `EnchantFilter.controller` onto `TargetFilter.controller` for the cast path, where
+/// `validate_object_satisfies_requirement` checks it against the caster; here the same
+/// `EnchantControllerConstraint` is read directly, because the SBA compares the Aura's
+/// controller against the enchanted permanent's rather than against a caster.
 fn enchant_filter_matches(
     f: &EnchantFilter,
     chars: &crate::state::game_object::Characteristics,
     aura_controller: PlayerId,
     target_controller: PlayerId,
 ) -> bool {
-    // Card type check.
-    if let Some(required_type) = &f.has_card_type {
-        if !chars.card_types.contains(required_type) {
-            return false;
-        }
-    }
-    // Single subtype check (AND).
-    if let Some(required_subtype) = &f.has_subtype {
-        if !chars.subtypes.contains(required_subtype) {
-            return false;
-        }
-    }
-    // Multi-subtype check (OR): must match at least one if the vec is nonempty.
-    if !f.has_subtypes.is_empty() && !f.has_subtypes.iter().any(|st| chars.subtypes.contains(st)) {
+    // Characteristic half — delegated, so there is exactly ONE lowering in the tree.
+    let tf = super::casting::enchant_filter_to_target_filter(f);
+    if !crate::effects::matches_filter(chars, &tf) {
         return false;
     }
-    // Basic supertype check (CR 205.4a).
-    if f.basic && !chars.supertypes.contains(&SuperType::Basic) {
-        return false;
-    }
-    // Nonbasic check: must NOT be basic (CR 205.4a).
-    if f.nonbasic && chars.supertypes.contains(&SuperType::Basic) {
-        return false;
-    }
-    // Controller constraint.
+    // Controller constraint (not a characteristic — see the doc above).
     match f.controller {
         EnchantControllerConstraint::Any => {}
         EnchantControllerConstraint::You => {

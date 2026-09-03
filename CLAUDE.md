@@ -81,7 +81,10 @@
   corner-case audit's last open GAP).
   **↻ PB-DX50 SHIPPED** (`scutemob-221`, 2026-09-03; v4 rank 8 — **OOS-DX25-1** and
   **OOS-DX29-2** both CLOSED, each row corrected against three of its own claims).
-  **Next dispatch: PB-DX20b** (v4 rank 9); ranks 1-8 all shipped.
+  **↻ PB-DX20b SHIPPED** (`scutemob-222`, 2026-09-03; v4 rank 9 — **OOS-DX20-10** and
+  **OOS-DX20-5** CLOSED as ONE defect, cross-cited; a third census member repaired that no
+  document named).
+  **Next dispatch: PB-DX18** (v4 rank 10); ranks 1-9 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -201,7 +204,14 @@
   **0 card-def edits of any kind**; **PROTOCOL 39 → 40 / HASH 78 → 79**, ONE bump each, both
   gate-computed and both predicted PER HALF in writing before any code — the legality half moved
   neither fingerprint and the timing half moved each once. Filed **OOS-DX50-1..11**.
-  **Next dispatch: PB-DX20b** (v4 rank 9); ranks 1-8 all shipped.
+  **↻ 2026-09-03 — PB-DX20b SHIPPED** (`scutemob-222`; v4 rank 9 — **OOS-DX20-10** ≡
+  **OOS-DX20-5** CLOSED as ONE defect). Coverage unmoved at **1,137/1,803 = 63.1%**, **0 flips**
+  as predicted, **3 card-def edits** (`imprisoned_in_the_moon`, `kayas_ghostform`,
+  `breath_of_fury` — all keyword-declaration changes, **no `Completeness` marker moved**, so the
+  `CORPUS_COMPLETE` SET is unmoved and no seeded fixture was re-dealt); **PROTOCOL 40 → 41 /
+  HASH 79 → 80**, ONE bump each, both gate-computed and both predicted in writing before any
+  code, type counts predicted unchanged and confirmed at 98 / 131. Filed **OOS-DX20b-1..7** (`-6` and `-7` by the `/review` fix cycle, after the first draft of these lines said `-1..5` — dispatch hygiene 8's exact case, caught by re-checking this cell against the registry AFTER the fix cycle rather than before it).
+  **Next dispatch: PB-DX18** (v4 rank 10); ranks 1-9 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -212,6 +222,79 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-03, PB-DX20b)**: **5,015 / 0 / 5** full-workspace on branch
+  `scutemob-222` (+24 over the **4,991** baseline, measured on this branch BEFORE any edit and
+  reproducing PB-DX50's close pin exactly), `--workspace --no-fail-fast` to a file, **60**
+  result-producing targets (59 → 60: one new simulator test binary), residual list empty.
+  **Delta itemised by test NAME by set-diffing the two run logs: 25 additions, 1 leaver, 0
+  removals** (23 at the batch's close, +2 in the `/review` fix cycle — `t10` and `t11`; the fix
+  cycle's other two findings edited existing tests in place, so it added 0 leavers and 0 renames).** The single leaver is disclosed and is not a removal:
+  `pb_dx49_saga_blanking_roster::r4a_pair_a_depends_on_oos_dx20_10` became
+  `..._is_dead_since_oos_dx20_10_closed`, because **PB-DX49's Pair A existed only because of the
+  defect this batch closed** and that row was written to go red and demand re-adjudication rather
+  than silently vacate. Honest reading: **22 genuine additions and 1 re-adjudicated rename.**
+  **A measurement error inside this batch's own close-out, recorded because it fails toward the
+  one thing the criterion exists to catch**: the first delta used `sort` + `comm` and reported
+  24 additions / **2** leavers, the extras being two tests this batch never touched, each present
+  once with `... ok` in BOTH logs. `sort` under `en_US.UTF-8` collates by locale while `comm`
+  compares byte-wise, so they disagree around `::` and `_` and `comm` invents rows. Redone as a
+  byte-exact set difference. **A NAME delta taken with `sort` + `comm` under a UTF-8 locale is
+  not a delta, and it fabricates a REMOVAL** (`OOS-DX20b-5`).
+  **PROTOCOL 40 → 41 / HASH 79 → 80, ONE bump each**, both taken from the failing gates' own
+  output and **both predicted in writing before any production line changed** (`21f68337`),
+  including the prediction that neither closure's type count would move — confirmed by the gates'
+  own text at **98 / 131**. History rows appended, never edited; both
+  `FROZEN_HISTORY_PREFIX_DIGEST`s re-pinned; `history_is_append_only` and `frozen_prefix_is_pinned`
+  green on both; `hash_schema` + `protocol_schema` 51/51. **PB-DX50's sentinel lesson recurred
+  inside the batch that had it available**: the census (47 HASH + 13 PROTOCOL, multi-line-aware)
+  reproduced PB-DX50's corrected figures exactly, and then the first re-pin regex replaced
+  **2 of 47** — because the tree spells the sentinel `79u8` and `\b` between `9` and `u` is not a
+  boundary. Caught by an independent survivor scan with a differently-shaped regex, not by the
+  re-pin. *A re-pin is only as wide as the spelling its regex matched, and "spelling" includes the
+  literal's type suffix.*
+  Coverage **1,137/1,803 = 63.1%** by regeneration, **0 flips** as predicted (clean 1,137 / todo
+  519 / empty 147 identical), self-dating churn reverted; **3 card-def edits**, all
+  keyword-declaration changes, **no `Completeness` marker moved** — so the `CORPUS_COMPLETE` SET
+  is unmoved as well as its count and `OOS-CARDS2-3`'s re-deal budget was checked and found not
+  owed, rather than assumed away.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree. **`npm run build` was
+  NOT run and that is stated rather than omitted**: `node_modules` is absent from this worktree and
+  `git diff main..HEAD --numstat -- tools/play-frontend` is **empty**. `tools/` is **not** zero —
+  `tools/play-server/src/main.rs` is **+386 / −0**, entirely inside its `#[cfg(test)]` module.
+  **Engine lines**: `crates/engine/src` **+146 / −52** across four files, of which
+  `rules/protocol.rs` (+27/−2) and `state/hash.rs` (+39/−1) are almost entirely the two appended
+  history rows and their doc paragraphs; `crates/card-types/src` **+18 / −0**;
+  **`crates/view-model` and `crates/simulator/src` are both 0** — every consumer of the Enchant
+  restriction lives in the engine, measured before the design was chosen rather than asserted
+  after.
+  **Benches: MEASURED, four runs, and the honest answer is "no regression demonstrated".**
+  Matched-set A/B against merge base `e457f931` in an isolated worktree with its own
+  `CARGO_TARGET_DIR`. Base → HEAD alone reads *"`sba_check` +1.2%, everything else 2-4% faster"*
+  — and "everything else 2-4% faster" is not something this change can cause, which is the tell
+  that the comparison is contaminated. **The same code benched twice** moves `priority_cycle_6p`
+  −1.5%, `full_turn_6p` +1.2% and `board_wipe_4p` +1.4%; and a second merge-base run puts
+  `sba_check` at **15.114-15.204 µs, SLOWER than either HEAD run**, so the two runs of identical
+  base code differ by **4.1%** — wider than any base-vs-HEAD difference measured. Not *"within
+  the historical band"* (the phrasing PB-DX49's `/review` refuted) but *"the same-code
+  repeatability band measured in this session is wider than the effect"*. Bounded independently by
+  two mechanism facts: `size_of::<KeywordAbility>()` is **88 bytes at BOTH revisions** (executed
+  at each; `EnchantTarget` grew 56 → 80 but is still not the largest variant, so nothing on the
+  layer/SBA hot path got bigger), and `crates/engine/benches/engine_perf.rs` contains **zero**
+  occurrences of `Aura` or `Enchant`, so the one function that gained an allocation is off every
+  benched path by construction.
+  **Revert matrix: 16 rows executed — 11 engine + 5 channel — all discriminating, 0
+  UNDISCRIMINATED**, and re-executed independently by the coordinator in a fresh isolated worktree
+  rather than accepted from the delegated reports. R1 (widen back to `EnchantTarget::Permanent`)
+  reproduces on **all four surfaces**; R5's headline reproduces exactly — with an eighth
+  `EnchantFilter` field planted, `cargo build --workspace` prints `Finished` with **zero errors**
+  and all ten behavioural probes stay green, so `r5` is the only thing in the tree that catches an
+  unlowered field. Two structural findings the matrix produced that argument would not: the CR
+  303.4a gate is **one-directional** (R3 shows it adds nothing in the accepting direction; R10
+  shows it is decisive in the refusing one, so deleting it as "covered upstream" is half right and
+  half wrong), and **two reverts were not enough** — R-A and R-B are both over-wide and cannot
+  redden the "no printed-legal target refused" half, so without a third UNDER-wide revert two of
+  five channel rows would have been honestly UNDISCRIMINATED.
 - **Tests (delta 2026-09-03, PB-DX50)**: **4,991 / 0 / 5** full-workspace on branch
   `scutemob-221` (+50 over the **4,941** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX49's close pin exactly), `--workspace --no-fail-fast` to a file, **59**
@@ -912,7 +995,86 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-03 — **PB-DX50 SHIPPED** (`scutemob-221`; v4 queue rank 8 —
+- **Last Updated**: 2026-09-03 — **PB-DX20b SHIPPED** (`scutemob-222`; v4 queue rank 9 —
+  **OOS-DX20-10** ≡ **OOS-DX20-5** CLOSED as ONE defect, cross-cited). **An Aura's printed
+  restriction named three card types and the DSL could only say one, so the def said "any
+  permanent" instead — and PB-DX20 had just made that human-reachable.**
+  CR 702.5a restricts both what an Aura spell may target (CR 303.4a) and what it may stay
+  attached to (CR 704.5m). `imprisoned_in_the_moon` (`Complete`, deck-legal) prints *"Enchant
+  creature, land, or planeswalker"* and declared `EnchantTarget::Permanent`, which also admits
+  artifacts, enchantments and battles; `sba::matches_enchant_target`'s `Permanent` arm is a bare
+  `true`, so the SBA would not clean up an illegal attachment either. `EnchantFilter` had
+  `has_card_type` (ONE type) and `has_subtypes` (an OR over **sub**types) and no OR over card
+  **types**. Shipped: `EnchantFilter::has_card_types`, lowered onto the **already existing**
+  `TargetFilter.has_card_types` — no parallel OR mechanism.
+  **THE STRUCTURAL HALF IS THE BATCH, AND THE MEMO'S SITE CELL HAD THE RIGHT NUMBER AND THE
+  WRONG SHAPE.** The v4 row says *"three sites"*. Re-derived at stage 0, before any code: it is
+  **two ARITHMETICS and three CONSUMERS**, and the consumers were already shared —
+  `casting::enchant_target_to_requirement` and `sba::enchant_filter_matches` were independent
+  hand-written copies of one six-field predicate, while the CR 303.4a gate, the CR 704.5m SBA and
+  `queries::spell_target_requirements` each consumed one of them. **A batch that patched "three
+  sites" one at a time would have carried the new field in two copies** — the drift the fix
+  exists to remove. `casting::enchant_filter_to_target_filter` is now the only place that knows
+  what an `EnchantFilter` field means, and `sba.rs`'s predicate is DELETED in favour of calling
+  it and handing off to `effects::matches_filter`, the same predicate the cast path already runs.
+  The CR 303.4a gate's call is deliberately KEPT: PB-DX20 put it there so cast-time and SBA-time
+  agree, and that property now holds by construction rather than by two copies agreeing.
+  **THE COMPILER WILL NOT DO ITS JOB HERE, PROVEN TWICE BY EXECUTION.** Adding a field to
+  `EnchantFilter` produces **ZERO** compile errors workspace-wide — every construction site,
+  engine and tests and all 1,803 card defs, uses `..Default::default()`, and `#[serde(default)]`
+  covers deserialization. Re-executed independently by the coordinator in an isolated worktree:
+  with an eighth field planted, `cargo build --workspace` printed `Finished` and **all ten
+  behavioural probes stayed green**. `r5_every_enchant_filter_field_is_lowered` is the only thing
+  in the tree that reddens, and revert row R5b proves its second half separately — planting the
+  field *and* updating the pin, leaving the lowering alone, still reddens on the *unlowered*
+  assertion, because a pin that only checked the field list would be satisfied by the very edit
+  that hides the bug (`OOS-DX20b-2`, and the class is not `EnchantFilter`-specific).
+  **THE CENSUS FOUND A THIRD MEMBER NO DOCUMENT NAMES, AND A FOURTH CORRECTION TO ITS OWN AXIS.**
+  `breath_of_fury` prints *"Enchant creature you control"* and declared `EnchantTarget::Creature`,
+  silently dropping the controller clause — absent from both seed rows and from the memo cell,
+  and needing **no new expressiveness at all**, since `EnchantFilter.controller` has existed since
+  PB-DX20. Repaired rather than filed. And the population needing a `Filtered` filter is **SEVEN,
+  not the six** an OR-or-controller substring axis finds: `awaken_the_ancient` prints *"Enchant
+  Mountain"* — no OR, no comma, no controller clause — and still cannot be any bare variant. *A
+  substring axis would have pinned six and called it measured.* Both populations now pinned
+  separately.
+  **THE MEMO'S COVERAGE CELL IS REFUTED, AND THE DEF'S OWN NOTE ALREADY SAID SO.** Row 9 predicts
+  *"+1 `partial` unblocked (`kayas_ghostform`)"*. That def's `Completeness::partial` marker reads
+  *"NOT blocked: 'Enchant creature or planeswalker'"* and names a different blocker — a trigger
+  keyed to the **enchanted permanent's** zone change plus a return from graveyard-or-exile. It
+  stays `partial`, with the surviving blocker restated and its now-false sentence rewritten.
+  Predicted in §0.4 before regeneration; coverage **unmoved at 1,137/1,803 = 63.1%, 0 flips**.
+  **A NEIGHBOURING BATCH'S ROW DIED HERE, AND IT WAS DESIGNED TO.** PB-DX49's Pair A
+  (`imprisoned_in_the_moon` × `binding_the_old_gods`) was reachable **only** because of the
+  over-wide `Permanent` — an enchantment is a permanent. With the printed filter in place the two
+  card-type sets are disjoint, so CR 303.4a refuses the cast and CR 704.5m detaches.
+  `r4a_pair_a_depends_on_oos_dx20_10` went red exactly as PB-DX49 wrote it to, and is
+  **re-adjudicated, not deleted**: the death is now COMPUTED from the intersection of the two type
+  sets, so a widening resurrects the pair loudly. Verified it vacates no behavioural coverage —
+  nothing outside that roster file names the card, and PB-DX49's deck-legal coverage rests on
+  Pair B, which never sat behind this seed — **and the first draft of that justification was
+  itself false, which the `/review` caught**: it said *"nothing outside that roster file names
+  the card"*, while at the merge base five files did, one of them the very PB-DX20 roster pin
+  this batch inverts. The conclusion survives on the narrower true reason — that reference was a
+  roster PIN and no fixture ever drove Pair A — and the correction is recorded in the test's own
+  doc, because a stated reason is the half the next batch reuses. The rename is this batch's
+  single test leaver.
+  **AND A LIVE, PRE-EXISTING SR-38 DEFECT FOUND BY EXECUTION**: `legal_actions.rs:1276` builds the
+  `DeclareAttackers` eligible list from **raw printed** `obj.characteristics.card_types`, never
+  `calculate_characteristics` — so once Imprisoned resolves and its Layer-4 effect makes the
+  enchanted permanent a Land, the offer layer keeps offering it as an attacker and the engine
+  refuses. `status.tapped`, `Defender` and `Haste` are read from the same raw struct three lines
+  away, so a *granted* Defender is equally invisible. Byte-identical under revert, so pre-existing;
+  filed `OOS-DX20b-1` and pinned by CLASS and COUNT rather than asserted away.
+  Tests **5,015 / 0 / 5** (+24 over the 4,991 pre-edit baseline, **60** targets, itemised by NAME
+  as 25 additions / 1 disclosed leaver / 0 removals). **PROTOCOL 40 → 41 / HASH 79 → 80, one bump
+  each, predicted in writing before any code including the unchanged type counts (98 / 131).**
+  Coverage unmoved **63.1%**, **0 flips**, 3 card-def edits with no `Completeness` marker moved.
+  All gates clean against the FINAL tree; benches measured over four runs and *no regression
+  demonstrated*, with the same-code repeatability band shown to be wider than the effect. Filed
+  **OOS-DX20b-1..7**. Full record: `memory/primitives/pb-DX20b-execution-notes.md`; handoff:
+  `memory/workstream-state.md`.
+- **Prior**: 2026-09-03 — **PB-DX50 SHIPPED** (`scutemob-221`; v4 queue rank 8 —
   **OOS-DX25-1** and **OOS-DX29-2** both CLOSED). **CR 702.140a says a mutate spell *targets* its
   host, and the engine had never modelled that as a target at all.**
   The choice lived in `AdditionalCost::Mutate` and never entered `spell_targets`, which is the only

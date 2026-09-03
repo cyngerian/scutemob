@@ -444,7 +444,24 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   (`memory/primitives/pb-plan-DX50.md` §0.3, including the unchanged type
 ///   count) and taken from the failing gate's own output rather than transcribed
 ///   (PB-DX8's rule).
-pub const PROTOCOL_VERSION: u32 = 40;
+/// - 41: PB-DX20b (2026-09-03, `OOS-DX20-10` + `OOS-DX20-5` — CR 702.5a, an
+///   Enchant line that names more than one card type): `EnchantFilter` gains
+///   `has_card_types: Vec<CardType>`, the OR over card **types**, beside the
+///   existing single `has_card_type` and the OR over **sub**types.
+///
+///   Reachable from the closure root `KeywordAbility` (a declared protocol root,
+///   `tests/core/protocol_schema.rs`) via
+///   `KeywordAbility::Enchant(EnchantTarget)` → `EnchantTarget::Filtered(EnchantFilter)`,
+///   so a new field on that struct is a wire-shape change even though nothing
+///   about a `Command` or `GameEvent` moved.
+///
+///   `CardType` is already a closure member — the existing
+///   `has_card_type: Option<CardType>` puts it there — so the closure's type count
+///   is **98 -> 98, unchanged**. Predicted in writing before any code changed
+///   (`memory/primitives/pb-DX20b-execution-notes.md` §0.2, including the unchanged
+///   type count) and taken from the failing gate's own output rather than
+///   transcribed (PB-DX8's rule).
+pub const PROTOCOL_VERSION: u32 = 41;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -462,7 +479,7 @@ pub const PROTOCOL_VERSION: u32 = 40;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "fbfe9b6c9696d5146dcf3f3ed9b3733c70d333a12e8d42450da45836d089ceed";
+    "96b7b687b5ddaade2147be0a4103cf84b3c3039f94f7259d1f32044c6d504c7b";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -770,6 +787,14 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // its `on_top` field (see the `- 40:` History line above). Closure type
         // count unchanged (98).
         fingerprint: "fbfe9b6c9696d5146dcf3f3ed9b3733c70d333a12e8d42450da45836d089ceed",
+    },
+    ProtocolEpoch {
+        version: 41,
+        // PB-DX20b (2026-09-03, `OOS-DX20-10` + `OOS-DX20-5`): EnchantFilter gains
+        // has_card_types: Vec<CardType>, reachable from the KeywordAbility closure
+        // root (see the `- 41:` History line above). Closure type count unchanged
+        // (98).
+        fingerprint: "96b7b687b5ddaade2147be0a4103cf84b3c3039f94f7259d1f32044c6d504c7b",
     },
 ];
 

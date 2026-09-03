@@ -915,7 +915,36 @@
 ///   with the type counts predicted unchanged at 98/131) and both fingerprints
 ///   taken from the failing gates' own output rather than transcribed. **Both
 ///   predictions held, counts included.**
-pub const HASH_SCHEMA_VERSION: u8 = 79;
+/// - 80: PB-DX20b (2026-09-03, `OOS-DX20-10` + `OOS-DX20-5` -- CR 702.5a, an
+///   Enchant line that names more than one card type): `EnchantFilter` gains
+///   `has_card_types: Vec<CardType>`, the OR over card **types**, declared beside
+///   the existing single `has_card_type` and fed to `HashInto` immediately after
+///   it (declaration order).
+///
+///   `EnchantFilter` has been in the `GameState` closure since `EnchantTarget`
+///   was, reachable via `Characteristics.keywords` ->
+///   `KeywordAbility::Enchant(EnchantTarget)` -> `EnchantTarget::Filtered(_)`, so
+///   two states whose Auras differ only in the card-type OR-set of an Enchant
+///   filter no longer hash identically.
+///
+///   `CardType` is already a closure member (the existing
+///   `has_card_type: Option<CardType>` puts it there) and no type is removed, so
+///   the closure's type count is **unchanged (131)** -- only `EnchantFilter`'s
+///   declared shape moves, so `decl_fingerprint` moves.
+///
+///   `stream_fingerprint` MOVES for the v40 reason alone (`HASH_SCHEMA_VERSION` is
+///   the stream's first byte). `canonical_fixture()` carries no Aura with an
+///   `EnchantTarget::Filtered` keyword, so this is the
+///   v69/v72/v73/v74/v75/v76/v77/v78/v79-style version-sentinel-byte-only case,
+///   not a payload-bytes case -- the new field's own bytes are exercised by the
+///   behavioural probes in `pb_dx20b_enchant_card_type_or.rs`.
+///
+///   Predicted in writing before any code changed
+///   (`memory/primitives/pb-DX20b-execution-notes.md` §0.2, "PROTOCOL 40 -> 41 and
+///   HASH 79 -> 80, ONE bump each", with the type counts predicted unchanged at
+///   98/131) and both fingerprints taken from the failing gates' own output rather
+///   than transcribed. **Both predictions held, counts included.**
+pub const HASH_SCHEMA_VERSION: u8 = 80;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1425,6 +1454,14 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         decl_fingerprint: "2ae8246bea046d5f97761448cda955477145c60b760edb56c2d9a1d7bb974f41",
         stream_fingerprint: "1e180a0ea3cb32fbbf5893e09e36372ed161a1a37dd517398bc8b63fbcbb6dc5",
     },
+    HashSchemaEpoch {
+        version: 80,
+        // PB-DX20b (2026-09-03, `OOS-DX20-10` + `OOS-DX20-5`): EnchantFilter gains
+        // has_card_types: Vec<CardType> (see the `- 80:` History line above).
+        // Closure type count unchanged (131).
+        decl_fingerprint: "fb03f695e6dbc82118587397f3eeb83ea4e56f14d26af3af12610ad6003a581a",
+        stream_fingerprint: "e688bdbe27a76393917696d0be3b3f649336b5ac559501ad3187fee8fb889d12",
+    },
 ];
 
 use super::combat::{AttackTarget, CombatState};
@@ -1714,6 +1751,7 @@ impl HashInto for EnchantTarget {
 impl HashInto for EnchantFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.has_card_type.hash_into(hasher);
+        self.has_card_types.hash_into(hasher);
         self.has_subtype.hash_into(hasher);
         self.has_subtypes.hash_into(hasher);
         self.basic.hash_into(hasher);

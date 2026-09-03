@@ -15,7 +15,112 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**PB-DX50 shipped `scutemob-221` 2026-09-03; v4 ranks 1-8 all shipped; next dispatch PB-DX20b, v4 rank 9**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX20b shipped `scutemob-222` 2026-09-03; v4 ranks 1-9 all shipped; next dispatch PB-DX18, v4 rank 10**)
+
+## Worker Handoff (PB-DX20b, `scutemob-222`) — a printed restriction the DSL could not say, and the one gate the compiler cannot replace
+
+**Shipped**: v4 queue **rank 9**. **`OOS-DX20-10` ≡ `OOS-DX20-5` CLOSED as ONE defect**,
+cross-cited — both rows named the same expressiveness gap, and the memo's §1 pairing was right.
+Filed **`OOS-DX20b-1..7`** (`-6`/`-7` by the `/review` fix cycle). **Next dispatch: PB-DX18** (v4 rank 10).
+
+**The defect.** CR 702.5a: *"Enchant is a static ability … The enchant ability restricts what an
+Aura spell can target and what an Aura can enchant."* `imprisoned_in_the_moon` (`Complete`,
+deck-legal) prints *"Enchant creature, land, or planeswalker"* and declared
+`EnchantTarget::Permanent` — which also admits artifacts, enchantments and battles — because
+`EnchantFilter` had `has_card_type` (ONE type) and `has_subtypes` (an OR over **sub**types) and
+no OR over card **types**. `sba::matches_enchant_target`'s `Permanent` arm is a bare `true`, so
+CR 704.5m would not clean up an illegal attachment either. PB-DX20 made the widened offer
+human-reachable in the browser. Fix: `EnchantFilter::has_card_types: Vec<CardType>`, lowered onto
+the **already existing** `TargetFilter.has_card_types` — no parallel OR mechanism was built, which
+is what the memo's *"cheaper than the row implies"* cell predicted and it held exactly.
+
+### Five things worth carrying forward
+
+**1. "Three sites" was the right NUMBER and the wrong SHAPE, and only re-deriving it caught that.**
+The v4 row's site cell says three. Re-derived at stage 0 before any code: **two ARITHMETICS and
+three CONSUMERS**. `casting::enchant_target_to_requirement` and `sba::enchant_filter_matches` were
+independent hand-written copies of one six-field predicate; the CR 303.4a gate, the CR 704.5m SBA
+and `queries::spell_target_requirements` each already consumed one of them. A batch that patched
+"three sites" one at a time would have carried the new field in **two copies**. Shipped as ONE
+arithmetic: `casting::enchant_filter_to_target_filter` is the single lowering, `sba.rs`'s
+predicate is deleted in favour of calling it and handing off to `effects::matches_filter` — the
+same predicate `validate_object_satisfies_requirement` already runs on the cast path. **The
+CR 303.4a gate's call is KEPT deliberately** (PB-DX20 put it there so cast-time and SBA-time
+agree; that property now holds by construction), and R3+R10 measured it as **one-directional** —
+it adds nothing in the accepting direction and is decisive in the refusing one, so a later batch
+deleting it as "covered upstream" would be half right and half wrong.
+
+**2. The compiler will not catch an eighth `EnchantFilter` field, and this was proven, not
+assumed.** Adding a field produces **ZERO** compile errors workspace-wide: every construction site
+— engine, tests, all 1,803 card defs — uses `..Default::default()`, and `#[serde(default)]` covers
+deserialization. Executed twice (implement stage, then independently by the coordinator in an
+isolated worktree): `cargo build --workspace` printed `Finished` and all ten behavioural probes
+stayed green. `r5_every_enchant_filter_field_is_lowered` is the only thing that reddens, and
+**R5b proves its second half separately** — planting the field *and* updating the pin while
+leaving the lowering alone still reddens, on the *unlowered* assertion, because a field-list pin
+alone is satisfied by the edit that hides the bug. Filed `OOS-DX20b-2`; **the class is not
+`EnchantFilter`-specific** — `TargetFilter`, `TokenSpec` and every `Default`-constructed config
+struct has it, and `OOS-DX28-1` and PB-DX43's `TOKEN_SPEC_FIELDS` are the same finding from two
+other directions.
+
+**3. The population was short by one, and the axis that found it is not the seeds' axis.**
+`breath_of_fury` prints *"Enchant creature you control"* and declared `EnchantTarget::Creature`,
+silently dropping the controller clause — named by neither seed row nor the memo cell, and needing
+**no new expressiveness at all**. Repaired here. And the roster's own execution corrected the
+batch a second time: the population needing a `Filtered` filter is **SEVEN, not the six** an
+OR-or-controller substring axis finds, because `awaken_the_ancient` prints *"Enchant Mountain"* —
+no OR, no comma, no controller clause — and still cannot be any bare variant. *A substring axis
+would have pinned six and called it measured.* Both populations now pinned separately.
+
+**4. Closing a seed can kill a NEIGHBOURING batch's row, and PB-DX49 had designed for exactly
+this.** Pair A (`imprisoned_in_the_moon` × `binding_the_old_gods`) was reachable **only** because
+of the over-wide `Permanent`. `r4a_pair_a_depends_on_oos_dx20_10` went red on schedule and was
+**re-adjudicated, not deleted**: the death is COMPUTED from the intersection of the two card-type
+sets, so a widening resurrects the pair loudly. Verified it vacates no behavioural coverage.
+`ReachRow.enchant` also had to change type — `EnchantTarget::Filtered` carries `Vec`s and
+`REACH_ROWS` is a `const` — and now pins a const-expressible card-type slice, which is the part
+that decides reach, rather than degrading to a `{:?}` compare. **Take the lesson, not just the
+outcome: a wrong-way-round pin is worth writing precisely because the batch that closes the seed
+is not the batch that wrote it.**
+
+**5. Two close-out methodology hazards, both of which produce a plausible wrong answer.**
+(a) **PB-DX50's sentinel lesson recurred inside the batch that had it available.** The census
+(47 HASH + 13 PROTOCOL, multi-line-aware) reproduced PB-DX50's corrected figures exactly — and
+then the first re-pin regex replaced **2 of 47**, because the tree spells the sentinel `79u8` and
+`\b` between `9` and `u` is not a boundary. Caught by an independent survivor scan with a
+differently-shaped regex. *A re-pin is only as wide as the spelling its regex matched, and
+"spelling" includes the literal's type suffix.* (b) **A NAME delta taken with `sort` + `comm`
+under a UTF-8 locale is not a delta** — it reported 24 additions / **2** leavers, the extras being
+two untouched tests present once with `... ok` in BOTH logs, because `sort` collates by locale and
+`comm` compares byte-wise. **It fabricates a REMOVAL**, which is the single thing the criterion
+exists to detect. Filed `OOS-DX20b-5`; use a byte-exact set difference.
+
+### Standing hazards this batch reproduced or confirmed
+
+- **`OOS-DX20b-1` (new, pre-existing, LIVE)**: `legal_actions.rs:1276` builds the
+  `DeclareAttackers` eligible list from **raw printed** `obj.characteristics.card_types`, never
+  `calculate_characteristics`. Once Imprisoned resolves, its Layer-4 `SetTypeLine(Land)` makes the
+  enchanted permanent a Land and the offer layer keeps offering it as an attacker; the engine
+  refuses. `status.tapped`, `Defender` and `Haste` are read from the same raw struct three lines
+  away, so a **granted** Defender is equally invisible — the class is wider than the instance.
+  Byte-identical under revert, so not this batch's. Pinned by CLASS and COUNT in `c4`.
+- **Two revert axes are not enough when both are over-wide.** R-A and R-B could not redden the
+  "no printed-legal target refused" half; without a third, UNDER-wide revert (`Creature`, the
+  `OOS-DX20-5` shape) two of five channel rows would have been honestly UNDISCRIMINATED.
+- **Two agents cannot run revert matrices on one card-def corpus.** Both delegated matrices were
+  in flight simultaneously and `imprisoned_in_the_moon.rs` was observed flipping
+  `Filtered` → `Permanent` → `Creature` across three consecutive `git status` calls. One agent
+  detected it and moved its whole matrix into an isolated `git worktree` with its own
+  `CARGO_TARGET_DIR`; that is the pattern to mandate up front next time, not to discover.
+- **Bench claims still need the same-code control.** Base → HEAD alone read *"`sba_check` +1.2%,
+  everything else 2-4% faster"* — and the second half is not something the change can cause.
+  Benching the **same code twice** moved three benches by 1.2-1.5%, and a second merge-base run
+  put `sba_check` **slower than either HEAD run** (4.1% spread on identical code). Report *"the
+  same-code repeatability band is wider than the effect"*, never *"within the historical band"*.
+
+**Full record**: `memory/primitives/pb-DX20b-execution-notes.md` (§0 stage-0 predictions committed
+before any code; §6 the four bench runs; §7 the 16-row revert matrix). Plan:
+`memory/primitives/pb-plan-DX20b.md`.
 
 ## Worker Handoff (PB-DX50, `scutemob-221`) — a target the engine never modelled, and a rule that is an exception
 

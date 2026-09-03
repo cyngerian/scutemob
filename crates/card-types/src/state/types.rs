@@ -369,11 +369,22 @@ pub enum EnchantControllerConstraint {
 ///   "Enchant nonbasic land"        → `has_card_type: Some(Land), nonbasic: true`
 ///   "Enchant land you control"     → `has_card_type: Some(Land), controller: You`
 ///   "Enchant Forest or Plains"     → `has_subtypes: vec![Forest, Plains], has_card_type: Some(Land)`
+///   "Enchant creature, land, or planeswalker"
+///                                  → `has_card_types: vec![Creature, Land, Planeswalker]`
+///   "Enchant creature or planeswalker you control"
+///                                  → `has_card_types: vec![Creature, Planeswalker], controller: You`
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct EnchantFilter {
     /// Must have this card type. `None` = no restriction.
     #[serde(default)]
     pub has_card_type: Option<CardType>,
+    /// Must have at least one of these card types (OR semantics). Empty = no restriction.
+    /// CR 702.5a — "Enchant creature, land, or planeswalker".
+    ///
+    /// The single-type `has_card_type` above is an independent AND conjunct: a filter may
+    /// carry both, and both must then hold. Most defs want exactly one of the two.
+    #[serde(default)]
+    pub has_card_types: Vec<CardType>,
     /// Must have this subtype (single, AND). `None` = no restriction.
     #[serde(default)]
     pub has_subtype: Option<SubType>,
@@ -423,6 +434,13 @@ pub enum EnchantTarget {
     ///   "Enchant basic land you control"  → `basic: true, has_card_type: Land, controller: You`
     ///   "Enchant nonbasic land"           → `nonbasic: true, has_card_type: Land`
     ///   "Enchant Forest or Plains"        → `has_subtypes: [Forest, Plains], has_card_type: Land`
+    ///
+    /// PB-DX20b added `has_card_types`, the OR over card **types**, so an Enchant line that
+    /// names more than one card type no longer has to be widened to `Permanent`:
+    ///   "Enchant creature, land, or planeswalker"
+    ///                                     → `has_card_types: [Creature, Land, Planeswalker]`
+    ///   "Enchant creature or planeswalker you control"
+    ///                                     → `has_card_types: [Creature, Planeswalker], controller: You`
     Filtered(EnchantFilter),
 }
 /// CR 702.24a: The cost paid for each age counter on a permanent with
