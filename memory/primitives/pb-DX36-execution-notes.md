@@ -229,14 +229,20 @@ time**, which are correct and were not touched.
 
 ## §4 — Tests
 
-**5,115 / 0 / 5** full-workspace against the FINAL tree, **64** result-producing targets (63 → 64:
+**5,117 / 0 / 5** full-workspace against the FINAL tree, **64** result-producing targets (63 → 64:
 one new simulator test binary), residual list empty. Baseline **5,097 / 0 / 5** at 63 targets,
 measured on this branch before any edit and **reproducing PB-DX35's published close pin exactly**.
 
 Delta by test NAME, by a **byte-exact Python set difference** of the two run logs (never `sort` +
-`comm` — `OOS-DX20b-5`): **18 additions, 0 leavers, 0 removals, 0 renames**. Count delta 18 ==
-name-set delta 18; duplicate-name scan **empty on both runs** (`OOS-DX35-8`'s check, which a
+`comm` — `OOS-DX20b-5`): **20 additions, 0 leavers, 0 removals, 0 renames**. Count delta 20 ==
+name-set delta 20; duplicate-name scan **empty on both runs** (`OOS-DX35-8`'s check, which a
 byte-exact set difference is structurally blind to).
+
+*(↻ **Re-taken AFTER the `/review` fix cycle, not before it** — dispatch hygiene 8. The cycle's
+HIGH-1 repair added `t8` and `t9`, so this section's first draft said 5,115 / +18 and is superseded
+here rather than left standing. The reconciliation that caught it also caught the seed range on one
+surface: both were found by grepping every headline surface against the registry after the cycle,
+which is the only step that finds this class.)*
 
 ## §5 — Coverage
 
