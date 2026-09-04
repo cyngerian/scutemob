@@ -687,9 +687,7 @@ fn c4_control_no_ability_on_the_stack_yields_no_stack_object_candidate() {
     assert_eq!(per_slot.len(), 1);
 
     assert!(
-        per_slot[0]
-            .iter()
-            .any(|t| *t == Target::Object(lightning_bolt_stack_id)),
+        per_slot[0].contains(&Target::Object(lightning_bolt_stack_id)),
         "CR 115.4/115.7a: a single-target SPELL on the stack must still be a legal \
          candidate, got {:?}",
         per_slot[0]
