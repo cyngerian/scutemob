@@ -32,25 +32,36 @@ pub fn card() -> CardDefinition {
                 // Deterministic fallback: targets left unchanged (player "chose" not to change).
                 // Interactive choice deferred to M10.
                 //
-                // PB-DX25b review Finding C3: the printed card says "target spell
-                // OR ABILITY", but `targets` below declares `TargetSpell`
-                // (spell-only) -- an oracle/def mismatch this batch's census
-                // touched (F-A) but did not fix, filed as a candidate seed
-                // (`OOS-DX25b-5`). Widening this to
-                // `TargetSpellOrAbilityWithSingleTarget`-shaped coverage is
-                // BLOCKED by the same missing id space `OOS-DX25b-1` names: an
-                // activated/triggered ability's stack entry is never added to
-                // `state.objects`, so it could not be announced either way.
-                // With `must_change: false` this effect is ALSO a deterministic
-                // no-op regardless of the requirement (`effects/mod.rs`'s
-                // `!must_change` branch always `continue`s before any mutation)
-                // -- do not widen the requirement here; it would change nothing
-                // observable and would misrepresent this as a completeness fix.
+                // `OOS-DX25b-5` CLOSED by PB-DX52 (`scutemob-229`). The printed
+                // card says "target spell OR ABILITY"; this def declared the
+                // spell-only `TargetSpell` and silently dropped half the line.
+                //
+                // The note that stood here is REPAIRED IN PLACE rather than
+                // deleted, because PB-DX52 falsified it (PB-DX27's rule: a
+                // blocker note is a claim). It said widening was "BLOCKED by the
+                // same missing id space `OOS-DX25b-1` names" -- true then, false
+                // now: `Target::StackObject` is that id space. And it said
+                // widening "would change nothing observable" -- also false now.
+                // With `must_change: false` the RESOLUTION is still a
+                // deterministic no-op (`OOS-DX25b-4`, open, deferred to PB-DX54
+                // because CR 115.7d's "you MAY choose new targets" is a player
+                // decision needing an `EffectChoiceQuestion` variant), but the
+                // ANNOUNCEMENT is not: widening changes the candidate SET the
+                // offer layer enumerates, which is observable at
+                // `queries::legal_targets_per_slot`, in the browser's target
+                // picker, and in `GameEvent::TargetsAnnounced`.
+                //
+                // `TargetSpellOrAbility` (CR 115.1a / CR 115.7d), NOT
+                // `TargetSpellOrAbilityWithSingleTarget`: this card prints no
+                // "with a single target" clause, so asserting `targets.len() == 1`
+                // would refuse legal targets the printed card admits. That
+                // distinction is why PB-DX52 added a variant rather than reusing
+                // Bolt Bend's.
                 effect: Effect::ChangeTargets {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     must_change: false,
                 },
-                targets: vec![TargetRequirement::TargetSpell],
+                targets: vec![TargetRequirement::TargetSpellOrAbility],
                 modes: None,
                 cant_be_countered: false,
             },

@@ -487,7 +487,32 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   this reason, which is why the closure's **type count is 98 -> 98, unchanged** —
 ///   predicted in writing before any code changed and taken from the failing gate's own
 ///   output (PB-DX8's rule: publish the figure, do not transcribe it).
-pub const PROTOCOL_VERSION: u32 = 42;
+/// - 43: **PB-DX52** (`scutemob-229`, 2026-09-04, `OOS-DX25b-1` + `OOS-DX25b-5`): the
+///   stack-entry target id space. (a) `Target` gains a third variant,
+///   `StackObject(ObjectId)`, naming an ABILITY on the stack by its own
+///   `StackObject::id` — the id space in which Bolt Bend's printed *"or ability"* half
+///   was unreachable, because an activated/triggered ability's stack entry owns no card
+///   and is therefore never in `state.objects`. (b) `TargetRequirement` gains
+///   `TargetSpellOrAbility` (CR 115.1a / CR 115.7d, ANY target count) for Deflecting
+///   Swat's printed line, which carries no *"with a single target"* clause and had no
+///   expressible form.
+///
+///   `Target` is in this closure through `Command::CastSpell.targets: Vec<Target>` (and
+///   `Command`'s three other target-carrying variants), and through `SpellTarget` on
+///   `GameEvent::TargetsAnnounced` / `GameEvent::TargetsChanged`.
+///
+///   **Closure type count is 98 -> 98, unchanged** — predicted in writing before any
+///   production line changed (`memory/primitives/pb-DX52-execution-notes.md` §0.4,
+///   commit `8f919967`) and taken from the failing gate's own output, because this batch
+///   adds VARIANTS to two existing closure types rather than a type.
+///
+///   **What deliberately did NOT move**: `ResolvedTarget` (`effects/mod.rs`) was not
+///   given a matching variant. It is an engine-internal enum, off-wire either way, and
+///   widening it would have created ~55 `if let ResolvedTarget::Object(..)` sites with no
+///   `else` that the compiler cannot flag — in exchange for nothing, since a stack-entry
+///   id resolves through the same `stack_registry::stack_index_for_announced_target` a
+///   card id does.
+pub const PROTOCOL_VERSION: u32 = 43;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -505,7 +530,7 @@ pub const PROTOCOL_VERSION: u32 = 42;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "9d75f591b263a7a69c78a722ffcc2bd6291bc81cf161db8c9b1bb1dad002aa47";
+    "e872d2393bb6b30a9ad28aecbd63a3616671f1efcfc77c58474a294173fd30c3";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -831,6 +856,16 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // DamageRecipient) is not, and was probed rather than assumed. Closure type
         // count unchanged (98).
         fingerprint: "9d75f591b263a7a69c78a722ffcc2bd6291bc81cf161db8c9b1bb1dad002aa47",
+    },
+    ProtocolEpoch {
+        version: 43,
+        // PB-DX52 (2026-09-04, `OOS-DX25b-1` + `OOS-DX25b-5`): `Target` gains
+        // `StackObject(ObjectId)` -- an ability's stack entry, the id space Bolt Bend's
+        // printed "or ability" half needed -- and `TargetRequirement` gains
+        // `TargetSpellOrAbility` (CR 115.1a/115.7d, any target count) for Deflecting
+        // Swat. Both reachable from `Command`/`GameEvent` (see the `- 43:` History line
+        // above). Closure type count unchanged (98).
+        fingerprint: "e872d2393bb6b30a9ad28aecbd63a3616671f1efcfc77c58474a294173fd30c3",
     },
 ];
 

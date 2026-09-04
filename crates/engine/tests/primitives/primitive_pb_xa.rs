@@ -96,7 +96,7 @@ fn combat_with_attacker(attacking_player: PlayerId, attacker_id: ObjectId) -> Co
 #[test]
 fn test_pb_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 83u8,
+        HASH_SCHEMA_VERSION, 84u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }
@@ -701,6 +701,8 @@ fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
     let target_id = match trigger_so.targets[0].target {
         Target::Object(id) => id,
         Target::Player(_) => panic!("F-1: target must be an object, got player"),
+        // PB-DX52: a battlefield auto-target picker never yields a stack entry.
+        Target::StackObject(_) => panic!("F-1: target must be an object, got stack entry"),
     };
 
     assert_eq!(

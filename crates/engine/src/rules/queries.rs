@@ -434,6 +434,40 @@ pub fn legal_targets_per_slot(
         }
     }
 
+    // PB-DX52 (`OOS-DX25b-1`) -- the ABILITY half of "target spell or ability".
+    //
+    // An activated or triggered ability's stack entry is never in `state.objects` (it
+    // owns no card), so the walk above structurally cannot reach it and Bolt Bend's
+    // printed "or ability" half was dead. `Target::StackObject` names the entry by its
+    // own `StackObject::id`.
+    //
+    // **Only entries that own NO card in `ZoneId::Stack` are offered, and the reason is
+    // de-duplication, not legality.** A spell's entry is already offered above, by the
+    // card id `casting.rs::handle_cast_spell` moved into `ZoneId::Stack` (CR 601.2a) --
+    // that is the canonical announcement, the one every existing probe and golden script
+    // uses. Offering the same spell a second time under its entry id would put two
+    // candidates on the wire for one game object and make the browser's target picker
+    // show a duplicate row. `validate_stack_object_satisfies_requirement` still ACCEPTS
+    // an entry id for `TargetSpell`/`TargetSpellWithSingleTarget`, so nothing legal is
+    // refused -- only the OFFER is de-duplicated.
+    //
+    // Consequence, stated rather than left to be discovered: a COPY of a spell is still
+    // not offered, because `copy.rs` clones the original's `kind` wholesale and
+    // `card_in_stack_zone` therefore returns `Some` for it. `OOS-DX25b-2` stays open by
+    // this rule rather than by accident. A copy of an ABILITY *is* offered -- its cloned
+    // kind owns no card either -- which is CR 707.10-correct (its last sentence: "A copy of an ability is itself an ability"; 707.10b is the SAME-SOURCE rule, a different claim).
+    //
+    // Order: after the objects, ascending by stack position (bottom of the stack first),
+    // which is `state.stack_objects`' own `imbl::Vector` order and therefore
+    // deterministic. `retarget::retarget_candidates` appends the identical set in the
+    // identical order; the R6 gate there asserts the two universes are equal by
+    // execution.
+    for so in state.stack_objects.iter() {
+        if crate::state::stack_registry::card_in_stack_zone(&so.kind).is_none() {
+            candidates.push(Target::StackObject(so.id));
+        }
+    }
+
     requirements
         .iter()
         .map(|req| {
@@ -638,6 +672,10 @@ pub fn legal_mutate_hosts(state: &GameState, caster: PlayerId, card: ObjectId) -
         .filter_map(|t| match t {
             Target::Object(id) => Some(id),
             Target::Player(_) => None,
+            // PB-DX52: CR 702.140a's mutate host is a non-Human creature on the
+            // battlefield; a stack entry can never satisfy `mutate_target_requirement`,
+            // so this arm is unreachable by construction rather than by convention.
+            Target::StackObject(_) => None,
         })
         .collect()
 }

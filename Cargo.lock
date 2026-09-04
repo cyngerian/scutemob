@@ -1645,6 +1645,7 @@ dependencies = [
  "crossterm 0.28.1",
  "mtg-engine",
  "mtg-simulator",
+ "mtg-view-model",
  "pulldown-cmark",
  "rand 0.9.4",
  "ratatui",

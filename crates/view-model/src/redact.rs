@@ -243,10 +243,28 @@ fn redact_stack(view: &mut StateViewModel, state: &GameState, seat: PlayerId) {
             // object or player" as a target; CR 400.2 makes the stack a public
             // zone) — only object targets can carry an identity the viewer is not
             // entitled to.
-            if let Target::Object(object_id) = spell_target.target {
-                if !viewer_may_identify(state, object_id, seat) {
-                    *rendered = HIDDEN_TARGET.to_string();
+            //
+            // PB-DX52 (`OOS-DX25b-1`): a `Target::StackObject` names an ABILITY's stack
+            // entry. It is handled by an explicit arm rather than by falling out of this
+            // `if let`, because a redaction hole is Architecture Invariant 7 and a
+            // silently-skipped variant is exactly how one is opened.
+            //
+            // Nothing is redacted for it, and that is a decision with a cite rather than
+            // an omission: CR 400.2 makes the stack a public zone, and an ability on the
+            // stack has no card and therefore no hidden identity of its own to leak. What
+            // COULD leak is its SOURCE's identity -- a face-down permanent's activated
+            // ability (CR 708.2) -- and that is already denied above, by the
+            // `stack_kind_info`/`viewer_may_identify` block that redacts `item.source_name`
+            // for this same entry. Redacting the target string as well would hide a
+            // public fact (that some ability is being targeted) without hiding any
+            // private one.
+            match spell_target.target {
+                Target::Object(object_id) => {
+                    if !viewer_may_identify(state, object_id, seat) {
+                        *rendered = HIDDEN_TARGET.to_string();
+                    }
                 }
+                Target::StackObject(_) | Target::Player(_) => {}
             }
         }
     }

@@ -1909,12 +1909,13 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             .targets
                             .iter()
                             .filter(|t| is_target_legal(state, t))
-                            .find_map(|t| {
-                                if let Target::Object(target_id) = t.target {
-                                    Some(target_id)
-                                } else {
-                                    None
-                                }
+                            .find_map(|t| match t.target {
+                                Target::Object(target_id) => Some(target_id),
+                                // PB-DX52: CR 303.4 -- an Aura enchants a PERMANENT (or a
+                                // player, handled elsewhere). A stack entry cannot be
+                                // enchanted, so it is skipped and the search continues to
+                                // the next declared target.
+                                Target::Player(_) | Target::StackObject(_) => None,
                             });
                         if let Some(target_id) = aura_target {
                             // Set attached_to on the Aura.
@@ -4307,7 +4308,14 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         None
                     }
                 }
-                _ => None,
+                // PB-DX52: CR 702.43a's Modular trigger puts +1/+1 counters on a
+                // TARGET ARTIFACT CREATURE. (CR 702.43b is the *multiple instances*
+                // rule -- the number this batch's first draft cited, corrected here
+                // against the rules server; every pre-existing 702.43b cite in this
+                // file is about multiple instances and is right.) Neither a player nor a stack entry can be
+                // one, so both fall through to the fizzle. Spelled out rather than left
+                // to the wildcard, per the PB-DX52 §0.5 disposition table.
+                Target::Player(_) | Target::StackObject(_) => None,
             });
             if let Some(target_id) = target_id_opt {
                 if counter_count > 0 {
@@ -4502,10 +4510,14 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
             let controller = stack_obj.controller;
             // Extract the target creature from the stack object's targets.
             let target_creature_id = stack_obj.targets.first().and_then(|t| {
-                if let crate::state::targeting::Target::Object(id) = t.target {
-                    Some(id)
-                } else {
-                    None
+                match t.target {
+                    crate::state::targeting::Target::Object(id) => Some(id),
+                    // PB-DX52: CR 702.97a -- Scavenge puts +1/+1 counters on a TARGET
+                    // CREATURE. (CR 702.98 is Unleash; 702.97a is the number
+                    // `card-types/src/state/stack.rs` already used for this kind.) Neither a player nor a stack entry can be one, so both
+                    // fizzle the ability below.
+                    crate::state::targeting::Target::Player(_)
+                    | crate::state::targeting::Target::StackObject(_) => None,
                 }
             });
             let target_id = match target_creature_id {
@@ -7707,6 +7719,14 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                 // alone -- which is exactly HEAD's behaviour, so such a fixture is neither
                 // strengthened nor weakened.
                 let target_still_legal = {
+                    // PB-DX52: the comparison is against `Target::Object` specifically,
+                    // not against "any target carrying this id". CR 702.140a's mutate host
+                    // is a battlefield creature announced by its `state.objects` id, so a
+                    // `Target::StackObject` carrying the same numeric id would be a
+                    // DIFFERENT target in a different id space -- matching it here is the
+                    // id-space collapse `OOS-DX25-3`/`OOS-SIM3-5` were. The `==` keeps
+                    // them apart because `Target`'s derived `PartialEq` compares the
+                    // variant first.
                     let recorded = stack_obj
                         .targets
                         .iter()
@@ -8710,6 +8730,24 @@ fn is_target_legal(state: &GameState, spell_target: &SpellTarget) -> bool {
                 .map(|obj| Some(obj.zone) == spell_target.zone_at_cast)
                 .unwrap_or(false)
         }
+        // PB-DX52 (`OOS-DX25b-1`) -- CR 608.2b for a stack entry.
+        //
+        // CR 608.2b's own sentence is *"a target that's no longer in the zone it was in
+        // when it was targeted is illegal"*, which is written about a CARD changing
+        // zones (CR 400.7). An ability on the stack never changes zones: it either sits
+        // in `state.stack_objects` or it CEASES TO EXIST -- CR 608.2n, verbatim: *"As the
+        // final part of an ability's resolution, the ability is removed from the stack and
+        // ceases to exist."* (A counter removes it just as finally, CR 701.6a.) So the zone
+        // test is not merely inapplicable, it is unrepresentable, which is why
+        // `zone_at_cast` is `None` for this variant.
+        //
+        // The equivalent legality question is therefore existence: an ability that has
+        // resolved or been countered is gone from the vector and is an illegal target.
+        // Asserted wrong-way-round and right-way-round by
+        // `pb_dx52_stack_entry_target_space::t5`/`t6`, and kept in step with
+        // `effects::check_condition`'s `TargetIsLegal` twin by
+        // `pb_dx52_stack_target_roster::r3`.
+        Target::StackObject(id) => state.stack_objects.iter().any(|so| so.id == *id),
     }
 }
 /// Counter a specific stack object without it resolving (CR 608.2b, 701.6a).

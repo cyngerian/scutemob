@@ -84,6 +84,8 @@ pub fn targeted_cast_names(
                             Target::Object(id) =>
                                 names.get(id).cloned().unwrap_or_else(|| format!("{id:?}")),
                             Target::Player(p) => format!("player {}", p.0),
+                            // PB-DX52: a bot's cast can now announce a stack entry.
+                            Target::StackObject(id) => format!("stack entry {}", id.0),
                         })
                         .collect::<Vec<_>>()
                 ));

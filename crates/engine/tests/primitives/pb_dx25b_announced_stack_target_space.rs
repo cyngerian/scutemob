@@ -419,22 +419,31 @@ fn t2_bolt_bend_announces_and_resolves() {
     assert_eq!(life_of(&state, p3), life_p3_before);
 }
 
-// ── T3: the ability half does NOT work (pinned wrong-way-round) ─────────────
+// ── T3: the ability half IS reachable via Target::StackObject ───────────────
 
-/// `OOS-DX25b-1` -- Bolt Bend's "or ability" half is still unreachable. An
-/// activated ability's stack entry is minted at `abilities.rs:1381` and never
-/// added to `state.objects`, so (a) the offer layer
-/// (`queries::legal_targets_per_slot`) cannot enumerate it, and (b) a cast
-/// naming it fails, ultimately because `validate_object_satisfies_requirement`'s
-/// opening `state.objects.get(&id).ok_or(ObjectNotFound)?` can never find it --
-/// though the specific `ObjectNotFound` variant does not reach the
-/// `Command::CastSpell` caller: the bipartite target/slot matcher in
-/// `casting.rs` swallows it into the generic "could not be matched to a
-/// requirement slot" `InvalidTarget` (see (b1)'s own correction below).
-/// Closing this needs a NEW target id space (`Target::StackObject`, a wire
-/// change) -- out of this batch's scope.
+/// `OOS-DX25b-1` CLOSED by PB-DX52 (`scutemob-229`). Bolt Bend's "or ability" half is
+/// now reachable. An activated ability's stack entry is minted at `abilities.rs:1381`
+/// and never added to `state.objects` -- that mechanism is UNCHANGED and is still
+/// asserted directly below, because it is exactly why `Target::Object` was never the
+/// right id space for one of these. What changed is that PB-DX52 added the id space
+/// this test's own prior note predicted was missing: `Target::StackObject(ObjectId)`,
+/// carrying the stack ENTRY's own id, plus `casting::
+/// validate_stack_object_satisfies_requirement`, and taught
+/// `queries::legal_targets_per_slot` (and `retarget::retarget_candidates`) to
+/// enumerate ability entries by that id.
+///
+/// **Inverted, not deleted**, per this file's own former closing note and per
+/// `bolt_bend.rs`'s in-source comment recording the same instruction: this test keeps
+/// the two assertions that are STILL true (the entry is still not a `state.objects`
+/// key; naming it as a bare `Target::Object` still fails, CR 601.2c) beside the two
+/// that inverted (the offer layer now enumerates it via `Target::StackObject`; a cast
+/// naming it that way now succeeds). Two id spaces, two `Target` variants -- naming an
+/// entry in the WRONG one is still an error, which is the point of keeping (b1)'s
+/// sibling assertion rather than deleting it: see
+/// `pb_dx52_stack_entry_target_space::t9` for the fuller, deliberately-colliding-id
+/// version of this same claim.
 #[test]
-fn t3_ability_half_is_still_unreachable() {
+fn t3_ability_half_is_reachable_via_target_stack_object() {
     use mtg_engine::state::{ActivatedAbility, ActivationCost};
 
     let p1 = p(1);
@@ -538,9 +547,11 @@ fn t3_ability_half_is_still_unreachable() {
          (abilities.rs:1381) -- this IS OOS-DX25b-1's mechanism, asserted directly"
     );
 
-    // (a) the offer layer cannot enumerate the ability's stack-entry id, nor
-    // the ability's source permanent (wrong zone), for
-    // TargetSpellOrAbilityWithSingleTarget.
+    // (a) INVERTED: the offer layer NOW enumerates the ability's stack-entry id, via
+    // the new `Target::StackObject` variant -- but STILL never as a bare
+    // `Target::Object`, because it is still not a `state.objects` key (that half did
+    // not change and is not what PB-DX52 fixed). The source permanent is still never
+    // offered either (wrong zone, unchanged).
     let candidates = mtg_engine::legal_targets_per_slot(
         &state,
         p1,
@@ -549,9 +560,17 @@ fn t3_ability_half_is_still_unreachable() {
     );
     assert_eq!(candidates.len(), 1);
     assert!(
+        candidates[0].contains(&Target::StackObject(ability_stack_id)),
+        "OOS-DX25b-1 CLOSED: the offer layer must now enumerate the ability's own \
+         stack-entry id via Target::StackObject -- candidates: {:?}",
+        candidates[0]
+    );
+    assert!(
         !candidates[0].contains(&Target::Object(ability_stack_id)),
-        "the ability's own stack-entry id must never be offered as a candidate \
-         (it is not a state.objects key)"
+        "STILL TRUE (unchanged by PB-DX52): the ability's stack-entry id must never \
+         be offered as a bare Target::Object candidate -- it is still not a \
+         state.objects key. Naming it in the WRONG id space stays illegal even after \
+         the right id space exists."
     );
     assert!(
         !candidates[0].contains(&Target::Object(source_id)),
@@ -559,33 +578,49 @@ fn t3_ability_half_is_still_unreachable() {
          (it is on the Battlefield, not the Stack)"
     );
 
-    // (b1) a cast naming the ability's stack-entry id fails. **Correction to
-    // the plan's prediction**: `validate_object_satisfies_requirement`'s
-    // `ObjectNotFound` never reaches the caller directly -- the bipartite
-    // slot-matching pass (`casting.rs:6089-6098`'s `target_satisfies` closure)
-    // swallows any `Err` into a bare `.is_ok() == false` and, when no
-    // requirement slot matches, reports the GENERIC "declared N target(s) but
-    // N could not be matched to a requirement slot" `InvalidTarget`, not the
-    // specific `ObjectNotFound`. The underlying mechanism (the lookup fails)
-    // is unchanged; only the error VARIANT observed at the `Command::CastSpell`
-    // boundary differs from what the plan predicted.
+    // (b1) STILL TRUE: a cast naming the ability's stack-entry id as a bare
+    // `Target::Object` still fails -- the lookup goes through
+    // `validate_object_satisfies_requirement`, which can never find it, since it is
+    // not a `state.objects` key. This did not change: PB-DX52 added a NEW id space
+    // rather than registering ability entries into the CARD id space (see
+    // `Target::StackObject`'s own doc comment, `targeting.rs`, for why the latter was
+    // rejected).
     let state2 = state.clone();
-    let result_stack_id = cast(
+    let result_stack_id_wrong_space = cast(
         state2,
         p1,
         bolt_bend_hand_id,
         vec![Target::Object(ability_stack_id)],
     );
     assert!(
-        matches!(result_stack_id, Err(GameStateError::InvalidTarget(_))),
-        "OOS-DX25b-1: casting Bolt Bend at the ability's stack-entry id must \
-         fail (the lookup can never find it, since it is not a state.objects \
-         key) -- got: {:?}",
-        result_stack_id.map(|_| ())
+        matches!(
+            result_stack_id_wrong_space,
+            Err(GameStateError::InvalidTarget(_))
+        ),
+        "STILL TRUE (unchanged by PB-DX52): casting Bolt Bend at the ability's \
+         stack-entry id as a bare Target::Object must still fail -- got: {:?}",
+        result_stack_id_wrong_space.map(|_| ())
     );
 
-    // (b2) a cast naming the ability's source permanent fails with
-    // InvalidTarget (wrong zone: Battlefield, not Stack).
+    // (b1-inverted) NEW: casting Bolt Bend at the ability's stack-entry id via
+    // `Target::StackObject` -- the RIGHT id space -- now SUCCEEDS.
+    let state3 = state.clone();
+    let result_stack_id_right_space = cast(
+        state3,
+        p1,
+        bolt_bend_hand_id,
+        vec![Target::StackObject(ability_stack_id)],
+    );
+    assert!(
+        result_stack_id_right_space.is_ok(),
+        "OOS-DX25b-1 CLOSED: casting Bolt Bend at the ability's stack-entry id via \
+         Target::StackObject must succeed -- got: {:?}",
+        result_stack_id_right_space.map(|_| ())
+    );
+
+    // (b2) STILL TRUE: a cast naming the ability's source permanent (as either id
+    // space) fails with InvalidTarget (wrong zone: Battlefield, not Stack, and not a
+    // stack entry at all).
     let result_source = cast(
         state,
         p1,

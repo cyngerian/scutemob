@@ -634,12 +634,12 @@ fn t8_risen_reef_declined_puts_the_land_into_hand() {
 fn test_pb_dx35_half_b_version_sentinels() {
     assert_eq!(
         mtg_engine::PROTOCOL_VERSION,
-        42,
+        43,
         "PROTOCOL_VERSION must be unmoved by PB-DX35 Half B"
     );
     assert_eq!(
         mtg_engine::HASH_SCHEMA_VERSION,
-        83u8,
+        84u8,
         "HASH_SCHEMA_VERSION must be unmoved by PB-DX35 Half B"
     );
 }

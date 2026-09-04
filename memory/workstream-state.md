@@ -15,7 +15,81 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5 of the approved chain; next is PB-DX39, rank 15**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
+
+## Last Handoff (worker, 2026-09-04) — PB-DX52 / `scutemob-229`
+
+**Task**: `scutemob-229` — PB-DX52, v4 queue rank 14. Branch
+`feat/pb-dx52-bolt-bends-printed-or-ability-half-is-unreachable-an`, merge base `cecf0ba0`.
+**Seeds**: `OOS-DX25b-1` (headline) and `OOS-DX25b-5` (rider) **CLOSED**, plus **`OOS-DX25c-3`
+CLOSED** as a third — see below, it is the one that matters. Filed `OOS-DX52-1..9`.
+
+**Shipped**: `Target::StackObject(ObjectId)` naming an ability's stack ENTRY by its own
+`StackObject::id`, plus `TargetRequirement::TargetSpellOrAbility` (CR 115.1a/115.7d, ANY target
+count — Deflecting Swat prints no *"with a single target"* clause and had no expressible form).
+New `casting::validate_stack_object_satisfies_requirement`; `queries::legal_targets_per_slot` and
+`retarget::retarget_candidates` both enumerate ability entries; `resolution::is_target_legal`
+gains an existence-based CR 608.2b arm. PROTOCOL **42 → 43**, HASH **83 → 84**, one bump each.
+Tests **5,117 → 5,156 / 0 / 5** on 65 targets. Coverage **UNMOVED at 63.2%**, 0 flips.
+
+**The five things worth carrying into the next batch**
+
+1. **A seed's "unreachable today" is a claim with an expiry date, and the batch that closes its
+   blocker is the batch that has to honour it.** `OOS-DX25c-3` was filed as *"doubly unreachable,
+   blocked behind `OOS-DX25b-1`"*. Closing `OOS-DX25b-1` makes an ability a reachable
+   `Effect::ChangeTargets` victim, and `plan_target_change` derived CR 702.16b protection
+   characteristics from `card_in_stack_zone`, which is `None` for every ability — so shipping the
+   id space alone would have let Bolt Bend redirect a red ability onto a creature with protection
+   from red. **Before closing any seed, grep the registry for rows whose stated blocker IS that
+   seed.** Closed with `stack_registry::source_of` (CR 113.7, exhaustive, no wildcard).
+2. **A revert row that reddens only a SOURCE gate is a coverage measurement, not a pass.** Row R6
+   (undo the protection fix) reddened exactly one thing — `r7b`, a text-comparison gate. No
+   behavioural probe moved. The fix this batch describes as its own near-miss was standing on a
+   string comparison a later "simplify the helper, keep the name" edit would satisfy. Closed by
+   `t10`; filed as `OOS-DX52-2` because the matrix convention currently scores such a row green.
+3. **The CR can argue for the wrong design, and only a measured blast radius settles it.**
+   CR 113.1c says an ability on the stack **is an object**, which argues for registering entries
+   in `state.objects`. Measured across 241 walk sites and rejected: an entry there must claim a
+   `ZoneId`, and `casting.rs`'s `TargetSpell` arm decides *"is this a spell"* by zone ALONE — so a
+   registered ability becomes a legal *"counter target spell"* target. `state.objects` is the
+   CARD-object map; CR 113 abilities live in `state.stack_objects`.
+4. **Check your own CR cites against the rules server.** Four families of cite in this batch's
+   first draft were wrong: CR 113.3 (cited 4× for a claim NO rule makes), CR 113.7a (cited 6× for
+   CR 113.7's sentence), a bare CR 113.1 where CR 113.1c/110.1/102.1 was meant, and *"ceases to
+   exist"* which is **CR 608.2n**. The pass happened because a delegated agent reported it had no
+   MCP rules tools and flagged that rather than proceeding as if it had.
+5. **A gate's own justification can rot, and the gate cannot see it.** `deflecting_swat`'s
+   `RECORDED_BASELINE` entry quotes a sentence this batch DELETED, and kept passing because the
+   def still matched the same needles. Nothing checks that an entry's quoted fragment still occurs
+   in the def it names (`OOS-DX52-1`). Found by reading why the gate had NOT fired.
+
+**Refuted premises of the dispatch brief / acceptance criteria, reported not skipped**
+* AC 7352 predicts `tools/play-server/frontend` *"will"* move. It does **not** — `TargetPicker`
+  echoes `.value` verbatim and never reads `.kind`. Zero frontend production lines; `npm run
+  build` N/A.
+* The brief's `mod.rs` is `main.rs` (SR-9a's entry point), twice.
+* `retarget.rs`'s existing R6 parity gate cannot exercise the new stack tail — `GameStateBuilder`
+  cannot populate `state.stack_objects`, so its fixture keeps that vector empty (`OOS-DX52-5`).
+* `resolution::is_target_legal` is private and unreachable from `tests/`, so its CR 608.2b arm is
+  kept in step with `check_condition`'s twin by TEXT, not execution (`OOS-DX52-4`).
+* The v4 memo's *"1 deck-legal `Complete`"* is a FLOOR: four defs declare a stack-object
+  requirement, and closing the seed is what makes Misdirection's spell-only restriction
+  enforceable for the first time.
+
+**Riders NOT taken, with reasons posted**: `OOS-DX25-4` (its "natural fit" premise is false —
+this batch changed zero lines in `stack_registry`'s existing functions; its PREREQUISITE
+`source_of` is now built) and `OOS-DX25b-4` (CR 115.7d is a player decision needing an
+`EffectChoiceQuestion` variant — a second wire half). Both left for **PB-DX54**.
+
+**Process failure of my own, disclosed**: I used `git add -A` twice while three delegated agents
+were writing files concurrently, and commit `eb56ebd3` — message *"v4 memo row 14 struck"* —
+silently swept up 1,209 lines of an agent's probe file. The tree is correct; the commit message
+is not. `git add -A` is unsafe whenever anything else can write to the tree, which is exactly
+the condition a delegating batch creates.
+
+**Next**: **PB-DX39** (v4 rank 15 — source-relative filters through LKI, `OOS-DX5-3` +
+`OOS-DX5-7`'s residual), task 2 of the user-approved five-task chain. Full record:
+`memory/primitives/pb-DX52-execution-notes.md`.
 
 ## Last Handoff (oversight session, 2026-09-04)
 

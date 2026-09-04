@@ -93,20 +93,50 @@ pub(crate) fn plan_target_change(
     // (`announced_requirements`, `:3696-3743`) runs BEFORE the card's zone
     // move onto the stack (`:4440`), so its `card`/`Some(&chars)` arguments
     // describe the card in its PRE-move zone (typically the caster's hand).
-    // `victim_card`/`source_chars` here describe the same card AFTER the
+    // `victim_source`/`source_chars` here describe the same object AFTER the
     // move — the values a retarget must use, since the object being
-    // redirected is on the stack right now. `victim_card` doubles as
+    // redirected is on the stack right now. It doubles as
     // `self_id` (CR 601.2c self-targeting prevention /
-    // `TargetFilter.exclude_self`) for the same reason. For a non-card-owning
-    // stack kind (an ability) both are `None`;
-    // that case is unreachable here today — a `ChangeTargets` victim is always
-    // a `Spell`/`MutatingCreatureSpell`, because the only route to one is an
-    // announced CARD id resolved through `stack_registry::stack_index_for_
-    // announced_target`, and an ability's stack entry owns no card
-    // (`state::stack_registry::card_in_stack_zone` returns `None` for every
-    // ability variant) — so it is never in `state.objects` and can never be
-    // announced by a player. Recorded as `OOS-DX25c-3`.
-    let victim_card = crate::state::stack_registry::card_in_stack_zone(&so.kind);
+    // `TargetFilter.exclude_self`) for the same reason.
+    //
+    // **PB-DX52 (`OOS-DX25c-3` CLOSED): this reads `source_of`, not
+    // `card_in_stack_zone`, and the change is a correctness fix rather than a
+    // tidy-up.** Until PB-DX52 a `ChangeTargets` victim could only ever be a
+    // `Spell`/`MutatingCreatureSpell` — the only route to one was an announced
+    // CARD id, and an ability's stack entry owns no card and is never in
+    // `state.objects` — so `card_in_stack_zone` was total over the REACHABLE
+    // cases, and `OOS-DX25c-3` recorded the ability case as unreachable and
+    // therefore dead. PB-DX52 adds `Target::StackObject`, which makes an ability
+    // announceable and so makes it a reachable `ChangeTargets` victim. Leaving
+    // this read as `card_in_stack_zone` would have handed `None`/`None` to the
+    // validator and **silently disabled the CR 702.16b protection check for
+    // every ability-shaped redirect** — a creature with protection from red
+    // could have become the new target of a red ability. That is a defect this
+    // batch would have CREATED while closing another, so this batch closes it.
+    //
+    // CR 113.7: *"The source of an ability is the object that generated it."* (CR 113.7a
+    // is the adjacent rule about the ability existing independently of that source, and is
+    // NOT this claim -- checked against the rules text, not remembered.)
+    // For a spell, `source_of` returns the same stack-resident card
+    // `card_in_stack_zone` did, so the spell path is byte-identical; for an
+    // ability it returns the ability's source permanent — which is exactly what
+    // `abilities.rs::handle_activate_ability` passed as `self_id` and
+    // `source_chars` when the ability was announced, so a retarget is now
+    // validated against the same source the original announcement was.
+    // **The `self_id` half is asymmetric between a spell victim and an ability victim, and
+    // PB-DX52's `/review` is why that is written down.** For a SPELL, `source_of` returns the
+    // spell's own stack-resident card, so CR 601.2c's self-exclusion compares like with like
+    // and the spell cannot be redirected onto itself. For an ABILITY it returns the source
+    // PERMANENT, which is a different object from the ability's own stack entry -- so a
+    // candidate `Target::StackObject(so.id)` would never equal it and an ability victim
+    // carrying a stack-object requirement could in principle be redirected onto its own
+    // entry. Latent: no corpus ability declares a stack-object requirement (pinned by
+    // `core::pb_dx52_stack_target_roster`'s census, 0 members). Recorded rather than
+    // "fixed" by passing the entry id instead, because THAT would be wrong in the other
+    // direction: `TargetFilter.exclude_self` on an activated ability means "not my SOURCE"
+    // (`abilities.rs::handle_activate_ability` passes `Some(source)`), and the retarget must
+    // stay consistent with what the original announcement was validated against.
+    let victim_card = crate::state::stack_registry::source_of(&so.kind);
     let source_chars =
         victim_card.and_then(|id| crate::rules::layers::calculate_characteristics(state, id));
 
@@ -193,6 +223,8 @@ pub(crate) fn plan_target_change(
                 let zone_at_cast = match &target {
                     Target::Object(id) => state.objects().get(id).map(|o| o.zone),
                     Target::Player(_) => None,
+                    // PB-DX52: a stack entry is not in a zone (see `Target::StackObject`).
+                    Target::StackObject(_) => None,
                 };
                 SpellTarget {
                     target,
@@ -270,6 +302,23 @@ pub(crate) fn retarget_candidates(state: &GameState, chooser: PlayerId) -> Vec<T
             ZoneId::Battlefield | ZoneId::Stack | ZoneId::Graveyard(_)
         ) {
             candidates.push(Target::Object(*id));
+        }
+    }
+
+    // PB-DX52 (`OOS-DX25b-1`): the stack-entry half, mirroring
+    // `rules::queries::legal_targets_per_slot`'s new tail EXACTLY -- same predicate
+    // (`card_in_stack_zone(..).is_none()`), same order (`state.stack_objects`' own
+    // `imbl::Vector` order). See that function for why the predicate de-duplicates
+    // rather than restricts. R6 below asserts the two universes are the same SET by
+    // execution, so this comment is not what keeps them in step.
+    //
+    // CR 115.7a consequence this enables: a Bolt Bend redirected onto ANOTHER stack
+    // object with a single target now has stack entries in its candidate universe, so
+    // "change the target of target spell or ability" can move a target ONTO an ability
+    // as well as away from one.
+    for so in state.stack_objects.iter() {
+        if crate::state::stack_registry::card_in_stack_zone(&so.kind).is_none() {
+            candidates.push(Target::StackObject(so.id));
         }
     }
 
@@ -371,6 +420,10 @@ mod tests {
         match t {
             Target::Player(p) => (0, p.0),
             Target::Object(o) => (1, o.0),
+            // PB-DX52: a third id space, so a third sort bucket -- folding it into
+            // bucket 1 would let a `StackObject(7)` and an `Object(7)` compare EQUAL and
+            // make R6's set comparison pass while the two universes actually differed.
+            Target::StackObject(o) => (2, o.0),
         }
     }
 }

@@ -100,6 +100,12 @@ fn test_601_2c_legal_targets_excludes_shroud_and_protected_creatures() {
         .map(|t| match t {
             Target::Object(id) => *id,
             Target::Player(_) => panic!("TargetCreature slot should never yield a player target"),
+            // PB-DX52: a stack entry can never satisfy `TargetCreature`
+            // (`validate_stack_object_satisfies_requirement`'s catch-all `Err`), so the
+            // offer layer must never put one in this slot.
+            Target::StackObject(_) => {
+                panic!("TargetCreature slot should never yield a stack-entry target")
+            }
         })
         .collect();
 

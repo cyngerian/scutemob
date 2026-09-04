@@ -216,7 +216,7 @@ const BASELINE_STREAM_FINGERPRINT: &str =
 // is what this log exists to prevent, and every prior re-pinning batch had
 // extended it.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
-    "185572da77abae71a1a21204a4cbb8231a65c256858851e3a101738172bca5d0";
+    "9cfe6ede1915e42c3bfd41a516434e0965db6e6e2bcd42990594b650e962e0d7";
 
 /// The workspace root: `crates/engine/` is two levels down from it.
 fn workspace_root() -> PathBuf {
@@ -1264,7 +1264,7 @@ fn frozen_prefix_is_pinned() {
 #[test]
 fn hash_schema_version_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 83,
+        HASH_SCHEMA_VERSION, 84,
         "HASH_SCHEMA_VERSION changed. Update this sentinel, append a HASH_SCHEMA_HISTORY row with \
          the new fingerprints, and add a `- N:` History line in state/hash.rs."
     );

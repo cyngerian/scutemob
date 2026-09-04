@@ -315,6 +315,9 @@ fn offered_candidate_names(state: &GameState, action: &LegalAction) -> Vec<Strin
         .map(|t| match t {
             Target::Object(id) => name_of(state, *id),
             Target::Player(pl) => format!("<player {}>", pl.0),
+            // PB-DX52: rendered rather than panicked, so this diagnostic helper keeps
+            // reporting the whole candidate set if an Enchant slot ever sees one.
+            Target::StackObject(id) => format!("<stack entry {}>", id.0),
         })
         .collect()
 }

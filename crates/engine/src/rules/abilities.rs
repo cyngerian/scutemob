@@ -561,6 +561,12 @@ pub fn handle_activate_ability(
         &embedded_effect,
         Some(crate::cards::card_definition::Effect::AttachEquipment { .. })
     ) {
+        // PB-DX52: a non-`Object` first target skips this block, exactly as before. CR
+        // 702.6a's equip target is "target creature you control", which neither a player
+        // nor a stack entry can be -- and the general target validation loop above has
+        // already rejected such a declaration against the ability's own
+        // `TargetRequirement`, so this block is a second, narrower check rather than the
+        // only one.
         if let Some(Target::Object(target_id)) = targets.first() {
             let target_id = *target_id;
             // Check: target must be a creature on the battlefield controlled by the
@@ -631,6 +637,8 @@ pub fn handle_activate_ability(
                 "a Fortification that's also a creature can't fortify a land (CR 301.6)".into(),
             ));
         }
+        // PB-DX52: see the equip block above -- CR 301.6's fortify target is "target
+        // land you control", which neither a player nor a stack entry can be.
         if let Some(Target::Object(target_id)) = targets.first() {
             let target_id = *target_id;
             // Check: target must be a land on the battlefield controlled by the
@@ -1369,6 +1377,24 @@ pub fn handle_activate_ability(
                     }
                 }
             }
+            // PB-DX52 (`OOS-DX25b-1`): an ability's stack entry. Existence is checked
+            // here for the same reason MR-M3-04 made the object arm reject a
+            // non-existent id rather than skip it -- a stale id must be an error, not a
+            // silent no-op.
+            //
+            // NO protection/hexproof/shroud check is owed, and that is a CR reading
+            // rather than an omission: CR 702.11b scopes hexproof to "this PERMANENT",
+            // CR 702.18a scopes shroud the same way, and CR 702.16b's protection is a
+            // property of a permanent, player or (for shroud) a spell. An ability on the
+            // stack is none of those -- it has no controller-independent characteristics
+            // of its own to carry a protection quality -- CR 113.7a is explicit that an
+            // ability on the stack "exists on the stack independently of its source",
+            // so it inherits none of the source's protection.
+            Target::StackObject(id) => {
+                if !state.stack_objects.iter().any(|so| so.id == *id) {
+                    return Err(GameStateError::ObjectNotFound(*id));
+                }
+            }
         }
     }
     // Snapshot targets (zone recorded at activation time for fizzle check at resolution).
@@ -1386,6 +1412,13 @@ pub fn handle_activate_ability(
                     zone_at_cast: zone,
                 }
             }
+            // PB-DX52: `zone_at_cast: None`, like a player target. A stack entry is not
+            // in a zone the way a card is, so CR 608.2b legality for it is "still in
+            // `state.stack_objects`" rather than "still in the zone it was in".
+            Target::StackObject(id) => SpellTarget {
+                target: Target::StackObject(*id),
+                zone_at_cast: None,
+            },
         })
         .collect();
     // Push the activated ability onto the stack.
@@ -1760,6 +1793,8 @@ pub fn handle_activate_forecast(
             let zone_at_cast = match &t {
                 Target::Object(id) => state.objects.get(id).map(|obj| obj.zone),
                 Target::Player(_) => None,
+                // PB-DX52: a stack entry is not in a zone (see `Target::StackObject`).
+                Target::StackObject(_) => None,
             };
             SpellTarget {
                 target: t,
@@ -8121,6 +8156,10 @@ fn trigger_battlefield_target_matches(
         // TargetSpellWithSingleTarget targets stack
         // objects (spells only), not battlefield permanents.
         TargetRequirement::TargetSpellWithSingleTarget => false,
+        // PB-DX52: TargetSpellOrAbility targets the stack, never a battlefield permanent
+        // (this function answers "does this BATTLEFIELD object match", `abilities.rs`'s
+        // trigger auto-target picker).
+        TargetRequirement::TargetSpellOrAbility => false,
         // CR 601.2c / 115.1b: UpToN delegates to inner.
         TargetRequirement::UpToN { inner, .. } => {
             let is_creature = chars.card_types.contains(&CT::Creature);

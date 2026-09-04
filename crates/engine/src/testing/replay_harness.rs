@@ -946,7 +946,15 @@ pub fn translate_player_action(
                 .iter()
                 .find_map(|t| match t {
                     crate::state::targeting::Target::Object(id) => Some(*id),
-                    _ => None,
+                    // PB-DX52: a bloodrush pump targets an ATTACKING CREATURE, never a
+                    // player and never a stack entry. (Bloodrush is an ability word --
+                    // CR 207.2c: no individual CR entry -- so there is no 702.x number to
+                    // cite; this batch's first draft cited 702.71a, which is Transfigure.) Both are
+                    // skipped here so the search continues to the next declared target
+                    // rather than aborting; if none is an object the `ok_or_else` below
+                    // reports it.
+                    crate::state::targeting::Target::Player(_)
+                    | crate::state::targeting::Target::StackObject(_) => None,
                 })
                 .ok_or_else(|| {
                     format!(

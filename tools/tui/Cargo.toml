@@ -27,6 +27,14 @@ serde_json = "1"
 # Engine + simulator for play mode
 mtg-engine = { path = "../../crates/engine" }
 mtg-simulator = { path = "../../crates/simulator" }
+# PB-DX52 (`OOS-DX25b-1`): `mtg_view_model::stack_kind_info` is the SHARED
+# `StackObjectKind` -> (label, source object) classification. The TUI needs it to render
+# a `Target::StackObject` by its source (CR 113.7), and this file already carries a
+# 25-arm hand-written copy of that match inline in `play/panels/stack_view.rs`. Taking
+# the dependency rather than writing a 26th copy is the anti-drift call; `mtg-view-model`
+# depends on `mtg-engine` and serde only, so it adds no build weight the TUI did not
+# already carry.
+mtg-view-model = { path = "../../crates/view-model" }
 rand = "0.9"
 
 [lints]

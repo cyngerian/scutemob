@@ -3904,6 +3904,13 @@ pub fn handle_cast_spell(
                 ));
             }
             for st in &spell_targets {
+                // PB-DX52: only an OBJECT target is checked for battlefield residency
+                // here. `EnchantTarget::Player` is the reason a `Target::Player` is
+                // skipped (CR 303.4a admits a player target for "Enchant player"), and a
+                // `Target::StackObject` is skipped because no `EnchantTarget` variant
+                // admits one -- `casting::enchant_target_to_requirement` is exhaustive
+                // over all nine and none produces a requirement a stack entry can
+                // satisfy, so this loop can never see one on a real Aura cast.
                 if let Target::Object(target_id) = st.target {
                     // CR 303.4a / 115.4: The target must be on the battlefield.
                     // Auras can only enchant permanents (or players for Enchant Player).
@@ -6450,6 +6457,13 @@ pub(crate) fn validate_targets_inner(
                 Target::Object(id) => {
                     validate_object_satisfies_requirement(state, *id, req, caster, self_id).is_ok()
                 }
+                // PB-DX52 (`OOS-DX25b-1`): a stack ENTRY (an ability on the stack, or a
+                // spell's entry named directly). Its own validator -- it has no
+                // `state.objects` row for `validate_object_satisfies_requirement`'s
+                // opening lookup to find, which is the whole defect this batch closes.
+                Target::StackObject(id) => {
+                    validate_stack_object_satisfies_requirement(state, *id, req, self_id).is_ok()
+                }
             }
         };
 
@@ -6503,6 +6517,13 @@ pub(crate) fn validate_targets_inner(
         // (object targets only; players never satisfy a permanent-distinct requirement).
         let mut slot_object: Vec<Option<ObjectId>> = vec![None; requirements.len()];
         for (ti, slot) in target_slot.iter().enumerate() {
+            // PB-DX52 -- STATED RESIDUAL, matching `validate_targets_positional`'s twin.
+            // `Target::StackObject` is not collected, because
+            // `enforce_inter_target_distinctness` acts only on
+            // `TargetPermanentDistinctFrom` (CR 601.2c "another target"), a PERMANENT
+            // requirement that a stack entry can never satisfy -- so a stack-entry target
+            // can never be either half of such a pair. Pinned by
+            // `pb_dx52_stack_target_roster::r5` rather than left to this comment.
             if let (Some(si), Target::Object(id)) = (slot, &targets[ti]) {
                 slot_object[*si] = Some(*id);
             }
@@ -6562,6 +6583,15 @@ pub(crate) fn validate_targets_positional(
         .map(|t| match t {
             Target::Object(id) => Some(*id),
             Target::Player(_) => None,
+            // PB-DX52 -- STATED RESIDUAL, not an oversight.
+            // `TargetPermanentDistinctFrom` is the only requirement
+            // `enforce_inter_target_distinctness` acts on (CR 601.2c "another target"),
+            // and it is a PERMANENT requirement: no corpus def pairs it with a
+            // stack-object slot, and a stack entry can never satisfy it, so a
+            // `StackObject` target can never be either half of such a pair. Recorded
+            // here rather than left to the `None` to imply, and pinned by
+            // `pb_dx52_stack_target_roster::r5`.
+            Target::StackObject(_) => None,
         })
         .collect();
     enforce_inter_target_distinctness(requirements, &slot_object)?;
@@ -6701,11 +6731,217 @@ fn validate_mapped_targets(
                     zone_at_cast: Some(obj.zone),
                 }
             }
+            // PB-DX52 (`OOS-DX25b-1`): a stack ENTRY.
+            //
+            // No hexproof/shroud/protection block here, and that is a CR reading rather
+            // than an omission -- see the matching arm in
+            // `abilities.rs::handle_activate_ability` for the three cites (CR 702.11b /
+            // CR 702.18a scope those to a PERMANENT, and CR 110.1 makes a permanent a
+            // card or token ON THE BATTLEFIELD, which an ability on the stack is not).
+            // Nor does it inherit its source's protection: CR 113.7a is explicit that an
+            // ability on the stack *"exists on the stack independently of its source"*.
+            //
+            // `zone_at_cast: None`: a stack entry is not in a zone, so CR 608.2b
+            // legality for it is existence in `state.stack_objects`
+            // (`resolution::is_target_legal`).
+            Target::StackObject(id) => {
+                if let Some(r) = req {
+                    validate_stack_object_satisfies_requirement(state, *id, r, self_id)?;
+                } else if !state.stack_objects.iter().any(|so| so.id == *id) {
+                    // No requirement slot to validate against (the `UpToN`-with-no-`req`
+                    // shape) -- existence is still checked, so a stale id is an error
+                    // rather than a silent no-op (MR-M3-04's rule, one id space over).
+                    return Err(GameStateError::ObjectNotFound(*id));
+                }
+                SpellTarget {
+                    target: Target::StackObject(*id),
+                    zone_at_cast: None,
+                }
+            }
         };
         spell_targets.push(spell_target);
     }
     Ok(spell_targets)
 }
+/// CR 601.2c / CR 115.1a -- check that a **stack-entry** target satisfies a
+/// `TargetRequirement` (PB-DX52, `OOS-DX25b-1`).
+///
+/// The sibling of [`validate_object_satisfies_requirement`] for the id space that
+/// function structurally cannot see. Its opening line is
+/// `state.objects.get(&id).ok_or(ObjectNotFound)?`, and an activated or triggered
+/// ability's stack entry is **never** in `state.objects` -- it owns no card
+/// (`state::stack_registry::card_in_stack_zone` returns `None` for every ability kind),
+/// so it is minted by `state.next_object_id()` and pushed into `state.stack_objects`
+/// alone. That is why Bolt Bend's printed *"or ability"* half was dead, and why
+/// `TargetSpellOrAbilityWithSingleTarget` and `TargetSpellWithSingleTarget` were
+/// behaviourally identical on every production path before this function existed.
+///
+/// **The lookup goes through the same shared arithmetic every other consumer uses.**
+/// `state::stack_registry::stack_index_for_announced_target`'s first clause is
+/// `so.id == announced`, which is exactly what a `Target::StackObject` carries -- so the
+/// offer layer, this validator, CR 608.2b re-validation, `Effect::ChangeTargets`,
+/// `Effect::CounterSpell` and `Effect::CopySpellOnStack` all resolve the id one way. Do
+/// not re-open-code `stack_objects.iter().find(..)` here; that is the drift
+/// `OOS-DX25-3`/`OOS-SIM3-5` were.
+///
+/// **Which requirements a stack entry can satisfy, and why the list is short.** A stack
+/// entry has no zone, no characteristics of its own (CR 113.7a: it *"exists on the stack
+/// independently of its source"*, so it does not inherit the source's type line) and no
+/// battlefield presence (CR 110.1), so it cannot satisfy
+/// `TargetCreature`, `TargetPermanent`, `TargetAny` or any filtered permanent
+/// requirement. The four it CAN satisfy are the four the CR writes about objects on the
+/// stack. Everything else is an explicit `Err` with the requirement named -- never a
+/// silent `false`, so a card author who points a stack-object slot at the wrong
+/// requirement gets a message instead of a spell that quietly refuses every candidate.
+fn validate_stack_object_satisfies_requirement(
+    state: &GameState,
+    id: ObjectId,
+    req: &TargetRequirement,
+    self_id: Option<ObjectId>,
+) -> Result<(), GameStateError> {
+    // CR 115.7a via `UpToN`: delegate to the inner requirement, mirroring the object
+    // validator's own `UpToN` handling.
+    if let TargetRequirement::UpToN { inner, .. } = req {
+        return validate_stack_object_satisfies_requirement(state, id, inner.as_ref(), self_id);
+    }
+
+    let pos =
+        crate::state::stack_registry::stack_index_for_announced_target(&state.stack_objects, id);
+    // Fail closed on an id that names nothing on the stack. `ObjectNotFound` is the same
+    // variant `validate_object_satisfies_requirement` raises for its own missing id --
+    // and, exactly as t3 recorded for that function, it does not reach a
+    // `Command::CastSpell` caller unchanged: `validate_targets_inner`'s bipartite slot
+    // matcher swallows any `Err` into the generic "could not be matched to a requirement
+    // slot" `InvalidTarget`.
+    let Some(pos) = pos else {
+        return Err(GameStateError::ObjectNotFound(id));
+    };
+    let so = &state.stack_objects[pos];
+
+    // CR 601.2c self-targeting prevention (Misdirection, 2004-10-04: "You can't make a
+    // spell which is on the stack target itself"), mirroring the object validator's three
+    // arms.
+    //
+    // **Structurally unreachable today, and said so rather than left to look
+    // load-bearing**: `handle_cast_spell` and `handle_activate_ability` both validate
+    // BEFORE pushing their own stack entry, so the announcing object's entry does not
+    // exist yet; and on the `rules::retarget` path `self_id` is the victim's CARD id,
+    // which lives in the other id space and can never equal a stack-entry id. Kept for
+    // the same reason the object validator keeps its own provably-dead cast-time copy:
+    // it is CR-correct, it costs two lines, and the day a caller validates after its own
+    // push it is the only thing standing between the engine and a self-referential loop.
+    if let Some(self_oid) = self_id {
+        if id == self_oid {
+            return Err(GameStateError::InvalidTarget(format!(
+                "stack object {:?} cannot target itself (self-targeting prevention)",
+                id
+            )));
+        }
+    }
+
+    // "is this stack object a spell" -- CR 707.10: a COPY of a spell IS a spell, so this
+    // is a local `matches!` on the kind and is deliberately NOT expressed through
+    // `stack_registry::card_in_stack_zone` (which answers "does it own a card in
+    // ZoneId::Stack" and returns `None` for a copy). Same reasoning, same words, as the
+    // `TargetSpellWithSingleTarget` arm of `validate_object_satisfies_requirement`.
+    let is_spell = matches!(
+        so.kind,
+        StackObjectKind::Spell { .. } | StackObjectKind::MutatingCreatureSpell { .. }
+    );
+    let target_count = so.targets.len();
+
+    match req {
+        // CR 115.7a: "target spell or ability with a single target".
+        TargetRequirement::TargetSpellOrAbilityWithSingleTarget => {
+            if target_count != 1 {
+                return Err(GameStateError::InvalidTarget(format!(
+                    "stack object {:?} has {} targets, need exactly 1 for \
+                     TargetSpellOrAbilityWithSingleTarget",
+                    id, target_count
+                )));
+            }
+            Ok(())
+        }
+        // CR 115.7a/115.7b: "target spell with a single target" -- SPELL-ONLY. This is
+        // the clause that makes the two requirements behaviourally DISTINCT, which they
+        // were not on any production path before this function existed (`OOS-DX25b-1`).
+        TargetRequirement::TargetSpellWithSingleTarget => {
+            if !is_spell {
+                return Err(GameStateError::InvalidTarget(format!(
+                    "stack object {:?} is not a spell (TargetSpellWithSingleTarget is \
+                     spell-only)",
+                    id
+                )));
+            }
+            if target_count != 1 {
+                return Err(GameStateError::InvalidTarget(format!(
+                    "stack object {:?} has {} targets, need exactly 1 for \
+                     TargetSpellWithSingleTarget",
+                    id, target_count
+                )));
+            }
+            Ok(())
+        }
+        // CR 115.1a / CR 115.7d: "target spell or ability", any target count.
+        TargetRequirement::TargetSpellOrAbility => Ok(()),
+        // CR 115.1a: "target spell" -- spell-only, any target count.
+        //
+        // A spell's entry is reachable BOTH ways: by its card id (the canonical
+        // announcement, which is what the offer layer emits) and by its entry id here.
+        // Accepting the entry id costs one arm and means this validator never refuses a
+        // target the CR calls legal; the offer layer's own de-duplication (see
+        // `queries::legal_targets_per_slot`) is what stops the same spell being offered
+        // twice.
+        TargetRequirement::TargetSpell => {
+            if !is_spell {
+                return Err(GameStateError::InvalidTarget(format!(
+                    "stack object {:?} is not a spell (TargetSpell is spell-only)",
+                    id
+                )));
+            }
+            Ok(())
+        }
+        // CR 115.1a + a filter ("target noncreature spell"). The filter reads the
+        // characteristics of the CARD the spell owns in `ZoneId::Stack` -- an ability has
+        // none, and a copy owns no card of its own (CR 707.10), so both are refused here
+        // rather than matched against a fabricated `Characteristics`.
+        TargetRequirement::TargetSpellWithFilter(filter) => {
+            if !is_spell {
+                return Err(GameStateError::InvalidTarget(format!(
+                    "stack object {:?} is not a spell (TargetSpellWithFilter is spell-only)",
+                    id
+                )));
+            }
+            let card = crate::state::stack_registry::card_in_stack_zone(&so.kind)
+                .filter(|_| !so.is_copy)
+                .ok_or_else(|| {
+                    GameStateError::InvalidTarget(format!(
+                        "stack object {:?} owns no card to match {:?} against",
+                        id, req
+                    ))
+                })?;
+            let chars = expect_characteristics(state, card);
+            if !crate::effects::matches_filter(&chars, filter) {
+                return Err(GameStateError::InvalidTarget(format!(
+                    "spell {:?} does not match the filter for {:?}",
+                    id, req
+                )));
+            }
+            Ok(())
+        }
+        // Everything else names a permanent, a player, a card in a zone, or a battlefield
+        // quality. A stack entry is none of those: CR 110.1 makes a permanent a card or
+        // token on the battlefield, and CR 608.2n makes an ability on the stack something
+        // that *"is removed from the stack and ceases to exist"* rather than something
+        // that changes zones.
+        _ => Err(GameStateError::InvalidTarget(format!(
+            "stack object {:?} does not satisfy requirement {:?} (a stack entry can only \
+             satisfy a spell/ability requirement)",
+            id, req
+        ))),
+    }
+}
+
 /// CR 601.2c ("another target"): enforce that every `TargetPermanentDistinctFrom(k)`
 /// slot is filled by a different object than slot `k`. `slot_object[i]` is the
 /// ObjectId bound to requirement slot `i` (None if that slot took a player/no target).
@@ -6783,10 +7019,22 @@ fn validate_object_satisfies_requirement(
         .objects
         .get(&id)
         .ok_or(GameStateError::ObjectNotFound(id))?;
-    // TargetSpell / TargetSpellWithFilter: object must be in the stack zone (CR 601.2c).
+    // TargetSpell / TargetSpellWithFilter / TargetSpellOrAbility: object must be in the
+    // stack zone (CR 601.2c).
+    //
+    // PB-DX52: `TargetSpellOrAbility` (CR 115.1a / CR 115.7d) joins this arm for its
+    // SPELL half. A spell is announced by its stack-resident CARD id, which is what this
+    // function validates; the ABILITY half has no card and is validated by
+    // `validate_stack_object_satisfies_requirement`. The two halves of one printed line
+    // therefore live in the two id spaces the CR itself distinguishes -- a spell on the
+    // stack IS a card object (CR 601.2a), an ability on the stack is not — it is put
+    // there by CR 602.2a/603.3 and, per CR 608.2n, *"removed from the stack and ceases to
+    // exist"* rather than moved to another zone.
     if matches!(
         req,
-        TargetRequirement::TargetSpell | TargetRequirement::TargetSpellWithFilter(_)
+        TargetRequirement::TargetSpell
+            | TargetRequirement::TargetSpellWithFilter(_)
+            | TargetRequirement::TargetSpellOrAbility
     ) {
         if obj.zone != ZoneId::Stack {
             return Err(GameStateError::InvalidTarget(format!(
@@ -6902,20 +7150,32 @@ fn validate_object_satisfies_requirement(
         // a copy an illegal target for "target spell", which is CR-wrong. Keep the
         // two-variant `matches!` here.
         //
-        // OOS-DX25b-1: on every real cast this guard can only fire via the
-        // direct-id clause of `stack_index_for_announced_target` -- the
-        // card-owning-kind clause requires the announced id to be simultaneously
-        // a live `state.objects` entry (this fn's opening `?`) and a stack-entry
-        // id, which never happens in production (an activated/triggered
-        // ability's stack entry is never added to `state.objects`,
-        // `abilities.rs:1381`). So `TargetSpellWithSingleTarget` and
-        // `TargetSpellOrAbilityWithSingleTarget` are behaviourally IDENTICAL on
-        // the production path today -- not a defect introduced here, but the
-        // visible shadow of the ability half still being unreachable (§8 R1 of
-        // the PB-DX25b plan). Do NOT delete this guard: it is CR-correct, it is
-        // the only thing distinguishing the two variants, and it becomes
-        // load-bearing the day OOS-DX25b-1 is closed (a `Target::StackObject` id
-        // space, which is a wire change out of this batch's scope).
+        // **`OOS-DX25b-1` IS CLOSED (PB-DX52, `scutemob-229`), AND THIS COMMENT IS
+        // REWRITTEN RATHER THAN LEFT STANDING.** What stood here said the two
+        // requirements were *"behaviourally IDENTICAL on the production path today"*
+        // and that this guard *"becomes load-bearing the day OOS-DX25b-1 is closed"*.
+        // That day has arrived, so both halves of the sentence were false at HEAD --
+        // `OOS-DX47-6`'s shape (a comment outliving the commit that falsified it),
+        // sixty lines above the code that falsified it, in a batch whose own registry
+        // rows invoke PB-DX27's *"a blocker note is a claim"* three times. Caught by
+        // this batch's `/review`.
+        //
+        // What is true now: this arm still validates a target announced in the CARD id
+        // space (`Target::Object`), and on that path the guard is still only reachable
+        // via `stack_index_for_announced_target`'s direct-id clause, because an
+        // ability's stack entry is still never in `state.objects` -- that fact did not
+        // change and is exactly why a THIRD `Target` variant was needed rather than a
+        // wider lookup here. An ability announced the new way arrives at
+        // `validate_stack_object_satisfies_requirement` instead, whose own
+        // `TargetSpellWithSingleTarget` arm carries the sibling of this guard.
+        //
+        // **The guard is LOAD-BEARING NOW, and that is measured rather than asserted**:
+        // revert row R5 (`memory/primitives/pb-DX52-execution-notes.md` §3) drops the
+        // `is_spell` check from the stack-entry sibling and reddens exactly one test
+        // workspace-wide --
+        // `primitives::pb_dx52_stack_entry_target_space::t2_distinctness_spell_or_ability_vs_spell_only`,
+        // which is the first test in this tree that can tell the two requirements
+        // apart. Do NOT delete either copy.
         let stack_obj = crate::state::stack_registry::stack_index_for_announced_target(
             &state.stack_objects,
             id,
@@ -6965,7 +7225,7 @@ fn validate_object_satisfies_requirement(
         TargetRequirement::TargetPlaneswalker => on_battlefield && is_planeswalker,
         // "target creature or player" — object side requires creature on battlefield
         TargetRequirement::TargetCreatureOrPlayer => on_battlefield && is_creature,
-        // "any target" = creature, planeswalker, or player (CR 115.4) — object side
+        // "any target" = creature, planeswalker, or player (CR 115.1a) — object side
         TargetRequirement::TargetAny => on_battlefield && (is_creature || is_planeswalker),
         // "target player or planeswalker" — object side requires planeswalker
         TargetRequirement::TargetPlayerOrPlaneswalker => on_battlefield && is_planeswalker,
@@ -7171,6 +7431,13 @@ fn validate_object_satisfies_requirement(
         TargetRequirement::TargetSpellOrAbilityWithSingleTarget => false,
         // TargetSpellWithSingleTarget handled above via early return.
         TargetRequirement::TargetSpellWithSingleTarget => false,
+        // PB-DX52 (CR 115.1a / CR 115.7d): "target spell or ability", ANY target count.
+        // The card-id half is handled by the `TargetSpell`-family early return above; a
+        // stack ENTRY goes through `validate_stack_object_satisfies_requirement`. This
+        // arm is the tail of `validate_object_satisfies_requirement`, reached only by an
+        // object that is NOT a spell's stack-resident card, and such an object never
+        // satisfies this requirement.
+        TargetRequirement::TargetSpellOrAbility => false,
         // CR 601.2c / 115.1b: UpToN delegates validation to inner requirement.
         // This arm is reached during the greedy-consume peek-validate in validate_targets_inner
         // and when the UpToN requirement is mapped to a target for full validation.
@@ -8807,11 +9074,17 @@ mod tests {
     /// test now covers THREE sub-cases, each labelled with what it isolates:
     /// (i) distinct ids -- the spell half, which discriminates C2's lookup
     /// (`stack_index_for_announced_target`'s card-owning-kind clause); (ii)
-    /// collapsed ids -- kept deliberately, because it is now the ONLY
-    /// configuration in the tree that reaches the `is_spell` guard with a
-    /// non-spell actually FOUND (OOS-DX25b-1: that configuration is unreachable
-    /// in production, since an ability's stack entry never enters
-    /// `state.objects`); (iii) an ActivatedAbility entry with a DISTINCT id,
+    /// collapsed ids -- kept deliberately, because it is the only configuration
+    /// that reaches THIS arm's `is_spell` guard with a non-spell actually FOUND.
+    /// **Re-framed by PB-DX52 (`scutemob-229`), which closed `OOS-DX25b-1`**: it
+    /// is no longer "the ONLY configuration in the tree", and the deviation it
+    /// used to stand in for is gone. An ability announced the CR-correct way now
+    /// arrives at `validate_stack_object_satisfies_requirement`, whose own
+    /// `TargetSpellWithSingleTarget` arm reaches its `is_spell` guard on a real
+    /// production path -- `primitives::pb_dx52_stack_entry_target_space::t2` is
+    /// the discriminating probe there. What THIS fixture still pins is narrower
+    /// and still true: the collapsed-id shape is unreachable in production,
+    /// because an ability's stack entry never enters `state.objects`; (iii) an ActivatedAbility entry with a DISTINCT id,
     /// asserting rejection with the same "is not a spell" message but for the
     /// NOT-FOUND reason -- documented as such, and explicitly NOT discriminating
     /// the `is_spell` guard (deleting the guard would not redden this sub-case,
@@ -8897,9 +9170,12 @@ mod tests {
         // to even reach the kind check -- so a second builder object is placed
         // directly in ZoneId::Stack to stand in for the ability's own stack
         // presence (avoids a bare `.objects.get(` lookup; SR-25 ratchet). This
-        // is now the ONLY configuration in the tree that reaches the `is_spell`
-        // guard with a non-spell actually FOUND (OOS-DX25b-1: unreachable in
-        // production).
+        // is the only configuration that reaches THIS arm's `is_spell` guard with
+        // a non-spell actually FOUND, and it stays unreachable in production
+        // because an ability's stack entry never enters `state.objects`. It is no
+        // longer the only such configuration in the TREE -- PB-DX52 gave the
+        // stack-entry sibling of this guard a real production path (see this
+        // test's doc).
         let mut ability_state = GameStateBuilder::new()
             .add_player(p(1))
             .add_player(p(2))
@@ -8976,9 +9252,14 @@ mod tests {
         // **not** discriminate the `is_spell` guard (deleting that guard would
         // NOT redden this sub-case, since the lookup already returns `None`
         // before the guard is ever reached) -- it discriminates the LOOKUP
-        // itself still refusing an ability's true stack-entry id, which is
-        // exactly OOS-DX25b-1's "ability half does not work" deviation, pinned
-        // wrong-way-round on purpose.
+        // itself still refusing an ability's true stack-entry id **when it is
+        // announced in the CARD id space** -- which remains correct after PB-DX52
+        // closed `OOS-DX25b-1`, and is no longer "pinned wrong-way-round". The
+        // ability half now works; it works through `Target::StackObject`, a
+        // different id space, and naming a stack entry as a `Target::Object` is
+        // still an error. `primitives::pb_dx25b_announced_stack_target_space::
+        // t3_ability_half_is_reachable_via_target_stack_object` asserts both halves
+        // of that on one fixture.
         let mut distinct_ability_state = GameStateBuilder::new()
             .add_player(p(1))
             .add_player(p(2))

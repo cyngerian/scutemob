@@ -1043,7 +1043,31 @@
 ///   damage amount and no card registry, so none of this batch's new bytes can reach it.
 ///   The stream moves solely because `HASH_SCHEMA_VERSION` is the stream's own first
 ///   byte.
-pub const HASH_SCHEMA_VERSION: u8 = 83;
+/// - 84: **PB-DX52** (`scutemob-229`, 2026-09-04, `OOS-DX25b-1` + `OOS-DX25b-5`): the
+///   stack-entry target id space. `Target` gains `StackObject(ObjectId)` — an ABILITY on
+///   the stack, named by its own `StackObject::id` — and `TargetRequirement` gains
+///   `TargetSpellOrAbility` (CR 115.1a / CR 115.7d, any target count). Both are in the
+///   `GameState` serde closure: `Target` through `StackObject.targets:
+///   Vec<SpellTarget>`, `TargetRequirement` through `StackObject.target_requirements`.
+///
+///   **The new stream tag is APPEND-ONLY (`2u8` for `Target`, `21u8` for
+///   `TargetRequirement`), so no existing hash VALUE moves** — a state carrying no
+///   stack-entry target hashes to exactly the byte string it hashed at v83. What moves is
+///   the DECLARATION digest, which is what this gate pins.
+///
+///   **Closure type count UNCHANGED at 132** — predicted in writing before any production
+///   line changed (`memory/primitives/pb-DX52-execution-notes.md` §0.4, commit
+///   `8f919967`) and taken from the failing gate's own output: this batch adds VARIANTS
+///   to two existing closure types, not types.
+///
+///   **The two-step stream observation recurs for the fourth version running** (v40, v82,
+///   v83, now v84): with both variants in the tree AND hashed but BEFORE this bump,
+///   `declaration_fingerprint_is_pinned` was RED and `stream_fingerprint_is_pinned` was
+///   **GREEN** — `canonical_fixture()` carries no stack object with a `StackObject`
+///   target and no non-default `TargetRequirement`, so none of this batch's new bytes can
+///   reach the stream. The stream moves solely because `HASH_SCHEMA_VERSION` is its own
+///   first byte. Measured, not inferred.
+pub const HASH_SCHEMA_VERSION: u8 = 84;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1600,6 +1624,19 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // the stream digest was GREEN.
         decl_fingerprint: "65515ca16d4a06016925428513021e484bf7cb1e53d77a20b9e01af66d0ec2ca",
         stream_fingerprint: "051bf414092e216c967ecac434fa25053c1f753c4e044d0e17cf47b21023f65f",
+    },
+    HashSchemaEpoch {
+        version: 84,
+        // PB-DX52 (2026-09-04, `OOS-DX25b-1` + `OOS-DX25b-5`): `Target::StackObject`
+        // (an ability's stack entry, stream tag 2u8) and
+        // `TargetRequirement::TargetSpellOrAbility` (CR 115.1a/115.7d, stream tag 21u8) --
+        // both APPEND-ONLY, so no existing hash value moves (see the `- 84:` History line
+        // above). Closure type count UNCHANGED at 132. As in v82, v83 and v40, the STREAM
+        // fingerprint moves only because `HASH_SCHEMA_VERSION` is its first byte --
+        // measured, not inferred: before this bump the declaration digest was RED and the
+        // stream digest was GREEN.
+        decl_fingerprint: "9dffdc2ffbdfec51a6ddaaaaed3524fb67fc712a7b48d0dcc814edc815d25087",
+        stream_fingerprint: "8d860e86373e9f80b755853a7d8ad86ecdbb4a62e80526ecccbb39c292cdec26",
     },
 ];
 
@@ -4872,6 +4909,17 @@ impl HashInto for Target {
                 1u8.hash_into(hasher);
                 id.hash_into(hasher);
             }
+            // PB-DX52 (`OOS-DX25b-1`): tag `2u8` for a stack-entry target. The tag is
+            // APPEND-ONLY, so no existing hash VALUE moves -- a state that carries no
+            // `Target::StackObject` hashes to exactly the byte string it hashed before.
+            // `HASH_SCHEMA_VERSION` still moves 83 -> 84, because the gate pins the
+            // DECLARATION digest of the `GameState` serde closure, and `Target` gained a
+            // variant. Predicted in writing before this line was written
+            // (`memory/primitives/pb-DX52-execution-notes.md` §0.4, commit `8f919967`).
+            Target::StackObject(id) => {
+                2u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
         }
     }
 }
@@ -6484,6 +6532,9 @@ impl HashInto for TargetRequirement {
                 20u8.hash_into(hasher);
                 idx.hash_into(hasher);
             }
+            // PB-DX52: TargetSpellOrAbility -- CR 115.1a / CR 115.7d, ANY target count
+            // (Deflecting Swat's printed line; `OOS-DX25b-5`). Discriminant 21, appended.
+            TargetRequirement::TargetSpellOrAbility => 21u8.hash_into(hasher),
         }
     }
 }

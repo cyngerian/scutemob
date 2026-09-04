@@ -13,21 +13,32 @@
 // to every other card carrying the same requirement -- it is not a fidelity
 // problem with THIS def's translation of the printed card:
 //
-// (1) `OOS-DX25b-1` (OPEN) -- the "or ability" half of "target spell or
-//     ability" is unreachable: an activated/triggered ability's stack entry
-//     is never added to `state.objects` (`abilities.rs:1381`), so neither the
-//     offer layer (`queries::legal_targets_per_slot`) nor the validator
+// (1) `OOS-DX25b-1` **CLOSED** by PB-DX52 (`scutemob-229`). The "or ability"
+//     half of "target spell or ability" is now reachable. It was unreachable
+//     because an activated/triggered ability's stack entry is never added to
+//     `state.objects` (`abilities.rs`, the activated push), so neither the offer
+//     layer (`queries::legal_targets_per_slot`) nor the validator
 //     (`casting.rs::validate_object_satisfies_requirement`'s opening
-//     `state.objects.get(&id)?`) can ever see it. This def correctly declares
-//     `TargetSpellOrAbilityWithSingleTarget` -- the requirement variant that
-//     names both halves of the printed line -- and the engine's inability to
-//     realize the ability half is a `Target::StackObject` id-space gap (a wire
-//     change) shared by every card using this requirement, not something a
-//     different DSL choice in THIS file could fix. Pinned wrong-way-round by
+//     `state.objects.get(&id)?`) could ever see it. PB-DX52 added the id space
+//     the previous note predicted -- `Target::StackObject(ObjectId)`, carrying
+//     the stack ENTRY's own id -- plus
+//     `casting::validate_stack_object_satisfies_requirement`, and taught
+//     `legal_targets_per_slot` and `retarget::retarget_candidates` to enumerate
+//     ability entries. This def's declaration was always right and is unchanged;
+//     what changed is that the engine can now realize it.
+//
+//     This def STAYS `Complete`, as it was before -- for the opposite reason.
+//     Before, it was `Complete` because `completeness` describes fidelity to the
+//     PRINTED card and the engine gap was shared by every user of the
+//     requirement; now there is no gap to excuse.
+//
+//     `t3_ability_half_is_still_unreachable` was INVERTED, not deleted, exactly
+//     as this note instructed: it is now
 //     `crates/engine/tests/primitives/pb_dx25b_announced_stack_target_space.rs
-//     ::t3_ability_half_is_still_unreachable` -- the SUCCESSOR batch that adds
-//     a stack-entry target id space must invert that test AND revisit this
-//     comment.
+//     ::t3_ability_half_is_reachable_via_target_stack_object`, and it keeps the
+//     two assertions that are still TRUE (the entry is still not a
+//     `state.objects` key, and naming it as a bare `Target::Object` still
+//     fails) beside the two that inverted.
 // (2) `OOS-DX25b-3` (CLOSED by PB-DX25c) -- CR 115.7a's "another LEGAL
 //     target" is now enforced for OBJECT-target redirects:
 //     `rules::retarget::plan_target_change` delegates the whole redirect
