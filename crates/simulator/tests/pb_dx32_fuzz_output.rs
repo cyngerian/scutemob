@@ -773,7 +773,14 @@ const CORPUS_DEFS: usize = 1803;
 // COMMANDER_POOL re-measured by executing this gate and UNCHANGED at 90 -- again
 // measured, not reasoned from "a Vampire 2/2 is not Legendary", because PB-DX26's
 // lesson is that a stable count is not a stable deal.
-const CORPUS_COMPLETE: usize = 1137;
+// PB-DX35 (2026-09, `OOS-DX4-2`): 1137 -> **1138** (+1). One promotion,
+// `shambling_ghast` `partial` -> `Complete`: its mode-1 target is now scoped to mode
+// 1 alone (`ModeSelection.mode_targets`), closing the flat-target CR 603.3d defect its
+// marker named. CONFIRMED by regenerating `tools/authoring-report.py`
+// (1,137/1,803 = 63.1% -> 1,138/1,803 = 63.1%, same rounded percentage). COMMANDER_POOL
+// re-measured and UNCHANGED at 90 -- `Shambling Ghast` is a Creature but not
+// `SuperType::Legendary`, so it was never a candidate; measured, not reasoned.
+const CORPUS_COMPLETE: usize = 1138;
 const COMMANDER_POOL: usize = 90;
 
 /// Mirrors `crates/simulator/src/deck.rs:40-47`'s three-clause commander filter

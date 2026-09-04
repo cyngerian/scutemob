@@ -771,6 +771,15 @@ const RECORDED_BASELINE: &[(&str, &str)] = &[
          life-loss clause tied to the reanimated card's mana value is unimplemented.",
     ),
     (
+        "retreat_to_kazandu",
+        "Matched \"needs\": \"mode 1 (You gain 2 life) needs no target\" / \"mode 1 needs no \
+         target\" (PB-DX35, `OOS-DX4-2`) — the PB-DX35 module doc and inline comments describe \
+         which mode requires a target, not an unimplemented clause; this def flipped `partial` \
+         -> `Complete` in the SAME batch that added the prose (`decision_gate.rs::BASELINE`'s \
+         `modal_trigger` row is the standing acknowledgement of its residual AutoChosen mode \
+         pick).",
+    ),
+    (
         "scavenger_grounds",
         "Matched \"not expressible\": \"{2},{T}, Sacrifice a Desert: Exile all graveyards (not \
          expressible)\" — the def's own top-of-file summary flags the activated ability as \
@@ -784,6 +793,17 @@ const RECORDED_BASELINE: &[(&str, &str)] = &[
          note, not a deviation; it names the `DrawCards` effect variant in prose while \
          explaining why the implementation IS faithful. Frozen mechanically per this file's \
          stated policy rather than reclassified without review.",
+    ),
+    (
+        "shambling_ghast",
+        "Matched \"deviation\", \"needs\", \"partial\": the module doc's HISTORICAL PB-DX4 \
+         narrative (\"three oracle deviations corrected here\") and PB-DX35's own additions \
+         (\"Create a Treasure token) needs no target\", the retired \"Complete -> partial\" \
+         line) — none of these describes a LIVE gap; PB-DX35 (`OOS-DX4-2`) flipped this def \
+         `partial` -> `Complete` in the SAME batch that added the prose, closing the mode-1 \
+         flat-target defect the PB-DX4 text narrates. `decision_gate.rs::BASELINE`'s \
+         `modal_trigger` row is the standing acknowledgement of its residual AutoChosen mode \
+         pick.",
     ),
     (
         "signal_pest",
@@ -872,7 +892,13 @@ const RECORDED_BASELINE: &[(&str, &str)] = &[
 /// entry's def was demoted or fixed and the roster should be pruned to match,
 /// in the SAME commit, so the gate keeps the gain rather than silently
 /// widening its own slack.
-const RECORDED_BASELINE_POPULATION: usize = 45;
+///
+/// **PB-DX35 (2026-09, `OOS-DX4-2`): raised 45 -> 47.** `retreat_to_kazandu` and
+/// `shambling_ghast` both flipped `Completeness::partial` -> `Complete` in this batch
+/// while retaining (or gaining) prose the needle scan matches -- `retreat_to_kazandu`'s
+/// new mode-scoping comments ("needs no target") and `shambling_ghast`'s pre-existing
+/// PB-DX4 historical narrative ("three oracle deviations"). Two new entries above.
+const RECORDED_BASELINE_POPULATION: usize = 47;
 
 /// Read every `*.rs` file directly under `defs/`. Returns `(file_stem, source)`.
 fn read_def_sources() -> Vec<(String, String)> {
@@ -1296,9 +1322,13 @@ fn the_marker_detector_is_not_vacuous() {
     // Note for the next reader: a FALLING marked-count is the healthy direction here only
     // because the promotions are repairs. PB-DX26's entry above records the opposite lesson
     // -- a stable count is not evidence that nothing changed -- and both are true.
+    // PB-DX35 (2026-09, `OOS-DX4-2`): threshold 666 -> **665**. `shambling_ghast`
+    // `partial` -> `Complete` (its mode-1 target is now scoped to mode 1 alone, closing
+    // the flat-target defect its marker named), net -1. RE-MEASURED DIRECTLY:
+    // `all_cards()` reports 1,138 Complete / 665 non-Complete of 1,803.
     assert!(
-        marked >= 666,
-        "marker detector matched {marked} files; expected >= 666. This assertion has NO \
+        marked >= 665,
+        "marker detector matched {marked} files; expected >= 665. This assertion has NO \
          margin (see the comment above) and can fail for two different reasons: (1) \
          MARKER_FRAGMENTS stopped matching (a detector bug -- the gate would then spuriously \
          flag marked defs) or, far more likely on an ordinary day, (2) a ROUTINE Complete \

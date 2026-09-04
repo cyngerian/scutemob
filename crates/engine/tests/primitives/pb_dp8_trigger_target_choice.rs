@@ -84,6 +84,12 @@ use mtg_card_types::cards::card_definition::{AbilityDefinition, Completeness};
 ///
 /// The assertion is `>=` on purpose: the authoring campaign adds cards continuously
 /// and an `==` pin would redden on unrelated work.
+///
+/// **PB-DX35 (2026-09, `OOS-DX4-2`): floor lowered 60 -> 59.** `retreat_to_kazandu`
+/// (already `Complete`) had its mode-0 target re-shaped OFF the flat `targets` list
+/// and into `ModeSelection.mode_targets`, scoped to mode 0 alone -- so this row's
+/// predicate (a non-empty FLAT `targets` list) correctly stops counting it, the same
+/// shape `decision_gate.rs::canonical_walk_reproduces_pb_dp8_roster` moved for.
 #[test]
 fn test_dp8_roster_enumeration() {
     fn has_targeted_trigger(abilities: &[AbilityDefinition]) -> bool {
@@ -122,8 +128,8 @@ fn test_dp8_roster_enumeration() {
         println!("  {name}");
     }
     assert!(
-        roster.len() >= 60,
-        "PB-DP8 roster collapsed to {} defs (expected >= 60)",
+        roster.len() >= 59,
+        "PB-DP8 roster collapsed to {} defs (expected >= 59)",
         roster.len()
     );
 }

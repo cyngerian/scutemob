@@ -11751,8 +11751,7 @@ mod pb_dx35_trigger_modal_plan_tests {
     #[test]
     fn t9_site3_agrees_with_the_shared_plan_by_value() {
         let def = modal_subject();
-        let mut defs: HashMap<String, CardDefinition> = HashMap::new();
-        defs.insert(def.name.clone(), def.clone());
+        let defs = HashMap::from([(def.name.clone(), def.clone())]);
 
         // Case A: a legal creature exists (mode 0's target is satisfiable).
         let spec_a = enrich_spec_from_def(

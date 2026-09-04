@@ -136,8 +136,8 @@ pub fn card() -> CardDefinition {
         // is zero: this def is not deck-legal. Filed as `OOS-DX35-1`.
         completeness: Completeness::partial(
             "Modal triggered ability declares both mode targets flat. `trigger_modal_plan` \
-             (PB-DX35) now scopes a modal trigger's targets to its CR 700.2b-legal chosen mode \
-             on the trigger path, but this def's modal ability sits at REGISTRY index 1 (behind \
+             (PB-DX35) now scopes a modal trigger's targets to its CR 700.2b-legal chosen mode on \
+             the trigger path, but this def's modal ability sits at REGISTRY index 1 (behind \
              Keyword(Flash)) while its trigger's RUNTIME ability_index is 0 -- the registry-based \
              ModeSelection lookup misses it entirely and treats the ability as non-modal, so both \
              mode targets still apply to the whole trigger. With no opponent spell on the stack \

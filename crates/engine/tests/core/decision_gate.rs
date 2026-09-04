@@ -438,6 +438,17 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Roalesk, Apex Hybrid", &["proliferate"], None),
     ("Roiling Regrowth", &["sacrifice_permanents"], None),
     ("Satyr Wayfinder", &["look_at_top_or_route"], None),
+    (
+        "Shambling Ghast",
+        &["modal_trigger"],
+        Some(
+            "PB-DX35 (2026-09, `OOS-DX4-2`): partial -> Complete. Its mode-1 target is now \
+             scoped to mode 1 alone (`ModeSelection.mode_targets`), so `trigger_modal_plan` \
+             picks the CR 700.2b-legal mode instead of removing the whole trigger -- but the \
+             CONTROLLER still does not choose the mode (the same `modal_trigger` AutoChosen row \
+             `Felidar Retreat` and `Retreat to Kazandu` already carry above).",
+        ),
+    ),
     ("Spell Pierce", &["counter_unless_pays"], None),
     ("Staff of Compleation", &["proliferate"], None),
     ("Stubborn Denial", &["counter_unless_pays"], None),
@@ -488,7 +499,12 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
 /// `proliferate` -- so the drop is 9, not 10, the same 1-off ENG-1 recorded for
 /// `Izzet Charm`. **71 is read off `T6`'s printed number**, not computed as `80 - 9`, per
 /// this constant's own standing rule; the arithmetic agreeing is a check, not the source.
-const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 71;
+///
+/// **PB-DX35 (2026-09, `OOS-DX4-2`): raised 71 -> 72.** `Shambling Ghast` flipped
+/// `partial` -> `Complete` and hits `modal_trigger` (a NEW `BASELINE` entry above), the
+/// same row `Felidar Retreat`/`Retreat to Kazandu` already carry -- one def added to the
+/// union, read off `T6`'s printed number, not computed as `71 + 1`.
+const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 72;
 
 const MIN_ROWS: usize = 22;
 const MIN_BASELINE: usize = 50;
@@ -1219,15 +1235,21 @@ fn canonical_walk_reproduces_pb_dp8_roster() {
         .filter(|d| (row.predicate)(&serde_json::to_value(d).unwrap()))
         .count();
     assert!(
-        count >= 60,
-        "triggered_targets has only {count} Complete defs, expected >= 60 (was 74 after \
+        count >= 59,
+        "triggered_targets has only {count} Complete defs, expected >= 59 (was 74 after \
          PB-DX3b's -1 and PB-DX4's -2; re-pinned DOWN by PB-DX28 §1 -- the 10 Karoos, \
          shrieking_drake, whitemane_lion and sword_of_truth_and_justice's AddCounter trigger \
          were migrated OFF a declared `TargetRequirement` onto `EffectTarget::ChosenObject` \
          (CR 115.10: none of the seven printed clauses says \"target\"), so their Triggered \
          abilities no longer carry a non-empty `targets` list and this predicate correctly \
-         stops counting them. 60 is the MEASURED count at this batch's HEAD, not back-derived \
-         arithmetically from 74)"
+         stops counting them; re-pinned DOWN AGAIN by PB-DX35 (2026-09, `OOS-DX4-2`) -- \
+         `retreat_to_kazandu` (already `Complete`) had its mode-0 target re-shaped OFF the \
+         flat `targets` list and into `ModeSelection.mode_targets`, so its Triggered ability \
+         no longer carries a non-empty flat `targets` list either. `shambling_ghast` (this \
+         batch's OTHER re-shape) contributes NOTHING to the move: it was excluded from 60 by \
+         `Completeness::partial` and is excluded from 59 by its own now-empty flat `targets` \
+         -- excluded both times, for two different reasons. 59 is the MEASURED count at this \
+         batch's HEAD, not back-derived arithmetically)"
     );
 }
 
