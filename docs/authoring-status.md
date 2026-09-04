@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-09-02 04:49 UTC  
-**Git:** `203f2d23` on `feat/pb-dx45-effectmaypaytheneffect-is-pay-when-able-cr-11812s-pl`  
+**Generated:** 2026-09-04 09:44 UTC  
+**Git:** `45b9ca3f` on `feat/pb-dx35-modal-trigger-targets-are-not-scoped-by-mode-and-the`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,8 +25,8 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.1% | 1,137 | +1 |
-| With TODO markers | 519 | -1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.1% | 1,138 | +1 |
+| With TODO markers | 518 | -1 |
 | Empty `abilities: vec![]` placeholders | 147 | · |
 | Total TODO lines across all defs | 918 | · |
 
@@ -34,8 +34,8 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 1 |
-| last 30 days | 0 | 134 |
+| last 7 days | 0 | 18 |
+| last 30 days | 0 | 148 |
 | last 90 days | 57 | 2,947 |
 | last 1 year | 1,830 | 3,370 |
 
@@ -223,7 +223,7 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 
 ## ⚠ Completeness-marker drift
 
-17 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+16 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `birchlore_rangers` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -238,7 +238,6 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 - `marisi_breaker_of_the_coil` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `qarsi_sadist` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `shambling_ghast` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `the_reaver_cleaver` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `thrasios_triton_hero` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -246,6 +245,14 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 ## Recent card-touching commits
 
 ```
+7e4eb0d9 scutemob-227: PB-DX35 Half B — Effect::LookAtTopThenPlace.optional becomes a real CR 118.12 player decision (OOS-DX4-5), asked through the same EffectChoiceQuestion::ChooseObject { count: 1, up_to: true } PB-DX28 built. Sorts top_ids ascending before deciding the winner (Zone::top_n is top-first, the reverse of ascending-id order); no determined-answer short-circuit for a lone candidate, since up_to: true makes declining a real second answer even then. Six comments corrected (two beyond the plan's five, found by the B6 consumer enumeration: replay_harness.rs's golden-script driver and the TUI's log formatter both claimed ChooseObject named only public objects). decision_site_walk's compound look_at_top_or_route row split rather than residual-noted, since leaving it compound would have silently un-flagged RevealAndRoute's still-engine-made CR 401.4 order choice; MAX_AUTO_CHOSEN_COMPLETE_UNION 72->67, five BASELINE entries removed, OOS-DX35-1 filed for the RevealAndRoute residual and OOS-DX4-5 closed in the registry. decision_coverage.rs's row_id_for needed real disambiguation logic, not just a doc fix: ChooseObject is now asked by two unrelated primitives sharing one wire shape, told apart by candidate ZONE (library = PB-DX35, battlefield/graveyard = PB-DX28's pre-existing untargeted choice). Three-channel reachability (LocalGame/ HumanChoice, POST /api/game/action, the bot path) each proven with a genuine decline, asserted by resolution effect — HTTP channel via Satyr Wayfinder (a real "which-of-four" choice, seed found by an executed scan) since its four-card dig exercises the choice more fully than Risen Reef's single-card one. Seven pre-existing pb_os8 tests needed execute_effect -> execute_effect_with_default_choices repair, a ripple the plan did not name, reproduced red before the fix. HASH 82 / PROTOCOL 41 both unmoved as predicted, gate-executed. 15 new tests (9 engine + 3 simulator + 3 HTTP), 0 renames, 0 removals; full workspace 5,076 -> 5,091 / 0 / 5, 63 targets. 0 Completeness marker moves (5 card-def edits, comment-only, verified line-by-line). Revert matrix: t3/t6/t7/t8 + all 6 channel probes redden under a full revert; t5 additionally discriminates a narrower sort-only revert; t1/t2/t4 are stated CONTROLS. Full record appended to memory/primitives/pb-DX35-execution-notes.md §B (§0 untouched).
+dfd6e1ce scutemob-227: PB-DX35 Half A — re-observe every standing gate the batch's own card-def flips and refactor moved: SR-25 bare-lookup ceiling 75->72 (trigger_modal_plan consolidation), unordered-container ceiling 6->8 (t9's lookup-only HashMap, category (a)), card-defs fmt fix, decision_gate's MAX_AUTO_CHOSEN_COMPLETE_UNION 71->72 and BASELINE (Shambling Ghast added, modal_trigger row), canonical_walk_reproduces_pb_dp8_roster and pb_dp8_trigger_target_choice's roster floor 60->59 (retreat_to_kazandu's target left the flat targets list), completeness_deviation_scan's marker floor 666->665 and RECORDED_BASELINE_POPULATION 45->47 (two new entries), pb_dx4_baseline_triage's stale "Shambling Ghast must not be Complete" pin removed and disclosed, pb_dx32_fuzz_output's CORPUS_COMPLETE 1137->1138; all re-derived by executing the failing gate's own output, never computed
+ab6d8859 scutemob-227: PB-DX35 Half A card defs — shambling_ghast/retreat_to_kazandu/ retreat_to_coralhelm re-shaped into ModeSelection.mode_targets (shambling_ghast partial -> Complete); hullbreaker_horror/glissa_sunslayer/junji_the_midnight_sky markers re-adjudicated to name the registry-vs-runtime index-space blocker (OOS-DX35-1, not fixed); felidar_retreat noted as out of population
+b72b8c80 scutemob-225: PB-DX18 /review fix cycle — all 15 findings taken, none declined
+877510c5 scutemob-225: PB-DX18 — the phantom shuffles really shuffle (OOS-DP2-7), plus the fixture repairs
+e7dee121 scutemob-225: PB-DX18 — CR 702.47a splice targets, and the golden script that said bestow and did not
+0be8d904 scutemob-222: PB-DX20b -- EnchantFilter gains the OR over card TYPES, and the two arithmetics become one
+e524f676 scutemob-217: PB-DX45 /review fix cycle -- all 7 findings taken
 6af13425 scutemob-217: PB-DX45 -- the CR 118.12 suspension, the wire bump, and the policy ruling
 40b1e610 scutemob-216: PB-DX15a /review fix cycle 2 -- probes for the three uncovered APNAP sites, and five failures my own fix cycle introduced
 4c2a0afd scutemob-216: PB-DX15a /review fix cycle -- the HIGH is a regression I introduced, and two of my own claims did not survive
@@ -263,14 +270,6 @@ a1bc271f scutemob-209: PB-DX27 fix cycle — reconcile the corpus a SECOND time 
 2b485ccc scutemob-209: PB-DX27 rider OOS-ADJ-7 — Blood Moon strips land types, never card types
 f1b81bfe scutemob-209: PB-DX27 sweep repairs — 4 stale blocker notes verified and closed
 3390b6a9 scutemob-209: PB-DX27 sweep-repairs batch B — 5 stale blocker notes refuted and closed
-429928d5 scutemob-209: PB-DX27 — wrong-oracle register (OOS-CARDS2-10) + the three OOS-CARDS2-11 headline items
-3d5db7b2 scutemob-206: PB-DX26 fix cycle — all 18 review findings taken (1 HIGH / 6 MEDIUM / 11 LOW)
-72ad0f93 scutemob-206: PB-DX26 — the equip surface, one link earlier
-32373601 scutemob-205: PB-DX25c fix cycle — take all 22 review findings (0 HIGH / 5 MEDIUM / 17 LOW)
-557ef5ce scutemob-205: PB-DX25c stage 2 — fixture repairs, new probes, roster/gate, HASH bump, revert matrix, seed close-out (closes OOS-DX25b-3)
-a275a949 scutemob-204: PB-DX25b fix cycle — take all 12 findings (1 HIGH / 5 MEDIUM / 6 LOW)
-cadb346b scutemob-202: PB-DX24 fix cycle — F12, drop stray blank line in nether_traitor.rs
-0ca69b6b scutemob-202: PB-DX24 stage 7 — nether_traitor comment records what the engine now reads
 ```
 
 ## Missing card-defs sidecar
