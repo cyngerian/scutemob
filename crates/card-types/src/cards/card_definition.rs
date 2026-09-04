@@ -3089,7 +3089,7 @@ pub enum TargetRequirement {
     TargetPermanent,
     /// "target creature or player"
     TargetCreatureOrPlayer,
-    /// "any target" = creature, planeswalker, or player (CR 115.4)
+    /// "any target" = creature, planeswalker, or player (CR 115.1a)
     TargetAny,
     /// "target spell"
     TargetSpell,
@@ -3113,7 +3113,7 @@ pub enum TargetRequirement {
     TargetCardInYourGraveyard(TargetFilter),
     /// "target [type] card from a graveyard" — card in any player's graveyard (CR 115.1).
     TargetCardInGraveyard(TargetFilter),
-    /// "target spell or ability" (CR 115.4 / CR 115.7d) -- ANY number of targets.
+    /// "target spell or ability" (CR 115.1a / CR 115.7d) -- ANY number of targets.
     ///
     /// PB-DX52 (`OOS-DX25b-5`). Deflecting Swat prints *"You may choose new targets for
     /// target spell or ability"* -- with **no** single-target restriction -- and before

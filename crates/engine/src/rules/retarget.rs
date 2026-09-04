@@ -123,6 +123,19 @@ pub(crate) fn plan_target_change(
     // `abilities.rs::handle_activate_ability` passed as `self_id` and
     // `source_chars` when the ability was announced, so a retarget is now
     // validated against the same source the original announcement was.
+    // **The `self_id` half is asymmetric between a spell victim and an ability victim, and
+    // PB-DX52's `/review` is why that is written down.** For a SPELL, `source_of` returns the
+    // spell's own stack-resident card, so CR 601.2c's self-exclusion compares like with like
+    // and the spell cannot be redirected onto itself. For an ABILITY it returns the source
+    // PERMANENT, which is a different object from the ability's own stack entry -- so a
+    // candidate `Target::StackObject(so.id)` would never equal it and an ability victim
+    // carrying a stack-object requirement could in principle be redirected onto its own
+    // entry. Latent: no corpus ability declares a stack-object requirement (pinned by
+    // `core::pb_dx52_stack_target_roster`'s census, 0 members). Recorded rather than
+    // "fixed" by passing the entry id instead, because THAT would be wrong in the other
+    // direction: `TargetFilter.exclude_self` on an activated ability means "not my SOURCE"
+    // (`abilities.rs::handle_activate_ability` passes `Some(source)`), and the retarget must
+    // stay consistent with what the original announcement was validated against.
     let victim_card = crate::state::stack_registry::source_of(&so.kind);
     let source_chars =
         victim_card.and_then(|id| crate::rules::layers::calculate_characteristics(state, id));

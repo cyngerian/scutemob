@@ -29,6 +29,16 @@
 //! `state.stack_objects`) rather than through a shared numeric comparison a colliding
 //! id could accidentally satisfy.
 //!
+//! **Stated coverage gap (PB-DX52 `/review`, LOW 10): `Effect::CounterSpell` with a declared
+//! `Target::StackObject` has no probe here.** `t6` exercises
+//! `resolution::counter_stack_object` DIRECTLY, which is the second, non-production counter
+//! path. The `Effect::CounterSpell` path with a stack-entry target was traced rather than
+//! driven (`effects/mod.rs` -> `stack_index_for_announced_target`'s first clause ->
+//! `card_in_stack_zone` returns `None` for an ability -> no phantom graveyard move) and is
+//! correct; it is untested because **no corpus def can reach it today** -- the only card that
+//! would is `siren_stormtamer`, and it is blocked on a filtered requirement that does not
+//! exist (`OOS-DX52-3`). Recorded so the absence is a known bound rather than an oversight.
+//!
 //! **Verdicts are asserted by RESOLUTION EFFECT wherever the fixture allows it, not by
 //! the offer or the announcement alone** -- `t1` (the headline) and `t3` (the triggered
 //! half) both carry the redirect through to a destroyed-or-surviving creature, not just
@@ -911,7 +921,7 @@ fn t6_countered_entry_is_illegal_bolt_bend_fizzles() {
 
 // ── T7: TargetSpellOrAbility (Deflecting Swat) -- any target count ─────────
 
-/// CR 115.4 / CR 115.7d -- `TargetSpellOrAbility` accepts an ability entry with ANY
+/// CR 115.1a / CR 115.7d -- `TargetSpellOrAbility` accepts an ability entry with ANY
 /// declared-target count, where `TargetSpellOrAbilityWithSingleTarget` would refuse
 /// the same TWO-target entry. Deflecting Swat's printed line has no "with a single
 /// target" clause, which is exactly why PB-DX52 added this variant rather than
@@ -991,7 +1001,7 @@ fn t7_target_spell_or_ability_accepts_any_target_count() {
     );
     assert!(
         candidates[0].contains(&Target::StackObject(ability_entry_id)),
-        "TargetSpellOrAbility (CR 115.4/115.7d) must accept a TWO-target ability \
+        "TargetSpellOrAbility (CR 115.1a/115.7d) must accept a TWO-target ability \
          entry -- it asserts nothing about target count -- candidates: {:?}",
         candidates[0]
     );

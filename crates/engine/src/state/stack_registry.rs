@@ -168,7 +168,12 @@ pub fn source_of(kind: &StackObjectKind) -> Option<ObjectId> {
         K::SuspendCastTrigger { source_object, .. } => Some(*source_object),
         K::NinjutsuAbility { source_object, .. } => Some(*source_object),
         K::ForecastAbility { source_object, .. } => Some(*source_object),
-        // CR 702.71a: bloodrush's `source_object` is the PRE-discard card id -- the card
+        // CR 207.2c: bloodrush is an ABILITY WORD -- it has "no special rules meaning and
+        // no individual entries in the Comprehensive Rules", so there is no 702.x rule to
+        // cite (this batch's first draft cited 702.71a, which is Transfigure). The
+        // classification below rests on CR 113.7 alone.
+        //
+        // Bloodrush's `source_object` is the PRE-discard card id -- the card
         // is in the graveyard by the time the ability is on the stack (it was the cost).
         // It is still the object that generated the ability, so CR 113.7 names it.
         K::BloodrushAbility { source_object, .. } => Some(*source_object),
@@ -189,6 +194,21 @@ pub fn source_of(kind: &StackObjectKind) -> Option<ObjectId> {
         // No source object survives: the card was exiled or moved as the COST of putting
         // this ability on the stack (CR 400.7 -- it is a new object now), so there is no
         // live id to name. `None` here is a measured absence, not an unhandled case.
+        //
+        // **AND `None` HAS A CONSEQUENCE THIS DOC OWES YOU, added by PB-DX52's `/review`.**
+        // `rules::retarget::plan_target_change` feeds this value to `source_chars`, so for
+        // these five kinds a redirect gets `None` and **CR 702.16b's protection check
+        // silently passes** -- the exact failure mode `OOS-DX25c-3` was closed to prevent,
+        // one variant set over. It is unreachable today, and only for a reason that lived
+        // nowhere until now: `plan_target_change` returns early on
+        // `so.target_requirements.is_empty()`, and `abilities.rs`'s Scavenge push
+        // deliberately records an EMPTY requirement list, so the one of these five that a
+        // player can actually name as a Bolt Bend target reaches the redirect and does
+        // nothing. **That is a load-bearing accident of a different batch's decision, not
+        // an invariant of this function**, and it is why it is written down rather than
+        // trusted. Filed as part of `OOS-DX52-4`'s family; if a future batch gives any of
+        // these kinds a real requirement list, this arm becomes live and must return the
+        // source the card was BEFORE the cost moved it (an LKI read, CR 608.2h).
         K::EmbalmAbility { .. } => None,
         K::EternalizeAbility { .. } => None,
         K::EncoreAbility { .. } => None,

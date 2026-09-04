@@ -4308,8 +4308,11 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         None
                     }
                 }
-                // PB-DX52: CR 702.43b's Modular trigger moves +1/+1 counters onto a
-                // TARGET ARTIFACT CREATURE. Neither a player nor a stack entry can be
+                // PB-DX52: CR 702.43a's Modular trigger puts +1/+1 counters on a
+                // TARGET ARTIFACT CREATURE. (CR 702.43b is the *multiple instances*
+                // rule -- the number this batch's first draft cited, corrected here
+                // against the rules server; every pre-existing 702.43b cite in this
+                // file is about multiple instances and is right.) Neither a player nor a stack entry can be
                 // one, so both fall through to the fizzle. Spelled out rather than left
                 // to the wildcard, per the PB-DX52 §0.5 disposition table.
                 Target::Player(_) | Target::StackObject(_) => None,
@@ -4509,8 +4512,9 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
             let target_creature_id = stack_obj.targets.first().and_then(|t| {
                 match t.target {
                     crate::state::targeting::Target::Object(id) => Some(id),
-                    // PB-DX52: CR 702.98a -- Scavenge puts +1/+1 counters on a TARGET
-                    // CREATURE. Neither a player nor a stack entry can be one, so both
+                    // PB-DX52: CR 702.97a -- Scavenge puts +1/+1 counters on a TARGET
+                    // CREATURE. (CR 702.98 is Unleash; 702.97a is the number
+                    // `card-types/src/state/stack.rs` already used for this kind.) Neither a player nor a stack entry can be one, so both
                     // fizzle the ability below.
                     crate::state::targeting::Target::Player(_)
                     | crate::state::targeting::Target::StackObject(_) => None,

@@ -51,7 +51,7 @@ pub fn card() -> CardDefinition {
                 // `queries::legal_targets_per_slot`, in the browser's target
                 // picker, and in `GameEvent::TargetsAnnounced`.
                 //
-                // `TargetSpellOrAbility` (CR 115.4 / CR 115.7d), NOT
+                // `TargetSpellOrAbility` (CR 115.1a / CR 115.7d), NOT
                 // `TargetSpellOrAbilityWithSingleTarget`: this card prints no
                 // "with a single target" clause, so asserting `targets.len() == 1`
                 // would refuse legal targets the printed card admits. That

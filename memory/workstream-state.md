@@ -25,7 +25,7 @@
 CLOSED** as a third — see below, it is the one that matters. Filed `OOS-DX52-1..9`.
 
 **Shipped**: `Target::StackObject(ObjectId)` naming an ability's stack ENTRY by its own
-`StackObject::id`, plus `TargetRequirement::TargetSpellOrAbility` (CR 115.4/115.7d, ANY target
+`StackObject::id`, plus `TargetRequirement::TargetSpellOrAbility` (CR 115.1a/115.7d, ANY target
 count — Deflecting Swat prints no *"with a single target"* clause and had no expressible form).
 New `casting::validate_stack_object_satisfies_requirement`; `queries::legal_targets_per_slot` and
 `retarget::retarget_candidates` both enumerate ability entries; `resolution::is_target_legal`

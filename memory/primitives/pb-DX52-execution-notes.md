@@ -60,7 +60,7 @@ all; 4 whose zone filter is *negative* or *includes `Stack`*):
    `Battlefield | Stack | Graveyard(_)`, and `casting.rs`'s `TargetSpell` arm validates
    by `obj.zone != ZoneId::Stack` **alone, with no spell/ability discriminator**. An
    ability entry claiming `ZoneId::Stack` therefore becomes a legal target for
-   *"counter target spell"* — CR 115.4-wrong, and a new defect this batch would have
+   *"counter target spell"* — CR 115.1a-wrong (a spell is not a permanent, and "counter target spell" names a spell), and a new defect this batch would have
    shipped while closing an old one.
 5. **`sba.rs:451`** removes any `is_token` object not on the battlefield from
    `state.objects` — a landmine one field-default away.
@@ -271,3 +271,77 @@ cast that announces a stack-entry target, and the fuzzer's bots reach it only if
 every other requirement is unchanged by construction (the new candidates satisfy only the
 four stack-object requirements). **Stated as a reason to expect no movement, not as a
 measurement** — which is the distinction PB-DX49's `/review` refuted a batch for blurring.
+
+---
+
+## §6 `/review` fix cycle — 12 findings, ALL 12 TAKEN, none declined
+
+Opus reviewer with a shell, briefed to try to defeat the gates. It did, three ways.
+
+### The headline: a FIFTH family of wrong CR cites, and it is the largest
+
+**CR 115.4 was cited 27 times by this branch as the authority for *"target spell"* /
+*"target spell or ability"*. CR 115.4 says the opposite.** Verbatim from the rules server:
+
+> **115.4.** Some spells and abilities **that refer to damage** require "any target,"
+> "another target," "two targets," or similar rather than "target [something]." These
+> targets may be creatures, players, planeswalkers, or battles. **Other game objects, such
+> as noncreature artifacts or spells, can't be chosen.**
+
+It is the *"any target"* rule, and its last sentence explicitly forbids choosing a spell.
+`main` uses it correctly and only for `TargetAny` (6 sites, all left alone). All 27 new
+occurrences are re-pointed at **CR 115.1a** (*"An instant or sorcery spell is targeted if
+its spell ability identifies something it will affect by using the phrase 'target
+[something]'"*) — which, with CR 109.1 / CR 113.1c making a spell and an ability on the
+stack both objects, is the actual authority. This batch had already run a four-family cite
+correction on itself; **the correction pass was itself incomplete, and the biggest family
+was the one it did not look for.**
+
+Three more wrong rule numbers, each with the RIGHT number already present elsewhere in the
+tree: **CR 702.43b → 702.43a** (Modular's trigger; 702.43b is the *multiple instances*
+rule), **CR 702.98a → 702.97a** (Scavenge; 702.98 is Unleash), and **CR 702.71a → CR 207.2c**
+(bloodrush is an ABILITY WORD with, per 207.2c, *"no individual entries in the
+Comprehensive Rules"*; 702.71 is Transfigure). Plus **two survivors of this batch's own
+`CR 113.3` pass**, one of them load-bearing production prose, and **CR 707.10b → CR 707.10**.
+
+### Three gates defeated by execution, all three re-keyed and re-proven
+
+**`r1a` fell six ways** — and the reviewer's compile-against-synthetic-inputs method found
+a seventh the review did not name: the original matched the CONTIGUOUS literal
+`.iter().find(`, which `rustfmt` splits across lines, so it was **effectively vacuous on
+real multi-line source** and only ever caught the synthetic single-line probes. Re-keyed on
+the mechanism: receiver derivation with the accessor's trailing `()` normalised away and a
+FIXPOINT alias pass, plus a **bidirectional** search window (a combinator is written after
+the receiver, but a `for` loop's keyword is written before it — that asymmetry was the one
+bypass still blind after the first re-key, found by execution). All six re-executed:
+**CAUGHT / CAUGHT / CAUGHT / CAUGHT / CAUGHT / CAUGHT.** The widened scan then found **six
+real entry-id lookups**, each allowlisted with a reason and a companion `r1d` that
+re-checks the reason in source, plus a **per-entry** non-vacuity floor (a total would be
+satisfied by one entry matching many times while another matched zero).
+
+**`r6b` and `r7a` fell to a NAMED catch-all.** Both asserted `!body.contains("_ =>")` while
+their own messages promised a new variant would be *"a compile error"*. `other => None` is
+equally irrefutable, contains no `_ =>`, survives `rustfmt` and compiles. New
+`irrefutable_catch_all_arms` collects both spellings; both bypasses planted and
+re-executed: **r7a RED, r6b RED**, tree restored green.
+
+### A comment asserting the exact opposite of this batch's headline, 60 lines from the new code
+
+`casting.rs`'s `TargetSpellWithSingleTarget` arm still said the two requirements were
+*"behaviourally IDENTICAL on the production path today"* and that its guard *"becomes
+load-bearing the day OOS-DX25b-1 is closed"*. **This batch is that day**, so both halves
+were false at HEAD — `OOS-DX47-6`'s shape, inside a batch that invokes PB-DX27's *"a
+blocker note is a claim"* three times in its own registry rows. Rewritten, along with three
+sub-case framings in the same file that described their fixtures as pinning a now-closed
+deviation.
+
+### The rest
+
+| # | Finding | Taken as |
+|---|---|---|
+| 7 | `source_of` returns `None` for five kinds, silently disabling CR 702.16b there | the consequence AND the reachability accident that makes it safe are now written at the arm |
+| 8 | `self_id` is asymmetric between a spell victim and an ability victim | recorded at the call site with why passing the entry id would be wrong in the other direction |
+| 9 | `DX52_SEED`'s *"byte-identical"* claim is false (8 members vs 5) | corrected to the narrower true claim, wrong version left visible |
+| 10 | `Effect::CounterSpell` × `Target::StackObject` has no probe | stated as a bound in the probe file's own module doc, with why no corpus def can reach it |
+| 11 | the census needle list misses Disallow/Voidslime's phrasing | recall bound stated beside the list, population measured at 0 |
+| 12 | CR 707.10b cited for CR 707.10's last sentence | corrected |

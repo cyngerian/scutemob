@@ -1387,8 +1387,9 @@ pub fn handle_activate_ability(
             // CR 702.18a scopes shroud the same way, and CR 702.16b's protection is a
             // property of a permanent, player or (for shroud) a spell. An ability on the
             // stack is none of those -- it has no controller-independent characteristics
-            // of its own to carry a protection quality (CR 113.3 gives it the source's
-            // text, not the source's protection).
+            // of its own to carry a protection quality -- CR 113.7a is explicit that an
+            // ability on the stack "exists on the stack independently of its source",
+            // so it inherits none of the source's protection.
             Target::StackObject(id) => {
                 if !state.stack_objects.iter().any(|so| so.id == *id) {
                     return Err(GameStateError::ObjectNotFound(*id));

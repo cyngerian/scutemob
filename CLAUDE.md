@@ -1379,7 +1379,7 @@
   stage 0 across 241 full-map walk sites and REJECTED, because such an entry must claim a
   `ZoneId` and the only honest claim is `ZoneId::Stack`; and **`casting.rs`'s `TargetSpell` arm
   decides "is this a spell" by `obj.zone == ZoneId::Stack` ALONE**, so a registered ability would
-  immediately have become a legal target for *"counter target spell"* — CR 115.4-wrong, a new
+  immediately have become a legal target for *"counter target spell"* — CR 115.1a-wrong (a spell is not a permanent, and "counter target spell" names a spell), a new
   defect shipped while closing an old one. It also forces zone membership
   (`simulator::invariants::check_zone_integrity`), which moves `public_state_hash` for **every**
   game with an ability on the stack and double-counts the entry in

@@ -14924,11 +14924,19 @@ mod tests {
     /// `setup::build_initial_state`'s dealt hand for this exact
     /// `DeckSource::Fixed` pair, looking for a seat-1 opening where BOTH `bolt-bend`
     /// and `goblin-sharpshooter` are in the OPENING SEVEN. The qualifying set —
-    /// `[87, 146, 184, 752, 778, 863, 931, 1030]` — is **byte-identical** to
-    /// `DX20B_SEED`'s own five-of-eleven set for a structurally identical deck
-    /// shape (one two-card pair plus 97 copies of one basic land): the shuffle
-    /// algorithm is a pure function of POSITION, not of WHICH two non-basic cards
-    /// are in the 99, so the same seeds qualify regardless of which pair it is.
+    /// `[87, 146, 184, 752, 778, 863, 931, 1030]` — **agrees with `DX20B_SEED`'s own
+    /// five-of-eleven set on every member the two sweeps share**, for a structurally
+    /// identical deck shape (one two-card pair plus 97 copies of one basic land): the
+    /// shuffle algorithm is a pure function of POSITION, not of WHICH two non-basic
+    /// cards are in the 99, so the same seeds qualify regardless of which pair it is.
+    ///
+    /// **The first draft of that sentence said "byte-identical", and PB-DX52's `/review`
+    /// refuted it.** `DX20B_SEED` swept `1..=800` and records five; this sweep ran
+    /// `1..=1500` and lists eight. An eight-element list is not byte-identical to a
+    /// five-element one. The claim that actually supports the inference — and the one
+    /// meant — is narrower: **the members at or below 800 are exactly DX20B's five, and
+    /// the extra three lie beyond DX20B's sweep bound.** Corrected in place rather than
+    /// deleted, because the wrong version is the kind a later reader would reuse.
     /// 87 is chosen for the same reason `DX20B_SEED` was: it is the first of the
     /// set.
     const DX52_SEED: u64 = 87;

@@ -45,7 +45,7 @@ pub enum Target {
     /// map must claim a `ZoneId`, and the only honest claim is `ZoneId::Stack`; but
     /// `casting.rs`'s `TargetRequirement::TargetSpell` arm decides "is this a spell" by
     /// `obj.zone == ZoneId::Stack` **alone**, so a registered ability would immediately
-    /// become a legal target for "counter target spell" (CR 115.4-wrong). Registration
+    /// become a legal target for "counter target spell" (CR 115.1a-wrong (a spell is not a permanent, and "counter target spell" names a spell)). Registration
     /// also forces zone membership (`simulator::invariants::check_zone_integrity`), which
     /// moves `public_state_hash` for every game with an ability on the stack and
     /// double-counts the entry in `loop_detection::compute_mandatory_state_hash`. And

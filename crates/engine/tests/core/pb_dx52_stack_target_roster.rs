@@ -9,7 +9,7 @@
 //! `TargetSpellOrAbilityWithSingleTarget` / `TargetSpellWithSingleTarget` were behaviourally
 //! identical on every production path. The engine half added `Target::StackObject(ObjectId)`
 //! (naming the stack **entry**, CR 113.1c/115.7a) and `TargetRequirement::TargetSpellOrAbility`
-//! (CR 115.4/115.7d, Deflecting Swat's printed line — no "with a single target" clause, so
+//! (CR 115.1a/115.7d, Deflecting Swat's printed line — no "with a single target" clause, so
 //! `UpToN`/single-target machinery does not apply).
 //!
 //! This file is the census (§A) plus six structural gates r1-r6 (§B), each proven RED by an
@@ -260,7 +260,17 @@ const DECLARED_NEEDLES: &[&str] = &[
 ];
 
 /// The PRINTED / inverse-oracle axis: every phrase whose presence in a card's own printed
-/// text (any face) means the card's ability targets a spell, an ability, or both (CR 115.4).
+/// text (any face) means the card's ability targets a spell, an ability, or both (CR 115.1a).
+/// **Stated recall bound (PB-DX52 `/review`, NIT 11) — the needle list is not a decision
+/// procedure for "does this card target a stack object", it is a decision procedure for
+/// "does this card's printed text contain one of these three phrases".** The shape it
+/// misses is Disallow/Voidslime/Stifle's: *"Counter target spell, activated ability, or
+/// triggered ability"*, which contains none of the three. Population TODAY is **zero** —
+/// no `stifle`, `disallow`, `voidslime` or `trickbind` def exists, and no def matches
+/// `activated ability, or triggered` — so the census is complete FOR THIS CORPUS, which is
+/// a different and weaker statement than complete. Stated here beside the list the way
+/// PB-DX8 states its own recall bounds, rather than left for a future author to discover
+/// by authoring Stifle and watching nothing fire.
 const PRINTED_NEEDLES: &[&str] = &[
     "target spell or ability",
     "target activated or triggered ability",
@@ -522,48 +532,258 @@ const R1_ANY_LIVENESS_ALLOWLIST: &[(&str, usize, &str)] = &[
 /// receiver is `stack_objects` (by literal name, or by an alias -- a `let X = <rhs containing
 /// "stack_objects">` binding, closing the exact hole PB-DX51's `r1` and PB-DX47's `r3` were
 /// each defeated by: a receiver extracted into a variable one statement earlier).
+/// Every site that RESOLVES an id against `state.stack_objects` by searching it.
+///
+/// **RE-KEYED ON THE MECHANISM BY PB-DX52'S OWN `/review`, which defeated the first draft
+/// six ways by execution.** That draft matched four literal method chains
+/// (`.iter().find(`, `.iter().position(`, and their `iter_mut` twins) immediately preceded
+/// by a receiver ending in `stack_objects`. The reviewer compiled the matcher against
+/// synthetic inputs and found it blind to, among others:
+///
+/// * `.iter().enumerate().find(|(_, so)| so.id == id).map(|(i, _)| i)` — **the single most
+///   natural hand-written form of the position lookup this gate exists to forbid**;
+/// * a plain `for (i, so) in ...` loop;
+/// * the ACCESSOR spelling `state.stack_objects()`, whose trailing `()` defeats
+///   `back.ends_with("stack_objects")` — and that is the form used everywhere outside the
+///   engine crate;
+/// * `.iter().filter(..).next()`, `.iter().rev().find(..)`, a hand-rolled `index_of`;
+/// * an alias reached in TWO `let` hops (the old pass was single-hop).
+///
+/// That is *"a gate written for one variant measures that variant"* (PB-DX26 → PB-DX43 →
+/// PB-DX45 → PB-DX47 → PB-DX51) committed in the very file whose module doc cites it. The
+/// repair is the same one PB-DX47's `r3` and PB-DX51's `r1` ended at: key on the MECHANISM
+/// and OVER-COLLECT, since over-collection can only make the gate redder.
+///
+/// The mechanism a re-open-coded resolution must have, and this scan's two conjuncts:
+/// 1. a receiver derived from `state.stack_objects` — matched with the trailing `()` of the
+///    accessor form NORMALISED AWAY, and with the `let`-alias pass run to a FIXPOINT so any
+///    number of hops is followed; and
+/// 2. within a forward window, BOTH a search construct (`find` / `position` / `rposition` /
+///    `filter` / a `for` loop / `index_of`) AND an id comparison (`.id ==` or `id() ==`),
+///    which is what makes it a RESOLUTION rather than a liveness check or an iteration.
+///
+/// A bare liveness test (`.iter().any(|so| so.id == id)`) has no search construct and is
+/// deliberately not collected — it is the shape `r1c` allowlists by site, with each site's
+/// reason re-checked in source.
 fn find_position_receivers(stripped: &str) -> Vec<usize> {
-    // Alias pass: any `let <ident> = <rhs>` (up to the next `;`, within a bounded window)
-    // whose rhs textually contains "stack_objects" makes <ident> an alias.
+    // Normalise the accessor form so `state.stack_objects().iter()` and
+    // `state.stack_objects.iter()` are the same string to every matcher below. This is the
+    // review's finding C, and it mattered concretely: the accessor is the ONLY form
+    // available outside the engine crate.
+    let src = stripped.replace("stack_objects()", "stack_objects");
+
+    // Alias pass, run to a FIXPOINT: `let a = <expr containing stack_objects or a known
+    // alias>`. The first draft ran one pass and was defeated by two hops.
     let mut aliases: Vec<String> = Vec::new();
-    let mut idx = 0usize;
-    while let Some(rel) = stripped[idx..].find("let ") {
-        let start = idx + rel + "let ".len();
-        let rest = stripped[start..]
-            .strip_prefix("mut ")
-            .unwrap_or(&stripped[start..]);
-        let ident_len = rest
-            .find(|c: char| !(c.is_alphanumeric() || c == '_'))
-            .unwrap_or(rest.len());
-        let ident = &rest[..ident_len];
-        let window_end = (start + 400).min(stripped.len());
-        let window = &stripped[start..window_end];
-        let stmt_end = window.find(';').map(|p| start + p).unwrap_or(window_end);
-        let stmt = &stripped[start..stmt_end];
-        if !ident.is_empty() && stmt.contains("stack_objects") {
-            aliases.push(ident.to_string());
+    loop {
+        let before = aliases.len();
+        let mut idx = 0usize;
+        while let Some(rel) = src[idx..].find("let ") {
+            let start = idx + rel + "let ".len();
+            let rest = src[start..].strip_prefix("mut ").unwrap_or(&src[start..]);
+            let ident_len = rest
+                .find(|c: char| !(c.is_alphanumeric() || c == '_'))
+                .unwrap_or(rest.len());
+            let ident = &rest[..ident_len];
+            let window_end = (start + 400).min(src.len());
+            let window = &src[start..window_end];
+            let stmt_end = window.find(';').map(|p| start + p).unwrap_or(window_end);
+            let stmt = &src[start..stmt_end];
+            let derived = stmt.contains("stack_objects")
+                || aliases.iter().any(|a| {
+                    stmt.split(|c: char| !(c.is_alphanumeric() || c == '_'))
+                        .any(|tok| tok == a.as_str())
+                });
+            if !ident.is_empty() && derived && !aliases.iter().any(|a| a == ident) {
+                aliases.push(ident.to_string());
+            }
+            idx = start.max(idx + 1);
         }
-        idx = start.max(idx + 1);
+        if aliases.len() == before {
+            break;
+        }
     }
 
-    let mut hits = Vec::new();
-    for pattern in [
-        ".iter().find(",
-        ".iter().position(",
-        ".iter_mut().find(",
-        ".iter_mut().position(",
-    ] {
-        for (pos, _) in stripped.match_indices(pattern) {
-            let back_start = pos.saturating_sub(120);
-            let back = stripped[back_start..pos].trim_end();
-            let receiver_is_stack_objects = back.ends_with("stack_objects")
-                || aliases.iter().any(|a| back.ends_with(a.as_str()));
-            if receiver_is_stack_objects {
-                hits.push(pos);
+    // Every receiver occurrence: the literal, plus every alias as a whole token.
+    let mut receivers: Vec<usize> = src.match_indices("stack_objects").map(|(p, _)| p).collect();
+    for a in &aliases {
+        let mut i = 0usize;
+        while let Some(rel) = src[i..].find(a.as_str()) {
+            let p = i + rel;
+            let before_ok = p == 0
+                || !src[..p]
+                    .chars()
+                    .next_back()
+                    .is_some_and(|c| c.is_alphanumeric() || c == '_');
+            let after = p + a.len();
+            let after_ok = after >= src.len()
+                || !src[after..]
+                    .chars()
+                    .next()
+                    .is_some_and(|c| c.is_alphanumeric() || c == '_');
+            if before_ok && after_ok {
+                receivers.push(p);
             }
+            i = p + 1;
         }
     }
+
+    const SEARCH: &[&str] = &[
+        "find(",
+        "position(",
+        "rposition(",
+        "filter(",
+        "index_of",
+        "for ",
+    ];
+    let mut hits = Vec::new();
+    for p in receivers {
+        let win_end = (p + 260).min(src.len());
+        let win = &src[p..win_end];
+        // The SEARCH window is BIDIRECTIONAL and the id-comparison window is not, and the
+        // asymmetry is load-bearing rather than cautious. A combinator (`.find(`,
+        // `.position(`) is written AFTER the receiver, but a `for` loop's keyword is written
+        // BEFORE it — `for (i, so) in state.stack_objects.iter().enumerate()`. A
+        // forward-only window is structurally blind to the plain-loop spelling, which is
+        // the ONE bypass of the six the re-keyed scan still missed on its first run
+        // (executed, not anticipated). Same repair as PB-DX36's `use`-alias scan, which had
+        // to become bidirectional for the same reason: a bare name sits before the marker.
+        // The comparison stays forward-only because `so.id == id` is always inside the
+        // closure or loop body, i.e. after the receiver.
+        let back_start = p.saturating_sub(140);
+        let back_win = &src[back_start..p];
+        let searches = SEARCH
+            .iter()
+            .any(|k| win.contains(k) || back_win.contains(k));
+        let compares_id =
+            win.contains(".id ==") || win.contains("id() ==") || win.contains("== *id");
+        if searches && compares_id {
+            hits.push(p);
+        }
+    }
+    hits.sort_unstable();
+    hits.dedup();
     hits
+}
+
+/// Sites that search `state.stack_objects` by a **stack-ENTRY id the caller already holds**,
+/// which is a primary-key lookup and NOT the announced-id RESOLUTION `r1a` exists to forbid.
+///
+/// The distinction is the whole point of the gate, so it is written out rather than implied.
+/// `state::stack_registry::stack_index_for_announced_target` answers *"which stack entry does
+/// this ANNOUNCED id name"*, and it deliberately accepts **two** id spaces: the entry's own id
+/// **and** the card a spell owns in `ZoneId::Stack`. Every site below already has a genuine
+/// stack-entry id — `stack_object_id`, `targeting_stack_id`, an id read off a `StackObject` —
+/// so routing it through that helper would not share an arithmetic, it would **WIDEN** the
+/// lookup to also accept a card id. For `resolution::counter_stack_object` that is a
+/// correctness change (it would start countering a spell named by its card id, from a `pub`
+/// API whose parameter is documented as a stack id), and for the rest it is a silent
+/// ambiguity. Narrower is right here; the helper is for the other question.
+///
+/// Each entry is `(file, a substring of the collapsed-whitespace snippet)`. `r1d` re-checks
+/// each entry's stated reason in source — an allowlist whose reason is not checked is a
+/// comment (PB-DX47's rule).
+const ENTRY_ID_LOOKUP_ALLOWLIST: &[(&str, &str)] = &[
+    (
+        "crates/engine/src/effects/mod.rs",
+        "find(|so| so.id == id) .map(|so| so.control",
+    ),
+    (
+        "crates/engine/src/rules/copy.rs",
+        "find(|s| s.id == stack_object_id)",
+    ),
+    (
+        "crates/engine/src/rules/abilities.rs",
+        "find(|so| so.id == targeting_stack_id)",
+    ),
+    (
+        "crates/engine/src/rules/resolution.rs",
+        "position(|s| s.id == stack_object_id)",
+    ),
+    (
+        "crates/engine/src/rules/events.rs",
+        "find(|so| so.id == stack_object_id); debug_assert!",
+    ),
+    (
+        "crates/engine/src/rules/events.rs",
+        "find(|so| so.id == stack_object_id) else {",
+    ),
+];
+
+/// `r1d` — the companion to `ENTRY_ID_LOOKUP_ALLOWLIST`: each entry's stated REASON is
+/// re-checked in source, so the allowlist cannot decay into a comment (PB-DX47, PB-DX49).
+///
+/// The reason every entry rests on is *"the caller already holds a stack-ENTRY id"*. That is
+/// checkable: the enclosing function must take such an id as a parameter or bind one from a
+/// `StackObject`. This asserts the identifier the snippet compares against
+/// (`stack_object_id` / `targeting_stack_id` / the `id` bound in the `controller` lookup)
+/// appears as a parameter or `let` in the same file — a weak but non-zero check, and stated
+/// as weak rather than sold as proof.
+/// Every IRREFUTABLE catch-all arm in a `match` body — `_ =>` **and** a bare identifier
+/// binding such as `other =>`.
+///
+/// **Added by PB-DX52's own `/review`, which defeated the first draft by execution.** Both
+/// `r6b` and `r7a` asserted `!body.contains("_ =>")` and claimed, in their own messages, that
+/// a new `Target` / `StackObjectKind` variant would therefore be a **compile error**. A named
+/// binding pattern is equally irrefutable, contains no `_ =>`, survives `rustfmt`, and
+/// compiles clean — so `source_of` could have gained `other => None` and `target_options`
+/// `other => TargetOptionView { .. }` with both gates still green while a 26th kind was
+/// silently swallowed. That is the precise guarantee those messages sell, defeated by a
+/// spelling, in gates whose own subject is a swallowed variant.
+///
+/// The rule this encodes: an arm pattern that is a single lowercase identifier with no `::`,
+/// no `(`, no `{` and no `|` binds everything. `Some(x) =>`, `K::Spell { .. } =>` and
+/// `a | b =>` are all refutable and are not collected. Deliberately over-collects a
+/// hypothetical arm matching a lowercase CONSTANT (Rust constants are SCREAMING_CASE by
+/// convention, and a lowercase one in a match pattern is a lint elsewhere), because
+/// over-collection can only make these gates redder.
+fn irrefutable_catch_all_arms(body: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    for (pos, _) in body.match_indices("=>") {
+        let before = body[..pos].trim_end();
+        let start = before
+            .rfind(['\n', '{', ',', ';'])
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        let pat = before[start..].trim();
+        if pat.is_empty() {
+            continue;
+        }
+        let is_named_binding = pat == "_"
+            || (pat
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+                && pat.starts_with(|c: char| c.is_ascii_lowercase() || c == '_'));
+        if is_named_binding {
+            found.push(pat.to_string());
+        }
+    }
+    found
+}
+
+#[test]
+fn r1d_entry_id_lookup_allowlist_reasons_are_still_in_source() {
+    for (file, needle) in ENTRY_ID_LOOKUP_ALLOWLIST {
+        let raw = std::fs::read_to_string(workspace_root().join(file))
+            .unwrap_or_else(|e| panic!("r1d: cannot read {file}: {e}"));
+        let ident = if needle.contains("targeting_stack_id") {
+            "targeting_stack_id"
+        } else if needle.contains("stack_object_id") {
+            "stack_object_id"
+        } else {
+            "so.controller"
+        };
+        assert!(
+            raw.contains(ident),
+            "r1d: allowlist entry ({file}, {needle:?}) rests on the caller already holding a \
+             stack-ENTRY id, and the identifier {ident:?} that carries it no longer occurs in \
+             that file. Re-derive the entry's reason; do not widen the allowlist."
+        );
+    }
+    assert!(
+        ENTRY_ID_LOOKUP_ALLOWLIST.len() >= 6,
+        "r1d non-vacuity: the allowlist must not silently empty out"
+    );
 }
 
 #[test]
@@ -580,6 +800,7 @@ fn r1a_no_reopened_find_or_position_scan_of_stack_objects() {
 
     let mut offending: Vec<String> = Vec::new();
     let mut files_scanned = 0usize;
+    let mut allowlisted_seen = [0usize; ENTRY_ID_LOOKUP_ALLOWLIST.len()];
     for path in &files {
         let relative = path
             .strip_prefix(workspace_root())
@@ -593,14 +814,56 @@ fn r1a_no_reopened_find_or_position_scan_of_stack_objects() {
         let raw = std::fs::read_to_string(path)
             .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()));
         let stripped = strip_comments(&raw);
+        let normalised = stripped.replace("stack_objects()", "stack_objects");
         for pos in find_position_receivers(&stripped) {
-            offending.push(format!("{relative} (byte offset {pos})"));
+            // The probe window MUST be the scan's own window (260), not a shorter one:
+            // a hit is decided over 260 bytes, so a 150-byte snippet can omit the very
+            // construct that caused it and an allowlist keyed on the snippet then misses
+            // its own site. Observed, not anticipated — `counter_stack_object`'s hit was
+            // reported as `let pos = state .stack_objects .iter(` with the
+            // `.position(|s| s.id == stack_object_id)` cut off.
+            let probe_end = (pos + 260).min(normalised.len());
+            let probe: String = normalised[pos..probe_end]
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
+            if let Some(i) = ENTRY_ID_LOOKUP_ALLOWLIST
+                .iter()
+                .position(|(f, needle)| *f == relative && probe.contains(needle))
+            {
+                allowlisted_seen[i] += 1;
+                continue;
+            }
+            // A byte offset is a useless diagnostic — report the SNIPPET, so a future
+            // reader can classify the hit without re-deriving the scan's own normalisation.
+            let end = (pos + 260).min(normalised.len());
+            let snippet: String = normalised[pos..end]
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
+            offending.push(format!("{relative}: {snippet}"));
         }
     }
     assert!(
         files_scanned >= 40,
         "r1a non-vacuity: files_scanned must be >= 40, got {files_scanned}"
     );
+    // NON-VACUITY FLOOR on the allowlist itself: if a refactor moves or reformats these six
+    // sites, the allowlist silently stops matching and this gate goes quiet on the very
+    // shapes it was widened to see. `r1d` re-checks each entry's REASON in source; this
+    // asserts the entries are still being HIT.
+    // PER-ENTRY, not a total: the scan emits several receiver hits per site (the literal
+    // `stack_objects` plus each alias that reaches it), so a TOTAL would be satisfied by one
+    // entry matching many times while another matched zero — the exact way a set-equality
+    // non-vacuity check goes quiet (PB-DX49's `r7` lesson).
+    for (i, (f, needle)) in ENTRY_ID_LOOKUP_ALLOWLIST.iter().enumerate() {
+        assert!(
+            allowlisted_seen[i] > 0,
+            "r1a non-vacuity: allowlist entry {i} ({f}, {needle:?}) matched NOTHING. A miss \
+             means that site moved or was reformatted and the entry has gone stale — \
+             re-derive it against the current source, do not delete it."
+        );
+    }
     assert!(
         offending.is_empty(),
         "r1: a `.find(`/`.position(` re-open-codes the announced-id-to-stack-entry \
@@ -1103,7 +1366,7 @@ fn declared_target_requirement_variants() -> BTreeSet<String> {
 /// which is the CR-correct direction (CR 113.1c + CR 110.1: a stack entry is an object but not a
 /// permanent, so it has no zone and no battlefield
 /// presence and no characteristics of its own, so refusing every permanent/player/graveyard
-/// requirement by default is right; the four+one it accepts are exactly the CR 115.4/115.7
+/// requirement by default is right; the four+one it accepts are exactly the CR 115.1a/115.7
 /// family the printed cards use).
 fn expected_accepted_variants() -> BTreeSet<String> {
     [
@@ -1473,7 +1736,7 @@ fn r6b_play_server_target_options_has_no_wildcard_and_handles_all_three_variants
         );
     }
     assert!(
-        !body.contains("_ =>"),
+        irrefutable_catch_all_arms(body).is_empty(),
         "r6b: target_options must have NO wildcard arm on its Target match -- a wildcard \
          would let a fourth variant silently render as whatever the wildcard's default is, \
          rather than failing to compile until someone decides what to render for it"
@@ -1495,7 +1758,7 @@ fn r6c_target_options_detector_fires_on_synthetic_violations() {
          Target::Object(id) => {}\n        Target::StackObject(id) => {}\n        \
          _ => {}\n    }\n}\n";
     assert!(
-        wildcarded.contains("_ =>"),
+        !irrefutable_catch_all_arms(wildcarded).is_empty(),
         "r6c: the synthetic wildcarded body must genuinely contain a wildcard arm"
     );
 }
@@ -1525,7 +1788,7 @@ fn r7a_source_of_has_no_wildcard_arm() {
         body.len()
     );
     assert!(
-        !body.contains("_ =>"),
+        irrefutable_catch_all_arms(body).is_empty(),
         "r7a: source_of must have NO wildcard arm over StackObjectKind -- a new variant must \
          be a compile error here until someone decides what its CR 113.7 source is, exactly \
          like card_in_stack_zone's own no-wildcard contract"

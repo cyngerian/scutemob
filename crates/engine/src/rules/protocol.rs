@@ -493,7 +493,7 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   `StackObject::id` — the id space in which Bolt Bend's printed *"or ability"* half
 ///   was unreachable, because an activated/triggered ability's stack entry owns no card
 ///   and is therefore never in `state.objects`. (b) `TargetRequirement` gains
-///   `TargetSpellOrAbility` (CR 115.4 / CR 115.7d, ANY target count) for Deflecting
+///   `TargetSpellOrAbility` (CR 115.1a / CR 115.7d, ANY target count) for Deflecting
 ///   Swat's printed line, which carries no *"with a single target"* clause and had no
 ///   expressible form.
 ///
@@ -862,7 +862,7 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-DX52 (2026-09-04, `OOS-DX25b-1` + `OOS-DX25b-5`): `Target` gains
         // `StackObject(ObjectId)` -- an ability's stack entry, the id space Bolt Bend's
         // printed "or ability" half needed -- and `TargetRequirement` gains
-        // `TargetSpellOrAbility` (CR 115.4/115.7d, any target count) for Deflecting
+        // `TargetSpellOrAbility` (CR 115.1a/115.7d, any target count) for Deflecting
         // Swat. Both reachable from `Command`/`GameEvent` (see the `- 43:` History line
         // above). Closure type count unchanged (98).
         fingerprint: "e872d2393bb6b30a9ad28aecbd63a3616671f1efcfc77c58474a294173fd30c3",

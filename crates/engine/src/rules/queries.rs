@@ -455,7 +455,7 @@ pub fn legal_targets_per_slot(
     // not offered, because `copy.rs` clones the original's `kind` wholesale and
     // `card_in_stack_zone` therefore returns `Some` for it. `OOS-DX25b-2` stays open by
     // this rule rather than by accident. A copy of an ABILITY *is* offered -- its cloned
-    // kind owns no card either -- which is CR 707.10b-correct.
+    // kind owns no card either -- which is CR 707.10-correct (its last sentence: "A copy of an ability is itself an ability"; 707.10b is the SAME-SOURCE rule, a different claim).
     //
     // Order: after the objects, ascending by stack position (bottom of the stack first),
     // which is `state.stack_objects`' own `imbl::Vector` order and therefore

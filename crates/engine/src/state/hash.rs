@@ -1046,7 +1046,7 @@
 /// - 84: **PB-DX52** (`scutemob-229`, 2026-09-04, `OOS-DX25b-1` + `OOS-DX25b-5`): the
 ///   stack-entry target id space. `Target` gains `StackObject(ObjectId)` — an ABILITY on
 ///   the stack, named by its own `StackObject::id` — and `TargetRequirement` gains
-///   `TargetSpellOrAbility` (CR 115.4 / CR 115.7d, any target count). Both are in the
+///   `TargetSpellOrAbility` (CR 115.1a / CR 115.7d, any target count). Both are in the
 ///   `GameState` serde closure: `Target` through `StackObject.targets:
 ///   Vec<SpellTarget>`, `TargetRequirement` through `StackObject.target_requirements`.
 ///
@@ -1629,7 +1629,7 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         version: 84,
         // PB-DX52 (2026-09-04, `OOS-DX25b-1` + `OOS-DX25b-5`): `Target::StackObject`
         // (an ability's stack entry, stream tag 2u8) and
-        // `TargetRequirement::TargetSpellOrAbility` (CR 115.4/115.7d, stream tag 21u8) --
+        // `TargetRequirement::TargetSpellOrAbility` (CR 115.1a/115.7d, stream tag 21u8) --
         // both APPEND-ONLY, so no existing hash value moves (see the `- 84:` History line
         // above). Closure type count UNCHANGED at 132. As in v82, v83 and v40, the STREAM
         // fingerprint moves only because `HASH_SCHEMA_VERSION` is its first byte --
@@ -6532,7 +6532,7 @@ impl HashInto for TargetRequirement {
                 20u8.hash_into(hasher);
                 idx.hash_into(hasher);
             }
-            // PB-DX52: TargetSpellOrAbility -- CR 115.4 / CR 115.7d, ANY target count
+            // PB-DX52: TargetSpellOrAbility -- CR 115.1a / CR 115.7d, ANY target count
             // (Deflecting Swat's printed line; `OOS-DX25b-5`). Discriminant 21, appended.
             TargetRequirement::TargetSpellOrAbility => 21u8.hash_into(hasher),
         }
