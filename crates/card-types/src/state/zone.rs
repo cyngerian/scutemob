@@ -132,7 +132,7 @@ impl Zone {
             Zone::Unordered(s) => s.iter().copied().collect(),
         }
     }
-    /// CR 103.3 / 701.20 — shuffle this zone with a **pinned**, in-tree algorithm. Only
+    /// CR 103.3 / 701.24 — shuffle this zone with a **pinned**, in-tree algorithm. Only
     /// meaningful for ordered zones.
     ///
     /// # Why this does not take an `impl Rng` (PB-DX18, `OOS-DP2-4`)

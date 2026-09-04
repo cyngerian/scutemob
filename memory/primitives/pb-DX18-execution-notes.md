@@ -52,12 +52,17 @@ separate enchant path"*. PB-DX20 (`scutemob-198`) made `aura_spell_target_requir
 Aura reaches site 1 with a **non-empty** list. The synthesis has four preconditions
 (`casting.rs:5766-5771`); the only surviving way an Aura arrives with an empty list is
 precondition 4 failing — an Aura with **no Enchant keyword at all** — measured by PB-DX20 at
-**2 `inert` defs**, re-derived by this batch in `r2`.
+**2 `inert` defs**. (An earlier draft of this line said the population was "re-derived by this batch in `r2`"; `r2` is the SPLICE host-offset gate and derives nothing of the kind — corrected after the `/review` caught it. The figure is PB-DX20's, carried forward and not re-derived here, which is stated rather than dressed up as a measurement.)
 
 **Blast radius (the memo's widening).** `casting.rs:4873` calls
 `rules::events::push_target_announcement`, which since PB-DX48 derives
 `GameEvent::PermanentTargeted` from `stack_obj.targets` and dispatches CR 702.21a Ward. So a
-spurious target on a genuinely targetless spell **fires Ward**. Population re-derived in `r3`.
+spurious target on a genuinely targetless spell **fires Ward**. (An earlier draft said the
+population was "re-derived in `r3`"; `r3` is the miracle just-drawn gate and derives nothing of
+the kind — corrected after the `/review` caught it. The count is the v4 memo's 3 deck-legal
+`Complete` Ward defs, carried forward and NOT re-derived here. What this batch measured is the
+CONSEQUENCE, which is the part that was only ever inferred: revert row R9 shows `t3` counting
+exactly ONE ward trigger fired off a spell that does not target.)
 
 ### §0.4 `OOS-DP2-4` — the four sites and their three different contracts
 
@@ -437,3 +442,43 @@ saving; not taken, and recorded so the next reader knows it was considered.
 through a helper not in `MOVE_HELPERS` — so `r1`'s non-moving-arm count is asserted at
 exactly **1**, which turns "a new move helper appeared" into a red test rather than a silent
 gap.
+
+---
+
+## §8 — The `/review` fix cycle: 15 findings, all 15 taken, none declined
+
+The reviewer had a shell and used it. **Three of this batch's four roster gates fell to
+executed defeats** — which is what a gate is worth, and all three defeats are re-run here
+after the fix and are RED.
+
+| # | sev | finding | taken as |
+|---|---|---|---|
+| 1 | MED-HIGH | **`r1` defeated by an ordinary `if let` consumer.** The scanner looked for `} => {`, so any consumer written as `if let ... = action {` was skipped and both non-vacuity floors stayed green. The reviewer planted one that moves the object to the destination library and never discharges — `OOS-DP2-7` re-created, gate GREEN. | `r1` now recognises BOTH terminators. Defeat re-run: **RED**, naming `miracle.rs:195`. |
+| 2 | MED-HIGH | **`r3` defeated by the exact shape its own message names.** It required only that the assignment STATEMENT contain `.map(`; wrapping the whole thing in `if miracle_event.is_some() { .. }` left the gate and all five behavioural probes green while a stale `miracle_pending` survived. | `r3` now walks the text between the `check_miracle_eligible` call and the write and rejects any `if` / `match` / `while` / `for` there, with a non-vacuity check that the one expected opener really is present. Defeat re-run: **RED**. |
+| 3 | MED | **Every new shuffle citation names the wrong rule.** CR 701.20 is **Reveal**; shuffle is **CR 701.24** (and CR 701.24c is directly on point). 41 added lines. Inversely, the `darksteel_colossus` note filed the reveal clause as "CR 701.15", which is **Goad**. | All corrected, both directions, plus the pre-existing shuffle cites in the files this batch already touches. **This registry had ALREADY recorded once that "CR 701.20 is *Reveal*"** (`decision-point-audit.md:143`, PB-DP10) — the wrong cite was inherited from `OOS-DP2-7`'s own row and propagated 41 times anyway. |
+| 4 | MED | **A gate cited in source that did not exist**: `r1`'s comment claimed "`r1c` gates that enumeration against the engine's own set". There was no `r1c`. | `r1c` written, and it caught its own first draft: reading `state/mod.rs` alone found **1 of 3** helpers (the `expect_*` / `fizzle_*` wrappers live in `state/diagnostics.rs`), which its non-vacuity floor reported. |
+| 5 | MED | **The SR-38 splice trade rested on a distinction the batch's own facts refute.** *"a different trade from PB-DX29's Fuse gate, where EVERY fused cast was a guaranteed 422"* — but `glacial_ray` is the only splice def and it targets, so every spliced cast is a guaranteed 422 too. | Corrected in both places. The argument that stands on its own is kept: the behaviour being replaced is a SILENT wrong resolution, so suppressing trades a visible refusal for no capability at all. |
+| 6 | MED | **Criterion 3's "both sites" was met for one site.** `resolve_pending_zone_change` had **no test at all**. | New `test_dx18_resolve_pending_zone_change_really_shuffles`, same POSITION-not-event shape, with a `test_util::push_pending_zone_change` hatch. Revert-proven **RED**. |
+| 7 | LOW-MED | **`ChooseMiracle { reveal: false }` was still ungated on `card`** — it cleared `miracle_pending` before the just-drawn check and never looked at the id, so a bogus id consumed the real offer. The decline half of the very command this batch gates. | The check is hoisted above the `!reveal` branch and governs BOTH answers. New probe `t6`, which also asserts the genuine offer SURVIVES a refused decline. *(Found independently by this author while the review ran, and recorded in the scratchpad before the report arrived — noted so the credit is accurate in both directions.)* |
+| 8 | LOW-MED | **`shuffle_after` is never cleared by a later `RedirectToZone` in the CR 616.1f chain**, so a chained redirect away from the library would carry the obligation to a non-library destination — `debug_assert!` panic in debug, silently dropped shuffle in release. And the doc that says this cannot happen gave the wrong reason. | `shuffle_after = false` in the `RedirectToZone` arm; `finish_redirect_shuffle`'s doc corrected to name all three facts instead of two. |
+| 9 | LOW | **`r4` defeated by a doc comment** mentioning `#[test]` in prose; also blind to `pub mod` and to directory modules. | Re-keyed on a real attribute at line start outside a comment; both other blind spots closed. Defeat re-run: **RED**. |
+| 10 | LOW | `GameState::pregame()`'s doc stated an offer-layer contract that is deliberately NOT true. | Rewritten as intent, with the SR-38 reason and the §7.1 pointer. |
+| 11 | LOW | `r2` summed only `AbilityDefinition::Spell { targets }`, while `card_def_target_requirements` also draws from `Aftermath.targets` / `Fuse.targets`, and a modal host's `mode_targets` REPLACES the list — the axis `casting.rs` names as the precondition. | All three sources counted. |
+| 12 | LOW | AC 5's "pipes escaped" was unsatisfied for `OOS-M11-5`'s own row. | **Corrected in the reviewer's direction, and the reviewer's attribution corrected too**: the unescaped-pipe count on all six rows is **unchanged** before and after this batch's appends (7→7 and 5→5 ×5), so the appends added none — the row was already malformed by its own quoted `\|_\|` closure. Repaired anyway, because it is this batch's row and the repair is a pure escape rather than an inferred re-split. 18 → **17** malformed rows. |
+| 13 | LOW | Two mis-cites in this document: the inert-Aura and Ward populations were said to be re-derived in `r2` / `r3`; neither gate derives either. | Both corrected to say the figures are CARRIED FORWARD, with a note that what this batch measured is the Ward CONSEQUENCE, not the count. |
+| 14 | LOW | `r1b`'s "outside" list was six hardcoded directories — the "a hardcoded file list is a claim" shape (`OOS-DX49-6`) one function below the doc citing it. | Walks every directory under `crates/` and `tools/`; test/bench consumers are PRINTED rather than silently filtered, and a non-vacuity floor asserts the walk reaches them. |
+| 15 | NIT | `MAX_MULLIGANS` applies CR 103.5c unconditionally, and that rule is scoped to multiplayer and Brawl. | Documented as a pre-existing, Commander-first deviation that `is_free` and `required_bottom` already make, not one this batch introduces. |
+
+**One methodology note from the fix cycle.** A revert row whose pattern does not match runs
+GREEN and looks exactly like a passing test. Re-proving the new site-2 probe, the first
+attempt's search text had been reflowed onto one line by `cargo fmt`, so the substitution
+silently did nothing and the probe "passed". The matrix scripts assert the pattern was found
+and report `PATTERN-NOT-FOUND`; an ad-hoc one-off does not. **Assert the match, or the revert
+proves nothing.**
+
+Post-fix-cycle figures: tests **5,044 / 0 / 5**, 60 targets (+29 over the 5,015 baseline; by
+NAME, **31 additions / 2 leavers / 0 removals**, the two leavers being the same doctest
+line-number shifts and two of the additions their successors — so **29 genuine additions**).
+PROTOCOL 41 / HASH 81 both re-executed and unmoved by the fix cycle. Coverage re-regenerated:
+**1,137/1,803 = 63.1%, 0 flips**, churn reverted. clippy / fmt / check-defs-fmt clean against
+the FINAL tree.

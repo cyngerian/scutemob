@@ -790,10 +790,18 @@ pub const STARTING_HAND_SIZE: usize = 7;
 
 /// CR 103.5 / CR 103.5c: the greatest legal value of `PlayerState::mulligan_count`.
 ///
-/// After N mulligans a player bottoms `N - 1` cards (CR 103.5c makes the first free),
-/// so their opening hand is `STARTING_HAND_SIZE - (N - 1)`. CR 103.5 lets a player
-/// mulligan *until* that would be zero, so `N = STARTING_HAND_SIZE + 1` is legal and
-/// `N + 1` is not.
+/// After N mulligans a player bottoms `N - 1` cards, so their opening hand is
+/// `STARTING_HAND_SIZE - (N - 1)`. CR 103.5 lets a player mulligan *until* that would be
+/// zero, so `N = STARTING_HAND_SIZE + 1` is legal and `N + 1` is not.
+///
+/// **The free first mulligan is CR 103.5c, which is scoped to *multiplayer games and any
+/// Brawl game*** — this engine is Commander-first (Architecture Invariant 5/6), and
+/// `handle_take_mulligan` already applies `is_free = mulligan_number == 1` and
+/// `handle_keep_hand` already computes `required_bottom = mulligan_count - 1`
+/// unconditionally, both predating PB-DX18. The cap is derived from the same rule those
+/// two use, so it cannot disagree with them; the scope caveat is stated here rather than
+/// left for a reader to discover that a two-player game gets a free mulligan it should
+/// not (a pre-existing deviation, not one this batch introduces).
 pub const MAX_MULLIGANS: u32 = STARTING_HAND_SIZE as u32 + 1;
 
 /// Handle a `TakeMulligan` command (CR 103.5 / CR 103.5c).

@@ -52,7 +52,7 @@ shuffle at both `ShuffleIntoOwnerLibrary` sites, discharged AFTER the move; and 
 
 **Standing gates added**: `core::pb_dx18_trust_boundary_roster` r1/r1b/r2/r3/r4. `r1` is the
 one to know — it enumerates every `ZoneChangeAction::Redirect` arm that MOVES the object and
-requires it to discharge the CR 701.20 obligation with its own bound field, because the
+requires it to discharge the CR 701.24 obligation with its own bound field, because the
 consumers all destructure with `..` and **the compiler cannot enforce this**.
 
 **Known open, filed**: `OOS-DX18-1` (splice offer/cast disagreement — SR-38, deliberately not

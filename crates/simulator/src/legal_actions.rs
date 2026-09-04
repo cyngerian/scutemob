@@ -3094,15 +3094,20 @@ fn eligible_splice_cards(
                     // ticking splice on a card whose text targets now produces a 422.
                     //
                     // **Why not suppress the offer, which is what SR-38 usually says.**
-                    // The corpus has exactly ONE splice card (`glacial_ray`) and its text
-                    // targets, so suppressing would delete the splice offer channel
-                    // corpus-wide — the whole capability, to avoid one refusal on the
-                    // ticked path while the un-ticked path was never affected. That is a
-                    // different trade from PB-DX29's Fuse gate, where EVERY fused cast
-                    // was a guaranteed 422 and the gate cost nothing that worked. And the
-                    // behaviour being replaced is worse than a refusal: before PB-DX18 the
-                    // spliced Glacial Ray resolved at NOTHING with the mana spent, a
-                    // silent wrong outcome rather than a visible one.
+                    // NOT because this differs from PB-DX29's Fuse gate in kind — the
+                    // first draft of this note claimed that ("EVERY fused cast was a
+                    // guaranteed 422 and the gate cost nothing that worked") and the
+                    // `/review` refuted it: `glacial_ray` is the corpus's ONLY splice def
+                    // and it declares a target, so every spliced cast is a guaranteed 422
+                    // too, and a suppression would equally "cost nothing that works".
+                    //
+                    // The real argument is the one that stands on its own: the behaviour
+                    // being replaced is WORSE than a refusal. Before PB-DX18 the spliced
+                    // Glacial Ray resolved at NOTHING with the mana spent — a silent wrong
+                    // game state, not a visible error. Deleting the offer trades a visible
+                    // refusal for no capability at all, on a channel PB-DX29 shipped
+                    // deliberately, while the un-ticked path was never affected either
+                    // way. So the gap stays open, PINNED in the direction it is wrong.
                     //
                     // Pinned by `pb_dx29_cost_kind_surface::p1g_splice_...`'s companion
                     // assertion, wrong-way-round, so the day `OOS-DX18-1`'s channel ships

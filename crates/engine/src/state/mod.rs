@@ -642,7 +642,7 @@ impl GameState {
         &self.combat
     }
 
-    /// CR 701.20 (PB-DX18, `OOS-DP2-7`) — discharge a
+    /// CR 701.24 (PB-DX18, `OOS-DP2-7`) — discharge a
     /// [`crate::rules::replacement::ZoneChangeAction::Redirect`]'s shuffle obligation,
     /// **after** the object has been moved into `to`.
     ///
@@ -668,13 +668,18 @@ impl GameState {
             return;
         }
         let ZoneId::Library(owner) = to else {
-            // Only `ReplacementModification::ShuffleIntoOwnerLibrary` sets the flag, and
-            // it forces `current_to = ZoneType::Library` in the same arm — so a non-library
-            // destination here is an engine bug, not player input (SR-4).
+            // Only `ReplacementModification::ShuffleIntoOwnerLibrary` sets the flag, it
+            // forces `current_to = ZoneType::Library` in the same arm, **and the
+            // `RedirectToZone` arm CLEARS it** — which is the half this comment claimed by
+            // omission before the `/review` pointed at CR 616.1f's chaining: a later hop
+            // can redirect away from the library, and without that clear the flag would
+            // arrive here on a non-library destination and panic in debug / drop the
+            // shuffle in release. With all three facts, a non-library destination here is
+            // an engine bug and not player input (SR-4).
             debug_assert!(
                 false,
                 "finish_redirect_shuffle: shuffle obligation on a non-library destination \
-                 {to:?} (CR 701.20)"
+                 {to:?} (CR 701.24)"
             );
             return;
         };
@@ -684,7 +689,7 @@ impl GameState {
         events.push(GameEvent::LibraryShuffled { player: owner });
     }
 
-    /// CR 103.3 / 701.20 — really shuffle `player`'s library, deterministically.
+    /// CR 103.3 / 701.24 — really shuffle `player`'s library, deterministically.
     ///
     /// **The one place in the engine that shuffles a library** (PB-DX18, `OOS-DP2-4`).
     /// Before this, the idiom
@@ -724,8 +729,14 @@ impl GameState {
 
     /// Read-only access to the `pregame` field (CR 103.4-103.6, PB-DX18).
     ///
-    /// The offer layer and any client that wants to know whether the mulligan
-    /// commands are still legal reads THIS, never `turn().turn_number`.
+    /// **Intent, not current fact** — the first draft of this doc stated it as fact and the
+    /// `/review` caught it. `crates/simulator/src/legal_actions.rs` still gates the mulligan
+    /// OFFER on `turn().is_first_turn_of_game && turn().turn_number == 0`, which is dead
+    /// code (`GameStateBuilder` defaults `turn_number` to 1 and nothing sets it to 0), and
+    /// re-pointing it at this accessor would start offering both commands in every
+    /// builder-built simulator fixture — an SR-38 hazard in the other direction. See
+    /// `memory/primitives/pb-DX18-execution-notes.md` §7.1. This accessor currently has no
+    /// non-test caller; it exists so a client that wants the answer has a true one to read.
     pub fn pregame(&self) -> &PregamePhase {
         &self.pregame
     }

@@ -6,7 +6,7 @@
 //! (`OOS-DX47`'s `r3`, PB-DX26, PB-DX43, PB-DX45).
 //!
 //! * **r1** — every `ZoneChangeAction::Redirect` arm in the engine discharges the CR
-//!   701.20 shuffle obligation. `Redirect` is destructured with `..` at every consumer,
+//!   701.24 shuffle obligation. `Redirect` is destructured with `..` at every consumer,
 //!   so **the compiler cannot enforce this** and a 22nd consumer would silently drop a
 //!   real shuffle back to a phantom event.
 //! * **r2** — the CR 702.47a splice target-index precondition: the spliced effect's own
@@ -65,10 +65,10 @@ fn engine_src_files() -> Vec<PathBuf> {
     out
 }
 
-// ── r1: every Redirect consumer discharges the CR 701.20 obligation ───────────
+// ── r1: every Redirect consumer discharges the CR 701.24 obligation ───────────
 
 #[test]
-/// CR 701.20 (`OOS-DP2-7`) — a `ZoneChangeAction::Redirect` match arm that moves the
+/// CR 701.24 (`OOS-DP2-7`) — a `ZoneChangeAction::Redirect` match arm that moves the
 /// object must also call `GameState::finish_redirect_shuffle`.
 ///
 /// **Why a gate and not the compiler.** Every consumer destructures with `..`, so adding
@@ -103,20 +103,47 @@ fn r1_every_redirect_consumer_discharges_the_shuffle_obligation() {
         while let Some(found) = src[idx..].find("ZoneChangeAction::Redirect {") {
             let start = idx + found;
             idx = start + 1;
-            // Find the arm's `=> {`; if the pattern is a struct LITERAL (a construction)
-            // there is none before the closing brace, and it is skipped.
+            // Find where the PATTERN ends and the body begins. Two consumer forms exist
+            // and BOTH must be seen:
+            //
+            //   * a `match` arm  — `ZoneChangeAction::Redirect { .. } => {`
+            //   * an `if let`    — `if let ZoneChangeAction::Redirect { .. } = action {`
+            //
+            // The first draft of this gate looked for `} => {` alone and was DEFEATED by
+            // the `/review`, which planted an ordinary `if let` consumer that moves the
+            // object to the destination library and never discharges the obligation — i.e.
+            // it re-created `OOS-DP2-7` exactly — and every row in this file stayed GREEN.
+            // That is the second time this gate measured a SPELLING (the first was revert
+            // row R2), inside the file whose module doc says a gate must be keyed on the
+            // mechanism. A construction site (a struct literal) has neither terminator
+            // before its closing brace and is still skipped.
             let after = &src[start..];
-            let Some(arrow) = after.find("} => {") else {
+            let arm = after.find("} => {").map(|o| (o, "} => {".len()));
+            let iflet = after.find("} = ").and_then(|o| {
+                // `if let PATTERN { .. } = expr {` — the body starts at the `{` that ends
+                // that line. Bounded to the same window so an unrelated later `} = ` in
+                // the file cannot be mistaken for this pattern's terminator.
+                after[o..]
+                    .find(" {\n")
+                    .map(|k| (o + k + " {".len(), 1usize))
+            });
+            let terminator = match (arm, iflet) {
+                (Some(a), Some(i)) if i.0 < a.0 => Some(i),
+                (Some(a), _) => Some((a.0, a.1)),
+                (None, Some(i)) => Some(i),
+                (None, None) => None,
+            };
+            let Some((rel, skip)) = terminator else {
                 continue;
             };
-            // A construction site's `}` closes the literal; require the `=> {` to be
+            // A construction site's `}` closes the literal; require the terminator to be
             // close (within the pattern's own field list) rather than anywhere later.
-            if arrow > 400 {
+            if rel > 400 {
                 continue;
             }
             arms += 1;
-            // Brace-match the arm body from the `{` of `=> {`.
-            let body_start = start + arrow + "} => {".len();
+            // Brace-match the arm body from its opening `{`.
+            let body_start = start + rel + skip;
             let bytes = src.as_bytes();
             let mut depth = 1i32;
             let mut i = body_start;
@@ -137,6 +164,9 @@ fn r1_every_redirect_consumer_discharges_the_shuffle_obligation() {
             // the site (`OOS-DX47`'s `r3`). The three move helpers are enumerated rather
             // than matched loosely, and `r1c` gates that enumeration against the engine's
             // own set so a fourth cannot appear behind this gate's back.
+            // (`r1c` did not exist when this comment was first written — a comment
+            // asserting an enforcement that was not there, caught by the `/review`,
+            // inside the file about gates that claim more than they check. It exists now.)
             let moves = MOVE_HELPERS.iter().any(|h| body.contains(h));
             // THE CALL IS NOT THE PROPERTY — the BOUND FIELD reaching it is.
             //
@@ -181,7 +211,7 @@ fn r1_every_redirect_consumer_discharges_the_shuffle_obligation() {
     );
     assert!(
         missing.is_empty(),
-        "CR 701.20 (`OOS-DP2-7`): {} `ZoneChangeAction::Redirect` arm(s) move the object \
+        "CR 701.24 (`OOS-DP2-7`): {} `ZoneChangeAction::Redirect` arm(s) move the object \
          and never call `GameState::finish_redirect_shuffle`, so a \
          `ReplacementModification::ShuffleIntoOwnerLibrary` redirect reaching them emits \
          a PHANTOM `LibraryShuffled` and leaves the card on the library TOP — the exact \
@@ -196,19 +226,30 @@ fn r1_every_redirect_consumer_discharges_the_shuffle_obligation() {
 /// only inside `crates/engine/src`, so walking that tree is the whole consumer set.
 fn r1b_zone_change_action_is_engine_internal() {
     let mut outside: Vec<String> = Vec::new();
-    for rel in [
-        "crates/simulator/src",
-        "crates/view-model/src",
-        "crates/card-types/src",
-        "tools/play-server/src",
-        "tools/tui/src",
-        "tools/replay-viewer/src",
-    ] {
-        let dir = repo_root().join(rel);
-        if !dir.exists() {
+    let mut test_consumers: Vec<String> = Vec::new();
+    let mut roots: Vec<PathBuf> = Vec::new();
+    // WALKED, not listed. The first draft named six directories and omitted
+    // `crates/network`, `crates/card-db`, `crates/card-pipeline` and every `tests/` tree —
+    // "a hardcoded file list is a claim" (`OOS-DX49-6`), one function below the doc that
+    // cites it. Everything under `crates/` and `tools/` except the engine's own `src` is
+    // in scope now.
+    for top in ["crates", "tools"] {
+        let base = repo_root().join(top);
+        if !base.exists() {
             continue;
         }
-        let mut files = Vec::new();
+        for e in std::fs::read_dir(&base).expect("readable") {
+            let p = e.expect("entry").path();
+            if p.is_dir() {
+                roots.push(p);
+            }
+        }
+    }
+    let engine_src = repo_root().join("crates/engine/src");
+    for dir in roots {
+        if dir == repo_root().join("crates/engine") {
+            // The engine's own `tests/` tree still counts; only its `src` is r1's scope.
+        }
         fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
             for e in std::fs::read_dir(dir).expect("readable dir") {
                 let p = e.expect("entry").path();
@@ -219,19 +260,111 @@ fn r1b_zone_change_action_is_engine_internal() {
                 }
             }
         }
+        let mut files = Vec::new();
         walk(&dir, &mut files);
         for f in files {
+            if f.starts_with(&engine_src) {
+                continue; // r1's own scope
+            }
             let s = std::fs::read_to_string(&f).expect("readable");
-            if s.contains("ZoneChangeAction::Redirect") {
-                outside.push(f.display().to_string());
+            if !s.contains("ZoneChangeAction::Redirect") {
+                continue;
+            }
+            let rel = f
+                .strip_prefix(repo_root())
+                .unwrap_or(&f)
+                .display()
+                .to_string();
+            // TEST and BENCH consumers are listed, not asserted against — and they are
+            // PRINTED rather than silently filtered, so "out of scope" stays visible. A
+            // test that destructures the action to inspect it owes nothing; a test that
+            // MOVES the object (the darksteel probe) discharges through
+            // `test_util::finish_redirect_shuffle`, which is exactly what makes it a probe
+            // of the production obligation rather than a re-implementation of it.
+            if rel.contains("/tests/") || rel.contains("/benches/") {
+                test_consumers.push(rel);
+            } else {
+                outside.push(rel);
             }
         }
     }
+    test_consumers.sort();
+    eprintln!("r1b test/bench consumers (out of r1's scope, listed): {test_consumers:?}");
     assert!(
         outside.is_empty(),
-        "r1 walks `crates/engine/src` only, and that is sound ONLY while every \
+        "r1 walks `crates/engine/src` only, and that is sound ONLY while every PRODUCTION \
          `ZoneChangeAction::Redirect` consumer lives there. These do not: {:?}",
         outside
+    );
+    // NON-VACUITY: the walk really does reach other crates' trees. If this floor trips,
+    // the walker broke and `outside.is_empty()` above is meaningless.
+    assert!(
+        !test_consumers.is_empty(),
+        "r1b found no consumer anywhere outside `crates/engine/src`, not even in the test \
+         tree — the walk is broken, and the emptiness of `outside` proves nothing"
+    );
+}
+
+#[test]
+/// `r1`'s `MOVE_HELPERS` list, gated against the engine's OWN set (`/review` finding 4).
+///
+/// `r1` decides whether a `Redirect` arm owes a discharge by asking whether it calls one
+/// of three move helpers, and that list was hand-written — a fourth helper would make
+/// every arm using it invisible to `r1`. `r1`'s own comment claimed "`r1c` gates that
+/// enumeration against the engine's own set"; **`r1c` did not exist**, which is a comment
+/// asserting an enforcement that was not there, inside the file about gates that claim
+/// more than they check. It exists now.
+///
+/// The engine's set is derived from `GameState`'s own declarations: every inherent method
+/// whose name ends in `move_object_to_zone`.
+fn r1c_the_move_helper_list_matches_the_engine() {
+    // Walked, not listed: the helpers are split across `state/mod.rs` (the primitive) and
+    // `state/diagnostics.rs` (SR-4's `expect_*` / `fizzle_*` wrappers), and the first draft
+    // of THIS gate read only `mod.rs` and found one of three — its own non-vacuity floor
+    // caught that, which is what the floor is for.
+    let mut declared: BTreeSet<String> = BTreeSet::new();
+    let mut src = String::new();
+    for f in engine_src_files() {
+        src.push_str(&std::fs::read_to_string(&f).expect("readable"));
+        src.push('\n');
+    }
+    for line in src.lines() {
+        let t = line.trim_start();
+        if t.starts_with("//") {
+            continue;
+        }
+        if let Some(rest) = t.split("fn ").nth(1) {
+            let name: String = rest
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
+            if name.ends_with("move_object_to_zone") {
+                declared.insert(name);
+            }
+        }
+    }
+    let expected: BTreeSet<String> = [
+        "expect_move_object_to_zone",
+        "fizzle_move_object_to_zone",
+        "move_object_to_zone",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
+    // `state/test_util.rs`'s escape hatch is a free function that DELEGATES to the
+    // primitive; it is not a fourth way to move an object, so it is excluded by name with
+    // the reason rather than by the walk happening not to see it.
+    declared.remove("test_only_move_object_to_zone");
+    assert!(
+        declared.len() >= 3,
+        "r1c found only {declared:?} `*move_object_to_zone` helpers; the scanner is broken"
+    );
+    assert_eq!(
+        declared, expected,
+        "`GameState`'s set of `*move_object_to_zone` helpers moved. `r1`'s `MOVE_HELPERS` \
+         is what decides whether a `ZoneChangeAction::Redirect` arm OWES a CR 701.24 \
+         discharge, so a helper it does not know about makes every arm using that helper \
+         invisible to `r1`. Update `MOVE_HELPERS` and this expectation together."
     );
 }
 
@@ -279,12 +412,26 @@ fn r2_no_reachable_splice_host_declares_targets_of_its_own() {
             if &d.name == splice_name {
                 continue;
             }
+            // EVERY source `casting::card_def_target_requirements` can draw the host's
+            // requirements from, not just `Spell` — the first draft counted `Spell` alone
+            // and the `/review` pointed out that `Aftermath.targets` and `Fuse.targets`
+            // feed the same list, and that a modal host's `ModeSelection.mode_targets`
+            // REPLACES it. All three are the axis this precondition actually rests on.
             let host_targets: usize = d
                 .abilities
                 .iter()
-                .filter_map(|a| match a {
-                    AbilityDefinition::Spell { targets, .. } => Some(targets.len()),
-                    _ => None,
+                .map(|a| match a {
+                    AbilityDefinition::Spell { targets, modes, .. } => {
+                        let modal: usize = modes
+                            .as_ref()
+                            .and_then(|m| m.mode_targets.as_ref())
+                            .map(|mt| mt.iter().map(|v| v.len()).sum())
+                            .unwrap_or(0);
+                        targets.len() + modal
+                    }
+                    AbilityDefinition::Aftermath { targets, .. } => targets.len(),
+                    AbilityDefinition::Fuse { targets, .. } => targets.len(),
+                    _ => 0,
                 })
                 .sum();
             if host_targets > 0 {
@@ -320,17 +467,13 @@ fn r3_the_just_drawn_record_is_assigned_unconditionally() {
     let anchor = src
         .find("check_miracle_eligible(")
         .expect("perform_one_draw must still call check_miracle_eligible");
-    // Brace-free window: the assignment must appear as a `map`/`as_ref().map(..)` over
-    // the OPTION, not inside a conditional that only fires when it is `Some`.
-    let window = &src[anchor..(anchor + 700).min(src.len())];
-    assert!(
-        window.contains("p.miracle_pending ="),
-        "CR 702.94a: the draw site must record the just-drawn object; nothing assigns \
-         `miracle_pending` within 700 bytes of `check_miracle_eligible`"
-    );
-    let assign = window
-        .find("p.miracle_pending =")
-        .expect("checked just above");
+    let window = &src[anchor..(anchor + 900).min(src.len())];
+    let assign = window.find("p.miracle_pending =").unwrap_or_else(|| {
+        panic!(
+            "CR 702.94a: the draw site must record the just-drawn object; nothing assigns \
+             `miracle_pending` within 900 bytes of `check_miracle_eligible`"
+        )
+    });
     let stmt_end = window[assign..]
         .find(';')
         .map(|o| assign + o)
@@ -341,9 +484,43 @@ fn r3_the_just_drawn_record_is_assigned_unconditionally() {
         "CR 702.94a (`OOS-DX2-1`): `miracle_pending` must be assigned from the OPTION \
          (`miracle_event.as_ref().map(|_| new_id)`), so a draw that is NOT miracle-\
          eligible writes `None` and clears any stale record. The statement found is \
-         `{stmt}`, which does not map over the option — if it is now guarded by an \
-         `if let Some(..)`, a tutored miracle card becomes answerable again for the rest \
-         of the turn."
+         `{stmt}`."
+    );
+
+    // THE MECHANISM, and the reason the check above is not enough. The `/review` defeated
+    // this gate's first draft by leaving the `.map(..)` statement exactly as it is and
+    // wrapping the WHOLE thing in `if miracle_event.is_some() { .. }` — the gate stayed
+    // GREEN and all five behavioural probes stayed green, while a stale `miracle_pending`
+    // survived a later non-eligible draw. The gate's own failure message says it catches
+    // "an `if let Some(..)`"; it caught only the `Some(..)` SPELLING.
+    //
+    // So: walk from the end of the `check_miracle_eligible` statement to the assignment
+    // and require that the ONLY block opened on the way is the player lookup. Any `if`,
+    // `match`, `while` or `for` between them is a conditional the assignment now sits
+    // under, whatever it is spelled.
+    let call_end = window[..assign]
+        .rfind(");")
+        .map(|o| o + 2)
+        .expect("the check_miracle_eligible call must end before the assignment");
+    let between = &window[call_end..assign];
+    let expected_opener = "if let Some(p) = state.expect_player_mut(player) {";
+    let residue = between.replace(expected_opener, " ");
+    for kw in ["if ", "match ", "while ", "for "] {
+        assert!(
+            !residue.contains(kw),
+            "CR 702.94a (`OOS-DX2-1`): the `miracle_pending` assignment is nested inside a \
+             `{kw}` between `check_miracle_eligible` and the write. It must be \
+             UNCONDITIONAL — the whole point is that a draw which is NOT miracle-eligible \
+             writes `None` and clears any stale record. Text between the call and the \
+             assignment, with the expected player lookup removed: {residue:?}"
+        );
+    }
+    // NON-VACUITY: the expected opener really is there, so the `replace` above removed
+    // something and the loop is not scanning a string that never had a keyword in it.
+    assert!(
+        between.contains(expected_opener),
+        "r3's residue check is vacuous: the player lookup it strips is not present. Text \
+         between the call and the assignment: {between:?}"
     );
 }
 
@@ -381,19 +558,44 @@ fn r4_no_mod_declared_test_module_is_empty() {
         let main = std::fs::read_to_string(dir.join("main.rs")).expect("group has a main.rs");
         for line in main.lines() {
             let l = line.trim();
-            let Some(rest) = l.strip_prefix("mod ") else {
+            // `pub mod x;` counts too — the first draft stripped only `mod `, so a
+            // `pub mod` naming an empty file was invisible (`/review`).
+            let rest = l
+                .strip_prefix("pub mod ")
+                .or_else(|| l.strip_prefix("mod "));
+            let Some(rest) = rest else {
                 continue;
             };
             let Some(name) = rest.strip_suffix(';') else {
                 continue;
             };
-            let f = dir.join(format!("{name}.rs"));
-            if !f.exists() {
+            // A module is either `name.rs` or `name/mod.rs`; the first draft looked only
+            // for the first and skipped a directory module silently (`/review`).
+            let flat = dir.join(format!("{name}.rs"));
+            let nested = dir.join(name).join("mod.rs");
+            let f = if flat.exists() {
+                flat
+            } else if nested.exists() {
+                nested
+            } else {
                 continue;
-            }
+            };
             scanned += 1;
             let s = std::fs::read_to_string(&f).expect("readable");
-            if s.contains("#[test]") {
+            // THE MECHANISM: a real `#[test]` / `#[tokio::test]` ATTRIBUTE, which begins a
+            // line. The first draft asked whether the file CONTAINS the substring
+            // `#[test]`, and the `/review` defeated it with a one-line doc comment
+            // mentioning `#[test]` in prose — an empty module that reads as covered, which
+            // is the exact thing `OOS-DX18-2` is about, inside the gate that files it.
+            let has_test = s.lines().any(|line| {
+                let t = line.trim_start();
+                !t.starts_with("//")
+                    && (t.starts_with("#[test]")
+                        || t.starts_with("#[tokio::test")
+                        || t.starts_with("#[rstest")
+                        || t.starts_with("#[test("))
+            });
+            if has_test {
                 continue;
             }
             // TWO shapes, separated, because they are different findings. A module with

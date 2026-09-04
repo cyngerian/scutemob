@@ -47,24 +47,20 @@ pub fn handle_choose_miracle(
     card: ObjectId,
     reveal: bool,
 ) -> Result<Vec<GameEvent>, GameStateError> {
-    if !reveal {
-        // CR 702.94a: Player declined reveal. Card stays in hand. No trigger.
-        //
-        // PB-DX18: the decline still CONSUMES the offer. A guard that returns early
-        // inherits the obligation of the statements it skips (PB-DP8 / PB-DX50), and the
-        // obligation here is clearing `miracle_pending` — otherwise a player could
-        // decline and then reveal the same card later in the same turn.
-        if let Some(p) = state.expect_player_mut(player) {
-            p.miracle_pending = None;
-        }
-        return Ok(vec![]);
-    }
     // CR 702.94a (PB-DX18, `OOS-DX2-1`): *"You may reveal this card from your hand **as
     // you draw it** if it's the first card you've drawn this turn."* TWO conjuncts. The
     // `cards_drawn_this_turn == 1` check further down is the second one; this is the
     // first, and until PB-DX18 nothing checked it — a miracle card already in hand
     // (tutored, drawn last turn, discarded and returned) could be revealed and cast for
     // its miracle cost on any turn whose first draw had already happened.
+    //
+    // **This governs BOTH answers**, and the first draft did not. It sat inside the
+    // `reveal` path, so `ChooseMiracle { card: <any id>, reveal: false }` returned `Ok`,
+    // cleared `miracle_pending`, and left the genuine offer unanswerable — the decline
+    // half of the very command this batch exists to gate was still ungated, which the
+    // `/review` proved by execution. `Command::ChooseMiracle`'s own doc says the `card`
+    // field "should match the `card_object_id` from the event"; *should* is the kind of
+    // claim this batch turns into a check.
     //
     // Checked BEFORE the zone / keyword / cost lookups so the most specific refusal is
     // the one the caller sees, and so a card that is not the just-drawn one cannot be
@@ -76,6 +72,18 @@ pub fn handle_choose_miracle(
              draw it\"); the pending miracle draw is {:?}",
             card, player.0, pending
         )));
+    }
+    if !reveal {
+        // CR 702.94a: Player declined reveal. Card stays in hand. No trigger.
+        //
+        // PB-DX18: the decline still CONSUMES the offer. A guard that returns early
+        // inherits the obligation of the statements it skips (PB-DP8 / PB-DX50), and the
+        // obligation here is clearing `miracle_pending` — otherwise a player could
+        // decline and then reveal the same card later in the same turn.
+        if let Some(p) = state.expect_player_mut(player) {
+            p.miracle_pending = None;
+        }
+        return Ok(vec![]);
     }
     // Validate the card is in the player's hand.
     let (card_id_opt, miracle_cost) = {

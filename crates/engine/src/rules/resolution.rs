@@ -1555,7 +1555,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                     if let Some((new_grave_id, _old)) =
                                         state.expect_move_object_to_zone(sac_id, dest)
                                     {
-                                        // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                        // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                                         // now that the object is IN the destination library. No-op unless the
                                         // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                                         // consumer has to reason about whether it is reachable.
@@ -2886,7 +2886,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         if let Some((new_id, _old)) =
                             state.expect_move_object_to_zone(vanishing_permanent, dest)
                         {
-                            // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                             // now that the object is IN the destination library. No-op unless the
                             // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                             // consumer has to reason about whether it is reachable.
@@ -3053,7 +3053,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             if let Some((new_id, _old)) =
                                 state.expect_move_object_to_zone(fading_permanent, dest)
                             {
-                                // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                                 // now that the object is IN the destination library. No-op unless the
                                 // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                                 // consumer has to reason about whether it is reachable.
@@ -3373,7 +3373,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         if let Some((new_id, _old)) =
                             state.expect_move_object_to_zone(source_object, dest)
                         {
-                            // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                             // now that the object is IN the destination library. No-op unless the
                             // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                             // consumer has to reason about whether it is reachable.
@@ -3754,7 +3754,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         if let Some((new_id, _old)) =
                             state.expect_move_object_to_zone(source_object, dest)
                         {
-                            // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                             // now that the object is IN the destination library. No-op unless the
                             // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                             // consumer has to reason about whether it is reachable.
@@ -4706,7 +4706,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                 if let Some((new_id, _old)) =
                                     state.expect_move_object_to_zone(source_object, dest)
                                 {
-                                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                    // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                                     // now that the object is IN the destination library. No-op unless the
                                     // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                                     // consumer has to reason about whether it is reachable.
@@ -6505,7 +6505,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                 let hand_zone = ZoneId::Hand(target_player);
                 let _ = state.expect_move_object_to_zone(card_id, hand_zone);
             }
-            // Whether found or not, shuffle the target player's library (CR 701.20).
+            // Whether found or not, shuffle the target player's library (CR 701.24).
             // Use seeded LCG (same pattern as Hideaway) for determinism.
             let seed = state.timestamp_counter;
             state.timestamp_counter += 1;
@@ -7463,7 +7463,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             if let Some((new_id, _old)) =
                                 state.expect_move_object_to_zone(source_object, to)
                             {
-                                // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                                 // now that the object is IN the destination library. No-op unless the
                                 // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                                 // consumer has to reason about whether it is reachable.

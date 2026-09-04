@@ -95,8 +95,33 @@ pub fn move_object_to_zone(
     state.move_object_to_zone(object_id, to)
 }
 
+/// Escape hatch: raise a CR 616.1 `PendingZoneChange`, so a test can drive
+/// [`crate::rules::replacement::resolve_pending_zone_change`] — the SECOND
+/// `ShuffleIntoOwnerLibrary` site, which had no test at all before PB-DX18.
+///
+/// The entry is normally raised by `check_zone_change_replacement` returning
+/// `ChoiceRequired`, which needs TWO simultaneously-applicable replacements; building that
+/// board just to reach the resolver would test the raise rather than the resolution.
+pub fn push_pending_zone_change(
+    state: &mut GameState,
+    object_id: ObjectId,
+    original_from: crate::state::zone::ZoneType,
+    original_destination: crate::state::zone::ZoneType,
+    affected_player: crate::state::player::PlayerId,
+) {
+    state
+        .pending_zone_changes
+        .push_back(crate::state::PendingZoneChange {
+            object_id,
+            original_from,
+            original_destination,
+            affected_player,
+            already_applied: Vec::new(),
+        });
+}
+
 /// Escape hatch: discharge a
-/// [`crate::rules::replacement::ZoneChangeAction::Redirect`]'s CR 701.20 shuffle
+/// [`crate::rules::replacement::ZoneChangeAction::Redirect`]'s CR 701.24 shuffle
 /// obligation (PB-DX18, `OOS-DP2-7`).
 ///
 /// A test that drives a redirect by hand has to do what the ~21 production consumers do —

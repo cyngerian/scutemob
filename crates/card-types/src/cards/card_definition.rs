@@ -1742,7 +1742,8 @@ pub enum Effect {
         #[serde(default)]
         also_search_graveyard: bool,
     },
-    /// CR 701.20: Shuffle a player's library.
+    /// CR 701.24: Shuffle a player's library. (This said CR 701.20 until PB-DX18; CR
+    /// 701.20 is *Reveal*.)
     Shuffle { player: PlayerTarget },
     // ── Continuous Effects ───────────────────────────────────────────────────
     /// Apply a continuous effect until end of turn or for a duration (CR 611).

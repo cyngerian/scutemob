@@ -2221,7 +2221,7 @@ fn execute_effect_inner(
                             events.extend(repl_events);
                             if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest)
                             {
-                                // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                                 // now that the object is IN the destination library. No-op unless the
                                 // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                                 // consumer has to reason about whether it is reachable.
@@ -2447,7 +2447,7 @@ fn execute_effect_inner(
                     } => {
                         events.extend(repl_events);
                         if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest) {
-                            // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                             // now that the object is IN the destination library. No-op unless the
                             // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                             // consumer has to reason about whether it is reachable.
@@ -2660,7 +2660,7 @@ fn execute_effect_inner(
                                 if let Some((new_id, _old)) =
                                     state.fizzle_move_object_to_zone(id, dest)
                                 {
-                                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                    // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                                     // now that the object is IN the destination library. No-op unless the
                                     // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                                     // consumer has to reason about whether it is reachable.
@@ -2899,7 +2899,7 @@ fn execute_effect_inner(
                     } => {
                         events.extend(repl_events);
                         if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest) {
-                            // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                             // now that the object is IN the destination library. No-op unless the
                             // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                             // consumer has to reason about whether it is reachable.
@@ -3037,7 +3037,7 @@ fn execute_effect_inner(
                     } => {
                         events.extend(repl_events);
                         if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest) {
-                            // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                             // now that the object is IN the destination library. No-op unless the
                             // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                             // consumer has to reason about whether it is reachable.
@@ -3158,7 +3158,7 @@ fn execute_effect_inner(
                                 if let Some((new_id, _old)) =
                                     state.fizzle_move_object_to_zone(id, dest)
                                 {
-                                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                    // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                                     // now that the object is IN the destination library. No-op unless the
                                     // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                                     // consumer has to reason about whether it is reachable.
@@ -7940,7 +7940,7 @@ fn execute_effect_inner(
                     } => {
                         events.extend(repl_events);
                         if let Some((new_id, _old)) = state.expect_move_object_to_zone(id, dest) {
-                            // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                             // now that the object is IN the destination library. No-op unless the
                             // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                             // consumer has to reason about whether it is reachable.
@@ -9868,7 +9868,7 @@ fn sacrifice_permanents_for_player(
             } => {
                 events.extend(repl_events);
                 if let Some((new_id, _old)) = state.expect_move_object_to_zone(id, dest) {
-                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                     // now that the object is IN the destination library. No-op unless the
                     // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                     // consumer has to reason about whether it is reachable.

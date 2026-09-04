@@ -2259,7 +2259,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
             } => {
                 events.extend(repl_events);
                 if let Some((new_id, _old)) = state.expect_move_object_to_zone(obj_id, to) {
-                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                     // now that the object is IN the destination library. No-op unless the
                     // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                     // consumer has to reason about whether it is reachable.
@@ -2381,7 +2381,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
             } => {
                 events.extend(repl_events);
                 if let Some((new_id, _old)) = state.expect_move_object_to_zone(obj_id, to) {
-                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                     // now that the object is IN the destination library. No-op unless the
                     // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                     // consumer has to reason about whether it is reachable.

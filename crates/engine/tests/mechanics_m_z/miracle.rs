@@ -294,6 +294,51 @@ fn t4_a_decline_consumes_the_offer() {
 }
 
 #[test]
+/// CR 702.94a (PB-DX18, `/review` finding 7) — **the DECLINE is gated on the card too.**
+///
+/// The first draft's just-drawn check sat inside the `reveal` path, so
+/// `ChooseMiracle { card: <any id>, reveal: false }` returned `Ok`, cleared
+/// `miracle_pending`, and left the genuine offer unanswerable: the decline half of the
+/// very command this batch exists to gate was still ungated. Proven by the reviewer with
+/// a bogus `ObjectId`, so the probe uses one too.
+fn t6_a_decline_naming_the_wrong_card_is_refused_and_leaves_the_offer_standing() {
+    let (p1, p2) = (p(1), p(2));
+    let (state, events) = advance_to_draw(build_draw_state(p1, p2, true), p1, p2);
+    let drawn = drawn_miracle_id(&events);
+    let held = state
+        .zone(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .into_iter()
+        .find(|id| *id != drawn)
+        .expect("a second, HELD miracle card");
+
+    let err = process_command(
+        state.clone(),
+        Command::ChooseMiracle {
+            player: p1,
+            card: held,
+            reveal: false,
+        },
+    )
+    .expect_err("CR 702.94a: a decline names the card it declines");
+    assert!(matches!(err, GameStateError::InvalidCommand(ref m) if m.contains("just drew")));
+
+    // NON-VACUITY, and the half that matters: the real offer is STILL answerable. Under
+    // the first draft this command consumed it.
+    let (after, _) = process_command(
+        state,
+        Command::ChooseMiracle {
+            player: p1,
+            card: drawn,
+            reveal: true,
+        },
+    )
+    .expect("the genuine offer survives a refused decline");
+    assert_eq!(miracle_triggers(&after), 1);
+}
+
+#[test]
 /// The record does not survive the turn (`reset_turn_state`, CR 121.1's sibling clear).
 ///
 /// `cards_drawn_this_turn` resetting is exactly what would otherwise make a stale id

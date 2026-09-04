@@ -1095,10 +1095,10 @@ fn test_leyline_opening_hand() {
     );
 }
 
-// ── CR 701.20: Darksteel Colossus — shuffle into owner's library ─────────────
+// ── CR 701.24: Darksteel Colossus — shuffle into owner's library ─────────────
 
 #[test]
-/// CR 701.20 / CR 614.1a — Darksteel Colossus replacement effect: if Darksteel
+/// CR 701.24 / CR 614.1a — Darksteel Colossus replacement effect: if Darksteel
 /// Colossus would be put into a graveyard from anywhere, shuffle it into its
 /// owner's library instead. The replacement emits a `LibraryShuffled` event.
 fn test_darksteel_colossus_shuffles_into_library() {
@@ -1159,7 +1159,7 @@ fn test_darksteel_colossus_shuffles_into_library() {
         &reg,
     );
 
-    // CR 614.1a / 701.20: Check that a Battlefield→Graveyard zone change for
+    // CR 614.1a / 701.24: Check that a Battlefield→Graveyard zone change for
     // this Colossus is intercepted and redirected to the library.
     let action = check_zone_change_replacement(
         &state,
@@ -1199,7 +1199,7 @@ fn test_darksteel_colossus_shuffles_into_library() {
             );
             assert!(
                 *shuffle_destination_after,
-                "CR 701.20: the redirect must carry a real shuffle obligation, not a \
+                "CR 701.24c: the redirect must carry a real shuffle obligation, not a \
                  phantom LibraryShuffled event"
             );
         }
@@ -1211,7 +1211,7 @@ fn test_darksteel_colossus_shuffles_into_library() {
         }
     }
 
-    // CR 701.20 — drive it, and assert the LIBRARY, not the event.
+    // CR 701.24 — drive it, and assert the LIBRARY, not the event.
     //
     // The library is loaded with enough distinct cards that landing on top is
     // overwhelmingly unlikely to happen by chance under a real shuffle: with 30 cards
@@ -1265,7 +1265,7 @@ fn test_darksteel_colossus_shuffles_into_library() {
     assert_ne!(
         pos,
         lib.len() - 1,
-        "CR 701.20: the redirected card must be SHUFFLED IN, not left on top of the \
+        "CR 701.24c: the redirected card must be SHUFFLED IN, not left on top of the \
          library. Before PB-DX18 this was always the top card (push_back with no \
          shuffle), so a Darksteel Colossus that died was drawn again next turn."
     );
@@ -1274,5 +1274,125 @@ fn test_darksteel_colossus_shuffles_into_library() {
             .iter()
             .any(|e| matches!(e, GameEvent::LibraryShuffled { player } if *player == p1)),
         "the LibraryShuffled event is still emitted — from the site that really shuffles"
+    );
+}
+
+#[test]
+/// CR 701.24c (`OOS-DP2-7`) — **the SECOND `ShuffleIntoOwnerLibrary` site**, which had no
+/// test at all (PB-DX18 `/review` finding 6).
+///
+/// `rules::replacement::resolve_pending_zone_change` is the CR 616.1 multi-replacement
+/// path: when two replacements apply, the choice is raised as a `PendingZoneChange` and
+/// answered here. It carried its own phantom `LibraryShuffled` — pushed before the object
+/// moved, from a function that never shuffled — and PB-DX18 replaced it with an obligation
+/// discharged after the move, OR'd with whatever the CR 616.1f re-check adds.
+///
+/// The sibling probe above drives `check_zone_change_replacement` and never reaches this
+/// function; `grep -rn resolve_pending_zone_change crates/engine/tests/` returned NOTHING
+/// before this test. Same subject, same assertion shape: the LIBRARY, not the event.
+fn test_dx18_resolve_pending_zone_change_really_shuffles() {
+    use mtg_engine::rules::replacement::register_permanent_replacement_abilities;
+    use mtg_engine::state::replacement_effect::ReplacementId;
+    use mtg_engine::state::zone::ZoneType;
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+    let colossus_card_id = CardId("darksteel-colossus".to_string());
+    let registry = CardRegistry::new(all_cards());
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::artifact(p1, "Darksteel Colossus")
+                .with_card_id(colossus_card_id)
+                .with_types(vec![CardType::Artifact, CardType::Creature])
+                .in_zone(ZoneId::Battlefield),
+        );
+    for i in 0..30 {
+        builder = builder
+            .object(ObjectSpec::card(p1, &format!("Filler {i}")).in_zone(ZoneId::Library(p1)));
+    }
+    let mut state = builder
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    let colossus_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .iter()
+        .find(|o| o.characteristics.name == "Darksteel Colossus")
+        .map(|o| o.id)
+        .expect("Colossus on the battlefield");
+    let colossus_cid = state.objects().get(&colossus_id).unwrap().card_id.clone();
+    let reg = state.card_registry().clone();
+    register_permanent_replacement_abilities(
+        &mut state,
+        colossus_id,
+        p1,
+        colossus_cid.as_ref(),
+        &reg,
+    );
+
+    // The replacement this path answers is the Colossus's own; find its id rather than
+    // guessing one, so a registration change is a loud failure and not a silent skip.
+    let chosen: ReplacementId = state
+        .replacement_effects()
+        .iter()
+        .find(|e| {
+            matches!(
+                e.modification,
+                mtg_engine::ReplacementModification::ShuffleIntoOwnerLibrary
+            )
+        })
+        .map(|e| e.id)
+        .expect("the Colossus registered a ShuffleIntoOwnerLibrary replacement");
+
+    // Raise the CR 616.1 pending choice this function exists to answer.
+    mtg_engine::state::test_util::push_pending_zone_change(
+        &mut state,
+        colossus_id,
+        ZoneType::Battlefield,
+        ZoneType::Graveyard,
+        p1,
+    );
+    let lib_before = state.zone(&ZoneId::Library(p1)).unwrap().len();
+    assert_eq!(
+        lib_before, 30,
+        "the library must be non-trivial for a position assertion"
+    );
+
+    let events = mtg_engine::rules::replacement::resolve_pending_zone_change(&mut state, chosen, 0)
+        .expect("the pending choice resolves");
+
+    let lib = state.zone(&ZoneId::Library(p1)).unwrap().object_ids();
+    assert_eq!(lib.len(), lib_before + 1, "the Colossus joined the library");
+    let new_id = *lib
+        .iter()
+        .find(|id| {
+            state
+                .object(**id)
+                .map(|o| o.characteristics.name == "Darksteel Colossus")
+                .unwrap_or(false)
+        })
+        .expect("the Colossus must be IN the library");
+    let pos = lib
+        .iter()
+        .position(|id| *id == new_id)
+        .expect("found above");
+    assert_ne!(
+        pos,
+        lib.len() - 1,
+        "CR 701.24c: the redirected card must be SHUFFLED IN, not left on top. This site \
+         pushed a phantom LibraryShuffled and left it on top before PB-DX18, exactly like \
+         its sibling in check_zone_change_replacement."
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::LibraryShuffled { player } if *player == p1)),
+        "the event is still emitted — from the site that really shuffles; events: {events:?}"
     );
 }

@@ -1250,7 +1250,7 @@ pub enum ZoneChangeAction {
         events: Vec<GameEvent>,
         /// The ID of the replacement that was applied (for CR 614.5 tracking).
         applied_id: ReplacementId,
-        /// CR 701.20 (PB-DX18, `OOS-DP2-7`): the redirect also obliges a **real** shuffle
+        /// CR 701.24 (PB-DX18, `OOS-DP2-7`): the redirect also obliges a **real** shuffle
         /// of the destination library, once the object has landed in it.
         ///
         /// `ReplacementModification::ShuffleIntoOwnerLibrary` used to push
@@ -1371,7 +1371,7 @@ pub fn check_zone_change_replacement(
     let mut current_to = to;
     let mut acc_events: Vec<GameEvent> = Vec::new();
     let mut first_applied: Option<ReplacementId> = None;
-    // CR 701.20 (PB-DX18, `OOS-DP2-7`): set by the `ShuffleIntoOwnerLibrary` arm below and
+    // CR 701.24 (PB-DX18, `OOS-DP2-7`): set by the `ShuffleIntoOwnerLibrary` arm below and
     // carried out to the caller on the returned action, because this function holds
     // `&GameState` and the shuffle must happen AFTER the object has moved anyway.
     let mut shuffle_after = false;
@@ -1427,11 +1427,22 @@ pub fn check_zone_change_replacement(
                     effect_id: id,
                     description: format!("Redirected to {:?}", zone_type),
                 });
+                // CR 616.1f (PB-DX18 `/review` finding 8): a later hop can redirect AWAY
+                // from the library a `ShuffleIntoOwnerLibrary` hop chose, and the CR 701.24
+                // obligation belongs to the destination, not to the chain. Without this the
+                // action would carry `to: <non-library>, shuffle_destination_after: true`
+                // and land on `finish_redirect_shuffle`'s `debug_assert!` — a panic in
+                // debug, a silently dropped shuffle in release. Zero corpus population
+                // today (nothing chains a redirect after a shuffle-into-library), which is
+                // why it was latent rather than caught; the STATED REASON in
+                // `finish_redirect_shuffle`'s doc was the wrong half, and it is corrected
+                // there too.
+                shuffle_after = false;
                 current_to = zone_type;
                 // Loop: re-check the modified event (CR 616.1f).
             }
             Some(ReplacementModification::ShuffleIntoOwnerLibrary) => {
-                // CR 701.20: Redirect to library AND shuffle the library.
+                // CR 701.24: Redirect to library AND shuffle the library.
                 acc_events.push(GameEvent::ReplacementEffectApplied {
                     effect_id: id,
                     description: "Shuffled into owner's library".to_string(),
@@ -1478,7 +1489,7 @@ fn finish_zone_redirect(
             to: resolve_zone_type_to_zone_id(current_to, owner),
             events: acc_events,
             applied_id,
-            // CR 701.20 (PB-DX18, `OOS-DP2-7`).
+            // CR 701.24 (PB-DX18, `OOS-DP2-7`).
             shuffle_destination_after: shuffle_after,
         },
     }
@@ -1544,7 +1555,7 @@ pub fn resolve_pending_zone_change(
             resolve_zone_type_to_zone_id(*zone_type, owner)
         }
         ReplacementModification::ShuffleIntoOwnerLibrary => {
-            // CR 701.20: redirect to library and shuffle
+            // CR 701.24: redirect to library and shuffle
             resolve_zone_type_to_zone_id(crate::state::zone::ZoneType::Library, owner)
         }
         _ => {
@@ -1558,7 +1569,7 @@ pub fn resolve_pending_zone_change(
         ReplacementModification::ShuffleIntoOwnerLibrary => crate::state::zone::ZoneType::Library,
         _ => pending.original_destination,
     };
-    // CR 701.20 (PB-DX18, `OOS-DP2-7`): the SECOND phantom emitter. This one pushed
+    // CR 701.24 (PB-DX18, `OOS-DP2-7`): the SECOND phantom emitter. This one pushed
     // `LibraryShuffled` here, before the object had moved and with no `Zone::shuffle`
     // anywhere in the function — the same Architecture-Invariant-4 violation as the site
     // in `check_zone_change_replacement`, one function over. The obligation is carried to
@@ -1585,7 +1596,7 @@ pub fn resolve_pending_zone_change(
     match action {
         ZoneChangeAction::Proceed | ZoneChangeAction::Redirect { .. } => {
             // Determine final destination (may have been further redirected)
-            // CR 701.20 (PB-DX18, `OOS-DP2-7`): the CR 616.1f re-check can add a
+            // CR 701.24 (PB-DX18, `OOS-DP2-7`): the CR 616.1f re-check can add a
             // shuffle obligation of its own (a second `ShuffleIntoOwnerLibrary` reached
             // on the modified event), so the two are OR'd rather than the outer one
             // being assumed to be the whole answer.
@@ -1627,7 +1638,7 @@ pub fn resolve_pending_zone_change(
             if let Some((new_id, _old)) =
                 state.expect_move_object_to_zone(pending.object_id, final_dest)
             {
-                // CR 701.20 (PB-DX18, `OOS-DP2-7`): the object is now IN the destination
+                // CR 701.24 (PB-DX18, `OOS-DP2-7`): the object is now IN the destination
                 // library, so this is the first moment a shuffle can include it.
                 state.finish_redirect_shuffle(shuffle_destination_after, final_dest, &mut events);
                 events.extend(zone_change_events(

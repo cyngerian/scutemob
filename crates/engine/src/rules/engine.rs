@@ -1192,7 +1192,7 @@ fn handle_pay_echo(
             } => {
                 events.extend(repl_events);
                 if let Ok((new_id, _old)) = state.move_object_to_zone(permanent, dest) {
-                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                     // now that the object is IN the destination library. No-op unless the
                     // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                     // consumer has to reason about whether it is reachable.
@@ -1441,7 +1441,7 @@ fn handle_pay_cumulative_upkeep(
             } => {
                 events.extend(repl_events);
                 if let Ok((new_id, _old)) = state.move_object_to_zone(permanent, dest) {
-                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
                     // now that the object is IN the destination library. No-op unless the
                     // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
                     // consumer has to reason about whether it is reachable.
