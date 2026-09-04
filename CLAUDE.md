@@ -1133,7 +1133,9 @@
   N/A and said so (`git diff main..HEAD -- tools/play-server/frontend` is empty and `node_modules`
   is absent). **Benches: a REAL uniform ~2.5-4.5% regression, four runs, same-code band measured
   FIRST** — `size_of::<PlayerState>()` moves 360 → 376 (+4.4%), on a struct copied at every
-  mutation. Filed **OOS-DX18-1..5**. Full record:
+  mutation. Filed **OOS-DX18-1..6** (`-6` by the `/review` fix cycle, after the first draft of these
+  lines said `-1..5` — dispatch hygiene 8, caught by re-checking this cell against the
+  registry AFTER the fix cycle rather than before it). Full record:
   `memory/primitives/pb-DX18-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-09-03 — **PB-DX20b SHIPPED** (`scutemob-222`; v4 queue rank 9 —
   **OOS-DX20-10** ≡ **OOS-DX20-5** CLOSED as ONE defect, cross-cited). **An Aura's printed

@@ -482,3 +482,27 @@ line-number shifts and two of the additions their successors — so **29 genuine
 PROTOCOL 41 / HASH 81 both re-executed and unmoved by the fix cycle. Coverage re-regenerated:
 **1,137/1,803 = 63.1%, 0 flips**, churn reverted. clippy / fmt / check-defs-fmt clean against
 the FINAL tree.
+
+---
+
+## §9 — Dispatch hygiene 8, applied AFTER the fix cycle rather than before it
+
+Every headline surface was re-checked against the registry once the `/review` fix cycle had
+landed, and it moved one of them: the fix cycle filed a **sixth** seed
+(`OOS-DX18-6` — `CR 701.20` used to mean *shuffle* across the tree, 23 occurrences at HEAD),
+so CLAUDE.md's narrative, the v4 memo's row-10 strike and the workstream handoff all said
+`OOS-DX18-1..5` and were wrong by one. **This is PB-DX20b's exact case**, and the reason it
+was caught is the same: the re-check happened after the fix cycle, not before.
+
+Verified after the correction:
+
+| surface | claim | registry |
+|---|---|---|
+| `docs/audits/decision-point-audit.md` | — | `OOS-DX18-1..6` exist; all six PB-DX18 seed rows say `✅ CLOSED by PB-DX18` |
+| `CLAUDE.md` Current State | `OOS-DX18-1..6` | agrees |
+| `memory/primitives/seed-rerank-2026-08-14.md` §4 row 10 | `OOS-DX18-1..6` | agrees |
+| `memory/workstream-state.md` handoff | lists `-1` … `-6` individually | agrees |
+
+And the row-split check was re-run on the whole registry after the sixth row was added and
+after `OOS-M11-5`'s own row was repaired: **17** malformed rows (down from the 18 measured
+before this batch's edits), with **zero** introduced by PB-DX18.

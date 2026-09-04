@@ -60,7 +60,12 @@ gated, pinned wrong-way-round, needs per-card target slots on `SpliceCostView` p
 frontend change that could not be verified here: `node_modules` is absent);
 `OOS-DX18-2` (`crates/engine/tests/rules/effects.rs` is still a one-byte `mod`'d module);
 `OOS-DX18-3`; `OOS-DX18-4` (the activated/loyalty analogue of `OOS-M11-5`, population
-UNMEASURED); `OOS-DX18-5` (the mulligan draw loop still short-draws in silence).
+UNMEASURED); `OOS-DX18-5` (the mulligan draw loop still short-draws in silence);
+`OOS-DX18-6` (**filed by the `/review` fix cycle**: `CR 701.20` is used to mean *shuffle*
+across the tree and it is *Reveal* — 23 occurrences at HEAD, and this registry had already
+corrected the same number once at `:143` for a different wrong usage, which is how PB-DX18
+inherited it and propagated it to 41 new lines before its own review caught it. Rides
+PB-DX38).
 
 **Benches**: a REAL uniform ~2.5-4.5% regression, four runs with the same-code band measured
 first. `size_of::<PlayerState>()` 360 → 376. Stated rather than mitigated; both fields are
