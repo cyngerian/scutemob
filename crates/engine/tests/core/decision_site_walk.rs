@@ -405,7 +405,7 @@ pub static ROWS: &[Row] = &[
                  this row: it used to also cover `LookAtTopThenPlace`, whose `optional` field \
                  is now real (see `look_at_top_then_place_optional` below) -- RevealAndRoute's \
                  own CR 401.4 order choice is the residual that split left behind, filed as \
-                 OOS-DX35-1",
+                 OOS-DX35-2",
         },
         predicate: p_reveal_and_route,
     },
