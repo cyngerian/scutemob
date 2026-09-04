@@ -107,8 +107,42 @@ fn workspace_src_files() -> Vec<PathBuf> {
     out
 }
 
+/// Strips `//` line comments AND `/* … */` block comments.
+///
+/// The block-comment half was added by the `/review` (Issue 7): `r1c` re-checks each
+/// allowlist entry's stated reason by asserting the code still exists in source, and a
+/// line-comment-only stripper would let a needle sitting inside a `/* … */` block satisfy
+/// that check without the code existing. That is `OOS-DX32-6`'s class — a scan narrowed to
+/// `//` silently dropping `/* */` — applied to a REASON check rather than to a count.
+///
+/// **Known residual, stated rather than left to be discovered**: string and char literals
+/// are not handled, so a needle inside a string literal still satisfies `r1c`. Zero
+/// exposure today (all four allowlisted sites are live code, re-checked by `r1c` itself).
 fn strip_line_comments(src: &str) -> String {
-    src.lines()
+    // Block comments first, so a `//` inside one cannot truncate the wrong thing.
+    let mut out = String::with_capacity(src.len());
+    let bytes = src.as_bytes();
+    let mut i = 0usize;
+    let mut depth = 0usize;
+    while i < bytes.len() {
+        if bytes[i..].starts_with(b"/*") {
+            // Nested block comments are legal in Rust, so this counts depth.
+            depth += 1;
+            i += 2;
+        } else if depth > 0 && bytes[i..].starts_with(b"*/") {
+            depth -= 1;
+            i += 2;
+        } else {
+            if depth == 0 {
+                out.push(bytes[i] as char);
+            } else if bytes[i] == b'\n' {
+                // Keep line structure so the per-line scans stay line-accurate.
+                out.push('\n');
+            }
+            i += 1;
+        }
+    }
+    out.lines()
         .map(|line| line.find("//").map(|i| &line[..i]).unwrap_or(line))
         .collect::<Vec<_>>()
         .join("\n")
@@ -196,14 +230,27 @@ fn workspace_src_files_checked() -> Vec<PathBuf> {
 // queue has now recorded for PB-DX26, PB-DX43, PB-DX45 and PB-DX47 -- committed inside
 // the gate whose own module doc cites two of those defeats. Reproduced before fixing.
 //
-// The axis is therefore the MECHANISM: a mutable path to the map. There are exactly
-// four ways to obtain one in Rust, and all four are checked:
+// The axis is therefore the MECHANISM: a mutable path to the map. **This list is
+// ENUMERATED, NOT EXHAUSTIVE, and its first draft claimed otherwise — that claim was
+// itself defeated twice by the `/review`, which is why the wording changed.** A textual
+// gate over a `pub` field can always be out-spelled; the only construct that cannot is
+// making the field private, which is filed with its measured cost as `OOS-DX51-7`.
+// Six forms are checked, the last two added after the review's executed defeats:
 //
 //   1. a mutating method called directly on the field  (`.attackers.insert(` / `.extend(`
 //      / `.entry(` / `.append(` / `.iter_mut(`),
 //   2. a mutable borrow bound to a name             (`&mut …attackers`),
-//   3. whole-map assignment                          (`.attackers =`, not `==`),
-//   4. `std::mem::{replace,swap,take}` over the field.
+//   3. whole-FIELD assignment                        (`.attackers =`, not `==`),
+//   4. `std::mem::{replace,swap,take}` over the field,
+//   5. whole-STRUCT write-back                       (`CombatState {` outside this type's
+//      own file) -- `*combat = CombatState { attackers, ..combat.clone() }` names the
+//      field with NO leading dot, so forms 1-4 are all blind to it (`/review` Issue 2,
+//      EXECUTED: all five gates were green with a real sixth entry site in the tree),
+//   6. a SECOND `&mut self` mutator on `CombatState` itself. `r1` skips
+//      `combat.rs` wholesale as the one legitimate file, and `r1b` counts only the
+//      literal `add_attacker(`, so a differently-named sibling mutator was invisible to
+//      both halves at once (`/review` Issue 3, EXECUTED). Policed by `r1e`, which is a
+//      bounded check on that ONE file rather than a workspace scan.
 //
 // Over-collection can only make `r1` REDDER (the PB-DX47 principle), so the forms are
 // deliberately wide: `.attackers` is matched on ANY receiver, which also catches
@@ -214,7 +261,7 @@ fn workspace_src_files_checked() -> Vec<PathBuf> {
 // (`OOS-DX47`).
 
 /// The four mutable-path forms, as `(label, regex-free matcher)` pairs.
-const MUTATING_FORMS: [&str; 4] = ["method", "borrow", "assign", "mem"];
+const MUTATING_FORMS: [&str; 5] = ["method", "borrow", "assign", "mem", "struct"];
 
 /// Every mutable path to a field named `attackers` in `stripped`, as
 /// `(form-label, matched-line-text)` pairs. Line text is carried so `ALLOWLIST` can
@@ -264,17 +311,55 @@ fn mutable_paths_to_attackers(stripped: &str) -> Vec<(&'static str, Vec<String>)
             by_form[3].1.push(line.to_string());
         }
     }
+
+    // Form 5 (`/review` Issue 2): a whole-STRUCT write-back. `*combat = CombatState {
+    // attackers, ..combat.clone() }` mentions the field as a bare `attackers,` shorthand
+    // with no leading dot, so every per-line form above is blind to it. Keyed on the TYPE
+    // NAME instead, over the whole file rather than per line, because rustfmt splits a
+    // struct literal across lines by default. Outside `CombatState`'s own file there is no
+    // legitimate reason for production code to construct or overwrite one -- the engine
+    // builds them through `CombatState::new`.
+    let joined: String = stripped.split_whitespace().collect::<Vec<_>>().join(" ");
+    for needle in ["CombatState {", "CombatState{"] {
+        let mut from = 0usize;
+        while let Some(i) = joined[from..].find(needle) {
+            let at = from + i;
+            // Only a CONSTRUCTION counts. `impl HashInto for CombatState {` and
+            // `pub struct CombatState {` are declarations, not write-backs -- and the
+            // first draft of this form flagged `state/hash.rs`'s impl header, which is
+            // how the discriminator got written rather than assumed.
+            let before = &joined[at.saturating_sub(24)..at];
+            let is_declaration =
+                before.contains("impl ") || before.contains("struct ") || before.contains("for ");
+            if !is_declaration {
+                by_form[4]
+                    .1
+                    .push(joined[at..(at + 160).min(joined.len())].to_string());
+            }
+            from = at + needle.len();
+        }
+    }
+
     by_form
 }
 
-/// Multi-line spellings: the per-line scan above cannot see a chain rustfmt broke over
-/// two lines. This second pass joins the whole file and looks in a window, which is a
-/// DIFFERENTLY SHAPED matcher from the line scan -- the same "survivor check written
-/// with the same regex is not a check" rule PB-DX50 recorded.
+/// Multi-line spellings, with a matcher of a DIFFERENT SHAPE from the per-line scan
+/// above: the whole file is whitespace-joined and searched in a window, which is the
+/// "a survivor check written with the same regex is not a check" rule PB-DX50 recorded.
+///
+/// **The `/review` (Issue 4) refuted this function's first docstring, which called itself
+/// "the multi-line half of `r1`".** It covered only the seven METHOD-call needles, so
+/// forms 2 (`&mut` borrow), 3 (assignment) and 4 (`mem::*`) had NO multi-line coverage at
+/// all — demonstrated by execution: a borrow split as `let map = &mut combat\n
+/// .attackers;` left all five gates GREEN, and only reddened after `cargo fmt` rejoined
+/// it. **For those three forms the multi-line robustness was supplied by rustfmt, not by
+/// this gate, and nothing said so.** All four are now covered here, and the rustfmt
+/// dependency is stated rather than relied on silently.
 fn multiline_mutating_paths(stripped: &str) -> Vec<String> {
     let joined: String = stripped.split_whitespace().collect::<Vec<_>>().join(" ");
     let mut out = Vec::new();
-    for m in [
+    let needles = [
+        // form 1, split before the method call
         ".attackers .insert(",
         ".attackers .extend(",
         ".attackers .entry(",
@@ -282,7 +367,20 @@ fn multiline_mutating_paths(stripped: &str) -> Vec<String> {
         ".attackers .iter_mut(",
         ".attackers .retain(",
         ".attackers .clear(",
-    ] {
+        // form 2, split between the receiver and the field
+        "&mut combat .attackers",
+        "&mut c .attackers",
+        "&mut cs .attackers",
+        "&mut self .attackers",
+        "&mut state.combat .attackers",
+        // form 3, split before the `=`
+        ".attackers =",
+        // form 4, split inside the mem:: call
+        "mem::replace(&mut combat .attackers",
+        "mem::swap(&mut combat .attackers",
+        "mem::take(&mut combat .attackers",
+    ];
+    for m in needles {
         let mut from = 0usize;
         while let Some(i) = joined[from..].find(m) {
             let at = from + i;
@@ -376,6 +474,101 @@ fn r1c_every_allowlist_entry_still_has_its_stated_reason() {
     }
 }
 
+/// `r1e` — the file `r1` exempts is not exempt from having ONE mutator.
+///
+/// **`/review` Issue 3, EXECUTED and this is the defeat that mattered most.** `r1` skips
+/// `crates/card-types/src/state/combat.rs` wholesale as "the one legitimate file", and
+/// `r1b` counts only occurrences of the literal `add_attacker(`. So a SECOND `&mut self`
+/// mutator added beside `add_attacker` —
+///
+/// ```ignore
+/// pub fn set_attacking(&mut self, id: ObjectId, target: AttackTarget) {
+///     self.attackers.insert(id, target);   // never sets `had_attackers`
+/// }
+/// ```
+///
+/// — plus a production caller was invisible to BOTH halves at once, and all five gates
+/// stayed GREEN. The reviewer's own judgement is worth keeping: this is *"arguably the
+/// most likely real-world regression — the natural thing a future batch does is add a
+/// helper next to `add_attacker`."*
+///
+/// This is a BOUNDED check on that one known file rather than another workspace scan:
+/// every mutating path to `self.attackers` in it must occur exactly once, inside
+/// `fn add_attacker`. `remove_from_combat` does not live here, so there is no legitimate
+/// second mutator to allowlist.
+#[test]
+fn r1e_combat_state_has_exactly_one_attacker_mutator() {
+    let src = std::fs::read_to_string(combat_state_file()).expect("combat.rs readable");
+    let stripped = strip_line_comments(&src);
+
+    // Non-vacuity: the file really is the one that defines the mutator.
+    assert!(
+        stripped.contains("pub fn add_attacker"),
+        "PB-DX51 r1e: {} no longer defines `add_attacker` -- this check is vacuous until \
+         it is re-pointed",
+        combat_state_file().display()
+    );
+
+    const SELF_MUTATIONS: [&str; 8] = [
+        "self.attackers.insert(",
+        "self.attackers.extend(",
+        "self.attackers.entry(",
+        "self.attackers.append(",
+        "self.attackers.iter_mut(",
+        "self.attackers.retain(",
+        "self.attackers.clear(",
+        "self.attackers =",
+    ];
+
+    // 1. Exactly one mutating path in the whole file.
+    let total: usize = SELF_MUTATIONS
+        .iter()
+        .map(|m| stripped.matches(m).count())
+        .sum();
+    assert_eq!(
+        total,
+        1,
+        "PB-DX51 r1e: expected EXACTLY ONE mutating path to `self.attackers` in {}, found \
+         {}. A second mutator beside `add_attacker` is invisible to `r1` (which exempts \
+         this file) and to `r1b` (which counts only the literal `add_attacker(`), so it \
+         would silently re-create the CR 508.8 defect this batch closed. Per-form counts: \
+         {:?}",
+        combat_state_file().display(),
+        total,
+        SELF_MUTATIONS
+            .iter()
+            .map(|m| (*m, stripped.matches(m).count()))
+            .collect::<Vec<_>>()
+    );
+
+    // 2. …and it is inside `add_attacker`, not merely somewhere in the file. Bounded by
+    //    the NEXT `pub fn` after `add_attacker`'s signature, so the window cannot run on
+    //    into the rest of the impl (`OOS-DX49`'s over-scanning window lesson).
+    let start = stripped
+        .find("pub fn add_attacker")
+        .expect("checked non-vacuous above");
+    let rest = &stripped[start + "pub fn add_attacker".len()..];
+    let end = rest
+        .find("pub fn")
+        .map(|i| start + i)
+        .unwrap_or(stripped.len());
+    let body = &stripped[start..end.max(start)];
+    assert!(
+        body.contains("self.attackers.insert("),
+        "PB-DX51 r1e: the single mutating path to `self.attackers` is NOT inside \
+         `add_attacker`'s own body. Either the mutator moved (re-point this check) or a \
+         different function now owns the mutation, which is the defeat this test exists \
+         for."
+    );
+    // 3. …and that body still sets the CR 508.8 marker, which is the whole point.
+    assert!(
+        body.contains("had_attackers = true"),
+        "PB-DX51 r1e: `add_attacker` no longer sets `had_attackers`. Every entry site \
+         routes through it precisely so CR 508.8's marker cannot be forgotten; without \
+         this line the routing is decoration."
+    );
+}
+
 /// `r1d` — the multi-line half of `r1`, with a differently shaped matcher.
 #[test]
 fn r1d_no_multiline_mutating_path_to_attackers() {
@@ -396,7 +589,21 @@ fn r1d_no_multiline_mutating_path_to_attackers() {
             .display()
             .to_string();
         for hit in multiline_mutating_paths(&stripped) {
-            if ALLOWLIST.iter().any(|(file, _, _, _)| rel.ends_with(file)) {
+            // Allowlist by the matched TEXT, never by the file.
+            //
+            // The first draft skipped any file appearing in `ALLOWLIST` wholesale, and
+            // that is how the `/review`'s Issue-4 defeat survived the fix written FOR it:
+            // a multi-line `&mut combat` / `.attackers` planted in
+            // `crates/engine/src/rules/combat.rs` -- allowlisted there only for a
+            // `remove(` call -- was skipped along with the whole file, so `r1d` stayed
+            // GREEN even after its needle set had been widened to cover borrows. **A
+            // file-scoped allowlist grants an exemption far wider than the reason that
+            // earned it**, the same shape as `OOS-DX48`'s hardcoded `SITE_SRCS`. Matching
+            // on content keeps the exemption exactly as wide as its stated reason.
+            if ALLOWLIST
+                .iter()
+                .any(|(file, _, needle, _)| rel.ends_with(file) && hit.contains(needle))
+            {
                 continue;
             }
             offenders.push((rel.clone(), hit));
