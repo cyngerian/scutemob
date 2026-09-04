@@ -9034,199 +9034,198 @@ fn flush_sorted(
             modal_plan.requirements.clone();
         let has_ability_targets = !trigger_target_requirements.is_empty();
         // Returns None if a required target cannot be satisfied (trigger skipped per CR 603.3d).
-        let trigger_targets_opt: Option<Vec<SpellTarget>> = if let Some(tsid) =
-            trigger.targeting_stack_id
-        {
-            Some(vec![SpellTarget {
-                target: Target::Object(tsid),
-                zone_at_cast: None,
-            }])
-        } else if let Some(pid) = trigger.triggering_player {
-            Some(vec![SpellTarget {
-                target: Target::Player(pid),
-                zone_at_cast: None,
-            }])
-        } else if let Some(dp) = trigger
-            .defending_player_id
-            .filter(|_| !has_ability_targets)
-            .filter(|_| {
-                // PB-EF3 fix (review Finding 2): this shortcut exists ONLY for the
-                // annihilator/dethrone/training/afflict keyword-derived triggers,
-                // whose CardDef-generated effects read the defending player via
-                // `PlayerTarget::DeclaredTarget { index: 0 }` (annihilator's
-                // SacrificePermanents, afflict's LoseLife) or simply had it tagged
-                // for consistency (dethrone/training put a counter on the source
-                // and never read index 0). B1 (PB-EF3) now tags EVERY
-                // `AnyCreatureYouControlAttacks` trigger with `defending_player_id`
-                // too, but those triggers' effects (token creation, life gain,
-                // `EffectTarget::AttackTarget` damage — Utvara Hellkite, Dromoka,
-                // Hellrider, Raid Bombardment) never consume `DeclaredTarget{0}`:
-                // they read `ctx.defending_player` directly via
-                // `PlayerTarget::DefendingPlayer` / `EffectTarget::AttackTarget`,
-                // which do not depend on `stack_obj.targets`. Setting a spurious
-                // `Target::Player(dp)` on their stack object wrongly fizzles the
-                // WHOLE (non-targeted) ability if `dp` leaves the game before it
-                // resolves — CR 608.2b's "all targets illegal" fizzle applies only
-                // to a targeted ability. Restrict the shortcut to the four
-                // keyword-family trigger events so the new AttackTarget/
-                // DefendingPlayer-based cards are unaffected.
-                matches!(
-                    trigger.triggering_event,
-                    Some(TriggerEvent::SelfAttacks)
-                        | Some(TriggerEvent::SelfAttacksPlayerWithMostLife)
-                        | Some(TriggerEvent::SelfAttacksWithGreaterPowerAlly)
-                        | Some(TriggerEvent::SelfBecomesBlocked)
-                )
-            })
-        {
-            // CR 702.86a / CR 508.5: Annihilator triggers carry the defending player ID.
-            // Set as Target::Player at index 0 so PlayerTarget::DeclaredTarget { index: 0 }
-            // resolves to the correct defending player for the SacrificePermanents effect.
-            Some(vec![SpellTarget {
-                target: Target::Player(dp),
-                zone_at_cast: None,
-            }])
-        } else if let Some(attacker_id) =
-            trigger.exalted_attacker_id.filter(|_| !has_ability_targets)
-        {
-            // CR 702.83a: Exalted triggers carry the lone attacker's ObjectId.
-            // Set it as Target::Object at index 0 so CEFilter::DeclaredTarget { index: 0 }
-            // resolves to the attacking creature (not the exalted source permanent).
-            Some(vec![SpellTarget {
-                target: Target::Object(attacker_id),
-                zone_at_cast: None,
-            }])
-        } else if trigger.kind == PendingTriggerKind::Provoke {
-            // CR 702.39a: Provoke triggers target the provoked creature.
-            // Set it as Target::Object so target legality can be checked at resolution.
-            let provoked = match &trigger.data {
-                Some(TriggerData::CombatProvoke { target }) => Some(*target),
-                _ => None,
-            };
-            if let Some(provoked) = provoked {
+        let trigger_targets_opt: Option<Vec<SpellTarget>> =
+            if let Some(tsid) = trigger.targeting_stack_id {
                 Some(vec![SpellTarget {
-                    target: Target::Object(provoked),
-                    zone_at_cast: Some(ZoneId::Battlefield),
+                    target: Target::Object(tsid),
+                    zone_at_cast: None,
                 }])
-            } else {
-                Some(vec![])
-            }
-        } else if matches!(
-            trigger.kind,
-            PendingTriggerKind::Normal | PendingTriggerKind::CardDefETB
-        ) {
-            // CR 603.3d: For CardDef-based triggered abilities (Normal / CardDefETB),
-            // look up the target requirements from the ability definition and
-            // auto-select legal targets using deterministic first-match fallback.
-            // If any required target has no legal candidate, skip this trigger.
-            //
-            // PB-DX35 (CR 700.2b/700.2c / OOS-DX4-2): identical value to
-            // `trigger_target_requirements` above — `modal_plan` is computed once
-            // per trigger and threaded through every consumer so the two cannot
-            // re-diverge into separate hand-rolled copies.
-            let ability_targets: Vec<crate::cards::card_definition::TargetRequirement> =
-                modal_plan.requirements.clone();
-            if ability_targets.is_empty() {
-                // No targets required — proceed normally with empty targets.
-                Some(vec![])
-            } else {
-                // CR 603.3d / CR 601.2c (PB-DP8 / DP-6): the controller ANNOUNCES
-                // the targets. Derive every legal choice per slot with the same
-                // predicates the pre-PB-DP8 first-match auto-pick used, then
-                // decide whether a question is owed.
-                let mut slots: Vec<TriggerTargetOption> = ability_targets
-                    .iter()
-                    .map(|req| trigger_target_candidates(state, &trigger, req))
-                    .collect();
-                // CR 601.2c (closing-review Finding 3, LOW): a per-slot default is
-                // computed in isolation, so two mutually-distinct slots both got
-                // `candidates.first()` -- an answer the engine's own cross-slot
-                // check rejects. Reconcile them before anything can submit it.
-                make_distinct_slot_defaults(&ability_targets, &mut slots);
-                // CR 603.3d: "if a choice is required when the triggered ability
-                // goes on the stack but no legal choices can be made for it ...
-                // the ability is simply removed from the stack." An `optional`
-                // (CR 601.2c "up to") slot always has a legal choice -- zero
-                // targets -- so only a REQUIRED slot with an empty candidate set
-                // removes the trigger.
-                if slots.iter().any(|s| !s.optional && s.candidates.is_empty()) {
-                    None
-                } else if let Some(pre) = this_head {
-                    // CR 603.3d resume: this is the head of a suspended batch and
-                    // its controller has already answered. Every LATER trigger in
-                    // the batch derives its own targets at its own turn, which is
-                    // what CR 603.3d requires ("as it goes on the stack").
-                    Some(pre)
-                } else if let Some(per_slot) = forced_trigger_target_answer(&slots) {
-                    // CR 601.2c: one legal answer is not a choice.
-                    if forced_answer_breaks_distinctness(&ability_targets, &per_slot) {
-                        // CR 603.3d: "if a choice is required when the triggered
-                        // ability goes on the stack but no legal choices can be
-                        // made for it ... the ability is simply removed from the
-                        // stack." Every slot is determined AND the combination is
-                        // illegal, so there is no legal announcement -- the
-                        // constraint has no solution, not the candidate sets.
-                        // Asking would be a question with no acceptable answer;
-                        // placing it anyway (what this path used to do) is a
-                        // silent CR 601.2c violation. Second closing review,
-                        // Finding 2 (LOW); zero corpus exposure (OOS-DP8-4).
-                        None
-                    } else {
-                        Some(flatten_slot_answers(&slots, &per_slot))
-                    }
-                } else if !state
-                    .expect_player(trigger.controller)
-                    .map(|pl| !pl.has_lost && !pl.has_conceded)
-                    .unwrap_or(false)
-                {
-                    // CR 800.4d neighbourhood: never ask a player who has left the
-                    // game -- nobody could answer and the game would hang. Use the
-                    // engine's own default, i.e. today's behaviour unchanged.
-                    // (Actually DROPPING the trigger per CR 800.4d is a behaviour
-                    // flip this batch is not chartered to make: seed OOS-DP8-5.)
-                    Some(default_spell_targets(&slots))
+            } else if let Some(pid) = trigger.triggering_player {
+                Some(vec![SpellTarget {
+                    target: Target::Player(pid),
+                    zone_at_cast: None,
+                }])
+            } else if let Some(dp) = trigger
+                .defending_player_id
+                .filter(|_| !has_ability_targets)
+                .filter(|_| {
+                    // PB-EF3 fix (review Finding 2): this shortcut exists ONLY for the
+                    // annihilator/dethrone/training/afflict keyword-derived triggers,
+                    // whose CardDef-generated effects read the defending player via
+                    // `PlayerTarget::DeclaredTarget { index: 0 }` (annihilator's
+                    // SacrificePermanents, afflict's LoseLife) or simply had it tagged
+                    // for consistency (dethrone/training put a counter on the source
+                    // and never read index 0). B1 (PB-EF3) now tags EVERY
+                    // `AnyCreatureYouControlAttacks` trigger with `defending_player_id`
+                    // too, but those triggers' effects (token creation, life gain,
+                    // `EffectTarget::AttackTarget` damage — Utvara Hellkite, Dromoka,
+                    // Hellrider, Raid Bombardment) never consume `DeclaredTarget{0}`:
+                    // they read `ctx.defending_player` directly via
+                    // `PlayerTarget::DefendingPlayer` / `EffectTarget::AttackTarget`,
+                    // which do not depend on `stack_obj.targets`. Setting a spurious
+                    // `Target::Player(dp)` on their stack object wrongly fizzles the
+                    // WHOLE (non-targeted) ability if `dp` leaves the game before it
+                    // resolves — CR 608.2b's "all targets illegal" fizzle applies only
+                    // to a targeted ability. Restrict the shortcut to the four
+                    // keyword-family trigger events so the new AttackTarget/
+                    // DefendingPlayer-based cards are unaffected.
+                    matches!(
+                        trigger.triggering_event,
+                        Some(TriggerEvent::SelfAttacks)
+                            | Some(TriggerEvent::SelfAttacksPlayerWithMostLife)
+                            | Some(TriggerEvent::SelfAttacksWithGreaterPowerAlly)
+                            | Some(TriggerEvent::SelfBecomesBlocked)
+                    )
+                })
+            {
+                // CR 702.86a / CR 508.5: Annihilator triggers carry the defending player ID.
+                // Set as Target::Player at index 0 so PlayerTarget::DeclaredTarget { index: 0 }
+                // resolves to the correct defending player for the SacrificePermanents effect.
+                Some(vec![SpellTarget {
+                    target: Target::Player(dp),
+                    zone_at_cast: None,
+                }])
+            } else if let Some(attacker_id) =
+                trigger.exalted_attacker_id.filter(|_| !has_ability_targets)
+            {
+                // CR 702.83a: Exalted triggers carry the lone attacker's ObjectId.
+                // Set it as Target::Object at index 0 so CEFilter::DeclaredTarget { index: 0 }
+                // resolves to the attacking creature (not the exalted source permanent).
+                Some(vec![SpellTarget {
+                    target: Target::Object(attacker_id),
+                    zone_at_cast: None,
+                }])
+            } else if trigger.kind == PendingTriggerKind::Provoke {
+                // CR 702.39a: Provoke triggers target the provoked creature.
+                // Set it as Target::Object so target legality can be checked at resolution.
+                let provoked = match &trigger.data {
+                    Some(TriggerData::CombatProvoke { target }) => Some(*target),
+                    _ => None,
+                };
+                if let Some(provoked) = provoked {
+                    Some(vec![SpellTarget {
+                        target: Target::Object(provoked),
+                        zone_at_cast: Some(ZoneId::Battlefield),
+                    }])
                 } else {
-                    // Suspend the CR 603.3b batch. The entry owns this trigger AND
-                    // the un-flushed tail; `handle_choose_trigger_targets` resumes.
-                    let choice_id = state.next_choice_id();
-                    let ability_index = trigger.ability_index;
-                    let source = trigger.source;
-                    let player = trigger.controller;
-                    let remaining: imbl::Vector<PendingTrigger> =
-                        sorted[next_index..].iter().cloned().collect();
-                    events.push(GameEvent::TriggerTargetChoiceRequired {
-                        player,
-                        choice_id,
-                        source_object_id: source,
-                        ability_index,
-                        slots: slots.clone(),
-                    });
-                    state.pending_trigger_targets = Some(PendingTriggerTargets {
-                        choice_id,
-                        player,
-                        source,
-                        trigger: trigger.clone(),
-                        remaining,
-                        slots: slots.into_iter().collect(),
-                        // Set by the caller's guard if this call site owed
-                        // anything (see `mark_flush_resume_site`).
-                        resume_site: FlushResumeSite::None,
-                    });
-                    // CR 117.3d (fix-cycle Finding 10): putting a triggered ability
-                    // on the stack is a game action, and the function's tail resets
-                    // the pass count for exactly that reason. The suspend return
-                    // skips that tail, so do it here for whatever this partial
-                    // batch already placed. `events` also holds the question, which
-                    // is why the flag rather than `!events.is_empty()` is the test.
-                    if placed_any {
-                        state.turn.players_passed = OrdSet::new();
-                    }
-                    return events;
+                    Some(vec![])
                 }
-            }
-        } else {
-            Some(vec![])
-        };
+            } else if matches!(
+                trigger.kind,
+                PendingTriggerKind::Normal | PendingTriggerKind::CardDefETB
+            ) {
+                // CR 603.3d: For CardDef-based triggered abilities (Normal / CardDefETB),
+                // look up the target requirements from the ability definition and
+                // auto-select legal targets using deterministic first-match fallback.
+                // If any required target has no legal candidate, skip this trigger.
+                //
+                // PB-DX35 (CR 700.2b/700.2c / OOS-DX4-2): identical value to
+                // `trigger_target_requirements` above — `modal_plan` is computed once
+                // per trigger and threaded through every consumer so the two cannot
+                // re-diverge into separate hand-rolled copies.
+                let ability_targets: Vec<crate::cards::card_definition::TargetRequirement> =
+                    modal_plan.requirements.clone();
+                if ability_targets.is_empty() {
+                    // No targets required — proceed normally with empty targets.
+                    Some(vec![])
+                } else {
+                    // CR 603.3d / CR 601.2c (PB-DP8 / DP-6): the controller ANNOUNCES
+                    // the targets. Derive every legal choice per slot with the same
+                    // predicates the pre-PB-DP8 first-match auto-pick used, then
+                    // decide whether a question is owed.
+                    let mut slots: Vec<TriggerTargetOption> = ability_targets
+                        .iter()
+                        .map(|req| trigger_target_candidates(state, &trigger, req))
+                        .collect();
+                    // CR 601.2c (closing-review Finding 3, LOW): a per-slot default is
+                    // computed in isolation, so two mutually-distinct slots both got
+                    // `candidates.first()` -- an answer the engine's own cross-slot
+                    // check rejects. Reconcile them before anything can submit it.
+                    make_distinct_slot_defaults(&ability_targets, &mut slots);
+                    // CR 603.3d: "if a choice is required when the triggered ability
+                    // goes on the stack but no legal choices can be made for it ...
+                    // the ability is simply removed from the stack." An `optional`
+                    // (CR 601.2c "up to") slot always has a legal choice -- zero
+                    // targets -- so only a REQUIRED slot with an empty candidate set
+                    // removes the trigger.
+                    if slots.iter().any(|s| !s.optional && s.candidates.is_empty()) {
+                        None
+                    } else if let Some(pre) = this_head {
+                        // CR 603.3d resume: this is the head of a suspended batch and
+                        // its controller has already answered. Every LATER trigger in
+                        // the batch derives its own targets at its own turn, which is
+                        // what CR 603.3d requires ("as it goes on the stack").
+                        Some(pre)
+                    } else if let Some(per_slot) = forced_trigger_target_answer(&slots) {
+                        // CR 601.2c: one legal answer is not a choice.
+                        if forced_answer_breaks_distinctness(&ability_targets, &per_slot) {
+                            // CR 603.3d: "if a choice is required when the triggered
+                            // ability goes on the stack but no legal choices can be
+                            // made for it ... the ability is simply removed from the
+                            // stack." Every slot is determined AND the combination is
+                            // illegal, so there is no legal announcement -- the
+                            // constraint has no solution, not the candidate sets.
+                            // Asking would be a question with no acceptable answer;
+                            // placing it anyway (what this path used to do) is a
+                            // silent CR 601.2c violation. Second closing review,
+                            // Finding 2 (LOW); zero corpus exposure (OOS-DP8-4).
+                            None
+                        } else {
+                            Some(flatten_slot_answers(&slots, &per_slot))
+                        }
+                    } else if !state
+                        .expect_player(trigger.controller)
+                        .map(|pl| !pl.has_lost && !pl.has_conceded)
+                        .unwrap_or(false)
+                    {
+                        // CR 800.4d neighbourhood: never ask a player who has left the
+                        // game -- nobody could answer and the game would hang. Use the
+                        // engine's own default, i.e. today's behaviour unchanged.
+                        // (Actually DROPPING the trigger per CR 800.4d is a behaviour
+                        // flip this batch is not chartered to make: seed OOS-DP8-5.)
+                        Some(default_spell_targets(&slots))
+                    } else {
+                        // Suspend the CR 603.3b batch. The entry owns this trigger AND
+                        // the un-flushed tail; `handle_choose_trigger_targets` resumes.
+                        let choice_id = state.next_choice_id();
+                        let ability_index = trigger.ability_index;
+                        let source = trigger.source;
+                        let player = trigger.controller;
+                        let remaining: imbl::Vector<PendingTrigger> =
+                            sorted[next_index..].iter().cloned().collect();
+                        events.push(GameEvent::TriggerTargetChoiceRequired {
+                            player,
+                            choice_id,
+                            source_object_id: source,
+                            ability_index,
+                            slots: slots.clone(),
+                        });
+                        state.pending_trigger_targets = Some(PendingTriggerTargets {
+                            choice_id,
+                            player,
+                            source,
+                            trigger: trigger.clone(),
+                            remaining,
+                            slots: slots.into_iter().collect(),
+                            // Set by the caller's guard if this call site owed
+                            // anything (see `mark_flush_resume_site`).
+                            resume_site: FlushResumeSite::None,
+                        });
+                        // CR 117.3d (fix-cycle Finding 10): putting a triggered ability
+                        // on the stack is a game action, and the function's tail resets
+                        // the pass count for exactly that reason. The suspend return
+                        // skips that tail, so do it here for whatever this partial
+                        // batch already placed. `events` also holds the question, which
+                        // is why the flag rather than `!events.is_empty()` is the test.
+                        if placed_any {
+                            state.turn.players_passed = OrdSet::new();
+                        }
+                        return events;
+                    }
+                }
+            } else {
+                Some(vec![])
+            };
         // CR 603.3d: If trigger_targets_opt is None, no legal target exists — skip trigger.
         let trigger_targets = match trigger_targets_opt {
             Some(t) => t,
@@ -9993,16 +9992,16 @@ fn flush_sorted(
             // CR 603.10a / CR 113.7a: Propagate LKI source-power snapshot from PendingTrigger
             // to StackObject so resolution.rs can build EffectContext.lki_power.
             stack_obj.lki_power = trigger.lki_power; // Option<i32> is Copy
-            // CR 700.2b (PB-DX35, `OOS-DX4-2`): choose modes when the trigger is
-            // put on the stack, from the SAME `modal_plan` computed once at the
-            // top of this trigger's loop iteration and already threaded into
-            // `trigger_target_requirements`/`ability_targets` above -- "one
-            // arithmetic" is structural, not three independently-computed copies
-            // that can re-diverge. The controller still does not choose
-            // (`decision_site_walk`'s `modal_trigger` row stays `AutoChosen`,
-            // execution-notes §0.3): the automatic choice is now CR 700.2b-legal
-            // (it will not pick a mode with no legal target) instead of always
-            // picking mode 0.
+                                                     // CR 700.2b (PB-DX35, `OOS-DX4-2`): choose modes when the trigger is
+                                                     // put on the stack, from the SAME `modal_plan` computed once at the
+                                                     // top of this trigger's loop iteration and already threaded into
+                                                     // `trigger_target_requirements`/`ability_targets` above -- "one
+                                                     // arithmetic" is structural, not three independently-computed copies
+                                                     // that can re-diverge. The controller still does not choose
+                                                     // (`decision_site_walk`'s `modal_trigger` row stays `AutoChosen`,
+                                                     // execution-notes §0.3): the automatic choice is now CR 700.2b-legal
+                                                     // (it will not pick a mode with no legal target) instead of always
+                                                     // picking mode 0.
             if matches!(stack_obj.kind, StackObjectKind::TriggeredAbility { .. }) {
                 stack_obj.modes_chosen = modal_plan.modes_chosen.clone();
             }

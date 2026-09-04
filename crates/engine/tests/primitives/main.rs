@@ -51,6 +51,7 @@ mod pb_dx28_owner_axis;
 mod pb_dx28_untargeted_choice;
 mod pb_dx29_loyalty_target_surface;
 mod pb_dx2_command_gates;
+mod pb_dx35_modal_trigger_targets;
 mod pb_dx3_stale_blocker_notes;
 mod pb_dx3b_stale_blocker_bucket;
 mod pb_dx45_optional_cost;
