@@ -91,8 +91,10 @@
   and rider **OOS-DX21-5** ALL CLOSED; live on 2 deck-legal `Complete` defs).
   **↻ PB-DX35 SHIPPED** (`scutemob-227`, 2026-09-04; v4 rank 12 — **OOS-DX4-2** and
   **OOS-DX4-5** both CLOSED, plus **OOS-DP10-5** CLOSED and **OOS-DX8-3** updated).
-  **Next dispatch: PB-DX36** (v4 rank 13 — and `OOS-CARDS2-6` has NO registry row, so file
-  one first); ranks 1-12 all shipped.
+  **↻ PB-DX36 SHIPPED** (`scutemob-228`, 2026-09-04; v4 rank 13 — **OOS-CARDS2-6** FILED
+  (it had no registry row) and **CLOSED**, both halves).
+  **Next dispatch: PB-DX52** (v4 rank 14 — Bolt Bend's printed "or ability" half,
+  `OOS-DX25b-1` + rider `OOS-DX25b-5`); ranks 1-13 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -142,7 +144,10 @@
   three sessions; and the reviews doc's `HASH 69` corrected to **70** in four places — the claim was
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
-  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,138/1,803 = 63.1%**
+  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,139/1,803 = 63.2%**
+  (PB-DX36, 2026-09-04 — one flip, `exalted_angel`, from the new `WhenDealsDamage` trigger +
+  `EffectAmount::DamageDealt`)
+  *(historical: **1,138/1,803 = 63.1%**
   (PB-DX35, 2026-09-04 — one flip, `shambling_ghast`, from the CR 700.2b per-mode target scoping)
   *(historical: **1,137/1,803 = 63.1%**
   (PB-DX45, 2026-09-02 — one flip, `vampire_gourmand`, from the CR 118.12 policy re-adjudication)*
@@ -233,8 +238,10 @@
   took `CORPUS_COMPLETE` 1137 → 1138 with `COMMANDER_POOL` re-measured UNCHANGED at 90.
   **PROTOCOL 41 / HASH 82 both UNMOVED — zero bumps for the whole PB**, both gate-executed and
   both predicted per half in writing before any production line. Filed **OOS-DX35-1..10**.
-  **Next dispatch: PB-DX36** (v4 rank 13 — and `OOS-CARDS2-6` has NO registry row, so file
-  one first); ranks 1-12 all shipped.
+  **↻ PB-DX36 SHIPPED** (`scutemob-228`, 2026-09-04; v4 rank 13 — **OOS-CARDS2-6** FILED
+  (it had no registry row) and **CLOSED**, both halves).
+  **Next dispatch: PB-DX52** (v4 rank 14 — Bolt Bend's printed "or ability" half,
+  `OOS-DX25b-1` + rider `OOS-DX25b-5`); ranks 1-13 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -245,6 +252,69 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-04, PB-DX36)**: **5,115 / 0 / 5** full-workspace on branch
+  `scutemob-228` (+18 over the **5,097** baseline, measured on this branch BEFORE any edit and
+  **reproducing PB-DX35's close pin exactly** — `OOS-DX51-5`'s non-reproducing-pin failure did not
+  recur), `--workspace --no-fail-fast` to a file, **64** result-producing targets (63 → 64: one new
+  simulator test binary), residual list empty.
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
+  `sort` + `comm` (`OOS-DX20b-5`): 18 additions, 0 leavers, 0 removals, 0 renames.** Count delta
+  18 == name-set delta 18, and the duplicate-name scan the byte-exact method is structurally blind
+  to (`OOS-DX35-8`) is **EMPTY on both runs**.
+  **PROTOCOL 41 → 42 / HASH 82 → 83, ONE bump each**, both taken from the failing gates' own output
+  and **both predicted in writing, per half, before any production line changed** (`a9fca688`) —
+  including the prediction that **neither** closure's type count would move, confirmed by the
+  gates' own text at **98** and **132**. Every wire cell was **PROBED at stage 0**, not inherited
+  from the v4 memo: each gate's `CLOSURE_MUST_NOT_CONTAIN` was temporarily extended and its closure
+  walk executed, giving `TriggerCondition` OFF-wire, `PendingTrigger` OFF-wire, and
+  `EffectAmount` / `TriggerEvent` / `TriggeredAbilityDef` ON-wire. History rows appended, never
+  edited; both `FROZEN_HISTORY_PREFIX_DIGEST`s re-pinned; `history_is_append_only` and
+  `frozen_prefix_is_pinned` green on both; `hash_schema` 36/36, `protocol_schema` 17/17.
+  **The two-step stream observation recurs for the third version running** (v40, v82, now v83):
+  with every change in the tree and hashed but BEFORE the version bump,
+  `declaration_fingerprint_is_pinned` was RED and `stream_fingerprint_is_pinned` **GREEN** —
+  `canonical_fixture()` carries no pending trigger, no stack object with a damage amount and no
+  card registry, so none of this batch's new bytes can reach it.
+  **THE SENTINEL SWEEP FAILED ONCE AND THE SURVIVOR SCAN REPRODUCED THE FAILURE, WHICH IS THE
+  DURABLE HALF.** The first sweep re-pinned 48 HASH + 13 PROTOCOL by symbol and **missed
+  `pb_dx2_command_gates.rs`'s `41u32`** — `\b` between `1` and `u` is not a word boundary, which is
+  `OOS-DX20b`'s own `79u8` lesson, handled for HASH (`82(u8)?`) five lines earlier in the same
+  script and not carried across to the sibling symbol. The survivor scan obeyed PB-DX50's rule to
+  the letter — a ±3-line window instead of a symbol-adjacent match, a genuinely different SHAPE —
+  and still reported **0 real survivors**, because it used the same **value** pattern `\b41\b`.
+  *A survivor scan has TWO axes, the shape of the match and the spelling of the value, and varying
+  one while holding the other is half a check* (`OOS-DX36-8`). Re-swept with a suffix-tolerant
+  value pattern on both symbols: final **49 HASH + 14 PROTOCOL**, 0 real survivors, the only
+  remaining hits being two correct historical-prose lines. Then `OOS-DX18-3`'s opposite check —
+  all 61 changed lines of the first sweep read individually, all 61 assertion arguments, no prose
+  rewritten.
+  Coverage **1,138 → 1,139 / 1,803 = 63.2%** by regeneration, **ONE flip, NAMED before any code**
+  (`exalted_angel` `partial` → `Complete`); exactly **one** `Completeness` marker line moves in the
+  whole card-def diff, checked by `git diff` over the marker rather than inferred from the count.
+  **6 card-def files edited.** `CORPUS_COMPLETE` 1138 → **1139**, with `COMMANDER_POOL`
+  **re-measured by executing the gate and found UNCHANGED at 90** — measured, not reasoned from
+  "an Angel is not Legendary".
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs) — all against the FINAL tree. **`npm run build` was
+  NOT run and that is stated rather than omitted**: N/A, because `git diff main..HEAD --numstat --
+  tools/play-server/frontend` is **EMPTY** and `node_modules` is absent. `tools/` is **not** zero —
+  `play-server/src/main.rs` moves inside `#[cfg(test)]` for the `UI3_SPLIT_COMBAT_SEED`
+  re-observation.
+  **Benches: MEASURED, SIX runs, verdict NO REGRESSION — and the apparent improvement is
+  deliberately NOT claimed.** Matched-set A/B against merge base `e7d7ae31`, each revision in its
+  own worktree with its own `CARGO_TARGET_DIR`. Same-code band measured FIRST across **three**
+  merge-base runs: 0.31-**3.76%**, the widest being `sba_check`. Every base-vs-HEAD difference in
+  the table is smaller than that band. `board_wipe_4p`'s HEAD run 1 read 117.53 µs against a base
+  range of 120.17-121.52 and would have published a tidy −2.7%; HEAD run 2 reads **120.27**, inside
+  the base range, so run 1 is the outlier and not the effect. **Bounded independently by mechanism
+  rather than left to the numbers**: the criterion's premise that *"`DamageDealt` dispatch is on the
+  hot path"* is **false of every BENCHED path** — `board_wipe_4p` is a `DestroyAll`, and
+  `full_turn_4p`/`6p` walk *through* the CombatDamage step with **no attackers declared**, so
+  `assignments` is empty and the extracted loop does nothing.
+  **Fuzz: the engine half is FUZZ-NEUTRAL BY MEASUREMENT.** Five seeded fixtures reddened on the
+  `CORPUS_COMPLETE` re-deal; an executed ablation in an isolated worktree — the entire engine change
+  in the tree, ONLY `exalted_angel`'s marker forced back to `partial` — turns **all five green**, so
+  every bit of the movement is `OOS-CARDS2-3` and none of it is this batch's dispatch change.
 - **Tests (delta 2026-09-04, PB-DX35)**: **5,097 / 0 / 5** full-workspace on branch
   `scutemob-227` (+39 over the **5,058** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX51's close pin exactly), `--workspace --no-fail-fast` to a file, **63**
@@ -1199,7 +1269,73 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-04 — **PB-DX35 SHIPPED** (`scutemob-227`; v4 queue rank 12 —
+- **Last Updated**: 2026-09-04 — **PB-DX36 SHIPPED** (`scutemob-228`; v4 queue rank 13 —
+  **OOS-CARDS2-6** FILED, because it had no registry row at all, and **CLOSED**, both halves).
+  **A `bool` that only the hasher reads, and a printed trigger family with no `TriggerCondition`.**
+  `TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer { combat_only }` was dispatched
+  **inside the `GameEvent::CombatDamageDealt` arm only**, under a `TODO(PB-37)`, and the lowering
+  destructured `combat_only` away with `{ .. }` — so the runtime `TriggeredAbilityDef` had no home
+  for it and the flag was read in **exactly one place in the workspace, `state/hash.rs:6848`**.
+  `true` and `false` were behaviourally identical. `sigil_of_sleep` — `Complete` by derive,
+  deck-legal — declares `combat_only: false` and silently dropped the noncombat half of its printed
+  trigger. Separately, no general *"whenever this permanent deals damage"* condition and no
+  damage-dealt `EffectAmount` existed, so `exalted_angel`'s printed ability was unauthored.
+  **THE OBVIOUS FIX — DELETE THE FLAG NOBODY READS — IS WRONG, AND ONLY AN INVERSE ORACLE CENSUS
+  SHOWS IT.** Declared users of `combat_only: true` at HEAD: **0**. *Printed* users: **1** —
+  `breath_of_fury`, *"When enchanted creature deals **combat** damage to a player…"*, which simply
+  does not declare the condition today because its blocker is Aura re-attachment. A census over the
+  DECLARED axis alone says "delete it", and deleting it would have made that card permanently
+  over-fire. The flag is **animated** instead. *The declared axis and the printed axis do not nest*
+  — PB-DX26's and PB-DX43's lesson, saving a third batch.
+  **THE RECIPIENT AXIS IS THE HALF NO DOCUMENT NAMES, AND IT IS WHAT REPAIRS TWO MORE DEFS.**
+  `curiosity` and `ophidian_eye` both print *"to an **opponent**"* and approximated it as *any
+  player*. New `DamageRecipient { Any, Player, Opponent }` closes that; each def's SURVIVING blocker
+  is named in-source rather than left implied — the costless *"you may"* (`OOS-DX35-5`).
+  **It went on `TriggerEvent`, not `TriggeredAbilityDef`, and the reason is measured**: that struct
+  has no `Default` derive and **190 exhaustive struct literals across 44 files**, reproducing
+  `OOS-DX35-1`'s figure exactly at HEAD. Seven new unit variants; one ability lowers to exactly
+  **one** `trigger_on` through an exhaustive wildcard-free `match`, so a new axis value is a compile
+  error rather than a silent drop — the failure mode `combat_only` itself was.
+  **DISJOINTNESS IS BY CONSTRUCTION AND VERIFIED AT THE EMIT SITES, NOT ASSUMED.**
+  `GameEvent::CombatDamageDealt` has exactly **one** emit site (`rules/combat.rs:2382`) and emits no
+  `DamageDealt`; all **five** `DamageDealt` emit sites are CR 120 noncombat. One shared
+  `queue_damage_source_triggers` serves both arms with `is_combat` a property of the **EVENT** —
+  which is the distinction `combat_only` failed to make. A combat damage event fires any one ability
+  **exactly once**, COUNT-asserted, because PB-DX47's double-push shape passes a `>= 1` assertion,
+  and RED under an executed revert that duplicates the combat-arm call.
+  **THE TASK BRIEF'S CR CITE IS WRONG AND WAS NOT OBEYED.** It cites **CR 603.10a** for *"that
+  much"*, and repeats it inside acceptance criterion 7333. CR 603.10a is *look-back-in-time
+  **zone-change** triggers* — verbatim, and it says nothing about a damage amount. All 13 cites this
+  batch introduced ship against **CR 603.2c** and **CR 608.2h / CR 113.7a**; the tree's pre-existing
+  (and correct) 603.10a LKI cites were not touched. **A brief is a claim like any other**, and
+  obeying this one would have put 13 wrong cites in the tree under an AC that read as satisfied.
+  **THE MEMBER LIST WAS A FLOOR BY 5×, AND THE EXTRA MEMBER NOBODY NAMES IS A *GRANTED* ABILITY.**
+  The brief names two still-blocked self-family defs; the `all_cards()` walk finds **ten**.
+  `tandem_lookout` grants *"Whenever this creature deals damage to an opponent, draw a card"*
+  through Soulbond — structurally invisible to a per-def ability-list walk, because it declares zero
+  triggered abilities of its own. **Two blocker notes this batch FALSIFIES were repaired in place**
+  (PB-DX27's rule): `niv_mizzet_visionary`'s *"Neither is expressible"* is now half false, because
+  `EffectAmount::DamageDealt` **is** its *"that many"*.
+  **THE SENTINEL SURVIVOR SCAN OBEYED PB-DX50'S RULE TO THE LETTER AND WAS DEFEATED ANYWAY.** The
+  re-pin missed `pb_dx2_command_gates.rs`'s **`41u32`** — `\b` between `1` and `u` is not a word
+  boundary, `OOS-DX20b`'s own lesson, handled for HASH five lines earlier in the same script. The
+  survivor scan changed the matcher's **SHAPE** (a line window, not symbol-adjacent) and kept the
+  **VALUE** pattern `\b41\b`, so it was structurally incapable of seeing the miss and reported 0.
+  *A survivor scan has two axes and varying one is half a check* (`OOS-DX36-8`).
+  Tests **5,115 / 0 / 5** (+18 over a **5,097** pre-edit baseline that reproduces PB-DX35's close
+  pin exactly, **64** targets, byte-exact set difference: 18 additions / 0 leavers / 0 removals /
+  0 renames, count-vs-name reconciliation run and duplicate-name scan EMPTY). **PROTOCOL 41 → 42 /
+  HASH 82 → 83, ONE bump each, both predicted in writing per half before any code** (`a9fca688`),
+  with every wire cell PROBED at stage 0 and both closure type counts predicted and confirmed
+  UNCHANGED at **98 / 132**. Coverage **1,138 → 1,139 = 63.2%**, ONE flip named before regeneration.
+  All gates clean against the FINAL tree; `npm run build` N/A and said so. **Benches: no regression,
+  six runs, same-code band (3.76%) measured FIRST and wider than every difference in the table, with
+  the apparent `board_wipe_4p` improvement killed by a second HEAD run rather than published.**
+  **Fuzz: the engine half is fuzz-neutral BY MEASUREMENT** — five seeded fixtures reddened on the
+  `CORPUS_COMPLETE` re-deal and an executed ablation (engine change in, marker reverted) turns all
+  five green. Filed **OOS-DX36-1..8**. Full record:
+  `memory/primitives/pb-DX36-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-04 — **PB-DX35 SHIPPED** (`scutemob-227`; v4 queue rank 12 —
   **OOS-DX4-2** and **OOS-DX4-5** both CLOSED, plus **OOS-DP10-5** CLOSED and **OOS-DX8-3**
   updated). **A mode you may not legally choose, and a flag that decided nothing.**
   `ModeSelection.mode_targets` was honoured on the casting and activated paths and **nowhere** on
