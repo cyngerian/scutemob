@@ -695,3 +695,42 @@ execution**, and `COMMANDER_POOL` was **re-measured and found UNCHANGED at 90** 
 reasoned about (`Shambling Ghast` is a Creature but not `SuperType::Legendary`, so it was never a
 commander candidate). The T6.3 served-row partition moved and was re-observed, gaining the new
 `look_at_top_then_place_optional` row — an improvement, and attributed.
+
+### C8. Benches — MEASURED, seven runs, and the verdict is NO REGRESSION
+
+Matched-set A/B against merge base `90c5499c` in an isolated `git worktree` with its own
+`CARGO_TARGET_DIR`, HEAD in a second one. **The same-code repeatability band was measured FIRST**
+(PB-DX18's lesson), from two runs of the identical merge-base code:
+
+| bench | base 1 | base 2 | same-code band | HEAD 1 | HEAD 2 | verdict |
+|---|---:|---:|---:|---:|---:|---|
+| `priority_cycle_4p` | 24.529 | 24.689 | 0.65% | 24.163 | 25.023 | intervals overlap |
+| `priority_cycle_6p` | 39.099 | 38.708 | 1.00% | 38.067 | 38.831 | intervals overlap |
+| `sba_check` | 15.126 | 14.802 | **2.14%** | 15.217 | 14.742 | intervals overlap |
+| `full_turn_4p` | 216.00 | 217.33 | 0.62% | 217.47 | 218.36 | intervals overlap |
+| `full_turn_6p` | 345.32 | 343.86 | 0.42% | 341.62 | 345.25 | intervals overlap |
+| `board_wipe_4p` | 119.33 | 121.57 | 1.88% | **135.15** | 118.68 | see below |
+
+(µs, criterion's point estimate.)
+
+**`board_wipe_4p`'s HEAD run 1 is an outlier and it was killed by execution, not by averaging.**
+135.15 µs against a base range of 119.33-121.57 reads as a +12% spike, and taking the mean of the
+two HEAD runs would have published a tidy, meaningless **+5.37%**. Instead a THIRD run was taken on
+each side, on the same quiet machine, after both pairs: **HEAD 116.73**, **base 120.23**. Both
+subsequent HEAD runs bracket below every base run, so run 1 was contended and is discarded with its
+reason stated rather than folded into an average.
+
+**Verdict: no regression on any bench, and no speed-up is claimed either.** Every base-vs-HEAD
+criterion interval overlaps, and the effect sizes are all inside a same-code band that reaches
+2.14% on `sba_check`. **The apparent 1.4-3% improvement on `board_wipe_4p` is deliberately NOT
+claimed** — PB-DX51's discipline: `sba_check` and the priority cycles are controls here (nothing
+this batch touches is on the SBA loop or the priority-pass path) and they move the same order, so a
+uniform shift is a build/layout artefact of two separate compilations rather than a property of the
+change.
+
+There **is** a mechanism that would explain no regression, and it is stated as a reason to expect
+the measurement rather than as a claim about it: `flush_sorted` previously performed **two**
+independent target-requirement lookups per trigger (sites 1 and 2, each walking to the object and
+into the registry or the runtime vec) and now performs **one** shared `trigger_modal_plan`. The
+per-mode candidate derivation — the only genuinely new work — runs **only** when
+`mode_targets.is_some()`, which is true for exactly 3 corpus defs and 0 of the benched fixtures.
