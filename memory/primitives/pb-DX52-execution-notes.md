@@ -138,3 +138,48 @@ happens to be right is not a decision anyone made.
 | 12 | `resolution.rs:7713` equality compare | correct |
 | 13 | `pb_dp8_trigger_target_choice.rs:311` (test) | correct |
 
+
+---
+
+## §1 Coverage prediction — written BEFORE regeneration
+
+**Predicted: 0 flips, coverage unmoved at 1,139 / 1,803 = 63.2%.**
+
+The reason, stated rather than asserted. The whole card-def diff is:
+
+| Def | Change | Marker moves? |
+|---|---|---|
+| `deflecting_swat.rs` | `TargetRequirement::TargetSpell` → `TargetSpellOrAbility`, plus the falsified note repaired | **no** — it carries no explicit `completeness`, so it is `Complete` by derive before AND after |
+| `bolt_bend.rs` | comment only (`OOS-DX25b-1` CLOSED; the note's own instruction to invert `t3` discharged) | **no** — stays `Complete` |
+| `misdirection.rs` | comment only | **no** — stays `Complete` |
+| `untimely_malfunction.rs` | untouched | **no** — stays `partial`; its blocker is mode 2's "one or two target creatures" variable count, which this batch does not touch |
+
+**No `Completeness` marker moves anywhere in the corpus**, so the `CORPUS_COMPLETE` SET is
+unmoved as well as its count — and therefore `OOS-CARDS2-3`'s seeded-fixture re-deal budget
+is **not owed**. That is checked by `git diff` over the marker rather than inferred from an
+unchanged total: PB-DX26's lesson is that a stable COUNT is not a stable SET, and two
+cancelling flips would leave the count still while moving the deal.
+
+## §2 Frontend — a REFUTED premise of the acceptance criterion, reported not skipped
+
+AC 7352 predicts: *"npm run build if `tools/play-server/frontend` moves (it will if the
+picker learns a new target kind)"*.
+
+**It does not move, and the parenthetical is false.** `TargetPicker.svelte` echoes each
+candidate's `.value` back **verbatim** (the engine's own serialized `Target`) and displays
+`.label`, grouping by `.owner`. It never reads `.kind` at all — grepped across the whole
+frontend, the only `.kind` consumers are `CostPicker`'s cost tags and `stores.js`'s
+`ApiError`. So a stack-entry candidate renders and round-trips through the browser with
+**zero frontend production lines**, which is a property of the picker's design (UI-1's
+"echoed back verbatim, never rebuilt") rather than luck.
+
+`npm run build` is therefore **N/A**, on the same two grounds every recent batch states:
+`git diff main..HEAD --numstat -- tools/play-server/frontend` is EMPTY, and `node_modules`
+is absent from this worktree.
+
+`tools/` is **not** zero, and saying "the frontend did not move" must not be read as
+saying that: `tools/play-server/src/view.rs` gains the `"stack_object"` wire kind and a
+THIRD `NameIndex` map keyed by stack-entry id — deliberately not folded into the
+`ObjectId`-keyed one, because that exact fold is the collision `view.rs`'s own `from_view`
+comment records as a shipped bug. `tools/tui/` gains the render arm and one Cargo
+dependency.
