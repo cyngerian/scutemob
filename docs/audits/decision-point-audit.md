@@ -1,6 +1,6 @@
 # Decision-Point Surface Audit
 
-<!-- last_updated: 2026-08-12 -->
+<!-- last_updated: 2026-09-03 -->
 
 **Date**: 2026-07-26
 **Task**: `scutemob-148`

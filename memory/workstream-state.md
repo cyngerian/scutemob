@@ -17,6 +17,37 @@
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | — | available (**PB-DX20b shipped `scutemob-222` 2026-09-03; v4 ranks 1-9 all shipped; next dispatch PB-DX18, v4 rank 10**)
 
+## Last Handoff (oversight session, 2026-09-03)
+
+**Date**: 2026-09-03 (coordinator/oversight session; second of the two three-PB runs)
+**Workstream**: W6 dispatch loop + user-directed docs side task
+**Tasks**: `scutemob-220` (PB-DX49), `scutemob-221` (PB-DX50), `scutemob-222` (PB-DX20b) —
+dispatched, monitored, collected, merged (`e135c78e`, `e457f931`, `2c7844f9`); plus
+`scutemob-223`/`scutemob-224` (self-assigned docs: `docs/interactions/blood-moon-urzas-saga.html`,
+merged `51ed0774` + `0ad90adf`).
+
+**Completed**: v4 ranks 7-9 shipped (details in the three worker handoffs below — this entry
+does not duplicate them). Docs side task: a shareable two-layer HTML deconstruction of corner
+case #36 (table layer + engine-room layer, 5 inline SVG diagrams, dual-theme, CSS-only tab
+toggle after `scutemob-224` fixed the iOS QuickLook no-JS case). CLAUDE.md secondary-docs
+table gained a `docs/interactions/` row.
+
+**Not done / deferred**: PB-DX18 (v4 rank 10) NOT dispatched — awaiting user go per the
+2026-08-01 chaining retraction. `urzas_saga` authoring (`OOS-RR4-2`, the card half of #36)
+still open.
+
+**Next session candidates**: dispatch PB-DX18 (v4 rank 10); or the pod-decks check-in from
+`docs/end-state.md` (decklists still not in repo, pod-coverage metric still uncomputable).
+
+**Hazards carried forward**: this file is ~7.3k lines with ~20 stacked worker handoffs —
+well past the 5-entry rotation window; a /cleanup-style archive pass to
+`memory/archive/` is a candidate, not taken unilaterally here. `decision-point-audit.md`'s
+`last_updated` stamp lags worker registry edits (bumped this close).
+
+**Commit prefix used**: `merge:` (worker collects), `scutemob-223:`/`scutemob-224:` (docs), `chore:` (this close)
+
+---
+
 ## Worker Handoff (PB-DX20b, `scutemob-222`) — a printed restriction the DSL could not say, and the one gate the compiler cannot replace
 
 **Shipped**: v4 queue **rank 9**. **`OOS-DX20-10` ≡ `OOS-DX20-5` CLOSED as ONE defect**,

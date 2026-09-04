@@ -607,3 +607,7 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
   a real rejection). Found while building PB-DX25c's T7/T8 retarget probes — two
   separate first drafts silently produced vacuous tests (zero events fired) before this
   was traced with an in-line debug print of the actual `Err` and understood.
+
+- **Shareable docs HTML (docs/interactions/) must not depend on JavaScript**: iOS Files-app
+  QuickLook renders HTML with JS disabled, so interactive controls need CSS-only mechanisms
+  (radio+label `:checked` siblings — the pattern in `blood-moon-urzas-saga.html`, scutemob-224).
