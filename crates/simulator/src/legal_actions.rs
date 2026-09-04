@@ -3079,39 +3079,35 @@ fn eligible_splice_cards(
                 return false;
             }
             def.abilities.iter().any(|a| match a {
-                AbilityDefinition::Splice {
-                    onto_subtype,
-                    targets,
-                    ..
-                } => {
-                    // PB-DX18 (`OOS-M11-5`), SR-38: a splice card that CONTRIBUTES TARGETS
-                    // is not offerable yet, and offering it is a clean offer followed by a
-                    // guaranteed refusal.
+                AbilityDefinition::Splice { onto_subtype, .. } => {
+                    // PB-DX18 (`OOS-M11-5` / `OOS-DX18-1`): **a KNOWN SR-38 gap is left
+                    // OPEN here on purpose, and it is pinned wrong-way-round rather than
+                    // gated away.**
                     //
-                    // CR 702.47a copies the spliced card's text box onto the spell, so the
-                    // spell requires that card's targets too — PB-DX18 made
-                    // `casting.rs` append them and validate them (before, they were
-                    // announced against an empty requirement list and validated for
-                    // existence only, so `glacial_ray`'s spliced "2 damage to any target"
-                    // resolved at NOTHING: a silent wrong outcome, not an error).
+                    // CR 702.47a copies the spliced card's text box onto the spell, so a
+                    // spliced spell requires that card's targets too — PB-DX18 made
+                    // `casting.rs` append and validate them. The OFFER cannot express
+                    // them: `queries::spell_target_requirements` takes no splice
+                    // argument, and it could not use one at render time anyway, because
+                    // the human ticks splice cards in the `CostPicker` stage AFTER
+                    // `action_target_requirements` has rendered the target slots. So
+                    // ticking splice on a card whose text targets now produces a 422.
                     //
-                    // The OFFER cannot express them. `queries::spell_target_requirements`
-                    // takes no splice argument, and it could not use one at render time
-                    // anyway: the human ticks splice cards in the `CostPicker` stage,
-                    // AFTER `action_target_requirements` has already rendered the target
-                    // slots. Fuse had the identical shape and PB-DX29 gated the offer
-                    // until PB-DX44 shipped the targets; this follows that precedent
-                    // rather than shipping a picker the engine will 422.
+                    // **Why not suppress the offer, which is what SR-38 usually says.**
+                    // The corpus has exactly ONE splice card (`glacial_ray`) and its text
+                    // targets, so suppressing would delete the splice offer channel
+                    // corpus-wide — the whole capability, to avoid one refusal on the
+                    // ticked path while the un-ticked path was never affected. That is a
+                    // different trade from PB-DX29's Fuse gate, where EVERY fused cast
+                    // was a guaranteed 422 and the gate cost nothing that worked. And the
+                    // behaviour being replaced is worse than a refusal: before PB-DX18 the
+                    // spliced Glacial Ray resolved at NOTHING with the mana spent, a
+                    // silent wrong outcome rather than a visible one.
                     //
-                    // The zero-target case — every splice card whose text targets nothing
-                    // — is UNAFFECTED and still offered, which is what keeps this a
-                    // narrowing rather than a removal.
-                    //
-                    // Corpus population of the gated case: **1** (`glacial_ray`), measured
-                    // by walking `all_cards()`. Filed as `OOS-DX18-1` with the channel it
-                    // needs (per-card target slots on `SpliceCostView`, the shape `modes`
-                    // already uses in `view.rs`).
-                    targets.is_empty() && spell_subtypes.contains(onto_subtype)
+                    // Pinned by `pb_dx29_cost_kind_surface::p1g_splice_...`'s companion
+                    // assertion, wrong-way-round, so the day `OOS-DX18-1`'s channel ships
+                    // the pin goes red and demands inversion.
+                    spell_subtypes.contains(onto_subtype)
                 }
                 _ => false,
             })

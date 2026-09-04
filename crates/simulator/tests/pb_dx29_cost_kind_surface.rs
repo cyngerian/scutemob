@@ -631,6 +631,45 @@ fn p1g_splice_is_offered_when_an_eligible_arcane_splice_card_is_in_hand() {
          spell carries"
     );
 
+    // ── PB-DX18 (`OOS-M11-5` / `OOS-DX18-1`): the SR-38 DEVIATION, pinned wrong-way-
+    // round ────────────────────────────────────────────────────────────────────────
+    //
+    // CR 702.47a copies the spliced card's text box onto the spell, so a spliced spell
+    // requires the spliced card's targets too, and PB-DX18 made `casting.rs` append and
+    // validate them. `queries::spell_target_requirements` takes NO splice argument, so the
+    // offer above reports the HOST's target slots only — and Reach Through Mists declares
+    // none, while a Glacial Ray spliced onto it demands one. Ticking splice in the browser
+    // therefore 422s.
+    //
+    // This is DELIBERATELY not gated away (see `eligible_splice_cards`'s own note for the
+    // trade: the corpus's only splice card targets, so suppressing would delete the whole
+    // channel, and the behaviour it replaced was a SILENT wrong resolution rather than a
+    // visible refusal). It is asserted here in the direction it is WRONG, so the day
+    // `OOS-DX18-1`'s per-card target-slot channel ships, this goes red and demands
+    // inversion instead of rotting into a claim nobody re-checks.
+    let host_reqs = mtg_engine::spell_target_requirements(&state, arcane, &[], None, false);
+    assert!(
+        host_reqs.is_empty(),
+        "the OFFER still reports the host's requirements alone; if this is non-empty the \
+         splice contribution has reached the query and this deviation is CLOSED — invert \
+         this block (`OOS-DX18-1`)"
+    );
+    let spliced_targets: usize = defs
+        .get("Glacial Ray")
+        .expect("corpus def")
+        .abilities
+        .iter()
+        .filter_map(|a| match a {
+            AbilityDefinition::Splice { targets, .. } => Some(targets.len()),
+            _ => None,
+        })
+        .sum();
+    assert_eq!(
+        spliced_targets, 1,
+        "CR 702.47a: the spliced text targets, so the CAST demands one more target than \
+         the OFFER asked for — the SR-38 gap `OOS-DX18-1` records"
+    );
+
     // The asymmetry a reader most often misses, pinned: the SPELL needs no splice
     // keyword of its own. Reach Through Mists carries none.
     let spell_def = defs.get("Reach Through Mists").unwrap();
