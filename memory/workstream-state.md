@@ -15,9 +15,110 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | scutemob-227 | **DISPATCH CHAIN RUNNING (user-approved 2026-09-04, exactly four)**: ~~`scutemob-225` PB-DX18 (rank 10)~~ ✅ merged `61f9d5e1` → ~~`226` PB-DX51 (rank 11)~~ ✅ merged `275b00af` → `227` PB-DX35 (rank 12, dispatching) → `228` PB-DX36 (rank 13, backlog); sequential, collect before the next dispatch, STOP after 228. Briefs are the ESM task descriptions.
+| W6: Primitive + Card Authoring | scutemob-228 | **DISPATCH CHAIN RUNNING (user-approved 2026-09-04, exactly four)**: ~~`scutemob-225` PB-DX18 (rank 10)~~ ✅ merged `61f9d5e1` → ~~`226` PB-DX51 (rank 11)~~ ✅ merged `275b00af` → ~~`227` PB-DX35 (rank 12)~~ ✅ **in_review, awaiting collect** → `228` PB-DX36 (rank 13, backlog — **note: `OOS-CARDS2-6` still has NO registry row; file one first**); sequential, collect before the next dispatch, STOP after 228. Briefs are the ESM task descriptions.
 
-## Last Handoff (worker, 2026-09-04) — PB-DX51 (`scutemob-226`)
+## Last Handoff (worker, 2026-09-04) — PB-DX35 (`scutemob-227`)
+
+**Task**: `scutemob-227`, v4 queue rank 12. **Both seeds CLOSED** (`OOS-DX4-2`, `OOS-DX4-5`),
+plus **`OOS-DP10-5`** CLOSED and **`OOS-DX8-3`** updated.
+**Full record**: `memory/primitives/pb-DX35-execution-notes.md` (§0 is the pre-code prediction and
+is immutable; §B is Half B's post-code record).
+
+**Shipped, Half A** — one shared `rules::abilities::trigger_modal_plan` implementing CR 700.2b
+(*"If one of the modes would be illegal … that mode can't be chosen"*) and slicing
+`ModeSelection.mode_targets` through `casting::per_mode_target_requirements`, the SAME helper
+`handle_cast_spell` and `queries::spell_target_requirements` call. All four trigger-path consumers
+delegate to it. `shambling_ghast` `partial` → `Complete`; `retreat_to_kazandu` (the live-wrong
+deck-legal member neither the seed nor the memo names) and `retreat_to_coralhelm` repaired in
+place.
+
+**Shipped, Half B** — `Effect::LookAtTopThenPlace.optional` stops being inert: `false` or an empty
+candidate set keeps the deterministic take-when-able winner byte-for-byte, `true` with candidates
+asks `EffectChoiceQuestion::ChooseObject { count: 1, up_to: true }` on the channel `place_cost`
+already uses. **No new question variant**, so **zero fingerprint bumps for the whole PB** —
+HASH **82**, PROTOCOL **41**, both gate-executed and both predicted in writing at `c6646052`
+before any production line changed.
+
+**Read these seven before the next batch touches this surface:**
+
+1. **"Scope the targets to mode 0" — the option the brief offers — is CR-WRONG, and CR 700.2b
+   says so in one sentence.** The engine may not choose a mode it cannot choose legal targets for.
+   Taking that option would have left `retreat_to_kazandu` unable to gain 2 life on an empty
+   board — which is the defect — and made the predicted flip a false claim. Legality-aware
+   auto-choice is not scope creep here; it is the minimum correct behaviour, and it is what makes
+   the criterion's own headline probe pass.
+
+2. **The `ModeSelection` lookup and the target-requirement lookup read DIFFERENT INDEX SPACES, and
+   three of the seven corpus modal triggered abilities fall in the gap.** A `Normal`-kind trigger's
+   `ability_index` indexes the runtime `Characteristics::triggered_abilities`; both `ModeSelection`
+   read sites index the registry `CardDefinition::abilities`. They agree only when no non-`Triggered`
+   ability precedes the modal one. `hullbreaker_horror` (registry 1, behind `Keyword(Flash)`),
+   `glissa_sunslayer` (2) and `junji_the_midnight_sky` (2) are misaligned. **Two symptoms, not one**:
+   the first two resolve `Effect::Nothing` (the whole modal ability is a no-op), while junji's
+   `WhenDies` is one of the three lowering arms that pre-resolve `modes.first()` into `effect`, so
+   it executes **mode 0 forever** and the mode choice is a fiction. Zero deck-legal blast radius —
+   all three are non-`Complete` — which is measured, and is why it is `OOS-DX35-1` rather than a
+   fix. The fix is lowering `modes` into `TriggeredAbilityDef`: **190 exhaustive struct literals
+   across 44 files plus both bumps**, because that struct has no `Default` derive and is reachable
+   from `Characteristics`.
+
+3. **That is also why the memo's second predicted flip did not happen, and the seed row predicted
+   its own failure.** `OOS-DX4-2` warns that *"moving the targets into `mode_targets` looks like the
+   CR 601.2c-correct repair and would silently DROP the requirement"*. For `hullbreaker_horror` that
+   trap is still armed — not because the trigger path ignores `mode_targets` (it no longer does) but
+   because the modes lookup cannot find its `ModeSelection`, so the slice falls back to the flat
+   list the repair would have emptied. It is **re-adjudicated, not re-shaped**: `partial` kept,
+   marker rewritten to name the surviving blocker. **A yield cell that names members is a FLOOR on
+   the census and a CEILING on the flips** — `OOS-DX4-2`'s member list was short by more than double
+   (5 of 7) while its two named flips delivered one.
+
+4. **`OOS-DP10-5`'s standing instruction — *"Sweep for others not yet found"* — had been inherited
+   unrun by nine batches. It was executed, and it found a live defect on seven deck-legal cards.**
+   `Effect::CounterUnlessPays` destructures `cost: _` and delegates to `Effect::CounterSpell`, so
+   CR 118.12a's *"unless its controller pays"* is never offered: `make_disappear`, `spell_pierce`,
+   `stubborn_denial`, `mana_leak`, `izzet_charm`, `mana_tithe`, `flusterstorm`, **all `Complete` by
+   derive**. Its in-source justification (*"the payer never has an incentive to voluntarily tax
+   themselves"*) is **false on its face** — the payer is the OPPONENT whose spell is being
+   countered. Filed as `OOS-DX35-3`; the fix needs no new question variant, only PB-DX45's shape
+   addressed to a different player. The sweep also produced one **checked-and-CLEAN** result
+   (`Replacement.unless_condition` IS consumed, at `replacement.rs:2044`), recorded because it is
+   what proves the sweep read each discard rather than counting them.
+
+5. **A test-name collision across two `tests/` binaries makes a byte-exact NAME delta undercount,
+   and the byte-exact method cannot see it.** Half B named its bot-path probe
+   `c3_the_bot_path_is_offered_and_answers_the_same_action`, which PB-DX45's channel file already
+   used. One binary per file, so both compile and both run — and the close-out delta, a set
+   difference over NAMES (the method `OOS-DX20b-5` mandates), collapses the pair: **32 additions
+   against a count delta of 33**. The check costs one line and is the durable half: compare the
+   name-set delta against the `passed + ignored` delta. `OOS-DX35-8`. The `cN_`/`tN_`/`rN_`
+   convention makes this MORE likely, not less, since every batch starts its channel file at `c1`.
+
+6. **Two seed IDs collided because the batch ran its halves as two delegated implementations and
+   both claimed `OOS-DX35-1`.** Found at close-out by grepping the ID rather than trusting either
+   report. The index-space defect keeps the number on **12** in-source cites against **1**; the
+   `RevealAndRoute` residual is `-2` and its single cite was repointed in the same commit
+   (`OOS-M11-10`'s renumbering orphaned 30 cites under a note asserting it had not). **A seed ID is
+   allocated against the registry, and two workers on one task cannot both read a registry neither
+   has written to yet.**
+
+7. **Two of the coordinator's own published figures were wrong and the PRINTING TEST is what caught
+   them.** The corpus-wide "you may" population was written into two registry rows as 213 / 90 from
+   a throwaway script whose `oracle_text` extractor did not join Rust's `\`-newline continuations
+   and silently truncated every multi-line string; the true figures are **365 / 165**, read off
+   `core::pb_dx35_optional_placement_roster::t_census_report`. The pinned MDFC is also named
+   `Turntimber Symbiosis // Turntimber, Serpentine Wood`, not its file stem. **PB-DX8's rule —
+   publish the figure, do not transcribe it — caught its own author.**
+
+**Numbers** (every one re-run by the coordinator, not accepted from the implementers): tests
+**5,058 → 5,091 / 0 / 5**, **63** result-producing targets (61 → 63: two new simulator/engine test
+binaries), byte-exact set difference **33 additions / 0 leavers / 0 removals / 0 renames** after
+the rename in item 5. Coverage **1,137 → 1,138 / 1,803 = 63.1%**, ONE flip, named before any code.
+HASH **82** / PROTOCOL **41** unmoved. `clippy --workspace --all-targets -D warnings`,
+`cargo fmt --check`, `tools/check-defs-fmt.sh` (1,803 defs) and `cargo build --workspace` all clean
+against the FINAL tree. `npm run build` **N/A and said so**: `git diff main..HEAD --numstat --
+tools/play-server/frontend` is EMPTY and `node_modules` is absent from this worktree.
+
+## Prior Handoff (worker, 2026-09-04) — PB-DX51 (`scutemob-226`)
 
 **Task**: `scutemob-226`, v4 queue rank 11. **All three seeds CLOSED**: `OOS-DX21-4`,
 `OOS-DX21-2`, and rider `OOS-DX21-5`.
