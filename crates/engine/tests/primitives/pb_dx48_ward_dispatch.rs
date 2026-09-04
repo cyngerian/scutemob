@@ -1142,7 +1142,11 @@ fn test_dx48_t8a_cast_site_still_emits_the_same_permanent_targeted_payload() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("t48-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)

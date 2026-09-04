@@ -196,7 +196,11 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -479,7 +483,11 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -559,7 +567,11 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -654,7 +666,11 @@ fn test_prowess_until_end_of_turn_expires() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -754,7 +770,11 @@ fn test_prowess_multiple_spells_stack() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let shock = ObjectSpec::card(p1, "Shock")
         .in_zone(ZoneId::Hand(p1))
@@ -762,7 +782,11 @@ fn test_prowess_multiple_spells_stack() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("shock".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -899,7 +923,11 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)

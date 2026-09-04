@@ -631,6 +631,45 @@ fn p1g_splice_is_offered_when_an_eligible_arcane_splice_card_is_in_hand() {
          spell carries"
     );
 
+    // ── PB-DX18 (`OOS-M11-5` / `OOS-DX18-1`): the SR-38 DEVIATION, pinned wrong-way-
+    // round ────────────────────────────────────────────────────────────────────────
+    //
+    // CR 702.47a copies the spliced card's text box onto the spell, so a spliced spell
+    // requires the spliced card's targets too, and PB-DX18 made `casting.rs` append and
+    // validate them. `queries::spell_target_requirements` takes NO splice argument, so the
+    // offer above reports the HOST's target slots only — and Reach Through Mists declares
+    // none, while a Glacial Ray spliced onto it demands one. Ticking splice in the browser
+    // therefore 422s.
+    //
+    // This is DELIBERATELY not gated away (see `eligible_splice_cards`'s own note for the
+    // trade: the corpus's only splice card targets, so suppressing would delete the whole
+    // channel, and the behaviour it replaced was a SILENT wrong resolution rather than a
+    // visible refusal). It is asserted here in the direction it is WRONG, so the day
+    // `OOS-DX18-1`'s per-card target-slot channel ships, this goes red and demands
+    // inversion instead of rotting into a claim nobody re-checks.
+    let host_reqs = mtg_engine::spell_target_requirements(&state, arcane, &[], None, false);
+    assert!(
+        host_reqs.is_empty(),
+        "the OFFER still reports the host's requirements alone; if this is non-empty the \
+         splice contribution has reached the query and this deviation is CLOSED — invert \
+         this block (`OOS-DX18-1`)"
+    );
+    let spliced_targets: usize = defs
+        .get("Glacial Ray")
+        .expect("corpus def")
+        .abilities
+        .iter()
+        .filter_map(|a| match a {
+            AbilityDefinition::Splice { targets, .. } => Some(targets.len()),
+            _ => None,
+        })
+        .sum();
+    assert_eq!(
+        spliced_targets, 1,
+        "CR 702.47a: the spliced text targets, so the CAST demands one more target than \
+         the OFFER asked for — the SR-38 gap `OOS-DX18-1` records"
+    );
+
     // The asymmetry a reader most often misses, pinned: the SPELL needs no splice
     // keyword of its own. Reach Through Mists carries none.
     let spell_def = defs.get("Reach Through Mists").unwrap();
@@ -1515,11 +1554,18 @@ fn c2f_splice_is_charged_the_way_the_engine_charges_it() {
     let exact = build(exact_pool(&predicted));
     let card = id_of(&exact, "Reach Through Mists");
     let ray = id_of(&exact, "Glacial Ray");
+    // PB-DX18 (`OOS-M11-5`), CR 702.47a / 601.2c: a spliced spell requires the SPLICED
+    // CARD's targets too — *"copy this card's text box onto that spell"* — and Glacial
+    // Ray's text is "deals 2 damage to any target". This cast declared NO targets and was
+    // accepted before PB-DX18 only because `validate_targets_inner`'s empty-requirements
+    // arm waved a targetless announcement through; the spliced damage then resolved at
+    // nothing. The subject of this test is the COST, which is unchanged — the target is
+    // supplied so the cost assertion is not standing on a defect.
     let accepted = cast(
         exact,
         P1,
         card,
-        vec![],
+        vec![Target::Player(P2)],
         vec![],
         vec![AdditionalCost::Splice { cards: vec![ray] }],
     );
@@ -1532,11 +1578,15 @@ fn c2f_splice_is_charged_the_way_the_engine_charges_it() {
     let short = build(one_mana_short(&predicted));
     let card = id_of(&short, "Reach Through Mists");
     let ray = id_of(&short, "Glacial Ray");
+    // Same target as the accepted leg (PB-DX18): the two legs must differ in exactly the
+    // mana pool, or the refusal could be an InvalidTarget wearing an InsufficientMana
+    // label — and the assertion below tests the ERROR KIND, so a target-shaped refusal
+    // would fail loudly rather than pass by coincidence.
     let refused = cast(
         short,
         P1,
         card,
-        vec![],
+        vec![Target::Player(P2)],
         vec![],
         vec![AdditionalCost::Splice { cards: vec![ray] }],
     );

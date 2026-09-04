@@ -3080,6 +3080,38 @@ fn eligible_splice_cards(
             }
             def.abilities.iter().any(|a| match a {
                 AbilityDefinition::Splice { onto_subtype, .. } => {
+                    // PB-DX18 (`OOS-M11-5` / `OOS-DX18-1`): **a KNOWN SR-38 gap is left
+                    // OPEN here on purpose, and it is pinned wrong-way-round rather than
+                    // gated away.**
+                    //
+                    // CR 702.47a copies the spliced card's text box onto the spell, so a
+                    // spliced spell requires that card's targets too — PB-DX18 made
+                    // `casting.rs` append and validate them. The OFFER cannot express
+                    // them: `queries::spell_target_requirements` takes no splice
+                    // argument, and it could not use one at render time anyway, because
+                    // the human ticks splice cards in the `CostPicker` stage AFTER
+                    // `action_target_requirements` has rendered the target slots. So
+                    // ticking splice on a card whose text targets now produces a 422.
+                    //
+                    // **Why not suppress the offer, which is what SR-38 usually says.**
+                    // NOT because this differs from PB-DX29's Fuse gate in kind — the
+                    // first draft of this note claimed that ("EVERY fused cast was a
+                    // guaranteed 422 and the gate cost nothing that worked") and the
+                    // `/review` refuted it: `glacial_ray` is the corpus's ONLY splice def
+                    // and it declares a target, so every spliced cast is a guaranteed 422
+                    // too, and a suppression would equally "cost nothing that works".
+                    //
+                    // The real argument is the one that stands on its own: the behaviour
+                    // being replaced is WORSE than a refusal. Before PB-DX18 the spliced
+                    // Glacial Ray resolved at NOTHING with the mana spent — a silent wrong
+                    // game state, not a visible error. Deleting the offer trades a visible
+                    // refusal for no capability at all, on a channel PB-DX29 shipped
+                    // deliberately, while the un-ticked path was never affected either
+                    // way. So the gap stays open, PINNED in the direction it is wrong.
+                    //
+                    // Pinned by `pb_dx29_cost_kind_surface::p1g_splice_...`'s companion
+                    // assertion, wrong-way-round, so the day `OOS-DX18-1`'s channel ships
+                    // the pin goes red and demands inversion.
                     spell_subtypes.contains(onto_subtype)
                 }
                 _ => false,

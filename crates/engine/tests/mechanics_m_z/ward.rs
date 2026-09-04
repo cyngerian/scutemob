@@ -156,7 +156,11 @@ fn test_ward_basic_counter_on_targeting() {
             black: 1,
             generic: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("doom-blade".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -288,7 +292,11 @@ fn test_ward_does_not_trigger_for_controller() {
             black: 1,
             generic: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("doom-blade".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -766,7 +774,11 @@ fn test_ward_multiple_targets_trigger_separately() {
             red: 1,
             generic: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("twin-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -864,7 +876,11 @@ fn test_ward_multiplayer_opponent_check() {
             black: 1,
             generic: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("doom-blade".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)

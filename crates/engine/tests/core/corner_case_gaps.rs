@@ -9,9 +9,38 @@ use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::test_util;
 use mtg_engine::state::turn::Step;
 use mtg_engine::state::{CardType, GameStateBuilder, ObjectSpec, PlayerId, Target, ZoneId};
+use mtg_engine::{
+    AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry, Effect,
+    TargetRequirement, TypeLine,
+};
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
+}
+
+// PB-DX18 (OOS-M11-5): `ObjectSpec::card()` is naked (see `memory/gotchas-infra.md`) --
+// "Terror" is not in `all_cards()`, so this fixture needs a minimal local def carrying
+// a real `TargetRequirement` or CR 601.2c rejects the announced target outright.
+fn terror_def(card_id: &str, name: &str) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(card_id.to_string()),
+        name: name.to_string(),
+        types: TypeLine {
+            card_types: [CardType::Instant].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: format!("Destroy target creature. ({name})"),
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::DestroyPermanent {
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                cant_be_regenerated: false,
+            },
+            targets: vec![TargetRequirement::TargetCreature],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -32,12 +61,18 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
     let p1 = p(1);
     let p2 = p(2);
 
+    let registry = CardRegistry::new(vec![terror_def("cc23-terror", "Terror")]);
+
     // p1's creature on the battlefield — the flicker target.
     let creature = ObjectSpec::creature(p1, "Grizzly Bears", 2, 2);
     // p2's kill spell in hand — targets the creature.
     let kill_spell = ObjectSpec::card(p2, "Terror")
         .with_types(vec![CardType::Instant])
-        .in_zone(ZoneId::Hand(p2));
+        .in_zone(ZoneId::Hand(p2))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("cc23-terror".to_string()));
 
     // Build state: p1 is active, but an instant can be cast any time.
     // We place it at Upkeep so p2 can respond with priority.
@@ -46,6 +81,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
         .at_step(Step::Upkeep)
         .object(creature)
         .object(kill_spell)
+        .with_registry(registry)
         .build()
         .unwrap();
 

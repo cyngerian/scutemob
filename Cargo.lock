@@ -1580,7 +1580,6 @@ version = "0.1.0"
 dependencies = [
  "bitflags 2.11.1",
  "imbl",
- "rand 0.9.4",
  "serde",
 ]
 
@@ -1596,7 +1595,6 @@ dependencies = [
  "mtg-card-types",
  "mtg-engine",
  "proptest",
- "rand 0.9.4",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

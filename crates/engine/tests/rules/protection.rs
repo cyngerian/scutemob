@@ -7,9 +7,10 @@
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::CombatDamageTarget;
 use mtg_engine::{
-    process_command, start_game, AttackTarget, CardType, Color, Command, GameEvent,
-    GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId,
-    ProtectionQuality, Step, SubType, SuperType, Target, ZoneId,
+    process_command, start_game, AbilityDefinition, AttackTarget, CardDefinition, CardEffectTarget,
+    CardId, CardRegistry, CardType, Color, Command, Effect, GameEvent, GameStateBuilder,
+    KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, ProtectionQuality, Step,
+    SubType, SuperType, Target, TargetRequirement, TypeLine, ZoneId,
 };
 
 // ── Helper: find object by name ───────────────────────────────────────────────
@@ -21,6 +22,71 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
         .unwrap_or_else(|| panic!("object '{}' not found", name))
+}
+
+// PB-DX18 (OOS-M11-5): every spell in this file used `ObjectSpec::card()` (a naked
+// object -- see `memory/gotchas-infra.md`) with no registered `CardDefinition`, so
+// `card_def_target_requirements` always returned an empty requirement list. Before
+// PB-DX18, a non-empty `targets` against an empty requirement list fell through to
+// "existence-only validation" -- which is where the protection/hexproof check actually
+// lived (`validate_mapped_targets`). Now CR 601.2c rejects that shape outright (a spell
+// can't be given a target it doesn't require), so every cast in this file must be
+// linked to a real minimal `CardDefinition` carrying the `TargetRequirement` its test
+// exercises, or the cast is refused before the protection check ever runs.
+
+/// A minimal instant `CardDefinition` printing "deals 1 damage to target creature" --
+/// used to link a fixture's `ObjectSpec::card()` to a real `TargetRequirement::TargetCreature`
+/// so the cast reaches the CR 702.16b protection check on an object target.
+fn creature_targeting_def(card_id: &str, name: &str) -> CardDefinition {
+    use mtg_engine::cards::card_definition::EffectAmount;
+    CardDefinition {
+        card_id: CardId(card_id.to_string()),
+        name: name.to_string(),
+        types: TypeLine {
+            card_types: [CardType::Instant].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: format!("{} deals 1 damage to target creature.", name),
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::DealDamage {
+                source: None,
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                amount: EffectAmount::Fixed(1),
+            },
+            targets: vec![TargetRequirement::TargetCreature],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    }
+}
+
+/// A minimal instant `CardDefinition` printing "deals 1 damage to target player or
+/// planeswalker" -- used to link a fixture's `ObjectSpec::card()` to a real
+/// `TargetRequirement::TargetPlayerOrPlaneswalker` so the cast reaches the CR 702.16b
+/// protection check on a player target.
+fn player_targeting_def(card_id: &str, name: &str) -> CardDefinition {
+    use mtg_engine::cards::card_definition::EffectAmount;
+    CardDefinition {
+        card_id: CardId(card_id.to_string()),
+        name: name.to_string(),
+        types: TypeLine {
+            card_types: [CardType::Instant].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: format!("{} deals 1 damage to target player or planeswalker.", name),
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::DealDamage {
+                source: None,
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                amount: EffectAmount::Fixed(1),
+            },
+            targets: vec![TargetRequirement::TargetPlayerOrPlaneswalker],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    }
 }
 
 // ── CR 702.16b: Protection from color blocks targeting ────────────────────────
@@ -37,6 +103,11 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
         KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red)),
     );
 
+    let registry = CardRegistry::new(vec![creature_targeting_def(
+        "lightning-bolt-protection-blocks-red",
+        "Lightning Bolt",
+    )]);
+
     // Source: a red instant spell controlled by p2.
     let bolt_spec = ObjectSpec::card(p2, "Lightning Bolt")
         .with_types(vec![CardType::Instant])
@@ -45,11 +116,16 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
             ..Default::default()
         })
         .with_colors(vec![Color::Red])
-        .in_zone(ZoneId::Hand(p2));
+        .in_zone(ZoneId::Hand(p2))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt-protection-blocks-red".to_string()));
 
     let state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
+        .with_registry(registry)
         .object(target_spec)
         .object(bolt_spec)
         .at_step(Step::PreCombatMain)
@@ -114,6 +190,11 @@ fn test_protection_from_red_allows_green_spell() {
         KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red)),
     );
 
+    let registry = CardRegistry::new(vec![creature_targeting_def(
+        "vines-of-vastwood-protection",
+        "Vines of Vastwood",
+    )]);
+
     // Source: a green instant spell.
     let vines_spec = ObjectSpec::card(p2, "Vines of Vastwood")
         .with_types(vec![CardType::Instant])
@@ -122,11 +203,16 @@ fn test_protection_from_red_allows_green_spell() {
             ..Default::default()
         })
         .with_colors(vec![Color::Green])
-        .in_zone(ZoneId::Hand(p2));
+        .in_zone(ZoneId::Hand(p2))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("vines-of-vastwood-protection".to_string()));
 
     let state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
+        .with_registry(registry)
         .object(target_spec)
         .object(vines_spec)
         .at_step(Step::PreCombatMain)
@@ -271,6 +357,11 @@ fn test_protection_from_all_blocks_all_targeting() {
     let target_spec = ObjectSpec::creature(p1, "Progenitus", 10, 10)
         .with_keyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromAll));
 
+    let registry = CardRegistry::new(vec![creature_targeting_def(
+        "divine-verdict-protection",
+        "Divine Verdict",
+    )]);
+
     // Source: any colored instant spell — even white should be blocked.
     let spell_spec = ObjectSpec::card(p2, "Divine Verdict")
         .with_types(vec![CardType::Instant])
@@ -279,11 +370,16 @@ fn test_protection_from_all_blocks_all_targeting() {
             ..Default::default()
         })
         .with_colors(vec![Color::White])
-        .in_zone(ZoneId::Hand(p2));
+        .in_zone(ZoneId::Hand(p2))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("divine-verdict-protection".to_string()));
 
     let state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
+        .with_registry(registry)
         .object(target_spec)
         .object(spell_spec)
         .at_step(Step::PreCombatMain)
@@ -634,6 +730,11 @@ fn test_protection_player_target_blocked_by_red_spell() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
 
+    let registry = CardRegistry::new(vec![player_targeting_def(
+        "lightning-bolt-protection-player-blocked",
+        "Lightning Bolt",
+    )]);
+
     // p2 is protected from red (simulating e.g. Teferi's Protection granting protection
     // from the player's own color). We set protection_qualities directly on PlayerState.
     let bolt_spec = ObjectSpec::card(p1, "Lightning Bolt")
@@ -643,11 +744,18 @@ fn test_protection_player_target_blocked_by_red_spell() {
             ..Default::default()
         })
         .with_colors(vec![Color::Red])
-        .in_zone(ZoneId::Hand(p1));
+        .in_zone(ZoneId::Hand(p1))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId(
+            "lightning-bolt-protection-player-blocked".to_string(),
+        ));
 
     let state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
+        .with_registry(registry)
         .object(bolt_spec)
         .at_step(Step::PreCombatMain)
         .active_player(p1)
@@ -713,6 +821,11 @@ fn test_protection_player_target_allowed_without_protection() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
 
+    let registry = CardRegistry::new(vec![player_targeting_def(
+        "lightning-bolt-protection-player-allowed",
+        "Lightning Bolt",
+    )]);
+
     let bolt_spec = ObjectSpec::card(p1, "Lightning Bolt")
         .with_types(vec![CardType::Instant])
         .with_mana_cost(ManaCost {
@@ -720,11 +833,18 @@ fn test_protection_player_target_allowed_without_protection() {
             ..Default::default()
         })
         .with_colors(vec![Color::Red])
-        .in_zone(ZoneId::Hand(p1));
+        .in_zone(ZoneId::Hand(p1))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId(
+            "lightning-bolt-protection-player-allowed".to_string(),
+        ));
 
     let state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
+        .with_registry(registry)
         .object(bolt_spec)
         .at_step(Step::PreCombatMain)
         .active_player(p1)
@@ -840,6 +960,11 @@ fn test_protection_from_red_blocks_multicolor_red_source() {
         KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red)),
     );
 
+    let registry = CardRegistry::new(vec![creature_targeting_def(
+        "gruul-bolt-protection",
+        "Gruul Bolt",
+    )]);
+
     // Source: a multicolor (red+green) instant spell.
     let multicolor_spec = ObjectSpec::card(p2, "Gruul Bolt")
         .with_types(vec![CardType::Instant])
@@ -849,11 +974,16 @@ fn test_protection_from_red_blocks_multicolor_red_source() {
             ..Default::default()
         })
         .with_colors(vec![Color::Red, Color::Green])
-        .in_zone(ZoneId::Hand(p2));
+        .in_zone(ZoneId::Hand(p2))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("gruul-bolt-protection".to_string()));
 
     let state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
+        .with_registry(registry)
         .object(target_spec)
         .object(multicolor_spec)
         .at_step(Step::PreCombatMain)
@@ -926,6 +1056,11 @@ fn test_protection_from_red_allows_green_only_multicolor_source() {
         KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red)),
     );
 
+    let registry = CardRegistry::new(vec![creature_targeting_def(
+        "giant-growth-protection",
+        "Giant Growth",
+    )]);
+
     let green_only_spec = ObjectSpec::card(p2, "Giant Growth")
         .with_types(vec![CardType::Instant])
         .with_mana_cost(ManaCost {
@@ -933,11 +1068,16 @@ fn test_protection_from_red_allows_green_only_multicolor_source() {
             ..Default::default()
         })
         .with_colors(vec![Color::Green])
-        .in_zone(ZoneId::Hand(p2));
+        .in_zone(ZoneId::Hand(p2))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("giant-growth-protection".to_string()));
 
     let state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
+        .with_registry(registry)
         .object(target_spec)
         .object(green_only_spec)
         .at_step(Step::PreCombatMain)
@@ -1006,6 +1146,11 @@ fn test_protection_from_subtype_goblin_blocks_goblin_source() {
         ))),
     );
 
+    let registry = CardRegistry::new(vec![creature_targeting_def(
+        "goblin-grenade-protection",
+        "Goblin Grenade",
+    )]);
+
     // Source: a Goblin instant (creature subtype = Goblin).
     let goblin_spell_spec = ObjectSpec::card(p2, "Goblin Grenade")
         .with_types(vec![CardType::Instant])
@@ -1015,11 +1160,16 @@ fn test_protection_from_subtype_goblin_blocks_goblin_source() {
             ..Default::default()
         })
         .with_colors(vec![Color::Red])
-        .in_zone(ZoneId::Hand(p2));
+        .in_zone(ZoneId::Hand(p2))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("goblin-grenade-protection".to_string()));
 
     let state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
+        .with_registry(registry)
         .object(target_spec)
         .object(goblin_spell_spec)
         .at_step(Step::PreCombatMain)
@@ -1089,6 +1239,11 @@ fn test_protection_from_subtype_goblin_allows_wizard_source() {
         ))),
     );
 
+    let registry = CardRegistry::new(vec![creature_targeting_def(
+        "wizard-bolt-protection",
+        "Wizard Bolt",
+    )]);
+
     // Source: a Wizard instant (no Goblin subtype).
     let wizard_spell_spec = ObjectSpec::card(p2, "Wizard Bolt")
         .with_types(vec![CardType::Instant])
@@ -1098,11 +1253,16 @@ fn test_protection_from_subtype_goblin_allows_wizard_source() {
             ..Default::default()
         })
         .with_colors(vec![Color::Blue])
-        .in_zone(ZoneId::Hand(p2));
+        .in_zone(ZoneId::Hand(p2))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("wizard-bolt-protection".to_string()));
 
     let state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
+        .with_registry(registry)
         .object(target_spec)
         .object(wizard_spell_spec)
         .at_step(Step::PreCombatMain)
@@ -1217,6 +1377,11 @@ fn test_protection_from_supertype_legendary() {
             KeywordAbility::ProtectionFrom(ProtectionQuality::FromSuperType(SuperType::Legendary)),
         );
 
+        let registry = CardRegistry::new(vec![creature_targeting_def(
+            &format!("{source_name}-protection-legendary"),
+            source_name,
+        )]);
+
         let source_spec = ObjectSpec::card(p2, source_name)
             .with_types(vec![CardType::Instant])
             .with_supertypes(supertypes)
@@ -1225,11 +1390,16 @@ fn test_protection_from_supertype_legendary() {
                 ..Default::default()
             })
             .with_colors(vec![Color::Red])
-            .in_zone(ZoneId::Hand(p2));
+            .in_zone(ZoneId::Hand(p2))
+            // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+            // was never linked, so the spell announced a target while the engine believed it
+            // required none (CR 601.2c).
+            .with_card_id(CardId(format!("{source_name}-protection-legendary")));
 
         let mut state = GameStateBuilder::new()
             .add_player(p1)
             .add_player(p2)
+            .with_registry(registry)
             .object(target_spec)
             .object(source_spec)
             .at_step(Step::PreCombatMain)
@@ -1299,6 +1469,11 @@ fn test_protection_from_name() {
             KeywordAbility::ProtectionFrom(ProtectionQuality::FromName(protected_from.to_string())),
         );
 
+        let registry = CardRegistry::new(vec![creature_targeting_def(
+            &format!("{source_name}-protection-name"),
+            source_name,
+        )]);
+
         let source_spec = ObjectSpec::card(p2, source_name)
             .with_types(vec![CardType::Instant])
             .with_mana_cost(ManaCost {
@@ -1306,11 +1481,16 @@ fn test_protection_from_name() {
                 ..Default::default()
             })
             .with_colors(vec![Color::Red])
-            .in_zone(ZoneId::Hand(p2));
+            .in_zone(ZoneId::Hand(p2))
+            // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+            // was never linked, so the spell announced a target while the engine believed it
+            // required none (CR 601.2c).
+            .with_card_id(CardId(format!("{source_name}-protection-name")));
 
         let mut state = GameStateBuilder::new()
             .add_player(p1)
             .add_player(p2)
+            .with_registry(registry)
             .object(target_spec)
             .object(source_spec)
             .at_step(Step::PreCombatMain)
@@ -1381,6 +1561,11 @@ fn test_protection_from_player_targeting() {
             KeywordAbility::ProtectionFrom(ProtectionQuality::FromPlayer(p2)),
         );
 
+        let registry = CardRegistry::new(vec![creature_targeting_def(
+            "targeted-bolt-protection-player",
+            "Targeted Bolt",
+        )]);
+
         let source_spec = ObjectSpec::card(caster, "Targeted Bolt")
             .with_types(vec![CardType::Instant])
             .with_mana_cost(ManaCost {
@@ -1388,11 +1573,16 @@ fn test_protection_from_player_targeting() {
                 ..Default::default()
             })
             .with_colors(vec![Color::Red])
-            .in_zone(ZoneId::Hand(caster));
+            .in_zone(ZoneId::Hand(caster))
+            // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+            // was never linked, so the spell announced a target while the engine believed it
+            // required none (CR 601.2c).
+            .with_card_id(CardId("targeted-bolt-protection-player".to_string()));
 
         let mut state = GameStateBuilder::new()
             .add_player(p1)
             .add_player(p2)
+            .with_registry(registry)
             .object(target_spec)
             .object(source_spec)
             .at_step(Step::PreCombatMain)

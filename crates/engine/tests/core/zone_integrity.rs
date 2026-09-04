@@ -293,9 +293,12 @@ fn test_zone_id_properties() {
 }
 
 #[test]
+/// PB-DX18 (`OOS-DP2-4`): rewritten from `Zone::shuffle(&mut impl Rng)` to
+/// `Zone::shuffle_pinned(seed)`. The subject is unchanged (a shuffle permutes, and the
+/// same seed permutes the same way); what changed is that neither `mtg-engine` nor
+/// `mtg-card-types` depends on `rand` any more, so a dependency bump can no longer
+/// silently re-permute every seeded library in the tree.
 fn test_zone_shuffle() {
-    use rand::SeedableRng;
-
     let mut zone = Zone::new_ordered();
     for i in 0..20 {
         zone.insert(ObjectId(i));
@@ -303,8 +306,7 @@ fn test_zone_shuffle() {
 
     let original_order = zone.object_ids();
 
-    let mut rng = rand::rngs::StdRng::seed_from_u64(42);
-    zone.shuffle(&mut rng);
+    zone.shuffle_pinned(42);
 
     let shuffled_order = zone.object_ids();
     assert_eq!(shuffled_order.len(), 20);
@@ -316,7 +318,6 @@ fn test_zone_shuffle() {
     for i in 0..20 {
         zone2.insert(ObjectId(i));
     }
-    let mut rng2 = rand::rngs::StdRng::seed_from_u64(42);
-    zone2.shuffle(&mut rng2);
+    zone2.shuffle_pinned(42);
     assert_eq!(zone2.object_ids(), shuffled_order);
 }

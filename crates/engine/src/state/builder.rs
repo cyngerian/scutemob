@@ -265,6 +265,8 @@ impl GameStateBuilder {
                 commander_tax: OrdMap::new(),
                 commander_damage_received: OrdMap::new(),
                 poison_counters: config.poison_counters,
+                // CR 702.94a (PB-DX18): no draw has happened yet at build time.
+                miracle_pending: None,
                 land_plays_remaining: config.land_plays_remaining,
                 has_drawn_for_turn: false,
                 has_lost: false,
@@ -331,6 +333,12 @@ impl GameStateBuilder {
         let mut state = GameState {
             turn,
             players,
+            // CR 103.4-103.6 (PB-DX18, `OOS-DX2-4`): a freshly built state has not
+            // started — `rules::engine::start_game` is what closes the pregame. This
+            // preserves HEAD's behaviour for every builder-based fixture, which is the
+            // safe direction: the gate can only ever REFUSE more than HEAD did, never
+            // accept more.
+            pregame: crate::state::PregamePhase::default(),
             zones,
             objects: OrdMap::new(),
             continuous_effects: Vector::new(),

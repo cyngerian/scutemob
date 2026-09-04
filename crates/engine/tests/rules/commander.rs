@@ -1404,11 +1404,19 @@ fn test_free_mulligan_then_london_mulligan() {
         events
     );
 
-    // For free mulligan, KeepHand with 0 cards_to_bottom succeeds
+    // For free mulligan, KeepHand with 0 cards_to_bottom succeeds.
+    //
+    // PB-DX18 (`OOS-DX2-4`): the keep is taken on a CLONE and the mulligan sequence
+    // continues from the state BEFORE it. CR 103.5 — *"Once a player chooses not to take
+    // a mulligan, ... that player may not take any further mulligans."* — so the
+    // keep-then-mulligan-again sequence this test used to drive is not a legal CR 103.5
+    // procedure, and until PB-DX18 the engine accepted it. Every assertion below is
+    // preserved; only the command ORDER changes, and the branch structure is what makes
+    // each keep a legal terminal declaration of its own procedure.
     let hand_ids: Vec<_> = state.zone(&ZoneId::Hand(p1)).unwrap().object_ids();
 
-    let (state, keep_events) = process_command(
-        state,
+    let (state_after_free_keep, keep_events) = process_command(
+        state.clone(),
         Command::KeepHand {
             player: p1,
             cards_to_bottom: vec![],
@@ -1431,9 +1439,18 @@ fn test_free_mulligan_then_london_mulligan() {
     );
     // Hand still has 7 cards (nothing went to bottom)
     assert_eq!(
-        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        state_after_free_keep.zone(&ZoneId::Hand(p1)).unwrap().len(),
         7,
         "after free mulligan keep, hand should still have 7"
+    );
+    // PB-DX18: and that keep really did end the procedure for this player.
+    let err_after_keep =
+        process_command(state_after_free_keep, Command::TakeMulligan { player: p1 }).unwrap_err();
+    assert!(
+        matches!(err_after_keep, mtg_engine::GameStateError::InvalidCommand(ref m)
+            if m.contains("already kept")),
+        "CR 103.5: a player who kept may take no further mulligans; err: {:?}",
+        err_after_keep
     );
     let _ = hand_ids; // suppress unused warning
 
@@ -1645,8 +1662,13 @@ fn test_mulligan_three_times_escalating_bottom_count() {
     );
 
     // Keep with 0 on bottom (free mulligan).
-    let (state, _) = process_command(
-        state,
+    //
+    // PB-DX18 (`OOS-DX2-4`): on a CLONE. CR 103.5 ends the mulligan procedure for a
+    // player the moment they keep, so the escalating-bottom-count property this test
+    // exists to pin has to be reached by taking successive mulligans, with each keep as
+    // a terminal branch. The assertion set is unchanged.
+    let (branch1, _) = process_command(
+        state.clone(),
         Command::KeepHand {
             player: p1,
             cards_to_bottom: vec![],
@@ -1654,7 +1676,7 @@ fn test_mulligan_three_times_escalating_bottom_count() {
     )
     .unwrap();
     assert_eq!(
-        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        branch1.zone(&ZoneId::Hand(p1)).unwrap().len(),
         7,
         "after 1st keep (free, 0 to bottom): 7 in hand"
     );
@@ -1676,8 +1698,8 @@ fn test_mulligan_three_times_escalating_bottom_count() {
     );
 
     let card_to_bottom_2 = state.zone(&ZoneId::Hand(p1)).unwrap().object_ids()[0];
-    let (state, _) = process_command(
-        state,
+    let (branch2, _) = process_command(
+        state.clone(),
         Command::KeepHand {
             player: p1,
             cards_to_bottom: vec![card_to_bottom_2],
@@ -1685,7 +1707,7 @@ fn test_mulligan_three_times_escalating_bottom_count() {
     )
     .unwrap();
     assert_eq!(
-        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        branch2.zone(&ZoneId::Hand(p1)).unwrap().len(),
         6,
         "after 2nd keep (1 to bottom): 6 in hand"
     );
@@ -1772,25 +1794,14 @@ fn test_dp2_cards_to_bottom_land_on_library_bottom_cr_103_4b() {
     let state = build_state_with_library(p1, 40);
 
     // Take 3 mulligans: required_bottom = 3 - 1 = 2 (CR 103.5c free-first).
+    //
+    // PB-DX18 (`OOS-DX2-4`): three mulligans IN A ROW. This test used to interleave a
+    // `KeepHand` after each of the first two, which CR 103.5 forbids — *"Once a player
+    // chooses not to take a mulligan, ... that player may not take any further
+    // mulligans."* Nothing this test asserts depended on those keeps; they only advanced
+    // `mulligan_count`, which the mulligans themselves do.
     let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
-    let (state, _) = process_command(
-        state,
-        Command::KeepHand {
-            player: p1,
-            cards_to_bottom: vec![],
-        },
-    )
-    .unwrap();
     let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
-    let card_to_bottom_2 = state.zone(&ZoneId::Hand(p1)).unwrap().object_ids()[0];
-    let (state, _) = process_command(
-        state,
-        Command::KeepHand {
-            player: p1,
-            cards_to_bottom: vec![card_to_bottom_2],
-        },
-    )
-    .unwrap();
     let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
 
     let lib_before = zone_names(&state, &ZoneId::Library(p1));

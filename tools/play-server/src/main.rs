@@ -1115,6 +1115,114 @@ mod tests {
 
     // ── 6 ─────────────────────────────────────────────────────────────────────
 
+    /// PB-DX18 (`OOS-M11-5`), CR 601.2c — a spell that requires NO targets, given one
+    /// through the real HTTP channel, is refused.
+    ///
+    /// This is the seed's own observation turned into a probe. `OOS-M11-5` was found here
+    /// (M11-local S5, `scutemob-167`, while writing
+    /// `test_post_action_illegal_target_returns_422` above): casting **Accorder's Shield**
+    /// — `{0}`, `Completeness::Complete`, deck-legal, whose SPELL declares no
+    /// `TargetRequirement` — with `params.targets = [Target::Player(2)]` returned **HTTP
+    /// 200**, and the bogus player target was recorded on the resulting `StackObject`,
+    /// from which `push_target_announcement` then emitted `GameEvent::PermanentTargeted`
+    /// and dispatched Ward.
+    ///
+    /// **The subject is the CLASS, not the card.** The driver stops at the first offered
+    /// cast whose `target_slots` is empty rather than hunting Accorder's Shield through a
+    /// seeded deck — a card-specific driver would go silently vacuous the day the seeded
+    /// pool moves, which this queue has watched happen to `UI3_SPLIT_COMBAT_SEED` three
+    /// times. The card that actually satisfies it is PRINTED, so the reader knows what
+    /// was exercised.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx18_targetless_spell_given_a_target_is_refused() {
+        let state = shared_state();
+        let view = drive_until(&state, TARGET_SEED, false, |v| {
+            decision(v)["actions"]
+                .as_array()
+                .map(|acts| {
+                    acts.iter().any(|a| {
+                        a["label"]
+                            .as_str()
+                            .map(|l| l.starts_with("Cast "))
+                            .unwrap_or(false)
+                            && a["target_slots"].as_array().map(|s| s.is_empty()) == Some(true)
+                    })
+                })
+                .unwrap_or(false)
+        })
+        .await;
+        let at_seq = seq(&view);
+        let before = command_count(&view);
+        let acts = decision(&view)["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .clone();
+        let (idx, subject) = acts
+            .iter()
+            .enumerate()
+            .find(|(_, a)| {
+                a["label"]
+                    .as_str()
+                    .map(|l| l.starts_with("Cast "))
+                    .unwrap_or(false)
+                    && a["target_slots"].as_array().map(|s| s.is_empty()) == Some(true)
+            })
+            .map(|(i, a)| (i, a["label"].as_str().unwrap_or("?").to_string()))
+            .expect("the driver stopped on one");
+        eprintln!("DX18 targetless-cast subject: {subject:?} (action_index {idx})");
+
+        // NON-VACUITY: the offer really does ask for nothing, so the target below is
+        // spurious by the OFFER's own account and not merely by the engine's.
+        assert!(
+            acts[idx]["target_slots"]
+                .as_array()
+                .expect("target_slots is an array")
+                .is_empty(),
+            "the subject must be a cast the offer layer asks no targets for"
+        );
+
+        let (status, err) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": at_seq,
+                "action_index": idx,
+                "params": { "targets": [{ "Player": 2 }] },
+            }),
+        )
+        .await;
+        assert!(
+            status.is_client_error(),
+            "CR 601.2c: a spell that requires no targets cannot be given one; got \
+             {status} with {err}"
+        );
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "the command IS built (targets have a channel on a cast) and the ENGINE \
+             refuses it, so this is 422/rejected rather than 400/bad_params: {err}"
+        );
+        assert_eq!(err["kind"], "rejected");
+
+        // The refusal touched nothing, and the decision is still answerable — so the
+        // 422 was about the target, not about the game having become unplayable.
+        let (status, still) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(seq(&still), at_seq, "the decision is still outstanding");
+        assert_eq!(command_count(&still), before, "no command was applied");
+        let (status, ok) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": at_seq, "action_index": idx }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the SAME cast with no targets is accepted: {ok}"
+        );
+    }
+
     /// A target the **engine** refuses is **422**, not 400.
     ///
     /// The distinction is the whole point of the test. `BadParams` -> 400 fires

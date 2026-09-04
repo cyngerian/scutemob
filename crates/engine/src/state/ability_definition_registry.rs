@@ -592,6 +592,8 @@ pub fn all_ability_definitions() -> Vec<AbilityDefinition> {
             cost: mc(),
             onto_subtype: SubType(String::new()),
             effect: Box::new(eff()),
+            // CR 702.47a / 601.2c (PB-DX18): the spliced text's own targets.
+            targets: vec![],
         },
         A::Entwine { cost: mc() },
         A::Escalate { cost: mc() },

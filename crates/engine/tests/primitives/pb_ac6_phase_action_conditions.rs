@@ -179,7 +179,7 @@ fn life_total(state: &GameState, player: PlayerId) -> i32 {
 /// Strict-equality hash schema sentinel (conventions.md hash-sentinel rule).
 /// PB-AC6 bumped 32 -> 33.
 fn test_hash_schema_version_is_33() {
-    assert_eq!(HASH_SCHEMA_VERSION, 80u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 81u8);
 }
 
 #[test]
@@ -479,7 +479,11 @@ fn test_becomes_target_self_by_spell() {
             .with_mana_cost(ManaCost {
                 generic: 1,
                 ..Default::default()
-            });
+            })
+            // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture
+            // registers was never linked, so the spell announced a target while the
+            // engine believed it required none (CR 601.2c).
+            .with_card_id(CardId("ac6-tap".to_string()));
 
         let mut state = GameStateBuilder::new()
             .add_player(p1)
@@ -667,7 +671,11 @@ fn test_becomes_target_scope_you_control() {
             .with_mana_cost(ManaCost {
                 generic: 1,
                 ..Default::default()
-            });
+            })
+            // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture
+            // registers was never linked, so the spell announced a target while the
+            // engine believed it required none (CR 601.2c).
+            .with_card_id(CardId("ac6-tap2".to_string()));
 
         let mut state = GameStateBuilder::new()
             .add_player(p1)
@@ -801,7 +809,11 @@ fn test_becomes_target_by_opponent_gate() {
             .with_mana_cost(ManaCost {
                 generic: 1,
                 ..Default::default()
-            });
+            })
+            // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture
+            // registers was never linked, so the spell announced a target while the
+            // engine believed it required none (CR 601.2c).
+            .with_card_id(CardId("ac6-tap3".to_string()));
 
         let mut state = GameStateBuilder::new()
             .add_player(p1)
@@ -933,7 +945,11 @@ fn test_becomes_target_fires_at_announcement_not_resolution() {
         .with_mana_cost(ManaCost {
             generic: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("ac6-tap4".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)

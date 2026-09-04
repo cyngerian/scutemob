@@ -15,7 +15,70 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | scutemob-225 | **DISPATCH CHAIN RUNNING (user-approved 2026-09-04, exactly four)**: `scutemob-225` PB-DX18 (rank 10, in_progress) → `226` PB-DX51 (rank 11, backlog) → `227` PB-DX35 (rank 12, backlog) → `228` PB-DX36 (rank 13, backlog); sequential, collect before the next dispatch, STOP after 228. Briefs are the ESM task descriptions.
+| W6: Primitive + Card Authoring | — | available (**PB-DX18 shipped `scutemob-225` 2026-09-04; v4 ranks 1-10 all shipped; next dispatch PB-DX51, v4 rank 11**)
+
+## Last Handoff (worker, 2026-09-04) — PB-DX18 (`scutemob-225`)
+
+**Task**: `scutemob-225`, v4 queue rank 10. **All six seeds CLOSED**: `OOS-DP2-7`,
+`OOS-DP2-4`, `OOS-DP2-8`, `OOS-DX2-4`, `OOS-DX2-1`, `OOS-M11-5`.
+**Full record**: `memory/primitives/pb-DX18-execution-notes.md`.
+
+**Shipped**: two new stored fields designed together for ONE HASH bump
+(`GameState.pregame: PregamePhase`, which carries BOTH of CR 103.5's restrictions, and
+`PlayerState.miracle_pending`); CR 103.5's mulligan cap derived from the same constant the
+draw loop counts to; CR 601.2c rejection of targets on a targetless spell, in ONE place;
+CR 702.47a splice targets (a new `AbilityDefinition::Splice.targets` field); a real seeded
+shuffle at both `ShuffleIntoOwnerLibrary` sites, discharged AFTER the move; and one
+`GameState::shuffle_library_seeded` with the PRNG pinned in-tree.
+
+**Read these five before the next batch touches this surface:**
+
+1. **The census was short by a whole mechanism and it is SPLICE.** No document in the chain
+   names it. `AbilityDefinition::Splice` had no `targets` field at all, so closing
+   `OOS-M11-5` REQUIRED shipping one — a batch that only added the rejection breaks the
+   corpus's one splice card.
+2. **44 of 46 CR 601.2c rejections are naked `ObjectSpec::card()` fixtures.** Measured by
+   instrumenting the rejection before repairing anything. Architecture Invariant 9 makes
+   that shape unreachable in a real game, so 42 green tests were resting on it — the
+   `OOS-DX47-4` class at scale.
+3. **`OOS-DP2-4`'s addendum names ONE re-permutation channel and there are TWO.**
+   `Rng::random_range`'s sampling is as unpinned as `StdRng`. `rand` is now dropped from
+   both crates, so the pin is structural rather than a convention.
+4. **The `*_SEED` axis is the wrong axis for the PRNG re-deal.** The memo budgets "18+
+   fixtures"; exactly ONE pin moved, because the simulator's opening deal is not one of the
+   four sites. Attributed by an executed A/B.
+5. **A re-pin regex can be too WIDE, and a survivor scan cannot see that.** New failure
+   mode, opposite of the two this queue has recorded. `OOS-DX18-3`.
+
+**Standing gates added**: `core::pb_dx18_trust_boundary_roster` r1/r1b/r2/r3/r4. `r1` is the
+one to know — it enumerates every `ZoneChangeAction::Redirect` arm that MOVES the object and
+requires it to discharge the CR 701.24 obligation with its own bound field, because the
+consumers all destructure with `..` and **the compiler cannot enforce this**.
+
+**Known open, filed**: `OOS-DX18-1` (splice offer/cast disagreement — SR-38, deliberately not
+gated, pinned wrong-way-round, needs per-card target slots on `SpliceCostView` plus a
+frontend change that could not be verified here: `node_modules` is absent);
+`OOS-DX18-2` (`crates/engine/tests/rules/effects.rs` is still a one-byte `mod`'d module);
+`OOS-DX18-3`; `OOS-DX18-4` (the activated/loyalty analogue of `OOS-M11-5`, population
+UNMEASURED); `OOS-DX18-5` (the mulligan draw loop still short-draws in silence);
+`OOS-DX18-6` (**filed by the `/review` fix cycle**: `CR 701.20` is used to mean *shuffle*
+across the tree and it is *Reveal* — 23 occurrences at HEAD, and this registry had already
+corrected the same number once at `:143` for a different wrong usage, which is how PB-DX18
+inherited it and propagated it to 41 new lines before its own review caught it. Rides
+PB-DX38).
+
+**Benches**: a REAL uniform ~2.5-4.5% regression, four runs with the same-code band measured
+first. `size_of::<PlayerState>()` 360 → 376. Stated rather than mitigated; both fields are
+load-bearing state.
+
+**A process incident worth recording**: the delegated fixture-repair subagent ran `git stash`
+in this worktree. The stash stack is shared with the main checkout and every other worktree
+(CLAUDE.md forbids bare `git stash` for exactly this reason), and it wiped both its own nine
+files of work and an in-progress engine edit. Recovered with `git stash apply <sha>` + drop,
+verified against the reflog, nothing lost. **A subagent brief for this repo should forbid git
+outright**, not merely say "do not commit".
+
+---
 
 ## Last Handoff (oversight session, 2026-09-03)
 

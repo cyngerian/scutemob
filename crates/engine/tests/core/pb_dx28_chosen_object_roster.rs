@@ -313,6 +313,20 @@ const SLOT_COUNT_REFUTED: &[&str] = &[
     "Sword of Fire and Ice",
     "Sword of Light and Shadow",
     "Sword of Sinew and Steel",
+    // PB-DX18 (`OOS-M11-5`), CR 702.47a: TWO slots, ONE printed "target", and the
+    // duplication is correct rather than a candidate.
+    //
+    // Glacial Ray prints "Glacial Ray deals 2 damage to any target" ONCE, and declares
+    // that requirement TWICE: once on its `AbilityDefinition::Spell` (its own cast) and
+    // once on its `AbilityDefinition::Splice` (the copy of the same sentence that a
+    // spliced spell gains — *"copy this card's text box onto that spell"*). Only one of
+    // the two is ever live for a given cast, so this is not the OOS-DX4-6 shape (a slot
+    // with no printed "target" behind it); it is the same printed sentence reachable
+    // through two mutually exclusive routes. This axis counts DECLARATIONS against
+    // printed WORDS and cannot see that distinction — stated here rather than tuned away,
+    // because a splice def that really did over-declare would still be caught by the
+    // count moving past 2.
+    "Glacial Ray",
 ];
 
 fn count_bare_string(v: &Value, needle: &str, parent_key: Option<&str>) -> usize {

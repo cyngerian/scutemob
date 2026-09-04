@@ -1548,12 +1548,22 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                 crate::rules::replacement::ZoneChangeAction::Redirect {
                                     to: dest,
                                     events: repl_events,
+                                    shuffle_destination_after,
                                     ..
                                 } => {
                                     events.extend(repl_events);
                                     if let Some((new_grave_id, _old)) =
                                         state.expect_move_object_to_zone(sac_id, dest)
                                     {
+                                        // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                        // now that the object is IN the destination library. No-op unless the
+                                        // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                                        // consumer has to reason about whether it is reachable.
+                                        state.finish_redirect_shuffle(
+                                            shuffle_destination_after,
+                                            dest,
+                                            &mut events,
+                                        );
                                         match dest {
                                             ZoneId::Exile => {
                                                 // Replacement (e.g., Rest in Peace) exiled instead of graveyard.
@@ -2869,12 +2879,22 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
                         events: repl_events,
+                        shuffle_destination_after,
                         ..
                     } => {
                         events.extend(repl_events);
                         if let Some((new_id, _old)) =
                             state.expect_move_object_to_zone(vanishing_permanent, dest)
                         {
+                            // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // now that the object is IN the destination library. No-op unless the
+                            // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                            // consumer has to reason about whether it is reachable.
+                            state.finish_redirect_shuffle(
+                                shuffle_destination_after,
+                                dest,
+                                &mut events,
+                            );
                             match dest {
                                 ZoneId::Exile => {
                                     events.push(GameEvent::ObjectExiled {
@@ -3026,12 +3046,22 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         crate::rules::replacement::ZoneChangeAction::Redirect {
                             to: dest,
                             events: repl_events,
+                            shuffle_destination_after,
                             ..
                         } => {
                             events.extend(repl_events);
                             if let Some((new_id, _old)) =
                                 state.expect_move_object_to_zone(fading_permanent, dest)
                             {
+                                // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                // now that the object is IN the destination library. No-op unless the
+                                // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                                // consumer has to reason about whether it is reachable.
+                                state.finish_redirect_shuffle(
+                                    shuffle_destination_after,
+                                    dest,
+                                    &mut events,
+                                );
                                 match dest {
                                     ZoneId::Exile => {
                                         events.push(GameEvent::ObjectExiled {
@@ -3336,12 +3366,22 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
                         events: repl_events,
+                        shuffle_destination_after,
                         ..
                     } => {
                         events.extend(repl_events);
                         if let Some((new_id, _old)) =
                             state.expect_move_object_to_zone(source_object, dest)
                         {
+                            // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // now that the object is IN the destination library. No-op unless the
+                            // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                            // consumer has to reason about whether it is reachable.
+                            state.finish_redirect_shuffle(
+                                shuffle_destination_after,
+                                dest,
+                                &mut events,
+                            );
                             match dest {
                                 ZoneId::Exile => {
                                     events.push(GameEvent::ObjectExiled {
@@ -3707,12 +3747,22 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
                         events: repl_events,
+                        shuffle_destination_after,
                         ..
                     } => {
                         events.extend(repl_events);
                         if let Some((new_id, _old)) =
                             state.expect_move_object_to_zone(source_object, dest)
                         {
+                            // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // now that the object is IN the destination library. No-op unless the
+                            // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                            // consumer has to reason about whether it is reachable.
+                            state.finish_redirect_shuffle(
+                                shuffle_destination_after,
+                                dest,
+                                &mut events,
+                            );
                             match dest {
                                 ZoneId::Exile => {
                                     events.push(GameEvent::ObjectExiled {
@@ -4649,12 +4699,22 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             crate::rules::replacement::ZoneChangeAction::Redirect {
                                 to: dest,
                                 events: repl_events,
+                                shuffle_destination_after,
                                 ..
                             } => {
                                 events.extend(repl_events);
                                 if let Some((new_id, _old)) =
                                     state.expect_move_object_to_zone(source_object, dest)
                                 {
+                                    // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                    // now that the object is IN the destination library. No-op unless the
+                                    // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                                    // consumer has to reason about whether it is reachable.
+                                    state.finish_redirect_shuffle(
+                                        shuffle_destination_after,
+                                        dest,
+                                        &mut events,
+                                    );
                                     match dest {
                                         ZoneId::Exile => {
                                             events.push(GameEvent::ObjectExiled {
@@ -6445,7 +6505,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                 let hand_zone = ZoneId::Hand(target_player);
                 let _ = state.expect_move_object_to_zone(card_id, hand_zone);
             }
-            // Whether found or not, shuffle the target player's library (CR 701.20).
+            // Whether found or not, shuffle the target player's library (CR 701.24).
             // Use seeded LCG (same pattern as Hideaway) for determinism.
             let seed = state.timestamp_counter;
             state.timestamp_counter += 1;
@@ -7396,12 +7456,22 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         crate::rules::replacement::ZoneChangeAction::Redirect {
                             to,
                             events: repl_events,
+                            shuffle_destination_after,
                             ..
                         } => {
                             events.extend(repl_events);
                             if let Some((new_id, _old)) =
                                 state.expect_move_object_to_zone(source_object, to)
                             {
+                                // CR 701.24 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                // now that the object is IN the destination library. No-op unless the
+                                // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                                // consumer has to reason about whether it is reachable.
+                                state.finish_redirect_shuffle(
+                                    shuffle_destination_after,
+                                    to,
+                                    &mut events,
+                                );
                                 match to {
                                     ZoneId::Exile => {
                                         events.push(GameEvent::ObjectExiled {

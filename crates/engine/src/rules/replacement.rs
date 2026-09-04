@@ -1090,11 +1090,27 @@ pub(crate) fn perform_one_draw(
                                 }];
                                 // CR 702.94a: check if the just-drawn card has
                                 // miracle and is the first draw.
-                                if let Some(miracle_event) =
-                                    crate::rules::miracle::check_miracle_eligible(
-                                        state, player, new_id,
-                                    )
-                                {
+                                //
+                                // PB-DX18 (`OOS-DX2-1`): record WHICH object this is,
+                                // not merely that an offer happened. CR 702.94a is two
+                                // conjuncts — *"as you draw it"* AND *"if it's the first
+                                // card you've drawn this turn"* — and until this record
+                                // existed `handle_choose_miracle` could check only the
+                                // second, so a tutored or previously-drawn miracle card
+                                // sitting in hand could be revealed on any turn whose
+                                // first draw had already happened.
+                                //
+                                // The assignment is UNCONDITIONAL on both branches: a
+                                // draw that is not miracle-eligible CLEARS the record.
+                                // That is what closes the window at the next draw rather
+                                // than leaving a stale id behind for the rest of the turn.
+                                let miracle_event = crate::rules::miracle::check_miracle_eligible(
+                                    state, player, new_id,
+                                );
+                                if let Some(p) = state.expect_player_mut(player) {
+                                    p.miracle_pending = miracle_event.as_ref().map(|_| new_id);
+                                }
+                                if let Some(miracle_event) = miracle_event {
                                     proceed_events.push(miracle_event);
                                 }
                                 (proceed_events, DrawStepOutcome::Completed)
@@ -1234,6 +1250,26 @@ pub enum ZoneChangeAction {
         events: Vec<GameEvent>,
         /// The ID of the replacement that was applied (for CR 614.5 tracking).
         applied_id: ReplacementId,
+        /// CR 701.24 (PB-DX18, `OOS-DP2-7`): the redirect also obliges a **real** shuffle
+        /// of the destination library, once the object has landed in it.
+        ///
+        /// `ReplacementModification::ShuffleIntoOwnerLibrary` used to push
+        /// `GameEvent::LibraryShuffled` straight into `events` from inside
+        /// [`check_zone_change_replacement`], which takes `&GameState` and therefore
+        /// **cannot shuffle anything**. The event was a lie (Architecture Invariant 4:
+        /// events are the truth of what happened), and because the move `push_back`s, the
+        /// card landed on the library **top** — a Darksteel Colossus that died was drawn
+        /// again next turn.
+        ///
+        /// The shuffle has to happen AFTER the move, or the card is not in the library
+        /// being shuffled, so it cannot live at the query site at all. Consumers discharge
+        /// it with [`crate::state::GameState::finish_redirect_shuffle`], which is also
+        /// what emits the (now truthful) `LibraryShuffled`.
+        ///
+        /// Every consumer is enumerated by
+        /// `crates/engine/tests/core/pb_dx18_trust_boundary_roster.rs`, because
+        /// destructuring with `..` means the compiler cannot.
+        shuffle_destination_after: bool,
     },
     /// Multiple replacement effects apply — the player must choose (CR 616.1).
     ChoiceRequired {
@@ -1281,6 +1317,8 @@ pub fn check_zone_change_replacement(
                             .to_string(),
                     }],
                     applied_id: crate::state::replacement_effect::ReplacementId(u64::MAX),
+                    // CR 702.84a: an exile redirect, never a library shuffle.
+                    shuffle_destination_after: false,
                 };
             }
         }
@@ -1303,6 +1341,8 @@ pub fn check_zone_change_replacement(
                             .to_string(),
                     }],
                     applied_id: crate::state::replacement_effect::ReplacementId(u64::MAX - 1),
+                    // CR 702.84a / 702.146b: an exile redirect, never a library shuffle.
+                    shuffle_destination_after: false,
                 };
             }
         }
@@ -1331,6 +1371,10 @@ pub fn check_zone_change_replacement(
     let mut current_to = to;
     let mut acc_events: Vec<GameEvent> = Vec::new();
     let mut first_applied: Option<ReplacementId> = None;
+    // CR 701.24 (PB-DX18, `OOS-DP2-7`): set by the `ShuffleIntoOwnerLibrary` arm below and
+    // carried out to the caller on the returned action, because this function holds
+    // `&GameState` and the shuffle must happen AFTER the object has moved anyway.
+    let mut shuffle_after = false;
     loop {
         let trigger = ReplacementTrigger::WouldChangeZone {
             from: Some(from),
@@ -1344,7 +1388,13 @@ pub fn check_zone_change_replacement(
         );
         let id = match determine_action(state, &applicable, chooser, &description) {
             ReplacementResult::NoApplicable => {
-                return finish_zone_redirect(current_to, owner, acc_events, first_applied);
+                return finish_zone_redirect(
+                    current_to,
+                    owner,
+                    acc_events,
+                    first_applied,
+                    shuffle_after,
+                );
             }
             ReplacementResult::AutoApply(id) => id,
             ReplacementResult::NeedsChoice {
@@ -1377,23 +1427,47 @@ pub fn check_zone_change_replacement(
                     effect_id: id,
                     description: format!("Redirected to {:?}", zone_type),
                 });
+                // CR 616.1f (PB-DX18 `/review` finding 8): a later hop can redirect AWAY
+                // from the library a `ShuffleIntoOwnerLibrary` hop chose, and the CR 701.24
+                // obligation belongs to the destination, not to the chain. Without this the
+                // action would carry `to: <non-library>, shuffle_destination_after: true`
+                // and land on `finish_redirect_shuffle`'s `debug_assert!` — a panic in
+                // debug, a silently dropped shuffle in release. Zero corpus population
+                // today (nothing chains a redirect after a shuffle-into-library), which is
+                // why it was latent rather than caught; the STATED REASON in
+                // `finish_redirect_shuffle`'s doc was the wrong half, and it is corrected
+                // there too.
+                shuffle_after = false;
                 current_to = zone_type;
                 // Loop: re-check the modified event (CR 616.1f).
             }
             Some(ReplacementModification::ShuffleIntoOwnerLibrary) => {
-                // CR 701.20: Redirect to library AND shuffle the library.
+                // CR 701.24: Redirect to library AND shuffle the library.
                 acc_events.push(GameEvent::ReplacementEffectApplied {
                     effect_id: id,
                     description: "Shuffled into owner's library".to_string(),
                 });
-                acc_events.push(GameEvent::LibraryShuffled { player: owner });
+                // PB-DX18 (`OOS-DP2-7`): the `GameEvent::LibraryShuffled` that used to be
+                // pushed HERE was a phantom — this function takes `&GameState` and never
+                // shuffled anything, and the redirect then `push_back`s the card onto the
+                // library TOP. The obligation is recorded on the action instead and
+                // discharged by the consumer after the move (`finish_redirect_shuffle`),
+                // which is the only point at which the card is actually in the library
+                // being shuffled.
+                shuffle_after = true;
                 current_to = crate::state::zone::ZoneType::Library;
                 // Loop: re-check the modified event (CR 616.1f).
             }
             _ => {
                 // Non-redirect modifications (EntersTapped, etc.) don't change the
                 // zone. Terminal for zone-change interception.
-                return finish_zone_redirect(current_to, owner, acc_events, first_applied);
+                return finish_zone_redirect(
+                    current_to,
+                    owner,
+                    acc_events,
+                    first_applied,
+                    shuffle_after,
+                );
             }
         }
     }
@@ -1407,6 +1481,7 @@ fn finish_zone_redirect(
     owner: PlayerId,
     acc_events: Vec<GameEvent>,
     first_applied: Option<ReplacementId>,
+    shuffle_after: bool,
 ) -> ZoneChangeAction {
     match first_applied {
         None => ZoneChangeAction::Proceed,
@@ -1414,6 +1489,8 @@ fn finish_zone_redirect(
             to: resolve_zone_type_to_zone_id(current_to, owner),
             events: acc_events,
             applied_id,
+            // CR 701.24 (PB-DX18, `OOS-DP2-7`).
+            shuffle_destination_after: shuffle_after,
         },
     }
 }
@@ -1478,7 +1555,7 @@ pub fn resolve_pending_zone_change(
             resolve_zone_type_to_zone_id(*zone_type, owner)
         }
         ReplacementModification::ShuffleIntoOwnerLibrary => {
-            // CR 701.20: redirect to library and shuffle
+            // CR 701.24: redirect to library and shuffle
             resolve_zone_type_to_zone_id(crate::state::zone::ZoneType::Library, owner)
         }
         _ => {
@@ -1492,13 +1569,16 @@ pub fn resolve_pending_zone_change(
         ReplacementModification::ShuffleIntoOwnerLibrary => crate::state::zone::ZoneType::Library,
         _ => pending.original_destination,
     };
-    // If shuffling into library, emit shuffle event.
-    if matches!(
+    // CR 701.24 (PB-DX18, `OOS-DP2-7`): the SECOND phantom emitter. This one pushed
+    // `LibraryShuffled` here, before the object had moved and with no `Zone::shuffle`
+    // anywhere in the function — the same Architecture-Invariant-4 violation as the site
+    // in `check_zone_change_replacement`, one function over. The obligation is carried to
+    // the move below and discharged there by `finish_redirect_shuffle`, which is what
+    // emits the (now truthful) event.
+    let shuffle_destination_after = matches!(
         &modification,
         ReplacementModification::ShuffleIntoOwnerLibrary
-    ) {
-        events.push(GameEvent::LibraryShuffled { player: owner });
-    }
+    );
     // Re-check with the modified destination, using the stored original_from zone
     // so non-battlefield zone changes use the correct "from" zone (MR-M8-01).
     // Pass `owner` for destination resolution; the chooser is re-derived from the
@@ -1516,16 +1596,21 @@ pub fn resolve_pending_zone_change(
     match action {
         ZoneChangeAction::Proceed | ZoneChangeAction::Redirect { .. } => {
             // Determine final destination (may have been further redirected)
-            let final_dest = match action {
+            // CR 701.24 (PB-DX18, `OOS-DP2-7`): the CR 616.1f re-check can add a
+            // shuffle obligation of its own (a second `ShuffleIntoOwnerLibrary` reached
+            // on the modified event), so the two are OR'd rather than the outer one
+            // being assumed to be the whole answer.
+            let (final_dest, shuffle_destination_after) = match action {
                 ZoneChangeAction::Redirect {
                     to: redirect_dest,
                     events: redirect_events,
+                    shuffle_destination_after: chained_shuffle,
                     ..
                 } => {
                     events.extend(redirect_events);
-                    redirect_dest
+                    (redirect_dest, shuffle_destination_after || chained_shuffle)
                 }
-                _ => dest,
+                _ => (dest, shuffle_destination_after),
             };
             // CR 603.3a: capture controller before move_object_to_zone resets it to owner.
             // CR 702.79a: capture counters before move_object_to_zone resets them.
@@ -1553,6 +1638,9 @@ pub fn resolve_pending_zone_change(
             if let Some((new_id, _old)) =
                 state.expect_move_object_to_zone(pending.object_id, final_dest)
             {
+                // CR 701.24 (PB-DX18, `OOS-DP2-7`): the object is now IN the destination
+                // library, so this is the first moment a shuffle can include it.
+                state.finish_redirect_shuffle(shuffle_destination_after, final_dest, &mut events);
                 events.extend(zone_change_events(
                     state,
                     pending.object_id,

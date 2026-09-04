@@ -3040,12 +3040,19 @@ pub fn handle_cast_spell(
     // the matching subtype, no duplicates, then add the splice cost as an additional cost and
     // collect the effect for attachment to the StackObject.
     // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
-    let (mana_cost, collected_spliced_effects, collected_spliced_ids) = if !splice_cards.is_empty()
-    {
+    let (
+        mana_cost,
+        collected_spliced_effects,
+        collected_spliced_ids,
+        collected_splice_target_requirements,
+    ) = if !splice_cards.is_empty() {
         // CR 702.47b: Each card may only be spliced onto the same spell once.
         let mut seen_splice_ids = std::collections::HashSet::new();
         let mut splice_effects_out = Vec::new();
         let mut splice_ids_out = Vec::new();
+        // CR 702.47a / 601.2b (PB-DX18, `OOS-M11-5`): the spliced TEXT's own targets. The
+        // spell gains the spliced card's text box, so it requires that card's targets too.
+        let mut splice_targets_out: Vec<TargetRequirement> = Vec::new();
         let mut running_cost = mana_cost;
         for splice_card_id in &splice_cards {
             // Duplicate check (CR 702.47b).
@@ -3100,7 +3107,7 @@ pub fn handle_cast_spell(
                             ))
                         },
                     )?;
-            let (splice_cost, splice_onto_subtype, splice_effect) = splice_info;
+            let (splice_cost, splice_onto_subtype, splice_effect, splice_targets) = splice_info;
             // CR 702.47a: The spell being cast must have the matching subtype.
             // e.g., Splice onto Arcane requires the target spell to have the Arcane subtype.
             if !chars.subtypes.contains(&splice_onto_subtype) {
@@ -3121,10 +3128,16 @@ pub fn handle_cast_spell(
             running_cost = Some(total);
             splice_effects_out.push(splice_effect);
             splice_ids_out.push(*splice_card_id);
+            splice_targets_out.extend(splice_targets);
         }
-        (running_cost, splice_effects_out, splice_ids_out)
+        (
+            running_cost,
+            splice_effects_out,
+            splice_ids_out,
+            splice_targets_out,
+        )
     } else {
-        (mana_cost, vec![], vec![])
+        (mana_cost, vec![], vec![], vec![])
     };
     // CR 702.27a / 601.2f: If the player declared intention to pay buyback, validate
     // the spell has a buyback ability and bind the cost for use below.
@@ -3766,6 +3779,26 @@ pub fn handle_cast_spell(
     let announced_requirements: Vec<TargetRequirement> = mode_targets_active
         .clone()
         .unwrap_or_else(|| requirements.clone());
+    // CR 702.47a / 601.2b (PB-DX18, `OOS-M11-5`): *"copy this card's text box onto that
+    // spell"*. A spliced spell requires the spliced card's targets in addition to its own,
+    // so they are APPENDED here — the same rule PB-DX50's mutate host follows and for the
+    // same reason: appending leaves every pre-existing `DeclaredTarget { index }` in the
+    // host's own text at the position it already had.
+    //
+    // Before this, `card_def_target_requirements` could not see them (the DSL had no field
+    // for them at all), so the splice target was announced against an EMPTY requirement
+    // list and validated for existence only. The one shipped splice card, `glacial_ray`,
+    // prints *"deals 2 damage to any target"* — so its spliced target had no "any target"
+    // check, no hexproof / shroud / protection check, and no CR 608.2b re-validation.
+    //
+    // Per-mode targeting and splice do not combine on any shipped card (no Arcane spell
+    // has `ModeSelection.mode_targets`), but the append is written to be correct for both
+    // branches rather than to rely on that.
+    let announced_requirements: Vec<TargetRequirement> = {
+        let mut reqs = announced_requirements;
+        reqs.extend(collected_splice_target_requirements.iter().cloned());
+        reqs
+    };
     // CR 702.140a (PB-DX50, `OOS-DX25-1`): a mutate cast TARGETS its host. Append the
     // shared `mutate_target_requirement()` and the announced host to the lists this cast
     // is validated against and records onto its `StackObject`, so from here down the
@@ -6305,8 +6338,7 @@ pub(crate) fn validate_targets_inner(
 ) -> Result<Vec<SpellTarget>, GameStateError> {
     // CR 601.2c: When requirements are specified, the number of targets must be within the
     // valid range. UpToN requirements contribute 0 to min and count to max, while mandatory
-    // requirements contribute 1 to both. When requirements is empty, targets are validated
-    // individually (used by auras/bestow which validate via a separate enchant path).
+    // requirements contribute 1 to both.
     if !requirements.is_empty() {
         let (min_t, max_t) = target_count_range(requirements);
         if targets.len() < min_t || targets.len() > max_t {
@@ -6317,6 +6349,69 @@ pub(crate) fn validate_targets_inner(
                 targets.len()
             )));
         }
+    } else if !targets.is_empty() {
+        // CR 601.2c (PB-DX18, `OOS-M11-5`): *"the player announces their choice of an
+        // appropriate ... object or player for each target the spell requires"*. A spell
+        // or ability that requires **no** targets cannot be given any, so a non-empty
+        // declaration against an empty requirement list is rejected here rather than
+        // waved through.
+        //
+        // # What this replaces, and why the justification for it is gone
+        //
+        // This arm used to fall through to "existence-only validation": the range check
+        // was skipped, `req_for_target` became `targets.iter().map(|_| None)`, and every
+        // declared target was recorded on the resulting `StackObject`. The in-source
+        // justification named the **aura / bestow** path as the legitimate consumer —
+        // *"used by auras/bestow which validate via a separate enchant path"*. That has
+        // been false since PB-DX20 (`scutemob-198`), and it is false for BOTH named
+        // cases, which is the half a reader is most likely to get wrong:
+        //
+        // * **Auras** — `aura_spell_target_requirements` (this file) synthesizes a real
+        //   `TargetRequirement` from `KeywordAbility::Enchant` at the cast site, so an
+        //   Aura arrives here with a NON-empty list (CR 303.4a / 702.5a).
+        // * **Bestow** — `handle_cast_spell`'s Step 1b applies CR 702.103b's transform
+        //   (*"as a spell cast bestowed is put onto the stack, it becomes an Aura
+        //   enchantment and gains enchant creature"*) to its OWN `chars` **before**
+        //   `aura_spell_target_requirements` runs, so a bestowed spell also arrives with
+        //   a non-empty list. CR 702.103b is explicit that this is required: *"Because
+        //   the spell is an Aura spell, its controller must choose a legal target for
+        //   that spell as defined by its enchant creature ability and rule 601.2c."*
+        //
+        // # Every caller that can reach this arm, by cite (not by comment)
+        //
+        // `validate_targets_inner` has six production call sites. Five cannot reach here
+        // with a non-empty `targets`:
+        //
+        // * `rules/abilities.rs` (activated) — call is inside `!target_requirements.is_empty()`
+        // * `rules/engine.rs` (loyalty)      — call is inside `!ability_targets.is_empty()`
+        // * `rules/queries.rs` (`legal_targets_per_slot`) — one requirement by construction
+        // * `rules/resolution.rs` (CR 702.140b mutate re-check) — one requirement by construction
+        // * `rules/retarget.rs` (CR 115.7a) — passes the requirement list RECORDED at cast
+        //   time, so it can only see an empty list on a stack object that was recorded
+        //   with this very defect. It is a consumer of the bug, not a producer of a
+        //   legitimate case, and its `.ok()?` turns this rejection into CR 115.7a's own
+        //   "then it doesn't change targets" fallback.
+        //
+        // The sixth is `handle_cast_spell`, and it is the one the defect was observed on:
+        // casting `Accorder's Shield` (a `{0}` artifact, `Completeness::Complete`,
+        // deck-legal, whose SPELL declares no `TargetRequirement`) with
+        // `params.targets = [Target::Player(2)]` returned HTTP 200 and recorded the bogus
+        // player target on the stack object (M11-local S5, `scutemob-167`).
+        //
+        // # Why this is a wrong-game-state bug and not a wrong-label one
+        //
+        // CR 601.2c's own parenthetical: *"any abilities that trigger when those objects
+        // and/or players become the target of a spell trigger at this point"*. Since
+        // PB-DX48, `rules::events::push_target_announcement` derives
+        // `GameEvent::PermanentTargeted` from `stack_obj.targets` and dispatches CR
+        // 702.21a **Ward** from it — so a spurious target on a spell that does not target
+        // made Ward fire. `rules::retarget` (CR 115.7) and the view model's
+        // `format_target` read the same list.
+        return Err(GameStateError::InvalidTarget(format!(
+            "declared {} target(s) for something that requires none (CR 601.2c: a player \
+             announces a choice for each target the spell REQUIRES)",
+            targets.len()
+        )));
     }
 
     // Build a mapping from target index → TargetRequirement using a two-pass best-fit
@@ -6331,7 +6426,11 @@ pub(crate) fn validate_targets_inner(
     // with remaining capacity (consumed < count) whose inner requirement accepts it.
     // After both passes: any unassigned declared target → reject.
     let req_for_target: Vec<Option<&TargetRequirement>> = if requirements.is_empty() {
-        // No requirements: each target has no requirement (existence-only validation).
+        // PB-DX18 (`OOS-M11-5`): unreachable with a non-empty `targets` — the guard above
+        // rejects that case (CR 601.2c). This arm now yields an EMPTY vector for the only
+        // surviving shape, `requirements.is_empty() && targets.is_empty()`, which is the
+        // ordinary targetless spell. Kept as a `map` rather than `vec![]` so it stays
+        // correct by construction rather than by the guard staying where it is.
         targets.iter().map(|_| None).collect()
     } else {
         // target_slot[i] = index into requirements that target i is assigned to, or None.
@@ -8327,7 +8426,12 @@ fn reduce_generic_by(cost: &mut ManaCost, amount: u32) {
 fn get_splice_info(
     card_id: &Option<crate::state::CardId>,
     registry: &crate::cards::CardRegistry,
-) -> Option<(ManaCost, SubType, crate::cards::card_definition::Effect)> {
+) -> Option<(
+    ManaCost,
+    SubType,
+    crate::cards::card_definition::Effect,
+    Vec<TargetRequirement>,
+)> {
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
@@ -8335,9 +8439,15 @@ fn get_splice_info(
                     cost,
                     onto_subtype,
                     effect,
+                    targets,
                 } = a
                 {
-                    Some((cost.clone(), onto_subtype.clone(), *effect.clone()))
+                    Some((
+                        cost.clone(),
+                        onto_subtype.clone(),
+                        *effect.clone(),
+                        targets.clone(),
+                    ))
                 } else {
                     None
                 }

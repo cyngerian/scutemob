@@ -84,7 +84,10 @@
   **↻ PB-DX20b SHIPPED** (`scutemob-222`, 2026-09-03; v4 rank 9 — **OOS-DX20-10** and
   **OOS-DX20-5** CLOSED as ONE defect, cross-cited; a third census member repaired that no
   document named).
-  **Next dispatch: PB-DX18** (v4 rank 10); ranks 1-9 all shipped.
+  **↻ PB-DX18 SHIPPED** (`scutemob-225`, 2026-09-04; v4 rank 10 — **OOS-DP2-7**, **OOS-DP2-4**,
+  **OOS-DP2-8**, **OOS-DX2-4**, **OOS-DX2-1** and **OOS-M11-5** ALL CLOSED, six seeds in one
+  batch).
+  **Next dispatch: PB-DX51** (v4 rank 11); ranks 1-10 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -211,7 +214,10 @@
   `CORPUS_COMPLETE` SET is unmoved and no seeded fixture was re-dealt); **PROTOCOL 40 → 41 /
   HASH 79 → 80**, ONE bump each, both gate-computed and both predicted in writing before any
   code, type counts predicted unchanged and confirmed at 98 / 131. Filed **OOS-DX20b-1..7** (`-6` and `-7` by the `/review` fix cycle, after the first draft of these lines said `-1..5` — dispatch hygiene 8's exact case, caught by re-checking this cell against the registry AFTER the fix cycle rather than before it).
-  **Next dispatch: PB-DX18** (v4 rank 10); ranks 1-9 all shipped.
+  **↻ PB-DX18 SHIPPED** (`scutemob-225`, 2026-09-04; v4 rank 10 — **OOS-DP2-7**, **OOS-DP2-4**,
+  **OOS-DP2-8**, **OOS-DX2-4**, **OOS-DX2-1** and **OOS-M11-5** ALL CLOSED, six seeds in one
+  batch).
+  **Next dispatch: PB-DX51** (v4 rank 11); ranks 1-10 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -222,6 +228,59 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-04, PB-DX18)**: **5,041 / 0 / 5** full-workspace on branch
+  `scutemob-225` (+26 over the **5,015** baseline, measured on this branch BEFORE any edit and
+  reproducing PB-DX20b's close pin exactly), `--workspace --no-fail-fast` to a file, **60**
+  result-producing targets (unmoved), residual list empty.
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — not
+  `sort` + `comm`, which fabricates a removal under a UTF-8 locale (`OOS-DX20b-5`, obeyed rather
+  than re-learned): 28 additions, 2 leavers, 0 removals, 0 renames.** Both leavers are disclosed
+  and neither is a removal: the two `state::GameState` doctests are named by their LINE NUMBER,
+  and both shifted by exactly **+2** — the height of the `pub mod pregame;` / `pub use
+  pregame::PregamePhase;` pair added to `state/mod.rs`. Honest reading: **26 genuine additions and
+  2 line-number shifts.** The 26 are 7 pregame/cap probes, 5 CR 702.94a miracle probes (in a file
+  that was **one byte** and `mod`-declared since SR-9a — `OOS-DX18-2`), 4 targetless-spell probes,
+  5 roster gates, 4 `PinnedRng` unit tests and 1 play-server HTTP probe.
+  **PROTOCOL 41 UNMOVED / HASH 80 → 81, ONE bump**, both gate-computed (`protocol_schema` 17/17,
+  `hash_schema` 36/36) and **both predicted in writing before any production line changed**
+  (`82154219`), with the reason stated: `CLOSURE_MUST_NOT_CONTAIN` lists `GameState` and
+  `PlayerState`. The prediction survived a mid-batch addition it did not anticipate —
+  `AbilityDefinition::Splice` gained a field, and PROTOCOL still did not move, because
+  `AbilityDefinition` is reachable only through `CardDefinition`, which the same list excludes,
+  and it moved the STREAM digest and not the DECLARATION one because `card_registry` is
+  `#[serde(skip)]`. History row appended, never edited; `FROZEN_HISTORY_PREFIX_DIGEST` re-pinned;
+  `history_is_append_only` and `frozen_prefix_is_pinned` green. **87 sentinel sites across 47
+  files re-pinned by symbol**, then survivor-scanned with a differently-shaped line-window matcher
+  — **0 survivors, and that scan was structurally incapable of catching the one thing that went
+  wrong** (see `OOS-DX18-3`).
+  Coverage **1,137/1,803 = 63.1%** by regeneration, **0 flips** as predicted (clean 1,137 / todo
+  519 / empty 147 identical), self-dating churn reverted; **3 card-def edits** — two comment-only
+  (`darksteel_colossus`'s note and header) and one authoring `glacial_ray`'s CR 702.47a splice
+  targets — with **no `Completeness` marker moved**, so the `CORPUS_COMPLETE` SET is unmoved and
+  no seeded fixture was re-dealt for that reason.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
+  gate) — all against the FINAL tree. **`npm run build` was NOT run and that is stated rather than
+  omitted**: `git diff main..HEAD --numstat -- tools/play-server/frontend` is **empty** and
+  `node_modules` is absent from this worktree. `tools/` is **not** zero —
+  `tools/play-server/src/main.rs` is **+108 / −0**, entirely inside its `#[cfg(test)]` module.
+  **Engine lines**: `crates/engine/src` + `crates/card-types/src` + `crates/card-defs` +
+  `crates/simulator/src` + `crates/view-model` is **+1079 / −69**; `crates/view-model` is **0**
+  and `crates/simulator/src` is **+27 / −0** (a comment recording the `OOS-DX18-1` trade).
+  **Benches: a REAL uniform regression, published as one.** Four matched runs, each revision in
+  its own worktree with its own `CARGO_TARGET_DIR`, and **the same-code repeatability band was
+  measured BEFORE the verdict was written** (PB-DX20b's lesson): the two merge-base runs differ by
+  **3.3%** on `priority_cycle_4p` and **4.5%** on `sba_check`. Against that band, five of six
+  benches show non-overlapping intervals — `priority_cycle_4p` ~+2.5%, `priority_cycle_6p` ~+4.0%,
+  `full_turn_4p` ~+4.5%, `full_turn_6p` ~+2.5%, `board_wipe_4p` ~+2.7% — and `sba_check`'s +2.3%
+  is honestly **marginal**. **The uniformity is the informative part**: nothing this batch adds is
+  on the SBA loop or the priority cycle, and the candidate mechanism is bounded by execution
+  rather than argued — `size_of::<GameState>()` moves **3512 → 3536** and
+  `size_of::<PlayerState>()` **360 → 376** (+4.4%), on a struct copied at every mutation, plus one
+  enum and one `Option` per player in every `public_state_hash`.
+  **Revert matrix: 13 rows executed, 13 discriminating, 0 UNDISCRIMINATED** — and **R2 defeated
+  this batch's own `r1` gate**, which is the row worth reading (`memory/primitives/
+  pb-DX18-execution-notes.md` §3).
 - **Tests (delta 2026-09-03, PB-DX20b)**: **5,015 / 0 / 5** full-workspace on branch
   `scutemob-222` (+24 over the **4,991** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX50's close pin exactly), `--workspace --no-fail-fast` to a file, **60**
@@ -995,7 +1054,90 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-03 — **PB-DX20b SHIPPED** (`scutemob-222`; v4 queue rank 9 —
+- **Last Updated**: 2026-09-04 — **PB-DX18 SHIPPED** (`scutemob-225`; v4 queue rank 10 —
+  **six seeds closed in one batch**: **OOS-DP2-7**, **OOS-DP2-4**, **OOS-DP2-8**, **OOS-DX2-4**,
+  **OOS-DX2-1**, **OOS-M11-5**). **Six commands and one announcement the engine accepted without
+  checking the precondition the CR attaches to them.**
+  `Command::TakeMulligan` and `Command::KeepHand` were gated on `validate_player_exists` and
+  nothing else — there was no pregame state anywhere to consult, so a mid-game `TakeMulligan`
+  shuffled the sender's whole hand into their library and drew seven. `Command::ChooseMiracle`
+  checked `cards_drawn_this_turn == 1` and never WHICH card was drawn, so a tutored miracle card
+  could be revealed on any turn whose first draw had happened. `validate_targets_inner`'s
+  empty-requirements arm waved arbitrary declared targets onto a spell that requires none — and
+  since PB-DX48 that fires **Ward**. Both `ShuffleIntoOwnerLibrary` sites emitted
+  `GameEvent::LibraryShuffled` and shuffled nothing.
+  **TWO NEW STORED FIELDS, DESIGNED TOGETHER FOR ONE HASH BUMP, AND ONE OF THEM CARRIES TWO
+  RULES.** CR 103.5 says both *"a player who is dissatisfied with their initial hand may take a
+  mulligan"* (a pregame procedure) **and** *"Once a player chooses not to take a mulligan ... that
+  player may not take any further mulligans"* (per player). A bare `game_started: bool` closes
+  only the first, so `GameState.pregame: PregamePhase` carries the set of players who have kept
+  and one shared `validate_pregame_mulligan_allowed` answers both for both commands.
+  `PlayerState.miracle_pending` is CR 702.94a's *"as you draw it"* conjunct, assigned
+  UNCONDITIONALLY at the draw site so a non-eligible draw CLEARS it.
+  **THE CENSUS WAS SHORT BY A WHOLE MECHANISM AND IT IS SPLICE.** Neither seed row, nor the v4
+  memo cell, nor this batch's own site table names it. CR 702.47a *"copy this card's text box onto
+  that spell"* means a spliced spell requires the spliced card's targets, and
+  `AbilityDefinition::Splice` carried `cost` / `onto_subtype` / `effect` and **no `targets` field
+  at all** — so the splice target rode the very arm this batch closes: no type check, no hexproof
+  / shroud / protection, no CR 608.2b re-validation, and `glacial_ray`'s spliced *"2 damage to any
+  target"* resolved at **nothing**. A batch that only added the CR 601.2c rejection would have
+  broken the corpus's one splice card.
+  **44 OF 46 REJECTIONS ARE A SHAPE PRODUCTION CANNOT PRODUCE, AND THAT IS WHY 42 GREEN TESTS
+  COULD NOT SEE THIS.** Instrumented and measured before anything was repaired: of 46 CR 601.2c
+  rejections workspace-wide, **44 are on objects with no `card_id`** — the naked
+  `ObjectSpec::card()` gotcha, where a fixture builds a def carrying the right requirement,
+  registers it, and never links it. Architecture Invariant 9 makes that unreachable in a real
+  game. Exactly **two** have real defs, and both are findings: golden script `layers/081` says
+  BESTOW in its metadata, its notes and all eight of its CR cites while issuing a plain
+  `cast_spell`, and `stack/146` is the splice case.
+  **THE SEED NAMES ONE RE-PERMUTATION CHANNEL AND THERE ARE TWO.** `OOS-DP2-4`'s addendum warns
+  that `StdRng` is not algorithm-stable across `rand` majors. True — and `Zone::shuffle` drew its
+  indices with `Rng::random_range`, whose *sampling* algorithm is equally unpinned, so pinning
+  only the generator leaves the identical defect one layer down. Shipped as an in-tree
+  Fisher-Yates over an in-tree SplitMix64, and the pin is **structural**: `rand` is dropped from
+  `crates/engine/Cargo.toml` AND `crates/card-types/Cargo.toml`, so the engine cannot construct an
+  RNG at all.
+  **THE RE-DEAL COST THE MEMO BUDGETS AT "18+" IS ONE PIN, MEASURED.** The `*_SEED` axis is the
+  wrong axis: the simulator's opening deal uses `SliceRandom` with its own `StdRng` and is not one
+  of the four sites. The single pin that moved is the fuzz decision partition, which gained
+  `surveil` — an improvement — **attributed by an EXECUTED A/B** (`e7dee121` green without the
+  pin, `c1132e44` red with it) and re-pinned rather than re-tuned.
+  **THREE FIXTURE FAMILIES WERE PINS ON THE DEFECTS.** Three `rules::commander` mulligan tests
+  drove `KeepHand` → `TakeMulligan` on one player, which CR 103.5 forbids (repaired in place, no
+  name changed). Golden script `layers/081`, above. And the Darksteel Colossus test asserted the
+  `LibraryShuffled` EVENT and never the library — with a fixture whose library was **EMPTY**,
+  which is why the phantom was invisible: with nothing to permute, "shuffled" and "put on top"
+  are the same state.
+  **A NEW FAILURE MODE OF THE SENTINEL RE-PIN, AND IT IS THE OPPOSITE OF THE KNOWN ONE.** PB-DX50
+  and PB-DX20b each recorded a re-pin regex that was too NARROW. This batch's handled both
+  spellings and was too **WIDE**: it rewrote the prose *"HASH 80 -> 81"* into *"HASH 81 -> 81"*
+  inside the doc paragraph announcing the bump. **A survivor scan is structurally blind to that**
+  — it looks for what was MISSED — and this batch's correctly reported 0. Reading every changed
+  line of the diff is what caught it (`OOS-DX18-3`).
+  **AND THIS BATCH'S OWN GATE WAS DEFEATED BY ITS OWN REVERT ROW.** `r1`'s first draft looked for
+  the string `finish_redirect_shuffle` in a `Redirect` arm; a consumer written as
+  `finish_redirect_shuffle(false, ..)` contains it, drops the obligation entirely, and left the
+  gate GREEN. `OOS-DX47`'s `r3` shape, committed inside the roster file that states the rule,
+  found by executing the revert. Re-keyed on the arm's own bound field.
+  **The splice offer gate was SHIPPED AND THEN REVERSED, and the suite is what refuted it.**
+  Gating the offer for target-carrying splice cards reddened three PB-DX29 pins, because the
+  corpus's only splice card targets — so the gate deleted the whole channel to avoid one refusal
+  on a path that previously produced a SILENT wrong resolution. The deviation stays open, pinned
+  wrong-way-round (`OOS-DX18-1`).
+  Tests **5,041 / 0 / 5** (+26 over the 5,015 pre-edit baseline, **60** targets, itemised by NAME
+  by a byte-exact Python set difference as **28 additions / 2 leavers / 0 removals** — both
+  leavers being doctest line-number shifts of exactly +2, the height of the new `pub mod pregame;`
+  pair). **HASH 80 → 81 / PROTOCOL 41 UNMOVED, one bump, both predicted in writing before any
+  code.** Coverage unmoved **1,137/1,803 = 63.1%**, **0 flips**, churn reverted; 3 card-def edits
+  with **no `Completeness` marker moved**. All gates clean against the FINAL tree; `npm run build`
+  N/A and said so (`git diff main..HEAD -- tools/play-server/frontend` is empty and `node_modules`
+  is absent). **Benches: a REAL uniform ~2.5-4.5% regression, four runs, same-code band measured
+  FIRST** — `size_of::<PlayerState>()` moves 360 → 376 (+4.4%), on a struct copied at every
+  mutation. Filed **OOS-DX18-1..6** (`-6` by the `/review` fix cycle, after the first draft of these
+  lines said `-1..5` — dispatch hygiene 8, caught by re-checking this cell against the
+  registry AFTER the fix cycle rather than before it). Full record:
+  `memory/primitives/pb-DX18-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-03 — **PB-DX20b SHIPPED** (`scutemob-222`; v4 queue rank 9 —
   **OOS-DX20-10** ≡ **OOS-DX20-5** CLOSED as ONE defect, cross-cited). **An Aura's printed
   restriction named three card types and the DSL could only say one, so the def said "any
   permanent" instead — and PB-DX20 had just made that human-reachable.**

@@ -132,7 +132,11 @@ fn test_extort_basic_drain_on_spell_cast() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -337,7 +341,11 @@ fn test_extort_does_not_trigger_for_opponent_spell() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -423,7 +431,11 @@ fn test_extort_multiple_instances_trigger_separately() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -555,7 +567,11 @@ fn test_extort_does_not_target_hits_all_opponents() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -640,7 +656,11 @@ fn test_extort_resolves_before_triggering_spell() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -738,7 +758,11 @@ fn test_extort_multiplayer_4_player_drain() {
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt".to_string()));
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)

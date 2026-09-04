@@ -1,5 +1,6 @@
 //! Player identity and state types.
 use super::dungeon::DungeonId;
+use super::game_object::ObjectId;
 use super::types::{ManaColor, ProtectionQuality, SubType};
 use crate::cards::card_definition::ManaRestriction;
 use imbl::{OrdMap, OrdSet, Vector};
@@ -396,6 +397,24 @@ pub struct PlayerState {
     /// library on `KeepHand` (CR 103.5c: first mulligan free, subsequent cost
     /// N-1 cards where N is mulligan number).
     pub mulligan_count: u32,
+    /// CR 702.94a (PB-DX18, `OOS-DX2-1`): the object this player **just drew**, when
+    /// that draw was the first of the turn and the card has `KeywordAbility::Miracle`.
+    ///
+    /// Miracle is *"You may reveal this card from your hand **as you draw it** if it's
+    /// the first card you've drawn this turn."* — two conjuncts. Before PB-DX18,
+    /// `rules::miracle::handle_choose_miracle` checked only the second
+    /// (`cards_drawn_this_turn == 1`), so a miracle card already in hand (tutored,
+    /// drawn last turn, discarded and returned) could be revealed and cast for its
+    /// miracle cost on any turn whose first draw had already happened.
+    ///
+    /// Written by `rules::replacement::perform_one_draw`'s completed-draw path — the
+    /// same site that emits `GameEvent::MiracleRevealChoiceRequired` — and set back to
+    /// `None` by any subsequent draw, by `handle_choose_miracle` (either answer), and
+    /// by `turn_actions::reset_turn_state`. Holds the **hand** `ObjectId` (CR 400.7:
+    /// the library object died when it moved), which is what `Command::ChooseMiracle`
+    /// names.
+    #[serde(default)]
+    pub miracle_pending: Option<ObjectId>,
     /// CR 402.2: If true, this player has no maximum hand size and does not
     /// discard to hand size during cleanup (CR 514.1).
     ///

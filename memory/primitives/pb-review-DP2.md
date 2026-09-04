@@ -107,7 +107,7 @@ A whole-tree grep for `.shuffle(` in `crates/engine/src` returns exactly four ca
 ```rust
 // replacement.rs:848-857
 Some(ReplacementModification::ShuffleIntoOwnerLibrary) => {
-    // CR 701.20: Redirect to library AND shuffle the library.
+    // CR 701.24: Redirect to library AND shuffle the library.
     acc_events.push(GameEvent::ReplacementEffectApplied { .. });
     acc_events.push(GameEvent::LibraryShuffled { player: owner });   // <-- no permutation
     current_to = crate::state::zone::ZoneType::Library;

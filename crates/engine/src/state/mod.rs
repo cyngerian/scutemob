@@ -8,6 +8,7 @@ pub mod diagnostics;
 pub mod error;
 pub mod hash;
 pub mod keyword_registry;
+pub mod pregame;
 pub mod stack_registry;
 /// Escape hatches for tests — see the module docs. Not compiled in production builds.
 #[cfg(any(test, feature = "test-util"))]
@@ -53,6 +54,7 @@ pub use mtg_card_types::state::{
     TriggerDoublerFilter, TriggerEvent, TriggerTargetOption, TriggeredAbilityDef, TurnFaceUpMethod,
     UpkeepCostKind, Zone, ZoneId, ZoneType,
 };
+pub use pregame::PregamePhase;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 pub use turn::{Phase, Step, TurnState};
@@ -291,6 +293,21 @@ pub struct GameState {
     /// vanilla creature into this map. See `capture_lki_snapshot`.
     #[serde(default)]
     pub(crate) lki_objects: OrdMap<ObjectId, GameObject>,
+    /// CR 103.4-103.6 (PB-DX18, `OOS-DX2-4`): where this game is in the pregame
+    /// procedure, and which players have already kept.
+    ///
+    /// The **only** thing that distinguishes "before the game began" from "turn 14"
+    /// for `Command::TakeMulligan` / `Command::KeepHand`. `PlayerState::mulligan_count`
+    /// is a counter that never resets and cannot answer the question; before this
+    /// field existed, `rules::engine::process_command` gated both commands on
+    /// `validate_player_exists` and nothing else, so a mid-game `TakeMulligan`
+    /// shuffled the sender's hand into their library and drew seven.
+    ///
+    /// Set to [`PregamePhase::GameStarted`] by
+    /// [`crate::rules::engine::start_game_allowing_incomplete`]. See the type's own
+    /// docs for why one field carries both of CR 103.5's restrictions.
+    #[serde(default)]
+    pub(crate) pregame: PregamePhase,
     /// Current combat state, if in a combat phase.
     pub(crate) combat: Option<CombatState>,
     /// Monotonic counter for generating ObjectIds and timestamps.
@@ -623,6 +640,105 @@ impl GameState {
     /// Read-only access to the `combat` field.
     pub fn combat(&self) -> &Option<CombatState> {
         &self.combat
+    }
+
+    /// CR 701.24 (PB-DX18, `OOS-DP2-7`) — discharge a
+    /// [`crate::rules::replacement::ZoneChangeAction::Redirect`]'s shuffle obligation,
+    /// **after** the object has been moved into `to`.
+    ///
+    /// Call this at every `Redirect` consumer, immediately after the move. It is a no-op
+    /// unless the redirect set `shuffle_destination_after`, so a site that can never
+    /// receive a `ShuffleIntoOwnerLibrary` pays nothing for calling it — which is the
+    /// point: the correct thing to do is unconditional, so no consumer has to reason
+    /// about whether it is reachable.
+    ///
+    /// Ordering is the whole fix. `check_zone_change_replacement` used to push
+    /// `GameEvent::LibraryShuffled` at the moment it decided on the redirect — before the
+    /// card had moved, from a function holding `&GameState` that could not shuffle at all.
+    /// The event was a lie and the card landed on the library **top** (`push_back`), so a
+    /// Darksteel Colossus that died came straight back off the top next turn. Shuffling
+    /// here means the redirected card is *in* the library being permuted.
+    pub(crate) fn finish_redirect_shuffle(
+        &mut self,
+        shuffle_destination_after: bool,
+        to: ZoneId,
+        events: &mut Vec<GameEvent>,
+    ) {
+        if !shuffle_destination_after {
+            return;
+        }
+        let ZoneId::Library(owner) = to else {
+            // Only `ReplacementModification::ShuffleIntoOwnerLibrary` sets the flag, it
+            // forces `current_to = ZoneType::Library` in the same arm, **and the
+            // `RedirectToZone` arm CLEARS it** — which is the half this comment claimed by
+            // omission before the `/review` pointed at CR 616.1f's chaining: a later hop
+            // can redirect away from the library, and without that clear the flag would
+            // arrive here on a non-library destination and panic in debug / drop the
+            // shuffle in release. With all three facts, a non-library destination here is
+            // an engine bug and not player input (SR-4).
+            debug_assert!(
+                false,
+                "finish_redirect_shuffle: shuffle obligation on a non-library destination \
+                 {to:?} (CR 701.24)"
+            );
+            return;
+        };
+        self.shuffle_library_seeded(owner);
+        // Emitted HERE and nowhere else, so the event is true when a listener sees it
+        // (Architecture Invariant 4).
+        events.push(GameEvent::LibraryShuffled { player: owner });
+    }
+
+    /// CR 103.3 / 701.24 — really shuffle `player`'s library, deterministically.
+    ///
+    /// **The one place in the engine that shuffles a library** (PB-DX18, `OOS-DP2-4`).
+    /// Before this, the idiom
+    ///
+    /// ```text
+    /// let seed = state.timestamp_counter;
+    /// state.timestamp_counter += 1;
+    /// if let Some(zone) = state.expect_zone_mut(&ZoneId::Library(p)) {
+    ///     let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+    ///     zone.shuffle(&mut rng);
+    /// }
+    /// ```
+    ///
+    /// was copy-pasted at **four** sites (`rules/commander.rs`'s mulligan and three in
+    /// `effects/mod.rs`) with **three different contracts** on a missing library zone —
+    /// one propagated a `GameStateError`, three swallowed it. That divergence is
+    /// preserved rather than flattened: this returns `Option<()>`, so the mulligan can
+    /// keep `.ok_or(GameStateError::ZoneNotFound(..))?` (MR-M9-12 requires it to
+    /// surface) while the three effect sites keep ignoring it.
+    ///
+    /// The seed comes from `timestamp_counter` (MR-M7-17 / SR-9b: never entropy, so
+    /// replay is deterministic) and the counter is advanced whether or not the zone was
+    /// found — a missing library must not leave two later shuffles sharing a seed.
+    ///
+    /// The permutation itself is pinned in-tree by [`Zone::shuffle_pinned`]; see its doc
+    /// for why depending on `rand` for either the generator OR the index draw was a
+    /// silent re-permutation channel.
+    ///
+    /// Returns `None` if `player` has no library zone.
+    pub(crate) fn shuffle_library_seeded(&mut self, player: PlayerId) -> Option<()> {
+        let seed = self.timestamp_counter;
+        self.timestamp_counter += 1;
+        let zone = self.expect_zone_mut(&ZoneId::Library(player))?;
+        zone.shuffle_pinned(seed);
+        Some(())
+    }
+
+    /// Read-only access to the `pregame` field (CR 103.4-103.6, PB-DX18).
+    ///
+    /// **Intent, not current fact** — the first draft of this doc stated it as fact and the
+    /// `/review` caught it. `crates/simulator/src/legal_actions.rs` still gates the mulligan
+    /// OFFER on `turn().is_first_turn_of_game && turn().turn_number == 0`, which is dead
+    /// code (`GameStateBuilder` defaults `turn_number` to 1 and nothing sets it to 0), and
+    /// re-pointing it at this accessor would start offering both commands in every
+    /// builder-built simulator fixture — an SR-38 hazard in the other direction. See
+    /// `memory/primitives/pb-DX18-execution-notes.md` §7.1. This accessor currently has no
+    /// non-test caller; it exists so a client that wants the answer has a true one to read.
+    pub fn pregame(&self) -> &PregamePhase {
+        &self.pregame
     }
 
     /// Read-only access to the whole `lki_objects` last-known-information store.
