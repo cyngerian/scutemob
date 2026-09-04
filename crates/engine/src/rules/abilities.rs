@@ -11649,3 +11649,186 @@ fn evaluate_self_activated_reduction(
         }
     }
 }
+#[cfg(test)]
+mod pb_dx35_trigger_modal_plan_tests {
+    //! PB-DX35 (`OOS-DX4-2`) — t9: sites 1/2/D and site 3 (the CR 601.2c
+    //! cross-slot distinctness check on the answer path) now share ONE
+    //! arithmetic (`trigger_modal_plan`) rather than three-then-a-fourth
+    //! hand-rolled copies. Sites 1/2/D are unifed *by construction* inside
+    //! `flush_sorted` (they read the SAME `modal_plan` local, computed once
+    //! per trigger) -- that cannot be probed externally to this module, since
+    //! `flush_sorted` is a private function. Site 3
+    //! (`trigger_ability_target_requirements`) is the fourth, independent
+    //! reader (called from `handle_choose_trigger_targets`, on the answer
+    //! path) and is where re-divergence is actually possible: this is an
+    //! `#[cfg(test)]` unit test, not an integration test under
+    //! `crates/engine/tests/`, because `trigger_ability_target_requirements`
+    //! is a bare private `fn` -- not even `pub(crate)` -- so no external
+    //! test in this crate can name it. `crates/engine/tests/primitives/
+    //! pb_dx35_modal_trigger_targets.rs` t1-t8 cover the PUBLICLY observable
+    //! behaviour (life totals, tokens, `modes_chosen`, CR 700.2b removal).
+    use super::*;
+    use crate::cards::card_definition::{
+        CardDefinition, Effect, ModeSelection, TargetFilter, TargetRequirement,
+    };
+    use crate::cards::CardRegistry;
+    use crate::state::builder::{GameStateBuilder, ObjectSpec};
+    use crate::testing::replay_harness::enrich_spec_from_def;
+    use std::collections::HashMap;
+
+    fn p(n: u64) -> PlayerId {
+        PlayerId(n)
+    }
+
+    /// A modal `WhenDies` trigger whose mode 0 targets a creature and whose
+    /// mode 1 needs none -- the `shambling_ghast`/`retreat_to_kazandu` shape,
+    /// registry-aligned (its ONLY ability, so registry index 0 == runtime
+    /// index 0 -- this test is NOT about the index-space mismatch, which
+    /// `core::pb_dx35_modal_trigger_roster::r2` covers separately).
+    fn modal_subject() -> CardDefinition {
+        CardDefinition {
+            card_id: CardId("dx35-t9-modal-subject".to_string()),
+            name: "DX35 T9 Modal Subject".to_string(),
+            types: crate::cards::card_definition::TypeLine {
+                card_types: [CardType::Creature].into_iter().collect(),
+                ..Default::default()
+            },
+            oracle_text: "When this creature dies, choose one -- target creature you control \
+                          gains indestructible; or another target creature you control gains \
+                          lifelink."
+                .to_string(),
+            power: Some(1),
+            toughness: Some(1),
+            abilities: vec![AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenDies,
+                effect: Effect::Nothing,
+                intervening_if: None,
+                targets: vec![],
+                modes: Some(ModeSelection {
+                    min_modes: 1,
+                    max_modes: 1,
+                    // BOTH modes target a creature you control (excluding this
+                    // ability's own source, per the filter below), so with no
+                    // OTHER creature on the battlefield neither mode has a
+                    // legal candidate -- CR 700.2b removal (case B).
+                    modes: vec![Effect::Nothing, Effect::Nothing],
+                    allow_duplicate_modes: false,
+                    mode_costs: None,
+                    mode_targets: Some(vec![
+                        vec![creature_you_control_excluding_self()],
+                        vec![creature_you_control_excluding_self()],
+                    ]),
+                }),
+                trigger_zone: None,
+            }],
+            ..Default::default()
+        }
+    }
+    /// The shared target requirement both `modal_subject` modes use --
+    /// factored out so the two mode slices are visibly the SAME requirement
+    /// rather than two independently-typed ones that happen to look alike.
+    fn creature_you_control_excluding_self() -> TargetRequirement {
+        TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+            controller: TargetController::You,
+            // Excludes the trigger's own source: this is a WhenDies trigger
+            // and the synthetic fixture never actually kills the subject (it
+            // just constructs a PendingTrigger directly while the subject is
+            // still on the battlefield), so without this the subject itself
+            // would satisfy "target creature you control" and case B's "no
+            // legal candidate" premise would be false.
+            exclude_self: true,
+            ..Default::default()
+        })
+    }
+
+    /// t9: `trigger_ability_target_requirements` (site 3, the CR 601.2c
+    /// cross-slot distinctness check's own re-derivation on the answer path)
+    /// returns the SAME value as `trigger_modal_plan(..).requirements` (the
+    /// value sites 1/2/D thread through `flush_sorted`) -- for both the
+    /// legal-mode-0 case and the no-legal-mode (min_modes: 1) CR 700.2b
+    /// removal case. A hand-rolled fourth copy that quietly re-diverged from
+    /// the other three would redden this the moment its answer differed.
+    #[test]
+    fn t9_site3_agrees_with_the_shared_plan_by_value() {
+        let def = modal_subject();
+        let mut defs: HashMap<String, CardDefinition> = HashMap::new();
+        defs.insert(def.name.clone(), def.clone());
+
+        // Case A: a legal creature exists (mode 0's target is satisfiable).
+        let spec_a = enrich_spec_from_def(
+            ObjectSpec::creature(p(1), &def.name, 1, 1).with_card_id(def.card_id.clone()),
+            &defs,
+        );
+        let ally = ObjectSpec::creature(p(1), "DX35 T9 Ally", 1, 1);
+        let state_a = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .with_registry(CardRegistry::new(vec![def.clone()]))
+            .active_player(p(1))
+            .object(spec_a)
+            .object(ally)
+            .build()
+            .expect("PB-DX35 t9 case A fixture must build");
+        let subject_a = state_a
+            .objects()
+            .values()
+            .find(|o| o.characteristics.name == def.name)
+            .expect("subject must be on the battlefield");
+        let trigger_a = PendingTrigger {
+            ability_index: 0,
+            ..PendingTrigger::blank(subject_a.id, p(1), PendingTriggerKind::Normal)
+        };
+        let plan_a = trigger_modal_plan(&state_a, &trigger_a)
+            .expect("a legal mode exists -- CR 700.2b must not remove the trigger");
+        let site3_a = trigger_ability_target_requirements(&state_a, &trigger_a);
+        assert_eq!(
+            site3_a, plan_a.requirements,
+            "site 3 must agree with the shared plan by value (legal-mode case)"
+        );
+        assert_eq!(
+            plan_a.modes_chosen,
+            vec![0],
+            "non-vacuity: mode 0 must actually have been the one chosen"
+        );
+        assert!(
+            !plan_a.requirements.is_empty(),
+            "non-vacuity: mode 0's requirement (a target creature) must be present"
+        );
+
+        // Case B: NO legal creature (mode 0 illegal) and min_modes: 1 -- CR
+        // 700.2b removal. `trigger_ability_target_requirements` must fail
+        // open to an empty list (it has no `None` return of its own), and
+        // `trigger_modal_plan` must return `None`.
+        let spec_b = enrich_spec_from_def(
+            ObjectSpec::creature(p(1), &def.name, 1, 1).with_card_id(def.card_id.clone()),
+            &defs,
+        );
+        let state_b = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .with_registry(CardRegistry::new(vec![def.clone()]))
+            .active_player(p(1))
+            .object(spec_b)
+            .build()
+            .expect("PB-DX35 t9 case B fixture must build");
+        let subject_b = state_b
+            .objects()
+            .values()
+            .find(|o| o.characteristics.name == def.name)
+            .expect("subject must be on the battlefield");
+        let trigger_b = PendingTrigger {
+            ability_index: 0,
+            ..PendingTrigger::blank(subject_b.id, p(1), PendingTriggerKind::Normal)
+        };
+        assert!(
+            trigger_modal_plan(&state_b, &trigger_b).is_none(),
+            "CR 700.2b: min_modes 1 with no legal mode must remove the trigger"
+        );
+        assert_eq!(
+            trigger_ability_target_requirements(&state_b, &trigger_b),
+            Vec::<TargetRequirement>::new(),
+            "site 3 fails open to empty on the CR 700.2b-removed case"
+        );
+    }
+}
