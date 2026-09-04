@@ -71,8 +71,18 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::partial(
-            "Nontoken filter not yet in DSL for attack triggers — over-triggers on token \
-             attackers (including Goblin tokens created...",
+            "SURVIVING blocker (CR 508.1m): nontoken filter not yet in DSL for attack triggers — \
+             TriggerCondition::WheneverCreatureYouControlAttacks carries only `filter: \
+             Option<TargetFilter>` and no nontoken predicate, so this over-triggers on token \
+             attackers, including the Goblin tokens this very ability creates. CLOSED blocker, \
+             recorded because this note named only the first one for four months while the second \
+             was live in every game (PB-DX39, OOS-DX5-7 residual): the `Cost::SacrificeSelf` \
+             ability below sacrifices its own source to pay for itself, so the source was ALWAYS \
+             gone by the time the effect resolved, and `EffectFilter::CreaturesYouControl` \
+             answered `false` for every creature — the +0/+3 applied to NOBODY, always. CR 611.2c \
+             determines the set at resolution and CR 608.2h/113.7a say it must use the source's \
+             last known information; it now does. This def stays `partial` on the nontoken filter \
+             ALONE and must not be promoted until that is closed.",
         ),
         ..Default::default()
     }
