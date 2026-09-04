@@ -332,3 +332,51 @@ it. Census: **87 sites across 47 files** re-pinned by symbol.
   library, because the simulator's deal uses `SliceRandom` with its own `StdRng` and is not
   one of the four sites; it moves only in-game shuffles. Measured: exactly **one** pin in
   the whole workspace moved.
+
+---
+
+## §6 — Benches: a REAL uniform regression, published as one
+
+Four runs, matched sets, each revision in its own `git worktree` with its own
+`CARGO_TARGET_DIR`. Merge base `b59b4c83`.
+
+| bench | base run 1 | base run 2 | HEAD run 1 | HEAD run 2 | verdict |
+|---|---|---|---|---|---|
+| `priority_cycle_4p` | 24.590 µs | 23.805 µs | 25.365 µs | 24.772 µs | **~+2.5%, real** |
+| `priority_cycle_6p` | 38.086 µs | 37.577 µs | 39.782 µs | 39.420 µs | **~+4.0%, real** |
+| `sba_check` | 14.400 µs | 15.044 µs | 15.390 µs | 15.395 µs | **~+2.3%, marginal** |
+| `full_turn_4p` | 217.06 µs | 216.42 µs | 224.78 µs | 228.13 µs | **~+4.5%, real** |
+| `full_turn_6p` | 345.82 µs | 340.88 µs | 351.11 µs | 353.24 µs | **~+2.5%, real** |
+| `board_wipe_4p` | 117.85 µs | 117.23 µs | 120.93 µs | 120.62 µs | **~+2.7%, real** |
+
+**The same-code repeatability band was measured before the verdict was written, not
+assumed** (PB-DX20b's lesson, where "everything 2-4% faster" turned out to be
+contamination wider than the effect). The two base runs differ by **3.3%** on
+`priority_cycle_4p` and **4.5%** on `sba_check`, and by under 1.5% on the other four. On
+five of six benches the HEAD interval does not overlap either base interval, so the
+regression is real; on `sba_check` the effect sits inside the same-code band and the
+honest verdict there is **marginal**.
+
+**The uniformity is the informative part, and it points at a mechanism on EVERY path
+rather than at anything this batch put on a hot path.** Nothing here touches the SBA loop,
+the priority cycle or combat: the pregame gate runs on two commands a game never sends,
+the CR 601.2c rejection is one `is_empty()` on the cast path, and
+`finish_redirect_shuffle` is a `bool` test inside redirect arms that fire only when a
+replacement applies.
+
+**One candidate mechanism is bounded by measurement rather than argued.**
+`size_of::<GameState>()` moves **3512 → 3536** (+24 bytes) and `size_of::<PlayerState>()`
+moves **360 → 376** (+16 bytes), executed at each revision. `GameState` is cloned on every
+`process_command` and `PlayerState` is copied on every mutation through the `OrdMap`, so a
+**+4.4% `PlayerState`** is on literally every benched path, which is consistent with a
+uniform few-percent. `public_state_hash` also gains one enum discriminant and one
+`Option<ObjectId>` per player per call, and loop detection hashes state on every priority
+cycle and SBA batch.
+
+**Stated rather than mitigated.** Both new fields are load-bearing state, not caches: the
+pregame phase is the only thing that can distinguish "before the game began" from "turn
+14", and the just-drawn record is CR 702.94a's first conjunct. Shrinking
+`Option<ObjectId>` to a sentinel `ObjectId(0)` would save 8 bytes and trade a measured
+correctness gate for an unmeasured 8-byte saving, which is the wrong trade to make
+silently. Recorded here so the next batch measuring these numbers knows where the step
+came from.
