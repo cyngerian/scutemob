@@ -23,7 +23,7 @@
 //! narset/bounty (library top-N setup), `tests/primitives/pb_os6_dfc_flip_conditions.rs`
 //! (end-step-trigger card-integration harness + sentinel layout).
 
-use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::effects::{execute_effect, execute_effect_with_default_choices, EffectContext};
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     all_cards, enrich_spec_from_def, process_command, CardDefinition, CardId, CardRegistry,
@@ -220,7 +220,7 @@ fn test_look_place_creature_to_hand_growing_rites() {
         optional: true,
     };
     let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
-    let _events = execute_effect(&mut state, &effect, &mut ctx);
+    let _events = execute_effect_with_default_choices(&mut state, &effect, &mut ctx);
 
     assert!(
         in_hand(&state, "Only Creature", p1),
@@ -302,7 +302,7 @@ fn test_look_place_rest_to_bottom_positional_order() {
         optional: true,
     };
     let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
-    let _events = execute_effect(&mut state, &effect, &mut ctx);
+    let _events = execute_effect_with_default_choices(&mut state, &effect, &mut ctx);
 
     assert!(
         in_hand(&state, "Creature X", p1),
@@ -441,7 +441,7 @@ fn test_look_place_at_most_one_even_when_two_match() {
         optional: true,
     };
     let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
-    let _events = execute_effect(&mut state, &effect, &mut ctx);
+    let _events = execute_effect_with_default_choices(&mut state, &effect, &mut ctx);
 
     assert!(
         in_hand(&state, "Creature A", p1),
@@ -493,7 +493,7 @@ fn test_look_place_onto_battlefield_fires_etb() {
         optional: true,
     };
     let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
-    let events = execute_effect(&mut state, &effect, &mut ctx);
+    let events = execute_effect_with_default_choices(&mut state, &effect, &mut ctx);
 
     assert!(
         on_battlefield(&state, "Etb Creature"),
@@ -556,23 +556,21 @@ fn test_look_place_cost_sacrifice_gates_and_parameterizes() {
     };
     let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
     // PB-DX45: `Effect::LookAtTopThenPlace`'s `place_cost` is the primitive's
-    // SECOND `try_pay_optional_cost` call site (the batch's own execution
-    // notes flag it as the one no filed seed named) and it now asks
+    // SECOND `try_pay_optional_cost` call site and it asks
     // `EffectChoiceQuestion::PayOptionalCost { cost: place_cost }` on the
-    // CR 608.2d suspend-and-replay channel too, exactly like
-    // `Effect::MayPayThenEffect`. A bare `execute_effect` cannot answer it, so
-    // bank a `pay: true` answer for the SAME `Cost` value first
-    // (`state::test_util::bank_effect_choice_answer`) -- `pay: true`
-    // reproduces the pre-PB-DX45 unconditional "pay when able" this test is
-    // pinning.
-    mtg_engine::state::test_util::bank_effect_choice_answer(
-        &mut state,
-        mtg_engine::EffectChoiceQuestion::PayOptionalCost {
-            cost: Box::new(place_cost),
-        },
-        mtg_engine::EffectChoiceAnswer::PayOptionalCost { pay: true },
-    );
-    let _events = execute_effect(&mut state, &effect, &mut ctx);
+    // CR 608.2d suspend-and-replay channel, exactly like
+    // `Effect::MayPayThenEffect`.
+    //
+    // PB-DX35: the placement itself now asks a SECOND question,
+    // `EffectChoiceQuestion::ChooseObject { count: 1, up_to: true, .. }`, once the
+    // cost is paid and a matching candidate exists. A bare `execute_effect` cannot
+    // answer either, so this test drives `execute_effect_with_default_choices`
+    // (`default_effect_choice_answer`'s abort-and-replay loop) rather than
+    // pre-banking one answer by hand -- the loop answers BOTH questions in the
+    // order the executor asks them (pay first, then place), with
+    // `pay: true` / `chosen: [Good Target]` each the exact recovery of the
+    // pre-batch unconditional "pay when able, place the winner" this test pins.
+    let _events = execute_effect_with_default_choices(&mut state, &effect, &mut ctx);
 
     assert!(
         in_graveyard(&state, "Sac Fodder", p1),
@@ -741,7 +739,7 @@ fn test_look_place_truncates_at_top_n_leaves_out_of_window_match_untouched() {
         optional: true,
     };
     let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
-    let events = execute_effect(&mut state, &effect, &mut ctx);
+    let events = execute_effect_with_default_choices(&mut state, &effect, &mut ctx);
 
     assert!(
         in_hand(&state, "In Window Creature", p1),
@@ -974,7 +972,7 @@ fn test_look_place_min_and_max_equal_exact_mv() {
         optional: true,
     };
     let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
-    let _events = execute_effect(&mut state, &effect, &mut ctx);
+    let _events = execute_effect_with_default_choices(&mut state, &effect, &mut ctx);
 
     assert!(
         on_battlefield(&state, "Exact MV Three"),

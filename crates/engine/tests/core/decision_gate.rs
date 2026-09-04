@@ -105,7 +105,21 @@ fn positive_value_for_row(id: &str) -> serde_json::Value {
         "choose_color_or_type" => serde_json::to_value(Effect::ChooseCreatureType {
             default: SubType("Human".to_string()),
         }),
-        "look_at_top_or_route" => serde_json::to_value(Effect::LookAtTopThenPlace {
+        // PB-DX35: this row is `RevealAndRoute`-only now -- `LookAtTopThenPlace` has its
+        // own row below, `look_at_top_then_place_optional`.
+        "look_at_top_or_route" => serde_json::to_value(Effect::RevealAndRoute {
+            player: PlayerTarget::Controller,
+            count: EffectAmount::Fixed(1),
+            filter: TargetFilter::default(),
+            matched_dest: ZoneTarget::Hand {
+                owner: PlayerTarget::Controller,
+            },
+            unmatched_dest: ZoneTarget::Library {
+                owner: PlayerTarget::Controller,
+                position: LibraryPosition::Bottom,
+            },
+        }),
+        "look_at_top_then_place_optional" => serde_json::to_value(Effect::LookAtTopThenPlace {
             player: PlayerTarget::Controller,
             count: EffectAmount::Fixed(1),
             filter: TargetFilter::default(),
@@ -117,7 +131,7 @@ fn positive_value_for_row(id: &str) -> serde_json::Value {
                 owner: PlayerTarget::Controller,
                 position: LibraryPosition::Bottom,
             },
-            optional: false,
+            optional: true,
         }),
         "surveil" => serde_json::to_value(Effect::Surveil {
             player: PlayerTarget::Controller,
@@ -385,7 +399,6 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Anowon, the Ruin Sage", &["sacrifice_permanents"], None),
     ("Atomize", &["proliferate"], None),
     ("Atraxa, Praetors' Voice", &["proliferate"], None),
-    ("Birthing Ritual", &["look_at_top_or_route"], None),
     ("Blightbelly Rat", &["proliferate"], None),
     ("Bloated Contaminator", &["proliferate"], None),
     ("Bolt Bend", &["change_targets"], None),
@@ -414,8 +427,6 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Geological Appraiser", &["discover"], None),
     ("Goblin Ringleader", &["look_at_top_or_route"], None),
     ("Grave Pact", &["sacrifice_permanents"], None),
-    ("Grisly Salvage", &["look_at_top_or_route"], None),
-    ("Growing Rites of Itlimoc", &["look_at_top_or_route"], None),
     ("Inexorable Tide", &["proliferate"], None),
     ("Izzet Charm", &["counter_unless_pays"], None),
     ("Karn's Bastion", &["proliferate"], None),
@@ -434,10 +445,19 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Radstorm", &["proliferate"], None),
     ("Raffine's Informant", &["connive"], None),
     ("Retreat to Kazandu", &["modal_trigger"], None),
-    ("Risen Reef", &["look_at_top_or_route"], None),
     ("Roalesk, Apex Hybrid", &["proliferate"], None),
     ("Roiling Regrowth", &["sacrifice_permanents"], None),
-    ("Satyr Wayfinder", &["look_at_top_or_route"], None),
+    (
+        "Shambling Ghast",
+        &["modal_trigger"],
+        Some(
+            "PB-DX35 (2026-09, `OOS-DX4-2`): partial -> Complete. Its mode-1 target is now \
+             scoped to mode 1 alone (`ModeSelection.mode_targets`), so `trigger_modal_plan` \
+             picks the CR 700.2b-legal mode instead of removing the whole trigger -- but the \
+             CONTROLLER still does not choose the mode (the same `modal_trigger` AutoChosen row \
+             `Felidar Retreat` and `Retreat to Kazandu` already carry above).",
+        ),
+    ),
     ("Spell Pierce", &["counter_unless_pays"], None),
     ("Staff of Compleation", &["proliferate"], None),
     ("Stubborn Denial", &["counter_unless_pays"], None),
@@ -488,7 +508,24 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
 /// `proliferate` -- so the drop is 9, not 10, the same 1-off ENG-1 recorded for
 /// `Izzet Charm`. **71 is read off `T6`'s printed number**, not computed as `80 - 9`, per
 /// this constant's own standing rule; the arithmetic agreeing is a check, not the source.
-const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 71;
+///
+/// **PB-DX35 Half A (2026-09, `OOS-DX4-2`): raised 71 -> 72.** `Shambling Ghast` flipped
+/// `partial` -> `Complete` and hits `modal_trigger` (a NEW `BASELINE` entry above), the
+/// same row `Felidar Retreat`/`Retreat to Kazandu` already carry -- one def added to the
+/// union, read off `T6`'s printed number, not computed as `71 + 1`.
+///
+/// **PB-DX35 Half B (2026-09, `OOS-DX4-5`): lowered 72 -> 67.** The compound
+/// `look_at_top_or_route` row split: `LookAtTopThenPlace`'s `optional` field became a
+/// real CR 118.12 player decision and its half of the row moved to the new
+/// `look_at_top_then_place_optional` Served row, which is the same shape as ENG-1's and
+/// PB-DX45's moves on the rows either side of it. Five `BASELINE` entries removed
+/// (`Birthing Ritual`, `Growing Rites of Itlimoc`, `Grisly Salvage`, `Satyr Wayfinder`,
+/// `Risen Reef` -- none hits any OTHER AutoChosen row). `RevealAndRoute`'s CR 401.4
+/// order choice stays behind on the split-off `look_at_top_or_route` row, AutoChosen,
+/// unchanged (`Chaos Warp`/`Coiling Oracle`/`Goblin Ringleader`/`Sylvan Messenger` keep
+/// their entries). Read off `T6`'s printed number, not computed as `72 - 5`, per this
+/// constant's own standing rule.
+const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 67;
 
 const MIN_ROWS: usize = 22;
 const MIN_BASELINE: usize = 50;
@@ -926,6 +963,10 @@ fn served_rows_still_have_their_hooks() {
         // ENG-1 (2026-08-02): `discard_cards` flipped AutoChosen -> Served. Same
         // non-zero-floor treatment as its three siblings above.
         ("discard_cards", 1),
+        // PB-DX35 (2026-09, `OOS-DX4-5`): `LookAtTopThenPlace`'s optional placement is
+        // now a real CR 118.12 choice, and the row split off `look_at_top_or_route` (see
+        // that row's own updated site string) rather than merely gained a residual note.
+        ("look_at_top_then_place_optional", 1),
     ] {
         let row = ROWS.iter().find(|r| r.id == id).unwrap();
         assert!(
@@ -1219,15 +1260,21 @@ fn canonical_walk_reproduces_pb_dp8_roster() {
         .filter(|d| (row.predicate)(&serde_json::to_value(d).unwrap()))
         .count();
     assert!(
-        count >= 60,
-        "triggered_targets has only {count} Complete defs, expected >= 60 (was 74 after \
+        count >= 59,
+        "triggered_targets has only {count} Complete defs, expected >= 59 (was 74 after \
          PB-DX3b's -1 and PB-DX4's -2; re-pinned DOWN by PB-DX28 §1 -- the 10 Karoos, \
          shrieking_drake, whitemane_lion and sword_of_truth_and_justice's AddCounter trigger \
          were migrated OFF a declared `TargetRequirement` onto `EffectTarget::ChosenObject` \
          (CR 115.10: none of the seven printed clauses says \"target\"), so their Triggered \
          abilities no longer carry a non-empty `targets` list and this predicate correctly \
-         stops counting them. 60 is the MEASURED count at this batch's HEAD, not back-derived \
-         arithmetically from 74)"
+         stops counting them; re-pinned DOWN AGAIN by PB-DX35 (2026-09, `OOS-DX4-2`) -- \
+         `retreat_to_kazandu` (already `Complete`) had its mode-0 target re-shaped OFF the \
+         flat `targets` list and into `ModeSelection.mode_targets`, so its Triggered ability \
+         no longer carries a non-empty flat `targets` list either. `shambling_ghast` (this \
+         batch's OTHER re-shape) contributes NOTHING to the move: it was excluded from 60 by \
+         `Completeness::partial` and is excluded from 59 by its own now-empty flat `targets` \
+         -- excluded both times, for two different reasons. 59 is the MEASURED count at this \
+         batch's HEAD, not back-derived arithmetically)"
     );
 }
 

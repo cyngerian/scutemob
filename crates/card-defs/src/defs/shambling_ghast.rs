@@ -21,6 +21,15 @@
 // from the printed card. Reordering would also silently repoint every existing
 // `modes_chosen: [0]` in tests and scripts, so it is recorded here rather than done in a
 // batch whose subject is markers.
+//
+// PB-DX35 (2026-09, OOS-DX4-2): the mode-1 target now lives in
+// `ModeSelection.mode_targets`, scoped to mode 1 alone, closing the deviation the PB-DX4
+// note above described. `trigger_modal_plan` (`rules/abilities.rs`) is now a genuine
+// consumer of `mode_targets` on the TRIGGER path (previously every consumer was on the
+// casting path only) and picks the first CR 700.2b-legal mode: with no opponent creature on
+// the battlefield, mode 1 (whose target requirement has no legal candidate) can't be chosen,
+// so mode 0 (Create a Treasure token, which needs no target) is — the printed "choose one"
+// is honoured instead of the whole trigger being removed from the stack.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -47,24 +56,11 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::Nothing,
                 intervening_if: None,
-                // Mode 1 target: opponent's creature. Declared FLAT rather than per-mode.
-                //
-                // PB-DX4: `ModeSelection.mode_targets` (PB-AC4, the golgari_charm idiom) would
-                // be the CR 601.2c-faithful encoding -- a target should be declared only for a
-                // mode that was chosen. It is deliberately NOT used here: every consumer of
-                // `mode_targets` lives on the CASTING path (`rules/casting.rs`, plus the
-                // read-only `rules/queries.rs`), and nothing on the triggered-ability path
-                // reads it, so moving these targets into `mode_targets` would silently drop
-                // the target requirement rather than scope it. Residual deviation recorded as
-                // OOS-DX4-2: choosing mode 0 (Treasure) still requires a legal opponent
-                // creature to target, so with no opponent creature on the battlefield the
-                // trigger is removed from the stack (CR 603.3d/608.2b) instead of making a
-                // Treasure. Closing it needs `mode_targets` honoured on the trigger path --
-                // an engine change, out of scope for this card-def-only batch.
-                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                    controller: TargetController::Opponent,
-                    ..Default::default()
-                })],
+                // PB-DX35 (OOS-DX4-2): the mode-1 target now lives in
+                // `mode_targets` below, scoped to mode 1 alone -- mode 0
+                // (Create a Treasure token) needs no target at all. See the
+                // module doc for the CR 700.2b consequence.
+                targets: vec![],
                 modes: Some(ModeSelection {
                     min_modes: 1,
                     max_modes: 1,
@@ -93,7 +89,18 @@ pub fn card() -> CardDefinition {
                     ],
                     allow_duplicate_modes: false,
                     mode_costs: None,
-                    mode_targets: None,
+                    // PB-DX35 (CR 700.2c/700.2f / OOS-DX4-2): mode 0 (Treasure) needs
+                    // no target; mode 1's opponent-creature requirement is scoped to
+                    // mode 1 alone. Mode 1's `EffectFilter::DeclaredTarget { index: 0 }`
+                    // above already reads slot 0 of ITS OWN mode's slice, so no index
+                    // change was needed here.
+                    mode_targets: Some(vec![
+                        vec![],
+                        vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                            controller: TargetController::Opponent,
+                            ..Default::default()
+                        })],
+                    ]),
                 }),
                 trigger_zone: None,
             },
@@ -110,29 +117,26 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-        // PB-DX4 (2026-08-01, OOS-DP10-8): Complete -> partial.
+        // PB-DX4 (2026-08-01, OOS-DP10-8): Complete -> partial, for the mode-1 target
+        // being declared FLAT on the trigger instead of scoped to mode 1.
         //
-        // The three deviations this batch found (phantom `Decayed`, permanent -1/-1 counter,
-        // wrong stored `oracle_text`) are all FIXED above. This marker is for the fourth,
-        // which the fix surfaced rather than introduced: the mode-1 target is declared FLAT
-        // on the trigger, so it is required whichever mode is chosen. With no opponent
-        // creature on the battlefield, the trigger is removed from the stack (CR 603.3d) and
-        // the controller gets NOTHING -- where the printed card lets them simply choose
-        // "Create a Treasure token". That is reachable in ordinary play, not a corner case.
-        //
-        // Not authorable today: `ModeSelection.mode_targets` (PB-AC4) is the CR 601.2c-correct
-        // scoping, but every consumer of it is on the CASTING path (`rules/casting.rs`, plus
-        // read-only `rules/queries.rs`) and nothing on the triggered-ability path reads it --
-        // so moving the target there would DROP the requirement rather than scope it. Filed
-        // as OOS-DX4-2; closing it is an engine change, out of scope for this card-def batch.
-        completeness: Completeness::partial(
-            "Modal WhenDies trigger declares its mode-1 target flat (ModeSelection.mode_targets \
-             is honoured only on the casting path, never for triggered abilities), so the 'target \
-             creature an opponent controls' requirement applies to BOTH modes: with no opponent \
-             creature the trigger is removed from the stack (CR 603.3d) instead of creating a \
-             Treasure. The three PB-DX4 oracle defects (phantom Decayed keyword, permanent -1/-1 \
-             counter for a printed 'until end of turn', and a stored oracle_text naming Decayed \
-             and 'enters' against a WhenDies trigger) are fixed.",
-        ),
+        // PB-DX35 (2026-09, OOS-DX4-2): partial -> Complete. The blocker PB-DX4 filed is
+        // closed: mode 1's target now lives in `mode_targets`, scoped to mode 1 alone, and
+        // `trigger_modal_plan` (`rules/abilities.rs`) makes the CR 700.2b-legal choice on
+        // the trigger path. **Stated precisely, because the obvious phrasing overstates it**
+        // (caught by this batch's own `/review`): this def's DSL mode 0 is the Treasure token,
+        // whose requirement slice is EMPTY, so it is the CR 700.2b-legal first mode in *every*
+        // board state -- not only when no opponent creature exists. What the fix changes is that
+        // the -1/-1 mode's target no longer leaks onto the Treasure mode, so with no opponent
+        // creature the trigger now RESOLVES and makes a Treasure instead of being removed from
+        // the stack (CR 603.3d), which is what the printed "choose one" says. The -1/-1 mode
+        // stays unreachable from every channel until the controller gets a real mode choice
+        // (`decision_site_walk::modal_trigger`, still `AutoChosen`, filed as OOS-DX35-4) -- a
+        // corpus-wide agency gap that does not demote defs: `felidar_retreat` and
+        // `retreat_to_kazandu` are both `Complete` carrying it. Asserted by `t4`.
+        // (Note the DSL mode order is REVERSED from print, deliberately and documented above.) The three PB-DX4 oracle defects (phantom Decayed keyword, permanent
+        // -1/-1 counter for a printed "until end of turn", and a stored oracle_text naming
+        // Decayed and "enters" against a WhenDies trigger) were already fixed by PB-DX4.
+        completeness: Completeness::Complete,
     }
 }

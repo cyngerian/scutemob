@@ -147,7 +147,13 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // battlefield between attack declaration and trigger collection) legitimately
     // answers the predicate `false` (does not match), the exact same shape as every
     // other predicate-read site already ceilinged in this file.
-    ("src/rules/abilities.rs", 75),
+    // PB-DX35 (2026-09, `OOS-DX4-2`): 75 -> 72. `trigger_modal_plan` consolidates
+    // three hand-rolled copies of the trigger-target-requirement lookup (sites 1/2,
+    // plus the modes lookup) into one shared function, removing bare
+    // `state.objects.get`/`state.card_registry.get` duplicates that `flush_sorted`
+    // used to repeat at each site. Lowered rather than left stale-high (a
+    // stale-high ceiling is slack a regression hides in).
+    ("src/rules/abilities.rs", 72),
     ("src/rules/casting.rs", 33),
     // PB-DP4 (2026-07-26): 16 -> 15. `has_uncosted_attack_target` (new, CR 508.1d)
     // deduplicates the two copy-pasted `has_cant_attack_owner` bare

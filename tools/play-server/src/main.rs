@@ -14485,4 +14485,370 @@ mod tests {
              does not run over that."
         );
     }
+
+    // ── PB-DX35 Half B (`scutemob-227`, `OOS-DX4-5`) ──────────────────────────
+    //
+    // `Effect::LookAtTopThenPlace.optional` -- CR 118.12's "you may put ... onto
+    // the battlefield" -- asked over PB-DP9's CR 608.2d channel through the SAME
+    // `EffectChoiceQuestion::ChooseObject { count: 1, up_to: true, .. }` /
+    // `EffectChoiceAnswer::ChooseObject { chosen }` pair PB-DX28 built. The
+    // engine- and simulator-level probes live in
+    // `crates/engine/tests/primitives/pb_dx35_optional_placement.rs` and
+    // `crates/simulator/tests/pb_dx35_optional_placement_channel.rs`; this
+    // section is the play-server's own end of the same channel, over real HTTP.
+    //
+    // `api::validate_decision_params`'s `ChooseObject` arm and `view::blocking_
+    // decision_view`'s `ChooseObject` arm needed ZERO code changes for this --
+    // both already handle the variant generically since PB-DX28, and this
+    // section proves that by execution rather than by reading the source.
+    //
+    // Satyr Wayfinder digs the top FOUR cards (`count: EffectAmount::Fixed(4)`),
+    // not one -- with the fixture's near-all-Forest deck all four are legal
+    // Land candidates, which makes this a genuine "which of several" choice
+    // (Satyr Wayfinder's `destination` is HAND, `rest_to` is GRAVEYARD -- unlike
+    // Risen Reef, there is no battlefield leg here at all).
+
+    /// Seed 1 against a mono-green, 99-Forest-plus-one deck deals p1 an opening
+    /// hand of `[Satyr Wayfinder, Forest x6]` -- found by an executed scan over
+    /// seeds 0..200 (this file's own commit history for the scan), not guessed.
+    /// `old-gnawbone` ({5}{G}{G}) is the [`DX45H_COMMANDER`] trick again:
+    /// unreachable inside this fixture's drive window, so it never competes with
+    /// the probe.
+    const DX35H_SEED: u64 = 1;
+
+    /// One `Satyr Wayfinder` ({1}{G}), the rest Forests. Its OWN ETB fires its
+    /// own trigger -- `Effect::LookAtTopThenPlace { filter: Land, .. }` -- so
+    /// casting the one probe card is the whole drive; no second creature and no
+    /// combat step is needed anywhere.
+    fn dx35h_deck() -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = Vec::new();
+        main_deck.push(CardId("satyr-wayfinder".to_string()));
+        while main_deck.len() < 99 {
+            main_deck.push(CardId("forest".to_string()));
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX45H_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// Install a two-player fixed-deck session -- the `dx45h_install` precedent,
+    /// same reasons: `POST /api/game` cannot build a fixed decklist, and nothing
+    /// about the HTTP path itself is stubbed, only the deck the game starts
+    /// from.
+    fn dx35h_install(state: &SharedState) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: DX35H_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), dx35h_deck()),
+                (mtg_engine::PlayerId(2), dx35h_deck()),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 5,
+                max_commands: 2_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the PB-DX35 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// Drive p1 -- play a Forest, then cast Satyr Wayfinder, else pass priority
+    /// -- until the offered decision IS the CR 118.12/608.2d `ChooseObject`
+    /// offer (`kind == "AnswerEffectChoice"` and `decision.question ==
+    /// "ChooseObject"`). Returns that view WITHOUT answering it, so callers can
+    /// inspect the offer or go on to answer it.
+    async fn dx35h_drive_to_choose_object_offer(state: &SharedState, max_steps: usize) -> Value {
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default();
+            if actions.iter().any(|a| {
+                a["kind"] == "AnswerEffectChoice" && a["decision"]["question"] == "ChooseObject"
+            }) {
+                return view;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "step {step}: the game ended before the CR 118.12 offer was reached: {view}"
+            );
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| {
+                    actions.iter().find(|a| {
+                        a["kind"] == "CastSpell"
+                            && a["label"]
+                                .as_str()
+                                .unwrap_or("")
+                                .contains("Satyr Wayfinder")
+                    })
+                })
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .unwrap_or_else(|| {
+                    panic!("step {step}: no PlayLand/CastSpell/PassPriority offered: {actions:?}")
+                });
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": seq(&view), "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!("the CR 118.12 offer was not reached within {max_steps} steps: {view}");
+    }
+
+    /// Whether object `id` (raw `u64`) still exists in `state.objects()`. A
+    /// zone-changing move (CR 400.7) retires the OLD id and mints a NEW one, so
+    /// this is the "did it leave its original zone" half of the proof; the
+    /// COUNT helpers below are the "and it landed in the right one" half.
+    fn dx35h_object_retired(state: &SharedState, id: u64) -> bool {
+        state
+            .session
+            .lock()
+            .expect("lock")
+            .as_ref()
+            .is_none_or(|s| {
+                !s.game
+                    .state()
+                    .objects()
+                    .contains_key(&mtg_engine::ObjectId(id))
+            })
+    }
+
+    fn dx35h_zone_count(state: &SharedState, zone: mtg_engine::ZoneId) -> usize {
+        state
+            .session
+            .lock()
+            .expect("lock")
+            .as_ref()
+            .map(|s| {
+                s.game
+                    .state()
+                    .objects()
+                    .values()
+                    .filter(|o| o.zone == zone)
+                    .count()
+            })
+            .unwrap_or(0)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    /// **T1 -- the browser is offered the `PickN` shape (CR 115.10/118.12), over
+    /// real HTTP.** A real fixed deck, driven through the real router
+    /// (`PlayLand` / `CastSpell` / `PassPriority`, exactly the calls a browser
+    /// makes) to Satyr Wayfinder's own ETB, where `Effect::LookAtTopThenPlace`
+    /// suspends and asks. Asserts `view::blocking_decision_view`'s
+    /// `ChooseObject` arm end to end: the question tag, the `PickN` answer
+    /// shape, `min_count == 0` (`up_to: true`), `count == 1`, the four real
+    /// Land candidates (the top of a near-all-Forest library), and that the
+    /// DEFAULT answer is PB-DX35's take-the-winner (lowest id) behaviour.
+    async fn test_dx35_the_choose_object_offer_over_http() {
+        let state = shared_state();
+        dx35h_install(&state);
+        let view = dx35h_drive_to_choose_object_offer(&state, 40).await;
+
+        let action = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| {
+                a["kind"] == "AnswerEffectChoice" && a["decision"]["question"] == "ChooseObject"
+            })
+            .expect("dx35h_drive_to_choose_object_offer just found this");
+        let decision = &action["decision"];
+
+        assert_eq!(decision["question"], "ChooseObject");
+        assert_eq!(decision["answer_field"], "effect_choice_answer");
+
+        let answer = &decision["answer"];
+        assert_eq!(answer["shape"], "PickN");
+        assert_eq!(
+            answer["count"], 1,
+            "CR 118.12 places AT MOST ONE, regardless of how many were looked at: {answer}"
+        );
+        assert_eq!(
+            answer["min_count"], 0,
+            "up_to: true means the minimum legal answer is ZERO -- declining is real: {answer}"
+        );
+        let candidates = answer["candidates"]
+            .as_array()
+            .expect("candidates is an array");
+        assert_eq!(
+            candidates.len(),
+            4,
+            "Satyr Wayfinder digs the top FOUR cards, and the fixture deck makes all four \
+             legal Land candidates: {candidates:?}"
+        );
+        let mut ids: Vec<u64> = candidates
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        ids.sort_unstable();
+        let default = answer["default"].as_array().expect("default is an array");
+        assert_eq!(
+            default,
+            &vec![serde_json::json!(ids[0])],
+            "the DEFAULT answer must be PB-DX35's take-the-winner (lowest id) behaviour: \
+             {answer}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    /// **T2 -- the DECLINE, end to end over real HTTP.**
+    ///
+    /// This outcome was unreachable from every channel before PB-DX35 -- the
+    /// old `LookAtTopThenPlace` arm destructured `optional: _` and always
+    /// placed the best candidate when one existed, so a pre-batch engine put
+    /// the winning card into hand with no question asked and no way to say no.
+    /// A decline routes ALL FOUR looked-at cards to `rest_to` (the graveyard,
+    /// Satyr Wayfinder's printed fallback) -- none reaches hand. Asserted by
+    /// GRAVEYARD COUNT DELTA rather than by the original candidate ids staying
+    /// put: CR 400.7 retires each id on its zone-changing move and mints a new
+    /// one, so `dx35h_object_retired` proves EACH candidate left its original
+    /// zone and the count delta proves where all four landed.
+    async fn test_dx35_a_declined_choose_object_answer_over_http() {
+        let state = shared_state();
+        dx35h_install(&state);
+        let view = dx35h_drive_to_choose_object_offer(&state, 40).await;
+        let index = ui1_question_index(&view, "ChooseObject")
+            .expect("the ChooseObject offer must be present");
+        let actions = view["decision"]["actions"]
+            .as_array()
+            .expect("actions array");
+        let action = actions
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+        let candidate_ids: Vec<u64> = action["decision"]["answer"]["candidates"]
+            .as_array()
+            .expect("candidates array")
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        assert_eq!(
+            candidate_ids.len(),
+            4,
+            "sanity: the same four candidates as T1"
+        );
+
+        let p1_graveyard = mtg_engine::ZoneId::Graveyard(mtg_engine::PlayerId(1));
+        let p1_hand = mtg_engine::ZoneId::Hand(mtg_engine::PlayerId(1));
+        let graveyard_before = dx35h_zone_count(&state, p1_graveyard);
+        let hand_before = dx35h_zone_count(&state, p1_hand);
+
+        let (status, next) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": index,
+                "params": {"effect_choice_answer": {"ChooseObject": {"chosen": []}}}
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{next}");
+
+        for id in &candidate_ids {
+            assert!(
+                dx35h_object_retired(&state, *id),
+                "CR 400.7: candidate {id} must have LEFT the library (a new object minted \
+                 in its destination zone) once the effect resolved"
+            );
+        }
+        assert_eq!(
+            dx35h_zone_count(&state, p1_graveyard),
+            graveyard_before + 4,
+            "CR 118.12's printed fallback: declined, so all FOUR looked-at cards are \
+             routed to rest_to (the graveyard)"
+        );
+        assert_eq!(
+            dx35h_zone_count(&state, p1_hand),
+            hand_before,
+            "a decline must add NOTHING to hand"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    /// **T3 -- the ACCEPT, on the identical fixture and drive.** T2 and T3
+    /// differ in exactly one value: whether `chosen` names a candidate. Both
+    /// halves are asserted because a decline-only probe cannot distinguish "the
+    /// decline works" from "this fixture never places any card at all". The
+    /// CHOSEN card's arrival in hand and the other three's arrival in the
+    /// graveyard are BOTH asserted by count delta (CR 400.7 -- see T2's doc),
+    /// proving the choice is real: CR 118.12 places AT MOST ONE, never all
+    /// four.
+    async fn test_dx35_an_accepted_choose_object_answer_over_http() {
+        let state = shared_state();
+        dx35h_install(&state);
+        let view = dx35h_drive_to_choose_object_offer(&state, 40).await;
+        let index = ui1_question_index(&view, "ChooseObject")
+            .expect("the ChooseObject offer must be present");
+        let actions = view["decision"]["actions"]
+            .as_array()
+            .expect("actions array");
+        let action = actions
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+        let candidate_ids: Vec<u64> = action["decision"]["answer"]["candidates"]
+            .as_array()
+            .expect("candidates array")
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        let chosen_id = candidate_ids[0];
+
+        let p1_graveyard = mtg_engine::ZoneId::Graveyard(mtg_engine::PlayerId(1));
+        let p1_hand = mtg_engine::ZoneId::Hand(mtg_engine::PlayerId(1));
+        let graveyard_before = dx35h_zone_count(&state, p1_graveyard);
+        let hand_before = dx35h_zone_count(&state, p1_hand);
+
+        let (status, next) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": index,
+                "params": {"effect_choice_answer": {"ChooseObject": {"chosen": [chosen_id]}}}
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{next}");
+
+        for id in &candidate_ids {
+            assert!(
+                dx35h_object_retired(&state, *id),
+                "CR 400.7: candidate {id} must have LEFT the library once the effect \
+                 resolved"
+            );
+        }
+        assert_eq!(
+            dx35h_zone_count(&state, p1_hand),
+            hand_before + 1,
+            "CR 118.12: accepted, so exactly ONE card (the chosen one) reaches hand"
+        );
+        assert_eq!(
+            dx35h_zone_count(&state, p1_graveyard),
+            graveyard_before + 3,
+            "the three non-chosen candidates must still be routed to rest_to -- \
+             CR 118.12 places AT MOST ONE, not all four"
+        );
+    }
 }

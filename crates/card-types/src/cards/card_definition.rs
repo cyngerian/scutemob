@@ -2114,8 +2114,12 @@ pub enum Effect {
         /// Remainder destination — `ZoneTarget::Library { owner, position: Bottom }`.
         /// Deterministic ObjectId-ascending order approximates "in a random order"/"in any order".
         rest_to: ZoneTarget,
-        /// Whether placing is a "may" (M7 fallback places the best candidate when one exists;
-        /// reserved for M10+ interactive decline).
+        /// Whether placing is a "may" (CR 118.12). `false`, or an empty candidate set,
+        /// keeps the deterministic take-when-able fallback. `true` with a nonempty
+        /// candidate set is a real player decision, asked as
+        /// `EffectChoiceQuestion::ChooseObject { count: 1, up_to: true, .. }` on the
+        /// CR 608.2d suspend-and-replay channel (PB-DX35, `OOS-DX4-5`). Was inert
+        /// through PB-OS8/M7; that milestone note is what this batch discharges.
         optional: bool,
     },
     /// Exile target permanent, then return it to the battlefield under its

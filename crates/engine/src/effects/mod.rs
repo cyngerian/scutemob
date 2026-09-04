@@ -6599,12 +6599,15 @@ fn execute_effect_inner(
             place_cost,
             destination,
             rest_to,
-            // Review Finding 2 (PB-OS8, LOW): `optional` is not read by this M7 deterministic
-            // executor -- the "take when able" fallback (invariant #9) always places the best
-            // candidate when one exists, same as every other "may" effect at this milestone.
-            // Reserved for M10+ interactive decline; correctly hashed/wired now so a future
-            // interactive path has no wire migration to do. Currently inert, not a live gate.
-            optional: _,
+            // PB-DX35 (OOS-DX4-5): CR 118.12's "you may put" is the CHOOSER's decision,
+            // not the engine's -- the Review Finding 2 sentence this comment used to carry
+            // ("`optional` is not read... currently inert, not a live gate") is what this
+            // batch deletes. `optional == true` with a nonempty candidate set asks
+            // `EffectChoiceQuestion::ChooseObject { count: 1, up_to: true, .. }` on the
+            // CR 608.2d suspend-and-replay channel `place_cost` (three lines below) already
+            // uses; `optional == false`, or an empty candidate set, keeps the M7 deterministic
+            // take-when-able fallback byte-for-byte.
+            optional,
         } => {
             let n = resolve_amount(state, count, ctx).max(0) as usize;
             let players = resolve_player_target_list(state, player, ctx);
@@ -6696,10 +6699,15 @@ fn execute_effect_inner(
                     .min_cmc_amount
                     .as_ref()
                     .map(|a| resolve_amount(state, a, ctx));
-                // Find the deterministic winner among top_ids matching `filter` + caps.
-                let mut placed_id: Option<ObjectId> = None;
-                if placement_allowed {
-                    placed_id = top_ids
+                // PB-DX35: the candidate set among top_ids matching `filter` + caps, sorted
+                // ASCENDING by ObjectId. `top_ids` is `Zone::top_n` order -- i.e. TOP-FIRST,
+                // NOT ObjectId order -- so this sort is required: `candidates.first()` must
+                // equal the pre-PB-DX35 `min_by_key(|id| id.0)` winner EXACTLY, which is the
+                // whole behaviour-preservation argument for the `optional == false` arm below
+                // (pinned by `pb_dx35_optional_placement::t5`, built so `top_ids` order and
+                // ascending-id order genuinely disagree).
+                let mut candidates: Vec<ObjectId> = if placement_allowed {
+                    top_ids
                         .iter()
                         .copied()
                         .filter(|&id| {
@@ -6726,8 +6734,50 @@ fn execute_effect_inner(
                                 false
                             }
                         })
-                        .min_by_key(|id| id.0);
-                }
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+                candidates.sort_by_key(|id| id.0);
+                // PB-DX35 (OOS-DX4-5): CR 118.12 -- placement itself is a player decision,
+                // the same argument PB-DX45 already applies to the interposed `place_cost`
+                // above. `optional == false`, or an empty candidate set, keeps today's
+                // deterministic take-when-able winner. `optional == true` with a nonempty
+                // candidate set asks. Deliberately NO determined-answer short-circuit for
+                // `candidates.len() == 1`: `resolve_pending_object_choices` has one and it
+                // is correct THERE because `!up_to` makes a single candidate the only legal
+                // SET -- here `up_to: true` means declining is always a second legal answer,
+                // so a lone candidate is still a real choice.
+                let placed_id: Option<ObjectId> = if !optional || candidates.is_empty() {
+                    candidates.first().copied()
+                } else {
+                    match ask_or_consume_effect_choice(
+                        state,
+                        ctx,
+                        p,
+                        EffectChoiceQuestion::ChooseObject {
+                            candidates: candidates.clone(),
+                            count: 1,
+                            up_to: true,
+                        },
+                    ) {
+                        Some(EffectChoiceAnswer::ChooseObject { chosen }) => {
+                            chosen.first().copied()
+                        }
+                        Some(other) => {
+                            debug_assert!(
+                                false,
+                                "CR 608.2d: variant mismatch answering a ChooseObject: \
+                                 {other:?}"
+                            );
+                            candidates.first().copied()
+                        }
+                        // Suspended: apply NOTHING, the same reasoning as the place_cost
+                        // ask above -- a later payer/looker must not run their pass
+                        // either, since the wrapper is about to discard the whole one.
+                        None => break,
+                    }
+                };
                 // Place the winner (if any) to `destination`.
                 // NOTE (PB-RS1 review Finding 5): unlike `rest_to` below, this arm has no
                 // `LibraryPosition::Bottom` branch -- a `destination` of `Library{Bottom}`

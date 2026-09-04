@@ -644,9 +644,13 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
                 mtg_engine::EffectChoiceQuestion::Scry { .. } => "scry",
                 mtg_engine::EffectChoiceQuestion::Surveil { .. } => "surveil",
                 mtg_engine::EffectChoiceQuestion::Discard { .. } => "discard",
-                // PB-DX28 (CR 115.10): unlike the four arms above, this one names
-                // PUBLIC objects (battlefield permanents / graveyard cards), but
-                // the formatter stays uniform and prints the class label only.
+                // PB-DX28 (CR 115.10): through PB-DX35, this one named only
+                // PUBLIC objects (battlefield permanents / graveyard cards).
+                // `Effect::LookAtTopThenPlace`'s `optional` placement
+                // (`OOS-DX4-5`) now asks the SAME variant with LIBRARY ids too,
+                // so that is no longer true in general -- but the formatter
+                // stays uniform and prints the class label only regardless, the
+                // same reason `PayOptionalCost` below never printed one.
                 mtg_engine::EffectChoiceQuestion::ChooseObject { .. } => "choose object",
                 // PB-DX45 (CR 118.12): the optional-cost offer. Like ChooseObject
                 // it names no hidden information -- it names no ids at all -- and

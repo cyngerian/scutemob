@@ -462,7 +462,7 @@ fn radstorm_costs_three_generic_and_one_blue() {
 // ── T7: the five demotions are real and machine-checked ──────────────────────
 
 #[test]
-/// The five class-D defs whose defect is **not authorable today** are demoted, so
+/// The class-D defs whose defect is **not authorable today** are demoted, so
 /// `validate_deck` refuses them (SR-2 / Architecture Invariant 9) rather than shipping a
 /// legal-but-wrong card.
 ///
@@ -472,6 +472,15 @@ fn radstorm_costs_three_generic_and_one_blue() {
 /// pinning it is pinning the work. It is NOT a claim that the underlying defect is fixed;
 /// each def's `completeness` note names the missing DSL surface and, where one exists,
 /// the seed that owns closing it.
+///
+/// **PB-DX35 (2026-09, `OOS-DX4-2`): `Shambling Ghast` REMOVED from this list, disclosed
+/// rather than silently dropped.** Its defect needed exactly the engine change this
+/// list's own doc says a card-def-only batch cannot make: `ModeSelection.mode_targets`
+/// honoured on the TRIGGER path. PB-DX35 shipped it, re-shaped this def's mode-1 target
+/// into `mode_targets`, and flipped its marker `partial` -> `Complete` -- see
+/// `decision_gate.rs::BASELINE`'s `modal_trigger` row for the residual (the controller
+/// still does not choose the mode; the engine's automatic choice is merely CR
+/// 700.2b-legal now).
 fn class_d_defs_without_a_dsl_expression_are_demoted() {
     for (name, why) in [
         (
@@ -495,11 +504,8 @@ fn class_d_defs_without_a_dsl_expression_are_demoted() {
             "printed 'Otherwise, DRAW A CARD' authored as a Hand zone-move, which fires \
              no draw event and bypasses draw triggers, replacements and restrictions",
         ),
-        (
-            "Shambling Ghast",
-            "its mode-1 target is declared flat rather than per-mode, so choosing the \
-             Treasure mode still requires a legal opponent creature (CR 603.3d)",
-        ),
+        // "Shambling Ghast" removed here by PB-DX35 (2026-09, `OOS-DX4-2`) -- see this
+        // function's own doc comment for why.
     ] {
         let def = card_def(name);
         assert!(

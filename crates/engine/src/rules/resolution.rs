@@ -2369,7 +2369,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         }
                     })
                     .cloned();
-                if let (Some(modes), true) = (&modes_opt, !stack_obj.modes_chosen.is_empty()) {
+                if let Some(modes) = &modes_opt {
                     // CR 700.2a: Execute the chosen modes in order. Invalid indices are skipped.
                     let chosen_effects: Vec<crate::cards::card_definition::Effect> = stack_obj
                         .modes_chosen
@@ -2377,8 +2377,18 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         .filter_map(|&idx| modes.modes.get(idx).cloned())
                         .collect();
                     if chosen_effects.is_empty() {
-                        // No valid modes chosen — trigger resolves with no effect.
-                        triggered_effect_opt
+                        // PB-DX35 (CR 700.2b / `OOS-DX4-2`): `modes_chosen` empty (or every
+                        // chosen index invalid) means the controller chose NO mode —
+                        // the ability resolves with NO effect. This used to fall
+                        // through to `triggered_effect_opt`, the un-modal-aware raw
+                        // ability effect field; for the three `WhenDies`/`WhenAttacks`/
+                        // `WhenBlocks` lowering arms that PRE-RESOLVE `modes.first()`
+                        // into that field (execution-notes §0.5), that silently
+                        // executed mode 0 even though NO mode was chosen. Since this
+                        // ability genuinely IS modal (`modes_opt` is `Some`), the raw
+                        // field must never be consulted here — only the chosen modes'
+                        // effects may run (CR 700.2a).
+                        Some(crate::cards::card_definition::Effect::Nothing)
                     } else if chosen_effects.len() == 1 {
                         Some(chosen_effects.into_iter().next().unwrap())
                     } else {

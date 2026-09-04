@@ -44,14 +44,18 @@ pub fn card() -> CardDefinition {
             // the 2019-07-12 ruling turns on exactly that — you need not reveal a card you
             // keep, nor say whether it was a land).
             //
-            // **`optional` is INERT today** (`effects/mod.rs`'s `LookAtTopThenPlace` arm
-            // destructures `optional: _`; pre-existing **OOS-DP10-5**), so this records the
-            // "may" structurally without yet implementing it. That is deliberate and it is why
-            // this def stays `Complete` rather than joining the batch's demotions: four other
-            // `Complete` defs already ship in exactly this position (`birthing_ritual`,
-            // `growing_rites_of_itlimoc`, `grisly_salvage`, `satyr_wayfinder`), so demoting
-            // this one alone would single out a member of a shipped class. Filed as the class
-            // it is — **OOS-DX4-5** — rather than settled per-card here.
+            // **`optional` recorded the "may" structurally while it was INERT**
+            // (`effects/mod.rs`'s `LookAtTopThenPlace` arm destructured `optional: _`;
+            // pre-existing **OOS-DP10-5**). That was deliberate and is why this def stayed
+            // `Complete` rather than joining the batch's demotions: four other `Complete`
+            // defs shipped in exactly this position (`birthing_ritual`,
+            // `growing_rites_of_itlimoc`, `grisly_salvage`, `satyr_wayfinder`). Filed as the
+            // class it is — **OOS-DX4-5** — rather than settled per-card here.
+            // **CLOSED by PB-DX35** (`scutemob-227`, 2026-09-04): `optional` is real now —
+            // a nonempty candidate set asks
+            // `EffectChoiceQuestion::ChooseObject { count: 1, up_to: true, .. }` on the
+            // CR 608.2d suspend-and-replay channel, and a decline puts the card into your
+            // hand (`rest_to`), the printed fallback verbatim.
             effect: Effect::LookAtTopThenPlace {
                 player: PlayerTarget::Controller,
                 count: EffectAmount::Fixed(1),

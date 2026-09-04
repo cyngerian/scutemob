@@ -158,7 +158,15 @@ const UNORDERED_CEILINGS: &[(&str, usize)] = &[
     // moves the ceiling DOWN instead of asking for it to be raised, and it removes the
     // question entirely from a function PB-DP9 re-executes wholesale after every
     // suspended `EffectChoiceQuestion` (`OOS-DP9-10`).
-    ("rules/abilities.rs", 6),
+    //
+    // **6 -> 8, PB-DX35 (2026-09, `OOS-DX4-2`).** `pb_dx35_trigger_modal_plan_tests::
+    // t9_site3_agrees_with_the_shared_plan_by_value` (an internal `#[cfg(test)]` unit
+    // test -- `trigger_ability_target_requirements` is a bare private `fn`, unreachable
+    // from an external integration test) builds a one-entry `HashMap<String,
+    // CardDefinition>` to pass to `enrich_spec_from_def`, which only ever calls
+    // `.get(&spec.name)` on it -- category (a), a lookup table never iterated. 1 `use`
+    // import + 1 `HashMap::from(..)` construction site = +2.
+    ("rules/abilities.rs", 8),
     // 9 — 9x `let mut seen(_x) = std::collections::HashSet::new();`, one per splice/dedup
     // site; each is `insert`-only, never iterated. **Newly visible under the widened
     // needle** (the `<`-suffixed counter found 0 here) — inspected individually, all clean.

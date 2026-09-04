@@ -5440,7 +5440,7 @@ pub fn check_triggers_with_timing(
                         // (2) "a real capability the fix gives up" -- refuted by
                         //     `primitives::pb_dx47_modal_trigger_mode_zero::t1`.
                         //     NOTHING modal is lost, because nothing modal was ever
-                        //     offered: `flush_sorted` hard-codes
+                        //     offered: at PB-DX47 time `flush_sorted` hard-coded
                         //     `modes_chosen = vec![0]` in BOTH arms of its modal
                         //     branch for any `StackObjectKind::TriggeredAbility`,
                         //     `Normal` and `CardDefETB` alike, and
@@ -5451,6 +5451,20 @@ pub fn check_triggers_with_timing(
                         //     `core::decision_site_walk`. Measured: restoring the
                         //     deleted scan takes that probe from +1 life to +2 --
                         //     mode 0 TWICE, not a mode the player picked.
+                        //
+                        //     PB-DX35 (`OOS-DX4-2`) replaced the hard-code with
+                        //     `trigger_modal_plan`, a CR 700.2b-legal first-mode
+                        //     pick. For `glissa_sunslayer` this changes nothing
+                        //     observable: its modal ability's registry index (2)
+                        //     still does not match the `Normal`-kind trigger's
+                        //     RUNTIME ability_index (0) -- the census in
+                        //     execution-notes §0.5 and `core::
+                        //     pb_dx35_modal_trigger_roster::r2` -- so the registry
+                        //     lookup at index 0 still finds a non-`Triggered`
+                        //     ability and `modes` is still `None`, which is the SAME
+                        //     "not modal" fallback (`modes_chosen: vec![]`) as
+                        //     before. Filed as `OOS-DX35-1`, not fixed by this batch
+                        //     (execution-notes §0.5 "why it is not fixed").
                         //
                         // `OOS-DX47-3` therefore stays open as the STRUCTURAL gap
                         // (`TriggeredAbilityDef` has no `modes` field, so the day
@@ -8183,6 +8197,249 @@ pub(crate) fn trigger_target_candidates(
         max,
     }
 }
+/// PB-DX35 (`OOS-DX4-2`): the mode(s) a modal triggered ability is put on the
+/// stack with, and the target requirements those modes announce.
+///
+/// `None` means CR 700.2b's "If no mode is chosen, the ability is removed from
+/// the stack."
+///
+/// This is the ONE shared arithmetic behind what were three hand-rolled copies
+/// (execution-notes §0.5): `trigger_target_requirements` (has_ability_targets +
+/// `StackObject.target_requirements`), `ability_targets` (the CR 603.3d slot
+/// derivation feeding the offer/auto-pick), and the modes_chosen assignment at
+/// the trigger-push site. A fourth reader, `trigger_ability_target_requirements`
+/// (the CR 601.2c cross-slot distinctness check on the answer path), also calls
+/// this. `rules::mana.rs`'s `WhenTappedForMana` targeted-vs-untargeted decision
+/// (site 4) asks a different question — whether targeted at all, not which
+/// targets — and is deliberately NOT unified here.
+///
+/// **The controller still does not choose a mode** (`decision_site_walk`'s
+/// `modal_trigger` row stays `AutoChosen`, execution-notes §0.3): what changes is
+/// that the engine's automatic choice becomes CR 700.2b-legal, i.e. it may not
+/// pick a mode whose target requirement has no legal candidate.
+///
+/// **No per-mode offset loop is needed on the trigger path** (unlike the
+/// spell-side `resolution.rs`, which rebases a chosen mode's `DeclaredTarget`
+/// indices because a spell may choose SEVERAL modes at once and each one's
+/// slice must land at its own offset in the concatenated flat list). A
+/// triggered ability's `modes` is unsupported above `max_modes: 1`
+/// (roster gate `r4` pins the corpus at exactly 1), so `requirements` here is
+/// always exactly ONE mode's slice, never a concatenation — it already sits at
+/// offset 0, which is where `EffectTarget::DeclaredTarget { index: 0 }` reads.
+/// Verified by execution: `pb_dx35_modal_trigger_targets::t2`/`t4` drive the two
+/// repaired defs' mode-0 `DeclaredTarget { index: 0 }` clauses through this path.
+pub(crate) struct TriggerModalPlan {
+    pub modes_chosen: Vec<usize>,
+    pub requirements: Vec<crate::cards::card_definition::TargetRequirement>,
+}
+/// Does every `TargetRequirement` in one mode's slice have a legal candidate (or
+/// is itself optional, CR 601.2c "up to")? CR 700.2b: "If one of the modes would
+/// be illegal (due to an inability to choose legal targets, for example), that
+/// mode can't be chosen."
+///
+/// # Stated residual: this is a PER-SLOT test, and CR 700.2b is not (`OOS-DX35-10`)
+///
+/// Legality here means "every slot in this mode's slice has a candidate, or is optional". It
+/// does **not** consult `forced_answer_breaks_distinctness`, which `flush_sorted` applies
+/// downstream: a mode with two mutually-distinct `TargetPermanentDistinctFrom` slots sharing a
+/// single candidate has a candidate per slot and NO legal combination. Such a mode is judged
+/// legal here, chosen, and then removed by the CR 601.2c cross-slot check — where CR 700.2b says
+/// the NEXT mode should have been chosen instead.
+///
+/// **Zero corpus exposure, measured rather than assumed**: every `mode_targets` slice in the
+/// corpus today holds 0 or 1 requirement, pinned by
+/// `core::pb_dx35_modal_trigger_roster`'s census, so no mode can have two slots at all. Closing
+/// it means threading the cross-slot check into this predicate, which needs the whole slice's
+/// candidate sets rather than one slot's. Found by this batch's own `/review`.
+fn trigger_modal_mode_is_legal(
+    state: &GameState,
+    trigger: &PendingTrigger,
+    reqs: &[crate::cards::card_definition::TargetRequirement],
+) -> bool {
+    // CR 700.2c author invariant, mirroring `casting.rs:3856` (spell) and the activated path's
+    // `abilities.rs:481-486`: `mode_targets` may not contain `UpToN`. Both peers hard-REJECT the
+    // combination with an `InvalidCommand`; a trigger is not a command and has nothing to reject
+    // to, so the trigger path fails CLOSED instead — an `UpToN` slice makes the mode ILLEGAL, so
+    // CR 700.2b falls through to a mode that really is legal rather than choosing this one.
+    //
+    // **↻ Added after this batch's own `/review`, which proved the omission by execution.** The
+    // first draft mirrored only the OTHER of the two author invariants (they sit five lines apart
+    // in `casting.rs`), and an `UpToN` slot is `optional`, so `opt.optional ||` below judged such
+    // a mode unconditionally legal — CR 700.2b's fall-through died and the mode was chosen with
+    // no target. Zero corpus exposure (roster `r5` pins the population at zero); the point is
+    // that the day a def carries one, the behaviour is defined rather than silently wrong.
+    if reqs.iter().any(|r| {
+        matches!(
+            r,
+            crate::cards::card_definition::TargetRequirement::UpToN { .. }
+        )
+    }) {
+        debug_assert!(
+            false,
+            "CR 700.2c: `ModeSelection.mode_targets` may not contain `UpToN` on a triggered \
+             ability (variable-count per-mode targets are unsupported, as on the cast and \
+             activated paths). This mode is treated as ILLEGAL so CR 700.2b falls through."
+        );
+        return false;
+    }
+    reqs.iter().all(|req| {
+        let opt = trigger_target_candidates(state, trigger, req);
+        opt.optional || !opt.candidates.is_empty()
+    })
+}
+/// **The object lookup is the LKI one, and that is a deliberate widening (`OOS-DX35-9`).**
+/// Before PB-DX35, sites 1 and 2 resolved the trigger source with `state.objects.get(..)` while
+/// site 3 used `state.fizzle_object(..)`, the CR 113.7a last-known-information lookup. Unifying
+/// them on the LKI one means sites 1 and 2 now see a source that has LEFT the battlefield where
+/// they previously saw nothing and fell through to `vec![]`. CR 113.7a says that is the correct
+/// reading — an ability on the stack exists independently of its source — and the full suite is
+/// green either way, **which is the point: no fixture in this tree distinguishes the two**, so
+/// "it changes nothing" is an absence of evidence rather than evidence of absence. A probe that
+/// kills the source between queue and flush and asserts the requirement list would settle it.
+pub(crate) fn trigger_modal_plan(
+    state: &GameState,
+    trigger: &PendingTrigger,
+) -> Option<TriggerModalPlan> {
+    use crate::cards::card_definition::AbilityDefinition;
+    if !matches!(
+        trigger.kind,
+        PendingTriggerKind::Normal | PendingTriggerKind::CardDefETB
+    ) {
+        // Every other PendingTriggerKind (Evoke, Madness, Miracle, Provoke,
+        // KeywordTrigger, ...) is never modal — today's `vec![]`.
+        return Some(TriggerModalPlan {
+            modes_chosen: vec![],
+            requirements: vec![],
+        });
+    }
+    // CR 113.7a: `fizzle_object` is `self.objects.get(&id)` verbatim — the same
+    // lookup the two pre-existing target-requirement sites performed directly on
+    // `state.objects`. Routing through the LKI-documenting name here is a
+    // deliberate widening (the third reader, `trigger_ability_target_requirements`,
+    // already used it) that changes nothing observable: it is the identical map
+    // lookup under a name that also documents the CR 113.7a fizzle.
+    let obj = match state.fizzle_object(trigger.source) {
+        Some(o) => o,
+        None => {
+            return Some(TriggerModalPlan {
+                modes_chosen: vec![],
+                requirements: vec![],
+            })
+        }
+    };
+    // The flat (non-modal) target list, kind-dispatched exactly as the three
+    // pre-existing copies read it. Also the requirements for every arm below
+    // that is not genuinely modal (CR 700.2b/700.2c: a flat list applies to every
+    // mode identically, so legality cannot differ by mode).
+    let flat_targets: Vec<crate::cards::card_definition::TargetRequirement> =
+        if trigger.kind == PendingTriggerKind::Normal {
+            obj.characteristics
+                .triggered_abilities
+                .get(trigger.ability_index)
+                .map(|ab| ab.targets.clone())
+                .unwrap_or_default()
+        } else {
+            obj.card_id
+                .as_ref()
+                .and_then(|cid| state.card_registry.get(cid.clone()))
+                .and_then(|def| {
+                    def.effective_abilities(obj.is_transformed)
+                        .get(trigger.ability_index)
+                })
+                .and_then(|abil| match abil {
+                    AbilityDefinition::Triggered { targets, .. } => Some(targets.clone()),
+                    _ => None,
+                })
+                .unwrap_or_default()
+        };
+    // Step 2: `ModeSelection` is read from the REGISTRY regardless of trigger
+    // kind — the incumbent source (execution-notes §0.5): the runtime
+    // `TriggeredAbilityDef` carries no `modes` field at all. For a `Normal`-kind
+    // trigger this reuses `trigger.ability_index` as a registry-ability-list
+    // index, which is the SAME pre-existing index-space mismatch the old
+    // modes-assignment site already had for three misaligned defs
+    // (`hullbreaker_horror`, `glissa_sunslayer`, `junji_the_midnight_sky`) — filed
+    // as `OOS-DX35-1`, not fixed here (execution-notes §0.5 "why it is not fixed
+    // in this batch"; see also A3/r2/r3).
+    let modes: Option<&crate::cards::card_definition::ModeSelection> = obj
+        .card_id
+        .as_ref()
+        .and_then(|cid| state.card_registry.get(cid.clone()))
+        .and_then(|def| {
+            def.effective_abilities(obj.is_transformed)
+                .get(trigger.ability_index)
+        })
+        .and_then(|abil| match abil {
+            AbilityDefinition::Triggered { modes, .. } => modes.as_ref(),
+            _ => None,
+        });
+    let modes = match modes {
+        Some(m) if !m.modes.is_empty() => m,
+        // Non-modal (no `AbilityDefinition::Triggered.modes`, or an empty mode
+        // list — the latter never occurs in the corpus but is handled the same
+        // as "no modes"): today's behaviour exactly, `modes_chosen: vec![]`.
+        _ => {
+            return Some(TriggerModalPlan {
+                modes_chosen: vec![],
+                requirements: flat_targets,
+            })
+        }
+    };
+    if modes.mode_targets.is_none() {
+        // A1 step 3: a FLAT list applies to every mode identically, so CR 700.2b
+        // legality cannot differ by mode and the existing CR 603.3d slot check
+        // already removes the trigger when it is unsatisfiable. `modes_chosen` is
+        // today's value, byte-identical: mode 0 whenever a mode exists. This is
+        // the arm that keeps every non-repaired corpus modal-triggered-ability
+        // def unchanged by this batch (`felidar_retreat`, and every def this
+        // batch does not touch).
+        return Some(TriggerModalPlan {
+            modes_chosen: vec![0],
+            requirements: flat_targets,
+        });
+    }
+    // A1 step 5 (CR 700.2c/700.2a): a modal ability combining `max_modes > 1`
+    // with `mode_targets: Some(_)` is unsupported, exactly as the activated-ability
+    // path already hard-rejects it. Zero corpus members (roster gate `r4`
+    // pins `max_modes == 1` for all seven modal triggered abilities) — fail-safe
+    // to "choose one mode" (the loop below already does that unconditionally)
+    // rather than panicking in release.
+    debug_assert!(
+        modes.max_modes <= 1,
+        "PB-DX35: max_modes > 1 combined with ModeSelection.mode_targets is \
+         unsupported on a triggered ability (CR 700.2c/700.2a), mirroring \
+         abilities.rs's activated-ability gate; zero corpus members (roster gate r4)"
+    );
+    // CR 700.2b: choose the FIRST mode (by declared order) whose per-mode target
+    // requirements all have a legal candidate. `per_mode_target_requirements` is
+    // the SAME helper `handle_cast_spell` and `rules::queries::spell_target_requirements`
+    // call for the spell-side modal cast — the shared arithmetic the criterion
+    // demands, reused rather than re-derived for the trigger side.
+    let chosen_idx = (0..modes.modes.len()).find(|&idx| {
+        let reqs = casting::per_mode_target_requirements(modes, std::slice::from_ref(&idx))
+            .unwrap_or_default();
+        trigger_modal_mode_is_legal(state, trigger, &reqs)
+    });
+    match chosen_idx {
+        Some(idx) => {
+            let reqs = casting::per_mode_target_requirements(modes, std::slice::from_ref(&idx))
+                .unwrap_or_default();
+            Some(TriggerModalPlan {
+                modes_chosen: vec![idx],
+                requirements: reqs,
+            })
+        }
+        // CR 700.2b: "choose up to one" (min_modes: 0) legally chooses zero modes
+        // when none is legal — the ability resolves with no effect.
+        None if modes.min_modes == 0 => Some(TriggerModalPlan {
+            modes_chosen: vec![],
+            requirements: vec![],
+        }),
+        // CR 700.2b: "If no mode is chosen, the ability is removed from the
+        // stack." min_modes >= 1 and no legal mode exists.
+        None => None,
+    }
+}
 /// CR 601.2c (closing-review Finding 3, LOW / SR-38): reconcile the per-slot
 /// defaults with the cross-slot distinctness the answer handler enforces.
 ///
@@ -8701,6 +8958,18 @@ fn flush_sorted(
         } else {
             None
         };
+        // PB-DX35 (CR 700.2b / OOS-DX4-2): compute the modal plan ONCE per trigger
+        // and thread it through every consumer below (`trigger_target_requirements`,
+        // `ability_targets`, and the `modes_chosen` assignment at the push site) so
+        // "one arithmetic" is structural rather than three separately-maintained
+        // lookups that can re-diverge. `None` = CR 700.2b removal (no legal mode,
+        // `min_modes >= 1`); handled identically to the pre-existing CR 603.3d "no
+        // legal target" removal a few lines below.
+        let modal_plan = trigger_modal_plan(state, &trigger);
+        if modal_plan.is_none() {
+            continue;
+        }
+        let modal_plan = modal_plan.expect("checked is_none above");
         // CR 603.2c/603.2h (PB-AC1): once-per-turn gate. Determine whether this
         // trigger's ability is marked `once_per_turn` (card text "This ability
         // triggers only once each turn"). Look up the layer-resolved runtime
@@ -8803,274 +9072,210 @@ fn flush_sorted(
         // PB-DX25c §3.1: this is also the CardDef-declared `TargetRequirement` list
         // recorded onto the stack object (line ~9451) — `has_ability_targets` just
         // below is its emptiness check, not a second, independent lookup.
-        let trigger_target_requirements: Vec<crate::cards::card_definition::TargetRequirement> = if matches!(
-            trigger.kind,
-            PendingTriggerKind::Normal | PendingTriggerKind::CardDefETB
-        ) {
-            state
-                .objects
-                .get(&trigger.source)
-                .and_then(|obj| {
-                    if trigger.kind == PendingTriggerKind::Normal {
-                        obj.characteristics
-                            .triggered_abilities
-                            .get(trigger.ability_index)
-                            .map(|ab| ab.targets.clone())
-                    } else {
-                        // PB-OS4b (CR 712.8d/e): index into the currently-visible face's
-                        // effective list ("is_transformed at consume time" contract).
-                        obj.card_id
-                            .as_ref()
-                            .and_then(|cid| state.card_registry.get(cid.clone()))
-                            .and_then(|def| {
-                                def.effective_abilities(obj.is_transformed)
-                                    .get(trigger.ability_index)
-                            })
-                            .and_then(|abil| match abil {
-                                crate::cards::card_definition::AbilityDefinition::Triggered {
-                                    targets,
-                                    ..
-                                } => Some(targets.clone()),
-                                _ => None,
-                            })
-                    }
-                })
-                .unwrap_or_default()
-        } else {
-            vec![]
-        };
+        //
+        // PB-DX35 (CR 700.2b/700.2c / OOS-DX4-2): this used to read the FLAT
+        // `targets` list unconditionally, ignoring `ModeSelection.mode_targets`
+        // entirely — a modal triggered ability's requirement is now
+        // `modal_plan.requirements`, the chosen mode's slice (or the flat list
+        // when the ability isn't modal / has no per-mode targets — see
+        // `trigger_modal_plan`'s arms, which reproduce this exact lookup byte for
+        // byte for every non-repaired corpus def).
+        let trigger_target_requirements: Vec<crate::cards::card_definition::TargetRequirement> =
+            modal_plan.requirements.clone();
         let has_ability_targets = !trigger_target_requirements.is_empty();
         // Returns None if a required target cannot be satisfied (trigger skipped per CR 603.3d).
-        let trigger_targets_opt: Option<Vec<SpellTarget>> = if let Some(tsid) =
-            trigger.targeting_stack_id
-        {
-            Some(vec![SpellTarget {
-                target: Target::Object(tsid),
-                zone_at_cast: None,
-            }])
-        } else if let Some(pid) = trigger.triggering_player {
-            Some(vec![SpellTarget {
-                target: Target::Player(pid),
-                zone_at_cast: None,
-            }])
-        } else if let Some(dp) = trigger
-            .defending_player_id
-            .filter(|_| !has_ability_targets)
-            .filter(|_| {
-                // PB-EF3 fix (review Finding 2): this shortcut exists ONLY for the
-                // annihilator/dethrone/training/afflict keyword-derived triggers,
-                // whose CardDef-generated effects read the defending player via
-                // `PlayerTarget::DeclaredTarget { index: 0 }` (annihilator's
-                // SacrificePermanents, afflict's LoseLife) or simply had it tagged
-                // for consistency (dethrone/training put a counter on the source
-                // and never read index 0). B1 (PB-EF3) now tags EVERY
-                // `AnyCreatureYouControlAttacks` trigger with `defending_player_id`
-                // too, but those triggers' effects (token creation, life gain,
-                // `EffectTarget::AttackTarget` damage — Utvara Hellkite, Dromoka,
-                // Hellrider, Raid Bombardment) never consume `DeclaredTarget{0}`:
-                // they read `ctx.defending_player` directly via
-                // `PlayerTarget::DefendingPlayer` / `EffectTarget::AttackTarget`,
-                // which do not depend on `stack_obj.targets`. Setting a spurious
-                // `Target::Player(dp)` on their stack object wrongly fizzles the
-                // WHOLE (non-targeted) ability if `dp` leaves the game before it
-                // resolves — CR 608.2b's "all targets illegal" fizzle applies only
-                // to a targeted ability. Restrict the shortcut to the four
-                // keyword-family trigger events so the new AttackTarget/
-                // DefendingPlayer-based cards are unaffected.
-                matches!(
-                    trigger.triggering_event,
-                    Some(TriggerEvent::SelfAttacks)
-                        | Some(TriggerEvent::SelfAttacksPlayerWithMostLife)
-                        | Some(TriggerEvent::SelfAttacksWithGreaterPowerAlly)
-                        | Some(TriggerEvent::SelfBecomesBlocked)
-                )
-            })
-        {
-            // CR 702.86a / CR 508.5: Annihilator triggers carry the defending player ID.
-            // Set as Target::Player at index 0 so PlayerTarget::DeclaredTarget { index: 0 }
-            // resolves to the correct defending player for the SacrificePermanents effect.
-            Some(vec![SpellTarget {
-                target: Target::Player(dp),
-                zone_at_cast: None,
-            }])
-        } else if let Some(attacker_id) =
-            trigger.exalted_attacker_id.filter(|_| !has_ability_targets)
-        {
-            // CR 702.83a: Exalted triggers carry the lone attacker's ObjectId.
-            // Set it as Target::Object at index 0 so CEFilter::DeclaredTarget { index: 0 }
-            // resolves to the attacking creature (not the exalted source permanent).
-            Some(vec![SpellTarget {
-                target: Target::Object(attacker_id),
-                zone_at_cast: None,
-            }])
-        } else if trigger.kind == PendingTriggerKind::Provoke {
-            // CR 702.39a: Provoke triggers target the provoked creature.
-            // Set it as Target::Object so target legality can be checked at resolution.
-            let provoked = match &trigger.data {
-                Some(TriggerData::CombatProvoke { target }) => Some(*target),
-                _ => None,
-            };
-            if let Some(provoked) = provoked {
+        let trigger_targets_opt: Option<Vec<SpellTarget>> =
+            if let Some(tsid) = trigger.targeting_stack_id {
                 Some(vec![SpellTarget {
-                    target: Target::Object(provoked),
-                    zone_at_cast: Some(ZoneId::Battlefield),
+                    target: Target::Object(tsid),
+                    zone_at_cast: None,
                 }])
-            } else {
-                Some(vec![])
-            }
-        } else if matches!(
-            trigger.kind,
-            PendingTriggerKind::Normal | PendingTriggerKind::CardDefETB
-        ) {
-            // CR 603.3d: For CardDef-based triggered abilities (Normal / CardDefETB),
-            // look up the target requirements from the ability definition and
-            // auto-select legal targets using deterministic first-match fallback.
-            // If any required target has no legal candidate, skip this trigger.
-            let ability_targets: Vec<crate::cards::card_definition::TargetRequirement> = {
-                let obj = state.objects.get(&trigger.source);
-                if let Some(obj) = obj {
-                    if trigger.kind == PendingTriggerKind::Normal {
-                        // PB-EF3 A2 (CR 601.2c/603.3d): `trigger.ability_index` for a
-                        // Normal-kind trigger indexes the runtime
-                        // `characteristics.triggered_abilities` vec, NOT `def.abilities`
-                        // (see A1 comment / EF-W-MISS-10). The two vecs are built in
-                        // different orders (e.g. keywords aren't triggered abilities),
-                        // so falling through to `def.abilities.get(ability_index)` here
-                        // silently returns the wrong ability's targets. After A1 forwards
-                        // `targets` in every enrich block, the runtime vec is authoritative
-                        // — return it even when empty; do NOT fall through.
-                        obj.characteristics
-                            .triggered_abilities
-                            .get(trigger.ability_index)
-                            .map(|ab| ab.targets.clone())
-                            .unwrap_or_default()
-                    } else {
-                        // CardDefETB: `ability_index` correctly indexes the
-                        // currently-visible face's effective ability list (see
-                        // builder at ~6438/6504 above; PB-OS4b: "is_transformed at
-                        // consume time" contract), so the raw-index registry
-                        // lookup is safe and remains the sole source.
-                        obj.card_id
-                            .as_ref()
-                            .and_then(|cid| state.card_registry.get(cid.clone()))
-                            .and_then(|def| {
-                                def.effective_abilities(obj.is_transformed)
-                                    .get(trigger.ability_index)
-                            })
-                            .and_then(|abil| match abil {
-                                crate::cards::card_definition::AbilityDefinition::Triggered {
-                                    targets,
-                                    ..
-                                } => Some(targets.clone()),
-                                _ => None,
-                            })
-                            .unwrap_or_default()
-                    }
+            } else if let Some(pid) = trigger.triggering_player {
+                Some(vec![SpellTarget {
+                    target: Target::Player(pid),
+                    zone_at_cast: None,
+                }])
+            } else if let Some(dp) = trigger
+                .defending_player_id
+                .filter(|_| !has_ability_targets)
+                .filter(|_| {
+                    // PB-EF3 fix (review Finding 2): this shortcut exists ONLY for the
+                    // annihilator/dethrone/training/afflict keyword-derived triggers,
+                    // whose CardDef-generated effects read the defending player via
+                    // `PlayerTarget::DeclaredTarget { index: 0 }` (annihilator's
+                    // SacrificePermanents, afflict's LoseLife) or simply had it tagged
+                    // for consistency (dethrone/training put a counter on the source
+                    // and never read index 0). B1 (PB-EF3) now tags EVERY
+                    // `AnyCreatureYouControlAttacks` trigger with `defending_player_id`
+                    // too, but those triggers' effects (token creation, life gain,
+                    // `EffectTarget::AttackTarget` damage — Utvara Hellkite, Dromoka,
+                    // Hellrider, Raid Bombardment) never consume `DeclaredTarget{0}`:
+                    // they read `ctx.defending_player` directly via
+                    // `PlayerTarget::DefendingPlayer` / `EffectTarget::AttackTarget`,
+                    // which do not depend on `stack_obj.targets`. Setting a spurious
+                    // `Target::Player(dp)` on their stack object wrongly fizzles the
+                    // WHOLE (non-targeted) ability if `dp` leaves the game before it
+                    // resolves — CR 608.2b's "all targets illegal" fizzle applies only
+                    // to a targeted ability. Restrict the shortcut to the four
+                    // keyword-family trigger events so the new AttackTarget/
+                    // DefendingPlayer-based cards are unaffected.
+                    matches!(
+                        trigger.triggering_event,
+                        Some(TriggerEvent::SelfAttacks)
+                            | Some(TriggerEvent::SelfAttacksPlayerWithMostLife)
+                            | Some(TriggerEvent::SelfAttacksWithGreaterPowerAlly)
+                            | Some(TriggerEvent::SelfBecomesBlocked)
+                    )
+                })
+            {
+                // CR 702.86a / CR 508.5: Annihilator triggers carry the defending player ID.
+                // Set as Target::Player at index 0 so PlayerTarget::DeclaredTarget { index: 0 }
+                // resolves to the correct defending player for the SacrificePermanents effect.
+                Some(vec![SpellTarget {
+                    target: Target::Player(dp),
+                    zone_at_cast: None,
+                }])
+            } else if let Some(attacker_id) =
+                trigger.exalted_attacker_id.filter(|_| !has_ability_targets)
+            {
+                // CR 702.83a: Exalted triggers carry the lone attacker's ObjectId.
+                // Set it as Target::Object at index 0 so CEFilter::DeclaredTarget { index: 0 }
+                // resolves to the attacking creature (not the exalted source permanent).
+                Some(vec![SpellTarget {
+                    target: Target::Object(attacker_id),
+                    zone_at_cast: None,
+                }])
+            } else if trigger.kind == PendingTriggerKind::Provoke {
+                // CR 702.39a: Provoke triggers target the provoked creature.
+                // Set it as Target::Object so target legality can be checked at resolution.
+                let provoked = match &trigger.data {
+                    Some(TriggerData::CombatProvoke { target }) => Some(*target),
+                    _ => None,
+                };
+                if let Some(provoked) = provoked {
+                    Some(vec![SpellTarget {
+                        target: Target::Object(provoked),
+                        zone_at_cast: Some(ZoneId::Battlefield),
+                    }])
                 } else {
-                    vec![]
+                    Some(vec![])
                 }
-            };
-            if ability_targets.is_empty() {
-                // No targets required — proceed normally with empty targets.
-                Some(vec![])
-            } else {
-                // CR 603.3d / CR 601.2c (PB-DP8 / DP-6): the controller ANNOUNCES
-                // the targets. Derive every legal choice per slot with the same
-                // predicates the pre-PB-DP8 first-match auto-pick used, then
-                // decide whether a question is owed.
-                let mut slots: Vec<TriggerTargetOption> = ability_targets
-                    .iter()
-                    .map(|req| trigger_target_candidates(state, &trigger, req))
-                    .collect();
-                // CR 601.2c (closing-review Finding 3, LOW): a per-slot default is
-                // computed in isolation, so two mutually-distinct slots both got
-                // `candidates.first()` -- an answer the engine's own cross-slot
-                // check rejects. Reconcile them before anything can submit it.
-                make_distinct_slot_defaults(&ability_targets, &mut slots);
-                // CR 603.3d: "if a choice is required when the triggered ability
-                // goes on the stack but no legal choices can be made for it ...
-                // the ability is simply removed from the stack." An `optional`
-                // (CR 601.2c "up to") slot always has a legal choice -- zero
-                // targets -- so only a REQUIRED slot with an empty candidate set
-                // removes the trigger.
-                if slots.iter().any(|s| !s.optional && s.candidates.is_empty()) {
-                    None
-                } else if let Some(pre) = this_head {
-                    // CR 603.3d resume: this is the head of a suspended batch and
-                    // its controller has already answered. Every LATER trigger in
-                    // the batch derives its own targets at its own turn, which is
-                    // what CR 603.3d requires ("as it goes on the stack").
-                    Some(pre)
-                } else if let Some(per_slot) = forced_trigger_target_answer(&slots) {
-                    // CR 601.2c: one legal answer is not a choice.
-                    if forced_answer_breaks_distinctness(&ability_targets, &per_slot) {
-                        // CR 603.3d: "if a choice is required when the triggered
-                        // ability goes on the stack but no legal choices can be
-                        // made for it ... the ability is simply removed from the
-                        // stack." Every slot is determined AND the combination is
-                        // illegal, so there is no legal announcement -- the
-                        // constraint has no solution, not the candidate sets.
-                        // Asking would be a question with no acceptable answer;
-                        // placing it anyway (what this path used to do) is a
-                        // silent CR 601.2c violation. Second closing review,
-                        // Finding 2 (LOW); zero corpus exposure (OOS-DP8-4).
+            } else if matches!(
+                trigger.kind,
+                PendingTriggerKind::Normal | PendingTriggerKind::CardDefETB
+            ) {
+                // CR 603.3d: For CardDef-based triggered abilities (Normal / CardDefETB),
+                // look up the target requirements from the ability definition and
+                // auto-select legal targets using deterministic first-match fallback.
+                // If any required target has no legal candidate, skip this trigger.
+                //
+                // PB-DX35 (CR 700.2b/700.2c / OOS-DX4-2): identical value to
+                // `trigger_target_requirements` above — `modal_plan` is computed once
+                // per trigger and threaded through every consumer so the two cannot
+                // re-diverge into separate hand-rolled copies.
+                let ability_targets: Vec<crate::cards::card_definition::TargetRequirement> =
+                    modal_plan.requirements.clone();
+                if ability_targets.is_empty() {
+                    // No targets required — proceed normally with empty targets.
+                    Some(vec![])
+                } else {
+                    // CR 603.3d / CR 601.2c (PB-DP8 / DP-6): the controller ANNOUNCES
+                    // the targets. Derive every legal choice per slot with the same
+                    // predicates the pre-PB-DP8 first-match auto-pick used, then
+                    // decide whether a question is owed.
+                    let mut slots: Vec<TriggerTargetOption> = ability_targets
+                        .iter()
+                        .map(|req| trigger_target_candidates(state, &trigger, req))
+                        .collect();
+                    // CR 601.2c (closing-review Finding 3, LOW): a per-slot default is
+                    // computed in isolation, so two mutually-distinct slots both got
+                    // `candidates.first()` -- an answer the engine's own cross-slot
+                    // check rejects. Reconcile them before anything can submit it.
+                    make_distinct_slot_defaults(&ability_targets, &mut slots);
+                    // CR 603.3d: "if a choice is required when the triggered ability
+                    // goes on the stack but no legal choices can be made for it ...
+                    // the ability is simply removed from the stack." An `optional`
+                    // (CR 601.2c "up to") slot always has a legal choice -- zero
+                    // targets -- so only a REQUIRED slot with an empty candidate set
+                    // removes the trigger.
+                    if slots.iter().any(|s| !s.optional && s.candidates.is_empty()) {
                         None
+                    } else if let Some(pre) = this_head {
+                        // CR 603.3d resume: this is the head of a suspended batch and
+                        // its controller has already answered. Every LATER trigger in
+                        // the batch derives its own targets at its own turn, which is
+                        // what CR 603.3d requires ("as it goes on the stack").
+                        Some(pre)
+                    } else if let Some(per_slot) = forced_trigger_target_answer(&slots) {
+                        // CR 601.2c: one legal answer is not a choice.
+                        if forced_answer_breaks_distinctness(&ability_targets, &per_slot) {
+                            // CR 603.3d: "if a choice is required when the triggered
+                            // ability goes on the stack but no legal choices can be
+                            // made for it ... the ability is simply removed from the
+                            // stack." Every slot is determined AND the combination is
+                            // illegal, so there is no legal announcement -- the
+                            // constraint has no solution, not the candidate sets.
+                            // Asking would be a question with no acceptable answer;
+                            // placing it anyway (what this path used to do) is a
+                            // silent CR 601.2c violation. Second closing review,
+                            // Finding 2 (LOW); zero corpus exposure (OOS-DP8-4).
+                            None
+                        } else {
+                            Some(flatten_slot_answers(&slots, &per_slot))
+                        }
+                    } else if !state
+                        .expect_player(trigger.controller)
+                        .map(|pl| !pl.has_lost && !pl.has_conceded)
+                        .unwrap_or(false)
+                    {
+                        // CR 800.4d neighbourhood: never ask a player who has left the
+                        // game -- nobody could answer and the game would hang. Use the
+                        // engine's own default, i.e. today's behaviour unchanged.
+                        // (Actually DROPPING the trigger per CR 800.4d is a behaviour
+                        // flip this batch is not chartered to make: seed OOS-DP8-5.)
+                        Some(default_spell_targets(&slots))
                     } else {
-                        Some(flatten_slot_answers(&slots, &per_slot))
+                        // Suspend the CR 603.3b batch. The entry owns this trigger AND
+                        // the un-flushed tail; `handle_choose_trigger_targets` resumes.
+                        let choice_id = state.next_choice_id();
+                        let ability_index = trigger.ability_index;
+                        let source = trigger.source;
+                        let player = trigger.controller;
+                        let remaining: imbl::Vector<PendingTrigger> =
+                            sorted[next_index..].iter().cloned().collect();
+                        events.push(GameEvent::TriggerTargetChoiceRequired {
+                            player,
+                            choice_id,
+                            source_object_id: source,
+                            ability_index,
+                            slots: slots.clone(),
+                        });
+                        state.pending_trigger_targets = Some(PendingTriggerTargets {
+                            choice_id,
+                            player,
+                            source,
+                            trigger: trigger.clone(),
+                            remaining,
+                            slots: slots.into_iter().collect(),
+                            // Set by the caller's guard if this call site owed
+                            // anything (see `mark_flush_resume_site`).
+                            resume_site: FlushResumeSite::None,
+                        });
+                        // CR 117.3d (fix-cycle Finding 10): putting a triggered ability
+                        // on the stack is a game action, and the function's tail resets
+                        // the pass count for exactly that reason. The suspend return
+                        // skips that tail, so do it here for whatever this partial
+                        // batch already placed. `events` also holds the question, which
+                        // is why the flag rather than `!events.is_empty()` is the test.
+                        if placed_any {
+                            state.turn.players_passed = OrdSet::new();
+                        }
+                        return events;
                     }
-                } else if !state
-                    .expect_player(trigger.controller)
-                    .map(|pl| !pl.has_lost && !pl.has_conceded)
-                    .unwrap_or(false)
-                {
-                    // CR 800.4d neighbourhood: never ask a player who has left the
-                    // game -- nobody could answer and the game would hang. Use the
-                    // engine's own default, i.e. today's behaviour unchanged.
-                    // (Actually DROPPING the trigger per CR 800.4d is a behaviour
-                    // flip this batch is not chartered to make: seed OOS-DP8-5.)
-                    Some(default_spell_targets(&slots))
-                } else {
-                    // Suspend the CR 603.3b batch. The entry owns this trigger AND
-                    // the un-flushed tail; `handle_choose_trigger_targets` resumes.
-                    let choice_id = state.next_choice_id();
-                    let ability_index = trigger.ability_index;
-                    let source = trigger.source;
-                    let player = trigger.controller;
-                    let remaining: imbl::Vector<PendingTrigger> =
-                        sorted[next_index..].iter().cloned().collect();
-                    events.push(GameEvent::TriggerTargetChoiceRequired {
-                        player,
-                        choice_id,
-                        source_object_id: source,
-                        ability_index,
-                        slots: slots.clone(),
-                    });
-                    state.pending_trigger_targets = Some(PendingTriggerTargets {
-                        choice_id,
-                        player,
-                        source,
-                        trigger: trigger.clone(),
-                        remaining,
-                        slots: slots.into_iter().collect(),
-                        // Set by the caller's guard if this call site owed
-                        // anything (see `mark_flush_resume_site`).
-                        resume_site: FlushResumeSite::None,
-                    });
-                    // CR 117.3d (fix-cycle Finding 10): putting a triggered ability
-                    // on the stack is a game action, and the function's tail resets
-                    // the pass count for exactly that reason. The suspend return
-                    // skips that tail, so do it here for whatever this partial
-                    // batch already placed. `events` also holds the question, which
-                    // is why the flag rather than `!events.is_empty()` is the test.
-                    if placed_any {
-                        state.turn.players_passed = OrdSet::new();
-                    }
-                    return events;
                 }
-            }
-        } else {
-            Some(vec![])
-        };
+            } else {
+                Some(vec![])
+            };
         // CR 603.3d: If trigger_targets_opt is None, no legal target exists — skip trigger.
         let trigger_targets = match trigger_targets_opt {
             Some(t) => t,
@@ -9837,55 +10042,18 @@ fn flush_sorted(
             // CR 603.10a / CR 113.7a: Propagate LKI source-power snapshot from PendingTrigger
             // to StackObject so resolution.rs can build EffectContext.lki_power.
             stack_obj.lki_power = trigger.lki_power; // Option<i32> is Copy
-                                                     // CR 700.2b: For modal triggered abilities, choose modes when the trigger is
-                                                     // put on the stack. Bot fallback: auto-select mode 0.
-                                                     // For "choose up to one" (min_modes: 0), if mode 0 is valid, select it;
-                                                     // otherwise select no modes (empty modes_chosen means no effect).
-            if let StackObjectKind::TriggeredAbility {
-                source_object,
-                ability_index,
-                ..
-            } = &stack_obj.kind
-            {
-                // PB-OS4b (CR 712.8d/e): index into the currently-visible face's
-                // effective list ("is_transformed at consume time" contract) --
-                // this modal-mode lookup is a CardDefETB consumer (also reached by
-                // Normal-kind triggers, which have their own separate pre-existing
-                // ability_index-namespace caveat, unchanged/out of scope here).
-                let modal_modes = state
-                    .objects
-                    .get(source_object)
-                    .and_then(|obj| {
-                        let cid = obj.card_id.as_ref()?;
-                        let def = state.card_registry.get(cid.clone())?;
-                        def.effective_abilities(obj.is_transformed)
-                            .get(*ability_index)
-                    })
-                    .and_then(|abil| {
-                        if let crate::cards::card_definition::AbilityDefinition::Triggered {
-                            modes,
-                            ..
-                        } = abil
-                        {
-                            modes.as_ref()
-                        } else {
-                            None
-                        }
-                    })
-                    .map(|m| (m.min_modes, m.max_modes, m.modes.len()));
-                if let Some((min_modes, _max_modes, mode_count)) = modal_modes {
-                    if mode_count > 0 {
-                        if min_modes == 0 {
-                            // "Choose up to one" — bot selects mode 0 if any modes exist.
-                            // An empty modes_chosen here means "chose 0 modes" (no effect).
-                            stack_obj.modes_chosen = vec![0];
-                        } else {
-                            // Must choose at least one — auto-select mode 0 (bot fallback).
-                            stack_obj.modes_chosen = vec![0];
-                        }
-                    }
-                    // If no modes available, leave modes_chosen empty (trigger has no effect).
-                }
+                                                     // CR 700.2b (PB-DX35, `OOS-DX4-2`): choose modes when the trigger is
+                                                     // put on the stack, from the SAME `modal_plan` computed once at the
+                                                     // top of this trigger's loop iteration and already threaded into
+                                                     // `trigger_target_requirements`/`ability_targets` above -- "one
+                                                     // arithmetic" is structural, not three independently-computed copies
+                                                     // that can re-diverge. The controller still does not choose
+                                                     // (`decision_site_walk`'s `modal_trigger` row stays `AutoChosen`,
+                                                     // execution-notes §0.3): the automatic choice is now CR 700.2b-legal
+                                                     // (it will not pick a mode with no legal target) instead of always
+                                                     // picking mode 0.
+            if matches!(stack_obj.kind, StackObjectKind::TriggeredAbility { .. }) {
+                stack_obj.modes_chosen = modal_plan.modes_chosen.clone();
             }
             state.stack_objects.push_back(stack_obj);
             placed_any = true;
@@ -10352,39 +10520,38 @@ pub fn handle_choose_trigger_targets(
 /// The `TargetRequirement` list of the ability behind `trigger`, re-derived the
 /// same way `flush_sorted` derives it. Used only by the cross-slot distinctness
 /// check (CR 601.2c).
+///
+/// PB-DX35 (`OOS-DX4-2`): this is `trigger_modal_plan(state, trigger).requirements`
+/// -- the fourth reader of the one shared arithmetic, alongside `flush_sorted`'s
+/// `trigger_target_requirements` / `ability_targets` / modes_chosen sites.
+///
+/// **Re-derivation stability**: this runs inside `handle_choose_trigger_targets`,
+/// which is reached only while a `BlockingDecision::TriggerTargets` is
+/// outstanding. `process_command`'s admission gate (`rules::engine`, the
+/// PB-DP7/DP-3 gate) admits only `Command::Concede` and the SAME player's
+/// `Command::ChooseTriggerTargets` while such a decision is outstanding --
+/// verified in source, not assumed. So between the suspend (where `entry.slots`
+/// was built from this SAME `trigger_modal_plan`) and this call, the only
+/// mutation a command boundary could have inserted is a `Concede`. This function
+/// and the `resume_trigger_flush` call immediately after it (which re-enters
+/// `flush_sorted` for the same trigger) both read the state at the SAME instant
+/// -- there is no command boundary between them -- so they cannot disagree with
+/// each other even if a `Concede` earlier changed which mode is CR 700.2b-legal.
+/// A residual is stated rather than hidden: if a `Concede` between the ORIGINAL
+/// suspend and this resume changes which mode is legal, the previously-offered
+/// `entry.slots` (built from the stale plan) could describe a different mode's
+/// target shape than the one this resume now computes. The corpus population
+/// that could ever reach a suspending choice inside a modal trigger's chosen
+/// mode is zero today (`core::pb_dx35_modal_trigger_roster::r4`/`r5`: all seven
+/// modal triggered abilities are `max_modes: 1` with at most one non-empty mode
+/// slice), so this is filed rather than engineered around (`OOS-DX35-2`).
 fn trigger_ability_target_requirements(
     state: &GameState,
     trigger: &PendingTrigger,
 ) -> Vec<crate::cards::card_definition::TargetRequirement> {
-    // CR 113.7a: the trigger's source may already have left the battlefield by
-    // the time its trigger flushes -- a rules-correct LKI fizzle, not an engine
-    // bug (SR-4/SR-14/SR-25).
-    let obj = match state.fizzle_object(trigger.source) {
-        Some(o) => o,
-        None => return Vec::new(),
-    };
-    if trigger.kind == PendingTriggerKind::Normal {
-        obj.characteristics
-            .triggered_abilities
-            .get(trigger.ability_index)
-            .map(|ab| ab.targets.clone())
-            .unwrap_or_default()
-    } else {
-        obj.card_id
-            .as_ref()
-            .and_then(|cid| state.card_registry.get(cid.clone()))
-            .and_then(|def| {
-                def.effective_abilities(obj.is_transformed)
-                    .get(trigger.ability_index)
-            })
-            .and_then(|abil| match abil {
-                crate::cards::card_definition::AbilityDefinition::Triggered { targets, .. } => {
-                    Some(targets.clone())
-                }
-                _ => None,
-            })
-            .unwrap_or_default()
-    }
+    trigger_modal_plan(state, trigger)
+        .map(|p| p.requirements)
+        .unwrap_or_default()
 }
 /// CR 603.3d (PB-DP8): the deterministic default as `SpellTarget`s, i.e. exactly
 /// the value the pre-PB-DP8 first-match chain produced for the whole slot list.
@@ -11529,5 +11696,222 @@ fn evaluate_self_activated_reduction(
                 .count();
             ((count as i32) * per).max(0) as u32
         }
+    }
+}
+#[cfg(test)]
+mod pb_dx35_trigger_modal_plan_tests {
+    //! PB-DX35 (`OOS-DX4-2`) — t9: sites 1/2/D and site 3 (the CR 601.2c
+    //! cross-slot distinctness check on the answer path) now share ONE
+    //! arithmetic (`trigger_modal_plan`) rather than three-then-a-fourth
+    //! hand-rolled copies. Sites 1/2/D are unifed *by construction* inside
+    //! `flush_sorted` (they read the SAME `modal_plan` local, computed once
+    //! per trigger) -- that cannot be probed externally to this module, since
+    //! `flush_sorted` is a private function. Site 3
+    //! (`trigger_ability_target_requirements`) is the fourth, independent
+    //! reader (called from `handle_choose_trigger_targets`, on the answer
+    //! path) and is where re-divergence is actually possible: this is an
+    //! `#[cfg(test)]` unit test, not an integration test under
+    //! `crates/engine/tests/`, because `trigger_ability_target_requirements`
+    //! is a bare private `fn` -- not even `pub(crate)` -- so no external
+    //! test in this crate can name it. `crates/engine/tests/primitives/
+    //! pb_dx35_modal_trigger_targets.rs` t1-t8 cover the PUBLICLY observable
+    //! behaviour (life totals, tokens, `modes_chosen`, CR 700.2b removal).
+    use super::*;
+    use crate::cards::card_definition::{
+        CardDefinition, Effect, ModeSelection, TargetFilter, TargetRequirement,
+    };
+    use crate::cards::CardRegistry;
+    use crate::state::builder::{GameStateBuilder, ObjectSpec};
+    use crate::testing::replay_harness::enrich_spec_from_def;
+    use std::collections::HashMap;
+
+    fn p(n: u64) -> PlayerId {
+        PlayerId(n)
+    }
+
+    /// A modal `WhenDies` trigger whose mode 0 targets a creature and whose
+    /// mode 1 needs none -- the `shambling_ghast`/`retreat_to_kazandu` shape,
+    /// registry-aligned (its ONLY ability, so registry index 0 == runtime
+    /// index 0 -- this test is NOT about the index-space mismatch, which
+    /// `core::pb_dx35_modal_trigger_roster::r2` covers separately).
+    fn modal_subject() -> CardDefinition {
+        CardDefinition {
+            card_id: CardId("dx35-t9-modal-subject".to_string()),
+            name: "DX35 T9 Modal Subject".to_string(),
+            types: crate::cards::card_definition::TypeLine {
+                card_types: [CardType::Creature].into_iter().collect(),
+                ..Default::default()
+            },
+            oracle_text: "When this creature dies, choose one -- target creature you control \
+                          gains indestructible; or another target creature you control gains \
+                          lifelink."
+                .to_string(),
+            power: Some(1),
+            toughness: Some(1),
+            abilities: vec![AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenDies,
+                effect: Effect::Nothing,
+                intervening_if: None,
+                targets: vec![],
+                modes: Some(ModeSelection {
+                    min_modes: 1,
+                    max_modes: 1,
+                    // BOTH modes target a creature you control (excluding this
+                    // ability's own source, per the filter below), so with no
+                    // OTHER creature on the battlefield neither mode has a
+                    // legal candidate -- CR 700.2b removal (case B).
+                    modes: vec![Effect::Nothing, Effect::Nothing],
+                    allow_duplicate_modes: false,
+                    mode_costs: None,
+                    mode_targets: Some(vec![
+                        vec![creature_you_control_excluding_self()],
+                        vec![creature_you_control_excluding_self()],
+                    ]),
+                }),
+                trigger_zone: None,
+            }],
+            ..Default::default()
+        }
+    }
+    /// The shared target requirement both `modal_subject` modes use --
+    /// factored out so the two mode slices are visibly the SAME requirement
+    /// rather than two independently-typed ones that happen to look alike.
+    fn creature_you_control_excluding_self() -> TargetRequirement {
+        TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+            controller: TargetController::You,
+            // Excludes the trigger's own source: this is a WhenDies trigger
+            // and the synthetic fixture never actually kills the subject (it
+            // just constructs a PendingTrigger directly while the subject is
+            // still on the battlefield), so without this the subject itself
+            // would satisfy "target creature you control" and case B's "no
+            // legal candidate" premise would be false.
+            exclude_self: true,
+            ..Default::default()
+        })
+    }
+
+    /// t9: `trigger_ability_target_requirements` (site 3, the CR 601.2c
+    /// cross-slot distinctness check's own re-derivation on the answer path)
+    /// returns the SAME value as `trigger_modal_plan(..).requirements` (the
+    /// value sites 1/2/D thread through `flush_sorted`) -- for both the
+    /// legal-mode-0 case and the no-legal-mode (min_modes: 1) CR 700.2b
+    /// removal case. A hand-rolled fourth copy that quietly re-diverged from
+    /// the other three would redden this the moment its answer differed.
+    #[test]
+    fn t9_site3_agrees_with_the_shared_plan_by_value() {
+        let def = modal_subject();
+        let defs = HashMap::from([(def.name.clone(), def.clone())]);
+
+        // Case A: a legal creature exists (mode 0's target is satisfiable).
+        let spec_a = enrich_spec_from_def(
+            ObjectSpec::creature(p(1), &def.name, 1, 1).with_card_id(def.card_id.clone()),
+            &defs,
+        );
+        let ally = ObjectSpec::creature(p(1), "DX35 T9 Ally", 1, 1);
+        let state_a = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .with_registry(CardRegistry::new(vec![def.clone()]))
+            .active_player(p(1))
+            .object(spec_a)
+            .object(ally)
+            .build()
+            .expect("PB-DX35 t9 case A fixture must build");
+        let subject_a = state_a
+            .objects()
+            .values()
+            .find(|o| o.characteristics.name == def.name)
+            .expect("subject must be on the battlefield");
+        let trigger_a = PendingTrigger {
+            ability_index: 0,
+            ..PendingTrigger::blank(subject_a.id, p(1), PendingTriggerKind::Normal)
+        };
+        let plan_a = trigger_modal_plan(&state_a, &trigger_a)
+            .expect("a legal mode exists -- CR 700.2b must not remove the trigger");
+        let site3_a = trigger_ability_target_requirements(&state_a, &trigger_a);
+        assert_eq!(
+            site3_a, plan_a.requirements,
+            "site 3 must agree with the shared plan by value (legal-mode case)"
+        );
+        assert_eq!(
+            plan_a.modes_chosen,
+            vec![0],
+            "non-vacuity: mode 0 must actually have been the one chosen"
+        );
+        assert!(
+            !plan_a.requirements.is_empty(),
+            "non-vacuity: mode 0's requirement (a target creature) must be present"
+        );
+
+        // Case B: NO legal creature (mode 0 illegal) and min_modes: 1 -- CR
+        // 700.2b removal. `trigger_ability_target_requirements` must fail
+        // open to an empty list (it has no `None` return of its own), and
+        // `trigger_modal_plan` must return `None`.
+        let spec_b = enrich_spec_from_def(
+            ObjectSpec::creature(p(1), &def.name, 1, 1).with_card_id(def.card_id.clone()),
+            &defs,
+        );
+        let state_b = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .with_registry(CardRegistry::new(vec![def.clone()]))
+            .active_player(p(1))
+            .object(spec_b)
+            .build()
+            .expect("PB-DX35 t9 case B fixture must build");
+        let subject_b = state_b
+            .objects()
+            .values()
+            .find(|o| o.characteristics.name == def.name)
+            .expect("subject must be on the battlefield");
+        let trigger_b = PendingTrigger {
+            ability_index: 0,
+            ..PendingTrigger::blank(subject_b.id, p(1), PendingTriggerKind::Normal)
+        };
+        assert!(
+            trigger_modal_plan(&state_b, &trigger_b).is_none(),
+            "CR 700.2b: min_modes 1 with no legal mode must remove the trigger"
+        );
+        assert_eq!(
+            trigger_ability_target_requirements(&state_b, &trigger_b),
+            Vec::<TargetRequirement>::new(),
+            "site 3 fails open to empty on the CR 700.2b-removed case"
+        );
+
+        // Case C: the SAME agreement on a `CardDefETB`-kind trigger.
+        //
+        // **↻ Added after this batch's own `/review` DEFEATED cases A and B by execution.**
+        // Both drive `PendingTriggerKind::Normal` only, and `trigger_modal_plan` /
+        // `trigger_ability_target_requirements` both branch on `trigger.kind`. The reviewer
+        // re-planted the original `OOS-DX4-2` defect in site 3 behind
+        // `if trigger.kind == PendingTriggerKind::CardDefETB` -- a hand-rolled fifth copy
+        // reading the flat registry `targets` and ignoring `mode_targets` -- and the ENTIRE
+        // `mtg-engine` crate stayed green, t9 included. **A differential probe proves agreement
+        // on the branches it drives and nothing about the branches it does not**, which is the
+        // same shape as PB-DX45's "a gate written for one variant measures that variant".
+        //
+        // The fixture is reused deliberately: `modal_subject`'s Triggered ability is its ONLY
+        // ability, so registry index 0 == runtime index 0 and the two kinds address the same
+        // ability. That is what makes the two arms comparable rather than merely both green.
+        let trigger_c = PendingTrigger {
+            ability_index: 0,
+            ..PendingTrigger::blank(subject_a.id, p(1), PendingTriggerKind::CardDefETB)
+        };
+        let plan_c = trigger_modal_plan(&state_a, &trigger_c)
+            .expect("a legal mode exists on the CardDefETB branch too");
+        assert_eq!(
+            trigger_ability_target_requirements(&state_a, &trigger_c),
+            plan_c.requirements,
+            "site 3 must agree with the shared plan by value on the CardDefETB branch as well \
+             -- a branch-selective re-divergence is exactly what the `/review` planted"
+        );
+        assert_eq!(
+            plan_c.requirements, plan_a.requirements,
+            "non-vacuity: both kinds address the same ability on this fixture (its Triggered \
+             ability is its only one, so registry index 0 == runtime index 0), so the two \
+             branches must produce the SAME requirement list -- if they ever differ here, the \
+             comparison above is passing for the wrong reason"
+        );
     }
 }

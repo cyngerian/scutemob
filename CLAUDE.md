@@ -89,7 +89,10 @@
   batch).
   **↻ PB-DX51 SHIPPED** (`scutemob-226`, 2026-09-04; v4 rank 11 — **OOS-DX21-4**, **OOS-DX21-2**
   and rider **OOS-DX21-5** ALL CLOSED; live on 2 deck-legal `Complete` defs).
-  **Next dispatch: PB-DX35** (v4 rank 12); ranks 1-11 all shipped.
+  **↻ PB-DX35 SHIPPED** (`scutemob-227`, 2026-09-04; v4 rank 12 — **OOS-DX4-2** and
+  **OOS-DX4-5** both CLOSED, plus **OOS-DP10-5** CLOSED and **OOS-DX8-3** updated).
+  **Next dispatch: PB-DX36** (v4 rank 13 — and `OOS-CARDS2-6` has NO registry row, so file
+  one first); ranks 1-12 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -139,8 +142,10 @@
   three sessions; and the reviews doc's `HASH 69` corrected to **70** in four places — the claim was
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
-  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,137/1,803 = 63.1%**
-  (PB-DX45, 2026-09-02 — one flip, `vampire_gourmand`, from the CR 118.12 policy re-adjudication)
+  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,138/1,803 = 63.1%**
+  (PB-DX35, 2026-09-04 — one flip, `shambling_ghast`, from the CR 700.2b per-mode target scoping)
+  *(historical: **1,137/1,803 = 63.1%**
+  (PB-DX45, 2026-09-02 — one flip, `vampire_gourmand`, from the CR 118.12 policy re-adjudication)*
   *(historical: **1,133/1,803 = 62.8%**
   (unmoved by PB-DX26 — one flip up and one honest flip down cancelled, 2026-08-11)*
   (PB-DX4's 6 honest demotions outweigh its 6 in-place repairs — the number went *down* because the
@@ -221,7 +226,15 @@
   batch).
   **↻ PB-DX51 SHIPPED** (`scutemob-226`, 2026-09-04; v4 rank 11 — **OOS-DX21-4**, **OOS-DX21-2**
   and rider **OOS-DX21-5** ALL CLOSED; live on 2 deck-legal `Complete` defs).
-  **Next dispatch: PB-DX35** (v4 rank 12); ranks 1-11 all shipped.
+  **↻ 2026-09-04 — PB-DX35 SHIPPED** (`scutemob-227`; v4 rank 12 — **OOS-DX4-2** and
+  **OOS-DX4-5** both CLOSED, plus **OOS-DP10-5** CLOSED and **OOS-DX8-3** updated). Coverage
+  **63.1% → 63.1%** (1,137 → **1,138**) on the single predicted flip `shambling_ghast`, NAMED
+  before any code; **12 card-def edits of which 9 are comment-only**, and the ONE marker move
+  took `CORPUS_COMPLETE` 1137 → 1138 with `COMMANDER_POOL` re-measured UNCHANGED at 90.
+  **PROTOCOL 41 / HASH 82 both UNMOVED — zero bumps for the whole PB**, both gate-executed and
+  both predicted per half in writing before any production line. Filed **OOS-DX35-1..10**.
+  **Next dispatch: PB-DX36** (v4 rank 13 — and `OOS-CARDS2-6` has NO registry row, so file
+  one first); ranks 1-12 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -232,6 +245,63 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-04, PB-DX35)**: **5,097 / 0 / 5** full-workspace on branch
+  `scutemob-227` (+39 over the **5,058** baseline, measured on this branch BEFORE any edit and
+  reproducing PB-DX51's close pin exactly), `--workspace --no-fail-fast` to a file, **63**
+  result-producing targets (61 → 63: two new test binaries), residual list empty.
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
+  `sort` + `comm` (`OOS-DX20b-5`): 39 additions, 0 leavers, 0 removals, 0 renames.**
+  **And the delta's FIRST run was wrong in a way the byte-exact method is structurally blind to.**
+  It reported **32 additions against a count delta of 33**, because Half B named its bot-path
+  channel probe `c3_the_bot_path_is_offered_and_answers_the_same_action` — a name
+  `crates/simulator/tests/pb_dx45_optional_cost_channel.rs:293` already used. `tests/` compiles one
+  binary per file, so both compiled and both ran; a set difference over NAMES collapses the pair.
+  Renamed, and **the check that separates them costs one line and is now run on this batch's own
+  close-out numbers, and RE-TAKEN after the `/review` fix cycle**: count delta 39 == name-set
+  delta 39, duplicate-name scan EMPTY
+  (`OOS-DX35-8`).
+  **HASH 82 / PROTOCOL 41 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed
+  (`hash_schema` 36/36, `protocol_schema` 17/17) and **both predicted in writing before any
+  production line changed** (`c6646052`), per half, with the reason stated rather than asserted:
+  `TriggeredAbilityDef` carries **no `modes` field at all**, so the REGISTRY is already the
+  incumbent source of a modal trigger's `ModeSelection` at both existing read sites and reading
+  `mode_targets` there adds no type, variant or field; and Half B mints no question variant. The
+  `both-if-lowered` counterfactual is **costed rather than waved away** — that struct has no
+  `Default` derive and **190 exhaustive struct literals across 44 files** construct it, and it is
+  reachable from `Characteristics`, a PROTOCOL closure root. `git diff` over `state/hash.rs` and
+  `rules/protocol.rs` is **EMPTY**, so no sentinel re-pin and no history row were owed;
+  `history_is_append_only` and `frozen_prefix_is_pinned` executed green on both gates as the
+  evidence.
+  Coverage **1,137 → 1,138 / 1,803 = 63.1%** by regeneration, **ONE flip, NAMED before any code**
+  (`shambling_ghast` `partial` → `Complete`; clean +1 / todo −1 / empty 147 unchanged, and the
+  report's bucket is MARKER-driven, so the pair IS that one def). **12 card-def edits, of which 9
+  are comment-only**; `CORPUS_COMPLETE` 1137 → **1138**, with `COMMANDER_POOL` **re-measured and
+  found UNCHANGED at 90** rather than reasoned about.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
+  gate) — all against the FINAL tree, **and `cargo fmt --check` FIRED there**, on a file added
+  after the implementers' own runs. **`npm run build` was NOT run and that is stated rather than
+  omitted**: N/A, because `git diff main..HEAD --numstat -- tools/play-server/frontend` is **EMPTY**
+  and `node_modules` is absent. `tools/` is **not** zero — `play-server/src/main.rs` is
+  **+366 / −0, entirely inside `#[cfg(test)]`**, plus 6 doc lines in `view.rs` and 4 in
+  `tui/play/app.rs`.
+  **Engine lines**: `crates/engine/src` **+722 / −356** (`rules/abilities.rs` +636/−337, but
+  `git diff -w` gives **+460 / −161** — the rest is a `cargo fmt` reflow of the shortened
+  derivation chain, stated so 600 lines do not read as new logic); `crates/card-types/src`
+  **+6 / −2**; `crates/simulator/src` **+51 / −13**; **`crates/view-model` is 0**.
+  **Benches: MEASURED, SEVEN runs, verdict NO REGRESSION — and the one outlier was killed by a
+  third run on each side rather than averaged away.** Same-code band measured FIRST across two
+  merge-base runs: **0.42-2.14%**. Every base-vs-HEAD criterion interval overlaps.
+  `board_wipe_4p`'s HEAD run 1 read **135.15 µs** against a base range of 119.33-121.57, and taking
+  the mean of two HEAD runs would have published a tidy, meaningless **+5.37%**; a third run each
+  side (HEAD **116.73** / base **120.23**) puts both later HEAD runs below every base run, so run 1
+  was contended and is discarded with its reason stated. **The resulting apparent 1.4-3%
+  improvement is deliberately NOT claimed** — `sba_check` and the priority cycles are controls
+  (nothing here is on the SBA loop or the priority-pass path) and move the same order.
+  **Fuzz: NOT A/B'd, and the reason is attribution rather than effort** — the flip moves
+  `CORPUS_COMPLETE`, which re-deals every seeded game, so a cross-boundary A/B would measure
+  `OOS-DX21-6` trajectory reindexing. The in-tree gate config was **re-observed by execution**
+  instead, and its served-row partition gained the new `look_at_top_then_place_optional` row.
 - **Tests (delta 2026-09-04, PB-DX51)**: **5,058 / 0 / 5** full-workspace on branch
   `scutemob-226` (+14 over the **5,044** baseline, measured on this branch BEFORE any edit),
   `--workspace --no-fail-fast` to a file, **61** result-producing targets (60 → 61: one new
@@ -1129,7 +1199,109 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-04 — **PB-DX51 SHIPPED** (`scutemob-226`; v4 queue rank 11 —
+- **Last Updated**: 2026-09-04 — **PB-DX35 SHIPPED** (`scutemob-227`; v4 queue rank 12 —
+  **OOS-DX4-2** and **OOS-DX4-5** both CLOSED, plus **OOS-DP10-5** CLOSED and **OOS-DX8-3**
+  updated). **A mode you may not legally choose, and a flag that decided nothing.**
+  `ModeSelection.mode_targets` was honoured on the casting and activated paths and **nowhere** on
+  the triggered-ability path, so a modal trigger had to declare its targets FLAT and they were
+  required whichever mode was chosen. `retreat_to_kazandu` — `Complete`, deck-legal, named by
+  neither the seed nor the memo — could not gain 2 life on an empty board, because the OTHER mode's
+  "+1/+1 counter on target creature" had no legal target and CR 603.3d removed the whole trigger.
+  Separately, `Effect::LookAtTopThenPlace.optional` was destructured away (`optional: _`), so five
+  `Complete` defs recorded a printed "you may" the engine never asked.
+  **"SCOPE THE TARGETS TO MODE 0" — ONE OF THE TWO OPTIONS THE BRIEF OFFERS — IS CR-WRONG, AND
+  CR 700.2b SAYS SO IN ONE SENTENCE**: *"If one of the modes would be illegal (due to an inability
+  to choose legal targets, for example), that mode can't be chosen."* The engine wrote
+  `modes_chosen = vec![0]` in **both** arms of its `min_modes` branch, unconditionally — picking
+  the very mode the rule forbids. So the automatic choice is now legality-aware, which is the
+  minimum correct behaviour rather than scope creep, and it is what makes the criterion's own
+  headline probe pass. The controller is still not ASKED; that decision is STATED, the
+  `modal_trigger` row stays `AutoChosen` with its now-false `site` string rewritten, and the human
+  channel is filed (`OOS-DX35-4`).
+  **THE SEED ASKS FOR ONE SHARED ARITHMETIC AND THE TREE HELD THREE HAND-ROLLED COPIES.** The
+  memo names no consumer at all; the stage-0 re-derivation found **four** — `flush_sorted`'s
+  requirement lookup, its CR 603.3d slot derivation, the answer-path cross-slot re-derivation, and
+  the `modes_chosen` assignment itself — all now served by one `trigger_modal_plan`, which slices
+  through `casting::per_mode_target_requirements`, the SAME helper `handle_cast_spell` and
+  `queries::spell_target_requirements` call. `rules/mana.rs` is deliberately NOT unified and says
+  so: it answers *"is this targeted"*, not *"which targets"*.
+  **THE MEMO'S SECOND PREDICTED FLIP DID NOT HAPPEN, AND THE SEED ROW PREDICTED ITS OWN FAILURE.**
+  `OOS-DX4-2` warns that *"moving the targets into `mode_targets` looks like the CR 601.2c-correct
+  repair and would silently DROP the requirement"*. For `hullbreaker_horror` that trap is **still
+  armed** — because a `Normal`-kind trigger carries a RUNTIME `ability_index` while both
+  `ModeSelection` read sites index the REGISTRY, and its modal ability sits at registry index 1
+  behind `Keyword(Flash)`. Census over all 7 corpus modal triggered abilities: **3 are misaligned**
+  (`hullbreaker_horror`, `glissa_sunslayer`, `junji_the_midnight_sky`), with **two distinct
+  symptoms** — the first two resolve `Effect::Nothing` so the whole modal ability is a no-op, while
+  junji's `WhenDies` is one of the three lowering arms that pre-resolve `modes.first()` into
+  `effect`, so it executes **mode 0 forever** and the mode choice is a fiction. **Zero deck-legal
+  blast radius, measured** (all three are non-`Complete`), which is why it is FILED
+  (`OOS-DX35-1`): the only structural fix lowers `modes` into `TriggeredAbilityDef`, costing
+  **190 exhaustive struct literals across 44 files plus both bumps**. So `hullbreaker_horror` is
+  **re-adjudicated, not re-shaped** — `partial` kept, marker rewritten to name the surviving
+  blocker — and the flip count is **ONE**. *A yield cell that names members is a FLOOR on the
+  census and a CEILING on the flips*: `OOS-DX4-2`'s member list was short by more than double
+  (5 of 7) while its two named flips delivered one.
+  **HALF B NEEDED NO NEW WIRE VARIANT, AND THE PRINTED CARDS ARE WHY.** All five defs say *"you may
+  put **a** [creature/land] card from among them"* (MCP, verbatim) — CR 608.2's *choose up to one*,
+  which is exactly `EffectChoiceQuestion::ChooseObject { count: 1, up_to: true }`, the variant
+  PB-DX28 built and the v4 memo's own row-15 cell had already named. A zero-cost `PayOptionalCost`
+  was rejected as dishonest (the client would render *"Pay {0}?"*) and a new `Confirm` variant as
+  both costlier and NARROWER — it carries "whether" and not "which". The decline is asserted by
+  RESOLUTION EFFECT through all three channels, and `candidates` is sorted ASCENDING by `ObjectId`
+  because `Zone::top_n` is TOP-first, the reverse — so `first()` equals the pre-batch
+  `min_by_key` winner exactly, pinned by a probe whose fixture makes the two orders genuinely
+  disagree.
+  **`OOS-DP10-5`'s STANDING SWEEP HAD BEEN INHERITED UNRUN BY NINE BATCHES. IT WAS EXECUTED AND IT
+  FOUND A LIVE DEFECT ON SEVEN DECK-LEGAL CARDS.** `Effect::CounterUnlessPays` destructures
+  `cost: _` and delegates to `Effect::CounterSpell`, so CR 118.12a's *"unless its controller pays"*
+  is never offered — `make_disappear`, `spell_pierce`, `stubborn_denial`, `mana_leak`,
+  `izzet_charm`, `mana_tithe`, `flusterstorm`, **all `Complete` by derive**. Its in-source
+  justification (*"the payer never has an incentive to voluntarily tax themselves"*) is **false on
+  its face**: the payer is the OPPONENT whose spell is being countered (`OOS-DX35-3`). The sweep
+  also produced one **checked-and-CLEAN** result, recorded because it is what proves each discard
+  was read rather than counted.
+  **TWO OF THIS BATCH'S OWN PUBLISHED FIGURES WERE REFUTED BY ITS OWN PRINTING TEST.** The
+  corpus-wide "you may" population was written into two registry rows as **213 / 90** from a
+  throwaway script whose `oracle_text` extractor did not join Rust's `\`-newline continuations and
+  silently truncated every multi-line string; the truth is **365 / 165**. And the pinned MDFC is
+  named `Turntimber Symbiosis // Turntimber, Serpentine Wood`, not its file stem. **PB-DX8's rule —
+  publish the figure, do not transcribe it — caught its own author.**
+  **AND TWO SEED IDs COLLIDED, BECAUSE THE BATCH RAN ITS HALVES AS TWO DELEGATED IMPLEMENTATIONS
+  AND BOTH ALLOCATED `OOS-DX35-1`.** Found at close-out by grepping the ID rather than trusting
+  either report. The index-space defect keeps the number on **12** in-source cites against **1**;
+  the other is `-2` and its single cite was repointed in the same commit, on the `OOS-M11-10`
+  precedent. *A seed ID is allocated against the registry, and two workers on one task cannot both
+  read a registry neither has written to yet.*
+  Tests **5,097 / 0 / 5** (+39 over a **5,058** pre-edit baseline, **63** targets, byte-exact set
+  difference: 39 additions / 0 leavers / 0 removals / 0 renames, with the count-vs-name
+  reconciliation run on this batch's own close-out numbers AND re-taken after the `/review` fix
+  cycle, per dispatch hygiene 8). **HASH 82 / PROTOCOL 41 both UNMOVED
+  — ZERO bumps for the whole PB, both predicted in writing before any code** (`c6646052`).
+  Coverage **1,137 → 1,138 / 1,803 = 63.1%**, ONE flip named before regeneration. All gates clean
+  against the FINAL tree (`cargo fmt --check` fired there and was fixed); `npm run build` N/A and
+  said so. **Benches: no regression, seven runs, the one outlier killed by a third run on each side
+  rather than averaged away, and the apparent speed-up deliberately not claimed.** Filed
+  **OOS-DX35-1..10** — **and the first draft of these lines said `-1..9`, which is dispatch
+  hygiene 8's exact case for the second batch running**, caught by re-checking this cell against
+  the registry AFTER the `/review` fix cycle rather than before it; `-10` exists because the
+  `/review` found CR 700.2b mode legality is decided PER SLOT, so a mode with no legal
+  COMBINATION is still chosen and then removed. **The `/review` found 9 issues and all 9 were
+  taken; four were gate defeats it PROVED by execution** — `r7` twice (a reword that re-asserts
+  the lie while still naming `trigger_modal_plan`, and the same needle split across a Rust
+  line continuation), `b2` once (a SECOND `LookAtTopThenPlace` node with `optional: false` hid
+  behind a first one carrying `true`, because the fold was `any` and not `all`), and `t9` once
+  (a branch-selective fifth copy behind `if trigger.kind == CardDefETB` left the whole crate
+  green, because both of `t9`'s cases drove `Normal` — *a differential probe proves agreement on
+  the branches it drives and nothing about the branches it does not*). All four defeats were
+  re-executed against the fixes and are now RED. `r8` is the general answer to the third: a
+  MECHANISM gate asserting every triggered-target extraction in `rules/` lives inside
+  `trigger_modal_plan` — **and its own first run refuted the population figure its author had
+  written one paragraph above it**, because the throwaway script behind that sentence searched
+  for `AbilityDefinition::Triggered {` *with the brace* and `rules/mana.rs` puts the brace on
+  the next line. Full record: `memory/primitives/pb-DX35-execution-notes.md`; handoff:
+  `memory/workstream-state.md`.
+- **Prior**: 2026-09-04 — **PB-DX51 SHIPPED** (`scutemob-226`; v4 queue rank 11 —
   **OOS-DX21-4**, **OOS-DX21-2** and rider **OOS-DX21-5** ALL CLOSED). **CR 508.8 asks whether
   creatures WERE DECLARED; the engine asked whether any are still in combat NOW.**
   `turn_structure::advance_step` decided "skip declare-blockers and combat-damage" from a

@@ -1,6 +1,6 @@
 //! Decision-point runtime coverage (PB-DX32 Stage 6, `OOS-SIM3-2`'s buildout half).
 //!
-//! `crates/engine/tests/core/decision_site_walk.rs`'s `ROWS` table names 22 places the
+//! `crates/engine/tests/core/decision_site_walk.rs`'s `ROWS` table names 23 places the
 //! engine makes a choice a player should be making (CR-cited, one row per pattern). It
 //! lives in an engine *integration-test module*, so this crate cannot import it
 //! (`crates/simulator` cannot dev-depend on `crates/engine`'s test tree, and the engine
@@ -15,14 +15,14 @@
 //! `runtime_decision_coverage_roster_matches_rows` reads this file as source text and
 //! asserts the two tables agree, in both directions.
 //!
-//! **Five rows are observable at runtime, and they are exactly the five
+//! **Seven rows are observable at runtime, and they are exactly the seven
 //! `DecisionClass::Served` rows.** The mapping from `BlockingDecision` /
 //! `EffectChoiceQuestion` to a row id is [`row_id_for`], EXHAUSTIVE with no wildcard on
 //! BOTH enums (the SR-5 forcing pattern `local_game.rs:684-700` already applies to
 //! `BlockingDecision` alone) — a new variant of either is a compile error here until
 //! someone decides which row it observes, or that it observes none.
 //!
-//! **Seventeen rows are UNOBSERVABLE, and that is the finding, not a gap in the
+//! **Sixteen rows are UNOBSERVABLE, and that is the finding, not a gap in the
 //! instrument.** An `AutoChosen` row is one where the engine takes the choice INLINE
 //! and leaves no artefact; the absence of an artefact is the SAME property that makes
 //! the row a defect. There is no hook to add, because there is no hook. Three
@@ -66,6 +66,17 @@ use mtg_engine::{EffectChoiceQuestion, GameState};
 /// reason the move is not a bookkeeping edit — a row that leaves
 /// [`UNOBSERVABLE_ROW_IDS`] gets a counter that must actually be able to move,
 /// and PB-DX45's simulator channel probe is what makes it move.
+///
+/// `look_at_top_then_place_optional` joined on PB-DX35 (CR 118.12/608.2d):
+/// `Effect::LookAtTopThenPlace`'s `optional` field became a real player decision,
+/// split off the compound `look_at_top_or_route` row (which stays UNOBSERVABLE --
+/// `Effect::RevealAndRoute`'s own CR 401.4 order choice is still auto-chosen inline).
+/// `row_id_for`'s `EffectChoiceQuestion::ChooseObject` arm shares its wire shape with
+/// PB-DX28's untargeted CR 115.10 choice (which correctly returns `None` -- that
+/// choice sits outside this audit's row taxonomy entirely) and disambiguates the two
+/// by inspecting the candidates' ZONE: `LookAtTopThenPlace` draws from the looking
+/// player's own library, a hidden zone (CR 400.2), where PB-DX28's untargeted choice
+/// draws only from the battlefield or a graveyard, both public (CR 400.2/403.1).
 pub const OBSERVABLE_ROW_IDS: &[&str] = &[
     "triggered_targets",
     "search_library",
@@ -73,6 +84,7 @@ pub const OBSERVABLE_ROW_IDS: &[&str] = &[
     "surveil",
     "discard_cards",
     "may_pay_then_effect",
+    "look_at_top_then_place_optional",
 ];
 
 /// Row ids with NO runtime hook, and why — one entry per row (16 total: 13
@@ -109,8 +121,9 @@ pub const UNOBSERVABLE_ROW_IDS: &[(&str, &str)] = &[
     ),
     (
         "look_at_top_or_route",
-        "AutoChosen -- deterministic routing inline (CR 608.2d); an upper bound on \
-         real decisions, not an exact one",
+        "AutoChosen -- RevealAndRoute-only since PB-DX35 (CR 401.4); deterministic \
+         ObjectId-ascending routing inline; an upper bound on real decisions, not an \
+         exact one (Chaos Warp / Coiling Oracle have no real order choice at all)",
     ),
     (
         "counter_unless_pays",
@@ -274,14 +287,39 @@ pub fn row_id_for(state: &GameState, decision: &BlockingDecision) -> Option<&'st
                     EffectChoiceQuestion::Discard { .. } => Some("discard_cards"),
                     // PB-DX28: CR 115.10's resolution-time untargeted object choice
                     // predates and sits outside the decision-point audit's fixed
-                    // §3.1 taxonomy (`decision_site_walk.rs::ROWS`, 22 rows sourced
-                    // from `docs/audits/decision-point-audit.md`) -- it is a NEW
-                    // primitive, not one of that audit's rows. Recorded explicitly
-                    // as "no row" here, mirroring `BlockingDecision::CleanupDiscard`
-                    // above, rather than silently forcing a 23rd row into a table
-                    // this batch does not own. Extending the audit itself (if
-                    // warranted) is a separate task's call to make.
-                    EffectChoiceQuestion::ChooseObject { .. } => None,
+                    // §3.1 taxonomy (`decision_site_walk.rs::ROWS`) -- it is a NEW
+                    // primitive, not one of that audit's rows, and returns `None` here
+                    // for that reason alone.
+                    //
+                    // PB-DX35 (CR 118.12/608.2d) gave `Effect::LookAtTopThenPlace`'s
+                    // `optional` placement a real question on this SAME variant, and
+                    // that one IS one of the audit's rows (`look_at_top_then_place_
+                    // optional`) -- so this arm can no longer return one answer for
+                    // every `ChooseObject`. The two are told apart by the one fact
+                    // that differs, not by a discriminant on the question itself:
+                    // PB-DX28's candidates are drawn from a PUBLIC zone (CR 400.2
+                    // battlefield / CR 403.1 graveyard, see `resolve_pending_object_
+                    // choices`'s `ChoiceZone` match); `LookAtTopThenPlace`'s are drawn
+                    // from the looking player's own LIBRARY, a hidden zone. A nonempty
+                    // candidate set that resolves ENTIRELY to a `Library` zone is
+                    // `look_at_top_then_place_optional`; anything else -- including
+                    // the empty set every DETERMINED short-circuit produces before
+                    // either site ever asks, and any candidate this snapshot cannot
+                    // resolve (already moved by the time this observation runs) --
+                    // stays `None`, the same as before this batch.
+                    EffectChoiceQuestion::ChooseObject { candidates, .. } => {
+                        if !candidates.is_empty()
+                            && candidates.iter().all(|id| {
+                                state.objects().get(id).is_some_and(|obj| {
+                                    matches!(obj.zone, mtg_engine::ZoneId::Library(_))
+                                })
+                            })
+                        {
+                            Some("look_at_top_then_place_optional")
+                        } else {
+                            None
+                        }
+                    }
                     // PB-DX45: CR 118.12's optional cost IS one of the audit's
                     // §3.1 rows -- `may_pay_then_effect`, whose site cell used to
                     // read "pays iff affordable". It moves from `AutoChosen` to

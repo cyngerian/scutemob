@@ -2908,13 +2908,20 @@ fn test_dp9_mana_ability_gate() {
                     // second site is `Effect::LookAtTopThenPlace`'s `place_cost`
                     // FIELD -- a def that sets it asks, a def that leaves it
                     // `None` does not, and there is no variant name that
-                    // distinguishes them. `LookAtTopThenPlace` is therefore an
-                    // OVER-wide needle here, deliberately: five corpus defs carry
-                    // it and only one sets a `place_cost`, so this gate would flag
-                    // a mana ability containing any of the five. That is the safe
-                    // direction (it can only over-report inside a mana ability,
-                    // which no `Complete` def does today) and it is stated rather
-                    // than silently accepted.
+                    // distinguishes them.
+                    //
+                    // Through PB-DX35, `LookAtTopThenPlace` was an OVER-wide
+                    // needle here, deliberately: it flags every corpus def
+                    // carrying the variant, but only a def that ALSO sets
+                    // `place_cost` genuinely asks. **PB-DX35 (`OOS-DX4-5`)
+                    // narrowed the gap it left open**: `optional` is now a real
+                    // CR 118.12 decision too, so every one of the five corpus
+                    // defs carrying `LookAtTopThenPlace` with a nonempty candidate
+                    // set genuinely asks -- via `place_cost` (one def), via the
+                    // placement itself (all five), or both (`birthing_ritual`).
+                    // The needle is over-wide only for a hypothetical
+                    // `optional: false, place_cost: None` def, of which the
+                    // corpus has ZERO. Same reasoning, same needle, narrower gap.
                     //
                     // **This list has now been one short TWICE**: PB-DX28's own
                     // `/review` caught the parenthetical below one variant short

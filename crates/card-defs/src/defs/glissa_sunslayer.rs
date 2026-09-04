@@ -9,6 +9,17 @@
 // requires a specific CounterType; Glissa's ability removes "any type" of counter without
 // specifying which type. There is no any-type or multi-type counter removal effect, and
 // no "up to N" count modifier. Mode 2 uses a no-op placeholder; modes 0 and 1 work correctly.
+//
+// PB-DX35 (2026-09, OOS-DX4-2, execution-notes §0.5): a SECOND, independent blocker, named
+// but NOT fixed by re-shaping this def into `mode_targets`. `Keyword(FirstStrike)` and
+// `Keyword(Deathtouch)` are `abilities[0]`/`abilities[1]`, so this modal Triggered ability
+// sits at REGISTRY index 2; but `TriggerCondition::WhenDealsCombatDamageToPlayer` queues as
+// a `PendingTriggerKind::Normal` trigger whose `ability_index` indexes the RUNTIME
+// `characteristics.triggered_abilities` vec, where it is the only entry — index 0. The
+// registry-based `ModeSelection` lookup (`rules::abilities::trigger_modal_plan`) therefore
+// looks up registry index 0, finds `Keyword(FirstStrike)` there instead of this ability, and
+// treats it as NOT modal — both flat targets keep applying to the whole trigger, same as
+// before this batch. Filed as `OOS-DX35-1`.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -84,7 +95,12 @@ pub fn card() -> CardDefinition {
         ],
         completeness: Completeness::partial(
             "DSL gap — mode 2 'remove up to three counters from target permanent' cannot be fully \
-             implemented. Effect::RemoveCounter...",
+             implemented. Effect::RemoveCounter... Second, independent blocker (PB-DX35, \
+             OOS-DX4-2/OOS-DX35-1): this modal ability's REGISTRY index (2, behind FirstStrike \
+             and Deathtouch) doesn't match its trigger's RUNTIME ability_index (0), so \
+             trigger_modal_plan's registry-based ModeSelection lookup misses it and both flat \
+             targets (target enchantment, target permanent) still apply to the whole trigger \
+             regardless of mode.",
         ),
         ..Default::default()
     }
