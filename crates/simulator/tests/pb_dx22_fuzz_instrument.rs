@@ -1006,9 +1006,42 @@ fn test_dx22_cr_903_10a_commander_damage_is_recorded_on_the_fuzz_build() {
 ///
 /// No assertion was weakened to accommodate the move: the same six gates that ran
 /// against seed 1 run against seed 0.
+///
+/// # Re-observed AGAIN for PB-DX36 (`scutemob-228`, 2026-09-04)
+///
+/// Same mechanism, one batch of the same kind later. `exalted_angel` `partial` ->
+/// `Complete` took `CORPUS_COMPLETE` **1138 -> 1139**, so every seeded fixture deals a
+/// different game (`OOS-CARDS2-3`) and seed 0 now plays out with
+/// `commander_casts_from_command_zone: **0**` — vacuous in the one dimension this probe
+/// exists to gate, exactly as seed 1 went vacuous for PB-DX27.
+///
+/// **The movement is attributed by an EXECUTED ablation, not assumed.** In an isolated
+/// worktree at PB-DX36's own commit, with the whole engine change in the tree and ONLY
+/// the `Completeness` marker forced back to `partial`, this test and all 11 of its
+/// siblings are GREEN. So no part of this is the engine change; it is entirely the
+/// re-deal.
+///
+/// Re-swept over seeds 0..=40 at this exact configuration (4 players, `MAX_TURNS` 60,
+/// unchanged), asserting all nine conditions rather than the commander one alone.
+/// **`SEED` returns to 1** — the smallest that satisfies every assertion below, and,
+/// with a symmetry worth recording, the very seed PB-DX27 had to abandon. Measured:
+///
+/// ```text
+/// MechanicsTally { spell_casts: 8, first_spell_cast_turn: Some(25),
+///   first_library_spell_cast_turn: Some(25), lands_played: 28,
+///   first_land_played_turn: Some(3), commander_casts_from_command_zone: 1,
+///   first_commander_cast_turn: Some(41), commander_returns_to_command_zone: 0,
+///   commander_zone_redirects: 0, seats_dealt_commander_damage: 1,
+///   max_commander_damage: 6 }
+/// ```
+///
+/// Again no assertion was weakened: the same gates run, against a different seed.
+/// **A seeded fixture is not a measurement — it is a sample, and a corpus flip
+/// re-samples it.** Seeds 5, 7, 14, 15 and 17 also satisfy all nine, so the fixture is
+/// not balanced on a knife edge.
 #[test]
 fn test_dx22_the_fuzzers_mechanics_census_is_not_vacuous() {
-    const SEED: u64 = 0;
+    const SEED: u64 = 1;
     const MAX_TURNS: u32 = 60;
     let (cards, registry) = pool();
     let setup = built(SEED, &cards, &registry);

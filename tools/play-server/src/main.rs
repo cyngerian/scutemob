@@ -2549,7 +2549,29 @@ mod tests {
     /// `pb_dx32_fuzz_output.rs`'s own `MOVED_MSG` predicts its five named sibling
     /// gates "will redden alongside this one". They did not. Run the sweep; do not
     /// infer the blast radius from the size of the count change in either direction.
-    const UI3_SPLIT_COMBAT_SEED: u64 = 13;
+    /// *Sixth re-observation* — **PB-DX36 (`scutemob-228`, 2026-09-04): 13 -> 26.**
+    /// One completeness marker moved (`exalted_angel` `partial` -> `Complete`), taking
+    /// `CORPUS_COMPLETE` 1,138 -> 1,139, so `random_deck`'s pool changed and every
+    /// seeded seat re-dealt. Seed 13 lost its split outright and declares a single
+    /// attacker, `[(435, "Bot-2")]` — the silent downgrade the assertion below refuses.
+    ///
+    /// **The cause is attributed by an EXECUTED ablation rather than assumed.** In an
+    /// isolated worktree at PB-DX36's own commit, with the entire engine change in the
+    /// tree and ONLY that marker forced back to `partial`, this test is GREEN. So none
+    /// of this is the new damage-trigger dispatch; it is entirely `OOS-CARDS2-3`'s
+    /// re-deal.
+    ///
+    /// Fresh sweep over `seed` ∈ 0..46 (same throwaway-probe recipe; probe deleted).
+    /// **Four seeds split** — 26, 28, 39, 42 — against 41 that offer a single eligible
+    /// attacker and one (5) that the develop policy refuses, the `OOS-DX45-8`
+    /// disagreement noted above, now reached at 5 instead of 46. **26 is the lowest,
+    /// and it satisfies the blocker half as well**, verified by running this test
+    /// itself rather than by trusting the probe — the probe's blocker detector reported
+    /// `false` for every seed including the one that passes, so it is a floor on the
+    /// split and says nothing about blockers. Recorded because the next re-observer
+    /// will reuse this recipe: **drive the real test against each split seed in order;
+    /// do not filter on the probe's blocker column.**
+    const UI3_SPLIT_COMBAT_SEED: u64 = 26;
 
     /// **UI-3 AC 6006**: after attackers are declared, the seat payload says
     /// **which attacker is attacking which defending player**, and after blockers
