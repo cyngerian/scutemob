@@ -1556,7 +1556,7 @@ fn test_dx2_wire_version_sentinels() {
     );
     assert_eq!(
         mtg_engine::PROTOCOL_VERSION,
-        41u32,
+        42u32,
         "PROTOCOL_VERSION live sentinel -- moved 33->34 by ENG-1 (effect-driven \
          discard), 34->35 by ENG-2 (an announcement-time target event), and 35->36 \
          by the PB-DX27 rider (LayerModification is reachable via \

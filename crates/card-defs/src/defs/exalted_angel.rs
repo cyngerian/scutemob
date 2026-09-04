@@ -74,7 +74,7 @@ pub fn card() -> CardDefinition {
         self_shuffle_on_resolution: false,
         // Declared EXPLICITLY rather than left to the `#[default]` derive: `OOS-RR3-1`
         // measured 965 defs that never declare a marker and observed that nothing
-        // reviews that population. A def this batch promotes should say so out loud.
+        // reviews that population. A def this batch promotes says so out loud.
         completeness: Completeness::Complete,
     }
 }

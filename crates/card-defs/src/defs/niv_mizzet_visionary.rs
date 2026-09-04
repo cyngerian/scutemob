@@ -11,10 +11,10 @@
 // opponent, draw that many cards". NARROWED by PB-DX36 (`OOS-CARDS2-6`): this note used to
 // name TWO gaps and one of them is now closed. The variable amount IS expressible —
 // `EffectAmount::DamageDealt` (CR 608.2h/113.7a) reads the triggering damage event's amount,
-// which is exactly "that many". What survives is the TRIGGER CONDITION, and PB-DX36's
-// `WhenDealsDamage` does not reach it on two axes: its subject is THIS permanent, not "a
-// source YOU CONTROL", and it fires on any damage where this card wants NONcombat damage
-// only. Filed as `OOS-DX36-3`.
+// which is exactly "that many". What survives is the trigger condition, and
+// `TriggerCondition::WhenDealsDamage` is not expressible for it — no such variant exists.
+// It fails on two axes: its subject is THIS permanent, not "a source YOU CONTROL", and it
+// is damage-kind agnostic where this card wants NONcombat damage only. `OOS-DX36-3`.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
