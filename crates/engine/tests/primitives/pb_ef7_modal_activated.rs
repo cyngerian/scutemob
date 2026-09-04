@@ -236,12 +236,12 @@ fn build_synthetic_modal_state(modes: ModeSelection) -> (GameState, PlayerId, Ob
 #[test]
 fn test_ef7_hash_and_protocol_versions() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 83u8,
+        HASH_SCHEMA_VERSION, 84u8,
         "PB-EF7 added AbilityDefinition::Activated::modes / ActivatedAbility::modes \
          (HASH 49->50). Update this sentinel and the state/hash.rs history block together."
     );
     assert_eq!(
-        PROTOCOL_VERSION, 42,
+        PROTOCOL_VERSION, 43,
         "PB-EF7 added Command::ActivateAbility.modes_chosen (PROTOCOL 11->12). Update this \
          sentinel and the rules/protocol.rs history block together."
     );

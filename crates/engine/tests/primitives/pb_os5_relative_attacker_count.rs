@@ -715,12 +715,12 @@ fn test_os5_muxus_registers_and_pumps_zero_floor() {
 #[test]
 fn test_os5_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 42,
+        PROTOCOL_VERSION, 43,
         "PROTOCOL_VERSION should be 20 after PB-OS5 (EffectAmount gained \
          OtherAttackersSharingCreatureType)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 83u8,
+        HASH_SCHEMA_VERSION, 84u8,
         "HASH_SCHEMA_VERSION should be 57 after PB-OS5"
     );
 }

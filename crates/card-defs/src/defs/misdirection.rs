@@ -31,12 +31,29 @@
 // ::t9_object_target_redirect_obeys_the_original_requirement` and
 // `::t9b_object_target_redirect_fires_with_a_legal_alternative`.
 // `OOS-DX25b-1` (the "or ability" half of "target spell or ability" is
-// unreachable, Bolt Bend's shape) and `OOS-DX25b-2` (a copy of a spell is not
-// an announceable target, CR 707.10) both STAY OPEN -- neither affects this
-// def's completeness: no card was announceable as a copy target before OR
-// after PB-DX25c, and the ability half was never Misdirection's own shape
-// (it declares the spell-only `TargetSpellWithSingleTarget`, not Bolt Bend's
+// unreachable, Bolt Bend's shape) is **CLOSED by PB-DX52** (`scutemob-229`);
+// `OOS-DX25b-2` (a copy of a spell is not an announceable target, CR 707.10)
+// STAYS OPEN. Neither ever affected this def's completeness: no card was
+// announceable as a copy target before OR after PB-DX25c, and the ability half
+// was never Misdirection's own shape (it declares the spell-only
+// `TargetSpellWithSingleTarget`, not Bolt Bend's
 // `TargetSpellOrAbilityWithSingleTarget`).
+//
+// What PB-DX52 DID change for this def, stated because the difference used to be
+// invisible: `TargetSpellWithSingleTarget` and
+// `TargetSpellOrAbilityWithSingleTarget` were behaviourally IDENTICAL on every
+// production path before that batch -- the `is_spell` guard that separates them
+// was reachable only from a collapsed-id fixture. Misdirection's spell-only
+// restriction is therefore enforced for the first time against a real ability:
+// `pb_dx52_stack_entry_target_space::t2` casts this card at an opponent's
+// activated ability and watches it be REFUSED, while Bolt Bend accepts the same
+// stack entry.
+//
+// `OOS-DX25b-2` stays open by a stated RULE rather than by accident: PB-DX52's
+// offer layer emits `Target::StackObject` only for entries whose kind owns no
+// card in `ZoneId::Stack`, and `copy.rs` clones the original's `kind` wholesale,
+// so a copy of a SPELL is still not offered (a copy of an ABILITY is, which is
+// CR 707.10b-correct).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
