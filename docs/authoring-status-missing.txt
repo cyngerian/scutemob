@@ -1,5 +1,5 @@
 # Authoring plan — cards still missing on disk
-# Generated: 2026-09-04 11:30 UTC  Git: 84c3b99b  Plan snapshot: 2026-03-10
+# Generated: 2026-09-04 11:43 UTC  Git: dba66a2d  Plan snapshot: 2026-03-10
 # Format: <group>\t<card name>   (135 cards)
 
 activated-sacrifice	Chatterfang, Squirrel General

@@ -24,12 +24,18 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Soulbond),
-            // TODO: Soulbond grant of "deals damage to opponent → draw" not in DSL.
-            //   SoulbondGrant struct lacks triggered ability grants.
+            // TODO: Soulbond GRANT of "deals damage to opponent → draw" not in DSL —
+            //   `SoulbondGrant` lacks triggered-ability grants. NARROWED by PB-DX36
+            //   (`OOS-CARDS2-6`): the granted ABILITY is now fully expressible —
+            //   `TriggerCondition::WhenDealsDamage { recipient: DamageRecipient::Opponent }`
+            //   with `Effect::DrawCards`. Only the grant mechanism is missing.
+            //   `OOS-DX36-1`.
         ],
         completeness: Completeness::partial(
-            "Soulbond grant of 'deals damage to opponent → draw' not in DSL. SoulbondGrant struct \
-             lacks triggered ability grants",
+            "Soulbond GRANT of 'deals damage to opponent → draw' not in DSL — SoulbondGrant lacks \
+             triggered-ability grants. NARROWED by PB-DX36: the granted ability itself is now \
+             expressible (TriggerCondition::WhenDealsDamage { recipient: Opponent }); only the \
+             grant mechanism is missing. OOS-DX36-1.",
         ),
         ..Default::default()
     }

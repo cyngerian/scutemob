@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-09-04 11:30 UTC  
-**Git:** `84c3b99b` on `feat/pb-dx36-a-general-whendealsdamage-trigger-damage-dealt-effec`  
+**Generated:** 2026-09-04 11:43 UTC  
+**Git:** `dba66a2d` on `feat/pb-dx36-a-general-whendealsdamage-trigger-damage-dealt-effec`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -28,7 +28,7 @@ and what is intentionally NOT in it.**
 | Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.2% | 1,139 | · |
 | With TODO markers | 517 | · |
 | Empty `abilities: vec![]` placeholders | 147 | · |
-| Total TODO lines across all defs | 916 | +3 |
+| Total TODO lines across all defs | 916 | · |
 
 ## Authoring activity (git, by window)
 
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 565 | +3 |
+| OTHER (unclassified) | 565 | · |
 | DSL gap (unspecified) | 116 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -245,6 +245,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+2aa5e08f scutemob-228: PB-DX36 coverage — 1,138 -> 1,139 / 1,803 = 63.2%, the ONE flip named before regeneration (exalted_angel)
 70cba583 scutemob-228: PB-DX36 — correct the CR cite the task brief supplied, and two card-def judgment calls
 b1757a5b scutemob-228: PB-DX36 steps 1-7 — DamageRecipient, WhenDealsDamage, and the combat/noncombat "deals damage" trigger dispatch unification
 143bfcde scutemob-227: PB-DX35 /review fix cycle — all 9 findings taken, four of them gate defeats the reviewer PROVED by execution
@@ -269,7 +270,6 @@ de75b78d scutemob-211: PB-DX29 — marker/cost roster gate for all eight keyword
 6aeb2008 scutemob-210: PB-DX28 part 1 — the owner axis (OOS-DX4-1) + EffectTarget::DamagedPlayer
 e5ee1994 scutemob-210: mechanical — owner: None at all 46 WheneverCreatureDies sites (45 files)
 a1bc271f scutemob-209: PB-DX27 fix cycle — reconcile the corpus a SECOND time after the demotion
-0720f0a0 scutemob-209: PB-DX27 fix cycle — the HIGH, and six doc/gate corrections
 ```
 
 ## Missing card-defs sidecar
