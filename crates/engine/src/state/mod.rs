@@ -8,6 +8,7 @@ pub mod diagnostics;
 pub mod error;
 pub mod hash;
 pub mod keyword_registry;
+pub mod pregame;
 pub mod stack_registry;
 /// Escape hatches for tests — see the module docs. Not compiled in production builds.
 #[cfg(any(test, feature = "test-util"))]
@@ -31,6 +32,7 @@ pub use builder::{
     register_commander_zone_replacements, GameStateBuilder, ObjectSpec, PlayerBuilder,
 };
 pub use error::GameStateError;
+pub use pregame::PregamePhase;
 use imbl::{OrdMap, Vector};
 pub use mtg_card_types::state::dungeon::get_dungeon;
 pub use mtg_card_types::state::{
@@ -291,6 +293,21 @@ pub struct GameState {
     /// vanilla creature into this map. See `capture_lki_snapshot`.
     #[serde(default)]
     pub(crate) lki_objects: OrdMap<ObjectId, GameObject>,
+    /// CR 103.4-103.6 (PB-DX18, `OOS-DX2-4`): where this game is in the pregame
+    /// procedure, and which players have already kept.
+    ///
+    /// The **only** thing that distinguishes "before the game began" from "turn 14"
+    /// for `Command::TakeMulligan` / `Command::KeepHand`. `PlayerState::mulligan_count`
+    /// is a counter that never resets and cannot answer the question; before this
+    /// field existed, `rules::engine::process_command` gated both commands on
+    /// `validate_player_exists` and nothing else, so a mid-game `TakeMulligan`
+    /// shuffled the sender's hand into their library and drew seven.
+    ///
+    /// Set to [`PregamePhase::GameStarted`] by
+    /// [`crate::rules::engine::start_game_allowing_incomplete`]. See the type's own
+    /// docs for why one field carries both of CR 103.5's restrictions.
+    #[serde(default)]
+    pub(crate) pregame: PregamePhase,
     /// Current combat state, if in a combat phase.
     pub(crate) combat: Option<CombatState>,
     /// Monotonic counter for generating ObjectIds and timestamps.
@@ -623,6 +640,14 @@ impl GameState {
     /// Read-only access to the `combat` field.
     pub fn combat(&self) -> &Option<CombatState> {
         &self.combat
+    }
+
+    /// Read-only access to the `pregame` field (CR 103.4-103.6, PB-DX18).
+    ///
+    /// The offer layer and any client that wants to know whether the mulligan
+    /// commands are still legal reads THIS, never `turn().turn_number`.
+    pub fn pregame(&self) -> &PregamePhase {
+        &self.pregame
     }
 
     /// Read-only access to the whole `lki_objects` last-known-information store.

@@ -781,6 +781,22 @@ fn is_time_lord_doctor(def: &CardDefinition) -> bool {
     is_legendary && is_creature && has_time_lord && has_doctor && only_time_lord_and_doctor
 }
 // ── Mulligan (CR 103.5 / CR 103.5c) ───────────────────────────────────────────
+/// CR 103.5: a player's starting hand size ("normally seven"). The engine does not
+/// model CR 103.5a's Vanguard modifier, so this is a constant rather than a per-player
+/// field — stated here rather than left implicit in a bare `0..7`.
+///
+/// Read by BOTH the mulligan draw loop and [`MAX_MULLIGANS`], so the number of cards
+/// drawn and the cap on how many times you may redraw them cannot disagree.
+pub const STARTING_HAND_SIZE: usize = 7;
+
+/// CR 103.5 / CR 103.5c: the greatest legal value of `PlayerState::mulligan_count`.
+///
+/// After N mulligans a player bottoms `N - 1` cards (CR 103.5c makes the first free),
+/// so their opening hand is `STARTING_HAND_SIZE - (N - 1)`. CR 103.5 lets a player
+/// mulligan *until* that would be zero, so `N = STARTING_HAND_SIZE + 1` is legal and
+/// `N + 1` is not.
+pub const MAX_MULLIGANS: u32 = STARTING_HAND_SIZE as u32 + 1;
+
 /// Handle a `TakeMulligan` command (CR 103.5 / CR 103.5c).
 ///
 /// CR 103.5: A player who mulligans shuffles all cards from their hand into their
@@ -804,6 +820,28 @@ pub fn handle_take_mulligan(
     player: PlayerId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
+    // CR 103.5 (PB-DX18, `OOS-DP2-8`): "A player can take mulligans until their opening
+    // hand would be zero cards, after which they may not take further mulligans."
+    //
+    // `handle_keep_hand` computes `required_bottom = mulligan_count - 1` (CR 103.5c's
+    // free first mulligan), so the opening hand after the Nth mulligan is
+    // `STARTING_HAND_SIZE - (N - 1)`. That first reaches zero at
+    // `N = STARTING_HAND_SIZE + 1` — so the (STARTING_HAND_SIZE + 1)th mulligan is the
+    // LAST legal one and the next must be refused. At the cap `required_bottom` equals
+    // the hand size exactly, so `KeepHand` is still satisfiable; one mulligan further and
+    // it is not, which is the symptom `OOS-DP2-8` was filed on.
+    //
+    // The check reads `MAX_MULLIGANS`, which is derived from the SAME
+    // `STARTING_HAND_SIZE` the draw loop below counts to, so the cap and the draw cannot
+    // drift.
+    let already_taken = state.player(player)?.mulligan_count;
+    if already_taken >= MAX_MULLIGANS {
+        return Err(GameStateError::InvalidCommand(format!(
+            "TakeMulligan: player {} has already taken {} mulligans; a player may take \
+             mulligans only until their opening hand would be zero cards (CR 103.5)",
+            player.0, already_taken
+        )));
+    }
     // Increment mulligan count for this player
     let mulligan_number = {
         let ps = state.player_mut(player)?;
@@ -849,7 +887,7 @@ pub fn handle_take_mulligan(
     // During the pregame mulligan procedure (CR 103.5) the game has not started yet;
     // drawing from an empty library must not cause a game loss. Instead we move cards
     // directly without the loss check.
-    for _ in 0..7 {
+    for _ in 0..STARTING_HAND_SIZE {
         let lib_zone = ZoneId::Library(player);
         let top = state.zones.get(&lib_zone).and_then(|z| z.top());
         match top {
@@ -952,6 +990,13 @@ pub fn handle_keep_hand(
     let lib_zone_id = ZoneId::Library(player);
     for obj_id in cards_to_bottom.iter() {
         state.move_object_to_bottom_of_zone(*obj_id, lib_zone_id)?;
+    }
+    // CR 103.5 (PB-DX18, `OOS-DX2-4`): "Once a player chooses not to take a mulligan,
+    // the remaining cards become that player's opening hand, and that player may not take
+    // any further mulligans." Recorded AFTER every validation and every move above, so a
+    // rejected keep leaves the player still able to declare.
+    if let crate::state::PregamePhase::Mulligans { kept } = &mut state.pregame {
+        kept.insert(player);
     }
     events.push(GameEvent::MulliganKept {
         player,

@@ -1656,6 +1656,11 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
         if let Some(p) = state.expect_player_mut(pid) {
             // CR 121.1: per-turn draw count resets at the start of each turn for all players.
             p.cards_drawn_this_turn = 0;
+            // CR 702.94a (PB-DX18, `OOS-DX2-1`): the just-drawn miracle record is scoped
+            // to a draw, and `cards_drawn_this_turn` resetting is exactly what would
+            // otherwise let a stale id become answerable again on a later turn. Cleared
+            // in the same loop so the two can never disagree.
+            p.miracle_pending = None;
             // CR 702.137a: per-turn life-loss counter resets at the start of each
             // turn for all players (Spectacle eligibility is scoped to the current game turn).
             p.life_lost_this_turn = 0;

@@ -1090,11 +1090,28 @@ pub(crate) fn perform_one_draw(
                                 }];
                                 // CR 702.94a: check if the just-drawn card has
                                 // miracle and is the first draw.
-                                if let Some(miracle_event) =
-                                    crate::rules::miracle::check_miracle_eligible(
-                                        state, player, new_id,
-                                    )
-                                {
+                                //
+                                // PB-DX18 (`OOS-DX2-1`): record WHICH object this is,
+                                // not merely that an offer happened. CR 702.94a is two
+                                // conjuncts — *"as you draw it"* AND *"if it's the first
+                                // card you've drawn this turn"* — and until this record
+                                // existed `handle_choose_miracle` could check only the
+                                // second, so a tutored or previously-drawn miracle card
+                                // sitting in hand could be revealed on any turn whose
+                                // first draw had already happened.
+                                //
+                                // The assignment is UNCONDITIONAL on both branches: a
+                                // draw that is not miracle-eligible CLEARS the record.
+                                // That is what closes the window at the next draw rather
+                                // than leaving a stale id behind for the rest of the turn.
+                                let miracle_event = crate::rules::miracle::check_miracle_eligible(
+                                    state, player, new_id,
+                                );
+                                if let Some(p) = state.expect_player_mut(player) {
+                                    p.miracle_pending =
+                                        miracle_event.as_ref().map(|_| new_id);
+                                }
+                                if let Some(miracle_event) = miracle_event {
                                     proceed_events.push(miracle_event);
                                 }
                                 (proceed_events, DrawStepOutcome::Completed)

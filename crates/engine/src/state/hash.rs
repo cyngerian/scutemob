@@ -1748,6 +1748,21 @@ impl HashInto for EnchantTarget {
         }
     }
 }
+impl HashInto for crate::state::PregamePhase {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        // CR 103.4-103.6 (PB-DX18, `OOS-DX2-4`). Exhaustive with no wildcard arm: a
+        // third pregame phase must be classified here before it compiles.
+        match self {
+            crate::state::PregamePhase::Mulligans { kept } => {
+                0u8.hash_into(hasher);
+                for p in kept.iter() {
+                    p.hash_into(hasher);
+                }
+            }
+            crate::state::PregamePhase::GameStarted => 1u8.hash_into(hasher),
+        }
+    }
+}
 impl HashInto for EnchantFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.has_card_type.hash_into(hasher);
@@ -2617,6 +2632,8 @@ impl HashInto for PlayerState {
         self.companion.hash_into(hasher);
         self.companion_used.hash_into(hasher);
         self.mulligan_count.hash_into(hasher);
+        // CR 702.94a (PB-DX18, `OOS-DX2-1`): the just-drawn miracle-eligible object.
+        self.miracle_pending.hash_into(hasher);
         self.no_max_hand_size.hash_into(hasher);
         // PB-AC9 / CR 402.2: persistent "no max hand size for the rest of the
         // game" designation (Effect::SetNoMaximumHandSize).
@@ -8725,6 +8742,8 @@ impl GameState {
             perm.hash_into(&mut hasher);
         }
         self.stack_objects.hash_into(&mut hasher);
+        // 5b. Pregame procedure (CR 103.4-103.6, PB-DX18 / `OOS-DX2-4`)
+        self.pregame.hash_into(&mut hasher);
         // 6. Combat state
         self.combat.hash_into(&mut hasher);
         // 7. Gravestorm counter (CR 702.69a)

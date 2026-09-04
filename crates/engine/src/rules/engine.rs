@@ -583,6 +583,9 @@ pub fn process_command(
         // ── M9: Mulligan commands (CR 103.5 / CR 103.5c) ─────────────────
         Command::TakeMulligan { player } => {
             validate_player_exists(&state, player)?;
+            // CR 103.5 (PB-DX18, `OOS-DX2-4`): the mulligan procedure is pregame, and a
+            // player who has already kept "may not take any further mulligans".
+            validate_pregame_mulligan_allowed(&state, player, "TakeMulligan")?;
             let events = commander::handle_take_mulligan(&mut state, player)?;
             all_events.extend(events);
         }
@@ -591,6 +594,10 @@ pub fn process_command(
             cards_to_bottom,
         } => {
             validate_player_exists(&state, player)?;
+            // CR 103.5 (PB-DX18, `OOS-DX2-4`): same boundary as `TakeMulligan` — a
+            // keep is a declaration IN the mulligan procedure, so it needs the same
+            // gate, and a second keep from the same player is equally out of bounds.
+            validate_pregame_mulligan_allowed(&state, player, "KeepHand")?;
             let events = commander::handle_keep_hand(&mut state, player, cards_to_bottom)?;
             all_events.extend(events);
         }
@@ -3185,6 +3192,46 @@ fn validate_player_exists(state: &GameState, player: PlayerId) -> Result<(), Gam
     state.player(player)?;
     Ok(())
 }
+
+/// CR 103.5 (PB-DX18, `OOS-DX2-4`) — the pregame trust boundary for
+/// `Command::TakeMulligan` and `Command::KeepHand`.
+///
+/// Both commands were gated on [`validate_player_exists`] and **nothing else** until
+/// PB-DX18. A mid-game `TakeMulligan` therefore ran the whole CR 103.5 body: it moved
+/// the sender's entire hand into their library, really permuted the library, and drew
+/// seven. `KeepHand` was less destructive after PB-DX2 gave it a per-entry hand-membership
+/// check (`OOS-DP2-1`), but a mid-game keep still bottomed the sender's own cards.
+///
+/// The two refusals this encodes are both verbatim CR 103.5:
+///
+/// * *"A player who is dissatisfied with their initial hand may take a mulligan"* — the
+///   whole procedure runs before the game begins, so once
+///   [`start_game_allowing_incomplete`] has set [`crate::state::PregamePhase::GameStarted`]
+///   neither command is legal.
+/// * *"Once a player chooses not to take a mulligan, the remaining cards become that
+///   player's opening hand, and that player may not take any further mulligans."*
+///
+/// **Shared by both arms deliberately.** Writing the check twice is how the two commands
+/// drift; the enforcement lives in one function so a third pregame command has one place
+/// to join.
+fn validate_pregame_mulligan_allowed(
+    state: &GameState,
+    player: PlayerId,
+    command: &str,
+) -> Result<(), GameStateError> {
+    if state.pregame().may_mulligan(player) {
+        return Ok(());
+    }
+    let reason = if state.pregame().is_pregame() {
+        "that player has already kept their opening hand"
+    } else {
+        "the game has already started; the mulligan procedure is a pregame procedure"
+    };
+    Err(GameStateError::InvalidCommand(format!(
+        "{}: player {} may not take mulligan actions — {} (CR 103.5)",
+        command, player.0, reason
+    )))
+}
 /// CR 113.6b: Move opening-hand permanents to the battlefield before the game starts.
 ///
 /// Scans each player's hand for cards whose CardDefinition contains
@@ -3675,6 +3722,12 @@ pub fn start_game_allowing_incomplete(
     state.turn.step = crate::state::turn::Step::Untap;
     state.turn.phase = crate::state::turn::Phase::Beginning;
     state.turn.is_first_turn_of_game = true;
+    // CR 103.4-103.6 (PB-DX18, `OOS-DX2-4`): the mulligan procedure is a PREGAME
+    // procedure. The game begins here, so `Command::TakeMulligan` / `Command::KeepHand`
+    // stop being legal — see `PregamePhase` and the dispatch gate in `process_command`.
+    // Written on the OPT-OUT entry point deliberately: `start_game` delegates to it, so
+    // both documented entry paths close the pregame and neither can drift.
+    state.pregame = crate::state::PregamePhase::GameStarted;
     events.push(GameEvent::TurnStarted {
         player: active,
         turn_number: state.turn.turn_number,
