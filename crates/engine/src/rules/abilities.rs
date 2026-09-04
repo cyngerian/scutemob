@@ -276,6 +276,7 @@ pub fn handle_activate_ability(
                 last_created_permanent: None,
                 triggering_player: None,
                 combat_damage_amount: 0,
+                damage_dealt_amount: 0,
                 damaged_player: None,
                 triggering_creature_id: None,
                 chosen_creature_type: None,
@@ -5885,66 +5886,21 @@ pub fn check_triggers_with_timing(
                         let _ = pre_len; // used for debugging if needed
                     }
                 }
-                // CR 510.3a: EquippedCreatureDealsCombatDamageToPlayer and
-                // EnchantedCreatureDealsDamageToPlayer — fires on Equipment/Aura permanents
-                // when their attached creature deals combat damage to a player.
-                // TODO(PB-37): WhenEnchantedCreatureDealsDamageToPlayer { combat_only: false }
-                // should also fire on noncombat damage via GameEvent::DamageDealt. That path
-                // requires identifying which creature was the damage source in the DamageDealt
-                // handler and checking its Aura attachments. Deferred to PB-37 as a broader
-                // noncombat creature-to-player damage trigger infrastructure item.
-                // Affected cards: curiosity, ophidian_eye, sigil_of_sleep.
+                // CR 510.3a / CR 603.2 (PB-DX36, `OOS-CARDS2-6`): SelfDealsDamage family +
+                // EquippedCreatureDealsCombatDamageToPlayer + the enchanted-creature
+                // combat/any family — fires on the damage source itself and on its
+                // Equipment/Aura attachments. Extracted into `queue_damage_source_triggers`
+                // (`is_combat: true`) so the identical arithmetic serves the noncombat
+                // `GameEvent::DamageDealt` arm below without duplication.
                 for assignment in assignments {
-                    if assignment.amount == 0 {
-                        continue; // CR 603.2g
-                    }
-                    let CombatDamageTarget::Player(damaged_pid) = &assignment.target else {
-                        continue;
-                    };
-                    let creature_on_bf = state
-                        .objects
-                        .get(&assignment.source)
-                        .map(|o| o.zone == ZoneId::Battlefield)
-                        .unwrap_or(false);
-                    if !creature_on_bf {
-                        continue;
-                    }
-                    // Collect attachment IDs (Equipment + Auras on this creature).
-                    // Source presence guaranteed by the creature_on_bf guard above.
-                    let attachments: Vec<ObjectId> = state
-                        .expect_object(assignment.source)
-                        .map(|o| o.attachments.iter().copied().collect())
-                        .unwrap_or_default();
-                    for attachment_id in attachments {
-                        // Equipment trigger
-                        let pre_len = triggers.len();
-                        collect_triggers_for_event(
-                            state,
-                            &mut triggers,
-                            TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer,
-                            Some(attachment_id),
-                            None,
-                        );
-                        for t in &mut triggers[pre_len..] {
-                            t.damaged_player = Some(*damaged_pid);
-                            t.combat_damage_amount = assignment.amount;
-                            t.entering_object_id = Some(assignment.source);
-                        }
-                        // Enchanted creature (Aura) trigger
-                        let pre_len2 = triggers.len();
-                        collect_triggers_for_event(
-                            state,
-                            &mut triggers,
-                            TriggerEvent::EnchantedCreatureDealsDamageToPlayer,
-                            Some(attachment_id),
-                            None,
-                        );
-                        for t in &mut triggers[pre_len2..] {
-                            t.damaged_player = Some(*damaged_pid);
-                            t.combat_damage_amount = assignment.amount;
-                            t.entering_object_id = Some(assignment.source);
-                        }
-                    }
+                    queue_damage_source_triggers(
+                        state,
+                        &mut triggers,
+                        assignment.source,
+                        &assignment.target,
+                        assignment.amount,
+                        true,
+                    );
                 }
                 // CR 510.3a / 603.2c: EquippedCreatureDealsCombatDamage (any recipient).
                 // Fires once per equipped SOURCE creature per combat-damage step, regardless of
@@ -6298,7 +6254,11 @@ pub fn check_triggers_with_timing(
             // Non-combat damage to a creature fires SelfIsDealtDamage on that creature.
             // CR 603.2g: amount == 0 (fully prevented) does not trigger.
             #[allow(clippy::collapsible_match)]
-            GameEvent::DamageDealt { target, amount, .. } => {
+            GameEvent::DamageDealt {
+                source,
+                target,
+                amount,
+            } => {
                 if *amount > 0 {
                     if let CombatDamageTarget::Creature(creature_id) = target {
                         collect_triggers_for_event(
@@ -6310,6 +6270,13 @@ pub fn check_triggers_with_timing(
                         );
                     }
                 }
+                // CR 510.3a / CR 603.2 (PB-DX36, `OOS-CARDS2-6`): the same
+                // SelfDealsDamage/attachment arithmetic the combat-damage arm runs,
+                // called here with `is_combat: false` so a NONcombat damage event
+                // fires only the "any damage" family (never the "combat damage"
+                // family) — see `queue_damage_source_triggers`'s doc for why the
+                // two arms are disjoint by construction.
+                queue_damage_source_triggers(state, &mut triggers, *source, target, *amount, false);
             }
             // CR 702.140d: "Whenever this creature mutates" — fires on the merged permanent.
             // The merged permanent is the same object (same ObjectId) as the target permanent
@@ -6993,6 +6960,183 @@ fn collect_permanent_becomes_target_triggers(
                 targeting_stack_id: Some(targeting_stack_id),
                 ..PendingTrigger::blank(src.id, src.controller, PendingTriggerKind::Normal)
             });
+        }
+    }
+}
+/// CR 510.3a / CR 603.2 (PB-DX36, `OOS-CARDS2-6`): queue every "deals damage"
+/// trigger caused by one damage event — the SelfDealsDamage family on `source`
+/// itself, and the Equipment/Aura families over `source`'s attachments.
+///
+/// `is_combat` is a property of the EVENT, not of any ability:
+/// `GameEvent::CombatDamageDealt` passes `true`, `GameEvent::DamageDealt` passes
+/// `false`. Combat damage is emitted only as `CombatDamageDealt` (verified:
+/// `rules/combat.rs`'s combat-damage-dealing site is the sole combat emit site
+/// and it emits no `DamageDealt`), so the two call sites are **disjoint by
+/// construction** and a given ability — which lowers to exactly one
+/// `trigger_on` (see `build_face_triggered_abilities` in `testing/replay_harness.rs`)
+/// — fires exactly once per damage event. This is the property PB-DX47's
+/// double-push defect violated (`OOS-DX24-4`), and it is why every behavioural
+/// probe for this primitive asserts a trigger COUNT rather than `>= 1`.
+///
+/// On a combat-damage event (`is_combat: true`) this fires BOTH the
+/// `…CombatDamage…` events AND the `…AnyDamage…` events (combat damage is also
+/// "any damage" — CR 603.2); on a noncombat event it fires only the
+/// `…AnyDamage…` events.
+fn queue_damage_source_triggers(
+    state: &GameState,
+    triggers: &mut Vec<PendingTrigger>,
+    source: ObjectId,
+    target: &CombatDamageTarget,
+    amount: u32,
+    is_combat: bool,
+) {
+    // CR 603.2g: damage with amount == 0 (fully prevented) does not trigger.
+    if amount == 0 {
+        return;
+    }
+    // CR 603.10: combat/noncombat "deals damage" triggers are NOT look-back —
+    // the source must still be on the battlefield when the event fires.
+    // CR 113.7a: the damage source may have left the battlefield between the
+    // damage event and this collector running; a quiet `None` is a rules-correct
+    // fizzle (SR-4), not an engine bug — `fizzle_object`, not a bare lookup.
+    let Some(source_obj) = state.fizzle_object(source) else {
+        return;
+    };
+    if source_obj.zone != ZoneId::Battlefield {
+        return;
+    }
+    let source_controller = source_obj.controller;
+    let damaged_player = match target {
+        CombatDamageTarget::Player(pid) => Some(*pid),
+        _ => None,
+    };
+    // Set the common per-call fields on every trigger pushed since `pre_len`.
+    fn populate(
+        triggers: &mut [PendingTrigger],
+        pre_len: usize,
+        source: ObjectId,
+        amount: u32,
+        is_combat: bool,
+        damaged_player: Option<PlayerId>,
+    ) {
+        for t in &mut triggers[pre_len..] {
+            if let Some(pid) = damaged_player {
+                t.damaged_player = Some(pid);
+            }
+            t.damage_dealt_amount = amount;
+            t.entering_object_id = Some(source);
+            if is_combat {
+                t.combat_damage_amount = amount;
+            }
+        }
+    }
+    // ── Self family: TriggerCondition::WhenDealsDamage lowering ──────────────
+    {
+        let pre_len = triggers.len();
+        collect_triggers_for_event(
+            state,
+            triggers,
+            TriggerEvent::SelfDealsDamage,
+            Some(source),
+            None,
+        );
+        populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+    }
+    if let Some(pid) = damaged_player {
+        let pre_len = triggers.len();
+        collect_triggers_for_event(
+            state,
+            triggers,
+            TriggerEvent::SelfDealsDamageToPlayer,
+            Some(source),
+            None,
+        );
+        populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+        if pid != source_controller {
+            let pre_len = triggers.len();
+            collect_triggers_for_event(
+                state,
+                triggers,
+                TriggerEvent::SelfDealsDamageToOpponent,
+                Some(source),
+                None,
+            );
+            populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+        }
+    }
+    // ── Attachment family: Equipment + Aura ───────────────────────────────────
+    let attachments: Vec<ObjectId> = source_obj.attachments.iter().copied().collect();
+    for attachment_id in attachments {
+        // CR 510.3a: "Whenever equipped creature deals combat damage to a
+        // player" — the printed text is "deals COMBAT damage", so only fires
+        // on the combat-damage arm, and only to a player.
+        if is_combat {
+            if let Some(_pid) = damaged_player {
+                let pre_len = triggers.len();
+                collect_triggers_for_event(
+                    state,
+                    triggers,
+                    TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer,
+                    Some(attachment_id),
+                    None,
+                );
+                populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+            }
+        }
+        let Some(pid) = damaged_player else {
+            continue;
+        };
+        // CR 510.3a: "Whenever enchanted creature deals damage to a player" —
+        // combat damage is also "any damage", so this fires on BOTH arms.
+        let pre_len = triggers.len();
+        collect_triggers_for_event(
+            state,
+            triggers,
+            TriggerEvent::EnchantedCreatureDealsAnyDamageToPlayer,
+            Some(attachment_id),
+            None,
+        );
+        populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+        if is_combat {
+            let pre_len = triggers.len();
+            collect_triggers_for_event(
+                state,
+                triggers,
+                TriggerEvent::EnchantedCreatureDealsCombatDamageToPlayer,
+                Some(attachment_id),
+                None,
+            );
+            populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+        }
+        // The "…ToOpponent" siblings are scoped to an opponent of THAT
+        // ATTACHMENT'S controller (not the damage source's controller) — a
+        // per-attachment check, which is why it lives inside this loop.
+        // CR 113.7a: the attachment may itself have left the battlefield (e.g.
+        // an SBA-destroyed Aura whose enchanted permanent left the zone it was
+        // attached to) — fizzle_object, not a bare lookup.
+        if let Some(att_obj) = state.fizzle_object(attachment_id) {
+            if pid != att_obj.controller {
+                let pre_len = triggers.len();
+                collect_triggers_for_event(
+                    state,
+                    triggers,
+                    TriggerEvent::EnchantedCreatureDealsAnyDamageToOpponent,
+                    Some(attachment_id),
+                    None,
+                );
+                populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+                if is_combat {
+                    let pre_len = triggers.len();
+                    collect_triggers_for_event(
+                        state,
+                        triggers,
+                        TriggerEvent::EnchantedCreatureDealsCombatDamageToOpponent,
+                        Some(attachment_id),
+                        None,
+                    );
+                    populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+                }
+            }
         }
     }
 }

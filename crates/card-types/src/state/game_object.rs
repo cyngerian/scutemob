@@ -723,11 +723,64 @@ pub enum TriggerEvent {
     /// combat damage to ANY recipient (player, creature, or planeswalker). Fired once
     /// per equipped source creature per combat-damage step from `rules/abilities.rs`.
     EquippedCreatureDealsCombatDamage,
-    /// CR 510.3a: Fires on Aura permanents when their attached creature deals damage
-    /// to a player (combat or non-combat, depending on combat_only filter).
+    /// CR 510.3a: Fires on Aura permanents when their attached creature deals
+    /// COMBAT damage to a player (`combat_only: true`, `recipient: Any`/`Player`).
+    /// Dispatched from `GameEvent::CombatDamageDealt` only, via
+    /// `rules/abilities.rs::queue_damage_source_triggers`.
+    ///
+    /// "Whenever enchanted creature deals combat damage to a player."
+    EnchantedCreatureDealsCombatDamageToPlayer,
+    /// CR 510.3a: Fires on Aura permanents when their attached creature deals
+    /// COMBAT damage to an opponent of the Aura's controller (`combat_only: true`,
+    /// `recipient: Opponent`). Dispatched from `GameEvent::CombatDamageDealt`
+    /// only, via `rules/abilities.rs::queue_damage_source_triggers`.
+    ///
+    /// "Whenever enchanted creature deals combat damage to one of your opponents."
+    EnchantedCreatureDealsCombatDamageToOpponent,
+    /// CR 510.3a / CR 603.2: Fires on Aura permanents when their attached
+    /// creature deals ANY damage (combat or noncombat) to a player
+    /// (`combat_only: false`, `recipient: Any`/`Player`). Dispatched from BOTH
+    /// `GameEvent::CombatDamageDealt` and `GameEvent::DamageDealt`, via
+    /// `rules/abilities.rs::queue_damage_source_triggers` — combat damage is
+    /// also "any damage", so this fires alongside
+    /// `EnchantedCreatureDealsCombatDamageToPlayer` on a combat event.
     ///
     /// "Whenever enchanted creature deals damage to a player."
-    EnchantedCreatureDealsDamageToPlayer,
+    EnchantedCreatureDealsAnyDamageToPlayer,
+    /// CR 510.3a / CR 603.2: Fires on Aura permanents when their attached
+    /// creature deals ANY damage (combat or noncombat) to an opponent of the
+    /// Aura's controller (`combat_only: false`, `recipient: Opponent`).
+    /// Dispatched from BOTH damage-event arms, via
+    /// `rules/abilities.rs::queue_damage_source_triggers`.
+    ///
+    /// "Whenever enchanted creature deals damage to one of your opponents."
+    EnchantedCreatureDealsAnyDamageToOpponent,
+    /// CR 603.2: Fires on the permanent itself when it deals ANY damage (combat
+    /// or noncombat) to any recipient — player, creature, planeswalker or
+    /// battle (`TriggerCondition::WhenDealsDamage { recipient: Any }`).
+    /// Dispatched from BOTH damage-event arms, via
+    /// `rules/abilities.rs::queue_damage_source_triggers`.
+    ///
+    /// "Whenever this permanent deals damage."
+    SelfDealsDamage,
+    /// CR 603.2: Fires on the permanent itself when it deals ANY damage (combat
+    /// or noncombat) to a player
+    /// (`TriggerCondition::WhenDealsDamage { recipient: Player }`). Distinct
+    /// from `SelfDealsCombatDamageToPlayer`, which fires on combat damage only.
+    /// Dispatched from BOTH damage-event arms, via
+    /// `rules/abilities.rs::queue_damage_source_triggers`.
+    ///
+    /// "Whenever this permanent deals damage to a player."
+    SelfDealsDamageToPlayer,
+    /// CR 603.2 / CR 102.2: Fires on the permanent itself when it deals ANY
+    /// damage (combat or noncombat) to a player who is an opponent of this
+    /// permanent's controller
+    /// (`TriggerCondition::WhenDealsDamage { recipient: Opponent }`).
+    /// Dispatched from BOTH damage-event arms, via
+    /// `rules/abilities.rs::queue_damage_source_triggers`.
+    ///
+    /// "Whenever this permanent deals damage to an opponent."
+    SelfDealsDamageToOpponent,
     /// CR 510.3a / CR 603.2: Fires globally when any creature deals combat damage
     /// to an opponent of the trigger source's controller.
     ///

@@ -326,6 +326,7 @@ pub fn copy_spell_on_stack(
         // Combat damage trigger data is not propagated to spell copies.
         damaged_player: None,
         combat_damage_amount: 0,
+        damage_dealt_amount: 0,
         triggering_creature_id: None,
         // Copies are never cast from library top.
         cast_from_top_with_bonus: false,
@@ -530,6 +531,7 @@ pub fn resolve_cascade(
                 additional_costs: vec![],
                 damaged_player: None,
                 combat_damage_amount: 0,
+                damage_dealt_amount: 0,
                 triggering_creature_id: None,
                 // Cascade free-casts are not from library top.
                 cast_from_top_with_bonus: false,
@@ -764,6 +766,7 @@ pub fn resolve_discover(
                 additional_costs: vec![],
                 damaged_player: None,
                 combat_damage_amount: 0,
+                damage_dealt_amount: 0,
                 triggering_creature_id: None,
                 // Discover free-casts are not from library top.
                 cast_from_top_with_bonus: false,

@@ -20,17 +20,17 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
-            // CR 510.3a: "Whenever enchanted creature deals damage to an opponent, you may
-            // draw a card." — enchanted creature trigger (any damage, not combat-only).
-            // TODO(PB-37): approximation — oracle says "an opponent" but
-            // WhenEnchantedCreatureDealsDamageToPlayer fires on damage to ANY player (including
-            // self if damage is redirected). In multiplayer Commander this can matter.
-            // Also, the noncombat damage path (combat_only: false) is not yet dispatched from
-            // GameEvent::DamageDealt — deferred to PB-37.
+            // CR 510.3a / CR 603.2 (PB-DX36, `OOS-CARDS2-6`): "Whenever enchanted creature
+            // deals damage to an opponent, you may draw a card." — combat_only: false
+            // covers both combat and noncombat damage (now genuinely dispatched from
+            // both GameEvent::CombatDamageDealt and GameEvent::DamageDealt via
+            // rules/abilities.rs::queue_damage_source_triggers); recipient: Opponent
+            // closes the "an opponent" approximation this ability used to carry.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer {
                     combat_only: false,
+                    recipient: DamageRecipient::Opponent,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
@@ -44,12 +44,10 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::partial(
-            "Two deviations: (1) oracle says 'an opponent' but \
-             WhenEnchantedCreatureDealsDamageToPlayer fires on damage to ANY player, including \
-             yourself (matters in multiplayer/redirection); (2) oracle says 'you MAY draw a card' \
-             but the draw is unconditional — no optional-trigger expression exists in the DSL \
-             (Effect::Choose is non-interactive, effects/mod.rs:3190). Also the noncombat damage \
-             path (combat_only: false) is not yet dispatched from GameEvent::DamageDealt (PB-37).",
+            "oracle says 'you MAY draw a card' but the draw is unconditional — no \
+             costless-optional-effect expression exists in the DSL (PB-DX36, `OOS-DX48-2`: \
+             `Effect::MayPayOrElse` discards its cost, `Effect::MayPayThenEffect` needs a real \
+             `Cost`, a {0} cost was rejected as dishonest by PB-DX35).",
         ),
         ..Default::default()
     }

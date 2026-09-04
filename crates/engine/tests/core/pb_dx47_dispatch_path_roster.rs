@@ -171,7 +171,7 @@ fn structural_members() -> Vec<CardDefinition> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Every corpus def declaring at least one `WhenDealsCombatDamageToPlayer`
-/// trigger, by name — **26**.
+/// trigger, by name — **25**.
 ///
 /// # This list was 30 in its first draft, and the gate below caught it
 ///
@@ -188,6 +188,11 @@ fn structural_members() -> Vec<CardDefinition> {
 /// TEXT counts prose. It was caught only because this gate re-derives from the
 /// compiled corpus instead of trusting the constant beside it. Filed as
 /// `OOS-DX47-2`.
+///
+/// PB-DX36 (`OOS-CARDS2-6`): `Goblin Lackey` LEFT this population — its printed
+/// "deals damage to a player" (any damage, not combat-only) was mis-declared as
+/// `WhenDealsCombatDamageToPlayer` and now correctly declares
+/// `WhenDealsDamage { recipient: Player }` instead, 26 → 25.
 const DECLARING_MEMBERS: &[&str] = &[
     "Ancient Copper Dragon",
     "Ancient Gold Dragon",
@@ -197,7 +202,6 @@ const DECLARING_MEMBERS: &[&str] = &[
     "Cavern-Hoard Dragon",
     "Drana, Liberator of Malakir",
     "Glissa Sunslayer",
-    "Goblin Lackey",
     "Grateful Apparition",
     "Higure, the Still Wind",
     "Ink-Eyes, Servant of Oni",
@@ -265,8 +269,9 @@ fn r1_declaring_population_is_pinned_by_name() {
     // Non-vacuity floor: a pin against an empty set is green forever.
     assert_eq!(
         actual.len(),
-        26,
-        "R1: 26 DEFS, not the 30 FILES a `grep -l` returns — see the roster doc"
+        25,
+        "R1: 25 DEFS (PB-DX36 moved Goblin Lackey out), not the 30 FILES a \
+         `grep -l` returns — see the roster doc"
     );
 }
 
@@ -812,12 +817,15 @@ fn r5b_modal_exposure_is_pinned_at_one_partial_def() {
          — `OOS-DX47-3`) before re-pinning this."
     );
     // Non-vacuity: the walk must actually be reaching these abilities.
+    // PB-DX36 (`OOS-CARDS2-6`): floor moved 26 -> 25 alongside R1's population,
+    // since Goblin Lackey (one declaration) left the WhenDealsCombatDamageToPlayer
+    // population entirely.
     assert!(
         structural_members()
             .iter()
             .map(declared_count)
             .sum::<usize>()
-            >= 26,
+            >= 25,
         "R5b non-vacuity: the walk found too few declarations to be measuring \
          anything"
     );

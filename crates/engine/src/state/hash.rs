@@ -1587,11 +1587,11 @@ use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
 use crate::cards::card_definition::ManaRestriction;
 use crate::cards::card_definition::{
-    AbilityDefinition, ActivationZone, ChoiceZone, Condition, ContinuousEffectDef, Cost, Effect,
-    EffectAmount, EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, ManaSourceFilter,
-    ModeSelection, PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetOwner,
-    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TriggerZone, TypeLine,
-    WheelDisposal, WheelDraw, ZoneTarget,
+    AbilityDefinition, ActivationZone, ChoiceZone, Condition, ContinuousEffectDef, Cost,
+    DamageRecipient, Effect, EffectAmount, EffectTarget, ForEachTarget, LibraryPosition,
+    LoyaltyCost, ManaSourceFilter, ModeSelection, PlayerTarget, SoulbondGrant, TargetController,
+    TargetFilter, TargetOwner, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition,
+    TriggerZone, TypeLine, WheelDisposal, WheelDraw, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
 use blake3::Hasher;
@@ -3957,6 +3957,8 @@ impl HashInto for PendingTrigger {
         // CR 510.3a: combat damage trigger data
         self.damaged_player.hash_into(hasher);
         self.combat_damage_amount.hash_into(hasher);
+        // CR 603.10a (PB-DX36): damage-dealt (combat OR noncombat) trigger data.
+        self.damage_dealt_amount.hash_into(hasher);
         // CR 603.10a: LKI counter snapshot — must be hashed for replay determinism.
         // OrdMap iteration is deterministic by sorted key (imbl::OrdMap invariant).
         for (ct, count) in self.lki_counters.iter() {
@@ -4117,8 +4119,10 @@ impl HashInto for TriggerEvent {
             TriggerEvent::AnyCreatureYouControlBatchCombatDamage => 40u8.hash_into(hasher),
             // CR 510.3a: equipped creature combat damage trigger — discriminant 41
             TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer => 41u8.hash_into(hasher),
-            // CR 510.3a: enchanted creature damage trigger — discriminant 42
-            TriggerEvent::EnchantedCreatureDealsDamageToPlayer => 42u8.hash_into(hasher),
+            // PB-DX36: discriminant 42 is retired (was the single, unread-`combat_only`
+            // `EnchantedCreatureDealsDamageToPlayer`); the seven replacement unit
+            // variants get fresh discriminants 49-55 below rather than reusing it —
+            // discriminants need only be distinct per variant, not contiguous.
             // CR 510.3a / CR 603.2: any creature deals combat damage to opponent — discriminant 43
             TriggerEvent::AnyCreatureDealsCombatDamageToOpponent => 43u8.hash_into(hasher),
             // CR 305.1: "Whenever an opponent plays a land" — discriminant 44
@@ -4140,6 +4144,27 @@ impl HashInto for TriggerEvent {
             }
             // PB-OS10: equipped creature deals combat damage, any recipient — discriminant 48
             TriggerEvent::EquippedCreatureDealsCombatDamage => 48u8.hash_into(hasher),
+            // PB-DX36 (discriminant 49) — CR 510.3a: enchanted creature deals COMBAT
+            // damage to a player.
+            TriggerEvent::EnchantedCreatureDealsCombatDamageToPlayer => 49u8.hash_into(hasher),
+            // PB-DX36 (discriminant 50) — CR 510.3a: enchanted creature deals COMBAT
+            // damage to an opponent of the Aura's controller.
+            TriggerEvent::EnchantedCreatureDealsCombatDamageToOpponent => 50u8.hash_into(hasher),
+            // PB-DX36 (discriminant 51) — CR 510.3a / CR 603.2: enchanted creature
+            // deals ANY damage to a player.
+            TriggerEvent::EnchantedCreatureDealsAnyDamageToPlayer => 51u8.hash_into(hasher),
+            // PB-DX36 (discriminant 52) — CR 510.3a / CR 603.2: enchanted creature
+            // deals ANY damage to an opponent of the Aura's controller.
+            TriggerEvent::EnchantedCreatureDealsAnyDamageToOpponent => 52u8.hash_into(hasher),
+            // PB-DX36 (discriminant 53) — CR 603.2: this permanent deals ANY damage
+            // to any recipient.
+            TriggerEvent::SelfDealsDamage => 53u8.hash_into(hasher),
+            // PB-DX36 (discriminant 54) — CR 603.2: this permanent deals ANY damage
+            // to a player.
+            TriggerEvent::SelfDealsDamageToPlayer => 54u8.hash_into(hasher),
+            // PB-DX36 (discriminant 55) — CR 603.2 / CR 102.2: this permanent deals
+            // ANY damage to an opponent of its controller.
+            TriggerEvent::SelfDealsDamageToOpponent => 55u8.hash_into(hasher),
         }
     }
 }
@@ -4910,6 +4935,8 @@ impl HashInto for StackObject {
         // CR 510.3a: Combat damage trigger data on the stack object
         self.damaged_player.hash_into(hasher);
         self.combat_damage_amount.hash_into(hasher);
+        // CR 603.10a (PB-DX36): damage-dealt (combat OR noncombat) trigger data.
+        self.damage_dealt_amount.hash_into(hasher);
         self.triggering_creature_id.hash_into(hasher);
         // PB-P/PB-EF10: CR 608.2b/608.2h/608.2i — LKI of cost-sacrificed creatures.
         // For spell stack objects these flow through additional_costs.Sacrifice.lki;
@@ -6302,6 +6329,15 @@ impl HashInto for TargetOwner {
         }
     }
 }
+impl HashInto for DamageRecipient {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            DamageRecipient::Any => 0u8.hash_into(hasher),
+            DamageRecipient::Player => 1u8.hash_into(hasher),
+            DamageRecipient::Opponent => 2u8.hash_into(hasher),
+        }
+    }
+}
 impl HashInto for TargetFilter {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.max_power.hash_into(hasher);
@@ -6655,6 +6691,9 @@ impl HashInto for EffectAmount {
                 24u8.hash_into(hasher);
                 relative_to.hash_into(hasher);
             }
+            // PB-DX36 (discriminant 25) — CR 603.10a: amount of damage dealt in
+            // the triggering event, combat or noncombat.
+            EffectAmount::DamageDealt => 25u8.hash_into(hasher),
         }
     }
 }
@@ -6845,9 +6884,14 @@ impl HashInto for TriggerCondition {
                 37u8.hash_into(hasher)
             }
             // CR 510.3a: "Whenever enchanted creature deals damage to a player" — discriminant 38
-            TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer { combat_only } => {
+            // PB-DX36: now also carries `recipient` (CR 603.2 recipient clause).
+            TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer {
+                combat_only,
+                recipient,
+            } => {
                 38u8.hash_into(hasher);
                 combat_only.hash_into(hasher);
+                recipient.hash_into(hasher);
             }
             // CR 510.3a / CR 603.2: "Whenever a creature deals combat damage to one of your opponents" — discriminant 39
             TriggerCondition::WhenAnyCreatureDealsCombatDamageToOpponent => 39u8.hash_into(hasher),
@@ -6893,6 +6937,11 @@ impl HashInto for TriggerCondition {
             }
             // PB-OS10: "Whenever equipped creature deals combat damage" (any recipient) — discriminant 48
             TriggerCondition::WhenEquippedCreatureDealsCombatDamage => 48u8.hash_into(hasher),
+            // PB-DX36 (discriminant 49) — CR 603.2: "Whenever this permanent deals damage".
+            TriggerCondition::WhenDealsDamage { recipient } => {
+                49u8.hash_into(hasher);
+                recipient.hash_into(hasher);
+            }
         }
     }
 }

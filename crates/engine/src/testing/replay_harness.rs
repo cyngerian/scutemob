@@ -12,11 +12,11 @@ use crate::testing::script_schema::{
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
     CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Condition, Cost,
-    DeathTriggerFilter, Designations, ETBTriggerFilter, Effect, EffectAmount, GameState,
-    GameStateBuilder, GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ObjectId,
-    ObjectSpec, PlayerId, PlayerTarget, Step, TargetController, TargetFilter, TargetOwner,
-    TargetRequirement, TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef,
-    ZoneId,
+    DamageRecipient, DeathTriggerFilter, Designations, ETBTriggerFilter, Effect, EffectAmount,
+    GameState, GameStateBuilder, GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost,
+    ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, TargetController, TargetFilter,
+    TargetOwner, TargetRequirement, TimingRestriction, TriggerCondition, TriggerEvent,
+    TriggeredAbilityDef, ZoneId,
 };
 use imbl::OrdMap;
 /// Replay harness helpers — extracted from `crates/engine/tests/script_replay.rs`
@@ -3587,10 +3587,18 @@ fn build_face_triggered_abilities(abilities: &[&AbilityDefinition]) -> Vec<Trigg
             });
         }
     }
-    // CR 510.3a: Convert "Whenever enchanted creature deals damage to a player" triggers.
+    // CR 510.3a (PB-DX36, `OOS-CARDS2-6`): Convert "Whenever enchanted creature
+    // deals damage to a player" triggers. `combat_only` and `recipient` are now
+    // genuinely read: an exhaustive `match` with NO wildcard arm selects one of
+    // the four `TriggerEvent` variants, so a new `DamageRecipient` value is a
+    // compile error rather than a silent drop (execution notes §0.5(c)).
     for ability in abilities {
         if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer { .. },
+            trigger_condition:
+                TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer {
+                    combat_only,
+                    recipient,
+                },
             effect,
             targets,
             intervening_if,
@@ -3598,16 +3606,65 @@ fn build_face_triggered_abilities(abilities: &[&AbilityDefinition]) -> Vec<Trigg
             ..
         } = ability
         {
+            let trigger_on = match (*combat_only, recipient) {
+                (true, DamageRecipient::Any) | (true, DamageRecipient::Player) => {
+                    TriggerEvent::EnchantedCreatureDealsCombatDamageToPlayer
+                }
+                (true, DamageRecipient::Opponent) => {
+                    TriggerEvent::EnchantedCreatureDealsCombatDamageToOpponent
+                }
+                (false, DamageRecipient::Any) | (false, DamageRecipient::Player) => {
+                    TriggerEvent::EnchantedCreatureDealsAnyDamageToPlayer
+                }
+                (false, DamageRecipient::Opponent) => {
+                    TriggerEvent::EnchantedCreatureDealsAnyDamageToOpponent
+                }
+            };
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
                 once_per_turn: *once_per_turn,
-                trigger_on: TriggerEvent::EnchantedCreatureDealsDamageToPlayer,
+                trigger_on,
                 intervening_if: intervening_if
                     .clone()
                     .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever enchanted creature deals damage to a player (CR 510.3a)"
                     .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 603.2 (PB-DX36, `OOS-CARDS2-6`): Convert "Whenever this permanent deals
+    // damage" triggers. Exhaustive `match` on `recipient`, no wildcard arm.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenDealsDamage { recipient },
+            effect,
+            targets,
+            intervening_if,
+            once_per_turn,
+            ..
+        } = ability
+        {
+            let trigger_on = match recipient {
+                DamageRecipient::Any => TriggerEvent::SelfDealsDamage,
+                DamageRecipient::Player => TriggerEvent::SelfDealsDamageToPlayer,
+                DamageRecipient::Opponent => TriggerEvent::SelfDealsDamageToOpponent,
+            };
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: *once_per_turn,
+                trigger_on,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
+                description: "Whenever this permanent deals damage (CR 603.2)".to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: None,
                 death_filter: None,

@@ -596,6 +596,7 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         additional_costs: vec![],
         damaged_player: None,
         combat_damage_amount: 0,
+        damage_dealt_amount: 0,
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_lki: vec![],

@@ -2862,8 +2862,19 @@ pub enum EffectAmount {
     ///
     /// CR 510.3a: Resolved from EffectContext::combat_damage_amount at effect execution time.
     /// Used by "deals that much damage" (Balefire Dragon), "create that many tokens"
-    /// (Lathril, Old Gnawbone).
+    /// (Lathril, Old Gnawbone). Reads 0 on a NONcombat damage trigger — for that,
+    /// use `DamageDealt` instead.
     CombatDamageDealt,
+    /// The amount of damage dealt in the triggering event, combat OR noncombat.
+    ///
+    /// CR 603.10a: Resolved from `EffectContext::damage_dealt_amount` at effect
+    /// execution time. Used by "deals that much damage" / "that much" on a
+    /// `WhenDealsDamage` or `WhenEnchantedCreatureDealsDamageToPlayer` trigger
+    /// (e.g. Exalted Angel). Distinct from `CombatDamageDealt`: the two agree on
+    /// a combat-damage trigger and disagree on a noncombat one, because
+    /// `CombatDamageDealt` reads `ctx.combat_damage_amount`, which stays 0 for a
+    /// noncombat trigger (PB-DX36, `OOS-CARDS2-6`).
+    DamageDealt,
     /// Count of creatures controlled by the target player that have the source
     /// permanent's or EffectContext's chosen_creature_type.
     ///
@@ -3420,6 +3431,27 @@ pub enum TargetController {
     /// gracefully degrading to "no legal target".
     DamagedPlayer,
 }
+/// Which recipient of a damage event a "deals damage" trigger cares about.
+///
+/// CR 603.2 — the recipient clause of a damage trigger ("…deals damage",
+/// "…deals damage to a player", "…deals damage to an opponent"). The check is
+/// made at trigger-collection time against the trigger source's controller.
+///
+/// PB-DX36: deliberately kept off `TriggerEvent` and off every type in the
+/// PROTOCOL/HASH wire closures (execution notes §0.3/§0.5(a)) — it is consumed
+/// entirely at lowering time (`build_face_triggered_abilities`), which selects
+/// one `TriggerEvent` unit variant per ability. A `DamageRecipient` value never
+/// survives past that lowering into runtime state.
+#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum DamageRecipient {
+    /// Any recipient — player, creature, planeswalker or battle.
+    #[default]
+    Any,
+    /// Any player.
+    Player,
+    /// A player who is an opponent of the trigger source's controller (CR 102.2).
+    Opponent,
+}
 // ── Trigger Conditions ────────────────────────────────────────────────────────
 /// What game event causes a triggered ability to fire (CR 603.1).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -3689,10 +3721,47 @@ pub enum TriggerCondition {
     /// CR 510.3a: Fires when the creature this Aura is attached to deals > 0 damage
     /// to a player. Covers both "deals damage" (any, including noncombat) and
     /// "deals combat damage" variants. Use `combat_only: bool` to distinguish.
+    ///
+    /// PB-DX36: `combat_only` is now genuinely read at lowering time
+    /// (`build_face_triggered_abilities` selects one of
+    /// `TriggerEvent::EnchantedCreatureDealsCombatDamageToPlayer` /
+    /// `::EnchantedCreatureDealsCombatDamageToOpponent` /
+    /// `::EnchantedCreatureDealsAnyDamageToPlayer` /
+    /// `::EnchantedCreatureDealsAnyDamageToOpponent`) and dispatched from both
+    /// `GameEvent::CombatDamageDealt` (combat) and `GameEvent::DamageDealt`
+    /// (noncombat) in `rules/abilities.rs::queue_damage_source_triggers`.
+    /// Previously it was destructured away and read in exactly one place in the
+    /// whole workspace (this file's own `HashInto` impl), so `true` and `false`
+    /// were behaviourally identical (`OOS-CARDS2-6`).
+    ///
+    /// On THIS variant, `recipient: DamageRecipient::Any` and `::Player` are
+    /// equivalent — the dispatch site only ever fires this trigger on damage to
+    /// a player, never to a creature/planeswalker/battle, so there is no "any
+    /// recipient" reading to distinguish from "player" here.
     WhenEnchantedCreatureDealsDamageToPlayer {
         /// If true, only combat damage triggers this. If false, any damage.
         #[serde(default)]
         combat_only: bool,
+        /// CR 603.2 recipient clause. `Any`/`Player` are equivalent on this
+        /// variant (see the type-level doc above); `Opponent` scopes to an
+        /// opponent of the Aura's controller.
+        #[serde(default)]
+        recipient: DamageRecipient,
+    },
+    /// "Whenever this permanent deals damage" (CR 603.2), any damage, combat or
+    /// noncombat, to the recipient named by `recipient`.
+    ///
+    /// PB-DX36: deliberately carries **no** `combat_only` flag — a
+    /// combat-only-to-player shape is already `WhenDealsCombatDamageToPlayer`,
+    /// and adding a second, unread flag here would recreate the exact defect
+    /// this batch closes (`OOS-CARDS2-6`). Lowers to one of
+    /// `TriggerEvent::SelfDealsDamage` / `::SelfDealsDamageToPlayer` /
+    /// `::SelfDealsDamageToOpponent` depending on `recipient`, dispatched from
+    /// both damage-event arms via `queue_damage_source_triggers`.
+    WhenDealsDamage {
+        /// CR 603.2 recipient clause.
+        #[serde(default)]
+        recipient: DamageRecipient,
     },
     /// "Whenever a creature deals combat damage to one of your opponents."
     ///
