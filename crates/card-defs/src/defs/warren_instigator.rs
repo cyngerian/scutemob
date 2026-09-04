@@ -6,7 +6,8 @@
 // PB-DX36 (`OOS-CARDS2-6`): the trigger CONDITION is now expressible —
 // TriggerCondition::WhenDealsDamage { recipient: DamageRecipient::Opponent }
 // (CR 603.2) closes the "deals damage to an opponent" gap this def used to
-// carry (it previously had no trigger authored at all). Two blockers survive:
+// carry. It is deliberately NOT declared while the effect is unimplementable —
+// see the comment above `abilities`. Two blockers survive:
 // (a) no effect puts a FILTERED (Goblin creature) card from hand onto the
 // battlefield — Effect::PutLandFromHandOntoBattlefield is land-only; (b) the
 // costless "you may" is inexpressible (see goblin_lackey/curiosity/ophidian_eye
@@ -27,22 +28,14 @@ pub fn card() -> CardDefinition {
             .to_string(),
         power: Some(1),
         toughness: Some(1),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::DoubleStrike),
-            AbilityDefinition::Triggered {
-                once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenDealsDamage {
-                    recipient: DamageRecipient::Opponent,
-                },
-                // TODO: "put a Goblin creature card from hand onto battlefield" — needs
-                // MoveZone from hand with subtype filter. Using Nothing stub.
-                effect: Effect::Nothing,
-                intervening_if: None,
-                targets: vec![],
-                modes: None,
-                trigger_zone: None,
-            },
-        ],
+        // NOT authored as a `Triggered` ability with an `Effect::Nothing` body, and the
+        // reason is this batch's own subject matter: `OOS-CARDS2-6` is a trigger that
+        // exists and does nothing. Declaring the now-expressible condition here would put
+        // a real, respondable, no-op ability on the stack (CR 603.2, CR 113.7a) — a claim
+        // the effect half cannot honour — where today the def makes no claim at all.
+        // `goblin_lackey` carries that shape already and is repaired in place rather than
+        // copied; a NEW one is not created. Re-author both the day blocker (a) closes.
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::DoubleStrike)],
         completeness: Completeness::partial(
             "Blocked: (a) no effect puts a filtered (Goblin creature) card from hand onto the \
              battlefield — Effect::PutLandFromHandOntoBattlefield is land-only; (b) 'you may' is \

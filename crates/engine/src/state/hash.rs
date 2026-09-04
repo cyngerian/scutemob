@@ -3957,7 +3957,7 @@ impl HashInto for PendingTrigger {
         // CR 510.3a: combat damage trigger data
         self.damaged_player.hash_into(hasher);
         self.combat_damage_amount.hash_into(hasher);
-        // CR 603.10a (PB-DX36): damage-dealt (combat OR noncombat) trigger data.
+        // CR 608.2h / CR 113.7a (PB-DX36): damage-dealt (combat OR noncombat) trigger data.
         self.damage_dealt_amount.hash_into(hasher);
         // CR 603.10a: LKI counter snapshot — must be hashed for replay determinism.
         // OrdMap iteration is deterministic by sorted key (imbl::OrdMap invariant).
@@ -4935,7 +4935,7 @@ impl HashInto for StackObject {
         // CR 510.3a: Combat damage trigger data on the stack object
         self.damaged_player.hash_into(hasher);
         self.combat_damage_amount.hash_into(hasher);
-        // CR 603.10a (PB-DX36): damage-dealt (combat OR noncombat) trigger data.
+        // CR 608.2h / CR 113.7a (PB-DX36): damage-dealt (combat OR noncombat) trigger data.
         self.damage_dealt_amount.hash_into(hasher);
         self.triggering_creature_id.hash_into(hasher);
         // PB-P/PB-EF10: CR 608.2b/608.2h/608.2i — LKI of cost-sacrificed creatures.
@@ -6691,7 +6691,7 @@ impl HashInto for EffectAmount {
                 24u8.hash_into(hasher);
                 relative_to.hash_into(hasher);
             }
-            // PB-DX36 (discriminant 25) — CR 603.10a: amount of damage dealt in
+            // PB-DX36 (discriminant 25) — CR 608.2h / CR 113.7a: amount of damage dealt in
             // the triggering event, combat or noncombat.
             EffectAmount::DamageDealt => 25u8.hash_into(hasher),
         }

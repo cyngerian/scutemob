@@ -351,7 +351,7 @@ pub struct PendingTrigger {
     // at KeywordTrigger (Echo) resolution time; no need to carry it in PendingTrigger.
     // cumulative_upkeep_cost: REMOVED — cumulative upkeep cost is read from KeywordAbility at
     // KeywordTrigger (CumulativeUpkeep) resolution time; no need to carry it in PendingTrigger.
-    /// CR 510.3a / CR 603.10a: The player dealt damage (combat OR noncombat) in
+    /// CR 510.3a / CR 608.2h: The player dealt damage (combat OR noncombat) in
     /// the triggering event. Used at flush/resolution time to populate
     /// `EffectContext::damaged_player`. None for all other trigger types, and
     /// for damage triggers whose recipient was not a player.
@@ -364,7 +364,7 @@ pub struct PendingTrigger {
     /// combat-or-noncombat sibling (PB-DX36).
     #[serde(default)]
     pub combat_damage_amount: u32,
-    /// CR 603.10a: The amount of damage in the triggering damage event, combat
+    /// CR 608.2h / CR 113.7a: The amount of damage in the triggering damage event, combat
     /// or noncombat. Read by `EffectAmount::DamageDealt`. 0 for triggers that
     /// are not damage triggers. Distinct from `combat_damage_amount`, which
     /// stays 0 on a noncombat trigger (PB-DX36, `OOS-CARDS2-6`).

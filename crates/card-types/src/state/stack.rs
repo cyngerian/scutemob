@@ -492,7 +492,7 @@ pub struct StackObject {
     /// combat-or-noncombat sibling (PB-DX36).
     #[serde(default)]
     pub combat_damage_amount: u32,
-    /// CR 603.10a: The amount of damage (combat or noncombat) dealt in the
+    /// CR 608.2h / CR 113.7a: The amount of damage (combat or noncombat) dealt in the
     /// triggering event. Set from PendingTrigger::damage_dealt_amount when a
     /// triggered ability is flushed. Read by EffectAmount::DamageDealt at
     /// resolution time.

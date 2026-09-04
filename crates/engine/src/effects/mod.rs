@@ -121,7 +121,7 @@ pub struct EffectContext {
     /// AND for a NONcombat damage trigger — see `damage_dealt_amount` for the
     /// combat-or-noncombat sibling (PB-DX36).
     pub combat_damage_amount: u32,
-    /// CR 603.10a: the amount of damage in the triggering damage event, combat
+    /// CR 608.2h / CR 113.7a: the amount of damage in the triggering damage event, combat
     /// or noncombat. Set from PendingTrigger::damage_dealt_amount. Read by
     /// EffectAmount::DamageDealt. 0 for triggers that are not damage triggers.
     pub damage_dealt_amount: u32,
@@ -9276,7 +9276,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
         // Resolved from ctx.combat_damage_amount (set from PendingTrigger::combat_damage_amount).
         // 0 on a noncombat damage trigger — see DamageDealt for the combat-or-noncombat sibling.
         EffectAmount::CombatDamageDealt => ctx.combat_damage_amount as i32,
-        // CR 603.10a (PB-DX36): Amount of damage dealt in the triggering event,
+        // CR 608.2h / CR 113.7a (PB-DX36): Amount of damage dealt in the triggering event,
         // combat or noncombat. Resolved from ctx.damage_dealt_amount (set from
         // PendingTrigger::damage_dealt_amount).
         EffectAmount::DamageDealt => ctx.damage_dealt_amount as i32,

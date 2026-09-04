@@ -2867,7 +2867,7 @@ pub enum EffectAmount {
     CombatDamageDealt,
     /// The amount of damage dealt in the triggering event, combat OR noncombat.
     ///
-    /// CR 603.10a: Resolved from `EffectContext::damage_dealt_amount` at effect
+    /// CR 608.2h / CR 113.7a: Resolved from `EffectContext::damage_dealt_amount` at effect
     /// execution time. Used by "deals that much damage" / "that much" on a
     /// `WhenDealsDamage` or `WhenEnchantedCreatureDealsDamageToPlayer` trigger
     /// (e.g. Exalted Angel). Distinct from `CombatDamageDealt`: the two agree on

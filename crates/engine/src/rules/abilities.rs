@@ -10170,7 +10170,7 @@ fn flush_sorted(
             // ability-kind stack object at all (§8 R2 of the plan,
             // `stack_index_for_announced_target` only resolves card-owning kinds).
             stack_obj.target_requirements = trigger_target_requirements.clone();
-            // CR 510.3a / CR 603.10a: Propagate combat AND combat-or-noncombat
+            // CR 510.3a / CR 608.2h: Propagate combat AND combat-or-noncombat
             // damage data from PendingTrigger to StackObject so resolution.rs
             // can populate EffectContext correctly.
             stack_obj.damaged_player = trigger.damaged_player;

@@ -14,7 +14,7 @@
 // (CR 603.2, any damage — combat or noncombat — to any recipient) lowers to
 // `TriggerEvent::SelfDealsDamage`, dispatched from both `GameEvent::CombatDamageDealt`
 // and `GameEvent::DamageDealt` via `rules/abilities.rs::queue_damage_source_triggers`;
-// `EffectAmount::DamageDealt` reads the CR 603.10a "that much" amount from
+// `EffectAmount::DamageDealt` reads the CR 608.2h / CR 113.7a "that much" amount from
 // `EffectContext::damage_dealt_amount`.
 use crate::cards::helpers::*;
 
@@ -72,6 +72,9 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-        ..Default::default()
+        // Declared EXPLICITLY rather than left to the `#[default]` derive: `OOS-RR3-1`
+        // measured 965 defs that never declare a marker and observed that nothing
+        // reviews that population. A def this batch promotes should say so out loud.
+        completeness: Completeness::Complete,
     }
 }

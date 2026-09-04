@@ -2476,7 +2476,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             // CR 107.3m: Propagate x_value from the permanent so ETB effects
                             // using EffectAmount::XValue resolve correctly.
                             ctx.x_value = x_value;
-                            // CR 510.3a / CR 603.10a: Propagate combat AND
+                            // CR 510.3a / CR 608.2h: Propagate combat AND
                             // combat-or-noncombat damage data from StackObject.
                             ctx.damaged_player = stack_obj.damaged_player;
                             ctx.combat_damage_amount = stack_obj.combat_damage_amount;
@@ -2597,7 +2597,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             source_object,
                             stack_obj.targets.clone(),
                         );
-                        // CR 510.3a / CR 603.10a: Propagate combat AND
+                        // CR 510.3a / CR 608.2h: Propagate combat AND
                         // combat-or-noncombat damage data from StackObject.
                         ctx.damaged_player = stack_obj.damaged_player;
                         ctx.combat_damage_amount = stack_obj.combat_damage_amount;
