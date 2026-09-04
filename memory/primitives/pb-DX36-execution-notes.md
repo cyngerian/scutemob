@@ -316,3 +316,124 @@ syntactic form was defeated by execution** (PB-DX26 → PB-DX43 → PB-DX45 → 
 The pattern is now reliable enough to state as a rule rather than a lesson: **write the gate, then
 write the bypass you would use to sneak past it, and run it — before you write the gate's doc
 comment claiming it cannot be evaded.**
+
+---
+
+## §8 — The `/review` cycle: 2 HIGH / 4 MEDIUM / 5 LOW-NIT, all eleven taken
+
+The reviewer had a shell and used it. Both HIGHs were **proven by execution**, not argued, and the
+first is a correctness defect this batch shipped.
+
+### §8.1 — HIGH 1: the batch's headline invariant was FALSE, and no probe it wrote could see it
+
+`queue_damage_source_triggers` was called **inside `for assignment in assignments`**. One
+`GameEvent::CombatDamageDealt` carries every assignment of the step in a single `events.push`
+(`rules/combat.rs:2382`), and **CR 510.2** makes them simultaneous, so **CR 603.2c** — *"An ability
+triggers only once each time its trigger event occurs"* — is violated by any source with more than
+one assignment. Measured: a 5/5 `exalted_angel`-shaped creature blocked by two 2/2s dispatched the
+self family **twice**, gaining 2 + 3 in two separate resolutions; a 6/6 trampler carrying
+`Sigil of Sleep` dispatched the self family **twice** while the Aura half correctly fired once.
+
+The official mirror ruling settles the CR question: **Boros Reckoner**, Gatherer 2017-03-14 —
+*"If Boros Reckoner is dealt damage by multiple sources at once, such as by two creatures blocking
+it, its ability triggers once and one target is dealt that much damage."*
+
+**Three things make this the batch's own subject matter rather than an ordinary bug.**
+
+1. **The doc comment asserted the opposite, unconditionally**, and the census behind it was
+   *correct*: emit-site disjointness (1 `CombatDamageDealt` site, 5 noncombat `DamageDealt` sites)
+   is true and **bounds the ARMS, not the LOOP INSIDE one arm**. Nobody checked the second, and the
+   sentence read as though the first covered it. *A true premise can carry a false conclusion, and
+   a comment is where that gets frozen.*
+2. **Every COUNT probe drove a single-assignment fixture.** `t2` is the file's dedicated
+   exactly-once probe and its own docstring says *"a `>= 1` assertion here would still pass on
+   PB-DX47's double-push shape"* — and `t2` **passes under the defect**, re-verified by the
+   coordinator. **A COUNT assertion proves exactly-once only on the fixture shape it drives**;
+   PB-DX47's own lesson (*a differential probe proves agreement on the branches it drives and
+   nothing about the branches it does not*), one axis over, inside the batch that cites it.
+3. **It was a regression this batch introduced**, not inherited: the pre-batch attachment loop
+   `continue`d unless the target was a Player, and a source has at most one Player assignment per
+   step — which is exactly why the Aura half reads 1 and the new self family reads 2.
+
+**Fixed** by grouping the event's assignments by `source` (first-appearance order, never sorted by
+`ObjectId`, which would reorder triggers) and dispatching the self family once per source with
+`amount` = the SUM. The attachment halves keep the single Player entry's own amount — the two must
+NOT share an amount. New probes `t8` (multi-block) and `t9` (trample). **The revert was re-executed
+independently by the coordinator rather than accepted from the report**: reinstating per-assignment
+dispatch reddens exactly `t8` and `t9` at `left: 2, right: 1` and leaves all eight other probes
+green — including `t2`.
+
+### §8.2 — HIGH 2: the class gate was bypassable on the two axes it did not key on
+
+`r3` scanned `read_dir("crates/engine/src/rules")` — **non-recursive, one directory** — and matched
+the **qualified** string `TriggerEvent::<Name>`. The reviewer compiled and ran two bypasses and the
+whole `--test core` target stayed green (710 passed) for each:
+
+* **outside `src/rules/`** — a second dispatcher in `effects/mod.rs`, *the file that emits
+  `GameEvent::DamageDealt` at four of its five sites*, i.e. the likeliest place a future author
+  writes one;
+* **a `use` alias inside the scanned directory** — `use crate::TriggerEvent::{SelfDealsDamage as
+  SDD, …}`, after which the qualified literal never appears in the file.
+
+Both fixes already existed **in this same test crate**, one batch old: PB-DX49's `/review` widened
+its `r6` to a workspace walk (`workspace_src_files_checked()`, 14 roots / 148 files, with executing
+non-vacuity floors) and re-keyed its `r7` onto the **bare** name at word boundaries precisely
+because *"the qualified path is evaded by a `use` import"*. `r3` re-derived a narrower scan instead
+of reusing either.
+
+**And fixing it surfaced a third axis nobody had named**: the scan window only looked FORWARD from a
+walk marker, but **a `use` alias's bare name sits BEFORE the marker it gives meaning to**, so
+bare-name matching alone was still green. The window is now bidirectional. Both bypasses
+re-executed against the final gate: **RED**.
+
+**§7's *"11 rows executed, 11 discriminating"* was true and is not the same claim as *"the gate
+cannot be evaded"*.** The docstring said the gate keys on "the mechanism"; the mechanism it keyed on
+was the WALK, and the axes it did not key on were the FILE SET and the SPELLING. That correction is
+now in the test's own doc.
+
+### §8.3 — The MEDIUMs and LOWs, all taken
+
+* **M3** — `warren_instigator`'s `Completeness` marker, a MACHINE-SCANNED surface, said *"Trigger
+  currently resolves to `Effect::Nothing`"* while a comment eight lines above (same commit) says
+  explicitly that no trigger is declared, and the def has none. Copied verbatim from
+  `goblin_lackey`, where it is true. **PB-DX27's class authored fresh**, and neither
+  `pb_dx27_stale_blocker_notes` nor `completeness_deviation_scan` caught it.
+* **M4** — §0.5(e) claims `damaged_player`'s doc was *"the one thing that said combat"* and the
+  batch fixed **two of six** sites. The four missed included `TargetController::DamagedPlayer`,
+  which **names `Sigil of Sleep`** and still called itself combat-only — the very arm that card
+  uses, and the reason the noncombat path had to populate the field at all.
+* **M5** — `grateful_apparition`'s header asserts the variant this batch shipped does not exist.
+  Narrowed, and the interesting half is the DIRECTION: `WhenDealsDamage` is too **WIDE** for it
+  (that card prints *"deals COMBAT damage"*), because PB-DX36 deliberately gave the new condition
+  no `combat_only` flag. It needs its own variant, not a field.
+* **M6** — **both** attributions of `tandem_lookout` were wrong, in **opposite** directions: the
+  registry said *"a fourth member no document names"*, the roster said *"the task brief's list"*.
+  Queried directly, the brief names **one** self-family def (`exalted_angel`); `goblin_lackey`,
+  `warren_instigator` and `tandem_lookout` all came from this batch's own stage-0 scan, which the
+  `all_cards()` roster then corrected to ten. **An inherited member list is a floor; so is the one
+  you derived yourself an hour earlier.**
+* **L7** — three published figures re-taken: *"6 card-def files"* is **8** (transcribed from the
+  stage-0 prediction and never re-taken after two defs were narrowed — PB-DX28's MEDIUM again);
+  *"all 13 cites this batch introduced"* is false as written (~110 CR cites in all; 13 is the count
+  that would otherwise have said 603.10a); the bench note's *"two damage-related occurrences"* is
+  five across four lines, conclusion unaffected.
+* **L8** — §0.5(d) cited CR 603.10a and §0.6(i) refutes that cite: **the binding record
+  contradicting itself**, never re-taken until the review read it.
+* **L9** — CR 510.3a is a combat-damage-STEP rule and is this family's house cite, so ~26 new sites
+  attach it to explicitly noncombat behaviour. **Filed (`OOS-DX36-9`) rather than swept**, with the
+  reason: the cites are redundant not wrong-in-consequence, the convention predates the batch, and
+  rewriting it corpus-wide inside a fix cycle under a LOW is churn.
+* **L10** — the v4 memo cell said `OOS-DX36-1..7` while three other surfaces said `-1..8`.
+  **Dispatch hygiene 8's exact case for the third consecutive batch**, and this time on the surface
+  the next dispatcher reads. Now `-1..9` everywhere, reconciled **after** the fix cycle.
+* **NIT** — two stale strings, and the census-disjointness caveat: **eight of the ten
+  still-blocked members print PB-DX47's own phrase**, and the two rosters stay disjoint only
+  because PB-DX47's inverse ratchet is `Complete`-only while all eight are `partial`. Promoting any
+  one of them moves it between both rosters at once. Now stated in the roster's own doc.
+
+**The reviewer also re-derived and CONFIRMED**: the 190-literal `TriggeredAbilityDef` figure, the
+1 + 5 emit-site census, `hash.rs:6848` as the sole pre-batch `combat_only` read, that a fourth
+`DamageRecipient` variant is a compile error in both lowering matches, that a `_ =>` wildcard
+reddens `r4`, that R4 reddens exactly the six probes plus the channel with `t2`/`t4b` green as
+stated controls, 0 stale sentinel survivors under an independently-shaped scan, an empty census
+partition on all four intersections, and the suite/gate figures against the final tree.

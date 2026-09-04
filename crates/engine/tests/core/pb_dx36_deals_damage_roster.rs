@@ -48,6 +48,19 @@
 //! files' populations (PB-DX47's own roster doc records the departure,
 //! 26 -> 25); it is a member of THIS file's `WhenDealsDamage`-declaring set.
 //!
+//! **What the disjointness actually rests on, stated because it is NOT the
+//! needle** (PB-DX36 `/review`, final NIT). Eight of the ten
+//! `STILL_BLOCKED_SELF_FAMILY_MEMBERS` — Ancient Brass Dragon, Ancient Bronze
+//! Dragon, Biting-Palm Ninja, Dokuchi Silencer, Frodo, Hellkite Tyrant, The
+//! Reaver Cleaver, Walker of Secret Ways — PRINT PB-DX47's own phrase, *"deals
+//! combat damage to a player"*. The two rosters do not double-count them, and
+//! all four cross-set intersections were computed empty by the reviewer — but
+//! the reason is that **PB-DX47's inverse ratchet is `Complete`-only and all
+//! eight of these are `partial`**. The disjointness therefore rests on the
+//! `Completeness` filter, not on the needle: **promoting any one of the eight
+//! moves it between the two rosters simultaneously**, and whoever does that must
+//! adjust both, not just this one.
+//!
 //! # R3 — the class gate: no second dispatcher for any of the 7 new `TriggerEvent`s
 //!
 //! PB-DX47's `r3` shape (`memory/primitives/pb-DX36-execution-notes.md`
