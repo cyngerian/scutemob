@@ -396,6 +396,22 @@ const MARKER_FRAGMENTS: &[&str] = &[
 /// See `docs/sr-remediation-plan.md` (SR-12) for the review record.
 const ALLOWLIST: &[(&str, &str)] = &[
     (
+        "bolt_bend",
+        "Matched \"there is no\": \"now there is no gap to excuse\" (PB-DX52, `scutemob-229`) \
+         — the sentence records that `OOS-DX25b-1` is CLOSED, i.e. that this def has no \
+         deviation left, which is the exact inverse of what the needle exists to catch. \
+         **This entry is a CONTRACT WIDENING and is stated as one**: the gate now tolerates \
+         one def whose prose narrates a gap in the PAST tense. That is the shape a future \
+         author could abuse (\"there is no problem here\" is one edit away from \"there is no \
+         support for X\"), so this entry is deliberately keyed to a def whose faithfulness is \
+         independently pinned by execution — `primitives::pb_dx52_stack_entry_target_space` \
+         drives Bolt Bend at a real ability's stack entry and asserts the redirect lands by \
+         RESOLUTION EFFECT, so if this def ever stops being faithful a behavioural test \
+         reddens, not just this scan. The alternative exit — rewording the comment to dodge \
+         the needle — was rejected: the sentence is true and load-bearing, and a gate you \
+         edit prose to satisfy has stopped measuring anything.",
+    ),
+    (
         "overlord_of_the_hauntwoods",
         "\"Modeled as two separate triggers\" — a faithful decomposition of one \
          ability into two TriggeredAbilityDefs, not a deviation.",
@@ -654,9 +670,17 @@ const RECORDED_BASELINE: &[(&str, &str)] = &[
     ),
     (
         "deflecting_swat",
-        "Matched \"interactive\", \"deferred\": \"Interactive choice deferred to M10\" (PB-DX25b \
-         review Finding C3) — the object-target redirect branch falls back to an unchanged \
-         target rather than offering the controller a live choice.",
+        "Matched \"interactive\", \"deferred\": \"CR 115.7d's \\\"you MAY choose new targets\\\" is a \
+         player decision needing an `EffectChoiceQuestion` variant … deferred to PB-DX54\" — \
+         the redirect branch falls back to an unchanged target rather than offering the \
+         controller a live choice (`OOS-DX25b-4`, still open). **Reason RE-QUOTED by PB-DX52 \
+         (`scutemob-229`)**: the fragment this entry used to quote, \"Interactive choice \
+         deferred to M10\", was DELETED from the def when PB-DX52 rewrote that note to close \
+         `OOS-DX25b-5`. The entry kept passing because the def still matches the same two \
+         needles for the same underlying reason — which is exactly how a baseline reason rots \
+         into a claim about text that no longer exists (PB-DX27). The deviation itself is \
+         unchanged and still real, so this stays a RECORDED_BASELINE entry rather than \
+         moving to ALLOWLIST.",
     ),
     (
         "den_of_the_bugbear",
