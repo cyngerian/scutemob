@@ -178,3 +178,83 @@ test and `check_static_condition`'s controller). They are **deliberately exclude
 must stay live-only**: routing the first through LKI would make a departed source's static
 ability run forever, which is the exact opposite of CR 611.2b. Pinned by a gate so a later
 batch cannot "finish the job".
+
+---
+
+## §1 The census (AC 7361) — the class is 15× the two seeds, and the fourth axis is nobody's
+
+Printed by `core::pb_dx39_source_relative_roster::t_dx39_census_report` (SR-36: enumerated
+from `all_cards()`, never grepped; every figure below is the test's own output, not a
+transcription).
+
+```
+scanned denominator (all_cards()):            1803
+source-relative filter variants (derived):    20  (of 37 declared)
+total source-relative occurrences:            229
+distinct defs carrying one:                   147
+of those, deck-legal `Complete`:              108
+by ContinuousEffectDef site:  { static: 184, resolution: 41, emblem: 4 }
+```
+
+| axis | occ | defs | deck-legal | verdict |
+|---|---|---|---|---|
+| (i) `SacrificeSelf`-cost | 1 | 1 (`mardu_ascendancy`) | **0** | live-wrong, ALWAYS, 0 exposure |
+| (ii) attached, **resolution-time** | 1 | 1 (`umezawas_jitte`) | **1** | live-wrong on a race |
+| (ii-static) attached, static (CR 611.3a) | 97 | 44 | 30 | **out of scope, control** |
+| (iii) instant/sorcery mass (PB-DX5's fixed class) | 11 | 7 | 4 | **CONTROL — must stay green** |
+| **(iv) the residual nobody named** | **28** | **20** | **16** | **live-wrong on a race** |
+
+### §1.1 THE THREE NAMED AXES DO NOT COVER THE CLASS, AND THE FOURTH IS THE YIELD
+
+The task brief partitions the population three ways — sacrifice-self, attached, and the
+PB-DX5-fixed instant/sorcery control class. The census refuses that partition: the whole
+**resolution-generated** class is **41 occurrences / 29 defs / 21 deck-legal**, and the three
+named axes account for 13 occurrences of it. The other **28 occurrences across 20 defs, 16 of
+them deck-legal `Complete`**, are `Activated` / `Triggered` / `LoyaltyAbility` / `SagaChapter`
+abilities with a cost that does **not** move the source and a filter that is not attachment-based:
+
+> `Battle Cry Goblin, Binding the Old Gods, Castle Embereth, Crashing Drawbridge,
+> Craterhoof Behemoth, Elspeth Storm Slayer, Elvish Warmaster, Ezuri, Felidar Retreat,
+> Goblin Bushwhacker, Goldnight Commander, Goro-Goro, Kolaghan, Lathliss, Massacre Wurm,
+> Mirror Entity, Purphoros, Sarkhan Vol, Vault of the Archangel, Vito`
+
+They are neither certainties (axis (i), where the source is gone by construction) nor
+already-fixed (axis (iii)). They are **races**: activate, the opponent responds by killing the
+source, and the pump silently applies to nobody. `Craterhoof Behemoth` and `Mirror Entity` are
+the recognisable ones — kill the Hoof in response to its own trigger and today the whole team
+loses the pump. **This is why the batch's yield is not "two cards"**: one shared arithmetic on
+the locked path repairs all 21 deck-legal resolution-site defs at once.
+
+### §1.2 THE DECK-LEGAL SPLIT OF THE TWO SEEDS IS THE OPPOSITE OF THE MEMO'S CELL
+
+The v4 memo row 15 says *"`umezawas_jitte` (deck-legal `Complete`, live-wrong) +
+`mardu_ascendancy` (`partial`)"* — correct, and its consequence is not drawn anywhere:
+**axis (i)'s deck-legal blast radius is ZERO**. `mardu_ascendancy` is `partial` on its nontoken
+attack filter, so `validate_deck` rejects it and no player has ever been able to lose that
++0/+3 in a real game. `OOS-DX5-7`'s residual is a genuine defect with **no current player-facing
+exposure**, and saying so is more useful than implying otherwise. The exposure this batch
+actually removes is axis (ii)'s **1** and axis (iv)'s **16**.
+
+### §1.3 THE INVERSE ORACLE AXIS AND THE STRUCTURAL AXIS DO NOT NEST, IN EITHER DIRECTION
+
+16 defs print an "until end of turn" pump on a sacrifice- or equip-cost ability. Only **3** are
+in the structural population (`etchings_of_the_chosen`, `mardu_ascendancy`, `umezawas_jitte`);
+**13 are oracle-only** and **144 structural defs are not on the oracle axis**. Both differences
+are printed rather than reduced to an overlap count — PB-DX26's, PB-DX43's and PB-DX15a's
+shared lesson, which is that *a roster derived from one declaration construct measures that
+construct*, and the fix for a short census is a second axis rather than a better matcher.
+
+### §1.4 THE NESTING WALK IS GENERIC BY CONSTRUCTION, NOT A HAND-LISTED MATCH
+
+Each `AbilityDefinition` is serialised and the tree walked for any object carrying all of
+`layer`/`modification`/`filter`/`duration`. That is total by construction, which is the only
+answer to PB-DX26's `Effect::RollDice` finding (an eleventh nesting site invisible to a
+`Box`/`Vec` count). The source-level form count is recorded as **evidence** (8 `Box<Effect>` +
+2 `Vec<Effect>` + 1 `Vec<(u32,u32,Effect)>` = 11, reproducing PB-DX26's corrected figure) and
+the roster says in its own doc that this is not the mechanism.
+
+**One revert row is a coverage measurement rather than a pass, and it is disclosed in the test
+itself**: deleting the walk's array recursion reddens R4/R5/R6/R9 and leaves **R3 GREEN**,
+because `mardu_ascendancy`'s path carries no array segment. A shallow walk satisfies axis (i)
+completely — so R3's green is not evidence that the census reached anything nested, and the
+file says so where a reader will find it.
