@@ -2675,9 +2675,11 @@ pub enum EffectTarget {
     /// Used by "deals N damage to the player or planeswalker it's attacking" (Hellrider,
     /// Raid Bombardment).
     AttackTarget,
-    /// PB-DX28: the `EffectTarget` mirror of `PlayerTarget::DamagedPlayer` (CR 510.3a).
+    /// PB-DX28: the `EffectTarget` mirror of `PlayerTarget::DamagedPlayer`
+    /// (CR 510.3a / CR 608.2h).
     /// Used by effects whose object-shaped field (e.g. `Effect::DealDamage.target`)
-    /// must resolve to "that player" from a combat-damage trigger context ("~ deals
+    /// must resolve to "that player" from a damage-trigger context — COMBAT OR
+    /// NONCOMBAT since PB-DX36 (`OOS-CARDS2-6`) — ("~ deals
     /// damage to that player" — Sword of War and Peace) without going through a
     /// declared target (CR 115.10: this is determined, not targeted).
     ///
@@ -2749,9 +2751,10 @@ pub enum PlayerTarget {
     /// patterns for discard/draw triggers). Resolved from PendingTrigger::triggering_player at
     /// effect execution time.
     TriggeringPlayer,
-    /// The player who was dealt combat damage in the triggering event.
+    /// The player who was dealt damage — COMBAT OR NONCOMBAT — in the triggering event.
     ///
-    /// CR 510.3a: Resolved from EffectContext::damaged_player at effect execution time.
+    /// CR 510.3a / CR 608.2h: Resolved from EffectContext::damaged_player at effect
+    /// execution time. PB-DX36 (`OOS-CARDS2-6`) made the noncombat arm populate it.
     /// Used by "that player discards a card" (Sword of Feast and Famine),
     /// "goad each creature that player controls" (Marisi), etc.
     DamagedPlayer,
@@ -3423,9 +3426,15 @@ pub enum TargetController {
     Any,
     You,
     Opponent,
-    /// CR 510.3a: Scope to the player dealt combat damage in the triggering event.
-    /// Used on combat-damage triggered abilities that say "that player controls" — e.g.
+    /// CR 510.3a / CR 608.2h: Scope to the player dealt damage — COMBAT OR NONCOMBAT —
+    /// in the triggering event.
+    /// Used on damage triggered abilities that say "that player controls" — e.g.
     /// Throat Slitter, Sigil of Sleep, Mistblade Shinobi, Alela, Nature's Will, Balefire Dragon.
+    /// **`Sigil of Sleep` is why this is not combat-only**: PB-DX36 (`OOS-CARDS2-6`) made
+    /// its `combat_only: false` arm dispatch from `GameEvent::DamageDealt`, and this arm
+    /// falls through to `false` when `damaged_player` is `None` — so without the noncombat
+    /// arm populating it, that repair would have shipped a trigger with no legal target
+    /// space and CR 603.3d would have removed it from the stack in silence.
     /// Resolves from `ctx.damaged_player` (or `trigger.damaged_player` at target-selection time);
     /// returns `false` at sites where no damaged-player context exists (e.g. spell casting),
     /// gracefully degrading to "no legal target".

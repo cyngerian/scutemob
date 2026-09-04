@@ -480,7 +480,10 @@ pub struct StackObject {
     /// Mirrors `CastSpell.additional_costs`. Populated during cast-to-stack transfer.
     #[serde(default)]
     pub additional_costs: Vec<AdditionalCost>,
-    /// CR 510.3a: The player dealt combat damage in the triggering event.
+    /// CR 510.3a / CR 608.2h: The player dealt damage — COMBAT OR NONCOMBAT — in the
+    /// triggering event. PB-DX36 (`OOS-CARDS2-6`) widened this to the noncombat arm; the
+    /// sibling `damage_dealt_amount` below was added in the same hunk and this line was
+    /// missed then.
     /// Set from PendingTrigger::damaged_player when a triggered ability is flushed to the stack.
     /// Read by PlayerTarget::DamagedPlayer at resolution time.
     #[serde(default)]

@@ -112,8 +112,10 @@ shape).
 
 **(d) `EffectAmount::DamageDealt` is a NEW variant, not a rename of `CombatDamageDealt`.**
 The two are not redundant: `CombatDamageDealt` reads `ctx.combat_damage_amount`, which is **0** on a
-noncombat trigger; `DamageDealt` reads `ctx.damage_dealt_amount`, CR 603.10a's *"that much"* for the
-triggering damage event whichever kind it was. They agree on a combat-damage trigger by
+noncombat trigger; `DamageDealt` reads `ctx.damage_dealt_amount`, *"that much"* for the triggering damage event
+whichever kind it was. *(↻ This sentence cited **CR 603.10a** when it was written at stage 0, and
+§0.6(i) below refutes that cite. It was never re-taken until the `/review` found this file
+contradicting itself — PB-DX28's re-take MEDIUM, inside the batch's own binding record.)* They agree on a combat-damage trigger by
 construction and disagree on a noncombat one — pinned by probe rather than asserted. The rejected
 alternative (rename `CombatDamageDealt` → `DamageDealt` and generalise the storage) was costed:
 **75 occurrences of `combat_damage_amount` across 37 files**.
@@ -176,8 +178,12 @@ never of an ability — which is the distinction `combat_only` failed to make.
    obeying it would have put 13 wrong cites in the tree under an AC that read as satisfied.
 2. **"Delete the unread flag" is wrong** (§0.5(b)) — 0 declared users of `combat_only: true`, but
    **1 printed one** (`breath_of_fury`). The declared axis and the printed axis do not nest.
-3. **The still-blocked self-family list is a FLOOR by 5×.** The brief names two
-   (`warren_instigator`, `tandem_lookout`); the roster's `all_cards()` walk finds **ten**.
+3. **The still-blocked self-family list is a FLOOR by 5×, and the batch's own scan was a floor too.**
+   The task brief names NEITHER of the two this file first credited it with — queried directly, it
+   names one self-family def, `exalted_angel`. `goblin_lackey`, `warren_instigator` and
+   `tandem_lookout` all came from this batch's own stage-0 inverse oracle scan; the roster's
+   `all_cards()` walk then corrected THAT to **ten** still blocked. *An inherited member list is a
+   floor; so is the one you derived yourself an hour earlier.*
 4. **Two blocker notes this batch falsifies**, found by the inverse axis and repaired in place —
    `niv_mizzet_visionary` (its "neither is expressible" is now half false) and `tandem_lookout`.
 5. **A fourth `WhenDealsDamage` member no document names** — `tandem_lookout`, a *granted* ability,
@@ -266,8 +272,8 @@ the outlier, not the effect.
 
 **Bounded independently by a mechanism fact rather than left to the numbers.** The criterion's
 premise is *"`DamageDealt` dispatch is on the hot path"*. It is not on any BENCHED path:
-`crates/engine/benches/engine_perf.rs` contains **two** damage-related occurrences and neither
-deals noncombat damage — `board_wipe_4p` is a `DestroyAll`, and `full_turn_4p`/`6p` walk *through*
+`crates/engine/benches/engine_perf.rs` contains **five** damage-related occurrences across four
+lines, and none deals noncombat damage — `board_wipe_4p` is a `DestroyAll`, and `full_turn_4p`/`6p` walk *through*
 the CombatDamage step with **no attackers declared**, so `assignments` is empty and the extracted
 loop does nothing. The new `GameEvent::DamageDealt` call site is off every benched path by
 construction, and the combat-arm change is an extraction of a loop that was already there.

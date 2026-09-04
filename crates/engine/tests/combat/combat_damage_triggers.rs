@@ -162,7 +162,7 @@ fn enchanted_creature_draw() -> TriggeredAbilityDef {
         trigger_on: TriggerEvent::EnchantedCreatureDealsCombatDamageToPlayer,
         intervening_if: None,
         description:
-            "Whenever enchanted creature deals damage to a player, draw a card. (CR 510.3a)"
+            "Whenever enchanted creature deals combat damage to a player, draw a card. (CR 510.3a)"
                 .to_string(),
         effect: Some(Effect::DrawCards {
             player: PlayerTarget::Controller,

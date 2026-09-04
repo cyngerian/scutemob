@@ -46,7 +46,8 @@ pub fn card() -> CardDefinition {
             "Blocked: (a) no effect puts a filtered (Goblin creature) card from hand onto the \
              battlefield — Effect::PutLandFromHandOntoBattlefield is land-only; (b) 'you may' is \
              inexpressible (Effect::Choose always takes the first option, effects/mod.rs:3190). \
-             Trigger currently resolves to Effect::Nothing.",
+             No triggered ability is declared at all while (a) stands — see the comment above \
+             `abilities`.",
         ),
         ..Default::default()
     }

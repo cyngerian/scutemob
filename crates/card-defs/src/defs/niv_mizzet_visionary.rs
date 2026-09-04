@@ -12,7 +12,7 @@
 // name TWO gaps and one of them is now closed. The variable amount IS expressible —
 // `EffectAmount::DamageDealt` (CR 608.2h/113.7a) reads the triggering damage event's amount,
 // which is exactly "that many". What survives is the trigger condition, and
-// `TriggerCondition::WhenDealsDamage` is not expressible for it — no such variant exists.
+// `TriggerCondition::WhenDealsDamage` is not expressible for it — no SUITABLE variant exists.
 // It fails on two axes: its subject is THIS permanent, not "a source YOU CONTROL", and it
 // is damage-kind agnostic where this card wants NONcombat damage only. `OOS-DX36-3`.
 use crate::cards::helpers::*;

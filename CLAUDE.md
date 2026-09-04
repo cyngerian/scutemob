@@ -291,7 +291,10 @@
   Coverage **1,138 → 1,139 / 1,803 = 63.2%** by regeneration, **ONE flip, NAMED before any code**
   (`exalted_angel` `partial` → `Complete`); exactly **one** `Completeness` marker line moves in the
   whole card-def diff, checked by `git diff` over the marker rather than inferred from the count.
-  **6 card-def files edited.** `CORPUS_COMPLETE` 1138 → **1139**, with `COMMANDER_POOL`
+  **8 card-def files edited** — and the first draft of this line said **6**, transcribed from the
+  stage-0 §0.4 prediction list rather than re-taken from the diff after `tandem_lookout` and
+  `niv_mizzet_visionary` were narrowed. PB-DX28's re-take MEDIUM, caught by this batch's own
+  `/review`. `CORPUS_COMPLETE` 1138 → **1139**, with `COMMANDER_POOL`
   **re-measured by executing the gate and found UNCHANGED at 90** — measured, not reasoned from
   "an Angel is not Legendary".
   `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
@@ -1305,12 +1308,18 @@
   and RED under an executed revert that duplicates the combat-arm call.
   **THE TASK BRIEF'S CR CITE IS WRONG AND WAS NOT OBEYED.** It cites **CR 603.10a** for *"that
   much"*, and repeats it inside acceptance criterion 7333. CR 603.10a is *look-back-in-time
-  **zone-change** triggers* — verbatim, and it says nothing about a damage amount. All 13 cites this
-  batch introduced ship against **CR 603.2c** and **CR 608.2h / CR 113.7a**; the tree's pre-existing
+  **zone-change** triggers* — verbatim, and it says nothing about a damage amount. The **13 cites
+  that would otherwise have said CR 603.10a** ship against **CR 603.2c** and **CR 608.2h /
+  CR 113.7a** instead. (The first draft of this sentence said *"all 13 cites this batch
+  introduced"*, which is false as written — the batch introduces ~110 CR cites in all; the
+  `/review` counted them.) The tree's pre-existing
   (and correct) 603.10a LKI cites were not touched. **A brief is a claim like any other**, and
   obeying this one would have put 13 wrong cites in the tree under an AC that read as satisfied.
-  **THE MEMBER LIST WAS A FLOOR BY 5×, AND THE EXTRA MEMBER NOBODY NAMES IS A *GRANTED* ABILITY.**
-  The brief names two still-blocked self-family defs; the `all_cards()` walk finds **ten**.
+  **THE MEMBER LIST WAS A FLOOR TWICE OVER, AND THE EXTRA MEMBER IS A *GRANTED* ABILITY.**
+  The task brief names **one** self-family def (`exalted_angel`) — queried directly, not assumed;
+  `goblin_lackey`, `warren_instigator` and `tandem_lookout` all came from this batch's own stage-0
+  inverse oracle scan, and the `all_cards()` roster then corrected **that** to ten still blocked.
+  *An inherited member list is a floor; so is the one you derived yourself an hour earlier.*
   `tandem_lookout` grants *"Whenever this creature deals damage to an opponent, draw a card"*
   through Soulbond — structurally invisible to a per-def ability-list walk, because it declares zero
   triggered abilities of its own. **Two blocker notes this batch FALSIFIES were repaired in place**

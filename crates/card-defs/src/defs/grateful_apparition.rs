@@ -42,11 +42,17 @@ pub fn card() -> CardDefinition {
         // planeswalker never proliferates. The def's own stored `oracle_text` says "or
         // planeswalker", so it already contradicted its own encoding.
         //
-        // Not expressible today: `TriggerCondition` has a self "deals combat damage to a
-        // player" variant and an EQUIPPED-creature "deals combat damage (any recipient)"
-        // variant (`WhenEquippedCreatureDealsCombatDamage`), but no self any-recipient
-        // variant. Adding one is an engine + wire change, out of scope for this
-        // card-def-only batch.
+        // Not expressible today, and NARROWED by PB-DX36 (`OOS-CARDS2-6`), which shipped a
+        // self any-recipient variant — `TriggerCondition::WhenDealsDamage { recipient }`.
+        // That variant does NOT serve this card, and the reason is the direction of the
+        // mismatch: it is too WIDE on the axis this card is narrow. `WhenDealsDamage` fires
+        // on ANY damage, so it would also fire on NONcombat damage and on damage to a
+        // creature, where the printed text is "deals COMBAT damage to a player or
+        // planeswalker". What is still missing is a self, COMBAT-ONLY, any-recipient
+        // variant — the exact analogue of `WhenEquippedCreatureDealsCombatDamage` one
+        // subject over. PB-DX36 deliberately gave `WhenDealsDamage` no `combat_only` flag
+        // (a second unread flag is the defect that batch closed), so this needs its own
+        // variant rather than a field.
         completeness: Completeness::partial(
             "Printed 'deals combat damage to a player or planeswalker'; \
              TriggerCondition::WhenDealsCombatDamageToPlayer fires only on damage to a player \
