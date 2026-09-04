@@ -555,3 +555,143 @@ batch's.
 No gate outside this list fired. `cargo clippy --workspace --all-targets -- -D warnings`,
 `cargo build --workspace`, and `tools/check-defs-fmt.sh` (1,803 defs) all clean against the FINAL
 tree.
+
+---
+
+## §C — Coordinator close-out (post-code; §0 above is the pre-code prediction and stays as written)
+
+### C1. The delta, byte-exact — and the one thing the byte-exact method could not see
+
+Both logs taken with `--workspace --no-fail-fast` to a file, never piped to `tail`. Set difference
+computed in Python over the exact `^test (.+?) \.\.\. (ok|ignored)` capture — **never `sort` +
+`comm`**, which fabricates a removal under a UTF-8 locale (`OOS-DX20b-5`, obeyed rather than
+re-learned).
+
+```
+baseline  5,058 / 0 / 5   61 result-producing targets
+final     5,091 / 0 / 5   63 result-producing targets   (+2 binaries)
+delta     33 additions / 0 leavers / 0 removals / 0 renames
+```
+
+**The first run of that delta reported 32 additions against a count delta of 33, and the
+discrepancy is the finding.** Half B's bot-path channel probe was named
+`c3_the_bot_path_is_offered_and_answers_the_same_action`, which
+`crates/simulator/tests/pb_dx45_optional_cost_channel.rs:293` already used. `tests/` compiles one
+binary per file, so both compiled and both ran — legal Rust, and a real measurement defect: a set
+difference over test NAMES collapses the pair. Renamed
+(`c3_dx35_the_bot_path_is_offered_and_answers_the_same_choose_object`), after which the two figures
+reconcile. **The check that separates them costs one line — compare the name-set delta against the
+`passed + ignored` delta — and nothing in the tree enforces it.** Filed as `OOS-DX35-8`.
+
+The 33: 8 in `primitives::pb_dx35_modal_trigger_targets`, 8 in
+`core::pb_dx35_modal_trigger_roster` (r1-r7 + `t_census_report`), 1 internal unit test in
+`rules::abilities` (t9 — site 3 is a bare private `fn`, unreachable from an integration test, which
+is disclosed in both files), 1 in `simulator::pb_dx35_modal_trigger_channel`, 9 in
+`primitives::pb_dx35_optional_placement`, 3 in `simulator::pb_dx35_optional_placement_channel`,
+3 HTTP probes in `tools/play-server/src/main.rs`. The five in
+`core::pb_dx35_optional_placement_roster` were added after this delta was taken and are counted in
+the final figure.
+
+### C2. Line counts, measured
+
+| area | +/− |
+|---|---|
+| `crates/engine/src` | **+722 / −356** (`rules/abilities.rs` +636/−337, `effects/mod.rs` +62/−12, `rules/resolution.rs` +13/−3, `testing/replay_harness.rs` +11/−4) |
+| `crates/card-types/src` | +6 / −2 |
+| `crates/card-defs` | +212 / −100 (12 defs; **3 re-shaped, 9 comment-only**) |
+| `crates/simulator/src` | +51 / −13 |
+| **`crates/view-model`** | **0 / 0** |
+| `tools/` | +385 / −9 — `play-server/src/main.rs` **+366 / −0, entirely inside `#[cfg(test)]`**, plus 6 doc-comment lines in `view.rs` and 4 in `tui/play/app.rs` |
+
+`rules/abilities.rs`'s figure is inflated by a `cargo fmt` reflow of the shortened target-derivation
+chain: `git diff -w` gives **+460 / −161**, and the difference is stated rather than left to look
+like 600 lines of new logic.
+
+**`npm run build` was NOT run and that is stated rather than omitted**: it is N/A here, because
+`git diff main..HEAD --numstat -- tools/play-server/frontend` is **EMPTY** and `node_modules` is
+absent from this worktree. `tools/` is **not** zero, and a first draft of this line would have
+implied it was.
+
+### C3. `OOS-DP10-5`'s own sweep, EXECUTED — the table
+
+Nine batches inherited the instruction *"Sweep for others not yet found"* without running it.
+Method: every `field: _` discard in an `Effect` / `EffectAmount` / `AbilityDefinition` destructure
+across `crates/engine/src/effects/` and `crates/engine/src/rules/`, **each one READ** to decide
+whether the value is consumed anywhere else — because a discard at one site is not a defect if
+another site consumes it.
+
+| site | field | verdict |
+|---|---|---|
+| `effects/mod.rs:6607` | `LookAtTopThenPlace.optional` | the seed itself — **CLOSED by this batch** |
+| `effects/mod.rs:4195` | `SearchLibrary.reveal` | the sibling the row already names (`OOS-DP9-9`) — still open, untouched |
+| `effects/mod.rs:4987` | **`CounterUnlessPays.cost`** | **NEW, REAL, and the largest.** Delegates to `Effect::CounterSpell` and drops the cost, so CR 118.12a's *"unless its controller pays"* is never offered. Its in-source justification — *"the payer never has an incentive to voluntarily tax themselves without interactive choice"* — is **false on its face**: the payer is the OPPONENT whose spell is on the stack. Population **7, all `Complete` by derive, all deck-legal**. Filed `OOS-DX35-3` |
+| `effects/mod.rs:9001` | `EffectAmount::CardCount.player` | not a defect — `zone: ZoneTarget` already carries the owner, so the field is redundant rather than dropped. Recorded, not filed |
+| `rules/replacement.rs:2812` | `Replacement.unless_condition` | **checked and CLEAN** — the value IS consumed, at `replacement.rs:2044-2049`; `:2812` is the registration loop. **This is the row that proves the sweep read each discard rather than counting them** |
+| `rules/layers.rs:1726-1737` | 12 `Characteristics` fields | not a defect — a deliberate exhaustive destructure (PB-DX43's `clear_all_abilities`, written so a new field is a compile error) |
+
+### C4. The seed-ID collision, and why it is recorded rather than tidied away
+
+PB-DX35 ran its two halves as two delegated implementations. **Both independently allocated
+`OOS-DX35-1`** — Half A for the index-space defect, Half B for the `RevealAndRoute` residual — and
+neither could see the other, because a seed ID is allocated against a registry neither had written
+to yet. Found at close-out by grepping the ID rather than by trusting either report (dispatch
+hygiene 5: the registry is ground truth).
+
+Resolved by giving the number to the **majority-cited** meaning: the index-space defect carries 12
+in-source cites, the `RevealAndRoute` residual carries 1. The latter became `-2` and its single
+cite in `decision_site_walk.rs` was repointed in the same commit — `OOS-M11-10`'s renumbering
+orphaned 30 in-source cites under a note asserting it had not, and letting the majority keep the
+number is the cheap way not to repeat that.
+
+### C5. The census corrected TWO of this document's own figures
+
+`core::pb_dx35_optional_placement_roster::t_census_report` was written to satisfy the criterion's
+*"PRINTED by a test"*, and its first run refuted two figures the coordinator had already committed
+to the registry:
+
+1. The corpus-wide "you may" population was published as **213 / 90**. The true figures are
+   **365 / 165**. The 213 came from a throwaway Python script whose `oracle_text` extractor did not
+   join Rust's `\`-newline line continuations, so it silently truncated every multi-line oracle
+   string. Both registry rows corrected.
+2. The pinned MDFC's def NAME is `Turntimber Symbiosis // Turntimber, Serpentine Wood`, not the
+   file stem `turntimber_symbiosis`. A list pinned from file names is not a list pinned from
+   `all_cards()`.
+
+**PB-DX8's rule — publish the figure, do not transcribe it — caught its own author.** Every Half B
+population figure in this document and in CLAUDE.md is now read off that test's output.
+
+The oracle axis is a **conjunction**, not a needle, and the reason is measured rather than argued:
+the naive `"you may put"` returns **29** defs, of which **18** are the unrelated *"you may put a
+land card **from your hand** onto the battlefield"* landfall family. Two independent derivations
+(a throwaway script over the def files, and the test over `all_cards()`) returned the same
+**5 carriers + 11 inverse members**; the agreement is the evidence, not either run alone.
+
+### C6. Revert matrix — `core::pb_dx35_optional_placement_roster` (added at close-out)
+
+All executed, each reddening **exactly one** gate, tree restored green afterwards. The Half A and
+Half B matrices are in §A/§B and in the implementers' own test docs.
+
+| row | revert | reddens |
+|---|---|---|
+| V1 | drop `"Risen Reef"` from `CARRIERS` | `b1` only |
+| V2 | plant `optional: false` on `risen_reef.rs` (a REAL def, not a fixture) | `b2` only |
+| V3 | drop `"Six"` from `INVERSE_MEMBERS` | `b3` only |
+| V4 | lower `MAX_YOU_MAY_DEFS` 400 → 300 | `b4` only |
+| V5 | blind the axis's look-verb list (`b3`'s non-vacuity floor) | `b3` only |
+
+V5 is the row worth reading: it proves the floor is load-bearing rather than decorative. Without
+it, an axis that stopped recognising the printed shape would report **0** inverse members and
+`b3` would fail on the pin — but for the wrong reason, and a future author "fixing" it by emptying
+`INVERSE_MEMBERS` would ship a gate that measures nothing. The floor asserts the axis still finds
+all **5** defs that DO use the primitive, which is what makes the inverse count meaningful.
+
+### C7. Fuzz — NOT A/B'd, and the reason is attribution, not effort
+
+`shambling_ghast` `partial` → `Complete` moves `CORPUS_COMPLETE` **1,137 → 1,138**, which re-deals
+every seeded fuzz game. A merge-base fuzz A/B across that boundary measures trajectory
+reindexing, not this batch — `OOS-DX21-6`'s lesson, which PB-DX51 spent a third ablation run
+proving. What was done instead: `simulator::pb_dx32_fuzz_output`'s gate config was **re-observed by
+execution**, and `COMMANDER_POOL` was **re-measured and found UNCHANGED at 90** rather than
+reasoned about (`Shambling Ghast` is a Creature but not `SuperType::Legendary`, so it was never a
+commander candidate). The T6.3 served-row partition moved and was re-observed, gaining the new
+`look_at_top_then_place_optional` row — an improvement, and attributed.
