@@ -74,20 +74,15 @@ pub fn handle_declare_attackers(
     if state.combat.as_ref().is_some_and(|c| c.attackers_declared) {
         return Err(GameStateError::AlreadyDeclaredAttackers(player));
     }
-    // Initialize CombatState if not already set (may be set by BeginningOfCombat action).
-    //
-    // Review finding L2 (pre-existing, not introduced by PB-DX21): only the
-    // guard immediately above this comment avoids installing a `CombatState`
-    // as a side effect of a rejected command -- every OTHER rejection in this
-    // function (illegal attacker, tax, enlist, exert, below) runs AFTER this
-    // init, so a non-guard rejection still installs a fresh `CombatState`.
-    // Invisible through `process_command` (which drops the moved `GameState`
-    // on `Err`); visible to a direct-handler caller like this file's own T6.
-    // Note only, per the review -- moving this init below the validation loop
-    // is left to a successor batch.
-    if state.combat.is_none() {
-        state.combat = Some(CombatState::new(player));
-    }
+    // (PB-DX51, `OOS-DX21-5`: the `CombatState` init that used to stand here has
+    // moved BELOW the last `return Err` in this function -- see the block just above
+    // `let mut events`. Nothing between here and there reads `state.combat` in a way
+    // that distinguishes `None` from a fresh empty `CombatState`: the only reads on
+    // this path are `calculate_characteristics`' attacking/blocking membership probes,
+    // and `state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(..))` is
+    // `false` for both. In a real game the branch never fires at all, because
+    // `turn_actions::begin_combat` already installed a `CombatState` at
+    // `BeginningOfCombat`; it exists for fixtures that enter the step directly.)
     // Validate each attacker and collect vigilance flags for the tapping loop below.
     // MR-M6-12: capture has_vigilance here to avoid a second calculate_characteristics
     //           call in the tapping loop.
@@ -686,6 +681,24 @@ pub fn handle_declare_attackers(
             exert_ids_used.push(*exerted_id);
         }
     }
+    // Initialize CombatState if not already set (may be set by BeginningOfCombat action).
+    //
+    // PB-DX51 (`OOS-DX21-5`, PB-DX21 review finding L2): this init used to run near the
+    // top of the function, immediately after the CR 508.1 once-per-combat guard and
+    // BEFORE the per-attacker validation loop, so a declaration refused for an illegal
+    // attacker, an unmet CR 508.1c/d restriction, a bad enlist/exert choice or an
+    // unaffordable CR 508.1h tax still left a fresh `CombatState` behind. It now stands
+    // below EVERY `return Err` in this function, so a refused declaration leaves
+    // `state.combat` exactly as it found it (CR 732: "the game returns to the moment
+    // before the declaration"). Every line below this point is infallible.
+    //
+    // Behaviour-preserving and invisible through `process_command`, whose `Err` arm
+    // carries no `GameState` and therefore discards every mutation by ownership
+    // (`OOS-DX21-7`) -- so the pin is a DIRECT-handler probe, which is the only idiom
+    // that can see it (`pb_dx51_combat_state_install::x1`).
+    if state.combat.is_none() {
+        state.combat = Some(CombatState::new(player));
+    }
     let mut events = Vec::new();
     // Tap non-Vigilance attackers (CR 508.1f).
     // Uses pre-computed vigilance flags to avoid a redundant calculate_characteristics call.
@@ -770,7 +783,12 @@ pub fn handle_declare_attackers(
     // Record attackers in combat state.
     if let Some(combat) = state.combat.as_mut() {
         for (attacker_id, target) in &attackers {
-            combat.attackers.insert(*attacker_id, target.clone());
+            // CR 508.1 / CR 508.8 (PB-DX51): the single mutator, which also sets
+            // `had_attackers`. An EMPTY declaration never enters this loop, so the
+            // marker stays clear and CR 508.8's skip still fires -- CR 508.1a's
+            // "if any" makes the empty choice a completed declaration for
+            // `attackers_declared` below and a non-declaration for CR 508.8.
+            combat.add_attacker(*attacker_id, target.clone());
         }
         // CR 508.1 / 508.1a / 508.8 (PB-DX21): the turn-based action has now been
         // performed. Set on the SUCCESS path only -- every `return Err` above leaves

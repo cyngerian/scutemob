@@ -1310,9 +1310,17 @@ impl LegalActionProvider for StubProvider {
         }
 
         // Declare blockers: untapped creatures during DeclareBlockers step
+        //
+        // CR 509.1a (PB-DX51, `OOS-DX21-2`, SR-38): each defending player declares
+        // blockers exactly once. `combat.rs::handle_declare_blockers` rejects a second
+        // declaration with `GameStateError::AlreadyDeclaredBlockers`, so the offer must
+        // not survive past this player's first accepted declaration -- an action the
+        // engine will refuse is never offered. This is the CR 509.1a twin of the
+        // attacker-side suppression above (PB-DX21, `OOS-M11-9`), written as ONE
+        // condition on the offer for the same reason.
         if state.turn().step == Step::DeclareBlockers && stack_empty {
             if let Some(ref combat) = state.combat() {
-                if !combat.attackers.is_empty() {
+                if !combat.attackers.is_empty() && !combat.defenders_declared.contains(&player) {
                     let mut eligible = Vec::new();
                     let mut attacker_ids: Vec<ObjectId> = Vec::new();
 

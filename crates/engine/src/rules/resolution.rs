@@ -6170,7 +6170,9 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                     // as attackers, so "whenever a creature attacks" triggers do NOT fire
                     // on them (including the token's own myriad ability).
                     if let Some(combat) = state.combat.as_mut() {
-                        combat.attackers.insert(
+                        // CR 508.4 / CR 508.8 (PB-DX51): single mutator; marks
+                        // `had_attackers`.
+                        combat.add_attacker(
                             token_id,
                             crate::state::combat::AttackTarget::Player(opponent_id),
                         );
@@ -6647,7 +6649,9 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                 //    (AttackersDeclared is NOT emitted -- SelfAttacks triggers don't fire.)
                 if target_valid && combat_active {
                     if let Some(combat) = state.combat.as_mut() {
-                        combat.attackers.insert(new_id, attack_target.clone());
+                        // CR 508.4 / CR 508.8 (PB-DX51): single mutator; marks
+                        // `had_attackers`.
+                        combat.add_attacker(new_id, attack_target.clone());
                     }
                 }
                 // If target_valid is false (CR 508.4a), ninja enters tapped but is NOT

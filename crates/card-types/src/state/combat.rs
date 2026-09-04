@@ -92,6 +92,49 @@ pub struct CombatState {
     /// declaration (`OOS-DX21-4`).
     #[serde(default)]
     pub attackers_declared: bool,
+    /// CR 508.8 (PB-DX51, `OOS-DX21-4`): whether any creature has been **declared as
+    /// an attacker** (CR 508.1) **or put onto the battlefield attacking** (CR 508.4)
+    /// during this combat phase.
+    ///
+    /// CR 508.8 reads verbatim: *"If no creatures are declared as attackers or put
+    /// onto the battlefield attacking, skip the declare blockers and combat damage
+    /// steps."* That predicate is a **historical** fact about two events, not a
+    /// question about what is in combat now -- which is exactly why
+    /// `rules::turn_structure::advance_step` must not decide the skip from
+    /// `attackers.is_empty()` alone. CR 506.4 removes a creature from combat when it
+    /// leaves the battlefield, phases out, changes controller or stops being a
+    /// creature, so an instant-speed answer to a lone attacker empties `attackers`
+    /// while the declare-attackers step is still open; before PB-DX51 the engine then
+    /// skipped declare-blockers and combat-damage in a combat where creatures **were**
+    /// declared, taking every other creature's block, every later CR 508.4 entrant and
+    /// the whole of CR 510 with it.
+    ///
+    /// **Monotone: set `true`, never cleared.** That is the fix. `remove_from_combat`
+    /// (CR 506.4) deliberately does not unset it.
+    ///
+    /// **This is NOT `attackers_declared`, and the two must not be merged.** CR 508.1a's
+    /// *"if any"* makes an **empty** declaration a completed declaration, so
+    /// `attackers_declared` is `true` for it while CR 508.8 still demands the skip;
+    /// conversely a CR 508.4 entrant sets this marker while never setting
+    /// `attackers_declared`, because CR 508.4 says such creatures *"never attacked"*.
+    /// Neither field is derivable from the other.
+    ///
+    /// Maintained by exactly one mutator, [`CombatState::add_attacker`] -- the only
+    /// place in production that writes `attackers` -- so a sixth entry site cannot
+    /// forget it. `crates/engine/tests/core/pb_dx51_attacker_entry_roster.rs` (`r1`)
+    /// is the gate.
+    ///
+    /// Per **combat phase**, not per turn: `CombatState` is dropped at `EndOfCombat`
+    /// and rebuilt `false` at the next `BeginningOfCombat` (CR 500.8 / 506.5), so an
+    /// extra combat phase gets its own answer -- the same scoping as
+    /// `attackers_declared` above.
+    ///
+    /// `#[serde(default)]`: an older serialized `CombatState` deserialises as `false`,
+    /// i.e. *"nothing was declared"*, which is lossy in the **skip-happy** direction
+    /// for a snapshot resumed mid-combat. Same class as `OOS-DX21-3`; filed as
+    /// `OOS-DX51-1`.
+    #[serde(default)]
+    pub had_attackers: bool,
     /// Defending players who have already declared blockers this step.
     /// In multiplayer, each defending player declares independently (CR 509.1).
     pub defenders_declared: OrdSet<PlayerId>,
@@ -137,6 +180,7 @@ impl CombatState {
             damage_assignment_order: OrdMap::new(),
             first_strike_participants: OrdSet::new(),
             attackers_declared: false,
+            had_attackers: false,
             defenders_declared: OrdSet::new(),
             forced_blocks: OrdMap::new(),
             enlist_pairings: Vec::new(),
@@ -168,6 +212,31 @@ impl CombatState {
     pub fn is_blocked(&self, attacker: ObjectId) -> bool {
         self.blocked_attackers.contains(&attacker)
     }
+    /// CR 508.1 / CR 508.4 (PB-DX51, `OOS-DX21-4`): the **only** production path that
+    /// puts a creature into `attackers`.
+    ///
+    /// Both routes into combat go through here -- the CR 508.1 declaration loop in
+    /// `rules::combat::handle_declare_attackers`, and each of the four CR 508.4
+    /// "put onto the battlefield attacking" sites (`effects::mod`'s two token paths,
+    /// `resolution`'s Myriad CR 702.116a and Ninjutsu CR 702.49a paths). Writing them
+    /// as one mutator is what makes CR 508.8's `had_attackers` marker impossible to
+    /// forget at a fifth site; `pb_dx51_attacker_entry_roster::r1` fails if any
+    /// production file spells `.attackers.insert(` outside this method.
+    ///
+    /// **An EMPTY declaration needs no special case, and that is why one mutator
+    /// serves both CR rules**: a declaration of zero attackers never enters its loop,
+    /// so `had_attackers` stays `false` and CR 508.8's skip still fires (CR 508.1a's
+    /// *"if any"*).
+    ///
+    /// Does **not** set `attackers_declared` -- that marks the CR 508.1 turn-based
+    /// action, which a CR 508.4 entrant never performs (CR 508.4: such creatures
+    /// *"never attacked"*). Its caller sets it.
+    pub fn add_attacker(&mut self, id: ObjectId, target: AttackTarget) {
+        self.attackers.insert(id, target);
+        // CR 508.8: monotone. Never cleared by CR 506.4 removal -- see the field doc.
+        self.had_attackers = true;
+    }
+
     /// PB-XA2: Returns `true` if `id` is currently declared as a blocker
     /// (CR 509.1c — `id` keys into `CombatState.blockers`).
     ///

@@ -38,12 +38,36 @@ pub const STEP_ORDER: &[Step] = &[
 /// queued entry is `Phase::Combat`, redirects to `BeginningOfCombat` (for effects
 /// that say "after this main phase, there is an additional combat phase").
 pub fn advance_step(state: &GameState) -> Option<(TurnState, Vec<GameEvent>)> {
-    // CR 508.8: If no creatures are declared as attackers, skip the declare
-    // blockers and combat damage steps and proceed to end of combat.
+    // CR 508.8, verbatim: "If no creatures are declared as attackers or put onto the
+    // battlefield attacking, skip the declare blockers and combat damage steps."
+    //
+    // PB-DX51 (`OOS-DX21-4`): that predicate is a HISTORICAL fact about two events --
+    // a CR 508.1 declaration and a CR 508.4 entry -- and NOT a question about what is
+    // in combat at step end. Until PB-DX51 this read `c.attackers.is_empty()` alone,
+    // so an instant-speed answer to a lone attacker (CR 506.4: leaves the battlefield,
+    // phases out, changes controller, stops being a creature) emptied the map while
+    // the step was still open and the engine skipped declare-blockers AND combat-damage
+    // in a combat where creatures WERE declared -- taking every other creature's block,
+    // every later CR 508.4 entrant, and the whole of CR 510 with it.
+    //
+    // `had_attackers` is the monotone marker `CombatState::add_attacker` sets on both
+    // routes. `!attackers_declared` would NOT do: CR 508.1a's "if any" makes an EMPTY
+    // declaration a completed one, and CR 508.8 still demands the skip for it.
+    //
+    // The `attackers.is_empty()` conjunct is retained deliberately and is CR-grounded
+    // in its own right: a creature sitting in `attackers` right now IS attacking, which
+    // CR 508.8 says is a reason not to skip. It can only ever PREVENT a skip, never
+    // cause one, so it cannot make this less CR-correct -- it is an observational
+    // fallback for the CR 508.4 half should a future entry site bypass the mutator, and
+    // it is what keeps every hand-built test fixture that writes `attackers` directly
+    // behaving exactly as before. It does NOT rescue the removed-attacker case, which
+    // is why `had_attackers` is load-bearing (revert row R2).
+    //
+    // `unwrap_or(true)`: no `CombatState` at all means nothing was ever declared.
     let no_attackers = state
         .combat
         .as_ref()
-        .map(|c| c.attackers.is_empty())
+        .map(|c| !c.had_attackers && c.attackers.is_empty())
         .unwrap_or(true);
     let mut turn = state.turn.clone();
     let mut events = Vec::new();
