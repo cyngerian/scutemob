@@ -2215,11 +2215,21 @@ fn execute_effect_inner(
                         crate::rules::replacement::ZoneChangeAction::Redirect {
                             to: dest,
                             events: repl_events,
+                            shuffle_destination_after,
                             ..
                         } => {
                             events.extend(repl_events);
                             if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest)
                             {
+                                // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                // now that the object is IN the destination library. No-op unless the
+                                // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                                // consumer has to reason about whether it is reachable.
+                                state.finish_redirect_shuffle(
+                                    shuffle_destination_after,
+                                    dest,
+                                    events,
+                                );
                                 match dest {
                                     ZoneId::Exile => {
                                         events.push(GameEvent::ObjectExiled {
@@ -2432,10 +2442,16 @@ fn execute_effect_inner(
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
                         events: repl_events,
+                        shuffle_destination_after,
                         ..
                     } => {
                         events.extend(repl_events);
                         if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest) {
+                            // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // now that the object is IN the destination library. No-op unless the
+                            // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                            // consumer has to reason about whether it is reachable.
+                            state.finish_redirect_shuffle(shuffle_destination_after, dest, events);
                             match dest {
                                 ZoneId::Exile => {
                                     events.push(GameEvent::ObjectExiled {
@@ -2637,12 +2653,22 @@ fn execute_effect_inner(
                             crate::rules::replacement::ZoneChangeAction::Redirect {
                                 to: dest,
                                 events: repl_events,
+                                shuffle_destination_after,
                                 ..
                             } => {
                                 events.extend(repl_events);
                                 if let Some((new_id, _old)) =
                                     state.fizzle_move_object_to_zone(id, dest)
                                 {
+                                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                    // now that the object is IN the destination library. No-op unless the
+                                    // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                                    // consumer has to reason about whether it is reachable.
+                                    state.finish_redirect_shuffle(
+                                        shuffle_destination_after,
+                                        dest,
+                                        events,
+                                    );
                                     match dest {
                                         ZoneId::Exile => {
                                             events.push(GameEvent::ObjectExiled {
@@ -2868,10 +2894,16 @@ fn execute_effect_inner(
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
                         events: repl_events,
+                        shuffle_destination_after,
                         ..
                     } => {
                         events.extend(repl_events);
                         if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest) {
+                            // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // now that the object is IN the destination library. No-op unless the
+                            // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                            // consumer has to reason about whether it is reachable.
+                            state.finish_redirect_shuffle(shuffle_destination_after, dest, events);
                             match dest {
                                 ZoneId::Command(_) => {
                                     // Commander redirected — no exile event.
@@ -3000,10 +3032,16 @@ fn execute_effect_inner(
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
                         events: repl_events,
+                        shuffle_destination_after,
                         ..
                     } => {
                         events.extend(repl_events);
                         if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest) {
+                            // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // now that the object is IN the destination library. No-op unless the
+                            // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                            // consumer has to reason about whether it is reachable.
+                            state.finish_redirect_shuffle(shuffle_destination_after, dest, events);
                             match dest {
                                 ZoneId::Command(_) => {
                                     // Commander redirected to command zone.
@@ -3113,12 +3151,22 @@ fn execute_effect_inner(
                             crate::rules::replacement::ZoneChangeAction::Redirect {
                                 to: dest,
                                 events: repl_events,
+                                shuffle_destination_after,
                                 ..
                             } => {
                                 events.extend(repl_events);
                                 if let Some((new_id, _old)) =
                                     state.fizzle_move_object_to_zone(id, dest)
                                 {
+                                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                                    // now that the object is IN the destination library. No-op unless the
+                                    // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                                    // consumer has to reason about whether it is reachable.
+                                    state.finish_redirect_shuffle(
+                                        shuffle_destination_after,
+                                        dest,
+                                        events,
+                                    );
                                     if let Some(idx) = idx_opt {
                                         ctx.target_remaps.insert(idx, new_id);
                                     }
@@ -7887,10 +7935,16 @@ fn execute_effect_inner(
                     crate::rules::replacement::ZoneChangeAction::Redirect {
                         to: dest,
                         events: repl_events,
+                        shuffle_destination_after,
                         ..
                     } => {
                         events.extend(repl_events);
                         if let Some((new_id, _old)) = state.expect_move_object_to_zone(id, dest) {
+                            // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                            // now that the object is IN the destination library. No-op unless the
+                            // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                            // consumer has to reason about whether it is reachable.
+                            state.finish_redirect_shuffle(shuffle_destination_after, dest, events);
                             match dest {
                                 ZoneId::Exile => {
                                     events.push(GameEvent::ObjectExiled {
@@ -9809,10 +9863,16 @@ fn sacrifice_permanents_for_player(
             crate::rules::replacement::ZoneChangeAction::Redirect {
                 to: dest,
                 events: repl_events,
+                shuffle_destination_after,
                 ..
             } => {
                 events.extend(repl_events);
                 if let Some((new_id, _old)) = state.expect_move_object_to_zone(id, dest) {
+                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // now that the object is IN the destination library. No-op unless the
+                    // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                    // consumer has to reason about whether it is reachable.
+                    state.finish_redirect_shuffle(shuffle_destination_after, dest, events);
                     // PB-EF10 (CR 608.2b/608.2h/608.2i): the zone move succeeded — this
                     // permanent WAS sacrificed (possibly redirected elsewhere by a
                     // replacement effect), so its LKI counts toward "if you do".

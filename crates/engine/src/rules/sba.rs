@@ -628,12 +628,18 @@ fn check_creature_sbas(
             replacement::ZoneChangeAction::Redirect {
                 to,
                 events: repl_events,
+                shuffle_destination_after,
                 ..
             } => {
                 // Single replacement auto-applied — redirect zone. `id` is live (Some arm
                 // above) and `to` is a builder-created zone, so the move cannot fail.
                 events.extend(repl_events);
                 if let Some((new_id, _)) = state.expect_move_object_to_zone(id, to) {
+                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // now that the object is IN the destination library. No-op unless the
+                    // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                    // consumer has to reason about whether it is reachable.
+                    state.finish_redirect_shuffle(shuffle_destination_after, to, &mut events);
                     // CR 708.9: Emit face-down reveal before the zone-change event.
                     if let Some(reveal) = face_down_reveal.clone() {
                         events.push(reveal);
@@ -772,11 +778,17 @@ fn check_planeswalker_sbas(
             replacement::ZoneChangeAction::Redirect {
                 to,
                 events: repl_events,
+                shuffle_destination_after,
                 ..
             } => {
                 // `id` is live (Some arm above) and `to` is a builder-created zone.
                 events.extend(repl_events);
                 if let Some((new_id, _)) = state.expect_move_object_to_zone(id, to) {
+                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // now that the object is IN the destination library. No-op unless the
+                    // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                    // consumer has to reason about whether it is reachable.
+                    state.finish_redirect_shuffle(shuffle_destination_after, to, &mut events);
                     match to {
                         ZoneId::Exile => {
                             events.push(GameEvent::ObjectExiled {

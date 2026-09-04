@@ -2254,10 +2254,16 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
             crate::rules::replacement::ZoneChangeAction::Redirect {
                 to,
                 events: repl_events,
+                shuffle_destination_after,
                 ..
             } => {
                 events.extend(repl_events);
                 if let Some((new_id, _old)) = state.expect_move_object_to_zone(obj_id, to) {
+                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // now that the object is IN the destination library. No-op unless the
+                    // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                    // consumer has to reason about whether it is reachable.
+                    state.finish_redirect_shuffle(shuffle_destination_after, to, &mut events);
                     match to {
                         crate::state::zone::ZoneId::Exile => {
                             events.push(GameEvent::ObjectExiled {
@@ -2370,10 +2376,16 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
             crate::rules::replacement::ZoneChangeAction::Redirect {
                 to,
                 events: repl_events,
+                shuffle_destination_after,
                 ..
             } => {
                 events.extend(repl_events);
                 if let Some((new_id, _old)) = state.expect_move_object_to_zone(obj_id, to) {
+                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // now that the object is IN the destination library. No-op unless the
+                    // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                    // consumer has to reason about whether it is reachable.
+                    state.finish_redirect_shuffle(shuffle_destination_after, to, &mut events);
                     match to {
                         crate::state::zone::ZoneId::Exile => {
                             events.push(GameEvent::ObjectExiled {

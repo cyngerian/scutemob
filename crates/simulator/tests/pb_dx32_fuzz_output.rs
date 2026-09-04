@@ -1020,6 +1020,26 @@ fn test_dx32_row_id_for_covers_every_observable_row() {
 /// reached/never-reached membership test over a much larger aggregate (10
 /// seeds), so a trajectory perturbation would have to flip EVERY seed's
 /// outcome for `surveil` specifically to move this partition, which none did.
+///
+/// **↻ RE-OBSERVED AND RE-PINNED by PB-DX18 (`scutemob-225`, `OOS-DP2-4`) — the
+/// partition MOVED, in the improving direction, and the move is attributed by an
+/// EXECUTED A/B rather than argued.** `surveil` is now REACHED, so the partition is
+/// `{"discard_cards", "scry", "search_library", "surveil", "triggered_targets"}` reached
+/// and `{"may_pay_then_effect"}` never reached — 5 of 6 served rows instead of 4 of 5
+/// (the row set itself grew when PB-DX45 added `may_pay_then_effect`).
+///
+/// **Cause, measured:** PB-DX18 replaced `rand::rngs::StdRng` + `Rng::random_range` with
+/// the in-tree `Zone::shuffle_pinned` (`OOS-DP2-4`), which permutes libraries differently
+/// for the same seed. Every in-game shuffle therefore deals a different sequence and the
+/// trajectories diverge. **A/B**: an isolated worktree at `e7dee121` — this batch's tree
+/// with the CR 601.2c rejection, the splice targets and the pregame/miracle gates all
+/// present but WITHOUT the PRNG pin — runs this test GREEN; the same test at
+/// `c1132e44` (that commit plus the PRNG pin alone) fails with `surveil` reached. Nothing
+/// else in the batch can reorder a library.
+///
+/// **This is a measurement, not a regression** (`OOS-DX21-6`), and the message below is
+/// obeyed rather than the seed range re-tuned: the finding is reported here, in the
+/// execution notes, and in the queue memo's row.
 #[test]
 fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     let mut combined = mtg_simulator::DecisionCoverage::default();
@@ -1037,19 +1057,22 @@ fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     eprintln!("T6.3 reached: {reached:?}");
     eprintln!("T6.3 never reached: {never_reached:?}");
 
+    // PB-DX18 (`OOS-DP2-4`): re-observed by execution after the PRNG pin, never predicted.
     let expected_reached: BTreeSet<&str> = [
         "triggered_targets",
         "search_library",
         "scry",
         "discard_cards",
+        "surveil",
     ]
     .into_iter()
     .collect();
     assert_eq!(
         reached, expected_reached,
         "the reached/never-reached partition of a 10-seed x 60-turn fuzz-shaped run \
-         changed from the measured baseline (4 of 5 served rows: triggered_targets, \
-         search_library, scry, discard_cards; surveil never reached at this budget). \
+         changed from the measured baseline (5 of 6 served rows: triggered_targets, \
+         search_library, scry, discard_cards, surveil; may_pay_then_effect never reached \
+         at this budget — re-observed by PB-DX18 after the OOS-DP2-4 PRNG pin). \
          Report this as a finding (does the engine now serve fewer/more decisions, or \
          did an unrelated change move which cards get drawn/cast) rather than \
          silently re-tuning the seed range to make it pass: reached {reached:?}, \

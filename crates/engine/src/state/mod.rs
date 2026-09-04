@@ -642,6 +642,48 @@ impl GameState {
         &self.combat
     }
 
+    /// CR 701.20 (PB-DX18, `OOS-DP2-7`) — discharge a
+    /// [`crate::rules::replacement::ZoneChangeAction::Redirect`]'s shuffle obligation,
+    /// **after** the object has been moved into `to`.
+    ///
+    /// Call this at every `Redirect` consumer, immediately after the move. It is a no-op
+    /// unless the redirect set `shuffle_destination_after`, so a site that can never
+    /// receive a `ShuffleIntoOwnerLibrary` pays nothing for calling it — which is the
+    /// point: the correct thing to do is unconditional, so no consumer has to reason
+    /// about whether it is reachable.
+    ///
+    /// Ordering is the whole fix. `check_zone_change_replacement` used to push
+    /// `GameEvent::LibraryShuffled` at the moment it decided on the redirect — before the
+    /// card had moved, from a function holding `&GameState` that could not shuffle at all.
+    /// The event was a lie and the card landed on the library **top** (`push_back`), so a
+    /// Darksteel Colossus that died came straight back off the top next turn. Shuffling
+    /// here means the redirected card is *in* the library being permuted.
+    pub(crate) fn finish_redirect_shuffle(
+        &mut self,
+        shuffle_destination_after: bool,
+        to: ZoneId,
+        events: &mut Vec<GameEvent>,
+    ) {
+        if !shuffle_destination_after {
+            return;
+        }
+        let ZoneId::Library(owner) = to else {
+            // Only `ReplacementModification::ShuffleIntoOwnerLibrary` sets the flag, and
+            // it forces `current_to = ZoneType::Library` in the same arm — so a non-library
+            // destination here is an engine bug, not player input (SR-4).
+            debug_assert!(
+                false,
+                "finish_redirect_shuffle: shuffle obligation on a non-library destination \
+                 {to:?} (CR 701.20)"
+            );
+            return;
+        };
+        self.shuffle_library_seeded(owner);
+        // Emitted HERE and nowhere else, so the event is true when a listener sees it
+        // (Architecture Invariant 4).
+        events.push(GameEvent::LibraryShuffled { player: owner });
+    }
+
     /// CR 103.3 / 701.20 — really shuffle `player`'s library, deterministically.
     ///
     /// **The one place in the engine that shuffles a library** (PB-DX18, `OOS-DP2-4`).

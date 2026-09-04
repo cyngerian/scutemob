@@ -15,11 +15,11 @@
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
-    all_cards, calculate_characteristics, check_and_apply_sbas, process_command, AttackTarget,
-    CardRegistry, CardType, Color, Command, CounterType, Effect, EffectDuration, EffectFilter,
-    EffectLayer, GameEvent, GameStateBuilder, KeywordAbility, LandwalkType, LayerModification,
-    LossReason, ManaColor, ManaCost, ObjectSpec, PlayerId, Step, SubType, SuperType, Target,
-    ZoneId,
+    all_cards, calculate_characteristics, check_and_apply_sbas, process_command, AbilityDefinition,
+    AttackTarget, CardDefinition, CardEffectTarget, CardId, CardRegistry, CardType, Color, Command,
+    CounterType, Effect, EffectDuration, EffectFilter, EffectLayer, GameEvent, GameStateBuilder,
+    KeywordAbility, LandwalkType, LayerModification, LossReason, ManaColor, ManaCost, ObjectSpec,
+    PlayerId, Step, SubType, SuperType, Target, TargetRequirement, TypeLine, ZoneId,
 };
 
 // ── Helper: find object ID by name ───────────────────────────────────────────
@@ -48,6 +48,37 @@ fn pass_all(
         all_events.extend(ev);
     }
     (current, all_events)
+}
+
+// ── Helper: minimal player-targeting instant def (PB-DX18, OOS-M11-5) ─────────
+//
+// `ObjectSpec::card()` is a naked object (see `memory/gotchas-infra.md`) -- without a
+// registered `CardDefinition`, `card_def_target_requirements` returns an empty
+// requirement list, and CR 601.2c now rejects a non-empty `targets` against that (a
+// spell can't be given a target it doesn't require). Any fixture in this file that
+// casts a spell targeting a player needs to be linked to a real minimal def.
+fn player_targeting_def(card_id: &str, name: &str) -> CardDefinition {
+    use mtg_engine::cards::card_definition::EffectAmount;
+    CardDefinition {
+        card_id: CardId(card_id.to_string()),
+        name: name.to_string(),
+        types: TypeLine {
+            card_types: [CardType::Instant].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: format!("{} deals 1 damage to target player.", name),
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::DealDamage {
+                source: None,
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                amount: EffectAmount::Fixed(1),
+            },
+            targets: vec![TargetRequirement::TargetPlayer],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    }
 }
 
 // ── CR 702.3: Defender ────────────────────────────────────────────────────────
@@ -604,16 +635,26 @@ fn test_702_11d_player_hexproof_allows_self_targeting() {
     let barricade = ObjectSpec::creature(p1, "Crystal Barricade", 0, 4)
         .with_keyword(KeywordAbility::HexproofPlayer);
 
+    let registry = CardRegistry::new(vec![player_targeting_def(
+        "healing-salve-hexproof-self",
+        "Healing Salve",
+    )]);
+
     let heal_spec = ObjectSpec::card(p1, "Healing Salve")
         .with_types(vec![CardType::Instant])
         .with_mana_cost(ManaCost {
             white: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("healing-salve-hexproof-self".to_string()));
 
     let state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
+        .with_registry(registry)
         .object(barricade)
         .object(heal_spec.in_zone(mtg_engine::ZoneId::Hand(p1)))
         .at_step(Step::PreCombatMain)
@@ -674,16 +715,26 @@ fn test_702_11d_player_hexproof_lost_when_source_leaves() {
         .with_keyword(KeywordAbility::HexproofPlayer)
         .in_zone(mtg_engine::ZoneId::Graveyard(p1));
 
+    let registry = CardRegistry::new(vec![player_targeting_def(
+        "lightning-bolt-hexproof-source-leaves",
+        "Lightning Bolt",
+    )]);
+
     let bolt_spec = ObjectSpec::card(p2, "Lightning Bolt")
         .with_types(vec![CardType::Instant])
         .with_mana_cost(ManaCost {
             red: 1,
             ..Default::default()
-        });
+        })
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("lightning-bolt-hexproof-source-leaves".to_string()));
 
     let state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
+        .with_registry(registry)
         .object(barricade)
         .object(bolt_spec.in_zone(mtg_engine::ZoneId::Hand(p2)))
         .at_step(Step::PreCombatMain)

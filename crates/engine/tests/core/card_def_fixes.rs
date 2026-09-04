@@ -1114,7 +1114,12 @@ fn test_darksteel_colossus_shuffles_into_library() {
     let registry = CardRegistry::new(all_cards());
 
     // Build state: Darksteel Colossus is on p1's battlefield.
-    let mut state = GameStateBuilder::new()
+    //
+    // PB-DX18 (`OOS-DP2-7`): p1's library is loaded with 30 distinct fillers. The library
+    // used to be EMPTY here, which is precisely why the phantom shuffle was invisible —
+    // with nothing to permute, "shuffled" and "put on top" are the same state, and the
+    // only assertion this test made was on the EVENT.
+    let mut builder = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
         .object(
@@ -1122,7 +1127,12 @@ fn test_darksteel_colossus_shuffles_into_library() {
                 .with_card_id(colossus_card_id)
                 .with_types(vec![CardType::Artifact, CardType::Creature])
                 .in_zone(ZoneId::Battlefield),
-        )
+        );
+    for i in 0..30 {
+        builder = builder
+            .object(ObjectSpec::card(p1, &format!("Filler {i}")).in_zone(ZoneId::Library(p1)));
+    }
+    let mut state = builder
         .at_step(Step::PreCombatMain)
         .active_player(p1)
         .with_registry(registry)
@@ -1161,23 +1171,36 @@ fn test_darksteel_colossus_shuffles_into_library() {
     );
 
     // The replacement must redirect to the library (not graveyard).
+    //
+    // PB-DX18 (`OOS-DP2-7`) REWROTE THE SECOND HALF OF THIS ASSERTION. It used to check
+    // that `LibraryShuffled` was among the action's own `events` — and that event was a
+    // PHANTOM: `check_zone_change_replacement` takes `&GameState`, never called
+    // `Zone::shuffle`, and the consumer then `push_back`ed the card onto the library
+    // **top**, so a Colossus that died was drawn again next turn. The old assertion was
+    // green throughout, because it asserted the event and never the library — which is
+    // exactly what the seed says ("the only test asserts the event's presence and never
+    // the library's contents").
+    //
+    // The event now comes from `GameState::finish_redirect_shuffle`, after the move, so
+    // it is no longer on the action; the action carries the OBLIGATION instead. The
+    // check below is therefore a POSITION assertion driven end-to-end, which is what the
+    // seed asks for.
     match &action {
-        ZoneChangeAction::Redirect { to, events, .. } => {
+        ZoneChangeAction::Redirect {
+            to,
+            shuffle_destination_after,
+            ..
+        } => {
             assert_eq!(
                 *to,
                 ZoneId::Library(p1),
                 "Darksteel Colossus replacement should redirect to Library(p1), got {:?}",
                 to
             );
-
-            // CR 701.20: A LibraryShuffled event must be in the emitted events.
-            let has_shuffle = events
-                .iter()
-                .any(|e| matches!(e, GameEvent::LibraryShuffled { player } if *player == p1));
             assert!(
-                has_shuffle,
-                "ShuffleIntoOwnerLibrary must emit LibraryShuffled for p1; events: {:?}",
-                events
+                *shuffle_destination_after,
+                "CR 701.20: the redirect must carry a real shuffle obligation, not a \
+                 phantom LibraryShuffled event"
             );
         }
         other => {
@@ -1187,4 +1210,69 @@ fn test_darksteel_colossus_shuffles_into_library() {
             );
         }
     }
+
+    // CR 701.20 — drive it, and assert the LIBRARY, not the event.
+    //
+    // The library is loaded with enough distinct cards that landing on top is
+    // overwhelmingly unlikely to happen by chance under a real shuffle: with 30 cards
+    // the pre-fix behaviour (top, always) and the post-fix behaviour agree with
+    // probability 1/31. The assertion is on POSITION, plus the multiset, plus the event.
+    let mut driven = state.clone();
+    let lib_before = driven.zone(&ZoneId::Library(p1)).unwrap().len();
+    assert_eq!(
+        lib_before, 30,
+        "the library must be non-trivial for a position assertion"
+    );
+    let mut events: Vec<GameEvent> = Vec::new();
+    let action = check_zone_change_replacement(
+        &driven,
+        colossus_id,
+        ZoneType::Battlefield,
+        ZoneType::Graveyard,
+        p1,
+        &std::collections::HashSet::new(),
+    );
+    let ZoneChangeAction::Redirect {
+        to,
+        events: repl_events,
+        shuffle_destination_after,
+        ..
+    } = action
+    else {
+        panic!("expected a Redirect");
+    };
+    events.extend(repl_events);
+    let (new_id, _) =
+        mtg_engine::state::test_util::move_object_to_zone(&mut driven, colossus_id, to)
+            .expect("the redirect move must succeed");
+    mtg_engine::state::test_util::finish_redirect_shuffle(
+        &mut driven,
+        shuffle_destination_after,
+        to,
+        &mut events,
+    );
+
+    let lib = driven.zone(&ZoneId::Library(p1)).unwrap().object_ids();
+    assert_eq!(
+        lib.len(),
+        lib_before + 1,
+        "the Colossus joined the library and nothing else moved"
+    );
+    let pos = lib
+        .iter()
+        .position(|id| *id == new_id)
+        .expect("the Colossus must be IN the library");
+    assert_ne!(
+        pos,
+        lib.len() - 1,
+        "CR 701.20: the redirected card must be SHUFFLED IN, not left on top of the \
+         library. Before PB-DX18 this was always the top card (push_back with no \
+         shuffle), so a Darksteel Colossus that died was drawn again next turn."
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::LibraryShuffled { player } if *player == p1)),
+        "the LibraryShuffled event is still emitted — from the site that really shuffles"
+    );
 }

@@ -1187,10 +1187,16 @@ fn handle_pay_echo(
             crate::rules::replacement::ZoneChangeAction::Redirect {
                 to: dest,
                 events: repl_events,
+                shuffle_destination_after,
                 ..
             } => {
                 events.extend(repl_events);
                 if let Ok((new_id, _old)) = state.move_object_to_zone(permanent, dest) {
+                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // now that the object is IN the destination library. No-op unless the
+                    // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                    // consumer has to reason about whether it is reachable.
+                    state.finish_redirect_shuffle(shuffle_destination_after, dest, &mut events);
                     match dest {
                         ZoneId::Exile => {
                             events.push(GameEvent::ObjectExiled {
@@ -1430,10 +1436,16 @@ fn handle_pay_cumulative_upkeep(
             crate::rules::replacement::ZoneChangeAction::Redirect {
                 to: dest,
                 events: repl_events,
+                shuffle_destination_after,
                 ..
             } => {
                 events.extend(repl_events);
                 if let Ok((new_id, _old)) = state.move_object_to_zone(permanent, dest) {
+                    // CR 701.20 (PB-DX18, `OOS-DP2-7`): discharge the redirect's shuffle obligation
+                    // now that the object is IN the destination library. No-op unless the
+                    // replacement was `ShuffleIntoOwnerLibrary`; called unconditionally so no
+                    // consumer has to reason about whether it is reachable.
+                    state.finish_redirect_shuffle(shuffle_destination_after, dest, &mut events);
                     match dest {
                         ZoneId::Exile => {
                             events.push(GameEvent::ObjectExiled {

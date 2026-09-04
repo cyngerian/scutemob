@@ -1515,11 +1515,18 @@ fn c2f_splice_is_charged_the_way_the_engine_charges_it() {
     let exact = build(exact_pool(&predicted));
     let card = id_of(&exact, "Reach Through Mists");
     let ray = id_of(&exact, "Glacial Ray");
+    // PB-DX18 (`OOS-M11-5`), CR 702.47a / 601.2c: a spliced spell requires the SPLICED
+    // CARD's targets too — *"copy this card's text box onto that spell"* — and Glacial
+    // Ray's text is "deals 2 damage to any target". This cast declared NO targets and was
+    // accepted before PB-DX18 only because `validate_targets_inner`'s empty-requirements
+    // arm waved a targetless announcement through; the spliced damage then resolved at
+    // nothing. The subject of this test is the COST, which is unchanged — the target is
+    // supplied so the cost assertion is not standing on a defect.
     let accepted = cast(
         exact,
         P1,
         card,
-        vec![],
+        vec![Target::Player(P2)],
         vec![],
         vec![AdditionalCost::Splice { cards: vec![ray] }],
     );
@@ -1532,11 +1539,15 @@ fn c2f_splice_is_charged_the_way_the_engine_charges_it() {
     let short = build(one_mana_short(&predicted));
     let card = id_of(&short, "Reach Through Mists");
     let ray = id_of(&short, "Glacial Ray");
+    // Same target as the accepted leg (PB-DX18): the two legs must differ in exactly the
+    // mana pool, or the refusal could be an InvalidTarget wearing an InsufficientMana
+    // label — and the assertion below tests the ERROR KIND, so a target-shaped refusal
+    // would fail loudly rather than pass by coincidence.
     let refused = cast(
         short,
         P1,
         card,
-        vec![],
+        vec![Target::Player(P2)],
         vec![],
         vec![AdditionalCost::Splice { cards: vec![ray] }],
     );

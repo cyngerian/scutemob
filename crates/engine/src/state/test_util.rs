@@ -95,6 +95,23 @@ pub fn move_object_to_zone(
     state.move_object_to_zone(object_id, to)
 }
 
+/// Escape hatch: discharge a
+/// [`crate::rules::replacement::ZoneChangeAction::Redirect`]'s CR 701.20 shuffle
+/// obligation (PB-DX18, `OOS-DP2-7`).
+///
+/// A test that drives a redirect by hand has to do what the ~21 production consumers do —
+/// move, then discharge — or it measures the pre-fix behaviour. The only in-tree caller is
+/// `core::card_def_fixes`'s Darksteel Colossus probe, whose whole subject is the LIBRARY
+/// POSITION the redirected card ends up in.
+pub fn finish_redirect_shuffle(
+    state: &mut GameState,
+    shuffle_destination_after: bool,
+    to: ZoneId,
+    events: &mut Vec<crate::rules::events::GameEvent>,
+) {
+    state.finish_redirect_shuffle(shuffle_destination_after, to, events);
+}
+
 /// Escape hatch: move an object to the bottom of a zone (library ordering).
 pub fn move_object_to_bottom_of_zone(
     state: &mut GameState,

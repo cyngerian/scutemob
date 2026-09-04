@@ -11,10 +11,73 @@ use mtg_engine::state::turn::Step;
 use mtg_engine::state::{
     CardType, Color, GameStateBuilder, ManaPool, ObjectSpec, PlayerId, Target, ZoneId,
 };
-use mtg_engine::{all_cards, CardRegistry, ObjectId};
+use mtg_engine::{
+    all_cards, AbilityDefinition, CardDefinition, CardId, CardRegistry, Effect, EffectAmount,
+    ObjectId, PlayerTarget, TargetRequirement, TypeLine,
+};
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
+}
+
+// PB-DX18 (OOS-M11-5): `ObjectSpec::card()` is a naked object (see
+// `memory/gotchas-infra.md`) -- without a registered `CardDefinition` linked via
+// `.with_card_id`, `card_def_target_requirements` returns an empty requirement list,
+// and CR 601.2c now rejects a non-empty `targets` against that. None of Terror, Mind
+// Rot, Thoughtseize or Coercion exist in `all_cards()`, so each gets a minimal local
+// def below. The effect is deliberately a no-op that never reads `CardEffectTarget::
+// DeclaredTarget` -- these fixtures exist to exercise cast-time validation and the
+// CR 608.2b fizzle machinery, never to resolve a real effect, and CR 608.2b's partial
+// fizzle path filters `stack_obj.targets` down to only the LEGAL ones without
+// re-indexing, so an index-based effect could read past the end of a shortened list.
+
+/// A minimal instant `CardDefinition` targeting a single creature.
+fn creature_removal_def(card_id: &str, name: &str) -> CardDefinition {
+    use mtg_engine::CardEffectTarget;
+    CardDefinition {
+        card_id: CardId(card_id.to_string()),
+        name: name.to_string(),
+        types: TypeLine {
+            card_types: [CardType::Instant].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: format!("Destroy target creature. ({name})"),
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::DestroyPermanent {
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                cant_be_regenerated: false,
+            },
+            targets: vec![TargetRequirement::TargetCreature],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    }
+}
+
+/// A minimal instant `CardDefinition` targeting `target_count` players, with a no-op
+/// resolution effect (gains 0 life) so partial fizzle can never index past a
+/// shortened legal-target list.
+fn multi_player_target_def(card_id: &str, name: &str, target_count: usize) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(card_id.to_string()),
+        name: name.to_string(),
+        types: TypeLine {
+            card_types: [CardType::Instant].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: format!("Target player(s) discard cards. ({name})"),
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(0),
+            },
+            targets: vec![TargetRequirement::TargetPlayer; target_count],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -26,14 +89,27 @@ fn p(n: u64) -> PlayerId {
 fn test_601_2c_targeting_active_player_is_valid() {
     let p1 = p(1);
     let p2 = p(2);
+
+    let bolt_def = all_cards()
+        .into_iter()
+        .find(|d| d.name == "Lightning Bolt")
+        .expect("Lightning Bolt must be in all_cards()");
+    let bolt_card_id = bolt_def.card_id.clone();
+    let registry = CardRegistry::new(vec![bolt_def]);
+
     let instant = ObjectSpec::card(p1, "Lightning Bolt")
         .with_types(vec![CardType::Instant])
-        .in_zone(ZoneId::Hand(p1));
+        .in_zone(ZoneId::Hand(p1))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(bolt_card_id);
 
     let state = GameStateBuilder::four_player()
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
+        .with_registry(registry)
         .build()
         .unwrap();
 
@@ -78,16 +154,22 @@ fn test_601_2c_targeting_active_player_is_valid() {
 /// CR 601.2c — targeting an object (creature on battlefield) is valid at cast time.
 fn test_601_2c_targeting_object_is_valid() {
     let p1 = p(1);
+    let registry = CardRegistry::new(vec![creature_removal_def("terror-targeting", "Terror")]);
     let creature = ObjectSpec::creature(p(2), "Target Creature", 2, 2);
     let instant = ObjectSpec::card(p1, "Terror")
         .with_types(vec![CardType::Instant])
-        .in_zone(ZoneId::Hand(p1));
+        .in_zone(ZoneId::Hand(p1))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("terror-targeting".to_string()));
 
     let state = GameStateBuilder::four_player()
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(creature)
         .object(instant)
+        .with_registry(registry)
         .build()
         .unwrap();
 
@@ -263,14 +345,24 @@ fn test_601_2c_targeting_eliminated_player_fails() {
 fn test_608_2b_fizzle_player_target_concedes() {
     let p1 = p(1);
     let p2 = p(2);
+    let registry = CardRegistry::new(vec![multi_player_target_def(
+        "mind-rot-fizzle-concedes",
+        "Mind Rot",
+        1,
+    )]);
     let instant = ObjectSpec::card(p1, "Mind Rot")
         .with_types(vec![CardType::Instant])
-        .in_zone(ZoneId::Hand(p1));
+        .in_zone(ZoneId::Hand(p1))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("mind-rot-fizzle-concedes".to_string()));
 
     let state = GameStateBuilder::four_player()
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
+        .with_registry(registry)
         .build()
         .unwrap();
 
@@ -344,14 +436,24 @@ fn test_608_2b_fizzle_player_target_concedes() {
 fn test_608_2b_fizzle_all_targets_illegal() {
     let p1 = p(1);
     let p2 = p(2);
+    let registry = CardRegistry::new(vec![multi_player_target_def(
+        "thoughtseize-fizzle-all-illegal",
+        "Thoughtseize",
+        1,
+    )]);
     let instant = ObjectSpec::card(p1, "Thoughtseize")
         .with_types(vec![CardType::Instant])
-        .in_zone(ZoneId::Hand(p1));
+        .in_zone(ZoneId::Hand(p1))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("thoughtseize-fizzle-all-illegal".to_string()));
 
     let state = GameStateBuilder::four_player()
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
+        .with_registry(registry)
         .build()
         .unwrap();
 
@@ -445,14 +547,24 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
     let p1 = p(1);
     let p2 = p(2);
     let p3 = p(3);
+    let registry = CardRegistry::new(vec![multi_player_target_def(
+        "coercion-partial-fizzle",
+        "Coercion",
+        2,
+    )]);
     let instant = ObjectSpec::card(p1, "Coercion") // targeting two players
         .with_types(vec![CardType::Instant])
-        .in_zone(ZoneId::Hand(p1));
+        .in_zone(ZoneId::Hand(p1))
+        // PB-DX18 (OOS-M11-5): ObjectSpec::card() is naked -- the def this fixture registers
+        // was never linked, so the spell announced a target while the engine believed it
+        // required none (CR 601.2c).
+        .with_card_id(CardId("coercion-partial-fizzle".to_string()));
 
     let state = GameStateBuilder::four_player()
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
+        .with_registry(registry)
         .build()
         .unwrap();
 

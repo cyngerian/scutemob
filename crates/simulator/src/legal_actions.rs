@@ -3079,8 +3079,39 @@ fn eligible_splice_cards(
                 return false;
             }
             def.abilities.iter().any(|a| match a {
-                AbilityDefinition::Splice { onto_subtype, .. } => {
-                    spell_subtypes.contains(onto_subtype)
+                AbilityDefinition::Splice {
+                    onto_subtype,
+                    targets,
+                    ..
+                } => {
+                    // PB-DX18 (`OOS-M11-5`), SR-38: a splice card that CONTRIBUTES TARGETS
+                    // is not offerable yet, and offering it is a clean offer followed by a
+                    // guaranteed refusal.
+                    //
+                    // CR 702.47a copies the spliced card's text box onto the spell, so the
+                    // spell requires that card's targets too — PB-DX18 made
+                    // `casting.rs` append them and validate them (before, they were
+                    // announced against an empty requirement list and validated for
+                    // existence only, so `glacial_ray`'s spliced "2 damage to any target"
+                    // resolved at NOTHING: a silent wrong outcome, not an error).
+                    //
+                    // The OFFER cannot express them. `queries::spell_target_requirements`
+                    // takes no splice argument, and it could not use one at render time
+                    // anyway: the human ticks splice cards in the `CostPicker` stage,
+                    // AFTER `action_target_requirements` has already rendered the target
+                    // slots. Fuse had the identical shape and PB-DX29 gated the offer
+                    // until PB-DX44 shipped the targets; this follows that precedent
+                    // rather than shipping a picker the engine will 422.
+                    //
+                    // The zero-target case — every splice card whose text targets nothing
+                    // — is UNAFFECTED and still offered, which is what keeps this a
+                    // narrowing rather than a removal.
+                    //
+                    // Corpus population of the gated case: **1** (`glacial_ray`), measured
+                    // by walking `all_cards()`. Filed as `OOS-DX18-1` with the channel it
+                    // needs (per-card target slots on `SpliceCostView`, the shape `modes`
+                    // already uses in `view.rs`).
+                    targets.is_empty() && spell_subtypes.contains(onto_subtype)
                 }
                 _ => false,
             })
