@@ -26,6 +26,9 @@ pub fn card() -> CardDefinition {
             // both GameEvent::CombatDamageDealt and GameEvent::DamageDealt via
             // rules/abilities.rs::queue_damage_source_triggers); recipient: Opponent
             // closes the "an opponent" approximation this ability used to carry.
+            // TODO: costless "you may draw a card" — see `curiosity`, same gap
+            // (`OOS-DX35-5`): no costless-optional effect exists in the DSL, so the draw
+            // is UNCONDITIONAL. The printed "an opponent" clause is no longer a deviation.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer {

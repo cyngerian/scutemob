@@ -23,6 +23,13 @@ pub fn card() -> CardDefinition {
             // both GameEvent::CombatDamageDealt and GameEvent::DamageDealt via
             // rules/abilities.rs::queue_damage_source_triggers); recipient: Opponent
             // closes the "an opponent" approximation this ability used to carry.
+            // TODO: costless "you may draw a card" — CR 603.3c optionality with NO cost
+            // attached. `Effect::MayPayThenEffect` requires a `Cost` and a free one always
+            // trivially pays (PB-DX35 rejected a `{0}` cost as dishonest); `MayPayOrElse`
+            // discards its cost (`OOS-DX48-2`); `Effect::Choose` is non-interactive. The
+            // draw is therefore UNCONDITIONAL here. Tracked corpus-wide as `OOS-DX35-5`.
+            // The printed "an opponent" clause is NO LONGER a deviation — PB-DX36 shipped
+            // `DamageRecipient::Opponent` and it is declared below.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer {
