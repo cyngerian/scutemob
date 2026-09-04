@@ -1241,3 +1241,148 @@ fn t9_object_and_stack_object_ids_do_not_collapse() {
         ability_candidates[0]
     );
 }
+
+// ── T10: CR 702.16b protection survives an ability-shaped redirect ───────────
+
+/// CR 702.16b / CR 113.7 / CR 115.7a (`OOS-DX25c-3`) -- **the probe that makes this
+/// batch's own near-miss a red test rather than a paragraph.**
+///
+/// PB-DX52 is what makes an ability a reachable `Effect::ChangeTargets` victim, and
+/// `rules::retarget::plan_target_change` derives the victim's `source_chars` -- the
+/// characteristics CR 702.16b's protection check reads -- from a `stack_registry` helper.
+/// Until this batch that helper was `card_in_stack_zone`, which returns `None` for every
+/// ability kind because an ability on the stack owns no card. With `None`,
+/// `validate_target_protection` has no source to compare a protection quality against and
+/// **every protection check silently passes**, so Bolt Bend could have redirected a RED
+/// ability onto a creature with protection from red. PB-DX52 changes that read to
+/// `stack_registry::source_of` (CR 113.7: *"The source of an ability is the object that
+/// generated it"*), which for an ability is its source permanent.
+///
+/// **Why this test exists at all**: the batch's revert matrix row R6 (put
+/// `card_in_stack_zone` back) reddened exactly ONE thing -- `pb_dx52_stack_target_roster::
+/// r7b`, a SOURCE gate that reads the call site's text. No behavioural probe moved. A
+/// source gate proves the line is spelled a certain way; it cannot prove the line does
+/// anything, and a later batch that "simplifies" the helper while keeping the name would
+/// satisfy it. This probe closes that: it is RED under R6 on an observable outcome.
+///
+/// Fixture: p2's **red** artifact holds `{T}: Destroy target creature` and points it at
+/// p1's plain creature. p1 controls a second creature with **protection from red**. p1
+/// casts Bolt Bend at the ability's stack entry. CR 115.7a demands *another legal target*;
+/// the protected creature is NOT one (CR 702.16b: it *"can't be the target of ... spells
+/// or abilities"* from a red source), and it is the only other creature on the board -- so
+/// CR 115.7a's own fallback applies and the target is **unchanged**.
+///
+/// **The verdict is the resolution effect, and it is asserted in BOTH directions**: the
+/// plain creature dies (the original target was kept) AND the protected creature survives
+/// (the redirect did not land on it). Asserting only the second would pass on a fixture
+/// where nothing resolved at all.
+#[test]
+fn t10_protection_from_red_refuses_an_ability_shaped_redirect() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let bolt_bend = mtg_engine::cards::defs::bolt_bend::card();
+    let registry: Arc<CardRegistry> = CardRegistry::new(vec![bolt_bend.clone()]);
+
+    // The ability's SOURCE is red. That is the whole point: CR 113.7 makes it the
+    // ability's source, and CR 702.16b compares the protection quality against it.
+    let ability_source = ObjectSpec::artifact(p2, "T10 Red Ability Source")
+        .with_colors(vec![mtg_engine::Color::Red])
+        .with_activated_ability(destroy_one_creature_ability());
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .player_mana(
+            p1,
+            ManaPool {
+                colorless: 3,
+                red: 1,
+                ..Default::default()
+            },
+        )
+        .object(ability_source)
+        .object(ObjectSpec::creature(p1, "T10 Plain Victim", 2, 2))
+        .object(
+            ObjectSpec::creature(p1, "T10 Protected Creature", 3, 3).with_keyword(
+                KeywordAbility::ProtectionFrom(mtg_engine::ProtectionQuality::FromColor(
+                    mtg_engine::Color::Red,
+                )),
+            ),
+        )
+        .object(
+            ObjectSpec::card(p1, "Bolt Bend")
+                .in_zone(ZoneId::Hand(p1))
+                .with_card_id(bolt_bend.card_id.clone())
+                .with_types(vec![CardType::Instant]),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let source_id = find_obj(&state, "T10 Red Ability Source");
+    let plain_id = find_obj(&state, "T10 Plain Victim");
+    let protected_id = find_obj(&state, "T10 Protected Creature");
+    let bolt_bend_hand_id = find_obj(&state, "Bolt Bend");
+
+    // NON-VACUITY FLOOR, asserted before the drive rather than assumed: the protected
+    // creature must be the ONLY other creature on the board, or CR 115.7a could find a
+    // third legal target and this probe would pass for a reason it does not name.
+    let creature_count = state
+        .objects()
+        .iter()
+        .filter(|(id, o)| {
+            o.zone == ZoneId::Battlefield
+                && mtg_engine::rules::layers::expect_characteristics(&state, **id)
+                    .card_types
+                    .contains(&CardType::Creature)
+        })
+        .count();
+    assert_eq!(
+        creature_count, 2,
+        "non-vacuity: exactly two creatures must exist, so the protected one is the only \
+         candidate CR 115.7a could redirect onto"
+    );
+
+    let (state, _) = activate(state, p2, source_id, vec![Target::Object(plain_id)])
+        .unwrap_or_else(|e| panic!("p2's ability activation must succeed: {:?}", e));
+    let ability_entry_id = state.stack_objects().back().unwrap().id;
+
+    let (state, _) = cast(
+        state,
+        p1,
+        bolt_bend_hand_id,
+        vec![Target::StackObject(ability_entry_id)],
+    )
+    .unwrap_or_else(|e| panic!("Bolt Bend must be castable at the ability entry: {:?}", e));
+
+    // Resolve everything.
+    let (state, _) = pass_n(state, &[p1, p2]);
+    let (state, _) = pass_n(state, &[p1, p2]);
+
+    // THE VERDICT, both directions.
+    let protected_alive = state
+        .objects()
+        .get(&protected_id)
+        .is_some_and(|o| o.zone == ZoneId::Battlefield);
+    let plain_alive = state
+        .objects()
+        .get(&plain_id)
+        .is_some_and(|o| o.zone == ZoneId::Battlefield);
+    assert!(
+        protected_alive,
+        "CR 702.16b: the ability's source is RED, so a creature with protection from red \
+         is NOT another legal target and CR 115.7a's fallback must leave the original \
+         target unchanged. If this fails, `plan_target_change` is deriving the victim's \
+         source characteristics from a helper that returns `None` for an ability -- i.e. \
+         `card_in_stack_zone` instead of `source_of` (`OOS-DX25c-3`)."
+    );
+    assert!(
+        !plain_alive,
+        "the original target must still have been destroyed -- otherwise this probe would \
+         pass on a fixture where the ability never resolved at all, which would make the \
+         protection assertion above vacuous"
+    );
+}
