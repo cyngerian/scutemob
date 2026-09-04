@@ -252,15 +252,17 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-04, PB-DX36)**: **5,115 / 0 / 5** full-workspace on branch
-  `scutemob-228` (+18 over the **5,097** baseline, measured on this branch BEFORE any edit and
+- **Tests (delta 2026-09-04, PB-DX36 + `/review` fix cycle)**: **5,117 / 0 / 5** full-workspace on
+  branch `scutemob-228` (+20 over the **5,097** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX35's close pin exactly** — `OOS-DX51-5`'s non-reproducing-pin failure did not
   recur), `--workspace --no-fail-fast` to a file, **64** result-producing targets (63 → 64: one new
   simulator test binary), residual list empty.
   **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
-  `sort` + `comm` (`OOS-DX20b-5`): 18 additions, 0 leavers, 0 removals, 0 renames.** Count delta
-  18 == name-set delta 18, and the duplicate-name scan the byte-exact method is structurally blind
-  to (`OOS-DX35-8`) is **EMPTY on both runs**.
+  `sort` + `comm` (`OOS-DX20b-5`): 20 additions, 0 leavers, 0 removals, 0 renames.** Count delta
+  20 == name-set delta 20, and the duplicate-name scan the byte-exact method is structurally blind
+  to (`OOS-DX35-8`) is **EMPTY on both runs**. **RE-TAKEN after the `/review` fix cycle, not before
+  it** (dispatch hygiene 8): the cycle added `t8`/`t9`, so the pre-cycle figure of 18 is superseded
+  by this line rather than left standing beside it.
   **PROTOCOL 41 → 42 / HASH 82 → 83, ONE bump each**, both taken from the failing gates' own output
   and **both predicted in writing, per half, before any production line changed** (`a9fca688`) —
   including the prediction that **neither** closure's type count would move, confirmed by the
@@ -1331,9 +1333,37 @@
   survivor scan changed the matcher's **SHAPE** (a line window, not symbol-adjacent) and kept the
   **VALUE** pattern `\b41\b`, so it was structurally incapable of seeing the miss and reported 0.
   *A survivor scan has two axes and varying one is half a check* (`OOS-DX36-8`).
-  Tests **5,115 / 0 / 5** (+18 over a **5,097** pre-edit baseline that reproduces PB-DX35's close
-  pin exactly, **64** targets, byte-exact set difference: 18 additions / 0 leavers / 0 removals /
-  0 renames, count-vs-name reconciliation run and duplicate-name scan EMPTY). **PROTOCOL 41 → 42 /
+  **THE `/review` FOUND 2 HIGH / 4 MEDIUM / 5 LOW-NIT AND ALL ELEVEN WERE TAKEN — AND HIGH 1 IS A
+  CORRECTNESS DEFECT THIS BATCH SHIPPED, WITH THE DOC COMMENT ASSERTING THE OPPOSITE.**
+  `queue_damage_source_triggers` was called **inside `for assignment in assignments`**. One
+  `CombatDamageDealt` carries every assignment of the step in a single `events.push`, and CR 510.2
+  makes them simultaneous — so CR 603.2c's *"triggers only once each time its trigger event
+  occurs"* was violated by any source with more than one assignment. Measured: a 5/5 blocked by two
+  2/2s dispatched the self family **twice**, gaining 2 + 3 in two resolutions; a 6/6 trampler
+  carrying `Sigil of Sleep` fired the self family twice while the Aura half correctly fired once.
+  The mirror ruling settles the CR question — **Boros Reckoner**, Gatherer 2017-03-14: *"its ability
+  triggers once and one target is dealt that much damage."*
+  **The census behind the false claim was CORRECT, which is what made it dangerous**: emit-site
+  disjointness is true and bounds the ARMS, not the LOOP INSIDE one arm, and nobody checked the
+  second. **And every COUNT probe drove a single-assignment fixture** — `t2`, whose own docstring
+  says a `>= 1` assertion would pass on PB-DX47's double-push shape, **passes under the defect**,
+  re-verified by the coordinator. *A COUNT assertion proves exactly-once only on the fixture shape
+  it drives* — PB-DX47's own lesson one axis over, inside the batch that cites it. Fixed by grouping
+  each event's assignments by source (first-appearance order, never sorted) and dispatching the self
+  family once per source with the SUM; `t8`/`t9` added, and **the revert was re-executed
+  independently rather than accepted from the report** — `left: 2, right: 1` on exactly those two,
+  every other probe green.
+  **HIGH 2: the class gate was bypassable on the two axes it did not key on**, proven twice by
+  execution — a second dispatcher **outside `src/rules/`** (in `effects/mod.rs`, which emits
+  `DamageDealt` at four of five sites) and a **`use` alias inside** the scanned directory, each
+  leaving all 710 core tests green. Both fixes already existed in this same test crate, one batch
+  old (PB-DX49's workspace walk and its bare-name re-key). **Fixing it surfaced a third axis nobody
+  had named**: the scan window looked only FORWARD from a walk marker, and a `use` alias's bare name
+  sits BEFORE it. Now bidirectional; both bypasses re-executed and RED.
+  Tests **5,117 / 0 / 5** (+20 over a **5,097** pre-edit baseline that reproduces PB-DX35's close
+  pin exactly, **64** targets, byte-exact set difference: 20 additions / 0 leavers / 0 removals /
+  0 renames, count-vs-name reconciliation run and duplicate-name scan EMPTY, **re-taken AFTER the
+  fix cycle**). **PROTOCOL 41 → 42 /
   HASH 82 → 83, ONE bump each, both predicted in writing per half before any code** (`a9fca688`),
   with every wire cell PROBED at stage 0 and both closure type counts predicted and confirmed
   UNCHANGED at **98 / 132**. Coverage **1,138 → 1,139 = 63.2%**, ONE flip named before regeneration.

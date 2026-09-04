@@ -57,7 +57,13 @@ carried on `PendingTrigger` / `StackObject` / `EffectContext`. `TODO(PB-37)` and
    `41u32` sentinel stood, because the **value** pattern `\b41\b` was unchanged. Prefer an
    absence-based check: find the symbol, assert the adjacent numeral is the NEW value.
    (`OOS-DX36-8`.)
-5. **The re-deal budget is real and is attributable.** One marker flip reddened five seeded
+5. **A COUNT assertion proves exactly-once only on the FIXTURE SHAPE it drives.** The `/review`'s
+   HIGH 1: this batch dispatched the self family once per damage ASSIGNMENT, so a multi-blocked or
+   trampling creature triggered twice against CR 603.2c — while the doc comment asserted
+   exactly-once and every count probe drove a single-assignment fixture, including the one whose
+   docstring boasts about not being a `>= 1` check. The emit-site census behind the claim was
+   *correct*; it bounded the ARMS and said nothing about the LOOP INSIDE one arm.
+6. **The re-deal budget is real and is attributable.** One marker flip reddened five seeded
    fixtures. An ablation in an isolated worktree (engine change in, marker reverted) turned all five
    green, which is what licences the phrase "fuzz-neutral by measurement". Two of the five needed a
    fresh **executed sweep**, not a bump: `pb_dx22`'s census seed 0 → 1 and
@@ -65,7 +71,8 @@ carried on `PendingTrigger` / `StackObject` / `EffectContext`. `TODO(PB-37)` and
 
 ### Numbers
 
-Tests **5,115 / 0 / 5** (+18, **64** targets, byte-exact NAME delta: 18 / 0 / 0 / 0).
+Tests **5,117 / 0 / 5** (+20, **64** targets, byte-exact NAME delta: 20 / 0 / 0 / 0, re-taken
+AFTER the `/review` fix cycle rather than before it).
 **PROTOCOL 41 → 42 / HASH 82 → 83**, one bump each, predicted per half before any code, closure
 type counts confirmed UNCHANGED at **98 / 132**. Coverage **1,138 → 1,139 / 1,803 = 63.2%**, ONE
 flip (`exalted_angel`) named before regeneration. `clippy -D warnings`, `cargo fmt --check` and
