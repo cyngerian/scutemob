@@ -160,3 +160,51 @@ moving at all, or HASH moving twice — stop and re-derive before re-pinning any
 completeness note and header comment `OOS-DP2-7` names, which are **comment-only** and move no
 `Completeness` marker. Coverage predicted **unmoved at 1,137/1,803 = 63.1%**; proven by
 regeneration at close, never by an empty diff.
+
+---
+
+## §1 — `OOS-M11-5`: what the row and the memo did not know
+
+### §1.1 The row's own justification is stale for BOTH named cases — verified, not assumed
+
+The memo says PB-DX20 made the aura half stale. It did, and the **bestow** half is stale too,
+for a reason a reader is likely to get wrong: `handle_cast_spell`'s Step 1b
+(`casting.rs:999-1004`) applies CR 702.103b's transform — *"as a spell cast bestowed is put onto
+the stack, it becomes an Aura enchantment and gains enchant creature"* — to its **own** `chars`
+binding, **before** `aura_spell_target_requirements` runs at `:3688`. There is a second,
+post-push transform at `:4760` that applies the same change to the stack OBJECT; reading only
+that one (which is what a `grep casting_with_bestow` surfaces first) leads to the wrong
+conclusion that bestow validates existence-only. It does not.
+
+CR 702.103b is explicit that the requirement must exist: *"Because the spell is an Aura spell,
+its controller must choose a legal target for that spell as defined by its enchant creature
+ability and rule 601.2c."*
+
+### §1.2 THE CENSUS WAS SHORT BY A WHOLE MECHANISM, AND IT IS **SPLICE**
+
+Neither the registry row, nor the v4 memo cell, nor this batch's own §0.3 site table names it.
+CR 702.47a: *"copy this card's text box onto that spell"* — so a spliced spell gains the spliced
+card's **targets** (CR 601.2b). `AbilityDefinition::Splice` (`card_definition.rs:682-686`) carries
+`cost`, `onto_subtype` and `effect` and **no `targets` field at all**, so
+`card_def_target_requirements` cannot see them and the spliced target rode the existence-only
+arm. Corpus population: **1** def, `glacial_ray` (measured by walking the defs, not by grepping
+prose). Closing `OOS-M11-5` therefore *requires* shipping the splice contribution — a batch that
+only added the rejection would have broken the one shipped splice card.
+
+### §1.3 The rejection population is MEASURED, and 44 of 46 are a test-only shape
+
+Instrumented the new rejection to print the casting object's `card_id` and ran the whole
+workspace suite. **46 rejections. 44 have `card_id == None`** — the documented
+`ObjectSpec::card()` naked-object gotcha, where a fixture builds a `CardDefinition` **carrying
+the right `TargetRequirement`**, registers it, and never links it to the object it casts. Exactly
+**2** have a real definition:
+
+| card | why it was rejected | verdict |
+|---|---|---|
+| `boon_satyr` | golden script `layers/081_bestow_aura_then_falls_off.json` issues `"action": "cast_spell"` while its own metadata, notes and CR cites all say **bestow**. It passed only because the existence-only arm accepted the target the script declared. | **the script was a pin on `OOS-M11-5`** |
+| `reach_through_mists` | golden script `stack/146_splice_glacial_ray.json`, the splice case of §1.2 | **a real missing mechanism** |
+
+Architecture Invariant 9 makes the naked shape unreachable in a real game (every object in a game
+has a `CardDefinition`), which is why this defect could sit behind 42 green tests: **the coverage
+that would have caught it was resting on a shape production cannot produce** — `OOS-DX47-4`'s
+class, arriving again.
