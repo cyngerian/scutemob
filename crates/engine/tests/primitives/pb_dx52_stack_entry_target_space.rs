@@ -219,8 +219,8 @@ fn t1_headline_ability_redirect_lands_on_the_new_target() {
     let bolt_bend = mtg_engine::cards::defs::bolt_bend::card();
     let registry: Arc<CardRegistry> = CardRegistry::new(vec![bolt_bend.clone()]);
 
-    let ability_source =
-        ObjectSpec::artifact(p2, "T1 Ability Source").with_activated_ability(destroy_one_creature_ability());
+    let ability_source = ObjectSpec::artifact(p2, "T1 Ability Source")
+        .with_activated_ability(destroy_one_creature_ability());
 
     let state = GameStateBuilder::new()
         .add_player(p1)
@@ -254,8 +254,9 @@ fn t1_headline_ability_redirect_lands_on_the_new_target() {
     let bolt_bend_hand_id = find_obj(&state, "Bolt Bend");
 
     // p2 activates the ability targeting p1's creature.
-    let (state, _activate_events) = activate(state, p2, source_id, vec![Target::Object(original_id)])
-        .unwrap_or_else(|e| panic!("p2's ability activation must succeed: {:?}", e));
+    let (state, _activate_events) =
+        activate(state, p2, source_id, vec![Target::Object(original_id)])
+            .unwrap_or_else(|e| panic!("p2's ability activation must succeed: {:?}", e));
     assert_eq!(
         state.stack_objects().len(),
         1,
@@ -320,8 +321,12 @@ fn t1_headline_ability_redirect_lands_on_the_new_target() {
         _ => None,
     });
     // (c) TargetsChanged names the ability's OWN entry id.
-    let (changed_id, new_targets) = targets_changed
-        .unwrap_or_else(|| panic!("TargetsChanged must fire when Bolt Bend resolves: {:?}", resolve_events));
+    let (changed_id, new_targets) = targets_changed.unwrap_or_else(|| {
+        panic!(
+            "TargetsChanged must fire when Bolt Bend resolves: {:?}",
+            resolve_events
+        )
+    });
     assert_eq!(
         changed_id, ability_entry_id,
         "TargetsChanged must name the ability's stack-ENTRY id, not Bolt Bend's own"
@@ -343,10 +348,9 @@ fn t1_headline_ability_redirect_lands_on_the_new_target() {
 
     // (d) THE VERDICT: observed game state, not the event stream.
     assert!(
-        state
-            .objects()
-            .values()
-            .any(|o| o.characteristics.name == "T1 Original Victim" && o.zone == ZoneId::Battlefield),
+        state.objects().values().any(
+            |o| o.characteristics.name == "T1 Original Victim" && o.zone == ZoneId::Battlefield
+        ),
         "the ORIGINAL target must SURVIVE -- Bolt Bend redirected the ability away \
          from it before it resolved"
     );
@@ -381,8 +385,8 @@ fn t2_distinctness_spell_or_ability_vs_spell_only() {
     let registry: Arc<CardRegistry> =
         CardRegistry::new(vec![bolt_bend.clone(), misdirection.clone()]);
 
-    let ability_source =
-        ObjectSpec::artifact(p2, "T2 Ability Source").with_activated_ability(destroy_one_creature_ability());
+    let ability_source = ObjectSpec::artifact(p2, "T2 Ability Source")
+        .with_activated_ability(destroy_one_creature_ability());
 
     let state = GameStateBuilder::new()
         .add_player(p1)
@@ -714,8 +718,12 @@ fn t4_single_target_clause_refuses_a_two_target_entry() {
 // ── T5/T6: CR 608.2b, both directions ────────────────────────────────────────
 
 /// Shared setup for T5/T6: p2 activates `{T}: Destroy target creature` against p1's
-/// creature; p1 casts Bolt Bend targeting the ability's entry. Returns the state with
-/// both stack entries in place, plus the ability's entry id.
+/// creature (with a SECOND creature present as the only other legal TargetCreature
+/// candidate, so `t5`'s redirect has somewhere to land -- CR 115.7a's fallback, "if a
+/// target can't be changed to another legal target, the original target is unchanged,"
+/// would otherwise make "no fizzle" and "no redirect for lack of an alternative"
+/// indistinguishable); p1 casts Bolt Bend targeting the ability's entry. Returns the
+/// state with both stack entries in place, plus the ability's entry id.
 fn cr_608_2b_fixture(name_prefix: &str) -> (GameState, ObjectId, ObjectId) {
     let p1 = p(1);
     let p2 = p(2);
@@ -739,7 +747,18 @@ fn cr_608_2b_fixture(name_prefix: &str) -> (GameState, ObjectId, ObjectId) {
             },
         )
         .object(ability_source)
-        .object(ObjectSpec::creature(p1, &format!("{name_prefix} Original"), 2, 2))
+        .object(ObjectSpec::creature(
+            p1,
+            &format!("{name_prefix} Original"),
+            2,
+            2,
+        ))
+        .object(ObjectSpec::creature(
+            p2,
+            &format!("{name_prefix} Alternative"),
+            3,
+            3,
+        ))
         .object(
             ObjectSpec::card(p1, "Bolt Bend")
                 .in_zone(ZoneId::Hand(p1))
@@ -782,7 +801,8 @@ fn cr_608_2b_fixture(name_prefix: &str) -> (GameState, ObjectId, ObjectId) {
 fn t5_live_entry_is_a_legal_target_no_fizzle() {
     let p1 = p(1);
     let p2 = p(2);
-    let (state, _ability_entry_id, _original_id) = cr_608_2b_fixture("T5");
+    let (state, ability_entry_id, _original_id) = cr_608_2b_fixture("T5");
+    let alt_id = find_obj(&state, "T5 Alternative");
 
     let stack_len_before_resolution = state.stack_objects().len();
     let (state, resolve_events) = pass_n(state, &[p1, p2]);
@@ -793,13 +813,26 @@ fn t5_live_entry_is_a_legal_target_no_fizzle() {
         "Bolt Bend must not fizzle -- its target (the ability's live entry) is legal: {:?}",
         resolve_events
     );
-    assert!(
-        resolve_events
-            .iter()
-            .any(|e| matches!(e, GameEvent::TargetsChanged { .. })),
-        "non-vacuity anchor: Bolt Bend must actually redirect, not merely fail to \
-         fizzle -- resolve_events: {:?}",
-        resolve_events
+    let targets_changed = resolve_events.iter().find_map(|e| match e {
+        GameEvent::TargetsChanged {
+            stack_object_id,
+            new_targets,
+            ..
+        } => Some((*stack_object_id, new_targets.clone())),
+        _ => None,
+    });
+    let (changed_id, new_targets) = targets_changed.unwrap_or_else(|| {
+        panic!(
+            "non-vacuity anchor: Bolt Bend must actually redirect, not merely fail \
+             to fizzle -- resolve_events: {:?}",
+            resolve_events
+        )
+    });
+    assert_eq!(changed_id, ability_entry_id);
+    assert_eq!(
+        new_targets[0].target,
+        Target::Object(alt_id),
+        "the redirect must land on the only other legal TargetCreature candidate"
     );
     assert_eq!(
         state.stack_objects().len(),
@@ -829,7 +862,9 @@ fn t6_countered_entry_is_illegal_bolt_bend_fizzles() {
 
     let counter_events =
         mtg_engine::rules::resolution::counter_stack_object(&mut state, ability_entry_id)
-            .unwrap_or_else(|e| panic!("counter_stack_object on the ability must succeed: {:?}", e));
+            .unwrap_or_else(|e| {
+                panic!("counter_stack_object on the ability must succeed: {:?}", e)
+            });
     assert!(
         !counter_events.is_empty()
             || !state
@@ -867,10 +902,9 @@ fn t6_countered_entry_is_illegal_bolt_bend_fizzles() {
         "a fizzled Bolt Bend must not emit TargetsChanged"
     );
     assert!(
-        state
-            .objects()
-            .values()
-            .any(|o| o.characteristics.name == "Bolt Bend" && matches!(o.zone, ZoneId::Graveyard(_))),
+        state.objects().values().any(
+            |o| o.characteristics.name == "Bolt Bend" && matches!(o.zone, ZoneId::Graveyard(_))
+        ),
         "Bolt Bend's card must be in a graveyard after fizzling"
     );
 }
@@ -1018,8 +1052,8 @@ fn t8_no_ward_dispatch_for_a_stack_entry_target() {
     let bolt_bend = mtg_engine::cards::defs::bolt_bend::card();
     let registry: Arc<CardRegistry> = CardRegistry::new(vec![bolt_bend.clone()]);
 
-    let ability_source =
-        ObjectSpec::artifact(p2, "T8 Ability Source").with_activated_ability(destroy_one_creature_ability());
+    let ability_source = ObjectSpec::artifact(p2, "T8 Ability Source")
+        .with_activated_ability(destroy_one_creature_ability());
     let ward_creature =
         ObjectSpec::creature(p2, "T8 Ward Creature", 3, 3).with_keyword(KeywordAbility::Ward(2));
 

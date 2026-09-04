@@ -6802,10 +6802,8 @@ fn validate_stack_object_satisfies_requirement(
         return validate_stack_object_satisfies_requirement(state, id, inner.as_ref(), self_id);
     }
 
-    let pos = crate::state::stack_registry::stack_index_for_announced_target(
-        &state.stack_objects,
-        id,
-    );
+    let pos =
+        crate::state::stack_registry::stack_index_for_announced_target(&state.stack_objects, id);
     // Fail closed on an id that names nothing on the stack. `ObjectNotFound` is the same
     // variant `validate_object_satisfies_requirement` raises for its own missing id --
     // and, exactly as t3 recorded for that function, it does not reach a

@@ -593,7 +593,10 @@ fn t3_ability_half_is_reachable_via_target_stack_object() {
         vec![Target::Object(ability_stack_id)],
     );
     assert!(
-        matches!(result_stack_id_wrong_space, Err(GameStateError::InvalidTarget(_))),
+        matches!(
+            result_stack_id_wrong_space,
+            Err(GameStateError::InvalidTarget(_))
+        ),
         "STILL TRUE (unchanged by PB-DX52): casting Bolt Bend at the ability's \
          stack-entry id as a bare Target::Object must still fail -- got: {:?}",
         result_stack_id_wrong_space.map(|_| ())
