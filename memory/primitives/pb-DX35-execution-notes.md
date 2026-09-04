@@ -140,3 +140,104 @@ rewritten rather than left asserting a population that has moved.
 `core::decision_site_walk`'s `look_at_top_or_route` row moves `AutoChosen` → `Served`, because its
 stated reason (*"LookAtTopThenPlace's `optional` field is inert by construction (OOS-DP10-5)"*)
 is exactly what this batch deletes.
+
+### §0.5 The Half A dispatch map — measured at stage 0, and it moves the batch
+
+Everything here was read out of the tree before any production line changed. It refutes two
+published cells and finds a live defect no document names.
+
+#### The four target-requirement derivation sites (the memo names none of them)
+
+| # | site | consumed for |
+|---|---|---|
+| 1 | `rules/abilities.rs:8806-8841` (`trigger_target_requirements`, inside `flush_sorted`) | `has_ability_targets` + `StackObject.target_requirements` |
+| 2 | `rules/abilities.rs:8929-8971` (`ability_targets`) | the CR 603.3d slot derivation and the "remove this trigger" decision |
+| 3 | `rules/abilities.rs:10352-10388` (`fn trigger_ability_target_requirements`) | the CR 601.2c cross-slot distinctness check on the answer path |
+| 4 | `rules/mana.rs:900-921` | decides whether a `WhenTappedForMana` ability is targeted (and so must use the stack); queues `CardDefETB` **precisely so the registry index space matches** |
+
+Sites 1-3 are three hand-rolled copies of one lookup — this is the "ONE shared arithmetic"
+AC 7327 asks for, and it is three, not one. Site 4 is a different question on a different kind
+and is deliberately **not** unified (it decides *whether targeted*, not *which targets*).
+
+#### The two `ModeSelection` read sites, and the index space they use
+
+`rules/abilities.rs:9855-9887` and `rules/resolution.rs:2351-2390`. **Both read the REGISTRY**
+(`state.card_registry` → `def.effective_abilities(..).get(ability_index)`), because
+`TriggeredAbilityDef` has **no `modes` field at all**
+(`crates/card-types/src/state/game_object.rs:908-966`, read field by field).
+
+#### THE FINDING: three of the seven modal triggered abilities look their modes up in the WRONG INDEX SPACE, and no document names it
+
+All three of the seed's named cards queue as `PendingTriggerKind::Normal`, so
+`PendingTrigger.ability_index` indexes the **runtime** `Characteristics::triggered_abilities`
+vec. The modes lookup indexes the **registry** `CardDefinition::abilities` list. Those two agree
+only when no non-`Triggered` ability precedes the modal one.
+
+Census over all 7 corpus modal triggered abilities:
+
+| def | registry idx | runtime idx | aligned? | consequence today |
+|---|---|---|---|---|
+| `felidar_retreat` | 0 | 0 | YES | — |
+| `retreat_to_coralhelm` | 0 | 0 | YES | — |
+| `retreat_to_kazandu` | 0 | 0 | YES | — |
+| `shambling_ghast` | 0 | 0 | YES | — |
+| `hullbreaker_horror` | **1** (Keyword(Flash) first) | 0 | **NO** | registry `.get(0)` is a `Keyword`, so `modes = None`, `modes_chosen` stays empty and the trigger resolves the runtime `effect` — which is `Effect::Nothing`. **The whole modal ability is a no-op.** |
+| `glissa_sunslayer` | **2** (FirstStrike, Deathtouch first) | 0 | **NO** | same — `effect: Effect::Nothing`, whole ability a no-op |
+| `junji_the_midnight_sky` | **2** (Flying, Menace first) | 0 | **NO** | same lookup failure, DIFFERENT symptom: `WhenDies` is one of the three lowering arms that pre-resolve `modes.first()` into `effect`, so junji silently executes **mode 0 forever** and the mode choice is a fiction |
+
+**Blast radius is ZERO deck-legal cards**: all three misaligned defs are non-`Complete`
+(`hullbreaker_horror` `partial`, `glissa_sunslayer` `partial`, `junji_the_midnight_sky`
+`known_wrong`), so `validate_deck` refuses every one of them. That is why this is FILED rather
+than fixed here, and the reason is stated as a measurement rather than as a scope preference.
+
+**Why it is not fixed in this batch.** The only structural fix is to lower `modes` into
+`TriggeredAbilityDef`, which is the memo's own "both-if-lowered" branch. Measured cost:
+`TriggeredAbilityDef` has no `Default` derive and **190 struct literals across 44 files**
+construct it exhaustively, so a field addition is 190 mechanical edits **plus** one PROTOCOL and
+one HASH bump plus the full sentinel/history ceremony — on top of two halves that already carry
+a census, a channel and a reachability matrix. It also changes behaviour simultaneously for
+three defs whose modal dispatch has never once run. That is its own batch by this queue's own
+sizing, and it is filed with the census above so the next dispatcher inherits the measurement
+rather than the surprise.
+
+#### Consequence 1 — the memo's 2-flip cell is REFUTED, and the seed row's own trap is why
+
+v4 §4 row 12 and the task brief both predict *"2 real flips (`shambling_ghast`,
+`hullbreaker_horror`)"*. **The measured answer is ONE.**
+
+`OOS-DX4-2`'s row warns, verbatim, that *"moving the targets into `mode_targets` looks like the
+CR 601.2c-correct repair and would silently DROP the requirement instead of scoping it, because
+nothing reads the field."* For `hullbreaker_horror` that trap is **still armed after this
+batch** — not because the trigger path now ignores `mode_targets` (it does not), but because the
+modes lookup cannot find its `ModeSelection` at all, so the slice falls back to the flat list,
+which the repair would have emptied. Repairing that def here would convert a trigger that is
+usually *removed* into one that always *resolves doing nothing*. **So `hullbreaker_horror` is
+re-adjudicated and NOT re-shaped**: it keeps `partial`, and its marker is rewritten to name the
+blocker that actually survives.
+
+The batch's own thesis, applied to the batch: a repair that looks right is measured before it is
+made.
+
+#### Consequence 2 — the wire prediction §0.2 STANDS, unrevised
+
+Half A reads `mode_targets` off the registry, exactly as the incumbent modes lookup already
+does. No type, no variant, no field. **PROTOCOL none / HASH none** for both halves, as committed
+in `c6646052` before any production line. The lowering counterfactual is named above and is the
+branch not taken.
+
+#### Predicted flips, NAMED before regeneration
+
+* `shambling_ghast` **`partial` → `Complete`** — its marker names exactly this defect and
+  nothing else survives it. Its residual (the controller cannot *choose* mode 1) is the
+  corpus-wide `modal_trigger` AutoChosen row, which does not demote defs — `felidar_retreat` and
+  `retreat_to_kazandu` are `Complete` carrying it.
+* `retreat_to_kazandu` — repaired in place, **stays `Complete`, 0 flip**. It is the
+  live-wrong deck-legal member: printed *"choose one — • Put a +1/+1 counter on target creature.
+  • You gain 2 life."*, authored with a FLAT `TargetCreature`, so with an empty board CR 603.3d
+  removes the trigger and the controller cannot take the mode that needs no target at all.
+* `retreat_to_coralhelm` — repaired in place, **stays `known_wrong`, 0 flip** (its blocker is
+  the unrelated "tap or untap modelled as untap only").
+* `hullbreaker_horror`, `glissa_sunslayer`, `junji_the_midnight_sky` — **NOT re-shaped**, markers
+  re-adjudicated to name the index-space blocker, seed filed.
+
+Net: **1 flip, named**. Coverage predicted **1,137 → 1,138 / 1,803 = 63.1% → 63.1%**.
