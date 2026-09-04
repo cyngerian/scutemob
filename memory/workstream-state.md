@@ -30,7 +30,7 @@ count — Deflecting Swat prints no *"with a single target"* clause and had no e
 New `casting::validate_stack_object_satisfies_requirement`; `queries::legal_targets_per_slot` and
 `retarget::retarget_candidates` both enumerate ability entries; `resolution::is_target_legal`
 gains an existence-based CR 608.2b arm. PROTOCOL **42 → 43**, HASH **83 → 84**, one bump each.
-Tests **5,117 → 5,155 / 0 / 5** on 65 targets. Coverage **UNMOVED at 63.2%**, 0 flips.
+Tests **5,117 → 5,156 / 0 / 5** on 65 targets. Coverage **UNMOVED at 63.2%**, 0 flips.
 
 **The five things worth carrying into the next batch**
 

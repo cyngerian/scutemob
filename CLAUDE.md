@@ -262,19 +262,19 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-04, PB-DX52)**: **5,155 / 0 / 5** full-workspace on branch
-  `scutemob-229` (+38 over the **5,117** baseline, measured on this branch BEFORE any edit and
+- **Tests (delta 2026-09-04, PB-DX52)**: **5,156 / 0 / 5** full-workspace on branch
+  `scutemob-229` (+39 over the **5,117** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX36's close pin exactly** — the first time in five batches an inherited pin
   reproduces with no correction owed), `--workspace --no-fail-fast` to a file, **65**
   result-producing targets (64 → 65: one new simulator test binary), residual list empty.
   **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
-  `sort` + `comm` (`OOS-DX20b-5`): 39 additions, 1 leaver, 0 removals.** The single leaver is
+  `sort` + `comm` (`OOS-DX20b-5`): 40 additions, 1 leaver, 0 removals.** The single leaver is
   **disclosed and is not a removal**: `t3_ability_half_is_still_unreachable` became
   `t3_ability_half_is_reachable_via_target_stack_object` — the inversion `OOS-DX25b-1`'s own row
   and `bolt_bend.rs`'s own note both instructed, and it KEEPS the two assertions that are still
   true (the entry is still not a `state.objects` key; naming it as a bare `Target::Object` still
-  fails) beside the two that inverted. Honest reading: **38 genuine additions and 1 mandated
-  inversion.** Count-vs-name reconciliation run and AGREES (38 == 38); the duplicate-name scan
+  fails) beside the two that inverted. Honest reading: **39 genuine additions and 1 mandated
+  inversion.** Count-vs-name reconciliation run and AGREES (39 == 39); the duplicate-name scan
   the byte-exact method is structurally blind to (`OOS-DX35-8`) is **EMPTY on both runs**.
   **PROTOCOL 42 → 43 / HASH 83 → 84, ONE bump each**, both taken from the failing gates' own
   output and **both predicted in writing, per half, before any production line changed**
@@ -1445,8 +1445,8 @@
   there — that phrase occurs only in a COMMENT comparing it to Bolt Bend. **The v4 memo's
   "1 deck-legal `Complete`" cell is a FLOOR**, and closing the seed is what makes Misdirection's
   spell-only restriction enforceable for the first time.
-  Tests **5,155 / 0 / 5** (+38 over a **5,117** pre-edit baseline that reproduces PB-DX36's close
-  pin exactly, **65** targets, byte-exact set difference: 39 additions / 1 disclosed leaver / 0
+  Tests **5,156 / 0 / 5** (+39 over a **5,117** pre-edit baseline that reproduces PB-DX36's close
+  pin exactly, **65** targets, byte-exact set difference: 40 additions / 1 disclosed leaver / 0
   removals — the leaver is the mandated `t3` inversion — with the count-vs-name reconciliation run
   and the duplicate-name scan EMPTY). **PROTOCOL 42 → 43 / HASH 83 → 84, ONE bump each, both
   predicted in writing per half before any production line** (`8f919967`), both closure type counts

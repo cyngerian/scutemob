@@ -345,3 +345,29 @@ deviation.
 | 10 | `Effect::CounterSpell` × `Target::StackObject` has no probe | stated as a bound in the probe file's own module doc, with why no corpus def can reach it |
 | 11 | the census needle list misses Disallow/Voidslime's phrasing | recall bound stated beside the list, population measured at 0 |
 | 12 | CR 707.10b cited for CR 707.10's last sentence | corrected |
+
+---
+
+## §7 Close-out figures — RE-TAKEN AFTER the `/review` fix cycle (dispatch hygiene 8)
+
+The fix cycle added exactly one test (`r1d`), so every published number moved by one and
+the pre-cycle figures are **superseded by this section rather than left standing beside
+it**. This is dispatch hygiene 8's exact case, and it has now bitten five consecutive
+batches in this queue.
+
+| Figure | Pre-edit baseline | Final (post-fix-cycle) |
+|---|---|---|
+| Full workspace | **5,117 / 0 / 5**, 64 targets | **5,156 / 0 / 5**, 65 targets (**+39**) |
+| Name delta (byte-exact set difference) | — | **40 additions / 1 leaver / 0 removals** |
+| Count-vs-name reconciliation | — | 39 == 39, **AGREE** |
+| Duplicate-name scan (`OOS-DX35-8`) | EMPTY | EMPTY |
+| PROTOCOL / HASH | 42 / 83 | **43 / 84**, one bump each |
+| Closure type counts | 98 / 132 | **98 / 132** — unchanged, as predicted |
+| Coverage | 1,139 / 1,803 = 63.2% | **1,139 / 1,803 = 63.2%**, 0 flips |
+
+The single leaver is the mandated `t3` inversion and is not a removal. Gates re-run
+against this exact tree: `clippy --workspace --all-targets -- -D warnings` clean (it fired
+twice during the fix cycle and both were fixed), `cargo fmt --check` clean,
+`tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean. Coverage
+regenerated once more after the fix cycle and re-confirmed at 63.2% with the churn
+reverted.
