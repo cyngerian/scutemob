@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | scutemob-226 | **DISPATCH CHAIN RUNNING (user-approved 2026-09-04, exactly four)**: ~~`scutemob-225` PB-DX18 (rank 10)~~ ✅ merged `61f9d5e1` → ~~`226` PB-DX51 (rank 11)~~ ✅ **worker DONE, awaiting collect** → `227` PB-DX35 (rank 12, backlog) → `228` PB-DX36 (rank 13, backlog); sequential, collect before the next dispatch, STOP after 228. Briefs are the ESM task descriptions.
+| W6: Primitive + Card Authoring | scutemob-227 | **DISPATCH CHAIN RUNNING (user-approved 2026-09-04, exactly four)**: ~~`scutemob-225` PB-DX18 (rank 10)~~ ✅ merged `61f9d5e1` → ~~`226` PB-DX51 (rank 11)~~ ✅ merged `275b00af` → `227` PB-DX35 (rank 12, dispatching) → `228` PB-DX36 (rank 13, backlog); sequential, collect before the next dispatch, STOP after 228. Briefs are the ESM task descriptions.
 
 ## Last Handoff (worker, 2026-09-04) — PB-DX51 (`scutemob-226`)
 
