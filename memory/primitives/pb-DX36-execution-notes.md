@@ -271,3 +271,42 @@ deals noncombat damage — `board_wipe_4p` is a `DestroyAll`, and `full_turn_4p`
 the CombatDamage step with **no attackers declared**, so `assignments` is empty and the extracted
 loop does nothing. The new `GameEvent::DamageDealt` call site is off every benched path by
 construction, and the combat-arm change is an extraction of a loop that was already there.
+
+## §7 — Revert matrix (11 rows executed, 11 discriminating, 0 UNDISCRIMINATED)
+
+Each row was applied to source, the suite run, the failure observed, and the source restored
+(`git diff` empty after each). Rows 8-9 are the batch's own gate being defeated and re-keyed.
+
+| # | revert | reddens | note |
+|---|---|---|---|
+| R1 | the `combat_only` guard on the enchanted-combat arm (`if is_combat` → `if true`) | `t4b` only | the flag is load-bearing on exactly one probe, which is what "animated" has to mean |
+| R2 | drop the opponent exclusion `pid != source_controller` | `t5` only | isolates the recipient axis from the damage-kind axis |
+| R3 | `EffectAmount::DamageDealt` misrouted to `ctx.combat_damage_amount` | `t3`, `t6` | this is the shipped-defect shape of `OOS-DX36-5`, executed |
+| R4 | disable the noncombat `queue_damage_source_triggers(.., false)` call | `t1`, `t3`, `t4a`, `t5`, `t6`, `t7` + the channel probe | **this is the pre-batch engine**, i.e. the whole defect reproduced; `t2`/`t4b` stay green as STATED CONTROLS (combat path, unaffected) |
+| R5 | duplicate the combat-arm dispatch call | `t2`, `t3`, `t4b` | PB-DX47's double-push shape. Only the COUNT assertions catch it — a `>= 1` probe is green under this revert |
+| R6 | `goblin_lackey` back to `WhenDealsCombatDamageToPlayer` | `r1a` only | |
+| R7 | remove `curiosity`'s trigger condition | `r1d` only | |
+| R8 | **a second dispatcher planted in `rules/mana.rs`, written `for ability in defs.iter()`** | **NOTHING — `r3` stayed GREEN** | the batch's own class gate defeated, see below |
+| R9 | the same bypass, against the RE-KEYED `r3` | `r3` | red, as required |
+| R10 | enchanted-family lowering `match` reduced to a bare `_ =>` | `r3` (non-vacuity) + `r4` | |
+| R11 | self-family lowering `match` reduced to a bare `_ =>` | `r3` (non-vacuity) + `r4` | |
+
+### §7.1 — R8: the class gate was defeated by its own author, inside the batch that cites the rule
+
+`r3`'s first draft keyed its walk detection on the literal identifier `abilities`
+(`"abilities.iter()"`, `"for ability in abilities"`, …). A second dispatcher written
+`for ability in defs.iter() { … }` beside a `TriggerEvent::SelfDealsDamage` mention left **every
+gate in the file green**; only a behavioural probe would have caught it, and no behavioural probe
+exists for a dispatcher nobody has written yet.
+
+That is `OOS-DX47-7` and `OOS-DX51-6` recurring — *a gate written for one spelling measures that
+spelling* — committed inside the gate whose own module doc cites both. Re-keyed on the mechanism
+(`"for ability in "`, loop-variable-agnostic, plus a bare `".iter()"`, deliberately
+over-collecting, since over-collection can only make `r3` redder), and the identical bypass
+re-executed against the fix: **red**. The narrative lives in `r3`'s own doc comment, not only here.
+
+**This is the fifth consecutive batch in this queue in which a source gate written for one
+syntactic form was defeated by execution** (PB-DX26 → PB-DX43 → PB-DX45 → PB-DX47 → PB-DX51 → here).
+The pattern is now reliable enough to state as a rule rather than a lesson: **write the gate, then
+write the bypass you would use to sneak past it, and run it — before you write the gate's doc
+comment claiming it cannot be evaded.**
