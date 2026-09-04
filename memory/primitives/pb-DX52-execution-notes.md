@@ -183,3 +183,91 @@ THIRD `NameIndex` map keyed by stack-entry id — deliberately not folded into t
 `ObjectId`-keyed one, because that exact fold is the collision `view.rs`'s own `from_view`
 comment records as a shipped bug. `tools/tui/` gains the render arm and one Cargo
 dependency.
+
+---
+
+## §3 Revert matrix — 8 rows, EXECUTED by the coordinator, 8 discriminating, 0 UNDISCRIMINATED
+
+Every row applied to the real production source, run, and restored; the tree was
+re-verified green afterwards and `git diff` over each reverted file is empty. Delegated
+agents reported their own rows; **these were re-executed rather than accepted** (PB-DX48's
+rule — a delegated "all rows RED" is a true sentence the wrong assertion can produce).
+
+| # | Revert | Reddens |
+|---|---|---|
+| **R1** | delete the `Target::StackObject` tail in `queries::legal_targets_per_slot` | **9** — `c1`, `c3`, the inverted `t3`, `t1`, `t2`, `t3`, `t7`, `t9`, `r2a` |
+| **R2** | `TargetSpellOrAbilityWithSingleTarget` always `Err` | **11** — `c1`, `c2`, `c3`, inverted `t3`, `t1`, `t2`, `t3`, `t5`, `t6`, `t8`, `t9` |
+| **R3** | `is_target_legal`'s `StackObject` arm always `true` | **3** — `t6`, `r1c`, `r3a`. Exactly three, which is what proves `t6` is the CR 608.2b probe and nothing else rides on it |
+| **R4** | `permanent_targeted_events` emits for a stack entry | **2** — `t8`, and **PB-DX48's own `r2_exactly_one_construction_site`**, a neighbouring batch's gate correctly catching the second construction site |
+| **R5** | drop the `is_spell` guard from `TargetSpellWithSingleTarget` | **1** — `t2`. The distinctness probe AC 7348 asks for is the ONLY thing holding that guard |
+| **R6** | `plan_target_change` reads `card_in_stack_zone` again | **1 before `t10`, 2 after** — see below |
+| **R7** | offer EVERY stack entry, spells included (drop the de-dup predicate) | **2** — `c4` and `r2a`; the predicate is pinned by the control, not by argument |
+| **R8** | (delegated, re-executed) the `TargetSpellOrAbilityWithSingleTarget` arm's `Err` re-run against the HTTP probes | both play-server probes RED |
+
+### R6 is the row worth reading, and it is a coverage measurement
+
+Putting `card_in_stack_zone` back — undoing the CR 702.16b protection fix — reddened
+**exactly one thing**: `r7b`, a SOURCE gate that reads the call site's text. **No
+behavioural probe moved.** A source gate proves a line is spelled a certain way; it cannot
+prove the line does anything, and a later batch that "simplifies" the helper while keeping
+the name satisfies it completely. So the fix this batch describes at length as *"a defect
+this batch would have created"* was, at that moment, standing on a text comparison.
+
+Closed by `t10_protection_from_red_refuses_an_ability_shaped_redirect`, which is RED under
+R6 on its own assertion message. **The durable half: a revert matrix is also a coverage
+measurement. A row that reddens only a source gate is telling you the behaviour has no
+probe — not that the row is uninteresting.**
+
+## §4 Benches — MEASURED, seven runs, verdict NO REGRESSION, and the apparent improvement is NOT claimed
+
+Matched-set A/B against merge base `cecf0ba0`, each revision in its own `git worktree`
+with its own `CARGO_TARGET_DIR`.
+
+**The first A/B was thrown away, and saying why is the point.** Base runs 1-2 were taken
+while this session's own full test suite and revert matrix were running. Their same-code
+band came out at **up to 47%** (`full_turn_4p` 326.58 vs 221.96 µs across two runs of
+IDENTICAL code), and the contaminated table read *"HEAD 30% faster on `sba_check`"* — an
+effect nothing in this batch can cause, which is the tell. Discarded and re-run on a quiet
+machine rather than averaged.
+
+Quiet-machine table (µs, criterion's point estimate):
+
+| bench | base3 | base4 | head1 | head2 | head3 | base band | mean delta |
+|---|---|---|---|---|---|---|---|
+| `priority_cycle_4p` | 24.77 | 24.64 | 24.65 | 24.23 | 24.29 | 0.54% | −1.26% |
+| `priority_cycle_6p` | 39.35 | 39.01 | 38.13 | 38.57 | 38.24 | 0.88% | −2.22% |
+| `sba_check` | 14.72 | 14.73 | 15.07 | 14.58 | 14.33 | 0.10% | −0.45% |
+| `full_turn_4p` | 222.24 | 218.63 | 217.78 | 218.02 | 216.66 | 1.65% | −1.34% |
+| `full_turn_6p` | 347.62 | 349.16 | 344.91 | 342.25 | 339.45 | 0.44% | −1.78% |
+| `board_wipe_4p` | 118.38 | 119.60 | 119.01 | 118.16 | 119.17 | 1.03% | −0.18% |
+
+**Verdict: no regression. The uniform 0.2-2.2% improvement is deliberately NOT claimed**,
+for three reasons stated rather than waved at:
+
+1. **HEAD's own three-run spread is WIDER than every difference in the table**: `sba_check`
+   reads 14.33-15.07 across head1/head2/head3, a **5.2%** same-code band, against a
+   base-vs-HEAD difference of 0.45%.
+2. **The controls move the same order as everything else.** `priority_cycle_4p`/`6p` and
+   `sba_check` execute no line this batch touched, and they shift 0.45-2.22% — the same
+   band as `full_turn`. A uniform shift across benches that cannot be affected is a
+   build/layout artefact of two separate compilations (PB-DX20b's tell, PB-DX51's too).
+3. **The mechanism bound is independent of the numbers and is measured, not argued.**
+   `grep -cE "legal_targets_per_slot|retarget|ChangeTargets|CastSpell|StackObject|Target::"
+   crates/engine/benches/engine_perf.rs` returns **0** — every path this batch changed is
+   off every benched path by construction. And `size_of` was executed AT BOTH REVISIONS and
+   is identical: `Target` **16 → 16**, `SpellTarget` **32 → 32**, `TargetRequirement`
+   **304 → 304**, `StackObject` **504 → 504**. The new `Target` variant carries exactly one
+   `ObjectId`, like the two it joins, so it cannot widen the enum; `TargetSpellOrAbility` is
+   a unit variant in an enum whose largest member is a `TargetFilter`. Nothing on the hot
+   layer/SBA/priority path got bigger, and nothing copied per mutation grew.
+
+## §5 Fuzz — NOT A/B'd, with the reason
+
+No `Completeness` marker moved anywhere in the corpus (§1), so `CORPUS_COMPLETE` is
+unmoved as a SET and no seeded fixture is re-dealt — the usual reason a batch owes a fuzz
+A/B (`OOS-CARDS2-3`) does not apply. Beyond that, the change is reachable only through a
+cast that announces a stack-entry target, and the fuzzer's bots reach it only if
+`plan_targets` picks one; `c3` proves the bot path handles the kind, and the offer set for
+every other requirement is unchanged by construction (the new candidates satisfy only the
+four stack-object requirements). **Stated as a reason to expect no movement, not as a
+measurement** — which is the distinction PB-DX49's `/review` refuted a batch for blurring.
