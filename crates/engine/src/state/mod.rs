@@ -642,6 +642,44 @@ impl GameState {
         &self.combat
     }
 
+    /// CR 103.3 / 701.20 — really shuffle `player`'s library, deterministically.
+    ///
+    /// **The one place in the engine that shuffles a library** (PB-DX18, `OOS-DP2-4`).
+    /// Before this, the idiom
+    ///
+    /// ```text
+    /// let seed = state.timestamp_counter;
+    /// state.timestamp_counter += 1;
+    /// if let Some(zone) = state.expect_zone_mut(&ZoneId::Library(p)) {
+    ///     let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+    ///     zone.shuffle(&mut rng);
+    /// }
+    /// ```
+    ///
+    /// was copy-pasted at **four** sites (`rules/commander.rs`'s mulligan and three in
+    /// `effects/mod.rs`) with **three different contracts** on a missing library zone —
+    /// one propagated a `GameStateError`, three swallowed it. That divergence is
+    /// preserved rather than flattened: this returns `Option<()>`, so the mulligan can
+    /// keep `.ok_or(GameStateError::ZoneNotFound(..))?` (MR-M9-12 requires it to
+    /// surface) while the three effect sites keep ignoring it.
+    ///
+    /// The seed comes from `timestamp_counter` (MR-M7-17 / SR-9b: never entropy, so
+    /// replay is deterministic) and the counter is advanced whether or not the zone was
+    /// found — a missing library must not leave two later shuffles sharing a seed.
+    ///
+    /// The permutation itself is pinned in-tree by [`Zone::shuffle_pinned`]; see its doc
+    /// for why depending on `rand` for either the generator OR the index draw was a
+    /// silent re-permutation channel.
+    ///
+    /// Returns `None` if `player` has no library zone.
+    pub(crate) fn shuffle_library_seeded(&mut self, player: PlayerId) -> Option<()> {
+        let seed = self.timestamp_counter;
+        self.timestamp_counter += 1;
+        let zone = self.expect_zone_mut(&ZoneId::Library(player))?;
+        zone.shuffle_pinned(seed);
+        Some(())
+    }
+
     /// Read-only access to the `pregame` field (CR 103.4-103.6, PB-DX18).
     ///
     /// The offer layer and any client that wants to know whether the mulligan

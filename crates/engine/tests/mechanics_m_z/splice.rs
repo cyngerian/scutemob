@@ -122,6 +122,10 @@ fn splice_card_def() -> CardDefinition {
                     player: PlayerTarget::Controller,
                     amount: EffectAmount::Fixed(2),
                 }),
+                // PB-DX18 (`OOS-M11-5`): this fixture's spliced text is "You gain 2
+                // life", which targets nothing — so the CR 702.47a contribution is
+                // genuinely empty here, and that is the shape that must keep working.
+                targets: vec![],
             },
             AbilityDefinition::Spell {
                 effect: Effect::GainLife {
@@ -165,6 +169,8 @@ fn splice_card_2_def() -> CardDefinition {
                     player: PlayerTarget::Controller,
                     amount: EffectAmount::Fixed(3),
                 }),
+                // PB-DX18 (`OOS-M11-5`): "You gain 3 life" targets nothing.
+                targets: vec![],
             },
             AbilityDefinition::Spell {
                 effect: Effect::GainLife {
@@ -936,6 +942,10 @@ fn test_splice_onto_itself_rejected() {
                     player: PlayerTarget::Controller,
                     amount: EffectAmount::Fixed(2),
                 }),
+                // PB-DX18 (`OOS-M11-5`): this fixture's spliced text is "You gain 2
+                // life", which targets nothing — so the CR 702.47a contribution is
+                // genuinely empty here, and that is the shape that must keep working.
+                targets: vec![],
             },
             AbilityDefinition::Spell {
                 effect: Effect::GainLife {

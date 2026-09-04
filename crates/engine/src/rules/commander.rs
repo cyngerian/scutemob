@@ -12,7 +12,6 @@ use crate::state::turn::Step;
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
 use crate::state::{CardId, CardType, Color, ManaCost, SuperType};
-use rand::SeedableRng;
 // ── Deck Validation ───────────────────────────────────────────────────────────
 /// Result of validating a Commander deck (CR 903.5).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -867,19 +866,16 @@ pub fn handle_take_mulligan(
     }
     // CR 103.5: taking a mulligan shuffles the hand *into* the library — the library
     // must actually be permuted, or the same seven cards come straight back off the top.
-    // MR-M7-17 / PB-DP2: seed from `timestamp_counter` (not entropy) so replay is
-    // deterministic (SR-9b). Same idiom as `effects/mod.rs:8697-8703`.
-    let seed = state.timestamp_counter;
-    state.timestamp_counter += 1;
-    // SR-25: `expect_zone_mut` (not a bare `.zones.get_mut(..)`) so the diagnostics
-    // vocabulary's engine-bug `debug_assert!` fires in tests, while `.ok_or(..)?`
-    // still propagates in release builds (MR-M9-12) instead of silently skipping the
-    // shuffle and re-emitting a phantom `LibraryShuffled` event.
-    let library = state
-        .expect_zone_mut(&lib_zone_id)
+    //
+    // PB-DX18 (`OOS-DP2-4`): the copy-pasted `StdRng::seed_from_u64` idiom that used to
+    // live here is now `GameState::shuffle_library_seeded`, the engine's single shuffle
+    // site, with the permutation pinned in-tree. This site's contract is unchanged and is
+    // the reason the helper returns `Option` rather than swallowing: MR-M9-12 requires a
+    // missing library zone to SURFACE here instead of silently skipping the shuffle and
+    // re-emitting a phantom `LibraryShuffled`.
+    state
+        .shuffle_library_seeded(player)
         .ok_or(GameStateError::ZoneNotFound(lib_zone_id))?;
-    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
-    library.shuffle(&mut rng);
     // The shuffle above is what makes this event non-phantom (Architecture Invariant 4).
     events.push(GameEvent::LibraryShuffled { player });
     // Draw 7 cards for the new hand.
