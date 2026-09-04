@@ -15,9 +15,71 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | scutemob-226 | **DISPATCH CHAIN RUNNING (user-approved 2026-09-04, exactly four)**: ~~`scutemob-225` PB-DX18 (rank 10)~~ ✅ merged `61f9d5e1` → `226` PB-DX51 (rank 11, dispatching) → `227` PB-DX35 (rank 12, backlog) → `228` PB-DX36 (rank 13, backlog); sequential, collect before the next dispatch, STOP after 228. Briefs are the ESM task descriptions.
+| W6: Primitive + Card Authoring | scutemob-226 | **DISPATCH CHAIN RUNNING (user-approved 2026-09-04, exactly four)**: ~~`scutemob-225` PB-DX18 (rank 10)~~ ✅ merged `61f9d5e1` → ~~`226` PB-DX51 (rank 11)~~ ✅ **worker DONE, awaiting collect** → `227` PB-DX35 (rank 12, backlog) → `228` PB-DX36 (rank 13, backlog); sequential, collect before the next dispatch, STOP after 228. Briefs are the ESM task descriptions.
 
-## Last Handoff (worker, 2026-09-04) — PB-DX18 (`scutemob-225`)
+## Last Handoff (worker, 2026-09-04) — PB-DX51 (`scutemob-226`)
+
+**Task**: `scutemob-226`, v4 queue rank 11. **All three seeds CLOSED**: `OOS-DX21-4`,
+`OOS-DX21-2`, and rider `OOS-DX21-5`.
+**Full record**: `memory/primitives/pb-DX51-execution-notes.md`.
+
+**Shipped**: `CombatState.had_attackers` — CR 508.8's own predicate as a monotone marker — set by
+ONE new mutator `CombatState::add_attacker`, which is now the only production path into
+`combat.attackers` and therefore serves both the CR 508.1 declaration loop and all four CR 508.4
+entrant sites; `advance_step`'s skip reads `!had_attackers && attackers.is_empty()` instead of a
+step-end `attackers.is_empty()`; one conjunct on `legal_actions.rs`'s `DeclareBlockers` offer
+(CR 509.1a, SR-38); and the `CombatState::new` init moved below every `return Err` in
+`handle_declare_attackers`. HASH **81 → 82**, PROTOCOL **41 unmoved**, both predicted in writing
+at `06ba6760` before any production line changed.
+
+**Read these six before the next batch touches this surface:**
+
+1. **`OOS-DX21-4`'s reproduction recipe is wrong in all three of its named routes, and that made
+   the defect BIGGER than filed.** *"Kill it / phase it out / stop it being a creature"* removes
+   nothing — the engine implements **2 of CR 506.4's 6** removal causes (`OOS-DX51-2`). The route
+   that reproduces is `reconnaissance` (`Complete`, deck-legal, `{0}`, instant-speed, repeatable),
+   so this was **live on 2 deck-legal `Complete` defs**. *A row can be right about a defect and
+   wrong about every way of reaching it — re-derive the reachability, not just the site list.*
+2. **One field, not the "third piece of state" the row asks for.** CR 508.8 ORs its two facts in
+   one sentence, so the predicate is a single existential. Two fields would have been two things
+   to drift, and no CR rule separates them for this purpose. The empty-declaration case needs
+   **no special case at all**, which is what makes one mutator serve both CR rules.
+3. **This batch's own `r1` gate was defeated by execution and BOTH halves were blind at once.**
+   A sixth site written `let map = &mut combat.attackers; map.insert(..)` left `r1` green, and
+   because it ADDS a site rather than replacing one, `r1b`'s exact-5 count stayed green too.
+   Re-keyed on the mechanism (`OOS-DX51-6`). **If you add a roster gate, plant a bypass in a
+   spelling you did NOT think of first.**
+4. **A second SR-38 hole sits on the same `if` statement** — the `DeclareBlockers` offer is made
+   to the attacking player, whom the engine refuses. `is_active` is computed three lines away and
+   used only by the attacker offer. Filed, not fixed (`OOS-DX51-3`).
+5. **The fuzz movement was ATTRIBUTED, not excused.** A third run carrying the full engine change
+   with ONLY the offer conjunct ablated reproduces the merge base byte-identically, so the engine
+   half is fuzz-neutral **by measurement** and every bit of the HEAD-vs-base delta — including
+   HARD 90 → 198 — is `OOS-DX21-6` reindexing. **Do this ablation; it is cheap and it is the
+   difference between a measurement and an excuse.**
+6. **PB-DX18's published close pin of 5,041 does not reproduce** (5,044 at a byte-identical `.rs`
+   tree). Take your own baseline on your own branch before any edit — do not inherit the previous
+   batch's published number (`OOS-DX51-5`).
+
+**Standing gates added**: `core::pb_dx51_attacker_entry_roster` `r1`/`r1b`/`r1c`/`r1d`. `r1` is
+the one to know — it polices every mutable path to `combat.attackers` (mutating method, `&mut`
+borrow, whole-map assignment, `mem::replace`/`swap`/`take`) across the whole workspace's
+production source, over-collecting on ALL receivers deliberately, with `r1c` re-checking each
+allowlist entry's stated reason in source.
+
+**Known open, filed**: `OOS-DX51-1` (the new field's `#[serde(default)]` is lossy in the
+skip-happy direction — same class as `OOS-DX21-3`); `OOS-DX51-2` (CR 506.4, 4 of 6 causes
+unimplemented — the biggest of the six and a real correctness seed);
+`OOS-DX51-3` (the attacking-player blocker offer); `OOS-DX51-4` (`canonical_fixture()` never
+populates `combat`, so the STREAM digest is blind to every `CombatState` field);
+`OOS-DX51-5` (the non-reproducing test pin); `OOS-DX51-6` (**closed in the batch that filed it**).
+
+**Next dispatch**: **PB-DX35**, v4 rank 12 (`memory/primitives/seed-rerank-2026-08-14.md` §4 row
+12 — modal trigger targets + the inert `optional`, `OOS-DX4-2` + `OOS-DX4-5`). Ranks 1-11 shipped.
+
+---
+
+## Prior Handoff (worker, 2026-09-04) — PB-DX18 (`scutemob-225`)
 
 **Task**: `scutemob-225`, v4 queue rank 10. **All six seeds CLOSED**: `OOS-DP2-7`,
 `OOS-DP2-4`, `OOS-DP2-8`, `OOS-DX2-4`, `OOS-DX2-1`, `OOS-M11-5`.

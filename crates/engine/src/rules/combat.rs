@@ -2515,3 +2515,16 @@ fn push_player_or_pw_damage(
         }
     }
 }
+
+// ==== REVIEW DEFEAT ATTEMPT E: wholesale CombatState write-back ====
+#[allow(dead_code)]
+pub(crate) fn enroll_combatant(state: &mut GameState, id: ObjectId, target: AttackTarget) {
+    if let Some(combat) = state.combat.as_mut() {
+        let mut attackers = combat.attackers.clone();
+        attackers.insert(id, target);
+        *combat = CombatState {
+            attackers,
+            ..combat.clone()
+        };
+    }
+}
