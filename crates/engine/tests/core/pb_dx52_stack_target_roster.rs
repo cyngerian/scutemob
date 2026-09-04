@@ -8,7 +8,7 @@
 //! Bolt Bend's printed *"target spell or **ability**"* half was dead, and
 //! `TargetSpellOrAbilityWithSingleTarget` / `TargetSpellWithSingleTarget` were behaviourally
 //! identical on every production path. The engine half added `Target::StackObject(ObjectId)`
-//! (naming the stack **entry**, CR 113.1/115.7a) and `TargetRequirement::TargetSpellOrAbility`
+//! (naming the stack **entry**, CR 113.1c/115.7a) and `TargetRequirement::TargetSpellOrAbility`
 //! (CR 115.4/115.7d, Deflecting Swat's printed line — no "with a single target" clause, so
 //! `UpToN`/single-target machinery does not apply).
 //!
@@ -1100,7 +1100,8 @@ fn declared_target_requirement_variants() -> BTreeSet<String> {
 
 /// The variants `validate_stack_object_satisfies_requirement` EXPLICITLY accepts (a real,
 /// non-`Err` arm) -- everything else falls through its fail-closed `_ => Err(..)` wildcard,
-/// which is the CR-correct direction (CR 113.1: a stack entry has no zone, no battlefield
+/// which is the CR-correct direction (CR 113.1c + CR 110.1: a stack entry is an object but not a
+/// permanent, so it has no zone and no battlefield
 /// presence and no characteristics of its own, so refusing every permanent/player/graveyard
 /// requirement by default is right; the four+one it accepts are exactly the CR 115.4/115.7
 /// family the printed cards use).
@@ -1526,7 +1527,7 @@ fn r7a_source_of_has_no_wildcard_arm() {
     assert!(
         !body.contains("_ =>"),
         "r7a: source_of must have NO wildcard arm over StackObjectKind -- a new variant must \
-         be a compile error here until someone decides what its CR 113.7a source is, exactly \
+         be a compile error here until someone decides what its CR 113.7 source is, exactly \
          like card_in_stack_zone's own no-wildcard contract"
     );
 }

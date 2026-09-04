@@ -109,14 +109,17 @@ pub fn card_in_stack_zone(kind: &StackObjectKind) -> Option<ObjectId> {
     }
 }
 
-/// PB-DX52 (`OOS-DX25c-3`): CR 113.7a's **source** of a stack object -- the object that
+/// PB-DX52 (`OOS-DX25c-3`): CR 113.7's **source** of a stack object -- the object that
 /// generated the ability, or the card the spell was cast from.
 ///
 /// The sibling of [`card_in_stack_zone`], and the two answer genuinely different
 /// questions. `card_in_stack_zone` asks *"does this entry own a card sitting in
 /// `ZoneId::Stack` right now"* and returns `None` for every ability, because an ability
 /// on the stack owns no card. This asks *"what object is this ability's SOURCE"*
-/// (CR 113.7a: *"the source of an ability is the object that generated it"*), which for
+/// (CR 113.7: *"The source of an ability is the object that generated it. The source of an
+/// activated ability on the stack is the object whose ability was activated."* -- **not**
+/// CR 113.7a, which says something different and adjacent: that the ability *"exists on the
+/// stack independently of its source"*), which for
 /// an ability is a permanent somewhere else -- usually the battlefield.
 ///
 /// # Why this exists, and what it repairs
@@ -142,7 +145,7 @@ pub fn card_in_stack_zone(kind: &StackObjectKind) -> Option<ObjectId> {
 /// That function returns a source too, and for `KeywordTrigger` it deliberately returns
 /// the AFFECTED PERMANENT for `CounterRemoval` / `CounterSacrifice` / `UpkeepCost`
 /// (`TriggerData`) rather than `source_object`, because it is a DISPLAY helper and the
-/// affected permanent is what a player wants named in the stack panel. CR 113.7a's source
+/// affected permanent is what a player wants named in the stack panel. CR 113.7's source
 /// is `source_object` in all three cases. The two answers differ on purpose; collapsing
 /// them would make one of the two wrong, and which one depends on the caller. Pinned by
 /// `core::pb_dx52_stack_target_roster`.
@@ -167,18 +170,18 @@ pub fn source_of(kind: &StackObjectKind) -> Option<ObjectId> {
         K::ForecastAbility { source_object, .. } => Some(*source_object),
         // CR 702.71a: bloodrush's `source_object` is the PRE-discard card id -- the card
         // is in the graveyard by the time the ability is on the stack (it was the cost).
-        // It is still the object that generated the ability, so CR 113.7a names it.
+        // It is still the object that generated the ability, so CR 113.7 names it.
         K::BloodrushAbility { source_object, .. } => Some(*source_object),
         K::SaddleAbility { source_object } => Some(*source_object),
         K::RingAbility { source_object, .. } => Some(*source_object),
         K::ClassLevelAbility { source_object, .. } => Some(*source_object),
         K::DelayedActionTrigger { source_object, .. } => Some(*source_object),
-        // CR 113.7a with the source named by a differently-spelled field.
+        // CR 113.7 with the source named by a differently-spelled field.
         K::TransformTrigger { permanent, .. } => Some(*permanent),
         K::DayboundTransformTrigger { permanent } => Some(*permanent),
         K::TurnFaceUpTrigger { permanent, .. } => Some(*permanent),
         K::CraftAbility { exiled_source, .. } => Some(*exiled_source),
-        // CR 113.7a: `source_object` UNCONDITIONALLY -- including for the `CounterRemoval`
+        // CR 113.7: `source_object` UNCONDITIONALLY -- including for the `CounterRemoval`
         // / `CounterSacrifice` / `UpkeepCost` `TriggerData` shapes, where
         // `mtg_view_model::stack_kind_info` deliberately reports the AFFECTED PERMANENT
         // instead. See this function's doc for why the two differ.

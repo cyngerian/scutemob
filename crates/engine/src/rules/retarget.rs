@@ -114,7 +114,9 @@ pub(crate) fn plan_target_change(
     // could have become the new target of a red ability. That is a defect this
     // batch would have CREATED while closing another, so this batch closes it.
     //
-    // CR 113.7a: *"the source of an ability is the object that generated it."*
+    // CR 113.7: *"The source of an ability is the object that generated it."* (CR 113.7a
+    // is the adjacent rule about the ability existing independently of that source, and is
+    // NOT this claim -- checked against the rules text, not remembered.)
     // For a spell, `source_of` returns the same stack-resident card
     // `card_in_stack_zone` did, so the spell path is byte-identical; for an
     // ability it returns the ability's source permanent — which is exactly what

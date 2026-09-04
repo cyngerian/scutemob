@@ -21,7 +21,8 @@ pub enum Target {
     /// moves the card into `ZoneId::Stack` with a fresh `ObjectId` (CR 400.7), and that
     /// card id is what the offer layer enumerates and the player announces.
     Object(ObjectId),
-    /// An **ability** on the stack, named by its `StackObject::id` (CR 113.1, CR 115.7a
+    /// An **ability** on the stack, named by its `StackObject::id` (CR 602.2a / CR 603.3,
+    /// CR 115.7a
     /// -- "target spell or ability").
     ///
     /// PB-DX52 (`OOS-DX25b-1`). An activated or triggered ability's stack entry is minted
@@ -34,8 +35,13 @@ pub enum Target {
     /// spell-only `TargetSpellWithSingleTarget` on every production path.
     ///
     /// **Why a third `Target` variant rather than registering ability entries in
-    /// `state.objects`** (the CR 109.1-literal alternative, costed and rejected at PB-DX52
-    /// stage 0 -- `memory/primitives/pb-DX52-execution-notes.md` §0.3): an entry in that
+    /// `state.objects`.** The CR argues for registration on its face -- CR 113.1c: *"An
+    /// ability can be an activated or triggered ability on the stack. This kind of ability
+    /// is an object"*, and CR 109.1 lists *"an ability on the stack"* first among the
+    /// things an object is. That alternative was costed and REJECTED at PB-DX52 stage 0
+    /// (`memory/primitives/pb-DX52-execution-notes.md` §0.3), because `state.objects` is
+    /// not this engine's model of CR 109.1's "object" -- it is the CARD-object map, and
+    /// CR 113 abilities are modelled by `state.stack_objects`: an entry in that
     /// map must claim a `ZoneId`, and the only honest claim is `ZoneId::Stack`; but
     /// `casting.rs`'s `TargetRequirement::TargetSpell` arm decides "is this a spell" by
     /// `obj.zone == ZoneId::Stack` **alone**, so a registered ability would immediately
@@ -55,9 +61,13 @@ pub enum Target {
     /// the SAME shared arithmetic a card id goes through, with no second lookup to drift.
     ///
     /// **`zone_at_cast` is `None`** for this variant, like a player target: a stack entry
-    /// is not in a zone the way a card is. CR 608.2b legality is instead "is this entry
-    /// still in `state.stack_objects`" -- an ability that has resolved or been countered
-    /// is gone from that vector, and is an illegal target.
+    /// is not in a zone the way a card is. CR 608.2b's own sentence is about a target that
+    /// is *"no longer in the zone it was in"*, which is written about a CARD changing zones
+    /// (CR 400.7); an ability never does that, because CR 608.2n says that as the final
+    /// part of its resolution *"the ability is removed from the stack and ceases to
+    /// exist"*. So the equivalent legality question is existence: an ability that has
+    /// resolved or been countered is gone from `state.stack_objects`, and is an illegal
+    /// target.
     ///
     /// **No CR 702.21a Ward dispatch is owed for one of these.** Ward reads "whenever this
     /// **permanent** becomes the target of a spell or ability an opponent controls", and

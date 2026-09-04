@@ -684,7 +684,9 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
                     // PB-DX52 (`OOS-DX25b-1`): an ability's stack entry. `resolve_name`
                     // reads `state.objects()`, where a stack entry is not, so it would
                     // print its own numeric fallback for every one of these. Named by
-                    // SOURCE instead (CR 113.3).
+                    // SOURCE instead (CR 113.7: the source of an ability is the object
+                    // that generated it). A display convention, not a CR requirement --
+                    // CR 113.7a says the ability exists independently of its source.
                     mtg_engine::Target::StackObject(id) => state
                         .stack_objects()
                         .iter()

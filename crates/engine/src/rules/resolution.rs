@@ -8731,10 +8731,11 @@ fn is_target_legal(state: &GameState, spell_target: &SpellTarget) -> bool {
         // CR 608.2b's own sentence is *"a target that's no longer in the zone it was in
         // when it was targeted is illegal"*, which is written about a CARD changing
         // zones (CR 400.7). An ability on the stack never changes zones: it either sits
-        // in `state.stack_objects` or it CEASES TO EXIST (CR 113.1 -- it resolves and is
-        // removed, or it is countered and removed). So the zone test is not merely
-        // inapplicable, it is unrepresentable, which is why `zone_at_cast` is `None` for
-        // this variant.
+        // in `state.stack_objects` or it CEASES TO EXIST -- CR 608.2n, verbatim: *"As the
+        // final part of an ability's resolution, the ability is removed from the stack and
+        // ceases to exist."* (A counter removes it just as finally, CR 701.6a.) So the zone
+        // test is not merely inapplicable, it is unrepresentable, which is why
+        // `zone_at_cast` is `None` for this variant.
         //
         // The equivalent legality question is therefore existence: an ability that has
         // resolved or been countered is gone from the vector and is an illegal target.

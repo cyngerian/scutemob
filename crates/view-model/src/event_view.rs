@@ -934,7 +934,8 @@ pub fn event_view_for(
                     // PB-DX52: an ability on the stack. `card_or` looks the id up in
                     // `state.objects()`, where a stack entry is not, so it would always
                     // take its fallback branch and print "a permanent" -- which is both
-                    // wrong (CR 113.1: an ability on the stack is not a permanent) and
+                    // wrong (CR 110.1: a permanent is a card or token ON THE BATTLEFIELD, which
+                    // an ability on the stack is not) and
                     // indistinguishable from a genuinely unnameable card. The stack is a
                     // public zone (CR 400.2) so nothing is redacted here; what is
                     // withheld is only the SOURCE's identity, which `card_or` already

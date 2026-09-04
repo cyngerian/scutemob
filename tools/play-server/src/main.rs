@@ -14877,4 +14877,436 @@ mod tests {
              CR 118.12 places AT MOST ONE, not all four"
         );
     }
+
+    // ── PB-DX52 (`OOS-DX25b-1`) -- Bolt Bend's "or ability" half over HTTP ──────
+    //
+    // The simulator-side halves (offer/accept via `LocalGame`/`HumanChoice`, the
+    // resolution effect, the bot layer, and a control proving `Target::StackObject`
+    // does not spuriously appear for a spell) are
+    // `crates/simulator/tests/pb_dx52_stack_target_channel.rs`. This is the HTTP
+    // half: a real `POST /api/game/action` through `app(state.clone()).oneshot(..)`,
+    // the same router `main()` serves.
+    //
+    // # What this fixture drives, and what it deliberately does NOT
+    //
+    // A `play-server` session installs from a DECK and plays it out (PB-DX45's
+    // disclosure standard), so there is no way to hand-place an OPPONENT's ability
+    // on the stack at a chosen moment the way the engine-side fixture does. The
+    // human's own deck therefore carries BOTH `Bolt Bend` and `Goblin Sharpshooter`
+    // (real, `Complete`, deck-legal), and the drive has the human activate their
+    // OWN Sharpshooter targeting THEMSELVES, then redirect it onto the bot with
+    // Bolt Bend -- CR 115.7a's own candidate order (the redirecting player is tried
+    // first, but is excluded because it equals the current target) makes this land
+    // on the bot deterministically, without needing to script the bot's behaviour
+    // at all. **The untested-over-HTTP combination is named rather than left
+    // implied**: an OPPONENT-controlled ability being redirected, driven end to end
+    // through a genuine bot-opponent HTTP session, is exercised only on the
+    // simulator side (`c1`/`c2`/`c3` there drive p2's own ability); this probe
+    // covers the WIRE round trip (a brand-new `kind: "stack_object"` value, a real
+    // POST, a real resolution effect) on the reachable combination instead of not
+    // testing it at all.
+
+    /// Mono-red, `Complete` -- every card this fixture needs (`Bolt Bend`, `Goblin
+    /// Sharpshooter`, `Mountain`) is red or colourless, so CR 903.5c color identity
+    /// is satisfied trivially. **Not Krenko, Mob Boss** -- that was this fixture's
+    /// first draft, and execution refuted it: its `{T}: create X 1/1 Goblins`
+    /// activated ability needs only a tap once it resolves, `HeuristicBot` scores
+    /// it highly, and the resulting snowballing Goblin army killed the human via
+    /// combat well before Bolt Bend was ever drawn (measured: game over at step
+    /// 225 of 4,000, no card ever offered). Karlach's own payload needs her to be
+    /// CAST ({4}{R}) and then ATTACK before it does anything, which is far slower
+    /// to bite and does not itself create any permanent.
+    const DX52_COMMANDER: &str = "karlach-fury-of-avernus";
+
+    /// **Read off an executed sweep, not reasoned to** (the `UI1_SEED` /
+    /// `DX20B_SEED` precedent). A throwaway scratch test -- written, run, deleted,
+    /// never committed -- swept seeds 1..=1500 directly against
+    /// `setup::build_initial_state`'s dealt hand for this exact
+    /// `DeckSource::Fixed` pair, looking for a seat-1 opening where BOTH `bolt-bend`
+    /// and `goblin-sharpshooter` are in the OPENING SEVEN. The qualifying set —
+    /// `[87, 146, 184, 752, 778, 863, 931, 1030]` — is **byte-identical** to
+    /// `DX20B_SEED`'s own five-of-eleven set for a structurally identical deck
+    /// shape (one two-card pair plus 97 copies of one basic land): the shuffle
+    /// algorithm is a pure function of POSITION, not of WHICH two non-basic cards
+    /// are in the 99, so the same seeds qualify regardless of which pair it is.
+    /// 87 is chosen for the same reason `DX20B_SEED` was: it is the first of the
+    /// set.
+    const DX52_SEED: u64 = 87;
+
+    /// `Bolt Bend` + `Goblin Sharpshooter` + 97 Mountains. Two action cards, one
+    /// basic land type -- the `dx20b_human_deck` shape, so the drive's "play a
+    /// land, else act on whichever action card is offered, else pass" policy is
+    /// never ambiguous about what to do.
+    fn dx52_human_deck() -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = vec![
+            CardId("bolt-bend".to_string()),
+            CardId("goblin-sharpshooter".to_string()),
+        ];
+        while main_deck.len() < 99 {
+            main_deck.push(CardId("mountain".to_string()));
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX52_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    fn dx52_bot_deck() -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX52_COMMANDER.to_string()),
+            main_deck: (0..99).map(|_| CardId("mountain".to_string())).collect(),
+        }
+    }
+
+    /// Install through `session::new_game` -- the same constructor the real handler
+    /// uses, running the same two Invariant-9 gates (`validate_deck`,
+    /// `check_all_defs_complete`). `POST /api/game` cannot express a
+    /// `DeckSource::Fixed` game (`ui1_install`'s doc), which is why every PB-DX
+    /// fixed-deck HTTP probe installs this way.
+    fn dx52_install(state: &SharedState) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: DX52_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), dx52_human_deck()),
+                (mtg_engine::PlayerId(2), dx52_bot_deck()),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the PB-DX52 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// Out-of-band oracle: `player`'s current life total, read straight off the
+    /// engine state rather than the wire (mirrors `dx44_life_total`).
+    fn dx52_life_total(state: &SharedState, player: mtg_engine::PlayerId) -> i32 {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        session
+            .game
+            .state()
+            .player(player)
+            .expect("player exists")
+            .life_total
+    }
+
+    /// Out-of-band oracle: is the stack empty right now?
+    fn dx52_stack_empty(state: &SharedState) -> bool {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        session.game.state().stack_objects().is_empty()
+    }
+
+    /// Drive the human seat: play a land every chance, activate Goblin Sharpshooter
+    /// (targeting THEMSELVES, p1) the moment it is offered, cast Goblin Sharpshooter
+    /// the moment it is offered, otherwise pass -- UNTIL "Cast Bolt Bend" is offered
+    /// with a `"stack_object"` candidate. Returns the view immediately before that
+    /// POST (so the caller can inspect the offer) and the candidate itself.
+    ///
+    /// Never falls back to casting Bolt Bend with no target: the generic
+    /// "anything not Concede" catch-all explicitly excludes it, because c4's own
+    /// simulator-side finding is that `CastSpell(Bolt Bend)` is offered even with
+    /// no legal target (SR-38 suppresses it by COST shape only, not by target
+    /// shape) -- an accidental catch-all pick here would 4xx or (worse) silently
+    /// consume the one Bolt Bend copy this deck has.
+    async fn dx52_drive_to_bolt_bend_offer(
+        state: &SharedState,
+        max_steps: usize,
+    ) -> (Value, Value) {
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} before Bolt Bend was ever offered against \
+                 a stack_object candidate: {view}"
+            );
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+
+            if let Some(bb) = actions.iter().find(|a| {
+                a["kind"] == "CastSpell"
+                    && a["label"] == "Cast Bolt Bend"
+                    && a["target_slots"][0]["candidates"]
+                        .as_array()
+                        .is_some_and(|cs| cs.iter().any(|c| c["kind"] == "stack_object"))
+            }) {
+                return (view.clone(), bb.clone());
+            }
+
+            // CR 302.6: Goblin Sharpshooter's `{T}` ability is offered the instant
+            // summoning sickness clears -- which can be as early as THIS turn's
+            // Upkeep, well before this turn's land drop, and therefore before Bolt
+            // Bend's `{3}{R}` is affordable. Activating on sight (this probe's
+            // first draft) fires the ability into a window where redirecting it is
+            // impossible, and it never comes back (`Doesn't Untap`, no creature
+            // deaths on this board). So the ability is deliberately GATED on Bolt
+            // Bend ALREADY being co-offered in the SAME decision -- i.e. p1 can pay
+            // for both right now -- rather than being taken the moment it exists.
+            let bolt_bend_is_affordable_now = actions
+                .iter()
+                .any(|a| a["kind"] == "CastSpell" && a["label"] == "Cast Bolt Bend");
+
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| {
+                    if bolt_bend_is_affordable_now {
+                        actions.iter().find(|a| {
+                            a["kind"] == "ActivateAbility"
+                                && a["label"]
+                                    .as_str()
+                                    .unwrap_or_default()
+                                    .contains("Sharpshooter")
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .or_else(|| {
+                    actions.iter().find(|a| {
+                        a["kind"] == "CastSpell" && a["label"] == "Cast Goblin Sharpshooter"
+                    })
+                })
+                .or_else(|| actions.iter().find(|a| a["kind"] == "KeepHand"))
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| {
+                    actions
+                        .iter()
+                        .find(|a| a["kind"] != "Concede" && a["label"] != "Cast Bolt Bend")
+                })
+                .unwrap_or_else(|| {
+                    panic!("only Concede/Bolt Bend were offered at step {step}: {view}")
+                });
+
+            let wire_seq = seq(&view);
+            let params = if pick["kind"] == "ActivateAbility" {
+                // CR 601.2c: target SELF -- p1 -- so the redirect below has
+                // somewhere to move the target FROM (CR 115.7a's own candidate
+                // order excludes the current target, so this makes the eventual
+                // Bolt Bend land on the bot deterministically).
+                let candidates = pick["target_slots"][0]["candidates"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default();
+                let self_candidate = candidates
+                    .iter()
+                    .find(|c| c["kind"] == "player" && c["id"] == 1)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Goblin Sharpshooter's offer must include p1 as a legal \
+                             target: {pick}"
+                        )
+                    });
+                json!({ "targets": [self_candidate["value"].clone()] })
+            } else {
+                json!({})
+            };
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": pick["index"], "params": params}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!(
+            "Bolt Bend was never offered against a stack_object candidate within \
+             {max_steps} steps: {view}"
+        );
+    }
+
+    /// **h1** -- a genuine `POST /api/game/action` casting Bolt Bend at an
+    /// activated ability's stack entry, using the `value` the server itself sent
+    /// in the target candidate (echoed back verbatim, per the UI-4/SIM-6 standard
+    /// -- `test_dx20b_imprisoned_offer_excludes_the_artifact_over_http`'s own
+    /// `chosen["value"].clone()` idiom).
+    ///
+    /// The VERDICT is the RESOLUTION EFFECT (an out-of-band life-total read), not
+    /// merely the HTTP 200 -- a clean offer followed by a guaranteed silent
+    /// no-op is the SR-38 shape this project has shipped three times
+    /// (`OOS-DX29`, PB-DX44, PB-DX45), and a 200-alone assertion cannot catch its
+    /// mirror image.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx52_bolt_bend_redirects_an_ability_over_http() {
+        let state = shared_state();
+        dx52_install(&state);
+
+        let (view, bolt_bend) = dx52_drive_to_bolt_bend_offer(&state, 4_000).await;
+
+        let candidates = bolt_bend["target_slots"][0]["candidates"]
+            .as_array()
+            .unwrap_or_else(|| panic!("Bolt Bend must carry one target slot: {bolt_bend}"))
+            .clone();
+        assert_eq!(
+            candidates.len(),
+            1,
+            "exactly one legal candidate on this board -- the ability itself: {candidates:?}"
+        );
+        assert_eq!(
+            candidates[0]["kind"], "stack_object",
+            "OOS-DX25b-1: the sole candidate must be the ability's stack entry: {:?}",
+            candidates[0]
+        );
+
+        let p1 = mtg_engine::PlayerId(1);
+        let p2 = mtg_engine::PlayerId(2);
+        let p1_life_before = dx52_life_total(&state, p1);
+        let p2_life_before = dx52_life_total(&state, p2);
+
+        let before_commands = command_count(&view);
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": bolt_bend["index"],
+                "params": {"auto_tap": true, "targets": [candidates[0]["value"].clone()]},
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "POST /api/game/action naming the ability's own stack entry must return 200: \
+             {after}"
+        );
+        assert!(
+            command_count(&after) > before_commands,
+            "the command count should have advanced past {before_commands}, got {:?}",
+            command_count(&after)
+        );
+
+        // Resolve the rest of the stack: pass priority until it is empty.
+        let mut view = after;
+        for step in 0..200 {
+            if dx52_stack_empty(&state) {
+                break;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} before the stack finished resolving: {view}"
+            );
+            let wire_seq = seq(&view);
+            let pass_index = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .iter()
+                .find(|a| a["kind"] == "PassPriority")
+                .unwrap_or_else(|| {
+                    panic!("no PassPriority while resolving the stack at step {step}: {view}")
+                })["index"]
+                .clone();
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": pass_index, "params": {}}),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "step {step}: {next}");
+            view = next;
+        }
+        assert!(
+            dx52_stack_empty(&state),
+            "the stack must have resolved within 200 passes"
+        );
+
+        // THE VERDICT: CR 115.7a redirected Goblin Sharpshooter's target off p1
+        // (the caster of Bolt Bend, excluded because it was the CURRENT target)
+        // and onto p2 (the next candidate in `retarget_candidates`' order), so
+        // p1 takes none of the 1 damage and p2 takes all of it.
+        let p1_life_after = dx52_life_total(&state, p1);
+        let p2_life_after = dx52_life_total(&state, p2);
+        assert_eq!(
+            p1_life_after, p1_life_before,
+            "CR 115.7a: p1 must take none of Goblin Sharpshooter's damage -- it was \
+             redirected off them (before {p1_life_before}, after {p1_life_after})"
+        );
+        assert_eq!(
+            p2_life_after,
+            p2_life_before - 1,
+            "CR 115.7a: p2 must take the printed 1 damage, as the ability's NEW \
+             target (before {p2_life_before}, after {p2_life_after})"
+        );
+    }
+
+    /// **h2** -- a wire-shape pin. `TargetOptionView` for a stack entry serialises
+    /// with `kind == "stack_object"`, an `id` equal to the stack-entry's OWN id
+    /// (read from the out-of-band oracle, not merely self-consistent with the
+    /// candidate), a non-empty label, and a `value` that round-trips back to
+    /// `Target::StackObject(that id)` when parsed by the engine's own
+    /// `serde_json::from_value`.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx52_stack_object_candidate_wire_shape_round_trips() {
+        let state = shared_state();
+        dx52_install(&state);
+
+        let (_view, bolt_bend) = dx52_drive_to_bolt_bend_offer(&state, 4_000).await;
+        let candidate = bolt_bend["target_slots"][0]["candidates"][0].clone();
+
+        assert_eq!(candidate["kind"], "stack_object", "{candidate}");
+
+        // Out-of-band oracle: the ability's stack entry ACTUALLY has this id --
+        // not merely "the wire says so".
+        let ability_id: u64 = {
+            let guard = state.session.lock().expect("lock");
+            let session = guard.as_ref().expect("a session is installed");
+            session
+                .game
+                .state()
+                .stack_objects()
+                .iter()
+                .find(|so| {
+                    matches!(
+                        so.kind,
+                        mtg_engine::StackObjectKind::ActivatedAbility { .. }
+                    )
+                })
+                .unwrap_or_else(|| panic!("no ActivatedAbility on the stack"))
+                .id
+                .0
+        };
+        assert_eq!(
+            candidate["id"].as_u64(),
+            Some(ability_id),
+            "the candidate's wire `id` must equal the ability's REAL stack-entry id: \
+             {candidate}"
+        );
+
+        let label = candidate["label"].as_str().unwrap_or_default();
+        assert!(
+            !label.is_empty() && label != "Unknown",
+            "the label must not be a placeholder: {candidate}"
+        );
+
+        // The round trip: parse the wire `value` back through the ENGINE's own
+        // `Target` type -- not string-matched, actually deserialized.
+        let parsed: mtg_engine::Target = serde_json::from_value(candidate["value"].clone())
+            .unwrap_or_else(|e| {
+                panic!("candidate.value must deserialize as mtg_engine::Target: {e}: {candidate}")
+            });
+        assert_eq!(
+            parsed,
+            mtg_engine::Target::StackObject(mtg_engine::ObjectId(ability_id)),
+            "the wire value must round-trip to Target::StackObject(the real id), got \
+             {parsed:?}"
+        );
+    }
 }

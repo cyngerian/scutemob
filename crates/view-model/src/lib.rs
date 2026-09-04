@@ -555,7 +555,8 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
 /// Extract (kind_str, source_object_id) from a StackObjectKind.
 ///
 /// **`pub` since PB-DX52** (was `pub(crate)`). `tools/tui` needs the source object of a
-/// stack entry to render a `Target::StackObject` by name (CR 113.3), and the only
+/// stack entry to render a `Target::StackObject` by the name of its SOURCE (CR 113.7), and the
+/// only
 /// alternative was a 26th hand-written copy of this 25-arm match -- `stack_view.rs`
 /// already carries one. Widened rather than duplicated. This is a pure classification
 /// over a public type: it reads no `GameState` and can leak nothing, so Architecture
@@ -719,16 +720,26 @@ fn format_target(
         }
         // PB-DX52 (`OOS-DX25b-1`): an ability on the stack, named by its
         // `StackObject::id`. It has no `state.objects` row, so the name is read off the
-        // stack entry's SOURCE (CR 113.3: an ability on the stack has its source's
-        // text), never off the objects map -- a `.get()` there would always miss and
-        // silently produce the numeric fallback.
+        // stack entry's SOURCE (CR 113.7: *"the source of an ability is the object that
+        // generated it"*), never off the objects map -- a `.get()` there would always miss
+        // and silently produce the numeric fallback.
+        //
+        // Naming an ability by its source is a DISPLAY convention, not a CR requirement:
+        // an ability on the stack has no name of its own, and CR 113.7a is explicit that
+        // it *"exists on the stack independently of its source"*. The source is simply the
+        // only identifier a player can recognise.
         Target::StackObject(sid) => {
             let name = state
                 .stack_objects()
                 .iter()
                 .find(|so| so.id == *sid)
                 .and_then(|so| crate::stack_kind_info(&so.kind).1)
-                .and_then(|src| state.objects().get(&src).map(|o| o.characteristics.name.clone()));
+                .and_then(|src| {
+                    state
+                        .objects()
+                        .get(&src)
+                        .map(|o| o.characteristics.name.clone())
+                });
             match name {
                 Some(n) => format!("ability:{n}"),
                 None => format!("ability_{}", sid.0),

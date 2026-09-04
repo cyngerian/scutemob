@@ -852,7 +852,7 @@ fn t5_live_entry_is_a_legal_target_no_fizzle() {
 /// `pb_dx25_counterspell_stack_shapes::T7` (its own doc: "a `pub` function with zero
 /// production callers", used by tests precisely to isolate CR questions like this one
 /// from stack-ordering mechanics). This removes the ability's entry WHILE Bolt Bend
-/// still sits on top of it, without resolving Bolt Bend first -- simulating CR 113.1's
+/// still sits on top of it, without resolving Bolt Bend first -- simulating CR 608.2n's
 /// "it resolves, or it otherwise leaves the stack" for the ability alone.
 #[test]
 fn t6_countered_entry_is_illegal_bolt_bend_fizzles() {

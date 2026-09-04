@@ -1400,7 +1400,10 @@ impl NameIndex {
             // `redact::redact_stack`, so a face-down source's ability reads as the
             // face-down placeholder here too, with no second entitlement decision made
             // in this file.
-            stack_labels.insert(item.id, format!("{}'s ability", non_empty(&item.source_name)));
+            stack_labels.insert(
+                item.id,
+                format!("{}'s ability", non_empty(&item.source_name)),
+            );
             stack_owners.insert(item.id, item.controller.clone());
         }
 

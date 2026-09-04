@@ -313,7 +313,8 @@ impl EffectContext {
         match self.targets.get(index)?.target {
             Target::Player(p) => Some(p),
             Target::Object(_) => None,
-            // PB-DX52: an ability on the stack is not a player (CR 113.1).
+            // PB-DX52: an ability on the stack is not a player (CR 102.1: a player is
+            // one of the people in the game).
             Target::StackObject(_) => None,
         }
     }

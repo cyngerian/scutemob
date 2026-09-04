@@ -6736,8 +6736,10 @@ fn validate_mapped_targets(
             // No hexproof/shroud/protection block here, and that is a CR reading rather
             // than an omission -- see the matching arm in
             // `abilities.rs::handle_activate_ability` for the three cites (CR 702.11b /
-            // CR 702.18a scope those to a PERMANENT; CR 113.3 gives an ability on the
-            // stack its source's TEXT, not its source's protection).
+            // CR 702.18a scope those to a PERMANENT, and CR 110.1 makes a permanent a
+            // card or token ON THE BATTLEFIELD, which an ability on the stack is not).
+            // Nor does it inherit its source's protection: CR 113.7a is explicit that an
+            // ability on the stack *"exists on the stack independently of its source"*.
             //
             // `zone_at_cast: None`: a stack entry is not in a zone, so CR 608.2b
             // legality for it is existence in `state.stack_objects`
@@ -6783,8 +6785,9 @@ fn validate_mapped_targets(
 /// `OOS-DX25-3`/`OOS-SIM3-5` were.
 ///
 /// **Which requirements a stack entry can satisfy, and why the list is short.** A stack
-/// entry has no zone, no characteristics of its own (CR 113.3 gives it its source's
-/// text, not its source's type line) and no battlefield presence, so it cannot satisfy
+/// entry has no zone, no characteristics of its own (CR 113.7a: it *"exists on the stack
+/// independently of its source"*, so it does not inherit the source's type line) and no
+/// battlefield presence (CR 110.1), so it cannot satisfy
 /// `TargetCreature`, `TargetPermanent`, `TargetAny` or any filtered permanent
 /// requirement. The four it CAN satisfy are the four the CR writes about objects on the
 /// stack. Everything else is an explicit `Err` with the requirement named -- never a
@@ -6927,8 +6930,10 @@ fn validate_stack_object_satisfies_requirement(
             Ok(())
         }
         // Everything else names a permanent, a player, a card in a zone, or a battlefield
-        // quality. A stack entry is none of those (CR 113.1: an ability on the stack is
-        // not a permanent and is not in a zone the way a card is).
+        // quality. A stack entry is none of those: CR 110.1 makes a permanent a card or
+        // token on the battlefield, and CR 608.2n makes an ability on the stack something
+        // that *"is removed from the stack and ceases to exist"* rather than something
+        // that changes zones.
         _ => Err(GameStateError::InvalidTarget(format!(
             "stack object {:?} does not satisfy requirement {:?} (a stack entry can only \
              satisfy a spell/ability requirement)",
@@ -7022,7 +7027,9 @@ fn validate_object_satisfies_requirement(
     // function validates; the ABILITY half has no card and is validated by
     // `validate_stack_object_satisfies_requirement`. The two halves of one printed line
     // therefore live in the two id spaces the CR itself distinguishes -- a spell on the
-    // stack IS a card object (CR 601.2a), an ability on the stack is not (CR 113.1).
+    // stack IS a card object (CR 601.2a), an ability on the stack is not — it is put
+    // there by CR 602.2a/603.3 and, per CR 608.2n, *"removed from the stack and ceases to
+    // exist"* rather than moved to another zone.
     if matches!(
         req,
         TargetRequirement::TargetSpell
