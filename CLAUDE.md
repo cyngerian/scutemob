@@ -1342,7 +1342,7 @@
   the apparent `board_wipe_4p` improvement killed by a second HEAD run rather than published.**
   **Fuzz: the engine half is fuzz-neutral BY MEASUREMENT** — five seeded fixtures reddened on the
   `CORPUS_COMPLETE` re-deal and an executed ablation (engine change in, marker reverted) turns all
-  five green. Filed **OOS-DX36-1..8**. Full record:
+  five green. Filed **OOS-DX36-1..9**. Full record:
   `memory/primitives/pb-DX36-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-09-04 — **PB-DX35 SHIPPED** (`scutemob-227`; v4 queue rank 12 —
   **OOS-DX4-2** and **OOS-DX4-5** both CLOSED, plus **OOS-DP10-5** CLOSED and **OOS-DX8-3**

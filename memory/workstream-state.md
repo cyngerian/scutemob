@@ -20,7 +20,7 @@
 ## Last Handoff (worker, 2026-09-04) — PB-DX36 (`scutemob-228`)
 
 **Shipped**: v4 rank 13. **`OOS-CARDS2-6` FILED — it had no registry row at all — and CLOSED, both
-halves.** Filed `OOS-DX36-1..8`. Next dispatch is **PB-DX52** (v4 rank 14); ranks 1-13 all shipped.
+halves.** Filed `OOS-DX36-1..9`. Next dispatch is **PB-DX52** (v4 rank 14); ranks 1-13 all shipped.
 **This was the LAST of the four-batch chain the user approved on 2026-09-04. STOP here — no further
 dispatch without an explicit user go.**
 
