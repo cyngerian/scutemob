@@ -39,7 +39,9 @@
 //! hand-written tree walk, for PB-DP10's reason: a hand-written walk silently misses the
 //! nesting sites it was not taught.
 
-use crate::decision_site_walk::{def_contains_variant, find_variant_nodes, is_effectively_complete};
+use crate::decision_site_walk::{
+    def_contains_variant, find_variant_nodes, is_effectively_complete,
+};
 use mtg_engine::all_cards;
 use mtg_engine::CardDefinition;
 use serde_json::Value;
@@ -98,7 +100,8 @@ fn prints_look_then_place(def: &CardDefinition) -> Option<String> {
     }
     const OPENERS: [&str; 2] = ["you may put", "you may reveal"];
     const CLOSERS: [&str; 3] = ["onto the battlefield", "into your hand", "from among"];
-    const EXCLUDED_SOURCES: [&str; 3] = ["from your hand", "from the command zone", "graveyard onto"];
+    const EXCLUDED_SOURCES: [&str; 3] =
+        ["from your hand", "from the command zone", "graveyard onto"];
     for opener in OPENERS {
         let mut from = 0usize;
         while let Some(rel) = o[from..].find(opener) {
