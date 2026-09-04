@@ -720,7 +720,7 @@ fn test_os5_version_sentinels() {
          OtherAttackersSharingCreatureType)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 80u8,
+        HASH_SCHEMA_VERSION, 81u8,
         "HASH_SCHEMA_VERSION should be 57 after PB-OS5"
     );
 }

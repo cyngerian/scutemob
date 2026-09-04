@@ -944,7 +944,35 @@
 ///   HASH 79 -> 80, ONE bump each", with the type counts predicted unchanged at
 ///   98/131) and both fingerprints taken from the failing gates' own output rather
 ///   than transcribed. **Both predictions held, counts included.**
-pub const HASH_SCHEMA_VERSION: u8 = 80;
+/// - 81: PB-DX18 (2026-09-04, `OOS-DX2-4` + `OOS-DX2-1` + `OOS-M11-5` -- the trust
+///   boundary on ungated commands): **two new stored fields and one new type**,
+///   designed together so ONE bump covers all of it.
+///
+///   1. `GameState.pregame: PregamePhase` (`state/pregame.rs`) -- CR 103.4-103.6. A
+///      new enum, `Mulligans { kept: OrdSet<PlayerId> } | GameStarted`, so it ADDS
+///      ONE member to the closure's type list. It is the only thing that can tell
+///      "before the game began" from "turn 14" for `Command::TakeMulligan` /
+///      `Command::KeepHand`, and it carries BOTH of CR 103.5's restrictions (the
+///      phase boundary and the per-player "may not take any further mulligans").
+///   2. `PlayerState.miracle_pending: Option<ObjectId>` -- CR 702.94a's *"as you
+///      draw it"* conjunct. `ObjectId` and `Option` are both already closure
+///      members, so this field adds no type.
+///   3. `AbilityDefinition::Splice` gains `targets: Vec<TargetRequirement>` (CR
+///      702.47a). `AbilityDefinition` is hashed but is NOT in the `GameState` serde
+///      closure (`card_registry` is `#[serde(skip)]`), so this moves the STREAM and
+///      not the DECLARATION digest -- and `TargetRequirement` is already hashed.
+///
+///   `PROTOCOL_VERSION` is predicted UNMOVED and gate-confirmed at **41**:
+///   `protocol_schema.rs`'s `CLOSURE_MUST_NOT_CONTAIN` lists `GameState` and
+///   `PlayerState`, and `AbilityDefinition` is reachable only through
+///   `CardDefinition`, which that list also excludes. The PB-DX21 precedent
+///   (`CombatState.attackers_declared`, HASH 72 -> 73, PROTOCOL 35 unmoved).
+///
+///   Predicted in writing before any production line changed
+///   (`memory/primitives/pb-DX18-execution-notes.md` §0.8, "HASH 80 -> 81, ONE bump;
+///   PROTOCOL 41 UNMOVED"), and both fingerprints taken from the failing gates' own
+///   output rather than transcribed.
+pub const HASH_SCHEMA_VERSION: u8 = 81;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1461,6 +1489,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // Closure type count unchanged (131).
         decl_fingerprint: "fb03f695e6dbc82118587397f3eeb83ea4e56f14d26af3af12610ad6003a581a",
         stream_fingerprint: "e688bdbe27a76393917696d0be3b3f649336b5ac559501ad3187fee8fb889d12",
+    },
+    HashSchemaEpoch {
+        version: 81,
+        // PB-DX18 (2026-09-04, `OOS-DX2-4` + `OOS-DX2-1` + `OOS-M11-5`): the new
+        // `PregamePhase` enum on `GameState`, `PlayerState.miracle_pending`, and
+        // `AbilityDefinition::Splice.targets` (see the `- 81:` History line above).
+        // `PregamePhase` is a genuinely new closure type, so the type count moves.
+        decl_fingerprint: "5a0cdc227d9228ef4f3ae6669d10513ac133ac4e443b6222a417b5113d64fde3",
+        stream_fingerprint: "7be484d4a414512698825a72d04b5b6197fa648f194a7e531a5d415f02ab498d",
     },
 ];
 
