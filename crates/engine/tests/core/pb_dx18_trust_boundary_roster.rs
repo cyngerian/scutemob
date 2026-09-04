@@ -138,7 +138,23 @@ fn r1_every_redirect_consumer_discharges_the_shuffle_obligation() {
             // than matched loosely, and `r1c` gates that enumeration against the engine's
             // own set so a fourth cannot appear behind this gate's back.
             let moves = MOVE_HELPERS.iter().any(|h| body.contains(h));
-            if moves && !body.contains("finish_redirect_shuffle") {
+            // THE CALL IS NOT THE PROPERTY — the BOUND FIELD reaching it is.
+            //
+            // This gate's first draft looked for the call by name and was DEFEATED by its
+            // own revert row R2: `state.finish_redirect_shuffle(false, to, &mut events)`
+            // contains the name, drops the obligation entirely, and left the gate GREEN.
+            // That is `OOS-DX47`'s `r3` shape — a gate keyed on a spelling measures the
+            // spelling — committed inside the batch whose roster file says so. Found by
+            // executing the revert rather than by argument, and fixed by requiring the
+            // field the arm binds to appear inside the call's own argument list.
+            let discharged = body
+                .match_indices("finish_redirect_shuffle(")
+                .any(|(at, _)| {
+                    let rest = &body[at..];
+                    let end = rest.find(')').unwrap_or(rest.len());
+                    rest[..end].contains("shuffle_destination_after")
+                });
+            if moves && !discharged {
                 let line = src[..start].matches('\n').count() + 1;
                 missing.push(format!("{}:{}", path.display(), line));
             }
