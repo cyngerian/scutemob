@@ -1677,6 +1677,23 @@ pub(crate) fn permanent_targeted_events(
                     targeting_controller: controller,
                 })
             }
+            // PB-DX52 (`OOS-DX25b-1`) -- a stack ENTRY target, spelled out rather than
+            // left to the wildcard below.
+            //
+            // **No `PermanentTargeted` is owed, and that is a CR reading rather than an
+            // omission.** CR 702.21a: *"Ward [cost] means 'Whenever this PERMANENT becomes
+            // the target of a spell or ability an opponent controls, counter it unless
+            // that player pays [cost].'"* An ability on the stack is not a permanent
+            // (CR 110.1: a permanent is a card or token on the battlefield), so nothing
+            // this variant can name is a Ward subject. `PermanentBecomesTarget`, the only
+            // other consumer this event dispatches (PB-DX48), is scoped the same way by
+            // its own name.
+            //
+            // The `_ => None` arm below already gave this answer. It is written out
+            // anyway, because a wildcard that happens to be right is not a decision
+            // anyone made -- and this is the arm a future `Target` variant naming
+            // something that IS a permanent would silently fall through.
+            Target::StackObject(_) => None,
             _ => None,
         })
         .collect()

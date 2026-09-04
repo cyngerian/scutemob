@@ -631,6 +631,7 @@ fn test_pbxs_death_trigger_graveyard_picker_excludes_source() {
     let target = &trigger_so.targets[0];
     let target_id = match target.target {
         Target::Object(id) => id,
+        Target::StackObject(_) => panic!("target must be an object, got stack entry"),
         Target::Player(_) => panic!("F-1: target must be an object, got player"),
     };
 

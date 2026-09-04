@@ -553,7 +553,14 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
 }
 
 /// Extract (kind_str, source_object_id) from a StackObjectKind.
-pub(crate) fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
+///
+/// **`pub` since PB-DX52** (was `pub(crate)`). `tools/tui` needs the source object of a
+/// stack entry to render a `Target::StackObject` by name (CR 113.3), and the only
+/// alternative was a 26th hand-written copy of this 25-arm match -- `stack_view.rs`
+/// already carries one. Widened rather than duplicated. This is a pure classification
+/// over a public type: it reads no `GameState` and can leak nothing, so Architecture
+/// Invariant 7 is untouched by the widening.
+pub fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
     match kind {
         StackObjectKind::Spell { source_object } => ("spell", Some(*source_object)),
         StackObjectKind::ActivatedAbility { source_object, .. } => {
@@ -709,6 +716,23 @@ fn format_target(
                 .map(|o| o.characteristics.name.clone())
                 .unwrap_or_else(|| format!("object_{}", oid.0));
             format!("object:{name}")
+        }
+        // PB-DX52 (`OOS-DX25b-1`): an ability on the stack, named by its
+        // `StackObject::id`. It has no `state.objects` row, so the name is read off the
+        // stack entry's SOURCE (CR 113.3: an ability on the stack has its source's
+        // text), never off the objects map -- a `.get()` there would always miss and
+        // silently produce the numeric fallback.
+        Target::StackObject(sid) => {
+            let name = state
+                .stack_objects()
+                .iter()
+                .find(|so| so.id == *sid)
+                .and_then(|so| crate::stack_kind_info(&so.kind).1)
+                .and_then(|src| state.objects().get(&src).map(|o| o.characteristics.name.clone()));
+            match name {
+                Some(n) => format!("ability:{n}"),
+                None => format!("ability_{}", sid.0),
+            }
         }
     }
 }

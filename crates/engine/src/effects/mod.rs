@@ -313,6 +313,8 @@ impl EffectContext {
         match self.targets.get(index)?.target {
             Target::Player(p) => Some(p),
             Target::Object(_) => None,
+            // PB-DX52: an ability on the stack is not a player (CR 113.1).
+            Target::StackObject(_) => None,
         }
     }
 }
@@ -4558,6 +4560,11 @@ fn execute_effect_inner(
                     let obj_id = ctx.targets.get(*index).and_then(|t| match t.target {
                         Target::Object(id) => Some(id),
                         Target::Player(_) => None,
+                        // PB-DX52: a continuous effect applies to an object in
+                        // `state.objects` (CR 611.2a); a stack entry is not one, and
+                        // `CEFilter::SingleObject` could never match it. No corpus def
+                        // pairs `ApplyContinuousEffect` with a stack-object target slot.
+                        Target::StackObject(_) => None,
                     });
                     match obj_id {
                         Some(id) => CEFilter::SingleObject(id),
@@ -8349,6 +8356,37 @@ fn resolve_effect_target_list_indexed(
                         vec![]
                     }
                 }
+                // PB-DX52 (`OOS-DX25b-1`): a stack ENTRY named directly.
+                //
+                // This lowers to `ResolvedTarget::Object(id)` on purpose, and
+                // `ResolvedTarget` is deliberately NOT given a third variant. Two reasons,
+                // both measured rather than asserted:
+                //
+                // 1. The id is the same id. `state::stack_registry::
+                //    stack_index_for_announced_target`'s FIRST clause is `so.id ==
+                //    announced`, so `Effect::ChangeTargets`, `Effect::CounterSpell` and
+                //    `Effect::CopySpellOnStack` already resolve a stack-entry id through
+                //    the one shared arithmetic. A parallel variant would buy a second
+                //    lookup that could drift from the first.
+                // 2. `ResolvedTarget` is consumed by ~55 `if let ResolvedTarget::Object(..)`
+                //    sites in this file with NO `else` arm. Widening the enum makes every
+                //    one of them a silent-swallow site the compiler cannot flag -- the
+                //    exact shape `OOS-DX36-8`/`OOS-DX47` keep punishing -- in exchange for
+                //    nothing.
+                //
+                // The `exists_on_stack` liveness test is the same one the `Object` arm
+                // above already ran for CR 702.21a Ward's sake; here it is CR 608.2b's
+                // partial-fizzle skip for a stack entry (see `resolution::is_target_legal`).
+                Some(SpellTarget {
+                    target: Target::StackObject(id),
+                    ..
+                }) => {
+                    if state.stack_objects.iter().any(|so| so.id == *id) {
+                        vec![(Some(idx), ResolvedTarget::Object(*id))]
+                    } else {
+                        vec![]
+                    }
+                }
                 Some(SpellTarget {
                     target: Target::Player(p),
                     ..
@@ -10669,6 +10707,15 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                     .expect_player(*p)
                     .map(|ps| !ps.has_lost)
                     .unwrap_or(false),
+                // PB-DX52 (CR 608.2b): a stack entry carries no `zone_at_cast`; it is
+                // legal exactly while it is still ON the stack. An ability that has
+                // resolved or been countered is gone from `state.stack_objects`. Same
+                // predicate `resolution::is_target_legal` uses -- kept in step by
+                // `pb_dx52_stack_target_roster::r3`.
+                Some(SpellTarget {
+                    target: Target::StackObject(id),
+                    ..
+                }) => state.stack_objects.iter().any(|so| so.id == *id),
                 None => false,
             }
         }

@@ -193,6 +193,8 @@ pub(crate) fn plan_target_change(
                 let zone_at_cast = match &target {
                     Target::Object(id) => state.objects().get(id).map(|o| o.zone),
                     Target::Player(_) => None,
+                    // PB-DX52: a stack entry is not in a zone (see `Target::StackObject`).
+                    Target::StackObject(_) => None,
                 };
                 SpellTarget {
                     target,
@@ -270,6 +272,23 @@ pub(crate) fn retarget_candidates(state: &GameState, chooser: PlayerId) -> Vec<T
             ZoneId::Battlefield | ZoneId::Stack | ZoneId::Graveyard(_)
         ) {
             candidates.push(Target::Object(*id));
+        }
+    }
+
+    // PB-DX52 (`OOS-DX25b-1`): the stack-entry half, mirroring
+    // `rules::queries::legal_targets_per_slot`'s new tail EXACTLY -- same predicate
+    // (`card_in_stack_zone(..).is_none()`), same order (`state.stack_objects`' own
+    // `imbl::Vector` order). See that function for why the predicate de-duplicates
+    // rather than restricts. R6 below asserts the two universes are the same SET by
+    // execution, so this comment is not what keeps them in step.
+    //
+    // CR 115.7a consequence this enables: a Bolt Bend redirected onto ANOTHER stack
+    // object with a single target now has stack entries in its candidate universe, so
+    // "change the target of target spell or ability" can move a target ONTO an ability
+    // as well as away from one.
+    for so in state.stack_objects.iter() {
+        if crate::state::stack_registry::card_in_stack_zone(&so.kind).is_none() {
+            candidates.push(Target::StackObject(so.id));
         }
     }
 
@@ -371,6 +390,10 @@ mod tests {
         match t {
             Target::Player(p) => (0, p.0),
             Target::Object(o) => (1, o.0),
+            // PB-DX52: a third id space, so a third sort bucket -- folding it into
+            // bucket 1 would let a `StackObject(7)` and an `Object(7)` compare EQUAL and
+            // make R6's set comparison pass while the two universes actually differed.
+            Target::StackObject(o) => (2, o.0),
         }
     }
 }

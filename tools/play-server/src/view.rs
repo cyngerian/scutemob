@@ -1287,6 +1287,19 @@ pub struct NameIndex {
     /// in the view model (`ZonesView::exile` is a flat `Vec`), so an exiled card
     /// contributes a name and no owner.
     owners: HashMap<u64, String>,
+    /// PB-DX52 (`OOS-DX25b-1`): `StackObject` id -> display text, for
+    /// `mtg_engine::Target::StackObject`.
+    ///
+    /// **A THIRD map, and the separation is the whole point.** `names`/`owners` are keyed
+    /// by `ObjectId`; a stack-entry id is a DIFFERENT id space that also counts from small
+    /// integers, so folding the two together is precisely the collision this file's own
+    /// `from_view` comment records as a shipped bug ("the previous `names.insert(item.id,
+    /// ..)` was writing a foreign key into an `ObjectId` map ... at worst it OVERWROTE a
+    /// real permanent's name"). That insert was deleted for that reason; this map is how
+    /// the same information comes back without the collision.
+    stack_labels: HashMap<u64, String>,
+    /// Companion of [`Self::stack_labels`] -- the seat each stack entry is controlled by.
+    stack_owners: HashMap<u64, String>,
 }
 
 impl NameIndex {
@@ -1297,6 +1310,8 @@ impl NameIndex {
     pub fn from_view(view: &StateViewModel) -> Self {
         let mut names = HashMap::new();
         let mut owners: HashMap<u64, String> = HashMap::new();
+        let mut stack_labels: HashMap<u64, String> = HashMap::new();
+        let mut stack_owners: HashMap<u64, String> = HashMap::new();
 
         for (controller, permanents) in &view.zones.battlefield {
             for p in permanents {
@@ -1380,9 +1395,21 @@ impl NameIndex {
                 // source's *name* and never touches `controller`.
                 owners.insert(source, item.controller.clone());
             }
+            // PB-DX52: the STACK-entry id space, kept separate from `names` on purpose
+            // (see [`NameIndex::stack_labels`]). `source_name` is already redacted by
+            // `redact::redact_stack`, so a face-down source's ability reads as the
+            // face-down placeholder here too, with no second entitlement decision made
+            // in this file.
+            stack_labels.insert(item.id, format!("{}'s ability", non_empty(&item.source_name)));
+            stack_owners.insert(item.id, item.controller.clone());
         }
 
-        NameIndex { names, owners }
+        NameIndex {
+            names,
+            owners,
+            stack_labels,
+            stack_owners,
+        }
     }
 
     /// Display text for `id`, or [`UNKNOWN_LABEL`] if the redacted view has no
@@ -1410,6 +1437,26 @@ impl NameIndex {
     /// `GameState`, exactly as [`Self::label`] does not.
     pub fn owner(&self, id: ObjectId) -> Option<String> {
         self.owners.get(&id.0).cloned()
+    }
+
+    /// PB-DX52 (`OOS-DX25b-1`): display text for a `mtg_engine::Target::StackObject`.
+    ///
+    /// Deliberately NOT [`Self::label`] with a different map inline: the caller holds a
+    /// `StackObject` id, and routing it through the `ObjectId`-keyed map is the exact
+    /// id-space confusion `OOS-DX25-3`/`OOS-SIM3-5`/`OOS-DX25b-1` are all instances of.
+    /// Two lookups, two names, no shared key.
+    pub fn stack_entry_label(&self, id: ObjectId) -> String {
+        self.stack_labels
+            .get(&id.0)
+            .cloned()
+            .unwrap_or_else(|| UNKNOWN_LABEL.to_string())
+    }
+
+    /// The seat controlling the stack entry `id`, for display grouping only -- the
+    /// stack-entry twin of [`Self::owner`]. CR 405.1: who controls each object on the
+    /// stack is public.
+    pub fn stack_entry_owner(&self, id: ObjectId) -> Option<String> {
+        self.stack_owners.get(&id.0).cloned()
     }
 }
 
@@ -1864,6 +1911,19 @@ fn target_options(
                 id: id.0,
                 label: names.label(*id),
                 owner: names.owner(*id),
+                value: t.clone(),
+            },
+            // PB-DX52 (`OOS-DX25b-1`): an ABILITY on the stack, offered as a target for
+            // the first time. `kind` is a NEW wire value, `"stack_object"` -- deliberately
+            // not reusing `"object"`, because the browser must not look this id up in the
+            // card index (it is not a `state.objects` key and `names.label` would render
+            // a placeholder). The label is the entry's source, matching how the same
+            // ability is already labelled in the stack panel.
+            Target::StackObject(id) => TargetOptionView {
+                kind: "stack_object".to_string(),
+                id: id.0,
+                label: names.stack_entry_label(*id),
+                owner: names.stack_entry_owner(*id),
                 value: t.clone(),
             },
             Target::Player(p) => TargetOptionView {

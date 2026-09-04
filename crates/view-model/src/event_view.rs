@@ -185,6 +185,27 @@ pub fn event_view_for(
     let card_or = |id: ObjectId, fallback: &str| -> String {
         card_name(id).unwrap_or_else(|| fallback.to_string())
     };
+    // PB-DX52 (`OOS-DX25b-1`): the stack-entry analogue of `card_or`.
+    //
+    // A `Target::StackObject` names an ABILITY's stack entry, which has no
+    // `state.objects` row -- so `card_or` on it would always miss and print its fallback,
+    // making a real ability indistinguishable from an unnameable card. This renders it as
+    // its SOURCE ("Rummaging Goblin's ability"), and routes the source id through the
+    // SAME `card_name` entitlement gate every other identity in this function goes
+    // through, so a face-down permanent's ability (CR 708.2) still cannot be named.
+    //
+    // CR 400.2 makes the stack public, so the EXISTENCE of the ability is never hidden --
+    // only whose it is, and only when the source itself is unnameable.
+    let stack_entry_or = |id: ObjectId, fallback: &str| -> String {
+        state
+            .stack_objects()
+            .iter()
+            .find(|so| so.id == id)
+            .and_then(|so| crate::stack_kind_info(&so.kind).1)
+            .and_then(card_name)
+            .map(|n| format!("{n}'s ability"))
+            .unwrap_or_else(|| fallback.to_string())
+    };
     // CR 508.1a: an attack may be aimed at a player (public: CR 601.2c makes a
     // player an appropriate target, and CR 400.2 makes the stack a public zone)
     // or at a planeswalker, whose identity goes through the same gate as any
@@ -910,6 +931,15 @@ pub fn event_view_for(
                 .map(|t| match t.target {
                     Target::Player(pid) => name(pid),
                     Target::Object(id) => card_or(id, "a permanent"),
+                    // PB-DX52: an ability on the stack. `card_or` looks the id up in
+                    // `state.objects()`, where a stack entry is not, so it would always
+                    // take its fallback branch and print "a permanent" -- which is both
+                    // wrong (CR 113.1: an ability on the stack is not a permanent) and
+                    // indistinguishable from a genuinely unnameable card. The stack is a
+                    // public zone (CR 400.2) so nothing is redacted here; what is
+                    // withheld is only the SOURCE's identity, which `card_or` already
+                    // decides.
+                    Target::StackObject(id) => stack_entry_or(id, "an ability on the stack"),
                 })
                 .collect();
             let subject = match card_name(*source_object_id) {
@@ -934,6 +964,9 @@ pub fn event_view_for(
                     .map(|t| match t.target {
                         Target::Player(pid) => name(pid),
                         Target::Object(id) => card_or(id, "a permanent"),
+                        // PB-DX52: see the `TargetsAnnounced` arm above for why this is
+                        // not `card_or`.
+                        Target::StackObject(id) => stack_entry_or(id, "an ability on the stack"),
                     })
                     .collect::<Vec<_>>()
                     .join(", ")

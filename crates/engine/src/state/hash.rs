@@ -4872,6 +4872,17 @@ impl HashInto for Target {
                 1u8.hash_into(hasher);
                 id.hash_into(hasher);
             }
+            // PB-DX52 (`OOS-DX25b-1`): tag `2u8` for a stack-entry target. The tag is
+            // APPEND-ONLY, so no existing hash VALUE moves -- a state that carries no
+            // `Target::StackObject` hashes to exactly the byte string it hashed before.
+            // `HASH_SCHEMA_VERSION` still moves 83 -> 84, because the gate pins the
+            // DECLARATION digest of the `GameState` serde closure, and `Target` gained a
+            // variant. Predicted in writing before this line was written
+            // (`memory/primitives/pb-DX52-execution-notes.md` §0.4, commit `8f919967`).
+            Target::StackObject(id) => {
+                2u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
         }
     }
 }
@@ -6484,6 +6495,9 @@ impl HashInto for TargetRequirement {
                 20u8.hash_into(hasher);
                 idx.hash_into(hasher);
             }
+            // PB-DX52: TargetSpellOrAbility -- CR 115.4 / CR 115.7d, ANY target count
+            // (Deflecting Swat's printed line; `OOS-DX25b-5`). Discriminant 21, appended.
+            TargetRequirement::TargetSpellOrAbility => 21u8.hash_into(hasher),
         }
     }
 }

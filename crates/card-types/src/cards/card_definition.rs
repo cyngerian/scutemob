@@ -3113,6 +3113,18 @@ pub enum TargetRequirement {
     TargetCardInYourGraveyard(TargetFilter),
     /// "target [type] card from a graveyard" — card in any player's graveyard (CR 115.1).
     TargetCardInGraveyard(TargetFilter),
+    /// "target spell or ability" (CR 115.4 / CR 115.7d) -- ANY number of targets.
+    ///
+    /// PB-DX52 (`OOS-DX25b-5`). Deflecting Swat prints *"You may choose new targets for
+    /// target spell or ability"* -- with **no** single-target restriction -- and before
+    /// this variant the corpus had no way to say that, so `deflecting_swat.rs` declared
+    /// the spell-only `TargetSpell` and silently dropped half its printed line.
+    ///
+    /// Distinct from [`TargetRequirement::TargetSpellOrAbilityWithSingleTarget`] in
+    /// exactly one clause: that one is CR 115.7a's *"with a single target"* and asserts
+    /// `targets.len() == 1`; this one asserts nothing about the target count, because the
+    /// printed card does not. Do not collapse them.
+    TargetSpellOrAbility,
     /// "target spell or ability with a single target" (CR 115.7a).
     ///
     /// Validates that the targeted stack object has exactly one target. Used by

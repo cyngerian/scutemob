@@ -2037,6 +2037,10 @@ mod tests {
                 .map(|t| match t {
                     mtg_engine::Target::Object(id) => id.0,
                     mtg_engine::Target::Player(p) => p.0,
+                    // PB-DX52: a stack entry's id, which the wire carries under
+                    // `kind: "stack_object"`. `slot_ids` reads the wire's `id` field
+                    // regardless of kind, so the comparison stays honest.
+                    mtg_engine::Target::StackObject(id) => id.0,
                 })
                 .collect();
             assert_eq!(

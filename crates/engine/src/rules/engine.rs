@@ -3916,6 +3916,14 @@ fn handle_activate_loyalty_ability(
                     zone_at_cast: zone,
                 }
             }
+            // PB-DX52: a stack entry is not in a zone (see `Target::StackObject`);
+            // CR 608.2b legality for it is "still in `state.stack_objects`".
+            crate::state::targeting::Target::StackObject(id) => {
+                crate::state::targeting::SpellTarget {
+                    target: crate::state::targeting::Target::StackObject(*id),
+                    zone_at_cast: None,
+                }
+            }
         })
         .collect();
     // Push the ability onto the stack.

@@ -701,6 +701,8 @@ fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
     let target_id = match trigger_so.targets[0].target {
         Target::Object(id) => id,
         Target::Player(_) => panic!("F-1: target must be an object, got player"),
+        // PB-DX52: a battlefield auto-target picker never yields a stack entry.
+        Target::StackObject(_) => panic!("F-1: target must be an object, got stack entry"),
     };
 
     assert_eq!(
