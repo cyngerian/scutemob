@@ -270,6 +270,15 @@ Each row edits ONE production line, runs the named target, and is restored.
 | R11 | the pinned PRNG seeded differently | `pinned_rng_tests` | **RED** |
 | R12 | an Arcane host given a target of its own | `roster::r2` | **RED** |
 
+**R9 IS THE ROW THAT MEASURES THE SEED'S HEADLINE CLAIM, AND IT COMES BACK EXACT.** The v4
+memo says `OOS-M11-5`'s blast radius *"reaches Ward on 3 deck-legal `Complete` defs"* — an
+inference from `push_target_announcement`'s dispatch, not an observation. With the CR 601.2c
+rejection disabled (`} else if false {`), `t3` runs the cast to completion and measures
+**`left: 1, right: 0`** — exactly ONE ward trigger on the stack, off `Accorder's Shield`, a
+`{0}` artifact whose spell declares no `TargetRequirement`. So the claim is now **measured on
+a running probe**, and `t3` is proven non-vacuous in the only way that counts: it fails when
+the fix is removed, on the ward assertion rather than on the refusal.
+
 **R2 IS THE ROW WORTH READING, BECAUSE IT DEFEATED THIS BATCH'S OWN GATE.** `r1`'s first
 draft looked for the string `finish_redirect_shuffle` in the arm body. A consumer written
 as `state.finish_redirect_shuffle(false, to, &mut events)` **contains that string, drops
