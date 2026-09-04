@@ -5,6 +5,10 @@
 //   vigilance until end of turn.
 //
 // CR 700.2b / PB-35: Modal triggered ability. Bot fallback: mode 0 (token).
+//
+// PB-DX35 (OOS-DX4-2, execution-notes §0.5/A3): NOT in the flat-targets-scoped-to-both-modes
+// population -- `targets` is already `vec![]` and both modes take no `DeclaredTarget`, so
+// there was never a requirement to leak across modes. Left unchanged.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

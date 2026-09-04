@@ -9,6 +9,20 @@
 // Note: Mode 1 ("put target non-Dragon creature card from a graveyard onto the
 // battlefield") requires TargetRequirement::TargetCardInGraveyard with non-Dragon
 // filter — approximated with TargetCardInGraveyard (no Dragon exclusion filter).
+//
+// PB-DX35 (2026-09, OOS-DX4-2, execution-notes §0.5): NOT re-shaped into `mode_targets`,
+// and this def is NOT reachable through this batch's mode-choice fix at all (blast radius
+// zero: not deck-legal). `Keyword(Flying)`/`Keyword(Menace)` are `abilities[0]`/`[1]`, so
+// this modal ability sits at REGISTRY index 2, but its `WhenDies` trigger queues with the
+// RUNTIME `ability_index` 0. `rules::abilities::trigger_modal_plan`'s registry-based
+// `ModeSelection` lookup misses it (finds `Keyword(Flying)` at index 0 instead) and treats
+// it as non-modal, so `modes_chosen` stays empty. That would normally now resolve with NO
+// effect (this batch's `resolution.rs` fix) -- EXCEPT `WhenDies` is one of the three lowering
+// arms (`testing/replay_harness.rs::build_face_triggered_abilities`) that PRE-RESOLVE
+// `modes.first()` into the runtime `TriggeredAbilityDef.effect` field itself, so this def's
+// runtime effect is hardcoded to mode 0's effect regardless of `modes_chosen`. Resolution's
+// own `modes_opt` lookup hits the SAME index misalignment and falls back to that pre-resolved
+// field -- mode 0 executes unconditionally, same as before this batch. Filed as `OOS-DX35-1`.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -96,7 +110,12 @@ pub fn card() -> CardDefinition {
         ],
         completeness: Completeness::known_wrong(
             "mode-1 graveyard target omits exclude_subtypes: vec![SubType(\"Dragon\")], so Dragon \
-             creature cards are wrongly legal targets (exclude_subtypes exists and is enforced)",
+             creature cards are wrongly legal targets (exclude_subtypes exists and is enforced). \
+             Second, independent blocker (PB-DX35, OOS-DX4-2/OOS-DX35-1): this modal ability's \
+             REGISTRY index (2, behind Flying and Menace) doesn't match its WhenDies trigger's \
+             RUNTIME ability_index (0), so trigger_modal_plan's registry-based ModeSelection \
+             lookup misses it; mode 0 is pre-resolved into the runtime effect field by the \
+             WhenDies lowering (testing/replay_harness.rs) and executes unconditionally.",
         ),
         ..Default::default()
     }
