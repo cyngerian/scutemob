@@ -109,6 +109,93 @@ pub fn card_in_stack_zone(kind: &StackObjectKind) -> Option<ObjectId> {
     }
 }
 
+/// PB-DX52 (`OOS-DX25c-3`): CR 113.7a's **source** of a stack object -- the object that
+/// generated the ability, or the card the spell was cast from.
+///
+/// The sibling of [`card_in_stack_zone`], and the two answer genuinely different
+/// questions. `card_in_stack_zone` asks *"does this entry own a card sitting in
+/// `ZoneId::Stack` right now"* and returns `None` for every ability, because an ability
+/// on the stack owns no card. This asks *"what object is this ability's SOURCE"*
+/// (CR 113.7a: *"the source of an ability is the object that generated it"*), which for
+/// an ability is a permanent somewhere else -- usually the battlefield.
+///
+/// # Why this exists, and what it repairs
+///
+/// `rules::retarget::plan_target_change` derives TWO things from the victim stack object:
+/// `source_chars` (CR 702.16b protection -- *"protection from red"* must refuse a red
+/// source) and `self_id` (CR 601.2c self-exclusion / `TargetFilter.exclude_self`). Both
+/// came from `card_in_stack_zone`, and that was correct only while a `ChangeTargets`
+/// victim could only ever be a spell -- which is exactly what `OOS-DX25b-1` guaranteed,
+/// and exactly what PB-DX52 stopped guaranteeing. `OOS-DX25c-3` predicted this: *"an
+/// ability-shaped `ChangeTargets` victim would get the WRONG `self_id`/`source_chars`,
+/// and the gap is blocked behind `OOS-DX25b-1` today"*. PB-DX52 unblocks it, so PB-DX52
+/// closes it -- shipping the id space without this would have let Bolt Bend redirect a
+/// red ability onto a creature with protection from red.
+///
+/// The values this returns are the SAME ones the ability's own activation validated
+/// against: `abilities.rs::handle_activate_ability` passes `Some(source)` as `self_id`
+/// and the source's characteristics as `source_chars`. So a retarget is now checked
+/// against the same source the original announcement was.
+///
+/// # Deliberately NOT unified with `mtg_view_model::stack_kind_info`
+///
+/// That function returns a source too, and for `KeywordTrigger` it deliberately returns
+/// the AFFECTED PERMANENT for `CounterRemoval` / `CounterSacrifice` / `UpkeepCost`
+/// (`TriggerData`) rather than `source_object`, because it is a DISPLAY helper and the
+/// affected permanent is what a player wants named in the stack panel. CR 113.7a's source
+/// is `source_object` in all three cases. The two answers differ on purpose; collapsing
+/// them would make one of the two wrong, and which one depends on the caller. Pinned by
+/// `core::pb_dx52_stack_target_roster`.
+///
+/// Exhaustive with **no wildcard arm**, for the same reason [`card_in_stack_zone`] is: a
+/// new `StackObjectKind` must be a compile error here until someone decides what its
+/// source is, rather than silently becoming `None` and losing a protection check.
+pub fn source_of(kind: &StackObjectKind) -> Option<ObjectId> {
+    use StackObjectKind as K;
+    match kind {
+        K::Spell { source_object } => Some(*source_object),
+        K::MutatingCreatureSpell { source_object, .. } => Some(*source_object),
+        K::ActivatedAbility { source_object, .. } => Some(*source_object),
+        K::LoyaltyAbility { source_object, .. } => Some(*source_object),
+        K::TriggeredAbility { source_object, .. } => Some(*source_object),
+        K::MadnessTrigger { source_object, .. } => Some(*source_object),
+        K::MiracleTrigger { source_object, .. } => Some(*source_object),
+        K::UnearthAbility { source_object } => Some(*source_object),
+        K::SuspendCounterTrigger { source_object, .. } => Some(*source_object),
+        K::SuspendCastTrigger { source_object, .. } => Some(*source_object),
+        K::NinjutsuAbility { source_object, .. } => Some(*source_object),
+        K::ForecastAbility { source_object, .. } => Some(*source_object),
+        // CR 702.71a: bloodrush's `source_object` is the PRE-discard card id -- the card
+        // is in the graveyard by the time the ability is on the stack (it was the cost).
+        // It is still the object that generated the ability, so CR 113.7a names it.
+        K::BloodrushAbility { source_object, .. } => Some(*source_object),
+        K::SaddleAbility { source_object } => Some(*source_object),
+        K::RingAbility { source_object, .. } => Some(*source_object),
+        K::ClassLevelAbility { source_object, .. } => Some(*source_object),
+        K::DelayedActionTrigger { source_object, .. } => Some(*source_object),
+        // CR 113.7a with the source named by a differently-spelled field.
+        K::TransformTrigger { permanent, .. } => Some(*permanent),
+        K::DayboundTransformTrigger { permanent } => Some(*permanent),
+        K::TurnFaceUpTrigger { permanent, .. } => Some(*permanent),
+        K::CraftAbility { exiled_source, .. } => Some(*exiled_source),
+        // CR 113.7a: `source_object` UNCONDITIONALLY -- including for the `CounterRemoval`
+        // / `CounterSacrifice` / `UpkeepCost` `TriggerData` shapes, where
+        // `mtg_view_model::stack_kind_info` deliberately reports the AFFECTED PERMANENT
+        // instead. See this function's doc for why the two differ.
+        K::KeywordTrigger { source_object, .. } => Some(*source_object),
+        // No source object survives: the card was exiled or moved as the COST of putting
+        // this ability on the stack (CR 400.7 -- it is a new object now), so there is no
+        // live id to name. `None` here is a measured absence, not an unhandled case.
+        K::EmbalmAbility { .. } => None,
+        K::EternalizeAbility { .. } => None,
+        K::EncoreAbility { .. } => None,
+        K::ScavengeAbility { .. } => None,
+        // CR 309.4c: a Room's ability is generated by a dungeon in the command zone,
+        // which is not a `state.objects` permanent.
+        K::RoomAbility { .. } => None,
+    }
+}
+
 /// PB-DX25b (`OOS-DX25-3`): the index in `stack_objects` of the stack object an
 /// **announced target id** names, if any (CR 601.2c).
 ///

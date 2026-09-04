@@ -93,20 +93,35 @@ pub(crate) fn plan_target_change(
     // (`announced_requirements`, `:3696-3743`) runs BEFORE the card's zone
     // move onto the stack (`:4440`), so its `card`/`Some(&chars)` arguments
     // describe the card in its PRE-move zone (typically the caster's hand).
-    // `victim_card`/`source_chars` here describe the same card AFTER the
+    // `victim_source`/`source_chars` here describe the same object AFTER the
     // move — the values a retarget must use, since the object being
-    // redirected is on the stack right now. `victim_card` doubles as
+    // redirected is on the stack right now. It doubles as
     // `self_id` (CR 601.2c self-targeting prevention /
-    // `TargetFilter.exclude_self`) for the same reason. For a non-card-owning
-    // stack kind (an ability) both are `None`;
-    // that case is unreachable here today — a `ChangeTargets` victim is always
-    // a `Spell`/`MutatingCreatureSpell`, because the only route to one is an
-    // announced CARD id resolved through `stack_registry::stack_index_for_
-    // announced_target`, and an ability's stack entry owns no card
-    // (`state::stack_registry::card_in_stack_zone` returns `None` for every
-    // ability variant) — so it is never in `state.objects` and can never be
-    // announced by a player. Recorded as `OOS-DX25c-3`.
-    let victim_card = crate::state::stack_registry::card_in_stack_zone(&so.kind);
+    // `TargetFilter.exclude_self`) for the same reason.
+    //
+    // **PB-DX52 (`OOS-DX25c-3` CLOSED): this reads `source_of`, not
+    // `card_in_stack_zone`, and the change is a correctness fix rather than a
+    // tidy-up.** Until PB-DX52 a `ChangeTargets` victim could only ever be a
+    // `Spell`/`MutatingCreatureSpell` — the only route to one was an announced
+    // CARD id, and an ability's stack entry owns no card and is never in
+    // `state.objects` — so `card_in_stack_zone` was total over the REACHABLE
+    // cases, and `OOS-DX25c-3` recorded the ability case as unreachable and
+    // therefore dead. PB-DX52 adds `Target::StackObject`, which makes an ability
+    // announceable and so makes it a reachable `ChangeTargets` victim. Leaving
+    // this read as `card_in_stack_zone` would have handed `None`/`None` to the
+    // validator and **silently disabled the CR 702.16b protection check for
+    // every ability-shaped redirect** — a creature with protection from red
+    // could have become the new target of a red ability. That is a defect this
+    // batch would have CREATED while closing another, so this batch closes it.
+    //
+    // CR 113.7a: *"the source of an ability is the object that generated it."*
+    // For a spell, `source_of` returns the same stack-resident card
+    // `card_in_stack_zone` did, so the spell path is byte-identical; for an
+    // ability it returns the ability's source permanent — which is exactly what
+    // `abilities.rs::handle_activate_ability` passed as `self_id` and
+    // `source_chars` when the ability was announced, so a retarget is now
+    // validated against the same source the original announcement was.
+    let victim_card = crate::state::stack_registry::source_of(&so.kind);
     let source_chars =
         victim_card.and_then(|id| crate::rules::layers::calculate_characteristics(state, id));
 
