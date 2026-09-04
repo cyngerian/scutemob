@@ -1326,9 +1326,15 @@ fn the_marker_detector_is_not_vacuous() {
     // `partial` -> `Complete` (its mode-1 target is now scoped to mode 1 alone, closing
     // the flat-target defect its marker named), net -1. RE-MEASURED DIRECTLY:
     // `all_cards()` reports 1,138 Complete / 665 non-Complete of 1,803.
+    // PB-DX36 (2026-09, `OOS-CARDS2-6`): threshold 665 -> **664**. `exalted_angel`
+    // `partial` -> `Complete` (its `TriggerCondition::WhenDealsDamage` + damage-dealt
+    // `EffectAmount` primitives are now authored, closing the def's only blocker),
+    // net -1. This batch's other four edited defs (`curiosity`, `ophidian_eye`,
+    // `goblin_lackey`, `warren_instigator`) stay `partial` with rewritten notes, so
+    // MARKER_FRAGMENTS still matches all four files -- only exalted_angel's file drops out.
     assert!(
-        marked >= 665,
-        "marker detector matched {marked} files; expected >= 665. This assertion has NO \
+        marked >= 664,
+        "marker detector matched {marked} files; expected >= 664. This assertion has NO \
          margin (see the comment above) and can fail for two different reasons: (1) \
          MARKER_FRAGMENTS stopped matching (a detector bug -- the gate would then spuriously \
          flag marked defs) or, far more likely on an ordinary day, (2) a ROUTINE Complete \

@@ -258,7 +258,15 @@ const OUT_OF_SET_GAP_NEEDLES: &[&str] = &[
 /// It certifies nothing about any individual def in the count. It is a population
 /// bound, the same construct and the same limitation as `decision_gate.rs`'s
 /// `MAX_AUTO_CHOSEN_COMPLETE_UNION`.
-const LIVE_IDENTIFIER_MENTION_CEILING: usize = 107;
+// ↻ PB-DX36 (2026-09-04, `OOS-CARDS2-6`): 107 -> 109. TWO defs join, both by exit (b),
+// both with a REVIEWED_CONTRAST_MENTIONS row stating the reason, and both because this
+// batch SHIPPED the primitive their notes had been asserting was missing. That is the
+// GOOD direction for this class — `tandem_lookout` and `niv_mizzet_visionary` each had a
+// note that was about to become the OOS-CARDS2-8 lie, and each was narrowed in place to
+// name what is still absent. `niv_mizzet_visionary` also MOVED here from R3's out-of-set
+// population, because its note was reworded into R1's primary vocabulary, which is the
+// exit R3's own message asks for.
+const LIVE_IDENTIFIER_MENTION_CEILING: usize = 109;
 
 /// Defs whose stale blocker note PB-DX27 refuted and REPAIRED.
 ///
@@ -348,6 +356,27 @@ const REVIEWED_CONTRAST_MENTIONS: &[(&str, &str)] = &[
         "same shape: Effect::SearchLibrary exists, its missing count field is what blocks \
          'up to two basic land cards'. PB-DX27 authored this def's second trigger via \
          Effect::MoveZone and left the search clause blocked.",
+    ),
+    (
+        "tandem_lookout.rs",
+        "PB-DX36 (`OOS-CARDS2-6`). Names TriggerCondition::WhenDealsDamage, which this \
+         batch SHIPPED, precisely to record that the granted ability is now fully \
+         expressible and that only the GRANT mechanism is missing — SoulbondGrant has no \
+         triggered-ability arm (`OOS-DX36-1`). Exit (b) read against the printed card: the \
+         live identifier is the CONTRAST, the absent thing is named beside it. Before this \
+         batch the note named the ability and the grant together and was therefore about to \
+         become the OOS-CARDS2-8 lie this gate exists to catch.",
+    ),
+    (
+        "niv_mizzet_visionary.rs",
+        "PB-DX36 (`OOS-CARDS2-6`). Names EffectAmount::DamageDealt, which this batch \
+         SHIPPED, to record that HALF of a two-part blocker note closed — the note used to \
+         say 'a variable draw amount equal to the damage dealt ... Neither is expressible', \
+         and the amount half now is. It also names TriggerCondition::WhenDealsDamage \
+         explicitly to say it is NOT the missing one (wrong on two axes: subject and damage \
+         kind). The absent primitive is named in R1's own vocabulary — 'no such \
+         TriggerCondition exists' / 'not expressible' — which is why this def moved OUT of \
+         the R3 out-of-set population and into R1's (`OOS-DX36-3`).",
     ),
 ];
 

@@ -351,16 +351,25 @@ pub struct PendingTrigger {
     // at KeywordTrigger (Echo) resolution time; no need to carry it in PendingTrigger.
     // cumulative_upkeep_cost: REMOVED — cumulative upkeep cost is read from KeywordAbility at
     // KeywordTrigger (CumulativeUpkeep) resolution time; no need to carry it in PendingTrigger.
-    /// CR 510.3a: The player dealt combat damage (for combat damage triggers).
-    /// Used at flush/resolution time to populate EffectContext::damaged_player.
-    /// None for all other trigger types.
+    /// CR 510.3a / CR 608.2h: The player dealt damage (combat OR noncombat) in
+    /// the triggering event. Used at flush/resolution time to populate
+    /// `EffectContext::damaged_player`. None for all other trigger types, and
+    /// for damage triggers whose recipient was not a player.
     #[serde(default)]
     pub damaged_player: Option<crate::state::player::PlayerId>,
-    /// CR 510.3a: The amount of combat damage dealt (for damage-amount-dependent effects).
-    /// Used at resolution time to populate EffectContext::combat_damage_amount.
-    /// 0 for all other trigger types.
+    /// CR 510.3a: The amount of COMBAT damage dealt (for damage-amount-dependent
+    /// effects). Used at resolution time to populate
+    /// `EffectContext::combat_damage_amount`. 0 for all other trigger types AND
+    /// for a NONcombat damage trigger — see `damage_dealt_amount` for the
+    /// combat-or-noncombat sibling (PB-DX36).
     #[serde(default)]
     pub combat_damage_amount: u32,
+    /// CR 608.2h / CR 113.7a: The amount of damage in the triggering damage event, combat
+    /// or noncombat. Read by `EffectAmount::DamageDealt`. 0 for triggers that
+    /// are not damage triggers. Distinct from `combat_damage_amount`, which
+    /// stays 0 on a noncombat trigger (PB-DX36, `OOS-CARDS2-6`).
+    #[serde(default)]
+    pub damage_dealt_amount: u32,
     /// Unified per-trigger payload — the *only* place a trigger kind's structured
     /// state lives (SR-7 completed the cutover; the per-keyword `Option` fields
     /// that used to shadow this are gone).
@@ -455,6 +464,7 @@ impl PendingTrigger {
             defending_player_id: None,
             damaged_player: None,
             combat_damage_amount: 0,
+            damage_dealt_amount: 0,
             data: None,
             embedded_effect: None,
             lki_counters: imbl::OrdMap::new(),

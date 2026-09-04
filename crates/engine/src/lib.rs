@@ -9,11 +9,11 @@ pub use cards::{
     zombie_decayed_token_spec, AbilityDefinition, AltCastDetails, CardDefinition, CardFace,
     CardRegistry, ChoiceZone, Completeness, Condition,
     ContinuousEffectDef as CardContinuousEffectDef, Cost, CostModifierScope, CraftMaterials,
-    Effect, EffectAmount, EffectTarget as CardEffectTarget, ForEachTarget, LibraryPosition,
-    LoyaltyCost, MeldPair, ModeSelection, PlayerTarget, RegistryError, SelfActivatedCostReduction,
-    SelfCostReduction, SoulbondGrant, SpellAdditionalCost, SpellCostFilter, SpellCostModifier,
-    TargetController, TargetFilter, TargetOwner, TargetRequirement, TimingRestriction, TokenSpec,
-    TriggerCondition, TypeLine, ZoneTarget,
+    DamageRecipient, Effect, EffectAmount, EffectTarget as CardEffectTarget, ForEachTarget,
+    LibraryPosition, LoyaltyCost, MeldPair, ModeSelection, PlayerTarget, RegistryError,
+    SelfActivatedCostReduction, SelfCostReduction, SoulbondGrant, SpellAdditionalCost,
+    SpellCostFilter, SpellCostModifier, TargetController, TargetFilter, TargetOwner,
+    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
 };
 // Convenience re-exports of primary types
 pub use rules::commander::{

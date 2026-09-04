@@ -480,16 +480,27 @@ pub struct StackObject {
     /// Mirrors `CastSpell.additional_costs`. Populated during cast-to-stack transfer.
     #[serde(default)]
     pub additional_costs: Vec<AdditionalCost>,
-    /// CR 510.3a: The player dealt combat damage in the triggering event.
+    /// CR 510.3a / CR 608.2h: The player dealt damage — COMBAT OR NONCOMBAT — in the
+    /// triggering event. PB-DX36 (`OOS-CARDS2-6`) widened this to the noncombat arm; the
+    /// sibling `damage_dealt_amount` below was added in the same hunk and this line was
+    /// missed then.
     /// Set from PendingTrigger::damaged_player when a triggered ability is flushed to the stack.
     /// Read by PlayerTarget::DamagedPlayer at resolution time.
     #[serde(default)]
     pub damaged_player: Option<PlayerId>,
     /// CR 510.3a: The amount of combat damage dealt in the triggering event.
     /// Set from PendingTrigger::combat_damage_amount when a triggered ability is flushed.
-    /// Read by EffectAmount::CombatDamageDealt at resolution time.
+    /// Read by EffectAmount::CombatDamageDealt at resolution time. 0 for a
+    /// noncombat damage trigger — see `damage_dealt_amount` for the
+    /// combat-or-noncombat sibling (PB-DX36).
     #[serde(default)]
     pub combat_damage_amount: u32,
+    /// CR 608.2h / CR 113.7a: The amount of damage (combat or noncombat) dealt in the
+    /// triggering event. Set from PendingTrigger::damage_dealt_amount when a
+    /// triggered ability is flushed. Read by EffectAmount::DamageDealt at
+    /// resolution time.
+    #[serde(default)]
+    pub damage_dealt_amount: u32,
     /// CR 510.3a: The ObjectId of the creature that triggered a per-creature combat damage trigger.
     /// Set from PendingTrigger::entering_object_id for per-creature combat damage triggers.
     /// Read by EffectTarget::TriggeringCreature at resolution time.
@@ -606,6 +617,7 @@ impl StackObject {
             additional_costs: vec![],
             damaged_player: None,
             combat_damage_amount: 0,
+            damage_dealt_amount: 0,
             triggering_creature_id: None,
             sacrificed_creature_lki: vec![],
             cast_from_top_with_bonus: false,

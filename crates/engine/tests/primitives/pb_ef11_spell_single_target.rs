@@ -135,6 +135,7 @@ fn make_stack_object(
         additional_costs: vec![],
         damaged_player: None,
         combat_damage_amount: 0,
+        damage_dealt_amount: 0,
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_lki: vec![],
@@ -413,7 +414,7 @@ fn test_spell_single_target_hash_discriminant() {
     use mtg_engine::state::hash::HashInto;
 
     assert_eq!(
-        HASH_SCHEMA_VERSION, 82u8,
+        HASH_SCHEMA_VERSION, 83u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this \
          assertion and the state/hash.rs history block together; the authoritative check \
          is the SR-17 machine gate in tests/core/hash_schema.rs."

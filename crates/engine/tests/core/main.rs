@@ -42,6 +42,7 @@ mod pb_dx28_chosen_object_roster;
 mod pb_dx29_additional_cost_roster;
 mod pb_dx35_modal_trigger_roster;
 mod pb_dx35_optional_placement_roster;
+mod pb_dx36_deals_damage_roster;
 mod pb_dx42a_continuous_condition_roster;
 mod pb_dx43_land_type_roster;
 mod pb_dx44_uncastable_roster;

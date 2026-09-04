@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer {
                     combat_only: false,
+                    recipient: DamageRecipient::Player,
                 },
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },

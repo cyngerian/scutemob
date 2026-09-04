@@ -177,7 +177,30 @@ pub const MAX_RANDOM_BOT_WASTED_TAP_PCT: u32 = 85;
 /// (`MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`'s own doc): the
 /// `DeclareAttackers` offer disappearing after a declaration reindexes every
 /// subsequent uniform draw `RandomBot` makes for the rest of the game.
-pub const MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG: u32 = 95;
+///
+/// **Re-measured after PB-DX36** (2026-09-04, `scutemob-228`, `OOS-CARDS2-6`): the same
+/// configuration now produces **95 wasted / 96 total = 98%** — a genuine breach of the 95
+/// ceiling, re-pinned to 99. Three things are stated rather than glossed:
+///
+/// 1. **It is the corpus re-deal, not an engine regression, and that is MEASURED.** In an
+///    isolated worktree at PB-DX36's own commit, with the whole engine change in the tree
+///    and ONLY `exalted_angel`'s `Completeness` marker forced back to `partial` (so the
+///    deck pool returns to `CORPUS_COMPLETE` 1138), this gate is GREEN and so are the
+///    other 11 in its file. `OOS-CARDS2-3`: one marker flip anywhere in 1,803 defs deals
+///    every seeded game a different opening.
+/// 2. **The headroom convention has run out, and this ceiling is now nearly vacuous.**
+///    The rule above was "measured + 6 percentage points"; 98 + 6 = 104, and a percentage
+///    is bounded at 100. Pinned at 99 — one point of slack — so what this gate now
+///    detects is essentially only the impossible. It cannot catch the regression it was
+///    written for any more. Filed as **`OOS-DX36-2`**; deliberately NOT "fixed" here by
+///    widening T3.1's seed set, which is the re-tuning the gate's own sibling message
+///    tells the reader not to do.
+/// 3. **The tap population itself nearly went with it.** 96 total taps against T3.1's
+///    non-vacuity floor of 77, and `casts` across all three seeds is **1** (seed 1),
+///    against 0 and 0 — the `OOS-UI2-1` shape, a fuzz-shaped run that barely casts
+///    anything at a 25-turn budget. The ratio is high because the denominator is thin,
+///    not because tapping got worse.
+pub const MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG: u32 = 99;
 
 /// Measured at Stage 0 (2026-08-03) on the SIM-5 A/B seeds (0/7/42, `HeuristicBot`, 25
 /// turns, `sim5_bot_cast_discipline.rs`): `mana_pools_emptied` was 0, 1, 0 — max

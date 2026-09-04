@@ -19,7 +19,12 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![AbilityDefinition::Triggered {
             once_per_turn: false,
-            trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+            // CR 603.2 (PB-DX36, `OOS-CARDS2-6`): "deals damage to a player" is ANY
+            // damage, not combat-only — WhenDealsDamage { recipient: Player } closes
+            // the under-fire-on-noncombat-damage blocker this def used to carry.
+            trigger_condition: TriggerCondition::WhenDealsDamage {
+                recipient: DamageRecipient::Player,
+            },
             // TODO: "put a Goblin from hand onto battlefield" — needs MoveZone from
             // hand with subtype filter. Using Nothing stub.
             effect: Effect::Nothing,
@@ -31,9 +36,7 @@ pub fn card() -> CardDefinition {
         completeness: Completeness::partial(
             "Blocked: (a) no effect puts a filtered (Goblin permanent) card from hand onto the \
              battlefield — Effect::PutLandFromHandOntoBattlefield is land-only; (b) 'you may' is \
-             inexpressible (Effect::Choose always takes the first option, effects/mod.rs:3190); \
-             (c) oracle says 'deals damage to a player' (any damage) but TriggerCondition has \
-             only WhenDealsCombatDamageToPlayer, so the trigger under-fires on noncombat damage. \
+             inexpressible (Effect::Choose always takes the first option, effects/mod.rs:3190). \
              Trigger currently resolves to Effect::Nothing.",
         ),
         ..Default::default()

@@ -2476,9 +2476,11 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             // CR 107.3m: Propagate x_value from the permanent so ETB effects
                             // using EffectAmount::XValue resolve correctly.
                             ctx.x_value = x_value;
-                            // CR 510.3a: Propagate combat damage data from StackObject.
+                            // CR 510.3a / CR 608.2h: Propagate combat AND
+                            // combat-or-noncombat damage data from StackObject.
                             ctx.damaged_player = stack_obj.damaged_player;
                             ctx.combat_damage_amount = stack_obj.combat_damage_amount;
+                            ctx.damage_dealt_amount = stack_obj.damage_dealt_amount;
                             ctx.triggering_creature_id = stack_obj.triggering_creature_id;
                             // CR 508.4 (PB-EF3): Propagate the defending player captured at
                             // attack-trigger dispatch from StackObject.
@@ -2595,9 +2597,11 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             source_object,
                             stack_obj.targets.clone(),
                         );
-                        // CR 510.3a: Propagate combat damage data from StackObject.
+                        // CR 510.3a / CR 608.2h: Propagate combat AND
+                        // combat-or-noncombat damage data from StackObject.
                         ctx.damaged_player = stack_obj.damaged_player;
                         ctx.combat_damage_amount = stack_obj.combat_damage_amount;
+                        ctx.damage_dealt_amount = stack_obj.damage_dealt_amount;
                         ctx.triggering_creature_id = stack_obj.triggering_creature_id;
                         // CR 508.4 (PB-EF3): Propagate the defending player captured at
                         // attack-trigger dispatch from StackObject.
@@ -8960,6 +8964,7 @@ mod dx2_pending_effect_choice_reap_tests {
             additional_costs: vec![],
             damaged_player: None,
             combat_damage_amount: 0,
+            damage_dealt_amount: 0,
             triggering_creature_id: None,
             cast_from_top_with_bonus: false,
             sacrificed_creature_lki: vec![],

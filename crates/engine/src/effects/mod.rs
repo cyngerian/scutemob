@@ -117,11 +117,18 @@ pub struct EffectContext {
     pub triggering_player: Option<crate::state::PlayerId>,
     /// Amount of combat damage dealt in the triggering event.
     /// Set from PendingTrigger::combat_damage_amount for combat damage triggers.
-    /// Read by EffectAmount::CombatDamageDealt. 0 for non-combat-damage triggers.
+    /// Read by EffectAmount::CombatDamageDealt. 0 for non-combat-damage triggers,
+    /// AND for a NONcombat damage trigger — see `damage_dealt_amount` for the
+    /// combat-or-noncombat sibling (PB-DX36).
     pub combat_damage_amount: u32,
-    /// The player who was dealt combat damage in the triggering event.
-    /// Set from PendingTrigger::damaged_player for combat damage triggers.
-    /// Read by PlayerTarget::DamagedPlayer. None for non-combat-damage triggers.
+    /// CR 608.2h / CR 113.7a: the amount of damage in the triggering damage event, combat
+    /// or noncombat. Set from PendingTrigger::damage_dealt_amount. Read by
+    /// EffectAmount::DamageDealt. 0 for triggers that are not damage triggers.
+    pub damage_dealt_amount: u32,
+    /// The player who was dealt damage (combat OR noncombat) in the triggering
+    /// event. Set from PendingTrigger::damaged_player for damage triggers.
+    /// Read by PlayerTarget::DamagedPlayer. None for non-damage triggers, and
+    /// for damage triggers whose recipient was not a player.
     pub damaged_player: Option<crate::state::PlayerId>,
     /// The ObjectId of the creature that triggered a per-creature combat damage trigger.
     /// Set from PendingTrigger::entering_object_id for per-creature combat damage triggers.
@@ -244,6 +251,7 @@ impl EffectContext {
             last_created_permanent: None,
             triggering_player: None,
             combat_damage_amount: 0,
+            damage_dealt_amount: 0,
             damaged_player: None,
             triggering_creature_id: None,
             chosen_creature_type: None,
@@ -284,6 +292,7 @@ impl EffectContext {
             last_created_permanent: None,
             triggering_player: None,
             combat_damage_amount: 0,
+            damage_dealt_amount: 0,
             damaged_player: None,
             triggering_creature_id: None,
             chosen_creature_type: None,
@@ -4772,6 +4781,7 @@ fn execute_effect_inner(
                             last_created_permanent: ctx.last_created_permanent,
                             triggering_player: ctx.triggering_player,
                             combat_damage_amount: ctx.combat_damage_amount,
+                            damage_dealt_amount: ctx.damage_dealt_amount,
                             damaged_player: ctx.damaged_player,
                             triggering_creature_id: ctx.triggering_creature_id,
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
@@ -4826,6 +4836,7 @@ fn execute_effect_inner(
                             last_created_permanent: ctx.last_created_permanent,
                             triggering_player: ctx.triggering_player,
                             combat_damage_amount: ctx.combat_damage_amount,
+                            damage_dealt_amount: ctx.damage_dealt_amount,
                             damaged_player: ctx.damaged_player,
                             triggering_creature_id: ctx.triggering_creature_id,
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
@@ -9263,7 +9274,12 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
         EffectAmount::Sum(a, b) => resolve_amount(state, a, ctx) + resolve_amount(state, b, ctx),
         // CR 510.3a: Amount of combat damage dealt in the triggering event.
         // Resolved from ctx.combat_damage_amount (set from PendingTrigger::combat_damage_amount).
+        // 0 on a noncombat damage trigger — see DamageDealt for the combat-or-noncombat sibling.
         EffectAmount::CombatDamageDealt => ctx.combat_damage_amount as i32,
+        // CR 608.2h / CR 113.7a (PB-DX36): Amount of damage dealt in the triggering event,
+        // combat or noncombat. Resolved from ctx.damage_dealt_amount (set from
+        // PendingTrigger::damage_dealt_amount).
+        EffectAmount::DamageDealt => ctx.damage_dealt_amount as i32,
         // CR 205.3m: Count creatures of the chosen type controlled by target player.
         // Reads ctx.chosen_creature_type (spell-level) or source permanent's chosen_creature_type.
         EffectAmount::ChosenTypeCreatureCount { controller } => {
@@ -11255,6 +11271,7 @@ pub fn check_static_condition(
                 last_created_permanent: None,
                 triggering_player: None,
                 combat_damage_amount: 0,
+                damage_dealt_amount: 0,
                 damaged_player: None,
                 triggering_creature_id: None,
                 chosen_creature_type: None,

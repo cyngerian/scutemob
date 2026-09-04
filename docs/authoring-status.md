@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-09-04 09:44 UTC  
-**Git:** `45b9ca3f` on `feat/pb-dx35-modal-trigger-targets-are-not-scoped-by-mode-and-the`  
+**Generated:** 2026-09-04 12:53 UTC  
+**Git:** `650a6cfb` on `feat/pb-dx36-a-general-whendealsdamage-trigger-damage-dealt-effec`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,17 +25,17 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.1% | 1,138 | +1 |
-| With TODO markers | 518 | -1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.2% | 1,139 | · |
+| With TODO markers | 517 | · |
 | Empty `abilities: vec![]` placeholders | 147 | · |
-| Total TODO lines across all defs | 918 | · |
+| Total TODO lines across all defs | 916 | · |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 18 |
-| last 30 days | 0 | 148 |
+| last 7 days | 0 | 26 |
+| last 30 days | 0 | 156 |
 | last 90 days | 57 | 2,947 |
 | last 1 year | 1,830 | 3,370 |
 
@@ -172,7 +172,7 @@ the next thing to triage when the classifier table is grown.
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
 | OTHER (unclassified) | 565 | · |
-| DSL gap (unspecified) | 118 | · |
+| DSL gap (unspecified) | 116 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 15 | · |
@@ -209,16 +209,16 @@ deterministic (sorted by slug).
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 blood_seeker: // TODO: "that player" — effect should target the entering creature's controller specifically,
-curiosity: // TODO(PB-37): approximation — oracle says "an opponent" but
+curiosity: // TODO: costless "you may draw a card" — CR 603.3c optionality with NO cost
 everflowing_chalice: // TODO: "This artifact enters with a charge counter on it for each time it was kicked." —
-glimmer_lens: // TODO: still genuinely blocked — "Whenever equipped creature and at least one other
-jeskas_will: // TODO: Mode 1 needs mana-scaled-by-opponent-hand-count.
-mardu_ascendancy: // TODO: Nontoken filter not yet in DSL for attack triggers — over-triggers on token
-overwhelming_stampede: // TODO: Spell effect — grant trample and +X/+X to all creatures you control until end
-sarkhan_fireblood: // TODO: Optional discard-then-draw not in DSL. Using Nothing to avoid free draw.
-sorin_imperious_bloodlord: // TODO: "You may sacrifice a Vampire. When you do, [effects]" — optional sacrifice
-teferi_temporal_archmage: // TODO: Emblem creation for "activate loyalty at instant speed" not in DSL.
-tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale with the number of
+glimmer_lens: // TODO: the attack trigger only — "For Mirrodin!" is expressible and unauthored
+jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
+marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
+pact_of_negation: // TODO: Counter target spell + delayed upkeep trigger "pay {3}{U}{U} or lose the game."
+sarkhan_fireblood: // TODO: "Any combination of colors" + Dragon-only restriction not in DSL.
+sorin_imperious_bloodlord: // TODO: Interactive hand selection by creature subtype ("Vampire creature card from
+teferis_protection: // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
+tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
 ## ⚠ Completeness-marker drift
@@ -245,6 +245,12 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 ## Recent card-touching commits
 
 ```
+1ab2bef8 scutemob-228: PB-DX36 — a sentinel my own sweep missed, and four ratchets the step-8 tests surfaced
+d5fa56ba scutemob-228: PB-DX36 census follow-through — two blocker notes this batch FALSIFIES, narrowed in place
+2aa5e08f scutemob-228: PB-DX36 coverage — 1,138 -> 1,139 / 1,803 = 63.2%, the ONE flip named before regeneration (exalted_angel)
+70cba583 scutemob-228: PB-DX36 — correct the CR cite the task brief supplied, and two card-def judgment calls
+b1757a5b scutemob-228: PB-DX36 steps 1-7 — DamageRecipient, WhenDealsDamage, and the combat/noncombat "deals damage" trigger dispatch unification
+143bfcde scutemob-227: PB-DX35 /review fix cycle — all 9 findings taken, four of them gate defeats the reviewer PROVED by execution
 7e4eb0d9 scutemob-227: PB-DX35 Half B — Effect::LookAtTopThenPlace.optional becomes a real CR 118.12 player decision (OOS-DX4-5), asked through the same EffectChoiceQuestion::ChooseObject { count: 1, up_to: true } PB-DX28 built. Sorts top_ids ascending before deciding the winner (Zone::top_n is top-first, the reverse of ascending-id order); no determined-answer short-circuit for a lone candidate, since up_to: true makes declining a real second answer even then. Six comments corrected (two beyond the plan's five, found by the B6 consumer enumeration: replay_harness.rs's golden-script driver and the TUI's log formatter both claimed ChooseObject named only public objects). decision_site_walk's compound look_at_top_or_route row split rather than residual-noted, since leaving it compound would have silently un-flagged RevealAndRoute's still-engine-made CR 401.4 order choice; MAX_AUTO_CHOSEN_COMPLETE_UNION 72->67, five BASELINE entries removed, OOS-DX35-1 filed for the RevealAndRoute residual and OOS-DX4-5 closed in the registry. decision_coverage.rs's row_id_for needed real disambiguation logic, not just a doc fix: ChooseObject is now asked by two unrelated primitives sharing one wire shape, told apart by candidate ZONE (library = PB-DX35, battlefield/graveyard = PB-DX28's pre-existing untargeted choice). Three-channel reachability (LocalGame/ HumanChoice, POST /api/game/action, the bot path) each proven with a genuine decline, asserted by resolution effect — HTTP channel via Satyr Wayfinder (a real "which-of-four" choice, seed found by an executed scan) since its four-card dig exercises the choice more fully than Risen Reef's single-card one. Seven pre-existing pb_os8 tests needed execute_effect -> execute_effect_with_default_choices repair, a ripple the plan did not name, reproduced red before the fix. HASH 82 / PROTOCOL 41 both unmoved as predicted, gate-executed. 15 new tests (9 engine + 3 simulator + 3 HTTP), 0 renames, 0 removals; full workspace 5,076 -> 5,091 / 0 / 5, 63 targets. 0 Completeness marker moves (5 card-def edits, comment-only, verified line-by-line). Revert matrix: t3/t6/t7/t8 + all 6 channel probes redden under a full revert; t5 additionally discriminates a narrower sort-only revert; t1/t2/t4 are stated CONTROLS. Full record appended to memory/primitives/pb-DX35-execution-notes.md §B (§0 untouched).
 dfd6e1ce scutemob-227: PB-DX35 Half A — re-observe every standing gate the batch's own card-def flips and refactor moved: SR-25 bare-lookup ceiling 75->72 (trigger_modal_plan consolidation), unordered-container ceiling 6->8 (t9's lookup-only HashMap, category (a)), card-defs fmt fix, decision_gate's MAX_AUTO_CHOSEN_COMPLETE_UNION 71->72 and BASELINE (Shambling Ghast added, modal_trigger row), canonical_walk_reproduces_pb_dp8_roster and pb_dp8_trigger_target_choice's roster floor 60->59 (retreat_to_kazandu's target left the flat targets list), completeness_deviation_scan's marker floor 666->665 and RECORDED_BASELINE_POPULATION 45->47 (two new entries), pb_dx4_baseline_triage's stale "Shambling Ghast must not be Complete" pin removed and disclosed, pb_dx32_fuzz_output's CORPUS_COMPLETE 1137->1138; all re-derived by executing the failing gate's own output, never computed
 ab6d8859 scutemob-227: PB-DX35 Half A card defs — shambling_ghast/retreat_to_kazandu/ retreat_to_coralhelm re-shaped into ModeSelection.mode_targets (shambling_ghast partial -> Complete); hullbreaker_horror/glissa_sunslayer/junji_the_midnight_sky markers re-adjudicated to name the registry-vs-runtime index-space blocker (OOS-DX35-1, not fixed); felidar_retreat noted as out of population
@@ -264,12 +270,6 @@ de75b78d scutemob-211: PB-DX29 — marker/cost roster gate for all eight keyword
 1de151c7 scutemob-210: PB-DX28 — migrate the 18th member (Connive // Concoct), found by the batch's own gate
 1babe026 scutemob-210: PB-DX28 part 2 — the untargeted-choice channel (OOS-DX4-6)
 6aeb2008 scutemob-210: PB-DX28 part 1 — the owner axis (OOS-DX4-1) + EffectTarget::DamagedPlayer
-e5ee1994 scutemob-210: mechanical — owner: None at all 46 WheneverCreatureDies sites (45 files)
-a1bc271f scutemob-209: PB-DX27 fix cycle — reconcile the corpus a SECOND time after the demotion
-0720f0a0 scutemob-209: PB-DX27 fix cycle — the HIGH, and six doc/gate corrections
-2b485ccc scutemob-209: PB-DX27 rider OOS-ADJ-7 — Blood Moon strips land types, never card types
-f1b81bfe scutemob-209: PB-DX27 sweep repairs — 4 stale blocker notes verified and closed
-3390b6a9 scutemob-209: PB-DX27 sweep-repairs batch B — 5 stale blocker notes refuted and closed
 ```
 
 ## Missing card-defs sidecar

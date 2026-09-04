@@ -147,15 +147,22 @@ fn equipped_creature_draw() -> TriggeredAbilityDef {
 }
 
 /// Build an enchanted creature damage trigger that draws a card.
+///
+/// PB-DX36: the old unified `EnchantedCreatureDealsDamageToPlayer` variant was
+/// dispatched only from the combat-damage arm regardless of its (unread)
+/// `combat_only` flag, so its CR-correct replacement for a combat-driven test
+/// is `EnchantedCreatureDealsCombatDamageToPlayer` (fires on combat damage;
+/// `EnchantedCreatureDealsAnyDamageToPlayer` also fires alongside it on a
+/// combat event, per `queue_damage_source_triggers`'s doc).
 fn enchanted_creature_draw() -> TriggeredAbilityDef {
     TriggeredAbilityDef {
         counter_filter: None,
         counter_on_self: false,
         once_per_turn: false,
-        trigger_on: TriggerEvent::EnchantedCreatureDealsDamageToPlayer,
+        trigger_on: TriggerEvent::EnchantedCreatureDealsCombatDamageToPlayer,
         intervening_if: None,
         description:
-            "Whenever enchanted creature deals damage to a player, draw a card. (CR 510.3a)"
+            "Whenever enchanted creature deals combat damage to a player, draw a card. (CR 510.3a)"
                 .to_string(),
         effect: Some(Effect::DrawCards {
             player: PlayerTarget::Controller,

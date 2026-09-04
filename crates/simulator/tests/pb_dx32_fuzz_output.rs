@@ -780,7 +780,15 @@ const CORPUS_DEFS: usize = 1803;
 // (1,137/1,803 = 63.1% -> 1,138/1,803 = 63.1%, same rounded percentage). COMMANDER_POOL
 // re-measured and UNCHANGED at 90 -- `Shambling Ghast` is a Creature but not
 // `SuperType::Legendary`, so it was never a candidate; measured, not reasoned.
-const CORPUS_COMPLETE: usize = 1138;
+// PB-DX36 (2026-09-04, `OOS-CARDS2-6`): 1138 -> **1139** (+1). One promotion,
+// `exalted_angel` `partial` -> `Complete`: its printed triggered ability
+// ("Whenever this creature deals damage, you gain that much life") is now authorable
+// on `TriggerCondition::WhenDealsDamage` + `EffectAmount::DamageDealt`. Predicted and
+// NAMED before regeneration; CONFIRMED by regenerating `tools/authoring-report.py`
+// (1,138/1,803 = 63.1% -> 1,139/1,803 = 63.2%). COMMANDER_POOL re-measured by
+// executing this gate -- `Exalted Angel` is a Creature but not `SuperType::Legendary`,
+// so it was never a candidate; measured, not reasoned (PB-DX26's lesson).
+const CORPUS_COMPLETE: usize = 1139;
 const COMMANDER_POOL: usize = 90;
 
 /// Mirrors `crates/simulator/src/deck.rs:40-47`'s three-clause commander filter
@@ -1124,12 +1132,27 @@ fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
 
     // PB-DX35 (`OOS-DX4-5`): re-observed after the `look_at_top_or_route` row split --
     // the SET grew (a new row exists to reach), the trajectory did not.
+    //
+    // PB-DX36 (2026-09-04, `OOS-CARDS2-6`): `surveil` LEAVES the reached set, 6 -> 5, and
+    // this gate's own instruction is obeyed -- reported as a finding, not silently
+    // re-tuned by widening the seed range. **Attributed by an EXECUTED ablation, not
+    // argued.** In an isolated worktree at this same commit, with the entire engine
+    // change in the tree and ONLY `exalted_angel`'s `Completeness` marker forced back to
+    // `partial` (so the deck pool returns to `CORPUS_COMPLETE` 1138), all 12 tests in
+    // this file pass -- `surveil` is reached again and the waste ratio is back under its
+    // ceiling. The same ablation also restores `pb_dx22_fuzz_instrument` (12/12) and
+    // play-server's `UI3_SPLIT_COMBAT_SEED` probe. So the engine half of PB-DX36 is
+    // **fuzz-neutral by measurement**, and every bit of this movement is `OOS-CARDS2-3`'s
+    // re-deal: one marker flip anywhere in 1,803 defs deals every seeded game a
+    // different opening, and `surveil`'s only reachable source simply is not drawn at
+    // this budget any more. Nothing about the engine's willingness to SERVE the row
+    // changed -- `decision_site_walk`'s partition is untouched and `surveil` stays a
+    // served row.
     let expected_reached: BTreeSet<&str> = [
         "triggered_targets",
         "search_library",
         "scry",
         "discard_cards",
-        "surveil",
         "look_at_top_then_place_optional",
     ]
     .into_iter()

@@ -4776,6 +4776,7 @@ pub fn handle_cast_spell(
         additional_costs,
         damaged_player: None,
         combat_damage_amount: 0,
+        damage_dealt_amount: 0,
         triggering_creature_id: None,
         // PB-A: Thundermane Dragon on_cast_effect — apply haste at resolution (CR 400.7).
         cast_from_top_with_bonus,
@@ -8663,6 +8664,7 @@ mod tests {
             additional_costs: vec![],
             damaged_player: None,
             combat_damage_amount: 0,
+            damage_dealt_amount: 0,
             triggering_creature_id: None,
             cast_from_top_with_bonus: false,
             sacrificed_creature_lki: vec![],

@@ -153,7 +153,15 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // `state.objects.get`/`state.card_registry.get` duplicates that `flush_sorted`
     // used to repeat at each site. Lowered rather than left stale-high (a
     // stale-high ceiling is slack a regression hides in).
-    ("src/rules/abilities.rs", 72),
+    // PB-DX36 (2026-09, `OOS-CARDS2-6`): 72 -> 71. `queue_damage_source_triggers`
+    // replaced the single bare `state.objects.get(&assignment.source)`
+    // creature_on_bf check the old inlined Equipment/Aura walk used with
+    // `state.fizzle_object(source)` (CR 113.7a: the damage source may have left
+    // the battlefield between the damage event and this collector running — a
+    // rules-correct fizzle, not an engine bug), and its own new
+    // `state.objects.get(&attachment_id)` opponent-scoping read is likewise
+    // `state.fizzle_object(attachment_id)`. Net -1, not left stale-high.
+    ("src/rules/abilities.rs", 71),
     ("src/rules/casting.rs", 33),
     // PB-DP4 (2026-07-26): 16 -> 15. `has_uncosted_attack_target` (new, CR 508.1d)
     // deduplicates the two copy-pasted `has_cant_attack_owner` bare

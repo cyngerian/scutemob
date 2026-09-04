@@ -49,8 +49,15 @@ const LITERAL_SCAN_EXCLUDED: &str = "crates/card-types/src/state/stubs.rs";
 /// `ability_index`) or *generic* trigger context read on `Normal` triggers
 /// (`triggering_event`, `entering_object_id`, `targeting_stack_id`,
 /// `triggering_player`, `exalted_attacker_id`, `defending_player_id`,
-/// `damaged_player`, `combat_damage_amount`, `lki_counters`, `lki_power`,
-/// `embedded_effect`) — plus `data`, which carries all per-kind payloads.
+/// `damaged_player`, `combat_damage_amount`, `damage_dealt_amount`,
+/// `lki_counters`, `lki_power`, `embedded_effect`) — plus `data`, which
+/// carries all per-kind payloads.
+///
+/// PB-DX36 (`OOS-CARDS2-6`): `damage_dealt_amount` is `combat_damage_amount`'s
+/// combat-or-noncombat sibling, populated by `queue_damage_source_triggers` for
+/// every `Normal`-kind damage trigger regardless of which of the (many)
+/// `TriggerCondition`s produced it — general trigger context, not a single
+/// kind's payload, exactly the shape `combat_damage_amount` already is.
 ///
 /// **Adding a name here is a design decision, not a formality.** If the new field is
 /// only meaningful for one `PendingTriggerKind`, it belongs in a `TriggerData`
@@ -59,6 +66,7 @@ const EXPECTED_FIELDS: &[&str] = &[
     "ability_index",
     "combat_damage_amount",
     "controller",
+    "damage_dealt_amount",
     "damaged_player",
     "data",
     "defending_player_id",
