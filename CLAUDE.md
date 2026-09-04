@@ -93,8 +93,11 @@
   **OOS-DX4-5** both CLOSED, plus **OOS-DP10-5** CLOSED and **OOS-DX8-3** updated).
   **↻ PB-DX36 SHIPPED** (`scutemob-228`, 2026-09-04; v4 rank 13 — **OOS-CARDS2-6** FILED
   (it had no registry row) and **CLOSED**, both halves).
-  **Next dispatch: PB-DX52** (v4 rank 14 — Bolt Bend's printed "or ability" half,
-  `OOS-DX25b-1` + rider `OOS-DX25b-5`); ranks 1-13 all shipped.
+  **↻ PB-DX52 SHIPPED** (`scutemob-229`, 2026-09-04; v4 rank 14 — **OOS-DX25b-1** and
+  **OOS-DX25b-5** CLOSED, plus **OOS-DX25c-3** CLOSED as a third that this batch would
+  otherwise have turned into a live CR 702.16b defect).
+  **Next dispatch: PB-DX39** (v4 rank 15 — source-relative filters through LKI,
+  `OOS-DX5-3` + `OOS-DX5-7`'s residual); ranks 1-14 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -145,8 +148,12 @@
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
   `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,139/1,803 = 63.2%**
+  (**UNMOVED by PB-DX52, 2026-09-04 — 0 flips, predicted and reasoned per def before
+  regeneration; no `Completeness` marker moved anywhere, so the `CORPUS_COMPLETE` SET is
+  unmoved too and no seeded fixture was re-dealt**)
+  *(historical: **1,139/1,803 = 63.2%**
   (PB-DX36, 2026-09-04 — one flip, `exalted_angel`, from the new `WhenDealsDamage` trigger +
-  `EffectAmount::DamageDealt`)
+  `EffectAmount::DamageDealt`)*
   *(historical: **1,138/1,803 = 63.1%**
   (PB-DX35, 2026-09-04 — one flip, `shambling_ghast`, from the CR 700.2b per-mode target scoping)
   *(historical: **1,137/1,803 = 63.1%**
@@ -240,8 +247,11 @@
   both predicted per half in writing before any production line. Filed **OOS-DX35-1..10**.
   **↻ PB-DX36 SHIPPED** (`scutemob-228`, 2026-09-04; v4 rank 13 — **OOS-CARDS2-6** FILED
   (it had no registry row) and **CLOSED**, both halves).
-  **Next dispatch: PB-DX52** (v4 rank 14 — Bolt Bend's printed "or ability" half,
-  `OOS-DX25b-1` + rider `OOS-DX25b-5`); ranks 1-13 all shipped.
+  **↻ PB-DX52 SHIPPED** (`scutemob-229`, 2026-09-04; v4 rank 14 — **OOS-DX25b-1** and
+  **OOS-DX25b-5** CLOSED, plus **OOS-DX25c-3** CLOSED as a third that this batch would
+  otherwise have turned into a live CR 702.16b defect).
+  **Next dispatch: PB-DX39** (v4 rank 15 — source-relative filters through LKI,
+  `OOS-DX5-3` + `OOS-DX5-7`'s residual); ranks 1-14 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -252,6 +262,82 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-04, PB-DX52)**: **5,155 / 0 / 5** full-workspace on branch
+  `scutemob-229` (+38 over the **5,117** baseline, measured on this branch BEFORE any edit and
+  **reproducing PB-DX36's close pin exactly** — the first time in five batches an inherited pin
+  reproduces with no correction owed), `--workspace --no-fail-fast` to a file, **65**
+  result-producing targets (64 → 65: one new simulator test binary), residual list empty.
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
+  `sort` + `comm` (`OOS-DX20b-5`): 39 additions, 1 leaver, 0 removals.** The single leaver is
+  **disclosed and is not a removal**: `t3_ability_half_is_still_unreachable` became
+  `t3_ability_half_is_reachable_via_target_stack_object` — the inversion `OOS-DX25b-1`'s own row
+  and `bolt_bend.rs`'s own note both instructed, and it KEEPS the two assertions that are still
+  true (the entry is still not a `state.objects` key; naming it as a bare `Target::Object` still
+  fails) beside the two that inverted. Honest reading: **38 genuine additions and 1 mandated
+  inversion.** Count-vs-name reconciliation run and AGREES (38 == 38); the duplicate-name scan
+  the byte-exact method is structurally blind to (`OOS-DX35-8`) is **EMPTY on both runs**.
+  **PROTOCOL 42 → 43 / HASH 83 → 84, ONE bump each**, both taken from the failing gates' own
+  output and **both predicted in writing, per half, before any production line changed**
+  (`8f919967`) — including the prediction that **neither** closure's type count would move,
+  confirmed by the gates' own text at **98** and **132**. History rows appended, never edited;
+  both `FROZEN_HISTORY_PREFIX_DIGEST`s re-pinned; `history_is_append_only` and
+  `frozen_prefix_is_pinned` green on both; `hash_schema` + `protocol_schema` 51/51.
+  **The two-step stream observation recurs for the FOURTH version running** (v40, v82, v83, now
+  v84): with both variants in the tree and hashed but BEFORE the version bump,
+  `declaration_fingerprint_is_pinned` was RED and `stream_fingerprint_is_pinned` **GREEN** —
+  `canonical_fixture()` carries no stack object with a `StackObject` target and no non-default
+  `TargetRequirement`, so none of this batch's new bytes can reach it.
+  **48 HASH + 14 PROTOCOL sentinels re-pinned by symbol across 49 files**, the `u8`/`u32` suffix
+  spellings included, then **survivor-scanned on BOTH axes** (`OOS-DX36-8`, the lesson that
+  defeated PB-DX36's own scan): axis 1 SHAPE — a ±3-line window instead of a symbol-adjacent
+  same-statement regex — AND axis 2 VALUE — every Rust integer suffix, not a bare `\b83\b`.
+  **2 candidates, both correct historical prose in `hash.rs`, 0 real survivors.** Then
+  `OOS-DX18-3`'s opposite check: every changed line of the re-pin diff read individually — 62
+  assertion arguments and 2 frozen-prefix pins moved, **no prose rewritten**.
+  Coverage **UNMOVED at 1,139/1,803 = 63.2%** by regeneration, **0 flips** predicted with a
+  per-def reason before any regeneration (`caf642f9`) and confirmed (clean 1,139 / todo 517 /
+  empty 147 identical), self-dating churn reverted; **no `Completeness` marker moved anywhere**,
+  checked by `git diff` over the marker rather than inferred from the unchanged total (PB-DX26's
+  lesson that a stable COUNT is not a stable SET), so `OOS-CARDS2-3`'s re-deal budget was checked
+  and found **not owed**.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
+  gate) — all against the FINAL tree, **and `clippy` FIRED there**, on `manual_contains` in a
+  channel probe added after the implementers' own runs. **`npm run build` was NOT run and that is
+  stated rather than omitted**: N/A, because `git diff main..HEAD --numstat --
+  tools/play-server/frontend` is **EMPTY** and `node_modules` is absent — **and the acceptance
+  criterion predicted otherwise, so the refutation is reported rather than skipped**.
+  AC 7352 says the frontend *"will"* move *"if the picker learns a new target kind"*; it does
+  not, because `TargetPicker.svelte` echoes each candidate's `.value` verbatim and displays
+  `.label`, and **never reads `.kind` at all** (grepped across the whole frontend: the only
+  `.kind` consumers are `CostPicker`'s cost tags and `stores.js`'s `ApiError`). `tools/` is
+  **not** zero: `play-server/src/view.rs` gains the `"stack_object"` wire kind and a THIRD
+  `NameIndex` map keyed by stack-entry id — deliberately not folded into the `ObjectId`-keyed
+  one, because that exact fold is the collision that file's own `from_view` comment records as a
+  shipped bug — and `tools/tui/` gains a render arm plus one Cargo dependency.
+  **Benches: MEASURED, SEVEN runs, verdict NO REGRESSION — and the FIRST A/B was thrown away
+  rather than published.** Base runs 1-2 were taken while this session's own test suite and
+  revert matrix were running; their same-code band came out at **up to 47%**
+  (`full_turn_4p` 326.58 vs 221.96 µs on IDENTICAL code) and the contaminated table read
+  *"HEAD 30% faster on `sba_check`"* — an effect nothing in this batch can cause, which is the
+  tell. Re-run on a quiet machine: same-code band **0.10-1.65%**, base-vs-HEAD deltas
+  **−0.18% to −2.22%**. **The apparent improvement is deliberately NOT claimed**, on three
+  grounds: HEAD's own three-run spread (**5.2%** on `sba_check`) is wider than every difference
+  in the table; the **controls** (`priority_cycle_4p`/`6p`, `sba_check` — nothing here is on the
+  priority loop or the SBA loop) move the same order as everything else; and the mechanism bound
+  is **measured rather than argued** — `crates/engine/benches/engine_perf.rs` contains **zero**
+  occurrences of any symbol this batch touched, and `size_of` executed **at both revisions** is
+  identical (`Target` **16 → 16**, `SpellTarget` **32 → 32**, `TargetRequirement` **304 → 304**,
+  `StackObject` **504 → 504** — the new variant carries exactly one `ObjectId`, like the two it
+  joins).
+  **Fuzz: NOT A/B'd, and the reason is stated as a reason rather than dressed as a measurement**
+  — no `Completeness` marker moved, so no seeded fixture is re-dealt and `OOS-CARDS2-3`'s usual
+  budget does not apply.
+  **Revert matrix: 8 rows, EXECUTED BY THE COORDINATOR rather than accepted from the delegated
+  reports, 8 discriminating, 0 UNDISCRIMINATED** — and row **R6 is a coverage measurement, not a
+  pass**: undoing the CR 702.16b fix reddened only `r7b`, a SOURCE gate, with no behavioural
+  probe moving at all. Closed by `t10`, RED under R6 on its own assertion. Filed as
+  `OOS-DX52-2`.
 - **Tests (delta 2026-09-04, PB-DX36 + `/review` fix cycle)**: **5,117 / 0 / 5** full-workspace on
   branch `scutemob-228` (+20 over the **5,097** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX35's close pin exactly** — `OOS-DX51-5`'s non-reproducing-pin failure did not
@@ -1274,7 +1360,105 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-04 — **PB-DX36 SHIPPED** (`scutemob-228`; v4 queue rank 13 —
+- **Last Updated**: 2026-09-04 — **PB-DX52 SHIPPED** (`scutemob-229`; v4 queue rank 14 —
+  **OOS-DX25b-1** and **OOS-DX25b-5** CLOSED, plus **OOS-DX25c-3** CLOSED as a third).
+  **A printed line with no id space to say it in.** CR 115.7a lets Bolt Bend *"change the target
+  of target spell **or ability** with a single target"*, and the "or ability" half was dead:
+  an activated or triggered ability's stack entry is minted by `state.next_object_id()` and
+  pushed into `state.stack_objects` and **never into `state.objects`**, because it owns no card.
+  So it was unannounceable twice over — `queries::legal_targets_per_slot` enumerates object
+  candidates from `state.objects()` alone, and `validate_object_satisfies_requirement` opens with
+  `state.objects.get(&id).ok_or(ObjectNotFound)?`. The visible shadow: **
+  `TargetSpellOrAbilityWithSingleTarget` and `TargetSpellWithSingleTarget` were behaviourally
+  IDENTICAL on every production path**, and the `is_spell` guard separating them was reachable
+  only from a fixture that collapsed the two id spaces.
+  **THE CR ARGUES FOR THE DESIGN THIS BATCH REJECTED, AND THE REJECTION IS MEASURED RATHER THAN
+  ARGUED.** CR 113.1c is explicit — *"An ability can be an activated or triggered ability on the
+  stack. This kind of ability is an object"* — and CR 109.1 lists an ability on the stack first
+  among the things an object is. Registering ability entries in `state.objects` was costed at
+  stage 0 across 241 full-map walk sites and REJECTED, because such an entry must claim a
+  `ZoneId` and the only honest claim is `ZoneId::Stack`; and **`casting.rs`'s `TargetSpell` arm
+  decides "is this a spell" by `obj.zone == ZoneId::Stack` ALONE**, so a registered ability would
+  immediately have become a legal target for *"counter target spell"* — CR 115.4-wrong, a new
+  defect shipped while closing an old one. It also forces zone membership
+  (`simulator::invariants::check_zone_integrity`), which moves `public_state_hash` for **every**
+  game with an ability on the stack and double-counts the entry in
+  `loop_detection::compute_mandatory_state_hash`; and `GameObject` has two non-`Option` fields to
+  fabricate and **no `CardType` that fits an ability**. `state.objects` is this engine's CARD-object
+  map; CR 113 abilities are modelled by `state.stack_objects`, and registering them in both is a
+  DUPLICATE representation, not a truer one.
+  **ONE SHAPE CHOICE COLLAPSED MOST OF THE WORK, AND IT WAS ALREADY IN THE TREE.**
+  `Target::StackObject(ObjectId)` carries the stack ENTRY's own id — and
+  `stack_registry::stack_index_for_announced_target`'s **first clause is already
+  `so.id == announced`**, so `Effect::ChangeTargets`, `Effect::CounterSpell` and
+  `Effect::CopySpellOnStack` all resolve one through the SAME shared arithmetic a card id goes
+  through, with no second lookup to drift. `effects/mod.rs`'s `resolve_effect_target_list_indexed`
+  likewise ALREADY accepted a stack-entry id (its `exists_on_stack` clause, written for
+  CR 702.21a Ward). **`ResolvedTarget` is deliberately NOT widened**: it has ~55
+  `if let ResolvedTarget::Object(..)` sites with no `else` in that file, so a third variant would
+  have minted 55 silent-swallow sites the compiler cannot flag, to buy nothing.
+  **THE BATCH HAD TO CLOSE A THIRD SEED TO AVOID SHIPPING A DEFECT, AND THE REGISTRY NAMED IT IN
+  ADVANCE.** Making an ability announceable makes it a reachable `Effect::ChangeTargets` VICTIM,
+  and `retarget::plan_target_change` derived BOTH `source_chars` (CR 702.16b protection) and
+  `self_id` (CR 601.2c) from `card_in_stack_zone`, which is `None` for every ability. Shipping the
+  id space alone would have **silently disabled the protection check for every ability-shaped
+  redirect** — Bolt Bend redirecting a red ability onto a creature with protection from red.
+  `OOS-DX25c-3` predicted exactly this and filed it as *"unreachable today, blocked behind
+  `OOS-DX25b-1`"*. **A seed's "unreachable today" is a claim with an expiry date, and the batch
+  that closes its blocker is the batch that has to honour it.** Closed with
+  `stack_registry::source_of` (CR 113.7, exhaustive over all 25 kinds, no wildcard) — the helper
+  `OOS-DX25-4`'s fix shape also names, built here **without** taking that rider, because no event
+  semantics changed on either counter path.
+  **THE REVERT MATRIX IS ALSO A COVERAGE MEASUREMENT, AND THAT IS THIS BATCH'S DURABLE HALF.**
+  8 rows, executed by the coordinator rather than accepted from the delegated reports, all 8
+  discriminating. Row **R6** — put `card_in_stack_zone` back, i.e. undo the protection fix —
+  reddened **exactly one thing**: `r7b`, a SOURCE gate that reads the call site's text. **No
+  behavioural probe moved.** A source gate proves a line is spelled a certain way; it cannot prove
+  the line does anything, and a later batch that "simplifies" the helper while keeping the name
+  satisfies it completely. So the fix described at length as *"a defect this batch would have
+  created"* was, at that moment, standing on a text comparison. Closed by
+  `t10_protection_from_red_refuses_an_ability_shaped_redirect`, asserted in BOTH directions with a
+  non-vacuity floor, RED under R6. Filed as `OOS-DX52-2`: **a row that reddens only a source gate
+  is telling you the behaviour has no probe, not that the row is uninteresting.**
+  **A GATE'S JUSTIFICATION ROTTED AND THE GATE COULD NOT SEE IT — FOUND BY READING WHY IT HAD NOT
+  FIRED.** PB-DX8's `completeness_deviation_scan` fired correctly on `bolt_bend`'s rewritten note
+  (answered by ALLOWLIST with the contract widening STATED, rather than by rewording the comment
+  to dodge the needle — a gate you edit prose to satisfy has stopped measuring). Checking why it
+  had NOT fired on `deflecting_swat` found that its `RECORDED_BASELINE` reason quotes *"Interactive
+  choice deferred to M10"*, a sentence **this batch deleted**; the entry kept passing because the
+  def still matched the same needles for the same underlying reason. Nothing in the tree checks
+  that an allowlist entry's quoted fragment still occurs in the def it names (`OOS-DX52-1`).
+  **FOUR OF THIS BATCH'S OWN CR CITES WERE WRONG AND WERE CORRECTED AGAINST THE RULES SERVER.**
+  CR 113.3 was cited four times for *"an ability on the stack has its source's text"* — CR 113.3 is
+  *"There are four general categories of abilities"* and **no rule says that at all**; CR 113.7a
+  says the opposite, that the ability exists INDEPENDENTLY of its source, so naming one by its
+  source is a display convention and now says so. CR 113.7a was cited six times for the SOURCE
+  definition, which is CR 113.7. A bare CR 113.1 stood where CR 113.1c, CR 110.1 or CR 102.1 was
+  meant. And *"an ability ceases to exist"* is **CR 608.2n**, verbatim, now quoted where it is
+  load-bearing. The pass happened at all because the delegated channel agent reported it had no
+  MCP rules tools and **flagged that rather than proceeding as if it had**.
+  **THE CENSUS IS PRINTED BY A TEST AND ITS FIRST DRAFT WAS WRONG IN THE WAY SR-36 PREDICTS.**
+  Union **35** by `all_cards()` — DECLARED 34, PRINTED 4, 3 on both axes (all NOW-CORRECT), 1
+  PRINTED-only (`siren_stormtamer`, STILL-BLOCKED, and the missing identifier is NAMED: a FILTERED
+  sibling of `TargetSpellOrAbility` for *"that targets you or a permanent you control"*), 31
+  DECLARED-only. A preliminary file-text grep had put `misdirection` in the PRINTED axis; it is not
+  there — that phrase occurs only in a COMMENT comparing it to Bolt Bend. **The v4 memo's
+  "1 deck-legal `Complete`" cell is a FLOOR**, and closing the seed is what makes Misdirection's
+  spell-only restriction enforceable for the first time.
+  Tests **5,155 / 0 / 5** (+38 over a **5,117** pre-edit baseline that reproduces PB-DX36's close
+  pin exactly, **65** targets, byte-exact set difference: 39 additions / 1 disclosed leaver / 0
+  removals — the leaver is the mandated `t3` inversion — with the count-vs-name reconciliation run
+  and the duplicate-name scan EMPTY). **PROTOCOL 42 → 43 / HASH 83 → 84, ONE bump each, both
+  predicted in writing per half before any production line** (`8f919967`), both closure type counts
+  predicted and confirmed UNCHANGED at **98 / 132**. Coverage **UNMOVED at 63.2%**, 0 flips
+  predicted per def before regeneration. All gates clean against the FINAL tree, where `clippy`
+  fired once; `npm run build` N/A **and the acceptance criterion's prediction that the frontend
+  would move is REFUTED and reported**. **Benches: no regression, seven runs, the first A/B thrown
+  away as contaminated rather than published, and the apparent improvement deliberately not
+  claimed** — the controls move the same order, and `size_of` is identical at both revisions.
+  Filed **OOS-DX52-1..9**. Full record: `memory/primitives/pb-DX52-execution-notes.md`; handoff:
+  `memory/workstream-state.md`.
+- **Prior**: 2026-09-04 — **PB-DX36 SHIPPED** (`scutemob-228`; v4 queue rank 13 —
   **OOS-CARDS2-6** FILED, because it had no registry row at all, and **CLOSED**, both halves).
   **A `bool` that only the hasher reads, and a printed trigger family with no `TriggerCondition`.**
   `TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer { combat_only }` was dispatched
