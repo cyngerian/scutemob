@@ -15,6 +15,15 @@
 // end-step transform-if-4-creatures clause is wired via TransformSelf (PB-EF5).
 // "In any order" is realized as ObjectId-ascending deterministic placement (the
 // M7 precedent already used by RevealAndRoute/Scry/PutOnLibrary; NO rand).
+//
+// **`optional` is a real CR 118.12 player decision since PB-DX35** (`scutemob-227`,
+// `OOS-DX4-5`): through PB-OS8 it was structurally present but INERT (pre-existing
+// **OOS-DP10-5**), so the matching creature was always put into hand when one
+// existed. A nonempty candidate set now asks
+// `EffectChoiceQuestion::ChooseObject { count: 1, up_to: true, .. }`, and a decline
+// leaves the creature among the cards bottomed "in any order" — this def was one of
+// the class's five members, filed and settled together (`birthing_ritual`,
+// `grisly_salvage`, `satyr_wayfinder`, `risen_reef` are the other four).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

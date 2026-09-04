@@ -234,8 +234,14 @@ fn p_may_pay_then_effect(v: &Value) -> bool {
 fn p_choose_color_or_type(v: &Value) -> bool {
     json_contains_variant(v, "ChooseColor") || json_contains_variant(v, "ChooseCreatureType")
 }
-fn p_look_at_top_or_route(v: &Value) -> bool {
-    json_contains_variant(v, "LookAtTopThenPlace") || json_contains_variant(v, "RevealAndRoute")
+// PB-DX35 (OOS-DX4-5): this used to be ONE predicate covering both variants -- see
+// the row split below for why that stopped being honest the moment `LookAtTopThenPlace`'s
+// decision was served and `RevealAndRoute`'s was not.
+fn p_reveal_and_route(v: &Value) -> bool {
+    json_contains_variant(v, "RevealAndRoute")
+}
+fn p_look_at_top_then_place(v: &Value) -> bool {
+    json_contains_variant(v, "LookAtTopThenPlace")
 }
 fn p_surveil(v: &Value) -> bool {
     json_contains_variant(v, "Surveil")
@@ -386,19 +392,32 @@ pub static ROWS: &[Row] = &[
     },
     Row {
         id: "look_at_top_or_route",
-        cr: "608.2d",
-        site: "effects/mod.rs (LookAtTopThenPlace / RevealAndRoute) -- optional destructured away / deterministic routing",
+        cr: "608.2d/401.4",
+        site: "effects/mod.rs (RevealAndRoute) -- deterministic ObjectId-ascending routing inline",
         class: DecisionClass::AutoChosen {
             why_not_flagged_is_wrong:
-                "LookAtTopThenPlace's `optional` field is inert by construction (OOS-DP10-5); \
-                 RevealAndRoute covers BOTH real CR 608.2d/401.4 order choices (Goblin \
+                "RevealAndRoute covers BOTH real CR 608.2d/401.4 order choices (Goblin \
                  Ringleader's Goblins 'in any order') AND defs whose routing the card itself \
                  determines with no choice at all (Chaos Warp, Coiling Oracle: reveal one \
                  card, deterministic destination on both branches) -- this row's count is \
                  therefore an UPPER BOUND on real decisions, not an exact one (carried into \
-                 OOS-DP10-6's successor-queue ranking as a caveat)",
+                 OOS-DP10-6's successor-queue ranking as a caveat). PB-DX35 (OOS-DX4-5) split \
+                 this row: it used to also cover `LookAtTopThenPlace`, whose `optional` field \
+                 is now real (see `look_at_top_then_place_optional` below) -- RevealAndRoute's \
+                 own CR 401.4 order choice is the residual that split left behind, filed as \
+                 OOS-DX35-1",
         },
-        predicate: p_look_at_top_or_route,
+        predicate: p_reveal_and_route,
+    },
+    Row {
+        id: "look_at_top_then_place_optional",
+        cr: "118.12/608.2d",
+        site: "effects/mod.rs::execute_effect (LookAtTopThenPlace) -> EffectChoiceQuestion::ChooseObject",
+        class: DecisionClass::Served {
+            by: "PB-DX35",
+            residual: &[],
+        },
+        predicate: p_look_at_top_then_place,
     },
     Row {
         id: "surveil",

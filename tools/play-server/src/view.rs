@@ -2955,12 +2955,18 @@ fn blocking_decision_view(
                     )
                 }
                 // PB-DX28 (CR 115.10): a resolution-time UNTARGETED object
-                // choice. Unlike the four arms above, `candidates` name PUBLIC
-                // objects (battlefield permanents / graveyard cards), so this
-                // goes through `question_cards` -- the SAME channel
-                // `SearchLibrary` above already uses, not a new raw
-                // `GameState` read (see `test_ui6_view_rs_reads_game_state_
-                // in_exactly_the_three_known_places`).
+                // choice. Through PB-DX35, `candidates` named only PUBLIC objects
+                // (battlefield permanents / graveyard cards) -- that stopped being
+                // true the moment `Effect::LookAtTopThenPlace`'s `optional`
+                // placement (`OOS-DX4-5`) started asking this SAME variant with
+                // LIBRARY ids, a hidden zone (CR 400.2). Redaction is unaffected
+                // either way: `GameEvent::EffectChoiceRequired` is `private_to
+                // (player)`, the same channel `SearchLibrary`/`Scry`/`Surveil`
+                // already carry hidden library ids on. This still goes through
+                // `question_cards` -- the SAME channel `SearchLibrary` above
+                // already uses, not a new raw `GameState` read (see
+                // `test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_
+                // places`) -- so no code change was owed for either population.
                 EffectChoiceQuestion::ChooseObject {
                     candidates,
                     count,

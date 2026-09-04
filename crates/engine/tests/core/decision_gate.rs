@@ -105,7 +105,21 @@ fn positive_value_for_row(id: &str) -> serde_json::Value {
         "choose_color_or_type" => serde_json::to_value(Effect::ChooseCreatureType {
             default: SubType("Human".to_string()),
         }),
-        "look_at_top_or_route" => serde_json::to_value(Effect::LookAtTopThenPlace {
+        // PB-DX35: this row is `RevealAndRoute`-only now -- `LookAtTopThenPlace` has its
+        // own row below, `look_at_top_then_place_optional`.
+        "look_at_top_or_route" => serde_json::to_value(Effect::RevealAndRoute {
+            player: PlayerTarget::Controller,
+            count: EffectAmount::Fixed(1),
+            filter: TargetFilter::default(),
+            matched_dest: ZoneTarget::Hand {
+                owner: PlayerTarget::Controller,
+            },
+            unmatched_dest: ZoneTarget::Library {
+                owner: PlayerTarget::Controller,
+                position: LibraryPosition::Bottom,
+            },
+        }),
+        "look_at_top_then_place_optional" => serde_json::to_value(Effect::LookAtTopThenPlace {
             player: PlayerTarget::Controller,
             count: EffectAmount::Fixed(1),
             filter: TargetFilter::default(),
@@ -117,7 +131,7 @@ fn positive_value_for_row(id: &str) -> serde_json::Value {
                 owner: PlayerTarget::Controller,
                 position: LibraryPosition::Bottom,
             },
-            optional: false,
+            optional: true,
         }),
         "surveil" => serde_json::to_value(Effect::Surveil {
             player: PlayerTarget::Controller,
@@ -385,7 +399,6 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Anowon, the Ruin Sage", &["sacrifice_permanents"], None),
     ("Atomize", &["proliferate"], None),
     ("Atraxa, Praetors' Voice", &["proliferate"], None),
-    ("Birthing Ritual", &["look_at_top_or_route"], None),
     ("Blightbelly Rat", &["proliferate"], None),
     ("Bloated Contaminator", &["proliferate"], None),
     ("Bolt Bend", &["change_targets"], None),
@@ -414,8 +427,6 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Geological Appraiser", &["discover"], None),
     ("Goblin Ringleader", &["look_at_top_or_route"], None),
     ("Grave Pact", &["sacrifice_permanents"], None),
-    ("Grisly Salvage", &["look_at_top_or_route"], None),
-    ("Growing Rites of Itlimoc", &["look_at_top_or_route"], None),
     ("Inexorable Tide", &["proliferate"], None),
     ("Izzet Charm", &["counter_unless_pays"], None),
     ("Karn's Bastion", &["proliferate"], None),
@@ -434,10 +445,8 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Radstorm", &["proliferate"], None),
     ("Raffine's Informant", &["connive"], None),
     ("Retreat to Kazandu", &["modal_trigger"], None),
-    ("Risen Reef", &["look_at_top_or_route"], None),
     ("Roalesk, Apex Hybrid", &["proliferate"], None),
     ("Roiling Regrowth", &["sacrifice_permanents"], None),
-    ("Satyr Wayfinder", &["look_at_top_or_route"], None),
     (
         "Shambling Ghast",
         &["modal_trigger"],
@@ -500,11 +509,23 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
 /// `Izzet Charm`. **71 is read off `T6`'s printed number**, not computed as `80 - 9`, per
 /// this constant's own standing rule; the arithmetic agreeing is a check, not the source.
 ///
-/// **PB-DX35 (2026-09, `OOS-DX4-2`): raised 71 -> 72.** `Shambling Ghast` flipped
+/// **PB-DX35 Half A (2026-09, `OOS-DX4-2`): raised 71 -> 72.** `Shambling Ghast` flipped
 /// `partial` -> `Complete` and hits `modal_trigger` (a NEW `BASELINE` entry above), the
 /// same row `Felidar Retreat`/`Retreat to Kazandu` already carry -- one def added to the
 /// union, read off `T6`'s printed number, not computed as `71 + 1`.
-const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 72;
+///
+/// **PB-DX35 Half B (2026-09, `OOS-DX4-5`): lowered 72 -> 67.** The compound
+/// `look_at_top_or_route` row split: `LookAtTopThenPlace`'s `optional` field became a
+/// real CR 118.12 player decision and its half of the row moved to the new
+/// `look_at_top_then_place_optional` Served row, which is the same shape as ENG-1's and
+/// PB-DX45's moves on the rows either side of it. Five `BASELINE` entries removed
+/// (`Birthing Ritual`, `Growing Rites of Itlimoc`, `Grisly Salvage`, `Satyr Wayfinder`,
+/// `Risen Reef` -- none hits any OTHER AutoChosen row). `RevealAndRoute`'s CR 401.4
+/// order choice stays behind on the split-off `look_at_top_or_route` row, AutoChosen,
+/// unchanged (`Chaos Warp`/`Coiling Oracle`/`Goblin Ringleader`/`Sylvan Messenger` keep
+/// their entries). Read off `T6`'s printed number, not computed as `72 - 5`, per this
+/// constant's own standing rule.
+const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 67;
 
 const MIN_ROWS: usize = 22;
 const MIN_BASELINE: usize = 50;
@@ -942,6 +963,10 @@ fn served_rows_still_have_their_hooks() {
         // ENG-1 (2026-08-02): `discard_cards` flipped AutoChosen -> Served. Same
         // non-zero-floor treatment as its three siblings above.
         ("discard_cards", 1),
+        // PB-DX35 (2026-09, `OOS-DX4-5`): `LookAtTopThenPlace`'s optional placement is
+        // now a real CR 118.12 choice, and the row split off `look_at_top_or_route` (see
+        // that row's own updated site string) rather than merely gained a residual note.
+        ("look_at_top_then_place_optional", 1),
     ] {
         let row = ROWS.iter().find(|r| r.id == id).unwrap();
         assert!(

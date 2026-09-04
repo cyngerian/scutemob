@@ -22,18 +22,19 @@ pub fn card() -> CardDefinition {
             // sibling instead (see its doc in card-types/src/cards/card_definition.rs).
             // Note: neither primitive emits a distinct "reveal" event (only zone-move events),
             // so modelling this as "look at" rather than "reveal" loses no simulated behaviour.
-            // NOTE (PB-DX4 fix cycle, review Finding 5): `optional: true` records the
-            // printed "you **may**" structurally but is **INERT** today — the
-            // `LookAtTopThenPlace` arm in `effects/mod.rs` destructures `optional: _`
-            // (pre-existing **OOS-DP10-5**), so the placement still always happens when a
-            // match exists. Stated here rather than left silent, on the PB-DX3
-            // `Effect::SearchLibrary { reveal: true }` precedent: a `Complete` marker must
-            // not quietly cover an unimplemented printed clause. The def stays `Complete`
-            // because four other `Complete` defs ship in exactly this position
-            // (`birthing_ritual`, `growing_rites_of_itlimoc`, `risen_reef` and this one's
-            // sibling), so this is a class to settle at once — **OOS-DX4-5** — not a card
-            // to demote alone. What PB-DX4 DID fix here is the arity: the previous
-            // `RevealAndRoute` routed EVERY match, so the printed "a card" was wrong too.
+            // NOTE (PB-DX4 fix cycle, review Finding 5): `optional: true` recorded the
+            // printed "you **may**" structurally while it was **INERT** (the
+            // `LookAtTopThenPlace` arm in `effects/mod.rs` destructured `optional: _`,
+            // pre-existing **OOS-DP10-5**) -- filed as the class **OOS-DX4-5** rather than
+            // settled per-card, because four other `Complete` defs shipped in exactly this
+            // position (`birthing_ritual`, `growing_rites_of_itlimoc`, `risen_reef` and this
+            // one's sibling). **CLOSED by PB-DX35** (`scutemob-227`, 2026-09-04):
+            // `optional` is real now — a nonempty candidate set asks
+            // `EffectChoiceQuestion::ChooseObject { count: 1, up_to: true, .. }` on the
+            // CR 608.2d suspend-and-replay channel, and a decline routes the card to
+            // `rest_to` (here, the graveyard) same as a no-match top-N always did. What
+            // PB-DX4 fixed here is the arity: the previous `RevealAndRoute` routed EVERY
+            // match, so the printed "a card" was wrong too.
             effect: Effect::LookAtTopThenPlace {
                 player: PlayerTarget::Controller,
                 count: EffectAmount::Fixed(5),

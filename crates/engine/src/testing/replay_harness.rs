@@ -1160,10 +1160,17 @@ pub fn translate_player_action(
                     }
                 }
                 // PB-DX28 (CR 115.10): a resolution-time UNTARGETED object
-                // choice. Unlike the four arms above, `candidates` names
-                // PUBLIC objects (battlefield permanents / graveyard cards),
-                // so no hidden-zone caveat applies -- named the same way
-                // `ManaSource.card` is.
+                // choice. Through PB-DX35, `candidates` named only PUBLIC
+                // objects (battlefield permanents / graveyard cards) -- since
+                // `Effect::LookAtTopThenPlace`'s `optional` placement
+                // (`OOS-DX4-5`) started asking this SAME variant with LIBRARY
+                // ids, that is no longer true in general. It stays harmless
+                // HERE: this harness is an omniscient test driver with full
+                // `GameState` access, not a redaction boundary, so
+                // `find_named_among` looking a chosen name up in a hidden zone
+                // leaks nothing a real client channel doesn't already keep
+                // private (`GameEvent::EffectChoiceRequired` is
+                // `private_to(player)`).
                 crate::state::EffectChoiceQuestion::ChooseObject { candidates, .. } => {
                     if spec.chosen.is_empty() {
                         crate::effects::default_effect_choice_answer(&entry.question)

@@ -888,6 +888,38 @@ fn effect_choice_state(question: EffectChoiceQuestion) -> GameState {
         .expect("effect-choice fixture must build")
 }
 
+/// A `GameState` carrying a hand-built `PendingEffectChoice` whose `ChooseObject`
+/// candidate resolves to a REAL object in the looking player's library -- the fixture
+/// `row_id_for`'s PB-DX35 zone-based disambiguation needs (an empty `candidates: vec![]`
+/// list, `effect_choice_state`'s usual shape, cannot distinguish this row from PB-DX28's
+/// untargeted choice, which also asks `ChooseObject` and shares the same wire shape).
+/// The single library object is added FIRST and alone, so it is deterministically
+/// `ObjectId(1)` (`GameState::next_object_id` mints from `timestamp_counter`, which is 0
+/// until the first object is added; no continuous/replacement effect is seeded here to
+/// perturb that).
+fn look_at_top_then_place_state() -> GameState {
+    let lib_card = ObjectSpec::card(p(1), "Fixture Library Card")
+        .with_types(vec![CardType::Land])
+        .in_zone(ZoneId::Library(p(1)));
+    GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .object(lib_card)
+        .pending_effect_choice(PendingEffectChoice {
+            choice_id: 1,
+            player: p(1),
+            source: ObjectId(1),
+            question: EffectChoiceQuestion::ChooseObject {
+                candidates: vec![ObjectId(1)],
+                count: 1,
+                up_to: true,
+            },
+            index: 0,
+        })
+        .build()
+        .expect("look-at-top-then-place fixture must build")
+}
+
 /// **T6.2** (Stage 6) — the non-vacuity partner of T6.1: `decision_coverage::row_id_for`
 /// is exercised from REAL code (a hand-built `BlockingDecision` +, for the
 /// `EffectChoice` rows, a matching `PendingEffectChoice`), not merely declared in a
@@ -967,6 +999,23 @@ fn test_dx32_row_id_for_covers_every_observable_row() {
                 cost: Box::new(mtg_engine::Cost::PayLife(1)),
             }),
         ),
+        // PB-DX35 (CR 118.12/608.2d): the seventh observable row.
+        // `look_at_top_or_route` split, and `LookAtTopThenPlace`'s half joined
+        // `OBSERVABLE_ROW_IDS` -- proven reachable here through a fixture whose
+        // candidate resolves to a real Library-zone object, which is what
+        // `row_id_for`'s zone-based disambiguation from PB-DX28's untargeted
+        // choice requires. The behavioural end of the same claim is
+        // `pb_dx35_optional_placement_channel.rs`, which reaches the real
+        // question through `LocalGame`.
+        (
+            "look_at_top_then_place_optional",
+            BlockingDecision::EffectChoice {
+                player: p(1),
+                choice_id: 1,
+                source: ObjectId(1),
+            },
+            look_at_top_then_place_state(),
+        ),
     ];
 
     let mut reachable: BTreeSet<&'static str> = BTreeSet::new();
@@ -982,7 +1031,7 @@ fn test_dx32_row_id_for_covers_every_observable_row() {
         }
     }
 
-    // Review finding L9: this test observes only the six fixtures constructed above
+    // Review finding L9: this test observes only the seven fixtures constructed above
     // -- it does not itself prove `row_id_for` can NEVER return anything else. That
     // bound comes from `row_id_for`'s own match being EXHAUSTIVE with no wildcard on
     // both `BlockingDecision` and `EffectChoiceQuestion` (a compile-time property, not
@@ -992,7 +1041,7 @@ fn test_dx32_row_id_for_covers_every_observable_row() {
     let observable: BTreeSet<&'static str> = OBSERVABLE_ROW_IDS.iter().copied().collect();
     assert_eq!(
         reachable, observable,
-        "these five fixtures must reach exactly OBSERVABLE_ROW_IDS -- every id \
+        "these seven fixtures must reach exactly OBSERVABLE_ROW_IDS -- every id \
          reachable from a real fixture, and no fixture mapping outside the list"
     );
 
@@ -1047,6 +1096,15 @@ fn test_dx32_row_id_for_covers_every_observable_row() {
 /// **This is a measurement, not a regression** (`OOS-DX21-6`), and the message below is
 /// obeyed rather than the seed range re-tuned: the finding is reported here, in the
 /// execution notes, and in the queue memo's row.
+///
+/// **↻ RE-OBSERVED by PB-DX35 (`scutemob-227`, `OOS-DX4-5`) -- the row SET grew, not the
+/// trajectory.** `may_pay_then_effect` and its partition are UNMOVED (still never
+/// reached at this budget); `look_at_top_then_place_optional` joins `reached` because
+/// the row is NEW (`look_at_top_or_route` split), not because any existing decision
+/// point changed shape. Re-run twice, identical partition both times. No A/B is owed
+/// here the way PB-DX18's was: that entry attributed a MOVEMENT in an existing row's
+/// reachability; this is a SEVENTH row entering the set with the DecisionCoverage
+/// entries either side of it byte-identical.
 #[test]
 fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     let mut combined = mtg_simulator::DecisionCoverage::default();
@@ -1064,22 +1122,25 @@ fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     eprintln!("T6.3 reached: {reached:?}");
     eprintln!("T6.3 never reached: {never_reached:?}");
 
-    // PB-DX18 (`OOS-DP2-4`): re-observed by execution after the PRNG pin, never predicted.
+    // PB-DX35 (`OOS-DX4-5`): re-observed after the `look_at_top_or_route` row split --
+    // the SET grew (a new row exists to reach), the trajectory did not.
     let expected_reached: BTreeSet<&str> = [
         "triggered_targets",
         "search_library",
         "scry",
         "discard_cards",
         "surveil",
+        "look_at_top_then_place_optional",
     ]
     .into_iter()
     .collect();
     assert_eq!(
         reached, expected_reached,
         "the reached/never-reached partition of a 10-seed x 60-turn fuzz-shaped run \
-         changed from the measured baseline (5 of 6 served rows: triggered_targets, \
-         search_library, scry, discard_cards, surveil; may_pay_then_effect never reached \
-         at this budget — re-observed by PB-DX18 after the OOS-DP2-4 PRNG pin). \
+         changed from the measured baseline (6 of 7 served rows: triggered_targets, \
+         search_library, scry, discard_cards, surveil, look_at_top_then_place_optional; \
+         may_pay_then_effect never reached at this budget — re-observed by PB-DX35 after \
+         the look_at_top_or_route row split). \
          Report this as a finding (does the engine now serve fewer/more decisions, or \
          did an unrelated change move which cards get drawn/cast) rather than \
          silently re-tuning the seed range to make it pass: reached {reached:?}, \
