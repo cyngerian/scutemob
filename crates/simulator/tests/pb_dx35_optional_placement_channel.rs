@@ -347,7 +347,7 @@ fn c2_a_human_accepts_and_the_land_enters_the_battlefield_tapped() {
 /// for free. That is worth asserting rather than assuming: an offer layer that
 /// silently dropped it would leave a bot game deadlocked on Risen Reef's own ETB,
 /// and this probe is what would catch it.
-fn c3_the_bot_path_is_offered_and_answers_the_same_action() {
+fn c3_dx35_the_bot_path_is_offered_and_answers_the_same_choose_object() {
     let mut game = start_human_game();
     let (decision, cast_index) = drive_until(&mut game, "CastSpell", |a| {
         matches!(a, LegalAction::CastSpell { .. })
