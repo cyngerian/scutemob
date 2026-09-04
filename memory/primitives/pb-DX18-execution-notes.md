@@ -380,3 +380,51 @@ pregame phase is the only thing that can distinguish "before the game began" fro
 correctness gate for an unmeasured 8-byte saving, which is the wrong trade to make
 silently. Recorded here so the next batch measuring these numbers knows where the step
 came from.
+
+---
+
+## §7 — Stated non-changes and disclosed residuals
+
+Recorded here rather than left for a reader to notice missing.
+
+### §7.1 The mulligan OFFER layer is unchanged, and that is not a new SR-38 problem
+
+`crates/simulator/src/legal_actions.rs` offers `LegalAction::TakeMulligan` / `KeepHand` only
+when `state.turn().is_first_turn_of_game && state.turn().turn_number == 0`, and
+**`GameStateBuilder` defaults `turn_number` to 1 with nothing in the tree setting it to 0** —
+`crates/simulator/src/local_game.rs`'s own `decision_kind_for` doc says so about its
+`DecisionKind::Mulligan` arm ("currently unreachable"). So the offer is dead code today, and
+this batch's gate can only refuse a command the offer never makes. Deliberately **not**
+re-pointed at `state.pregame()`: doing so would start offering both commands in every
+`GameStateBuilder`-built simulator fixture (all of which have `pregame = Mulligans`), which
+is the SR-38 hazard in the other direction.
+
+### §7.2 The gate's reach is bounded by who calls `start_game`, and that is stated
+
+`PregamePhase::GameStarted` is set by `rules::engine::start_game_allowing_incomplete`, which
+`start_game` delegates to — both documented entry points, so neither can drift. Production
+callers: `simulator::local_game::LocalGame::start` (the browser and every bot game) and
+`tools/tui/src/play/app.rs`.
+
+**`crate::testing::replay_harness::build_initial_state` does NOT call it**, so a golden
+script's state stays `PregamePhase::Mulligans` for its whole run and a script issuing
+`TakeMulligan` mid-script would still be accepted. That is deliberate — it is what makes this
+change **safe in the refusing direction only** (the gate can refuse more than HEAD did and
+never accept more), and it is why the whole 208-script corpus is unaffected. The same is true
+of every `GameStateBuilder` fixture. Said plainly rather than left implicit: the trust
+boundary is closed on every path that actually starts a game, and open on the two paths that
+deliberately assemble a mid-game position without one.
+
+### §7.3 `Option<ObjectId>` was not shrunk, and the reason is stated
+
+`PlayerState` grows 16 bytes because `ObjectId` is a `u64` newtype with no niche. A sentinel
+`ObjectId(0)` would save 8 of them and trade a measured correctness gate for an unmeasured
+saving; not taken, and recorded so the next reader knows it was considered.
+
+### §7.4 The `r1` gate's residual, stated in the gate itself
+
+`r1` walks `crates/engine/src` and `r1b` checks that claim by proving no other crate names
+`ZoneChangeAction::Redirect`. What neither can catch is a consumer that moves the object
+through a helper not in `MOVE_HELPERS` — so `r1`'s non-moving-arm count is asserted at
+exactly **1**, which turns "a new move helper appeared" into a red test rather than a silent
+gap.
