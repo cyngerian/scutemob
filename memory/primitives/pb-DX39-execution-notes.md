@@ -146,3 +146,35 @@ at resolution. What is illegal is losing it when the Jitte has **left the battle
 The distinction is load-bearing for this batch: a fix that made `AttachedCreature` fall back
 to *anything* whenever the set came out empty would break the legal case while fixing the
 illegal one. Both directions are pinned.
+
+### §0.8 THE SITE LIST WAS A FLOOR, AND THE THREE MISSING SITES ARE THE MULTI-LINE SPELLING
+
+The task brief and the coordinator's launch comment both say
+*"`state.objects.get(&source_id)` occurs **17** times in `layers.rs`"*, with the brief adding
+*"— a FLOOR, enumerate every one yourself"*. Enumerated by parsing the function body
+(lines 767..1268) and splitting it into arms:
+
+- `effect_applies_to` has **37** `EffectFilter` match arms;
+- **20** of them are source-relative (mention `effect.source`);
+- there are **20** source reads, not 17.
+
+The three the same-line count misses are `AttachedCreature`, `AttachedLand` and
+`AttachedPermanent`, which spell the read across a line break:
+
+```rust
+state
+    .objects
+    .get(&source_id)
+```
+
+That is `OOS-DX50`'s and `OOS-DX20b`'s lesson — *a census is only as wide as the spelling
+its regex matched* — recurring **inside the census of the batch dispatched to fix a
+source-read defect**, and it is not a harmless undercount: `AttachedCreature` is the
+headline seed's own arm, so a fix that swept "the 17" by matching the same-line spelling
+would have missed `OOS-DX5-3` entirely while reporting a complete sweep.
+
+Two further reads live in `is_effect_active` (`WhileSourceOnBattlefield`'s battlefield
+test and `check_static_condition`'s controller). They are **deliberately excluded and
+must stay live-only**: routing the first through LKI would make a departed source's static
+ability run forever, which is the exact opposite of CR 611.2b. Pinned by a gate so a later
+batch cannot "finish the job".
