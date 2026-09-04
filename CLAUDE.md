@@ -232,8 +232,8 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-04, PB-DX51)**: **5,057 / 0 / 5** full-workspace on branch
-  `scutemob-226` (+13 over the **5,044** baseline, measured on this branch BEFORE any edit),
+- **Tests (delta 2026-09-04, PB-DX51)**: **5,058 / 0 / 5** full-workspace on branch
+  `scutemob-226` (+14 over the **5,044** baseline, measured on this branch BEFORE any edit),
   `--workspace --no-fail-fast` to a file, **61** result-producing targets (60 → 61: one new
   simulator test binary), residual list empty.
   **The baseline does NOT reproduce PB-DX18's published close pin of 5,041, and that is reported
@@ -245,7 +245,7 @@
   fourth time in this queue and the first time on the pin every subsequent batch inherits
   (`OOS-DX51-5`).
   **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
-  `sort` + `comm` (`OOS-DX20b-5`): 13 additions, 0 leavers, 0 removals, 0 renames.** No doctest
+  `sort` + `comm` (`OOS-DX20b-5`): 14 additions, 0 leavers, 0 removals, 0 renames.** No doctest
   line-number shift, because nothing this batch edits sits above one.
   **HASH 80 → 81 → 82 / PROTOCOL 41 UNMOVED, ONE bump**, both gate-computed (`hash_schema` 36/36,
   `protocol_schema` 17/17) and **both predicted in writing before any production line changed**
@@ -1189,8 +1189,8 @@
   consequence — a real block registers and damage is marked — which `t1`'s single-attacker fixture
   structurally cannot. `t4` as specified had the same defect and was redesigned to remove the
   entrant too. Both disclosed in the tests' own docs.
-  Tests **5,057 / 0 / 5** (+13 over a **5,044** pre-edit baseline, **61** targets, byte-exact set
-  difference: 13 additions / 0 leavers / 0 removals / 0 renames). **HASH 81 → 82 / PROTOCOL 41
+  Tests **5,058 / 0 / 5** (+14 over a **5,044** pre-edit baseline, **61** targets, byte-exact set
+  difference: 14 additions / 0 leavers / 0 removals / 0 renames). **HASH 81 → 82 / PROTOCOL 41
   UNMOVED, one bump, both predicted in writing before any code** (`06ba6760`), closure type count
   UNMOVED at 132 and measured at the merge base rather than assumed. Coverage unmoved
   **1,137/1,803 = 63.1%**, **0 flips**, churn reverted, **0 card-def edits**. All gates clean
@@ -1198,7 +1198,16 @@
   regression, five runs, and the apparent 1-3.7% speed-up deliberately NOT claimed** — the control
   bench moves as much as the affected one. **Fuzz: the engine half is fuzz-neutral BY MEASUREMENT**
   (a third run with only the offer conjunct ablated reproduces the merge base byte-identically),
-  and `AlreadyDeclaredBlockers` goes **9 → 0**. Filed **OOS-DX51-1..6**. Full record:
+  and `AlreadyDeclaredBlockers` goes **9 → 0**. Filed **OOS-DX51-1..7** — **and the first draft of
+  these lines said `-1..6`, which is dispatch hygiene 8's exact case**, caught by re-checking this
+  cell against the registry AFTER the `/review` fix cycle rather than before it. **`-7` exists
+  because the `/review` defeated the RE-KEYED `r1` gate twice more** (a wholesale `CombatState`
+  write-back, and a second `&mut self` mutator on the type itself — the latter blinding `r1` and
+  `r1b` simultaneously for the second time in one batch), **and because the widening written for a
+  third finding did not fix it**: `r1d` skipped allowlisted files WHOLESALE, so a multi-line borrow
+  planted in a file allowlisted for one `remove(` call stayed green. Six successful bypasses of
+  three successive drafts is the argument for making the field private — measured at ~160 sites and
+  deliberately not taken here. Full record:
   `memory/primitives/pb-DX51-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-09-04 — **PB-DX18 SHIPPED** (`scutemob-225`; v4 queue rank 10 —
   **six seeds closed in one batch**: **OOS-DP2-7**, **OOS-DP2-4**, **OOS-DP2-8**, **OOS-DX2-4**,

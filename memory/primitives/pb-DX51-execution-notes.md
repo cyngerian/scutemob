@@ -18,9 +18,22 @@ dispatching prompt's stated baseline exactly.
 * `crates/simulator/tests/pb_dx51_blocker_offer.rs` — `b1` (1 test)
 * `mod` lines added to `crates/engine/tests/primitives/main.rs` and `crates/engine/tests/core/main.rs`
 
-Post-edit: `~/.cargo/bin/cargo test --workspace --no-fail-fast` → **5,055 / 0 / 5**, **61** targets
-(60 → 61: the new `pb_dx51_blocker_offer` simulator binary). `+11` tests, 0 removals, 0 renames.
+Post-edit **at the time this section was written**: `5,055 / 0 / 5`, **61** targets (60 → 61: the
+new `pb_dx51_blocker_offer` simulator binary), `+11` tests.
+
+> **↻ RE-TAKEN AT HEAD (`/review` Issue 6).** The figures above were true of the tree at
+> `05ccc678` and were never re-taken after `a06c8815` (the `r1` re-key, +2 tests) or `4412ae0f`
+> (the `/review` fix cycle, +1 test). **That is PB-DX28's "re-take the measured table" MEDIUM,
+> committed inside the batch that FILES a seed about exactly this** (`OOS-DX51-5`, PB-DX18's
+> non-reproducing pin) — recorded rather than quietly corrected, because the recurrence is the
+> finding. At HEAD the roster file has **6** tests (`r1`, `r1b`, `r1c`, `r1d`, `r1e`,
+> `t_census_report`), not 3, and the workspace is **5,058 / 0 / 5** across **61** targets,
+> **+14** over the 5,044 pre-edit baseline, byte-exact set difference: **14 additions, 0 leavers,
+> 0 removals, 0 renames.**
+
 `cargo clippy --workspace --all-targets -- -D warnings` clean. `cargo fmt --check` clean.
+`tools/check-defs-fmt.sh` clean (1,803 defs). All re-run against the FINAL tree after the fix
+cycle.
 
 ## §3 — Revert matrix (all rows executed against the FINAL committed production tree, then restored)
 
@@ -170,3 +183,52 @@ OOS-DX21-5: a REFUSED declaration must leave state.combat exactly as it found it
 * The four-of-six-cause CR 506.4 cleanup gap the coordinator asked about (§0 of the module doc)
   was not fixed — reported only, per the coordinator's own instruction not to work around it
   silently.
+
+
+---
+
+## §6 — The `r1` gate defeats, all EXECUTED (added after §3 was written)
+
+`§3`'s matrix was executed against the tree at `05ccc678`. Everything below post-dates it: four
+defeats by the coordinator that forced the `r1` re-key (`a06c8815`), and three by the `/review`
+that forced a second one (`4412ae0f`). **Six of the seven succeeded against the gate as it stood
+at the time**, which is the argument for `OOS-DX51-7` rather than for a seventh needle.
+
+| # | who | the bypass planted | gate state when planted | result | now |
+|---|---|---|---|---|---|
+| **A** | coordinator | `let map = &mut combat.attackers; map.insert(..)` — an intermediate binding, ADDED beside the real call rather than replacing it | first draft (`.attackers.insert(` literal only) | **GREEN — DEFEAT.** And `r1b` stayed green too, because the plant adds a site rather than replacing one, so BOTH halves were blind at once | RED (`r1`, form 2) |
+| **B** | coordinator | the plain `combat.attackers.insert(id, target)` | first draft | RED (control — proves the first draft did something) | RED (`r1`, form 1) |
+| **C** | coordinator | `combat\n    .attackers\n    .insert(..)` — a rustfmt-broken chain | first draft | **GREEN — DEFEAT** | RED (`r1d` **alone**, which is what proves `r1d` discriminates a different line from `r1`) |
+| **D** | coordinator | `let mut m = std::mem::take(&mut combat.attackers); m.insert(..); combat.attackers = m;` | first draft | **GREEN — DEFEAT** | RED (`r1`, forms 2/3/4) |
+| **E** | `/review` | `*combat = CombatState { attackers, ..combat.clone() }` — a wholesale write-back; the field appears as a bare `attackers,` shorthand with **no leading dot** | after the re-key (4 forms) | **GREEN — DEFEAT**, and `cargo fmt --check` clean on the normalised form | RED (`r1`, new form 5) |
+| **F** | `/review` | a second `&mut self` mutator (`pub fn set_attacking`) beside `add_attacker`, plus a production caller | after the re-key | **GREEN — DEFEAT.** `r1` exempts that file wholesale and `r1b` counts only the literal `add_attacker(`, so both halves were blind simultaneously — for the second time in this batch | RED (new `r1e`) |
+| **G** | `/review` | `let map = &mut combat\n    .attackers;` — a multi-line borrow, pre-`fmt` | after the re-key | **GREEN — DEFEAT**, and it **survived the widening written for it** (see below) | RED (`r1d`) |
+
+### §6.1 — G is the row worth reading, because the fix for it did not fix it
+
+`r1d`'s needle set was widened to cover the borrow/assign/`mem` forms, and **G stayed GREEN**.
+The cause was not the needles: `r1d` skipped any file appearing in `ALLOWLIST` **wholesale**, and
+G was planted in `crates/engine/src/rules/combat.rs`, which is allowlisted there for one thing
+only — a CR 506.4 `remove(` call. **A file-scoped allowlist grants an exemption far wider than
+the reason that earned it**, which is `OOS-DX48`'s hardcoded `SITE_SRCS` shape one level up.
+Re-keyed to match on the TEXT of the hit, so an exemption is exactly as wide as its stated reason.
+Only then did G redden.
+
+### §6.2 — Two claims this file and the registry had to withdraw
+
+* *"There are exactly four ways to obtain a mutable path in Rust, and all four are checked."*
+  **False.** E and F are a fifth and a sixth. The module doc now enumerates six and says the list
+  is not exhaustive, because a textual gate over a `pub` field can always be out-spelled.
+* `r1d`'s *"the multi-line half of `r1`"*. **False when written**: it covered only the seven
+  METHOD needles, so for forms 2/3/4 the multi-line robustness was supplied by **rustfmt, not by
+  the gate**, and nothing said so. Both are now stated in source.
+
+### §6.3 — What is still open, and it is honest rather than closed
+
+`OOS-DX51-7`: the only construct that cannot be out-spelled is making
+`CombatState::attackers` private behind an accessor, which turns every bypass into a **compile
+error**. Not taken here, with its cost measured rather than waved away: **~65 production reads
+plus 89 hand-built test-fixture `attackers.insert(..)` sites across 16 files, plus 6
+`CombatState` struct literals in tests that a private field makes unconstructible without a
+builder** — a ~160-site refactor with its own fixture-semantics question, disproportionate to a
+batch whose behavioural change is one `bool`.

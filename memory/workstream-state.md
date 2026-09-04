@@ -44,11 +44,16 @@ at `06ba6760` before any production line changed.
    one sentence, so the predicate is a single existential. Two fields would have been two things
    to drift, and no CR rule separates them for this purpose. The empty-declaration case needs
    **no special case at all**, which is what makes one mutator serve both CR rules.
-3. **This batch's own `r1` gate was defeated by execution and BOTH halves were blind at once.**
-   A sixth site written `let map = &mut combat.attackers; map.insert(..)` left `r1` green, and
-   because it ADDS a site rather than replacing one, `r1b`'s exact-5 count stayed green too.
-   Re-keyed on the mechanism (`OOS-DX51-6`). **If you add a roster gate, plant a bypass in a
-   spelling you did NOT think of first.**
+3. **This batch's own `r1` gate was defeated SIX TIMES across three drafts, and twice BOTH halves
+   were blind at once.** A sixth site written `let map = &mut combat.attackers; map.insert(..)`
+   left `r1` green while `r1b`'s exact-5 count stayed green too (it ADDS a site rather than
+   replacing one). After the re-key, the `/review` defeated it again with a wholesale
+   `*combat = CombatState { attackers, ..combat.clone() }` (the field appears with no leading dot)
+   and with a second `&mut self` mutator on `CombatState` itself (`r1` exempts that file; `r1b`
+   counts one literal name) — **both halves blind for the second time**. And the widening written
+   for a third finding **did not fix it**, because `r1d` skipped allowlisted files WHOLESALE. **If
+   you add a roster gate, plant a bypass in a spelling you did NOT think of first — and then have
+   someone else plant one.** `OOS-DX51-6`; the residual is `OOS-DX51-7`.
 4. **A second SR-38 hole sits on the same `if` statement** — the `DeclareBlockers` offer is made
    to the attacking player, whom the engine refuses. `is_active` is computed three lines away and
    used only by the attacker offer. Filed, not fixed (`OOS-DX51-3`).
@@ -72,7 +77,9 @@ skip-happy direction — same class as `OOS-DX21-3`); `OOS-DX51-2` (CR 506.4, 4 
 unimplemented — the biggest of the six and a real correctness seed);
 `OOS-DX51-3` (the attacking-player blocker offer); `OOS-DX51-4` (`canonical_fixture()` never
 populates `combat`, so the STREAM digest is blind to every `CombatState` field);
-`OOS-DX51-5` (the non-reproducing test pin); `OOS-DX51-6` (**closed in the batch that filed it**).
+`OOS-DX51-5` (the non-reproducing test pin); `OOS-DX51-6` (**closed in the batch that filed it**);
+`OOS-DX51-7` (**filed by the `/review` fix cycle** — `CombatState::attackers` is `pub`, so no
+textual gate over it is closable; the compile-enforced version is ~160 sites and was not taken).
 
 **Next dispatch**: **PB-DX35**, v4 rank 12 (`memory/primitives/seed-rerank-2026-08-14.md` §4 row
 12 — modal trigger targets + the inert `optional`, `OOS-DX4-2` + `OOS-DX4-5`). Ranks 1-11 shipped.
