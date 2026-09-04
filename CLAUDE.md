@@ -232,7 +232,7 @@
   before any code; **12 card-def edits of which 9 are comment-only**, and the ONE marker move
   took `CORPUS_COMPLETE` 1137 → 1138 with `COMMANDER_POOL` re-measured UNCHANGED at 90.
   **PROTOCOL 41 / HASH 82 both UNMOVED — zero bumps for the whole PB**, both gate-executed and
-  both predicted per half in writing before any production line. Filed **OOS-DX35-1..9**.
+  both predicted per half in writing before any production line. Filed **OOS-DX35-1..10**.
   **Next dispatch: PB-DX36** (v4 rank 13 — and `OOS-CARDS2-6` has NO registry row, so file
   one first); ranks 1-12 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
@@ -245,19 +245,20 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-04, PB-DX35)**: **5,096 / 0 / 5** full-workspace on branch
-  `scutemob-227` (+38 over the **5,058** baseline, measured on this branch BEFORE any edit and
+- **Tests (delta 2026-09-04, PB-DX35)**: **5,097 / 0 / 5** full-workspace on branch
+  `scutemob-227` (+39 over the **5,058** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX51's close pin exactly), `--workspace --no-fail-fast` to a file, **63**
   result-producing targets (61 → 63: two new test binaries), residual list empty.
   **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
-  `sort` + `comm` (`OOS-DX20b-5`): 38 additions, 0 leavers, 0 removals, 0 renames.**
+  `sort` + `comm` (`OOS-DX20b-5`): 39 additions, 0 leavers, 0 removals, 0 renames.**
   **And the delta's FIRST run was wrong in a way the byte-exact method is structurally blind to.**
   It reported **32 additions against a count delta of 33**, because Half B named its bot-path
   channel probe `c3_the_bot_path_is_offered_and_answers_the_same_action` — a name
   `crates/simulator/tests/pb_dx45_optional_cost_channel.rs:293` already used. `tests/` compiles one
   binary per file, so both compiled and both ran; a set difference over NAMES collapses the pair.
   Renamed, and **the check that separates them costs one line and is now run on this batch's own
-  close-out numbers**: count delta 38 == name-set delta 38, duplicate-name scan EMPTY
+  close-out numbers, and RE-TAKEN after the `/review` fix cycle**: count delta 39 == name-set
+  delta 39, duplicate-name scan EMPTY
   (`OOS-DX35-8`).
   **HASH 82 / PROTOCOL 41 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed
   (`hash_schema` 36/36, `protocol_schema` 17/17) and **both predicted in writing before any
@@ -1272,15 +1273,33 @@
   the other is `-2` and its single cite was repointed in the same commit, on the `OOS-M11-10`
   precedent. *A seed ID is allocated against the registry, and two workers on one task cannot both
   read a registry neither has written to yet.*
-  Tests **5,096 / 0 / 5** (+38 over a **5,058** pre-edit baseline, **63** targets, byte-exact set
-  difference: 38 additions / 0 leavers / 0 removals / 0 renames, with the count-vs-name
-  reconciliation run on this batch's own close-out numbers). **HASH 82 / PROTOCOL 41 both UNMOVED
+  Tests **5,097 / 0 / 5** (+39 over a **5,058** pre-edit baseline, **63** targets, byte-exact set
+  difference: 39 additions / 0 leavers / 0 removals / 0 renames, with the count-vs-name
+  reconciliation run on this batch's own close-out numbers AND re-taken after the `/review` fix
+  cycle, per dispatch hygiene 8). **HASH 82 / PROTOCOL 41 both UNMOVED
   — ZERO bumps for the whole PB, both predicted in writing before any code** (`c6646052`).
   Coverage **1,137 → 1,138 / 1,803 = 63.1%**, ONE flip named before regeneration. All gates clean
   against the FINAL tree (`cargo fmt --check` fired there and was fixed); `npm run build` N/A and
   said so. **Benches: no regression, seven runs, the one outlier killed by a third run on each side
   rather than averaged away, and the apparent speed-up deliberately not claimed.** Filed
-  **OOS-DX35-1..9**. Full record: `memory/primitives/pb-DX35-execution-notes.md`; handoff:
+  **OOS-DX35-1..10** — **and the first draft of these lines said `-1..9`, which is dispatch
+  hygiene 8's exact case for the second batch running**, caught by re-checking this cell against
+  the registry AFTER the `/review` fix cycle rather than before it; `-10` exists because the
+  `/review` found CR 700.2b mode legality is decided PER SLOT, so a mode with no legal
+  COMBINATION is still chosen and then removed. **The `/review` found 9 issues and all 9 were
+  taken; four were gate defeats it PROVED by execution** — `r7` twice (a reword that re-asserts
+  the lie while still naming `trigger_modal_plan`, and the same needle split across a Rust
+  line continuation), `b2` once (a SECOND `LookAtTopThenPlace` node with `optional: false` hid
+  behind a first one carrying `true`, because the fold was `any` and not `all`), and `t9` once
+  (a branch-selective fifth copy behind `if trigger.kind == CardDefETB` left the whole crate
+  green, because both of `t9`'s cases drove `Normal` — *a differential probe proves agreement on
+  the branches it drives and nothing about the branches it does not*). All four defeats were
+  re-executed against the fixes and are now RED. `r8` is the general answer to the third: a
+  MECHANISM gate asserting every triggered-target extraction in `rules/` lives inside
+  `trigger_modal_plan` — **and its own first run refuted the population figure its author had
+  written one paragraph above it**, because the throwaway script behind that sentence searched
+  for `AbilityDefinition::Triggered {` *with the brace* and `rules/mana.rs` puts the brace on
+  the next line. Full record: `memory/primitives/pb-DX35-execution-notes.md`; handoff:
   `memory/workstream-state.md`.
 - **Prior**: 2026-09-04 — **PB-DX51 SHIPPED** (`scutemob-226`; v4 queue rank 11 —
   **OOS-DX21-4**, **OOS-DX21-2** and rider **OOS-DX21-5** ALL CLOSED). **CR 508.8 asks whether

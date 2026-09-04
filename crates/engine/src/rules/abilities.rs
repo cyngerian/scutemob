@@ -8236,16 +8236,66 @@ pub(crate) struct TriggerModalPlan {
 /// is itself optional, CR 601.2c "up to")? CR 700.2b: "If one of the modes would
 /// be illegal (due to an inability to choose legal targets, for example), that
 /// mode can't be chosen."
+///
+/// # Stated residual: this is a PER-SLOT test, and CR 700.2b is not (`OOS-DX35-10`)
+///
+/// Legality here means "every slot in this mode's slice has a candidate, or is optional". It
+/// does **not** consult `forced_answer_breaks_distinctness`, which `flush_sorted` applies
+/// downstream: a mode with two mutually-distinct `TargetPermanentDistinctFrom` slots sharing a
+/// single candidate has a candidate per slot and NO legal combination. Such a mode is judged
+/// legal here, chosen, and then removed by the CR 601.2c cross-slot check — where CR 700.2b says
+/// the NEXT mode should have been chosen instead.
+///
+/// **Zero corpus exposure, measured rather than assumed**: every `mode_targets` slice in the
+/// corpus today holds 0 or 1 requirement, pinned by
+/// `core::pb_dx35_modal_trigger_roster`'s census, so no mode can have two slots at all. Closing
+/// it means threading the cross-slot check into this predicate, which needs the whole slice's
+/// candidate sets rather than one slot's. Found by this batch's own `/review`.
 fn trigger_modal_mode_is_legal(
     state: &GameState,
     trigger: &PendingTrigger,
     reqs: &[crate::cards::card_definition::TargetRequirement],
 ) -> bool {
+    // CR 700.2c author invariant, mirroring `casting.rs:3856` (spell) and the activated path's
+    // `abilities.rs:481-486`: `mode_targets` may not contain `UpToN`. Both peers hard-REJECT the
+    // combination with an `InvalidCommand`; a trigger is not a command and has nothing to reject
+    // to, so the trigger path fails CLOSED instead — an `UpToN` slice makes the mode ILLEGAL, so
+    // CR 700.2b falls through to a mode that really is legal rather than choosing this one.
+    //
+    // **↻ Added after this batch's own `/review`, which proved the omission by execution.** The
+    // first draft mirrored only the OTHER of the two author invariants (they sit five lines apart
+    // in `casting.rs`), and an `UpToN` slot is `optional`, so `opt.optional ||` below judged such
+    // a mode unconditionally legal — CR 700.2b's fall-through died and the mode was chosen with
+    // no target. Zero corpus exposure (roster `r5` pins the population at zero); the point is
+    // that the day a def carries one, the behaviour is defined rather than silently wrong.
+    if reqs.iter().any(|r| {
+        matches!(
+            r,
+            crate::cards::card_definition::TargetRequirement::UpToN { .. }
+        )
+    }) {
+        debug_assert!(
+            false,
+            "CR 700.2c: `ModeSelection.mode_targets` may not contain `UpToN` on a triggered \
+             ability (variable-count per-mode targets are unsupported, as on the cast and \
+             activated paths). This mode is treated as ILLEGAL so CR 700.2b falls through."
+        );
+        return false;
+    }
     reqs.iter().all(|req| {
         let opt = trigger_target_candidates(state, trigger, req);
         opt.optional || !opt.candidates.is_empty()
     })
 }
+/// **The object lookup is the LKI one, and that is a deliberate widening (`OOS-DX35-9`).**
+/// Before PB-DX35, sites 1 and 2 resolved the trigger source with `state.objects.get(..)` while
+/// site 3 used `state.fizzle_object(..)`, the CR 113.7a last-known-information lookup. Unifying
+/// them on the LKI one means sites 1 and 2 now see a source that has LEFT the battlefield where
+/// they previously saw nothing and fell through to `vec![]`. CR 113.7a says that is the correct
+/// reading — an ability on the stack exists independently of its source — and the full suite is
+/// green either way, **which is the point: no fixture in this tree distinguishes the two**, so
+/// "it changes nothing" is an absence of evidence rather than evidence of absence. A probe that
+/// kills the source between queue and flush and asserts the requirement list would settle it.
 pub(crate) fn trigger_modal_plan(
     state: &GameState,
     trigger: &PendingTrigger,
@@ -11827,6 +11877,41 @@ mod pb_dx35_trigger_modal_plan_tests {
             trigger_ability_target_requirements(&state_b, &trigger_b),
             Vec::<TargetRequirement>::new(),
             "site 3 fails open to empty on the CR 700.2b-removed case"
+        );
+
+        // Case C: the SAME agreement on a `CardDefETB`-kind trigger.
+        //
+        // **↻ Added after this batch's own `/review` DEFEATED cases A and B by execution.**
+        // Both drive `PendingTriggerKind::Normal` only, and `trigger_modal_plan` /
+        // `trigger_ability_target_requirements` both branch on `trigger.kind`. The reviewer
+        // re-planted the original `OOS-DX4-2` defect in site 3 behind
+        // `if trigger.kind == PendingTriggerKind::CardDefETB` -- a hand-rolled fifth copy
+        // reading the flat registry `targets` and ignoring `mode_targets` -- and the ENTIRE
+        // `mtg-engine` crate stayed green, t9 included. **A differential probe proves agreement
+        // on the branches it drives and nothing about the branches it does not**, which is the
+        // same shape as PB-DX45's "a gate written for one variant measures that variant".
+        //
+        // The fixture is reused deliberately: `modal_subject`'s Triggered ability is its ONLY
+        // ability, so registry index 0 == runtime index 0 and the two kinds address the same
+        // ability. That is what makes the two arms comparable rather than merely both green.
+        let trigger_c = PendingTrigger {
+            ability_index: 0,
+            ..PendingTrigger::blank(subject_a.id, p(1), PendingTriggerKind::CardDefETB)
+        };
+        let plan_c = trigger_modal_plan(&state_a, &trigger_c)
+            .expect("a legal mode exists on the CardDefETB branch too");
+        assert_eq!(
+            trigger_ability_target_requirements(&state_a, &trigger_c),
+            plan_c.requirements,
+            "site 3 must agree with the shared plan by value on the CardDefETB branch as well \
+             -- a branch-selective re-divergence is exactly what the `/review` planted"
+        );
+        assert_eq!(
+            plan_c.requirements, plan_a.requirements,
+            "non-vacuity: both kinds address the same ability on this fixture (its Triggered \
+             ability is its only one, so registry index 0 == runtime index 0), so the two \
+             branches must produce the SAME requirement list -- if they ever differ here, the \
+             comparison above is passing for the wrong reason"
         );
     }
 }

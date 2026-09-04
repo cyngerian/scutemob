@@ -53,6 +53,17 @@ pub fn card() -> CardDefinition {
                     max_modes: 1,
                     modes: vec![
                         // Mode 0: Untap target creature (approximation of "tap or untap").
+                        //
+                        // **A SECOND, unrecorded deviation lives on this mode and is filed as
+                        // `OOS-DX35-7`** (found by PB-DX35's `/review`): the printed clause is
+                        // "You **may** tap or untap target creature", so even the untap is
+                        // optional — and once mode 0 is chosen this def performs it
+                        // unconditionally. That is audit §5's DP-12 class (a costless "may")
+                        // reached through a MODE rather than through an effect, so it is
+                        // invisible to every axis keyed on `Effect::MayPayThenEffect` or on
+                        // `LookAtTopThenPlace.optional`, PB-DX35's own included.
+                        // `ModeSelection` has no per-mode optionality field. The marker below
+                        // records only the tap/untap half; this comment records the other.
                         Effect::UntapPermanent {
                             target: EffectTarget::DeclaredTarget { index: 0 },
                         },

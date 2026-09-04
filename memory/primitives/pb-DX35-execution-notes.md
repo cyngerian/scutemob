@@ -569,9 +569,10 @@ re-learned).
 
 ```
 baseline  5,058 / 0 / 5   61 result-producing targets
-final     5,096 / 0 / 5   63 result-producing targets   (+2 binaries)
-delta     38 additions / 0 leavers / 0 removals / 0 renames
-count delta 38  ==  name-set delta 38   <- the reconciliation, see below
+final     5,097 / 0 / 5   63 result-producing targets   (+2 binaries)
+delta     39 additions / 0 leavers / 0 removals / 0 renames
+count delta 39  ==  name-set delta 39   <- the reconciliation, see below
+(re-taken AFTER the /review fix cycle, which added r8; dispatch hygiene 8)
 ```
 
 **The first run of that delta reported 32 additions against a count delta of 33, and the
@@ -584,16 +585,17 @@ difference over test NAMES collapses the pair. Renamed
 reconcile. **The check that separates them costs one line — compare the name-set delta against the
 `passed + ignored` delta — and nothing in the tree enforces it.** Filed as `OOS-DX35-8`.
 
-The 38: 8 in `primitives::pb_dx35_modal_trigger_targets`, 8 in
+The 39: 8 in `primitives::pb_dx35_modal_trigger_targets`, 8 in
 `core::pb_dx35_modal_trigger_roster` (r1-r7 + `t_census_report`), 1 internal unit test in
 `rules::abilities` (t9 — site 3 is a bare private `fn`, unreachable from an integration test, which
 is disclosed in both files), 1 in `simulator::pb_dx35_modal_trigger_channel`, 9 in
 `primitives::pb_dx35_optional_placement`, 3 in `simulator::pb_dx35_optional_placement_channel`,
-3 HTTP probes in `tools/play-server/src/main.rs`, and 5 in the close-out's
-`core::pb_dx35_optional_placement_roster` (b1-b4 + `t_census_report`).
+3 HTTP probes in `tools/play-server/src/main.rs`, 5 in the close-out's
+`core::pb_dx35_optional_placement_roster` (b1-b4 + `t_census_report`), and 1 added by the
+`/review` fix cycle (`r8`).
 
 **The reconciliation is now part of the measurement, not a one-off repair.** The final run's count
-delta (**38**) and name-set delta (**38**) are equal and the duplicate-name scan returns EMPTY —
+delta (**39**) and name-set delta (**39**) are equal and the duplicate-name scan returns EMPTY —
 which is the check `OOS-DX35-8` proposes, executed on this batch's own final numbers rather than
 only on the run that exposed the problem.
 
@@ -739,3 +741,48 @@ independent target-requirement lookups per trigger (sites 1 and 2, each walking 
 into the registry or the runtime vec) and now performs **one** shared `trigger_modal_plan`. The
 per-mode candidate derivation — the only genuinely new work — runs **only** when
 `mode_targets.is_some()`, which is true for exactly 3 corpus defs and 0 of the benched fixtures.
+
+---
+
+## §D — The `/review` fix cycle: 9 issues, all 9 taken, four gate defeats PROVED by execution
+
+The reviewer had a shell and used it. Its own summary is the fair one: *"the engine work is sound,
+CR-faithful and honestly measured … but the batch's gates are weaker than its prose."* Every
+published figure it re-derived reproduced — the 5,096 delta, all six census populations, every
+line count in §C2 — and it then defeated four gates.
+
+| # | sev | finding | disposition |
+|---|---|---|---|
+| 1 | MEDIUM | **`r7` defeated TWICE.** (a) A reword — *"trigger_modal_plan (PB-DX35) -- hard-codes mode 0 in both the min_modes==0 and min_modes!=0 arms"* re-asserts the exact false claim in different words **while still naming `trigger_modal_plan`**, so the negative needle missed and the positive floor passed. (b) The original needle split across a Rust `\`-newline: the RENDERED string is byte-identical to the pre-batch lie, the SOURCE no longer contains it contiguously. That is `OOS-DX51-6`'s class verbatim, in the batch that inherited the lesson. | **TAKEN.** Re-keyed on the MECHANISM in three conjuncts: the row text is NORMALISED (line continuations collapsed) before matching; a deliberately over-collecting denylist of hard-code assertions; and the positive half now demands the row cite **CR 700.2b** as well as name the function, so a sentence that names it only in order to restate the lie cannot pass. **The denylist needed a NEGATION guard and finding that out cost one red run** — the row's own honest phrasing is *"…, **not** always mode 0"*. Residual STATED: a contrived double negative evades it; both executed defeats do not. Both re-run: RED. |
+| 2 | MEDIUM | **`t9` defeated.** It is the only gate behind AC 7327's headline "ONE shared arithmetic", and both its cases drove `PendingTriggerKind::Normal`. The reviewer re-planted the original `OOS-DX4-2` defect in site 3 behind `if trigger.kind == CardDefETB` — a hand-rolled fifth copy — and **the entire `mtg-engine` crate stayed green**. *A differential probe proves agreement on the branches it drives and nothing about the branches it does not.* | **TAKEN, twice over.** `t9` gains **case C** on the `CardDefETB` branch (with a non-vacuity assertion that both kinds address the same ability on that fixture, so the comparison cannot pass for the wrong reason); and the reviewer's own stronger suggestion is taken as **`r8`**, a MECHANISM gate asserting every triggered-target extraction in `crates/engine/src/rules/` lives inside `trigger_modal_plan`, with an allowlist whose reasons are re-checked in source. The defeat is RED under BOTH. |
+| 3 | MEDIUM | **Dispatch hygiene 8**: `memory/workstream-state.md` and the v4 memo's row still published 5,091 / +33, superseded by this branch's own `c5094719`. The workstream-state cell is the worse one — it sits under *"every one re-run by the coordinator"*. | **TAKEN.** Both corrected, **and then corrected AGAIN** to 5,097 / +39 when this fix cycle added `r8`. The cell now discloses all three figures and the reason, because *a re-verification claim attached to a figure a later commit supersedes is worse than no claim*. |
+| 4 | MEDIUM-LOW | **`b2` defeated.** Its per-def fold was `.any(optional == true)`, so a SECOND `LookAtTopThenPlace` node with `optional: false` added to `grisly_salvage` (a real deck-legal `Complete` carrier) inside a `Sequence` left `b1` and `b2` GREEN — while that node keeps the pre-batch take-when-able behaviour on a printed "you may", i.e. the defect this batch closed, alive on a `Complete` def. `b2`'s own docstring was then false about a green tree. | **TAKEN.** Fold changed to `.all(..)`; a per-def NODE COUNT added to the struct, asserted at exactly 1 for every carrier, and printed by `t_census_report` — because *an `all` fold is only as informative as the node count it folds over*. Defeat re-run: RED. |
+| 5 | MEDIUM-LOW | **The trigger path mirrors ONE of the TWO author invariants its peers hard-reject.** `casting.rs:3856` and `abilities.rs:481-486` both refuse `UpToN` inside `mode_targets`; `r5` mirrored only the flat-targets rule, **naming one of two rules that sit five lines apart in the same file**. Planted `UpToN` into `retreat_to_kazandu`'s mode-0 slice: all 8 roster gates GREEN, and the behaviour genuinely wrong — an `UpToN` slot is `optional`, so the mode is judged unconditionally legal and CR 700.2b's fall-through dies. | **TAKEN on both ends.** `r5` gains the `UpToN` conjunct (with a new `mode_targets_contain_up_to_n` axis), and `trigger_modal_mode_is_legal` gains a **fail-closed** arm: a trigger is not a command and has nothing to reject to, so an `UpToN` slice makes the mode ILLEGAL and CR 700.2b falls through to one that is not. |
+| 6 | LOW | **A false stated reason in a card-def comment** — `felidar_retreat.rs` said *"both modes take no `DeclaredTarget`"*; mode 1 has `DeclaredTarget { index: 0 }` inside a `ForEach`. The CONCLUSION (out of population) is right; the reason is what the next batch reuses. | **TAKEN.** Rewritten to name the real separator (the flat `targets` list) and to say explicitly that the `DeclaredTarget` is a `ForEach` iteration binding, so a reader grepping for `DeclaredTarget` does not find a contradiction. |
+| 7 | LOW | **`shambling_ghast`'s new `Complete` note implies a board-sensitivity it does not have** — its DSL mode 0 (Treasure) has an EMPTY requirement slice, so it is first-legal in *every* board state and the -1/-1 mode is unreachable always, which is what `t4` asserts. The note borrowed `retreat_to_kazandu`'s genuinely board-sensitive shape. | **TAKEN.** Rewritten to say what the fix actually changes (the -1/-1 target no longer leaks onto the Treasure mode, so the trigger RESOLVES instead of being removed) and to name the surviving agency gap and its seed. |
+| 8 | LOW | **CR 700.2b mode legality is decided PER SLOT** and does not consult `forced_answer_breaks_distinctness`, so a mode with a candidate per slot but no legal COMBINATION is chosen and then removed. Zero corpus exposure. | **TAKEN.** Stated as a residual in `trigger_modal_mode_is_legal`'s own doc and filed as **`OOS-DX35-10`**. |
+| 9 | NIT | **Two filed seeds had no in-source anchor** (`OOS-DX35-7`, `OOS-DX35-9`) — *"a residual filed without an anchor is the one nobody finds again"*. | **TAKEN.** `-9` anchored on `trigger_modal_plan`'s doc (the LKI widening it describes); `-7` anchored on `retreat_to_coralhelm`'s mode 0, where the costless "may" lives. |
+
+### The fix cycle's own finding: `r8` refuted its author in its first run
+
+`r8`'s doc, as first written, said *"exactly THREE such extractions exist in `rules/`, and
+`rules/mana.rs`'s site 4 does not match — it never extracts `targets` at all"*. **It does**:
+`mana.rs:821-828` destructures `targets` straight out of an `AbilityDefinition::Triggered` pattern.
+The throwaway script behind that sentence searched for `AbilityDefinition::Triggered {` **with the
+brace**, and `mana.rs` puts the brace on the next line. The population is **SIX**, not three.
+
+Site 4 is allowlisted rather than unified, and its exemption is narrow and **re-checked in
+source**: it uses the binding at exactly one place, `targets.is_empty()` — a presence test
+deciding whether the ability must use the stack (CR 605.5a) — and the gate asserts that call still
+exists AND that `targets.get(` / `targets.iter()` / `targets[` / `mode_targets` do **not** appear
+in the file. *An allowlist whose reason nothing verifies is a comment.*
+
+### Post-fix-cycle numbers, RE-TAKEN
+
+Tests **5,097 / 0 / 5**, **63** targets, byte-exact **39 additions / 0 leavers / 0 removals /
+0 renames**, count delta **39** == name-set delta **39**, duplicate scan EMPTY. HASH **82** /
+PROTOCOL **41** still unmoved. `clippy --workspace --all-targets -D warnings`, `cargo fmt --check`,
+`tools/check-defs-fmt.sh` (1,803 defs) and `cargo build --workspace` all clean against the FINAL
+tree. Coverage re-regenerated: **1,138 / 518 / 147 identical**, so the fix cycle moved no marker;
+self-dating churn reverted. Seed range corrected `-1..9` → **`-1..10`** on every headline surface
+by re-checking against the registry AFTER the fix cycle.

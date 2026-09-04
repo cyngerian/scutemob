@@ -53,9 +53,13 @@ use std::collections::BTreeSet;
 /// decide whether it asks.
 struct Carrier {
     name: String,
+    /// **`all`, not `any`** — see `b2`'s doc for the executed defeat that forced it.
     optional: bool,
     place_cost: bool,
     complete: bool,
+    /// How many `LookAtTopThenPlace` nodes the def carries. A def with two is legal and the
+    /// corpus has none; the count is reported so a second node cannot arrive unnoticed.
+    nodes: usize,
 }
 
 fn carriers() -> Vec<Carrier> {
@@ -68,9 +72,16 @@ fn carriers() -> Vec<Carrier> {
         let nodes = find_variant_nodes(&json, "LookAtTopThenPlace");
         // A def could in principle carry more than one; fold them, since the gate's
         // question is "does this def ask" rather than "does this NODE ask".
+        // **`all`, not `any`.** The first draft used `any`, and this batch's own `/review`
+        // defeated it by execution: adding a SECOND `LookAtTopThenPlace` node with
+        // `optional: false` to `grisly_salvage` (a real, deck-legal `Complete` carrier) inside a
+        // `Sequence` left `b1` AND `b2` green — while that node keeps the pre-batch
+        // deterministic take-when-able behaviour on a printed "you may", i.e. the very defect
+        // this batch closed, alive on a `Complete` def. `b2`'s own docstring then asserted
+        // something false about a green tree.
         let optional = nodes
             .iter()
-            .any(|n| n.get("optional").and_then(Value::as_bool) == Some(true));
+            .all(|n| n.get("optional").and_then(Value::as_bool) == Some(true));
         let place_cost = nodes
             .iter()
             .any(|n| !matches!(n.get("place_cost"), None | Some(Value::Null)));
@@ -79,6 +90,7 @@ fn carriers() -> Vec<Carrier> {
             optional,
             place_cost,
             complete: is_effectively_complete(&def),
+            nodes: nodes.len(),
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -197,10 +209,26 @@ fn b2_every_carrier_is_optional_and_complete() {
         .collect();
     assert!(
         not_optional.is_empty(),
-        "these carriers set `optional: false`, so PB-DX35's ask does not fire for them and \
-         they keep the deterministic take-when-able winner: {not_optional:?}. That is a legal \
-         value (pinned behaviourally by `primitives::pb_dx35_optional_placement::t1`) but no \
-         corpus def had it when the class was closed, so a new one is a decision to record."
+        "these carriers have at least one `LookAtTopThenPlace` node with `optional: false`, so \
+         PB-DX35's ask does not fire for it and it keeps the deterministic take-when-able \
+         winner: {not_optional:?}. That is a legal value (pinned behaviourally by \
+         `primitives::pb_dx35_optional_placement::t1`) but no corpus def had it when the class \
+         was closed, so a new one is a decision to record. **The fold is `all`, not `any`** -- \
+         with `any`, a SECOND node carrying `optional: false` hid behind a first one carrying \
+         `true`, which this batch's `/review` proved by execution on `grisly_salvage`."
+    );
+    // Every carrier holds exactly one node today. Reported by `t_census_report` and asserted
+    // here, because the `all` fold above is only as informative as the node count it folds over.
+    let multi: Vec<(&str, usize)> = cs
+        .iter()
+        .filter(|c| c.nodes != 1)
+        .map(|c| (c.name.as_str(), c.nodes))
+        .collect();
+    assert!(
+        multi.is_empty(),
+        "these carriers hold more than one `Effect::LookAtTopThenPlace` node: {multi:?}. That is \
+         legal, and the `all` fold above handles it correctly -- but the corpus had exactly one \
+         per def when this class was closed, so a second is a deliberate act worth reading."
     );
     let not_complete: Vec<&str> = cs
         .iter()
@@ -354,8 +382,8 @@ fn t_census_report() {
     eprintln!("B1 -- Effect::LookAtTopThenPlace carriers: {}", cs.len());
     for c in &cs {
         eprintln!(
-            "  {:<28} optional={:<5} place_cost={:<5} complete={}",
-            c.name, c.optional, c.place_cost, c.complete
+            "  {:<28} optional(all)={:<5} place_cost={:<5} complete={:<5} nodes={}",
+            c.name, c.optional, c.place_cost, c.complete, c.nodes
         );
     }
     let mut inverse: Vec<(String, String, bool)> = Vec::new();

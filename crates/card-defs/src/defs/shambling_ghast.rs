@@ -123,10 +123,18 @@ pub fn card() -> CardDefinition {
         // PB-DX35 (2026-09, OOS-DX4-2): partial -> Complete. The blocker PB-DX4 filed is
         // closed: mode 1's target now lives in `mode_targets`, scoped to mode 1 alone, and
         // `trigger_modal_plan` (`rules/abilities.rs`) makes the CR 700.2b-legal choice on
-        // the trigger path -- with no opponent creature on the battlefield mode 1 can't be
-        // chosen, so mode 0 (Create a Treasure token, no target needed) is, matching the
-        // printed "choose one" instead of removing the whole trigger from the stack
-        // (CR 603.3d). The three PB-DX4 oracle defects (phantom Decayed keyword, permanent
+        // the trigger path. **Stated precisely, because the obvious phrasing overstates it**
+        // (caught by this batch's own `/review`): this def's DSL mode 0 is the Treasure token,
+        // whose requirement slice is EMPTY, so it is the CR 700.2b-legal first mode in *every*
+        // board state -- not only when no opponent creature exists. What the fix changes is that
+        // the -1/-1 mode's target no longer leaks onto the Treasure mode, so with no opponent
+        // creature the trigger now RESOLVES and makes a Treasure instead of being removed from
+        // the stack (CR 603.3d), which is what the printed "choose one" says. The -1/-1 mode
+        // stays unreachable from every channel until the controller gets a real mode choice
+        // (`decision_site_walk::modal_trigger`, still `AutoChosen`, filed as OOS-DX35-4) -- a
+        // corpus-wide agency gap that does not demote defs: `felidar_retreat` and
+        // `retreat_to_kazandu` are both `Complete` carrying it. Asserted by `t4`.
+        // (Note the DSL mode order is REVERSED from print, deliberately and documented above.) The three PB-DX4 oracle defects (phantom Decayed keyword, permanent
         // -1/-1 counter for a printed "until end of turn", and a stored oracle_text naming
         // Decayed and "enters" against a WhenDies trigger) were already fixed by PB-DX4.
         completeness: Completeness::Complete,

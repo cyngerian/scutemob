@@ -110,9 +110,17 @@ before any production line changed.
    publish the figure, do not transcribe it — caught its own author.**
 
 **Numbers** (every one re-run by the coordinator, not accepted from the implementers): tests
-**5,058 → 5,091 / 0 / 5**, **63** result-producing targets (61 → 63: two new simulator/engine test
-binaries), byte-exact set difference **33 additions / 0 leavers / 0 removals / 0 renames** after
-the rename in item 5. Coverage **1,137 → 1,138 / 1,803 = 63.1%**, ONE flip, named before any code.
+**5,058 → 5,097 / 0 / 5**, **63** result-producing targets (61 → 63: two new simulator/engine test
+binaries), byte-exact set difference **39 additions / 0 leavers / 0 removals / 0 renames** after
+the rename in item 5, and the count delta (39) EQUALS the name-set delta with an empty
+duplicate-name scan. **This cell has now published 5,091 and 5,096 before settling at 5,097, and
+that is disclosed rather than quietly overwritten**: 5,091 was taken before the close-out added the
+Half B census roster and 5,096 before the `/review` fix cycle added `r8`. That is PB-DX28's
+"re-take the measured table" MEDIUM, twice, on a cell whose own preface claims every number was
+re-run — the first catch was this batch's `/review`, the second was dispatch hygiene 8 applied to
+itself. **A re-verification claim attached to a figure a later commit supersedes is worse than no
+claim**, and the only reliable discharge is to re-take the number AFTER the fix cycle rather than
+before it. Coverage **1,137 → 1,138 / 1,803 = 63.1%**, ONE flip, named before any code.
 HASH **82** / PROTOCOL **41** unmoved. `clippy --workspace --all-targets -D warnings`,
 `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,803 defs) and `cargo build --workspace` all clean
 against the FINAL tree. `npm run build` **N/A and said so**: `git diff main..HEAD --numstat --

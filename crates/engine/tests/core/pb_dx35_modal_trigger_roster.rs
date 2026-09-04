@@ -47,6 +47,9 @@ struct ModalTriggerMember {
     registry_index: usize,
     has_mode_targets: bool,
     flat_targets_nonempty: bool,
+    /// Does any `mode_targets` slice hold a `TargetRequirement::UpToN`? See `r5`'s second
+    /// conjunct for why this is a separate axis from `flat_targets_nonempty`.
+    mode_targets_contain_up_to_n: bool,
     max_modes: usize,
 }
 
@@ -66,6 +69,18 @@ fn modal_trigger_members() -> Vec<ModalTriggerMember> {
                     registry_index: idx,
                     has_mode_targets: modes.mode_targets.is_some(),
                     flat_targets_nonempty: !targets.is_empty(),
+                    mode_targets_contain_up_to_n: modes.mode_targets.as_ref().is_some_and(|mt| {
+                        mt.iter().any(|slice| {
+                            slice.iter().any(|r| {
+                                matches!(
+                                    r,
+                                    mtg_engine::cards::card_definition::TargetRequirement::UpToN {
+                                        ..
+                                    }
+                                )
+                            })
+                        })
+                    }),
                     max_modes: modes.max_modes,
                 });
             }
@@ -285,6 +300,26 @@ fn r5_no_member_combines_flat_targets_with_mode_targets() {
                  triggered ability must obey the same rule",
                 m.name
             );
+            // **↻ The SECOND author invariant, added after this batch's own `/review`.**
+            // Both peer modal paths hard-reject `UpToN` inside `mode_targets` with an explicit
+            // `InvalidCommand` -- `casting.rs:3856` (spell) and `abilities.rs:481-486`
+            // (activated) -- and this gate's first draft mirrored only the flat-targets one,
+            // naming ONE of two rules that sit five lines apart in the same file. The reviewer
+            // planted `UpToN` into `retreat_to_kazandu`'s mode-0 slice and all eight roster
+            // gates stayed GREEN, while the behaviour was genuinely wrong: an `UpToN` slot is
+            // `optional`, so `trigger_modal_mode_is_legal` calls the mode unconditionally legal,
+            // CR 700.2b's fall-through to the next mode dies, and mode 0 is chosen with no
+            // target. *A gate that mirrors one of two adjacent invariants measures one of them.*
+            assert!(
+                !m.mode_targets_contain_up_to_n,
+                "{}: puts a `TargetRequirement::UpToN` inside `mode_targets`. Both peer paths \
+                 reject that combination outright (casting.rs:3856, abilities.rs:481-486) \
+                 because a variable-count per-mode slice is unsupported -- and on the TRIGGER \
+                 path it is worse than unsupported: an UpToN slot is `optional`, so the mode is \
+                 judged CR 700.2b-legal unconditionally and the fall-through to a mode that \
+                 really is legal never happens",
+                m.name
+            );
         }
     }
     assert_eq!(
@@ -342,6 +377,29 @@ fn r6_the_defect_population_is_exactly_the_three_filed_members() {
 // r7 -- the decision_site_walk `modal_trigger` row's site string is honest
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// **↻ RE-KEYED after this batch's own `/review` defeated the first draft TWICE by execution.**
+/// The first draft asserted `!row_text.contains("modes_chosen = vec![0] in both")` plus a
+/// `contains("trigger_modal_plan")` floor — i.e. it forbade ONE SPELLING of the lie and required
+/// one token. Two defeats, both reproduced here before the fix:
+///
+/// * **Reword.** `"… trigger_modal_plan (PB-DX35) -- hard-codes mode 0 in both the min_modes==0
+///   and min_modes!=0 arms"` re-asserts the exact false claim in different words *while still
+///   naming `trigger_modal_plan`*, so the negative needle misses and the positive floor passes.
+/// * **Line continuation.** Splitting the original needle across a Rust `\`-newline leaves the
+///   RENDERED string byte-identical to the pre-batch lie while the SOURCE no longer contains the
+///   needle contiguously. That is `OOS-DX51-6`'s class verbatim, committed in the batch that
+///   inherited the lesson.
+///
+/// Re-keyed on the MECHANISM rather than on a spelling, in three conjuncts:
+///
+/// 1. The row text is NORMALISED first — `\`+newline+indent collapsed — so a split needle cannot
+///    hide. A gate that reads Rust source and does not do this is measuring the formatter.
+/// 2. A DENYLIST of hard-code assertions, matched on the normalised text and deliberately
+///    over-collecting (`hard-code`, `hard code`, `hardcode`, `= vec![0]`, `always mode 0`,
+///    `mode 0 in both`). Over-collection can only make this redder.
+/// 3. A positive requirement that the row names BOTH the shared function AND the rule that
+///    replaced the hard-code, so "names `trigger_modal_plan`" cannot be satisfied by a sentence
+///    that mentions it only to say it hard-codes mode 0.
 #[test]
 fn r7_decision_site_walk_row_no_longer_claims_the_hard_coded_mode_zero() {
     let src = std::fs::read_to_string(
@@ -355,17 +413,250 @@ fn r7_decision_site_walk_row_no_longer_claims_the_hard_coded_mode_zero() {
         .find("predicate: p_modal_trigger")
         .map(|off| row_start + off)
         .expect("the modal_trigger row's predicate field must exist");
-    let row_text = &src[row_start..row_end];
+    // Conjunct 1: collapse Rust line continuations (`\` + newline + indent) so the text this
+    // gate reads is the text the row RENDERS, not the text the formatter happened to lay out.
+    let row_text = collapse_line_continuations(&src[row_start..row_end]);
+
+    // Conjunct 2: the denylist, over-collecting on purpose.
+    const HARD_CODE_CLAIMS: [&str; 6] = [
+        "modes_chosen = vec![0]",
+        "= vec![0]",
+        "hard-code",
+        "hard code",
+        "hardcode",
+        "always mode 0",
+    ];
+    // A denylist over prose needs a NEGATION guard, and finding that out cost one red run:
+    // the row's own honest phrasing is "picks the first CR 700.2b-legal mode by declared order,
+    // **not always mode 0**", which asserts the opposite of the claim being forbidden. So a hit
+    // counts only when it is NOT inside a negating clause. The window is 32 bytes before the
+    // hit, bounded on a char boundary.
+    //
+    // **Stated residual**: a sufficiently contrived double negative ("it is not true that this
+    // does not hard-code mode 0") evades this, and no prose gate closes that. What it DOES catch
+    // is both defeats the `/review` actually executed -- the reword asserted "hard-codes mode 0
+    // in both the min_modes==0 and min_modes!=0 arms" with no negator anywhere near it.
+    const NEGATORS: [&str; 5] = ["not ", "no longer", "never", "rather than", "instead of"];
+    let offenders: Vec<&str> = HARD_CODE_CLAIMS
+        .iter()
+        .copied()
+        .filter(|n| match row_text.find(n) {
+            None => false,
+            Some(at) => {
+                let mut lo = at.saturating_sub(32);
+                while lo < at && !row_text.is_char_boundary(lo) {
+                    lo += 1;
+                }
+                !NEGATORS.iter().any(|neg| row_text[lo..at].contains(neg))
+            }
+        })
+        .collect();
     assert!(
-        !row_text.contains("modes_chosen = vec![0] in both"),
-        "the modal_trigger row's `site` string still claims the pre-PB-DX35 hard-code -- \
-         rewrite it to describe trigger_modal_plan (execution-notes §0.3)"
+        offenders.is_empty(),
+        "the modal_trigger row's `site` string still asserts the pre-PB-DX35 hard-code \
+         ({offenders:?}). Since PB-DX35 the mode is chosen by CR 700.2b legality, not by a \
+         constant -- rewrite the row (execution-notes §0.3). Matched on the NORMALISED row text, \
+         so splitting the claim across a line continuation does not evade this."
     );
+
+    // Conjunct 3: naming the function is not enough -- it must name the RULE that replaced the
+    // hard-code, so a sentence mentioning `trigger_modal_plan` only in order to restate the lie
+    // cannot satisfy the positive half.
     assert!(
         row_text.contains("trigger_modal_plan"),
-        "the modal_trigger row's `site` string should name the shared function it now \
-         describes"
+        "the modal_trigger row's `site` string should name the shared function it now describes"
     );
+    assert!(
+        row_text.contains("700.2b"),
+        "the modal_trigger row's `site` string must cite CR 700.2b -- the rule that replaced the \
+         hard-coded mode 0. Naming `trigger_modal_plan` alone is satisfiable by a sentence that \
+         names it and then restates the very claim this gate forbids (proved by execution in \
+         this batch's own `/review`)."
+    );
+}
+
+/// Collapse Rust's `\` + newline + indentation line continuations, so a needle split across two
+/// source lines is still found. See `r7`'s doc for the executed defeat that forced this.
+fn collapse_line_continuations(src: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let mut chars = src.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\\' && chars.peek() == Some(&'\n') {
+            chars.next();
+            while chars.peek().is_some_and(|c| *c == ' ' || *c == '\t') {
+                chars.next();
+            }
+            continue;
+        }
+        out.push(c);
+    }
+    out
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// r8 -- the MECHANISM gate behind AC 7327's "ONE shared arithmetic"
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Every extraction of a TRIGGERED ability's `targets` inside `crates/engine/src/rules/` lives
+/// inside `trigger_modal_plan`.
+///
+/// **↻ Added after this batch's own `/review` proved that nothing enforced the headline claim.**
+/// `t9` (`rules/abilities.rs`'s `#[cfg(test)]` module) is a DIFFERENTIAL probe: it asserts site 3
+/// agrees with the shared plan BY VALUE. The reviewer re-planted the original `OOS-DX4-2` defect
+/// in site 3 behind `if trigger.kind == PendingTriggerKind::CardDefETB` — a hand-rolled fifth copy
+/// reading the flat registry `targets` and ignoring `mode_targets` — and the entire `mtg-engine`
+/// crate stayed green, `t9` included, because `t9`'s two cases both drove
+/// `PendingTriggerKind::Normal`. `t9` gained a `CardDefETB` case for that specific defeat; **this
+/// gate is the general answer**, and the difference matters: a differential probe proves agreement
+/// on the branches it drives and nothing about the branches it does not, whereas this one is keyed
+/// on the MECHANISM (PB-DX48's `r1` and PB-DX49's `r7` shape).
+///
+/// **The population is measured, and this gate's own first run REFUTED the figure its author had
+/// written one paragraph above it.** The draft said *"exactly THREE such extractions exist in
+/// `rules/`, and `rules/mana.rs`'s site 4 does not match — it never extracts `targets` at all"*.
+/// It does: `mana.rs:821-828` destructures `targets` straight out of an
+/// `AbilityDefinition::Triggered` pattern. The throwaway script behind that sentence searched for
+/// `AbilityDefinition::Triggered {` **with the brace**, and `mana.rs` puts the brace on the next
+/// line. A gate wrote its own author's correction — which is the entire argument for having one.
+///
+/// So the population is **SIX**: two branches of `trigger_modal_plan`'s single lookup, `t9`'s own
+/// `#[cfg(test)]` fixture, and three inside `fire_mana_triggered_abilities`. Site 4 is
+/// allowlisted rather than unified, and its exemption is NARROW and re-checked in source: it uses
+/// the binding at exactly one place, `targets.is_empty()` — a presence test deciding whether the
+/// ability must use the stack (CR 605.5a) — and never announces, slices or indexes it. It also
+/// queues `PendingTriggerKind::CardDefETB` precisely so the index spaces line up. See
+/// execution-notes §0.5.
+///
+/// Over-collection is deliberate: the scan matches BOTH spellings (an
+/// `AbilityDefinition::Triggered { .. targets .. }` destructure and a
+/// `characteristics.triggered_abilities` read followed by `.targets`), because over-collecting can
+/// only make this redder.
+#[test]
+fn r8_every_triggered_target_extraction_in_rules_lives_in_trigger_modal_plan() {
+    let rules_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/rules");
+    let mut sites: Vec<(String, usize, String)> = Vec::new();
+    let mut files_scanned = 0usize;
+    for entry in std::fs::read_dir(&rules_dir).expect("crates/engine/src/rules must be readable") {
+        let path = entry.expect("readable dir entry").path();
+        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+            continue;
+        }
+        files_scanned += 1;
+        let src = std::fs::read_to_string(&path).expect("rules source must be readable");
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("?")
+            .to_string();
+        for (needle, window) in [
+            ("AbilityDefinition::Triggered", 400usize),
+            ("triggered_abilities", 260),
+        ] {
+            let mut from = 0usize;
+            while let Some(rel) = src[from..].find(needle) {
+                let at = from + rel;
+                let mut end = (at + window).min(src.len());
+                while end > at && !src.is_char_boundary(end) {
+                    end -= 1;
+                }
+                if src[at..end].contains("targets") {
+                    let line = src[..at].matches('\n').count() + 1;
+                    sites.push((name.clone(), line, enclosing_fn(&src, at)));
+                }
+                from = at + needle.len();
+            }
+        }
+    }
+    // Non-vacuity: a scan that reads no files, or finds no sites, would pass the equality below
+    // vacuously. `OOS-DX8-7`: a gate whose denominator can silently go to zero is not a gate.
+    assert!(
+        files_scanned >= 10,
+        "non-vacuity: only {files_scanned} .rs files found under src/rules -- the scan is \
+         probably pointed at the wrong directory"
+    );
+    assert!(
+        sites.len() >= 3,
+        "non-vacuity: found only {} triggered-target extraction(s) in rules/; the needles are \
+         probably stale against a rename",
+        sites.len()
+    );
+
+    /// Enclosing functions permitted to extract a triggered ability's `targets`, each with the
+    /// reason it is exempt. The reason is re-checked in source below — an allowlist whose reason
+    /// nothing verifies is a comment (`OOS-DX47`).
+    const ALLOWED: [(&str, &str); 3] = [
+        (
+            "trigger_modal_plan",
+            "THE shared arithmetic (CR 700.2b + CR 700.2c); sites 1/2/D and site 3 all delegate",
+        ),
+        (
+            "modal_subject",
+            "t9's own `#[cfg(test)]` fixture, which BUILDS a def rather than reading one",
+        ),
+        (
+            "fire_mana_triggered_abilities",
+            "site 4 (CR 605.4a/605.5a): uses the binding at exactly one place, \
+             `targets.is_empty()` -- a presence test deciding whether the ability must use the \
+             stack -- and never announces, slices or indexes it",
+        ),
+    ];
+    let offenders: Vec<&(String, usize, String)> = sites
+        .iter()
+        .filter(|(_, _, f)| !ALLOWED.iter().any(|(a, _)| a == f))
+        .collect();
+    assert!(
+        offenders.is_empty(),
+        "these functions in crates/engine/src/rules/ extract a TRIGGERED ability's `targets` \
+         outside `trigger_modal_plan`, which is the fifth hand-rolled copy AC 7327 exists to \
+         prevent: {offenders:?}. If one is legitimate, add it to ALLOWED with its reason -- and \
+         note the reason is re-checked in source by the assertion below."
+    );
+    // The allowlist's reasons, verified rather than trusted.
+    let abilities_src = std::fs::read_to_string(rules_dir.join("abilities.rs"))
+        .expect("abilities.rs must be readable");
+    assert!(
+        abilities_src.contains("fn trigger_modal_plan("),
+        "ALLOWED names `trigger_modal_plan` as THE shared arithmetic, but no such function \
+         exists in rules/abilities.rs any more -- the exemption has outlived its reason"
+    );
+    // Site 4's exemption is the narrow one, so it is the one whose reason is checked hardest:
+    // it may TEST the list's emptiness and nothing else. If it ever starts announcing, slicing
+    // or indexing those targets, it is a fifth copy and belongs in the shared arithmetic.
+    let mana_src = std::fs::read_to_string(rules_dir.join("mana.rs")).expect("mana.rs readable");
+    assert!(
+        mana_src.contains("targets.is_empty()"),
+        "rules/mana.rs (site 4) is allowlisted BECAUSE its only use of the extracted `targets` \
+         is the presence test `targets.is_empty()` (CR 605.5a). That call is gone, so the \
+         exemption has outlived its stated reason -- re-derive what it does now."
+    );
+    for forbidden in ["targets.get(", "targets.iter()", "targets[", "mode_targets"] {
+        assert!(
+            !mana_src.contains(forbidden),
+            "rules/mana.rs (site 4) now contains `{forbidden}`, so it does more than TEST the \
+             triggered ability's target list -- its narrow exemption no longer holds and it is a \
+             fifth hand-rolled copy of the arithmetic `trigger_modal_plan` owns"
+        );
+    }
+}
+
+/// The name of the `fn` lexically enclosing byte offset `at`, or `"<top level>"`.
+fn enclosing_fn(src: &str, at: usize) -> String {
+    src[..at]
+        .rmatch_indices("fn ")
+        .find_map(|(i, _)| {
+            // Require `fn` to start a token (preceded by whitespace or line start), so
+            // `unsafe fn`/`pub fn` are found and identifiers ending in "fn " are not.
+            let ok = i == 0 || src[..i].ends_with([' ', '\n', '\t']);
+            if !ok {
+                return None;
+            }
+            let rest = &src[i + 3..];
+            let end = rest
+                .find(|c: char| !(c.is_alphanumeric() || c == '_'))
+                .unwrap_or(rest.len());
+            (end > 0).then(|| rest[..end].to_string())
+        })
+        .unwrap_or_else(|| "<top level>".to_string())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

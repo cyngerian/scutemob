@@ -7,8 +7,16 @@
 // CR 700.2b / PB-35: Modal triggered ability. Bot fallback: mode 0 (token).
 //
 // PB-DX35 (OOS-DX4-2, execution-notes §0.5/A3): NOT in the flat-targets-scoped-to-both-modes
-// population -- `targets` is already `vec![]` and both modes take no `DeclaredTarget`, so
-// there was never a requirement to leak across modes. Left unchanged.
+// population -- `targets` is already `vec![]`, so there was never a requirement to leak across
+// modes. Left unchanged.
+//
+// **The reason is stated precisely because the obvious short version is FALSE**, which this
+// batch's own `/review` caught: mode 1 DOES contain an `EffectTarget::DeclaredTarget { index: 0 }`
+// (below, inside the `Effect::ForEach { over: EachCreatureYouControl }`). That is a ForEach
+// ITERATION BINDING, not an announced target slot -- nothing is declared for it at CR 601.2c
+// time, which is why the flat `targets` list is empty and correct. A reader re-deriving this
+// population by grepping for `DeclaredTarget` finds a contradiction; the axis that separates
+// them is the flat `targets` list, which is what `core::pb_dx35_modal_trigger_roster` walks.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
