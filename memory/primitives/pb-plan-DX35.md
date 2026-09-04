@@ -143,4 +143,157 @@ with no wildcard (PB-DX45's obligation 8) — it should already; the task is to 
 
 ---
 
-## HALF A — see §A below (filled in after the stage-0 dispatch map lands)
+## HALF A — `OOS-DX4-2`: slice `ModeSelection.mode_targets` by the chosen mode on the TRIGGER path
+
+Read execution-notes §0.3 (the CR 700.2b decision) and §0.5 (the dispatch map) before starting.
+The four requirement sites and the two modes sites are enumerated there with file:line.
+
+### A1. One shared arithmetic (`crates/engine/src/rules/abilities.rs`)
+
+Add ONE function and make the three hand-rolled copies call it. Suggested shape:
+
+```rust
+/// CR 700.2b + CR 700.2c/700.2f + CR 601.2c — the mode(s) a modal triggered ability
+/// is put on the stack with, and the target requirements those modes announce.
+///
+/// `None` = CR 700.2b's "If no mode is chosen, the ability is removed from the stack."
+pub(crate) struct TriggerModalPlan {
+    pub modes_chosen: Vec<usize>,
+    pub requirements: Vec<TargetRequirement>,
+}
+pub(crate) fn trigger_modal_plan(state: &GameState, trigger: &PendingTrigger)
+    -> Option<TriggerModalPlan>
+```
+
+Behaviour, in this order:
+
+1. Look the ability up ONCE, kind-dispatched exactly as sites 1/2/3 already do
+   (`Normal` → runtime `obj.characteristics.triggered_abilities[ability_index]` for `targets`;
+   `CardDefETB` → registry `def.effective_abilities(obj.is_transformed)[ability_index]`).
+   Any other kind → `Some(TriggerModalPlan { modes_chosen: vec![], requirements: vec![] })`,
+   i.e. today's `vec![]`.
+   Use `state.fizzle_object` (CR 113.7a LKI), matching site 3's existing choice, NOT
+   `state.objects.get` — and say in the doc that sites 1 and 2 used the non-LKI lookup, so
+   unifying them on the LKI one is a **deliberate** widening. Prove it changes nothing that
+   matters, or say what it changes.
+2. Look the `ModeSelection` up from the REGISTRY (both existing sites do; execution-notes §0.5
+   says why that is the incumbent and what it costs). `None` ⇒ non-modal ⇒
+   `modes_chosen: vec![]`, `requirements: <flat targets>` — today's behaviour exactly.
+3. Modal with `mode_targets: None` ⇒ `modes_chosen: vec![0]` when `modes.len() > 0`
+   (today's value, unchanged — with a FLAT list every mode announces the same requirements, so
+   CR 700.2b legality cannot differ by mode and the existing CR 603.3d slot check already
+   removes the trigger when it is unsatisfiable), `requirements: <flat targets>`.
+   **This arm is what keeps every non-repaired corpus def byte-identical, and a probe must pin
+   that.**
+4. Modal with `mode_targets: Some(mt)` ⇒ CR 700.2b legality-aware choice:
+   for `idx in 0..modes.modes.len()`, compute
+   `casting::per_mode_target_requirements(ms, &[idx])` — **the SAME helper `handle_cast_spell`
+   and `rules::queries::spell_target_requirements` call**, which is the shared arithmetic the
+   criterion demands — and call that mode LEGAL iff every requirement it names yields a
+   non-empty `trigger_target_candidates(..).candidates` OR that slot is `optional`. Take the
+   FIRST legal index.
+   * a legal mode exists ⇒ `modes_chosen: vec![idx]`, `requirements: <that mode's slice>`.
+   * none legal and `min_modes == 0` ⇒ `modes_chosen: vec![]`, `requirements: vec![]`
+     ("choose up to one" and chose zero — CR 700.2b permits it; the ability resolves with no
+     effect).
+   * none legal and `min_modes >= 1` ⇒ **`None`** (CR 700.2b removal).
+5. `max_modes > 1` combined with `mode_targets: Some(_)` is UNSUPPORTED, exactly as
+   `abilities.rs:455` already hard-rejects it on the activated path. Zero corpus members
+   (measured: all 7 modal triggered abilities have `max_modes: 1`). Handle it fail-safe
+   (choose one mode) with a `debug_assert!`, and **gate the zero population by roster** so it
+   cannot grow silently.
+
+### A2. The consumers — all four, and the modes assignment must use the SAME value
+
+* Site 1 (`trigger_target_requirements`, `abilities.rs:~8806`) → `plan.requirements`.
+* Site 2 (`ability_targets`, `abilities.rs:~8929`) → `plan.requirements`; a `None` plan is a
+  CR 700.2b removal and must take the SAME path the CR 603.3d "no legal choice" branch takes.
+* Site 3 (`trigger_ability_target_requirements`, `abilities.rs:~10352`) → `plan.requirements`.
+  It re-derives on the ANSWER path; state why re-derivation is stable (the admission gate
+  admits only the answer command and `Concede` while a trigger-target choice is pending —
+  VERIFY that in source, do not assume it).
+* Site D — the `modes_chosen` assignment at `abilities.rs:~9855-9887`. **Delete the
+  registry re-lookup and the hard-coded `vec![0]` in both arms** and assign
+  `plan.modes_chosen`. If the plan is recomputed rather than threaded, the two must be the
+  same call; prefer computing the plan ONCE near the top of the per-trigger loop and threading
+  it, so "one arithmetic" is structural rather than coincidental.
+* `rules/resolution.rs:~2351-2390` — leave the registry modes lookup, but note two things in
+  source: (a) it is the second half of the pair §0.5 measures as misaligned for three defs, and
+  (b) with `max_modes: 1` corpus-wide the chosen mode's slice sits at offset 0 of
+  `stack_obj.targets`, so `EffectTarget::DeclaredTarget { index: N }` inside a mode must be
+  **rebased to 0** in any def this batch re-shapes. **Verify by execution** that no per-mode
+  offset loop is needed on the trigger path at `max_modes: 1`; if one IS needed, mirror
+  `resolution.rs`'s spell-side offset loop rather than writing a third copy.
+  **Also fix**: a modal trigger with an EMPTY `modes_chosen` currently falls through to the
+  runtime `effect`, which for the three `WhenDies`/`WhenAttacks`/`WhenBlocks` lowering arms is
+  **mode 0 pre-resolved** — so "chose zero modes" silently executes mode 0. Make a modal
+  ability with no chosen mode resolve with NO effect, and pin it.
+
+### A3. Card defs
+
+* `shambling_ghast.rs` — flat `targets: vec![]`; `mode_targets: Some(vec![vec![], vec![<the
+  opponent-creature requirement>]])` (mode 0 = Treasure, mode 1 = -1/-1; the def's mode order is
+  deliberately reversed from print and its own comment says so — do not reorder). Mode 1's
+  `EffectFilter::DeclaredTarget { index: 0 }` already reads slot 0 and stays 0.
+  **Marker `partial` → `Complete`**, note rewritten.
+* `retreat_to_kazandu.rs` — flat `targets: vec![]`; `mode_targets: Some(vec![vec![TargetCreature],
+  vec![]])`. Mode 0's `DeclaredTarget { index: 0 }` stays 0. Stays `Complete` (0 flip).
+* `retreat_to_coralhelm.rs` — same shape (mode 0 `[TargetCreature]`, mode 1 `[]`). Stays
+  `known_wrong` for its unrelated tap/untap blocker; update the note to say the mode-target half
+  is now correct.
+* `hullbreaker_horror.rs`, `glissa_sunslayer.rs`, `junji_the_midnight_sky.rs` — **DO NOT
+  re-shape.** Re-adjudicate the marker text to name the index-space blocker (execution-notes
+  §0.5) and cite the new seed. Re-shaping them would arm `OOS-DX4-2`'s own stated trap.
+* `felidar_retreat.rs` — not in the population (flat `targets` is empty); leave it, and say so.
+
+### A4. Half A probes (new `crates/engine/tests/primitives/pb_dx35_modal_trigger_targets.rs`)
+
+* `t1` — **the CR 603.3d trap, the criterion's headline**: `retreat_to_kazandu` on a board with
+  NO creature. The trigger must RESOLVE and gain 2 life. Assert the life total, not the event.
+  At the merge base this trigger is removed and life is unchanged.
+* `t2` — same def, WITH a legal creature: mode 0 is chosen, a target IS announced and the
+  +1/+1 counter lands on that creature. **This is the "drop-the-requirement trap is red" probe**
+  — a revert that makes the plan return `vec![]` for `mode_targets` defs must redden it.
+* `t3` — `shambling_ghast` dies with no opponent creature: a Treasure token exists afterwards.
+* `t4` — `shambling_ghast` dies WITH an opponent creature: still a Treasure (mode 0 is legal, so
+  CR 700.2b's first-legal choice picks it) and NO target is announced, because mode 0's slice is
+  empty. Pin the announcement count.
+* `t5` — a synthetic modal trigger whose mode 0 needs a target and mode 1 does not, with
+  `min_modes: 1`: with no candidate for mode 0 the plan picks mode 1. Pin `modes_chosen`.
+* `t6` — the same synthetic with `min_modes: 0` and NO legal mode: `modes_chosen` empty and the
+  ability resolves with **no effect** (the A2 fix).
+* `t7` — a synthetic with `min_modes: 1` and NO legal mode: CR 700.2b removal (the trigger is
+  not on the stack).
+* `t8` — `mode_targets: None` modal trigger is byte-identical to the merge base
+  (`modes_chosen == vec![0]`, flat requirements). The backward-compat pin.
+* `t9` — sites 1/2/3 agree BY VALUE on the same trigger (the differential pin that stops the
+  three copies re-diverging).
+
+### A5. Half A roster gates (new `crates/engine/tests/core/pb_dx35_modal_trigger_roster.rs`)
+
+All derived from `mtg_card_defs::all_cards()` (SR-36), all PRINTING their populations
+(`t_census_report`), never transcribing them:
+
+* `r1` — the 7 modal triggered abilities, by name, with their `mode_targets` state.
+* `r2` — **the index-space alignment census** (execution-notes §0.5): for every modal triggered
+  ability, registry index vs the lowered runtime index, and the misaligned set pinned at exactly
+  `{hullbreaker_horror, glissa_sunslayer, junji_the_midnight_sky}` — so a new member cannot join
+  silently and the day someone lowers `modes` the gate says the set emptied. Derive the runtime
+  index by CALLING the lowering, not by counting `AbilityDefinition::Triggered` entries.
+* `r3` — every misaligned member is non-`Complete` (the zero-deck-legal-blast-radius claim,
+  gated rather than asserted in prose).
+* `r4` — `max_modes: 1` for every modal triggered ability (A1 step 5's premise).
+* `r5` — no def combines a NONEMPTY flat `targets` with `mode_targets: Some(_)` on a Triggered
+  ability (the author invariant the cast path already enforces at `casting.rs:3848`).
+* `r6` — the defect population (nonempty flat `targets` + at least one mode that names no
+  declared target) is exactly the members this batch repaired plus the three it filed.
+* `r7` — the `modal_trigger` `decision_site_walk` row's `site` string does not still claim
+  `modes_chosen = vec![0]` in both arms.
+
+### A6. Half A channel probe
+
+`crates/simulator/tests/pb_dx35_modal_trigger_channel.rs` — drive `retreat_to_kazandu`'s landfall
+trigger end-to-end through `LocalGame` with a real land drop, on a board with no creature, and
+assert the life total. The engine-level probe is not the channel probe; PB-DX43's lesson
+(`kaito_shizuki`: existence is never sufficiency) applies.
+
