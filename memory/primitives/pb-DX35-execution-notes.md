@@ -569,8 +569,9 @@ re-learned).
 
 ```
 baseline  5,058 / 0 / 5   61 result-producing targets
-final     5,091 / 0 / 5   63 result-producing targets   (+2 binaries)
-delta     33 additions / 0 leavers / 0 removals / 0 renames
+final     5,096 / 0 / 5   63 result-producing targets   (+2 binaries)
+delta     38 additions / 0 leavers / 0 removals / 0 renames
+count delta 38  ==  name-set delta 38   <- the reconciliation, see below
 ```
 
 **The first run of that delta reported 32 additions against a count delta of 33, and the
@@ -583,14 +584,18 @@ difference over test NAMES collapses the pair. Renamed
 reconcile. **The check that separates them costs one line — compare the name-set delta against the
 `passed + ignored` delta — and nothing in the tree enforces it.** Filed as `OOS-DX35-8`.
 
-The 33: 8 in `primitives::pb_dx35_modal_trigger_targets`, 8 in
+The 38: 8 in `primitives::pb_dx35_modal_trigger_targets`, 8 in
 `core::pb_dx35_modal_trigger_roster` (r1-r7 + `t_census_report`), 1 internal unit test in
 `rules::abilities` (t9 — site 3 is a bare private `fn`, unreachable from an integration test, which
 is disclosed in both files), 1 in `simulator::pb_dx35_modal_trigger_channel`, 9 in
 `primitives::pb_dx35_optional_placement`, 3 in `simulator::pb_dx35_optional_placement_channel`,
-3 HTTP probes in `tools/play-server/src/main.rs`. The five in
-`core::pb_dx35_optional_placement_roster` were added after this delta was taken and are counted in
-the final figure.
+3 HTTP probes in `tools/play-server/src/main.rs`, and 5 in the close-out's
+`core::pb_dx35_optional_placement_roster` (b1-b4 + `t_census_report`).
+
+**The reconciliation is now part of the measurement, not a one-off repair.** The final run's count
+delta (**38**) and name-set delta (**38**) are equal and the duplicate-name scan returns EMPTY —
+which is the check `OOS-DX35-8` proposes, executed on this batch's own final numbers rather than
+only on the run that exposed the problem.
 
 ### C2. Line counts, measured
 
