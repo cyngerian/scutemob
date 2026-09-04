@@ -147,3 +147,127 @@ emits no `DamageDealt`. `GameEvent::DamageDealt` is emitted at exactly **five** 
 (same function), `:8950` (`deal_creature_power_damage`, the fight/ping path) and
 `rules/mana.rs:610` (CR 605 pain-land damage) — **all five noncombat by construction**. So a combat
 damage event reaches only the combat arm and a noncombat one only the `DamageDealt` arm.
+
+---
+
+## §1 — What shipped
+
+**Half A** — `TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer` keeps `combat_only` and
+gains `recipient: DamageRecipient`. The lowering
+(`testing::replay_harness::build_face_triggered_abilities`) selects `trigger_on` through an
+**exhaustive, wildcard-free** `match (combat_only, recipient)` over four new `TriggerEvent`s, so one
+card ability lowers to exactly **one** `TriggeredAbilityDef`.
+
+**Half B** — new `TriggerCondition::WhenDealsDamage { recipient }` (three `TriggerEvent`s, same
+discipline) and new `EffectAmount::DamageDealt`, carried on a new `damage_dealt_amount: u32` through
+the `PendingTrigger → StackObject → EffectContext` chain `combat_damage_amount` already uses.
+
+**Both halves are served by ONE arithmetic**: `rules::abilities::queue_damage_source_triggers`,
+called from the `GameEvent::CombatDamageDealt` arm with `is_combat: true` and from the
+`GameEvent::DamageDealt` arm with `is_combat: false`. `is_combat` is a property of the **event**,
+never of an ability — which is the distinction `combat_only` failed to make.
+
+`TODO(PB-37)` and its in-def echoes are deleted.
+
+## §2 — Corrections this batch made to its own inputs
+
+1. **The brief's CR cite** (§0.6 (i)) — CR 603.10a is zone-change look-back, not "that much".
+   13 cites moved to CR 608.2h / CR 113.7a. It had been copied into acceptance criterion 7333, so
+   obeying it would have put 13 wrong cites in the tree under an AC that read as satisfied.
+2. **"Delete the unread flag" is wrong** (§0.5(b)) — 0 declared users of `combat_only: true`, but
+   **1 printed one** (`breath_of_fury`). The declared axis and the printed axis do not nest.
+3. **The still-blocked self-family list is a FLOOR by 5×.** The brief names two
+   (`warren_instigator`, `tandem_lookout`); the roster's `all_cards()` walk finds **ten**.
+4. **Two blocker notes this batch falsifies**, found by the inverse axis and repaired in place —
+   `niv_mizzet_visionary` (its "neither is expressible" is now half false) and `tandem_lookout`.
+5. **A fourth `WhenDealsDamage` member no document names** — `tandem_lookout`, a *granted* ability,
+   structurally invisible to a per-def ability-list walk.
+
+## §3 — Wire: prediction vs outcome
+
+| | predicted (§0.3, commit `a9fca688`) | measured |
+|---|---|---|
+| PROTOCOL | 41 → 42, ONE bump | **41 → 42** ✓ |
+| HASH | 82 → 83, ONE bump | **82 → 83** ✓ |
+| PROTOCOL closure type count | unchanged, 98 | **98** ✓ |
+| HASH closure type count | unchanged, 132 | **132** ✓ |
+| `TriggerCondition` / `DamageRecipient` on either closure | no | absent from both ✓ |
+
+The stop condition never fired. Both fingerprints were taken from the failing gates' own output.
+
+**The two-step stream observation recurs** (v82, v40): with everything in the tree and hashed but
+BEFORE the version bump, `declaration_fingerprint_is_pinned` was RED and
+`stream_fingerprint_is_pinned` was **GREEN** — `canonical_fixture()` carries no pending trigger, no
+stack object with a damage amount and no card registry, so none of this batch's new bytes can reach
+it. The stream moved only once `HASH_SCHEMA_VERSION` became its own first byte.
+
+### §3.1 — The sentinel sweep failed once, and the survivor scan reproduced the failure
+
+**49 HASH + 14 PROTOCOL** sentinels, final. The first sweep re-pinned 48 + 13 and **missed
+`pb_dx2_command_gates.rs`'s `41u32`**: the PROTOCOL regex ended `41\b`, and `\b` between `1` and `u`
+is not a word boundary. `OOS-DX20b`'s recorded lesson (`79u8`) — handled for HASH (`82(u8)?`) in the
+same script and not carried across one symbol.
+
+**The survivor scan did not catch it, and the reason is the durable half.** PB-DX50's rule is *"a
+survivor check written with the same regex as the re-pin is not a check"*, and this scan obeyed the
+letter of it — a ±3-line window instead of a symbol-adjacent match, a genuinely different SHAPE.
+It used the same **value** pattern, `\b41\b`. **Changing the shape of the matcher is not enough if
+the literal stays the same**; the refinement belongs beside PB-DX50's sentence. Re-swept with a
+value pattern admitting any integer type suffix, on both symbols; one further site found and fixed,
+0 real survivors after. Filed as **`OOS-DX36-8`**.
+
+Then `OOS-DX18-3`'s opposite check: all 61 changed lines of the first sweep read individually — all
+61 assertion arguments, no prose rewritten. The corrected scan's only remaining hits are two
+historical-prose lines in `hash.rs`'s own v81/v82 history recording that PROTOCOL was 41 **at the
+time**, which are correct and were not touched.
+
+## §4 — Tests
+
+**5,115 / 0 / 5** full-workspace against the FINAL tree, **64** result-producing targets (63 → 64:
+one new simulator test binary), residual list empty. Baseline **5,097 / 0 / 5** at 63 targets,
+measured on this branch before any edit and **reproducing PB-DX35's published close pin exactly**.
+
+Delta by test NAME, by a **byte-exact Python set difference** of the two run logs (never `sort` +
+`comm` — `OOS-DX20b-5`): **18 additions, 0 leavers, 0 removals, 0 renames**. Count delta 18 ==
+name-set delta 18; duplicate-name scan **empty on both runs** (`OOS-DX35-8`'s check, which a
+byte-exact set difference is structurally blind to).
+
+## §5 — Coverage
+
+**1,138 → 1,139 / 1,803 = 63.1% → 63.2%.** ONE flip, `exalted_angel`, **named in writing before any
+code** (§0.4). Exactly one `Completeness` marker line moves in the batch's whole card-def diff —
+checked by `git diff` over the marker, not inferred from the count.
+
+**A contradiction this batch introduced and the report caught**: deleting the `TODO(PB-37)` echoes
+left `curiosity`, `ophidian_eye` and `warren_instigator` marked `partial` with **no** in-source
+`TODO` / `ENGINE-BLOCKED` comment, taking `authoring-report.py`'s marker-vs-comment consistency
+check 16 → 19. A `partial` def that names no gap reads as finished. Each now carries a TODO naming
+the surviving blocker; back to 16 with no pre-existing entry dropped.
+
+## §6 — Benches: measured, six runs, NO REGRESSION, and nothing claimed in the other direction
+
+Matched-set A/B against merge base `e7d7ae31`, each revision in its own `git worktree` with its own
+`CARGO_TARGET_DIR`, on an otherwise-quiet machine. **The same-code repeatability band was measured
+FIRST, across THREE merge-base runs** (PB-DX20b's lesson), before any HEAD number was looked at.
+
+| bench (µs) | base ×3 | HEAD ×2 | same-code band | verdict |
+|---|---|---|---|---|
+| `priority_cycle_4p` | 24.162 / 23.918 / 24.057 | 24.463 / 24.125 | 1.02% | overlap |
+| `priority_cycle_6p` | 38.432 / 38.173 / 38.169 | 38.890 / 38.047 | 0.69% | overlap |
+| `sba_check` | 14.589 / 15.137 / 14.946 | 15.066 / 14.853 | **3.76%** | HEAD entirely INSIDE the base band |
+| `full_turn_4p` | 216.38 / 215.99 / 214.84 | 216.77 / 216.50 | 0.72% | overlap |
+| `full_turn_6p` | 342.53 / 342.38 / 343.45 | 344.01 / 342.26 | 0.31% | overlap |
+| `board_wipe_4p` | 120.85 / 121.52 / 120.17 | 117.53 / 120.27 | 1.12% | overlap |
+
+**Verdict: no regression demonstrated.** `sba_check`'s same-code band (3.76%) is wider than any
+base-vs-HEAD difference measured anywhere in the table. **`board_wipe_4p`'s apparent −2.7% is
+deliberately NOT claimed** — its second HEAD run (120.27) sits inside the base range, so run 1 is
+the outlier, not the effect.
+
+**Bounded independently by a mechanism fact rather than left to the numbers.** The criterion's
+premise is *"`DamageDealt` dispatch is on the hot path"*. It is not on any BENCHED path:
+`crates/engine/benches/engine_perf.rs` contains **two** damage-related occurrences and neither
+deals noncombat damage — `board_wipe_4p` is a `DestroyAll`, and `full_turn_4p`/`6p` walk *through*
+the CombatDamage step with **no attackers declared**, so `assignments` is empty and the extracted
+loop does nothing. The new `GameEvent::DamageDealt` call site is off every benched path by
+construction, and the combat-arm change is an extraction of a loop that was already there.
