@@ -1008,7 +1008,42 @@
 ///   (`memory/primitives/pb-plan-DX51.md` §3, committed at `06ba6760`: "HASH 81 -> 82,
 ///   ONE bump; PROTOCOL 41 UNMOVED"), and the fingerprint taken from the failing gate's
 ///   own output rather than transcribed.
-pub const HASH_SCHEMA_VERSION: u8 = 82;
+/// - 83: **PB-DX36** (`scutemob-228`, 2026-09-04, `OOS-CARDS2-6`): the "deals damage"
+///   trigger family becomes real on both damage kinds. Four declaration-axis moves, one
+///   bump. (a) `TriggerEvent` retires `EnchantedCreatureDealsDamageToPlayer` and appends
+///   seven unit variants (the combat/noncombat × player/opponent cross product for the
+///   Aura family, plus the three-valued self family); (b) `EffectAmount` gains
+///   `DamageDealt`; (c) `PendingTrigger` and `StackObject` each gain
+///   `damage_dealt_amount: u32`; (d) `TriggerCondition` gains `WhenDealsDamage` and a
+///   `recipient: DamageRecipient` field on `WhenEnchantedCreatureDealsDamageToPlayer`.
+///
+///   **Closure type count UNMOVED at 132**, and the reason is (d): `TriggerCondition`
+///   and the new `DamageRecipient` enum are reachable only through
+///   `#[serde(skip)] card_registry` -> `CardDefinition`, which
+///   `CLOSURE_MUST_NOT_CONTAIN` pins out of this closure — so neither is a closure
+///   member and `DamageRecipient` adds no type. `u32` is already a member. Measured at
+///   the merge base by temporarily raising `MIN_CLOSURE_TYPES` (132 before), predicted
+///   in writing before any code changed, and confirmed at 132 by the failing gate's own
+///   output.
+///
+///   **What (d) means for this version number is worth stating, because a reader could
+///   conclude the opposite from the paragraph above.** The card-DSL half moves NEITHER
+///   fingerprint — but it genuinely changes the hashed byte stream of any real game
+///   holding `sigil_of_sleep`, `curiosity`, `ophidian_eye` or `exalted_angel`, because
+///   `HashInto for TriggerCondition` gains a field and a discriminant. That is precisely
+///   what `HASH_SCHEMA_VERSION` exists to record, and it is why this bump would be owed
+///   even if (a)-(c) had not happened. A fingerprint that does not move is not a promise
+///   that the stream did not.
+///
+///   The STREAM fingerprint moves as well, and — as in v82 and v40 — the obvious reason
+///   is the wrong one. Measured in two steps rather than inferred: with all of (a)-(d)
+///   in the tree and hashed but BEFORE this version bump,
+///   `declaration_fingerprint_is_pinned` was RED and `stream_fingerprint_is_pinned` was
+///   **GREEN**. `canonical_fixture()` carries no pending trigger, no stack object with a
+///   damage amount and no card registry, so none of this batch's new bytes can reach it.
+///   The stream moves solely because `HASH_SCHEMA_VERSION` is the stream's own first
+///   byte.
+pub const HASH_SCHEMA_VERSION: u8 = 83;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1551,6 +1586,20 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // `HASH_SCHEMA_VERSION` is the stream's own first byte (the v40 mechanism).
         decl_fingerprint: "e75de787f185162a028dde3079ef24ecd910e8ef2bc390a64b96ee012a407683",
         stream_fingerprint: "e69f9c451ef183829d523f8ecc351125d00e03acca7b4bf1bbe2e5c48ce5dcf6",
+    },
+    HashSchemaEpoch {
+        version: 83,
+        // PB-DX36 (2026-09-04, `OOS-CARDS2-6`): the damage-trigger family — seven new
+        // `TriggerEvent` variants (one retired), `EffectAmount::DamageDealt`, and
+        // `damage_dealt_amount: u32` on both `PendingTrigger` and `StackObject` (see the
+        // `- 83:` History line above). Closure type count UNCHANGED at 132: the card-DSL
+        // half (`TriggerCondition`, `DamageRecipient`) is behind `#[serde(skip)]
+        // card_registry` and is not a closure member at all. As in v82 and v40, the
+        // STREAM fingerprint moves only because `HASH_SCHEMA_VERSION` is its first byte
+        // — measured, not inferred: before this bump the declaration digest was RED and
+        // the stream digest was GREEN.
+        decl_fingerprint: "65515ca16d4a06016925428513021e484bf7cb1e53d77a20b9e01af66d0ec2ca",
+        stream_fingerprint: "051bf414092e216c967ecac434fa25053c1f753c4e044d0e17cf47b21023f65f",
     },
 ];
 

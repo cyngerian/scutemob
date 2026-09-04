@@ -461,7 +461,33 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   (`memory/primitives/pb-DX20b-execution-notes.md` §0.2, including the unchanged
 ///   type count) and taken from the failing gate's own output rather than
 ///   transcribed (PB-DX8's rule).
-pub const PROTOCOL_VERSION: u32 = 41;
+/// - 42: **PB-DX36** (`scutemob-228`, 2026-09-04, `OOS-CARDS2-6`): two wire types move,
+///   in one bump. (a) `TriggerEvent` retires `EnchantedCreatureDealsDamageToPlayer` and
+///   appends seven unit variants — the combat/noncombat × player/opponent cross product
+///   for the Aura family (`EnchantedCreatureDeals{Combat,Any}DamageTo{Player,Opponent}`)
+///   plus the three-valued self family (`SelfDealsDamage`,
+///   `SelfDealsDamageToPlayer`, `SelfDealsDamageToOpponent`). (b) `EffectAmount` gains
+///   `DamageDealt` — CR 608.2h/113.7a's *"that much"* for a damage trigger, the
+///   noncombat-capable sibling of `CombatDamageDealt`.
+///
+///   `TriggerEvent` is in this closure through
+///   `Characteristics.triggered_abilities: Vec<TriggeredAbilityDef>` (the correction
+///   recorded under `- 25:` above, re-verified by probe here); `EffectAmount` is in it
+///   through `Effect`. **Both were probed at stage 0 by extending
+///   `CLOSURE_MUST_NOT_CONTAIN` and executing the closure walk, not inferred**
+///   (`memory/primitives/pb-DX36-execution-notes.md` §0.2).
+///
+///   **The half that does NOT move this digest is the interesting half.** The card-DSL
+///   side of the same change — `TriggerCondition::WhenDealsDamage`, the new
+///   `recipient: DamageRecipient` field on
+///   `WhenEnchantedCreatureDealsDamageToPlayer`, and the `DamageRecipient` enum itself —
+///   is entirely off-wire: `TriggerCondition` lives on the card-def
+///   `AbilityDefinition::Triggered`, not on the runtime `TriggeredAbilityDef`. Probed,
+///   not assumed. `DamageRecipient` was deliberately kept off `TriggerEvent` for exactly
+///   this reason, which is why the closure's **type count is 98 -> 98, unchanged** —
+///   predicted in writing before any code changed and taken from the failing gate's own
+///   output (PB-DX8's rule: publish the figure, do not transcribe it).
+pub const PROTOCOL_VERSION: u32 = 42;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -479,7 +505,7 @@ pub const PROTOCOL_VERSION: u32 = 41;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "96b7b687b5ddaade2147be0a4103cf84b3c3039f94f7259d1f32044c6d504c7b";
+    "9d75f591b263a7a69c78a722ffcc2bd6291bc81cf161db8c9b1bb1dad002aa47";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -795,6 +821,16 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // root (see the `- 41:` History line above). Closure type count unchanged
         // (98).
         fingerprint: "96b7b687b5ddaade2147be0a4103cf84b3c3039f94f7259d1f32044c6d504c7b",
+    },
+    ProtocolEpoch {
+        version: 42,
+        // PB-DX36 (2026-09-04, `OOS-CARDS2-6`): TriggerEvent retires one variant and
+        // appends seven (the damage-recipient cross product), and EffectAmount gains
+        // DamageDealt (see the `- 42:` History line above). Both types are in the
+        // closure; the card-DSL half of the same change (TriggerCondition,
+        // DamageRecipient) is not, and was probed rather than assumed. Closure type
+        // count unchanged (98).
+        fingerprint: "9d75f591b263a7a69c78a722ffcc2bd6291bc81cf161db8c9b1bb1dad002aa47",
     },
 ];
 

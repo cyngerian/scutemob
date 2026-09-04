@@ -1268,12 +1268,12 @@ fn test_min_cmc_amount_hashes_distinctly() {
 #[test]
 fn test_pb_os8_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 41,
+        PROTOCOL_VERSION, 42,
         "PROTOCOL_VERSION should be 23 after PB-OS8 (Effect::LookAtTopThenPlace + \
          TargetFilter.min_cmc_amount)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 82u8,
+        HASH_SCHEMA_VERSION, 83u8,
         "HASH_SCHEMA_VERSION should be 60 after PB-OS8"
     );
 }
