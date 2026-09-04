@@ -71,6 +71,11 @@ fn combat_with_attacker(attacking_player: PlayerId, attacker_id: ObjectId) -> Co
         damage_assignment_order: imbl::OrdMap::new(),
         first_strike_participants: imbl::OrdSet::new(),
         attackers_declared: false,
+        // CR 508.8 (PB-DX51): this fixture models a combat in which creatures ARE
+        // attacking, so the marker is `true`. It is a different question from
+        // `attackers_declared` above (CR 508.1's turn-based action), which these
+        // hand-built fixtures deliberately leave as they found it.
+        had_attackers: true,
         defenders_declared: imbl::OrdSet::new(),
         forced_blocks: imbl::OrdMap::new(),
         enlist_pairings: Vec::new(),
@@ -91,6 +96,11 @@ fn combat_with_blocker(blocker_id: ObjectId, attacker_id: ObjectId) -> CombatSta
         damage_assignment_order: imbl::OrdMap::new(),
         first_strike_participants: imbl::OrdSet::new(),
         attackers_declared: false,
+        // CR 508.8 (PB-DX51): this fixture models a combat in which creatures ARE
+        // attacking, so the marker is `true`. It is a different question from
+        // `attackers_declared` above (CR 508.1's turn-based action), which these
+        // hand-built fixtures deliberately leave as they found it.
+        had_attackers: true,
         defenders_declared: imbl::OrdSet::new(),
         forced_blocks: imbl::OrdMap::new(),
         enlist_pairings: Vec::new(),
@@ -106,7 +116,7 @@ fn combat_with_blocker(blocker_id: ObjectId, attacker_id: ObjectId) -> CombatSta
 #[test]
 fn test_pb_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 81u8,
+        HASH_SCHEMA_VERSION, 82u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }

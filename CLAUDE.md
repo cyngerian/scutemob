@@ -87,7 +87,9 @@
   **↻ PB-DX18 SHIPPED** (`scutemob-225`, 2026-09-04; v4 rank 10 — **OOS-DP2-7**, **OOS-DP2-4**,
   **OOS-DP2-8**, **OOS-DX2-4**, **OOS-DX2-1** and **OOS-M11-5** ALL CLOSED, six seeds in one
   batch).
-  **Next dispatch: PB-DX51** (v4 rank 11); ranks 1-10 all shipped.
+  **↻ PB-DX51 SHIPPED** (`scutemob-226`, 2026-09-04; v4 rank 11 — **OOS-DX21-4**, **OOS-DX21-2**
+  and rider **OOS-DX21-5** ALL CLOSED; live on 2 deck-legal `Complete` defs).
+  **Next dispatch: PB-DX35** (v4 rank 12); ranks 1-11 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -217,7 +219,9 @@
   **↻ PB-DX18 SHIPPED** (`scutemob-225`, 2026-09-04; v4 rank 10 — **OOS-DP2-7**, **OOS-DP2-4**,
   **OOS-DP2-8**, **OOS-DX2-4**, **OOS-DX2-1** and **OOS-M11-5** ALL CLOSED, six seeds in one
   batch).
-  **Next dispatch: PB-DX51** (v4 rank 11); ranks 1-10 all shipped.
+  **↻ PB-DX51 SHIPPED** (`scutemob-226`, 2026-09-04; v4 rank 11 — **OOS-DX21-4**, **OOS-DX21-2**
+  and rider **OOS-DX21-5** ALL CLOSED; live on 2 deck-legal `Complete` defs).
+  **Next dispatch: PB-DX35** (v4 rank 12); ranks 1-11 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -228,6 +232,77 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-04, PB-DX51)**: **5,058 / 0 / 5** full-workspace on branch
+  `scutemob-226` (+14 over the **5,044** baseline, measured on this branch BEFORE any edit),
+  `--workspace --no-fail-fast` to a file, **61** result-producing targets (60 → 61: one new
+  simulator test binary), residual list empty.
+  **The baseline does NOT reproduce PB-DX18's published close pin of 5,041, and that is reported
+  rather than reconciled away**: `git diff 2861b3a7..71113bda --stat -- '*.rs'` is EMPTY, so the
+  tree is byte-identical in Rust to PB-DX18's final commit and the discrepancy is in the
+  MEASUREMENT. Candidate mechanism, stated as an inference with its evidence: PB-DX18's `/review`
+  fix cycle `b72b8c80` adds **7** `#[test]` items and the close-out commit `2861b3a7` that
+  published the figure came after it — PB-DX28's "re-take the measured table" MEDIUM, for the
+  fourth time in this queue and the first time on the pin every subsequent batch inherits
+  (`OOS-DX51-5`).
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
+  `sort` + `comm` (`OOS-DX20b-5`): 14 additions, 0 leavers, 0 removals, 0 renames.** No doctest
+  line-number shift, because nothing this batch edits sits above one.
+  **HASH 80 → 81 → 82 / PROTOCOL 41 UNMOVED, ONE bump**, both gate-computed (`hash_schema` 36/36,
+  `protocol_schema` 17/17) and **both predicted in writing before any production line changed**
+  (`06ba6760`), with the reason stated: `CombatState` is reachable only through
+  `GameState::combat` and `CLOSURE_MUST_NOT_CONTAIN` excludes `GameState` (the PB-DX21 precedent,
+  `CombatState.attackers_declared`, HASH 72 → 73 / PROTOCOL 35 unmoved). **Closure type count
+  UNMOVED at 132 — measured at the merge base by temporarily raising `MIN_CLOSURE_TYPES`, not
+  assumed**; the 131 → 132 move belongs to PB-DX18's `PregamePhase`. History row appended, never
+  edited; `FROZEN_HISTORY_PREFIX_DIGEST` re-pinned; `history_is_append_only` and
+  `frozen_prefix_is_pinned` green. **47 HASH sentinels across 46 files re-pinned by symbol** (2
+  spelled across a line break, 2 spelled `, 81,` with no `u8` suffix — both known failure modes
+  handled), then survivor-scanned with a differently-shaped line-window matcher (**0 real
+  survivors**, 7 candidates all historical prose) AND every changed line of the diff read for an
+  OVER-replacement (`OOS-DX18-3`): exactly 47 assertion lines moved, no prose rewritten.
+  **A two-step digest observation worth keeping**: with the field added AND hashed but BEFORE the
+  version bump, `declaration_fingerprint_is_pinned` was RED and `stream_fingerprint_is_pinned` was
+  **GREEN** — `canonical_fixture()` never populates `GameState::combat`, so no `CombatState` field
+  can reach the stream digest at all. The stream moved afterwards only because
+  `HASH_SCHEMA_VERSION` is its own first byte. Filed as `OOS-DX51-4`.
+  Coverage **1,137/1,803 = 63.1%** by regeneration, **0 flips** as predicted (clean 1,137 / todo
+  519 / empty 147 identical), self-dating churn reverted; **0 card-def edits of any kind** —
+  `git diff main..HEAD --numstat` over `crates/card-defs` and `crates/card-types/src/cards` is
+  **empty**, so the shortcut was available and the regeneration was run anyway.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
+  gate) — all against the FINAL tree. **`npm run build` was NOT run and that is stated rather than
+  omitted**: it is N/A here, because `git diff main..HEAD --numstat -- tools/` is **EMPTY** and
+  `node_modules` is absent from this worktree.
+  **Engine lines**: `crates/engine/src` + `crates/card-types/src` is **+199 / −23**;
+  `crates/simulator/src` is **+9 / −1** (the one offer conjunct and its comment);
+  **`crates/view-model` and `tools/` are both 0**.
+  **Benches: FIVE runs, and the verdict is NO REGRESSION with the apparent SPEED-UP explicitly not
+  claimed.** Same-code band measured FIRST across three merge-base runs (0.5-1.9%). HEAD reads
+  1-3.7% faster on five of six. **A third base run was taken specifically to kill the "the base
+  runs were contended" explanation, and it killed it** — same quiet machine, after both HEAD runs,
+  reproducing base runs 1-2 (`full_turn_4p` 222.80 against 221.68 / 221.79). **The claim is still
+  not "3% faster", because `priority_cycle_4p` is the control and it moves too**: that bench
+  executes no line this batch touched and shifts 0.9-1.9%, the same order as `full_turn_4p`'s
+  2.7-2.8%. A uniform shift across a bench that cannot be affected is a build/layout artefact of
+  two separate compilations — PB-DX20b's own tell, reached from the other direction.
+  **Fuzz: the movement is ATTRIBUTED by an executed ablation, not excused.** PB-DX32 gate config
+  (seeds [1,2,3] × 25 turns) is **byte-identical** before and after — `18 / 2717 = 6.625‰`, waste
+  `97 / 105 = 92%`, the same six served rows — and byte-identical AGAIN with the new conjunct
+  entirely removed, which is what proves the suppression window is never reached by those
+  trajectories. On the wider `--games 20 --seed 1 --max-turns 200` run the base is `2931 / 110271
+  = 26.580‰` with **`AlreadyDeclaredBlockers` 9** and HEAD is `3234 / 108802 = 29.724‰` with that
+  class **absent** — the closure evidence. A third run carrying the FULL engine change with ONLY
+  the offer conjunct ablated reproduces the merge base **byte-identically** (HARD 90 / distinct 13,
+  TRANSIENT 680 / distinct 159, avg turns 117.8), so **the engine half is fuzz-neutral by
+  measurement** and every bit of the HEAD-vs-base movement — including HARD 90 → 198 — is
+  `OOS-DX21-6` trajectory reindexing: identical violation CLASSES at both revisions, DISTINCT
+  count 13 → **12**, and raw counts are checkpoint-weighted, which the fuzzer's own output says is
+  not the defect-shaped number.
+  **Revert matrix: 6 rows, 0 UNDISCRIMINATED, and R1/R2/R4/R5 were RE-EXECUTED independently by
+  the coordinator rather than accepted from the delegated report** (all four reproduce exactly).
+  Plus **four executed defeats of this batch's own `r1` gate**, of which the first succeeded — see
+  the narrative and `OOS-DX51-6`.
 - **Tests (delta 2026-09-04, PB-DX18)**: **5,041 / 0 / 5** full-workspace on branch
   `scutemob-225` (+26 over the **5,015** baseline, measured on this branch BEFORE any edit and
   reproducing PB-DX20b's close pin exactly), `--workspace --no-fail-fast` to a file, **60**
@@ -1054,7 +1129,87 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-04 — **PB-DX18 SHIPPED** (`scutemob-225`; v4 queue rank 10 —
+- **Last Updated**: 2026-09-04 — **PB-DX51 SHIPPED** (`scutemob-226`; v4 queue rank 11 —
+  **OOS-DX21-4**, **OOS-DX21-2** and rider **OOS-DX21-5** ALL CLOSED). **CR 508.8 asks whether
+  creatures WERE DECLARED; the engine asked whether any are still in combat NOW.**
+  `turn_structure::advance_step` decided "skip declare-blockers and combat-damage" from a
+  step-END read of `combat.attackers.is_empty()`. Remove the lone attacker from combat while the
+  step is still open and the engine jumped to `EndOfCombat` in a combat where creatures *were*
+  declared — taking every other creature's block, every later CR 508.4 entrant and the whole of
+  CR 510 with it.
+  **THE ROW ASKS FOR A THIRD FIELD AND CR 508.8 ASKS FOR ONE.** `OOS-DX21-4` prescribes *"whether
+  the declaration was empty at declaration time, AND whether anything has been put onto the
+  battlefield attacking since"*. That is right about the two FACTS and wrong about the two FIELDS:
+  CR 508.8 ORs them in a single sentence — *"if no creatures are declared as attackers **or** put
+  onto the battlefield attacking"* — so the predicate is one existential and one monotone
+  `bool` IS it. `CombatState.had_attackers` is set by ONE new mutator, `CombatState::add_attacker`,
+  which is now the only production path into `attackers` and therefore serves BOTH CR rules.
+  **An empty declaration needs no special case at all** — it never enters the declaration loop, so
+  the marker stays clear and CR 508.8's skip still fires (CR 508.1a's *"if any"*, pinned
+  wrong-way-round by `t3`). `!attackers_declared` would have been wrong for exactly that reason,
+  and the row says so.
+  **THE SEED'S OWN REPRODUCTION RECIPE IS WRONG IN ALL THREE OF ITS NAMED ROUTES, AND THAT MAKES
+  THE DEFECT WORSE, NOT BETTER.** *"Kill it / phase it out / stop it being a creature"* removes
+  **nothing**: an exhaustive census (`attackers.remove` ∪ `retain` ∪ `=` ∪ `clear`) finds
+  `combat.attackers` emptied at exactly three production sites — `remove_from_combat`, reachable
+  only from `Effect::RemoveFromCombat` and `apply_regeneration`, plus one raw removal on the
+  Ninjutsu bounce path. **The engine implements TWO of CR 506.4's six removal causes**
+  (`OOS-DX51-2`); a dead attacker's stale `ObjectId` just stays in the map. The route that DOES
+  reproduce is **`reconnaissance`** — `Complete`, deck-legal, *"{0}: Remove target attacking
+  creature you control from combat and untap it"*, `Cost::Mana(default)` and
+  `timing_restriction: None`, so **free, instant-speed and repeatable during the declare-attackers
+  step**. `thaumatic_compass` is the other `Complete` user. **Live on 2 deck-legal `Complete` defs,
+  not reachable-in-principle**, and every behavioural probe drives that real route.
+  **THE CR 508.4 ENTRANT CENSUS REPRODUCES AT FOUR AND THE BRIEF'S LIST HAD TWO FALSE MEMBERS.**
+  The four are `effects/mod.rs`'s two token paths and `resolution.rs`'s Myriad (CR 702.116a) and
+  Ninjutsu (CR 702.49a) — PB-DX21's four, every line number drifted. `state/builder.rs` sets
+  `combat: None` and cannot put anything onto the battlefield attacking; `replacement.rs:2347` has
+  no insert at all (`:2435` is `enters_attacking: false`, a `TokenSpec` field initialiser that
+  FEEDS site 1). Reported as refuted rather than silently dropped.
+  **THIS BATCH'S OWN `r1` GATE WAS DEFEATED BY EXECUTION, AND BOTH HALVES WERE BLIND AT ONCE.**
+  The first draft matched the single literal `.attackers.insert(`. A sixth entry site written as
+  `let map = &mut combat.attackers; map.insert(..)` left `r1` **GREEN** — and because it ADDS a
+  site rather than replacing one, `r1b`'s exact-5 call-site count stayed **GREEN** too. That is
+  *a gate written for one variant measures that variant* (PB-DX26 → PB-DX43 → PB-DX45 → PB-DX47),
+  committed inside the gate whose own module doc cites two of those defeats. Re-keyed on the
+  MECHANISM — all four ways to obtain a mutable path to the map, on ANY receiver, over-collecting
+  deliberately; `r1d` carries the multi-line spelling with a differently-shaped matcher; `r1c`
+  re-checks each allowlist entry's reason IN SOURCE and checks the two "different type, same field
+  name" entries **by type**. Four defeats executed, all four now RED, and the multi-line one
+  reddens `r1d` alone (`OOS-DX51-6`).
+  **A SECOND SR-38 HOLE SITS ON THE VERY `if` STATEMENT THE ROW SENDS YOU TO, AND IS FILED NOT
+  FIXED.** `legal_actions.rs:954` computes `is_active` and the *attacker* offer consumes it; the
+  *blocker* offer has no such exclusion, while the engine refuses the attacking player outright
+  (CR 509.1a). Found twice independently inside this batch. Out of scope — the criterion says ONE
+  condition, and every offer-layer change carries `OOS-DX21-6`'s blast radius (`OOS-DX51-3`).
+  **THE PROBE AUTHOR REFUTED TWO OF THE COORDINATOR'S OWN REVERT PREDICTIONS AND WAS RIGHT.** `t2`
+  does not discriminate `R1`/`R2`: the AND-with-`is_empty()` means `had_attackers` is load-bearing
+  only when the WHOLE map empties, so a "some attackers survive" fixture cannot separate the two
+  predicates. `t2` keeps its place because it is the only probe that proves the DOWNSTREAM
+  consequence — a real block registers and damage is marked — which `t1`'s single-attacker fixture
+  structurally cannot. `t4` as specified had the same defect and was redesigned to remove the
+  entrant too. Both disclosed in the tests' own docs.
+  Tests **5,058 / 0 / 5** (+14 over a **5,044** pre-edit baseline, **61** targets, byte-exact set
+  difference: 14 additions / 0 leavers / 0 removals / 0 renames). **HASH 81 → 82 / PROTOCOL 41
+  UNMOVED, one bump, both predicted in writing before any code** (`06ba6760`), closure type count
+  UNMOVED at 132 and measured at the merge base rather than assumed. Coverage unmoved
+  **1,137/1,803 = 63.1%**, **0 flips**, churn reverted, **0 card-def edits**. All gates clean
+  against the FINAL tree; `npm run build` N/A and said so (`tools/` diff is empty). **Benches: no
+  regression, five runs, and the apparent 1-3.7% speed-up deliberately NOT claimed** — the control
+  bench moves as much as the affected one. **Fuzz: the engine half is fuzz-neutral BY MEASUREMENT**
+  (a third run with only the offer conjunct ablated reproduces the merge base byte-identically),
+  and `AlreadyDeclaredBlockers` goes **9 → 0**. Filed **OOS-DX51-1..7** — **and the first draft of
+  these lines said `-1..6`, which is dispatch hygiene 8's exact case**, caught by re-checking this
+  cell against the registry AFTER the `/review` fix cycle rather than before it. **`-7` exists
+  because the `/review` defeated the RE-KEYED `r1` gate twice more** (a wholesale `CombatState`
+  write-back, and a second `&mut self` mutator on the type itself — the latter blinding `r1` and
+  `r1b` simultaneously for the second time in one batch), **and because the widening written for a
+  third finding did not fix it**: `r1d` skipped allowlisted files WHOLESALE, so a multi-line borrow
+  planted in a file allowlisted for one `remove(` call stayed green. Six successful bypasses of
+  three successive drafts is the argument for making the field private — measured at ~160 sites and
+  deliberately not taken here. Full record:
+  `memory/primitives/pb-DX51-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-04 — **PB-DX18 SHIPPED** (`scutemob-225`; v4 queue rank 10 —
   **six seeds closed in one batch**: **OOS-DP2-7**, **OOS-DP2-4**, **OOS-DP2-8**, **OOS-DX2-4**,
   **OOS-DX2-1**, **OOS-M11-5**). **Six commands and one announcement the engine accepted without
   checking the precondition the CR attaches to them.**

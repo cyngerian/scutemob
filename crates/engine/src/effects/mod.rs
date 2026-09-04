@@ -1968,7 +1968,10 @@ fn execute_effect_inner(
                         // by attack requirements/restrictions.
                         if let Some(ref target) = attack_target {
                             if let Some(combat) = state.combat.as_mut() {
-                                combat.attackers.insert(id, target.clone());
+                                // CR 508.4 / CR 508.8 (PB-DX51): the single mutator --
+                                // also marks `had_attackers`, so an entrant with no
+                                // declaration does not let the CR 508.8 skip fire.
+                                combat.add_attacker(id, target.clone());
                             }
                         }
                         // Track last created permanent for EffectTarget::LastCreatedPermanent.
@@ -6997,7 +7000,9 @@ fn execute_effect_inner(
                 // CR 508.4: Register as attacking if enters_tapped_and_attacking.
                 if let Some(ref atk_target) = attack_target {
                     if let Some(combat) = state.combat.as_mut() {
-                        combat.attackers.insert(token_id, atk_target.clone());
+                        // CR 508.4 / CR 508.8 (PB-DX51): single mutator; marks
+                        // `had_attackers`.
+                        combat.add_attacker(token_id, atk_target.clone());
                     }
                 }
                 // CR 603.7: Register a delayed trigger if delayed_action is Some.

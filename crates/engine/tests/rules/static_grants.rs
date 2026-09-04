@@ -469,6 +469,11 @@ fn test_attacking_creatures_you_control_grants_keyword() {
         damage_assignment_order: imbl::OrdMap::new(),
         first_strike_participants: imbl::OrdSet::new(),
         attackers_declared: false,
+        // CR 508.8 (PB-DX51): this fixture models a combat in which creatures ARE
+        // attacking, so the marker is `true`. It is a different question from
+        // `attackers_declared` above (CR 508.1's turn-based action), which these
+        // hand-built fixtures deliberately leave as they found it.
+        had_attackers: true,
         defenders_declared: imbl::OrdSet::new(),
         forced_blocks: imbl::OrdMap::new(),
         enlist_pairings: Vec::new(),
@@ -1001,6 +1006,11 @@ fn test_attacking_creatures_with_subtype() {
         damage_assignment_order: imbl::OrdMap::new(),
         first_strike_participants: imbl::OrdSet::new(),
         attackers_declared: false,
+        // CR 508.8 (PB-DX51): this fixture models a combat in which creatures ARE
+        // attacking, so the marker is `true`. It is a different question from
+        // `attackers_declared` above (CR 508.1's turn-based action), which these
+        // hand-built fixtures deliberately leave as they found it.
+        had_attackers: true,
         defenders_declared: imbl::OrdSet::new(),
         forced_blocks: imbl::OrdMap::new(),
         enlist_pairings: Vec::new(),

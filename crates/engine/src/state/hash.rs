@@ -972,7 +972,43 @@
 ///   (`memory/primitives/pb-DX18-execution-notes.md` §0.8, "HASH 80 -> 81, ONE bump;
 ///   PROTOCOL 41 UNMOVED"), and both fingerprints taken from the failing gates' own
 ///   output rather than transcribed.
-pub const HASH_SCHEMA_VERSION: u8 = 81;
+///
+/// - 82: **PB-DX51** (`scutemob-226`, 2026-09-04, `OOS-DX21-4`): `CombatState` gains
+///   `had_attackers: bool` -- CR 508.8's own predicate, *"if no creatures are declared
+///   as attackers or put onto the battlefield attacking"*, as a monotone marker set by
+///   the single new mutator `CombatState::add_attacker` on both routes (the CR 508.1
+///   declaration loop and all four CR 508.4 "put onto the battlefield attacking"
+///   sites). Before this, `rules::turn_structure::advance_step` decided the skip from a
+///   step-END read of `attackers.is_empty()`, so a CR 506.4 removal of a lone attacker
+///   made the engine skip declare-blockers and combat-damage in a combat where
+///   creatures WERE declared.
+///
+///   **Closure type count UNMOVED at 132** (`bool` is already a closure member --
+///   `attackers_declared` is one). Measured at the merge base by temporarily raising
+///   `MIN_CLOSURE_TYPES`, not assumed: 132 before, 132 after. The 131 -> 132 move
+///   belongs to v81's `PregamePhase`.
+///
+///   **The new field is covered by the DECLARATION axis alone, and the stream digest's
+///   move does not indicate otherwise.** Measured in two steps rather than inferred:
+///   with `had_attackers` added and hashed but BEFORE this version bump,
+///   `declaration_fingerprint_is_pinned` was RED and `stream_fingerprint_is_pinned` was
+///   GREEN -- because `tests/core/hash_schema.rs`'s `canonical_fixture()` cannot
+///   populate `combat` without `process_command` (a cap logged in that function's own
+///   doc), so `HashInto for CombatState` is never invoked by it and no `CombatState`
+///   field can reach the stream. The stream fingerprint below moved only afterwards,
+///   because `HASH_SCHEMA_VERSION` is the stream's first byte.
+///
+///   `PROTOCOL_VERSION` predicted UNMOVED and gate-confirmed at **41** (17/17):
+///   `CombatState` is reachable only through `GameState::combat`, and
+///   `protocol_schema.rs`'s `CLOSURE_MUST_NOT_CONTAIN` excludes `GameState`. Direct
+///   precedent: PB-DX21 added `CombatState.attackers_declared: bool` for HASH 72 -> 73
+///   with PROTOCOL 35 unmoved.
+///
+///   Predicted in writing before any production line changed
+///   (`memory/primitives/pb-plan-DX51.md` §3, committed at `06ba6760`: "HASH 81 -> 82,
+///   ONE bump; PROTOCOL 41 UNMOVED"), and the fingerprint taken from the failing gate's
+///   own output rather than transcribed.
+pub const HASH_SCHEMA_VERSION: u8 = 82;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1498,6 +1534,23 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // `PregamePhase` is a genuinely new closure type, so the type count moves.
         decl_fingerprint: "5a0cdc227d9228ef4f3ae6669d10513ac133ac4e443b6222a417b5113d64fde3",
         stream_fingerprint: "7be484d4a414512698825a72d04b5b6197fa648f194a7e531a5d415f02ab498d",
+    },
+    HashSchemaEpoch {
+        version: 82,
+        // PB-DX51 (2026-09-04, `OOS-DX21-4`): `CombatState.had_attackers: bool` --
+        // CR 508.8's declaration-time predicate (see the `- 82:` History line above).
+        // Closure type count UNCHANGED at 132 (`bool` is already a member).
+        // The STREAM fingerprint moves too, and the REASON is worth stating because
+        // the obvious one is wrong: it is NOT this batch's new field reaching the
+        // hasher. `canonical_fixture()` never populates `GameState::combat` -- a
+        // coverage cap logged in that function's own doc -- so `HashInto for
+        // CombatState` is never called by this fixture and `had_attackers` contributes
+        // ZERO bytes to it. Measured, not inferred: with the field added and hashed but
+        // BEFORE the version bump, `stream_fingerprint_is_pinned` was GREEN and only
+        // `declaration_fingerprint_is_pinned` was red. The stream moves solely because
+        // `HASH_SCHEMA_VERSION` is the stream's own first byte (the v40 mechanism).
+        decl_fingerprint: "e75de787f185162a028dde3079ef24ecd910e8ef2bc390a64b96ee012a407683",
+        stream_fingerprint: "e69f9c451ef183829d523f8ecc351125d00e03acca7b4bf1bbe2e5c48ce5dcf6",
     },
 ];
 
@@ -4889,6 +4942,9 @@ impl HashInto for CombatState {
         self.first_strike_participants.hash_into(hasher);
         // CR 508.1 (PB-DX21): the once-per-combat declaration marker.
         self.attackers_declared.hash_into(hasher);
+        // CR 508.8 (PB-DX51): "were any creatures declared as attackers OR put onto the
+        // battlefield attacking" -- the monotone marker `advance_step`'s skip reads.
+        self.had_attackers.hash_into(hasher);
         self.defenders_declared.hash_into(hasher);
         // CR 702.39a / CR 509.1c: forced_blocks -- provoke blocking requirements
         self.forced_blocks.hash_into(hasher);
