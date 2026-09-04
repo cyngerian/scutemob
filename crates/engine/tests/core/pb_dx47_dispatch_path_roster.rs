@@ -749,11 +749,21 @@ fn r5_lowering_carries_declared_targets() {
 /// gives up". It is not. `primitives::pb_dx47_modal_trigger_mode_zero::t1`
 /// resolves a modal `WhenDealsCombatDamageToPlayer` trigger end to end and
 /// measures **+1 life — mode 0, once**; restoring the deleted scan takes it to
-/// **+2**, i.e. mode 0 TWICE. Nothing modal was ever offered on either path:
-/// `flush_sorted` hard-codes `modes_chosen = vec![0]` in both arms of its modal
-/// branch for any `StackObjectKind::TriggeredAbility`, and `resolution.rs`'s
-/// modal replacement sits outside the `is_carddef_etb` branch. `modal_trigger`
-/// (CR 603.3c) is a standing `AutoChosen` row in `core::decision_site_walk`.
+/// **+2**, i.e. mode 0 TWICE. Nothing modal was ever offered on either path: at
+/// PB-DX47 time `flush_sorted` hard-coded `modes_chosen = vec![0]` in both arms
+/// of its modal branch for any `StackObjectKind::TriggeredAbility`, and
+/// `resolution.rs`'s modal replacement sits outside the `is_carddef_etb` branch.
+/// `modal_trigger` (CR 603.3c) is a standing `AutoChosen` row in
+/// `core::decision_site_walk`.
+///
+/// PB-DX35 (`OOS-DX4-2`) replaced the hard-code with `trigger_modal_plan`, a
+/// CR 700.2b-legal first-mode pick — but `glissa_sunslayer` is unaffected by
+/// that change: its modal ability sits at registry index 2 (behind
+/// `Keyword(FirstStrike)`/`Keyword(Deathtouch)`) while its
+/// `WhenDealsCombatDamageToPlayer` trigger's RUNTIME `ability_index` is 0, so
+/// `trigger_modal_plan`'s registry-based `ModeSelection` lookup still misses it
+/// (`core::pb_dx35_modal_trigger_roster::r2`, `OOS-DX35-1`) and this row's
+/// measurement stands unchanged.
 ///
 /// `glissa_sunslayer` is also `Completeness::partial`, so `validate_deck`
 /// (Architecture Invariant 9) refuses it and no real game can contain it.

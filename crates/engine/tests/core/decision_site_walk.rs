@@ -423,7 +423,7 @@ pub static ROWS: &[Row] = &[
     Row {
         id: "modal_trigger",
         cr: "603.3c",
-        site: "abilities.rs -- modes_chosen = vec![0] in both the min_modes==0 and !=0 arms",
+        site: "abilities.rs::trigger_modal_plan (PB-DX35) -- picks the first CR 700.2b-legal mode by declared order, not always mode 0",
         class: DecisionClass::AutoChosen {
             why_not_flagged_is_wrong:
                 "a modal TRIGGERED ability's mode is chosen by the engine, not announced by the controller (contrast PB-DP3, which fixed modal SPELLS/activated abilities)",
