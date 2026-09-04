@@ -10,7 +10,16 @@
 //! double-push defect would still satisfy). `t2` is the dedicated exactly-once
 //! probe on a COMBAT event, since the combat arm is the one that fires BOTH the
 //! `…CombatDamage…` and `…AnyDamage…` `TriggerEvent`s per §0.5(c) — a
-//! single-dispatch bug there is the one a `>= 1` count hides.
+//! single-dispatch bug there is the one a `>= 1` count hides. **`t2` drives
+//! `attack_unblocked`, a SINGLE-ASSIGNMENT fixture (one attacker, one
+//! defending player, no blockers) — it proves the two-`TriggerEvent`-family
+//! dispatch is exactly-once, and it proves NOTHING about a source with MORE
+//! THAN ONE assignment in the same event (multi-block, trample), because a
+//! single-assignment fixture cannot distinguish "dispatch once per event" from
+//! "dispatch once per assignment" — PB-DX47's own lesson, that a differential
+//! probe proves agreement on the branches it drives and nothing about the
+//! branches it does not. `t8`/`t9` below are the multi-assignment probes
+//! (`/review` HIGH 1) that `t2` cannot be.
 //!
 //! Two Aura defs are used: the real, deck-legal `Complete` `Sigil of Sleep`
 //! (`combat_only: false`, `recipient: Player`) for the corpus-integration probes
@@ -473,6 +482,20 @@ fn t1_sigil_of_sleep_fires_exactly_once_on_noncombat_damage() {
 /// This is the dedicated "exactly once" probe on the arm that fires BOTH the
 /// `…CombatDamage…` and `…AnyDamage…` `TriggerEvent`s (execution notes §0.5(c)):
 /// a `>= 1` assertion here would still pass on PB-DX47's double-push shape.
+///
+/// **What this probe does and does not cover** (`/review` HIGH 1): it drives
+/// `attack_unblocked`, which produces exactly ONE `CombatDamageAssignment` for
+/// the whole event (one attacker, one target player, no blockers). It proves
+/// the two-`TriggerEvent`-family dispatch inside ONE call to
+/// `queue_damage_source_triggers` is exactly-once. It proves NOTHING about
+/// whether the CALLER dispatches once PER ASSIGNMENT rather than once per
+/// SOURCE — a single-assignment fixture is structurally incapable of
+/// distinguishing those two shapes, because they only diverge when a source
+/// has more than one assignment (multi-block, trample). That is a real defect
+/// this exact probe passed against for the whole implement phase (a bare
+/// per-assignment dispatch loop, `dispatch_signal_count` still 1 here because
+/// there is only ever one assignment to loop over). `t8`/`t9` below are the
+/// multi-assignment probes.
 #[test]
 fn t2_sigil_of_sleep_fires_exactly_once_on_combat_damage() {
     let p1 = p(1);
@@ -900,5 +923,247 @@ fn t7_any_and_player_recipient_are_equivalent_on_enchanted_creature_variant() {
         ability_triggered_count(&ev2, player_aura_id),
         1,
         "recipient: Player must fire identically on the same scenario"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// t8 — multi-block: self family fires ONCE with the SUMMED amount (`/review` HIGH 1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// CR 510.2 / CR 603.2c (`/review` HIGH 1) — a source with MORE THAN ONE
+/// combat damage assignment in the same event must dispatch the self family
+/// (`TriggerEvent::SelfDealsDamage`) EXACTLY ONCE for the whole event, with
+/// `amount` = the SUM of every assignment — not once PER ASSIGNMENT, each
+/// carrying only that one assignment's own amount. A 5/5 (no trample) blocked
+/// by two 2/2s assigns 2 (lethal) to the first blocker in order, then the
+/// remaining 3 to the second (CR 510.1c) — TWO `CombatDamageAssignment`s in
+/// ONE `GameEvent::CombatDamageDealt`, both targeting a CREATURE (neither a
+/// Player), so `damaged_player` is `None` throughout: this fixture is
+/// deliberately shaped to isolate the self-family regression from t9's
+/// aura/trample shape, which also exercises a Player-target assignment and the
+/// attachment family.
+///
+/// Pre-fix, this dispatched `SelfDealsDamage` twice (once per assignment) with
+/// `amount` 2 then 3 — `dispatch_signal_count` reads 2 (should be 1) and life
+/// is gained as two separate +2/+3 resolutions rather than one +5 resolution
+/// (proven live on `exalted_angel`, the flip this batch's coverage prediction
+/// named). Reverting to that per-assignment dispatch loop is proven to redden
+/// this exact test (see `memory/primitives/pb-DX36-execution-notes.md`'s
+/// `/review` fix-cycle notes for the executed revert).
+#[test]
+fn t8_multi_blocker_self_family_fires_once_with_the_summed_amount() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let mut attacker_def = synthetic_self_damage_creature(
+        "MultiBlock Attacker",
+        DamageRecipient::Any,
+        Effect::GainLife {
+            player: PlayerTarget::Controller,
+            amount: EffectAmount::DamageDealt,
+        },
+    );
+    attacker_def.power = Some(5);
+    attacker_def.toughness = Some(5);
+
+    let attacker = on_battlefield(
+        p1,
+        "MultiBlock Attacker",
+        "pb-dx36-multiblock",
+        &attacker_def,
+    );
+
+    let mut state = base_state(attacker, vec![], vec![attacker_def.clone()]);
+    state.turn_mut().step = Step::DeclareAttackers;
+    state.turn_mut().priority_holder = Some(p1);
+
+    let attacker_id = find_object(&state, "MultiBlock Attacker");
+    let bear1_id = find_object(&state, "Bear");
+    let bear2_id = find_object(&state, "Bear2");
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, mtg_engine::AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .expect("DeclareAttackers failed");
+    let (state, _) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn().step,
+        Step::DeclareBlockers,
+        "must reach DeclareBlockers"
+    );
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(bear1_id, attacker_id), (bear2_id, attacker_id)],
+        },
+    )
+    .expect("DeclareBlockers failed");
+    // p1 orders blockers: Bear first, then Bear2 (mirrors
+    // `combat::test_702_19b_trample_multiple_blockers_excess_to_player`'s idiom).
+    let (state, _) = process_command(
+        state,
+        Command::OrderBlockers {
+            player: p1,
+            attacker: attacker_id,
+            order: vec![bear1_id, bear2_id],
+        },
+    )
+    .expect("OrderBlockers failed");
+
+    let before = life_of(&state, p1);
+    let (state, damage_events) = pass_all(state, &[p1, p2]);
+
+    assert_eq!(
+        dispatch_signal_count(&damage_events, attacker_id),
+        1,
+        "the self family must fire EXACTLY ONCE for this event, not once per \
+         assignment (2 assignments here: 2 to Bear, 3 to Bear2) -- the shape \
+         `/review` HIGH 1 reproduced live on exalted_angel"
+    );
+    // The trigger is untargeted (no CR 603.3d suspension), so it lands
+    // straight on the stack via `AbilityTriggered` -- it still needs a
+    // further priority round to RESOLVE (mirrors `t3`'s idiom).
+    let (state, _) = pass_until_stack_empty(state, &[p1, p2], 8);
+    assert_eq!(
+        life_of(&state, p1),
+        before + 5,
+        "life gained must equal the EVENT TOTAL (2 + 3 = 5), not one \
+         assignment's amount resolved twice (2 then 3, same eventual total but \
+         as TWO separate trigger resolutions -- observably different for any \
+         card whose effect is not simply additive, e.g. \"exile the top card\" \
+         would exile 2 cards instead of 1)"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// t9 — trample: self family fires ONCE with the summed amount; aura unaffected
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// CR 510.2 / CR 603.2c / CR 702.19b (`/review` HIGH 1) — a 6/6 TRAMPLER
+/// carrying an attached Aura (`Sigil of Sleep`, real corpus `Complete` def) is
+/// blocked by ONE 2/2: assigns 2 (lethal) to the blocker and 4 (trample) to
+/// the defending player — again TWO assignments in one event, one
+/// Creature-target and one Player-target. The self family must fire ONCE with
+/// `amount` 6 (2 + 4, the event total, regardless of recipient — CR 603.2's
+/// "any damage"). The ATTACHMENT (Aura) family must stay at count == 1 with
+/// its pre-existing amount semantics UNCHANGED — the Player-target
+/// assignment's OWN amount (4), never the summed total (6) — because that half
+/// was ALREADY correct before this fix (only the Player-target assignment
+/// ever populated `damaged_player`, so only it ever reached the attachment
+/// dispatch). This probe pins BOTH halves together so a future change to the
+/// self-family fix cannot silently widen the attachment family's amount too.
+#[test]
+fn t9_trample_self_family_fires_once_aura_family_unaffected() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let sigil = corpus_def("Sigil of Sleep");
+
+    let mut trampler_def = synthetic_self_damage_creature(
+        "Trample Attacker",
+        DamageRecipient::Any,
+        Effect::GainLife {
+            player: PlayerTarget::Controller,
+            amount: EffectAmount::DamageDealt,
+        },
+    );
+    trampler_def.power = Some(6);
+    trampler_def.toughness = Some(6);
+
+    let attacker = on_battlefield(p1, "Trample Attacker", "pb-dx36-trample", &trampler_def)
+        .with_keyword(mtg_engine::KeywordAbility::Trample);
+    let sigil_spec = on_battlefield(p1, "Sigil of Sleep", "sigil-of-sleep-t9", &sigil);
+
+    let mut state = base_state(
+        attacker,
+        vec![sigil_spec],
+        vec![trampler_def.clone(), sigil.clone()],
+    );
+    attach(&mut state, "Sigil of Sleep", "Trample Attacker");
+    state.turn_mut().step = Step::DeclareAttackers;
+    state.turn_mut().priority_holder = Some(p1);
+
+    let attacker_id = find_object(&state, "Trample Attacker");
+    let sigil_id = find_object(&state, "Sigil of Sleep");
+    let bear1_id = find_object(&state, "Bear");
+    // Only Bear blocks -- Bear2 stays an unused-but-legal candidate for
+    // Sigil of Sleep's own target choice (both Bears are controlled by the
+    // damaged player p2). A second BLOCKER would add a third assignment and
+    // conflate this probe with t8's multi-blocker shape.
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, mtg_engine::AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .expect("DeclareAttackers failed");
+    let (state, _) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn().step,
+        Step::DeclareBlockers,
+        "must reach DeclareBlockers"
+    );
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(bear1_id, attacker_id)],
+        },
+    )
+    .expect("DeclareBlockers failed");
+
+    let before = life_of(&state, p1);
+    let (state, damage_events) = pass_all(state, &[p1, p2]);
+
+    assert_eq!(
+        dispatch_signal_count(&damage_events, attacker_id),
+        1,
+        "the self family must fire EXACTLY ONCE for this event (2 to the \
+         blocker, 4 trample to p2 -- two assignments, one call)"
+    );
+    assert_eq!(
+        dispatch_signal_count(&damage_events, sigil_id),
+        1,
+        "the Aura (attachment) family must stay at EXACTLY ONE -- it was \
+         already correct before this fix and must not be perturbed by the \
+         self-family grouping"
+    );
+    // Bear (the blocker) took exactly LETHAL damage (2, its full toughness) --
+    // CR 704.5g destroys it as an SBA before the trigger's targets are
+    // evaluated, so Sigil of Sleep's target slot has only ONE legal candidate
+    // left (Bear2) and is FORCED rather than suspended (`t1`/`t2` cover the
+    // genuine-choice/suspension path on a noncombat and an unblocked-combat
+    // event respectively; this probe's subject is the count/amount fix, not
+    // the suspension mechanic, so both triggers -- the untargeted self family
+    // and the now-forced Aura family -- land straight on the stack and
+    // resolve on their own).
+    let (state, _) = pass_until_stack_empty(state, &[p1, p2], 8);
+    assert_eq!(
+        life_of(&state, p1),
+        before + 6,
+        "life gained must equal the EVENT TOTAL (2 + 4 = 6, the trampler's \
+         full power), not the player-target assignment's amount alone (4)"
+    );
+    assert_eq!(
+        hand_count(&state, p2),
+        1,
+        "Sigil of Sleep's effect must still return the surviving Bear (Bear2) \
+         to p2's hand"
     );
 }

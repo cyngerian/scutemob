@@ -5886,21 +5886,44 @@ pub fn check_triggers_with_timing(
                         let _ = pre_len; // used for debugging if needed
                     }
                 }
-                // CR 510.3a / CR 603.2 (PB-DX36, `OOS-CARDS2-6`): SelfDealsDamage family +
+                // CR 510.3a / CR 603.2 / CR 603.2c (PB-DX36 `/review` HIGH 1,
+                // `OOS-CARDS2-6`): SelfDealsDamage family +
                 // EquippedCreatureDealsCombatDamageToPlayer + the enchanted-creature
                 // combat/any family — fires on the damage source itself and on its
-                // Equipment/Aura attachments. Extracted into `queue_damage_source_triggers`
-                // (`is_combat: true`) so the identical arithmetic serves the noncombat
-                // `GameEvent::DamageDealt` arm below without duplication.
+                // Equipment/Aura attachments. CR 510.2 makes every assignment in one
+                // `CombatDamageDealt` event SIMULTANEOUS, and CR 603.2c makes an
+                // ability trigger only ONCE per event — so a source with more than one
+                // assignment (multi-block, trample) must be GROUPED before dispatch,
+                // never dispatched once per assignment (that shape fired the SELF
+                // family multiple times for one event, once per assignment, each
+                // carrying only that assignment's own amount rather than the event
+                // total — verified live on `exalted_angel`, `pb_dx36_damage_trigger_
+                // dispatch.rs` t8/t9). Grouped by SOURCE, preserving the ORDER of
+                // first appearance in `assignments` (never sorted by `ObjectId`,
+                // which would reorder triggers relative to a real game). Extracted
+                // into `queue_damage_source_triggers` (`is_combat: true`) so the
+                // identical arithmetic serves the noncombat `GameEvent::DamageDealt`
+                // arm below without duplication.
+                let mut grouped_by_source: Vec<(ObjectId, Vec<(CombatDamageTarget, u32)>)> =
+                    Vec::new();
                 for assignment in assignments {
-                    queue_damage_source_triggers(
-                        state,
-                        &mut triggers,
-                        assignment.source,
-                        &assignment.target,
-                        assignment.amount,
-                        true,
-                    );
+                    match grouped_by_source
+                        .iter_mut()
+                        .find(|(src, _)| *src == assignment.source)
+                    {
+                        Some((_, targets)) => {
+                            targets.push((assignment.target.clone(), assignment.amount));
+                        }
+                        None => {
+                            grouped_by_source.push((
+                                assignment.source,
+                                vec![(assignment.target.clone(), assignment.amount)],
+                            ));
+                        }
+                    }
+                }
+                for (source, targets) in &grouped_by_source {
+                    queue_damage_source_triggers(state, &mut triggers, *source, targets, true);
                 }
                 // CR 510.3a / 603.2c: EquippedCreatureDealsCombatDamage (any recipient).
                 // Fires once per equipped SOURCE creature per combat-damage step, regardless of
@@ -6275,8 +6298,17 @@ pub fn check_triggers_with_timing(
                 // called here with `is_combat: false` so a NONcombat damage event
                 // fires only the "any damage" family (never the "combat damage"
                 // family) — see `queue_damage_source_triggers`'s doc for why the
-                // two arms are disjoint by construction.
-                queue_damage_source_triggers(state, &mut triggers, *source, target, *amount, false);
+                // two arms are disjoint by construction. A single `(target,
+                // amount)` pair, since one `DamageDealt` event is one assignment
+                // (never grouped) — the multi-assignment grouping only applies to
+                // `CombatDamageDealt`.
+                queue_damage_source_triggers(
+                    state,
+                    &mut triggers,
+                    *source,
+                    &[(target.clone(), *amount)],
+                    false,
+                );
             }
             // CR 702.140d: "Whenever this creature mutates" — fires on the merged permanent.
             // The merged permanent is the same object (same ObjectId) as the target permanent
@@ -6967,6 +6999,34 @@ fn collect_permanent_becomes_target_triggers(
 /// trigger caused by one damage event — the SelfDealsDamage family on `source`
 /// itself, and the Equipment/Aura families over `source`'s attachments.
 ///
+/// `targets` is every `(recipient, amount)` pair `source` dealt damage to in
+/// THIS event — one pair for a `GameEvent::DamageDealt` call, and every
+/// assignment a source made in one `GameEvent::CombatDamageDealt` event
+/// (multi-block, trample) for the combat arm's grouped-by-source call. CR
+/// 510.2 makes every entry in that list SIMULTANEOUS and CR 603.2c makes an
+/// ability trigger only ONCE per event, so the SELF family
+/// (`SelfDealsDamage`/`…ToPlayer`/`…ToOpponent`) is dispatched exactly ONCE per
+/// call, with `amount` = the SUM of every entry — CR 608.2h/113.7a's "that
+/// much" for the whole event, not one assignment (`/review` HIGH 1; proven live
+/// on `exalted_angel` — a multi-block or trample event used to dispatch this
+/// family once PER ASSIGNMENT, each carrying only that assignment's own amount,
+/// undercounting BOTH the trigger count and the life gained).
+///
+/// `damaged_player` is the Player recipient if `source` has one in this event,
+/// else `None` — CR 510.2/CR 509.2 admit at most one Player-target assignment
+/// per source per combat-damage step (one attacker attacks one player/
+/// planeswalker), so this is never ambiguous. The SELF family fires regardless
+/// of recipient (CR 603.2's "any damage") and does not gate on it.
+///
+/// The Equipment/Aura ATTACHMENT family stays keyed on that single
+/// Player-target entry's OWN amount (`player_amount` below), not the summed
+/// total — it must NOT change amount semantics: a trampler dealing 2 to a
+/// blocker and 4 to the defending player reports 4 to its Equipment/Aura, not
+/// 6. This is why the attachment family was already correct at count == 1
+/// before this fix (only the Player-target assignment ever populated
+/// `damaged_player`, so only it ever reached the attachment loop) and only the
+/// SELF family's count/amount were wrong.
+///
 /// `is_combat` is a property of the EVENT, not of any ability:
 /// `GameEvent::CombatDamageDealt` passes `true`, `GameEvent::DamageDealt` passes
 /// `false`. Combat damage is emitted only as `CombatDamageDealt` (verified:
@@ -6974,9 +7034,11 @@ fn collect_permanent_becomes_target_triggers(
 /// and it emits no `DamageDealt`), so the two call sites are **disjoint by
 /// construction** and a given ability — which lowers to exactly one
 /// `trigger_on` (see `build_face_triggered_abilities` in `testing/replay_harness.rs`)
-/// — fires exactly once per damage event. This is the property PB-DX47's
-/// double-push defect violated (`OOS-DX24-4`), and it is why every behavioural
-/// probe for this primitive asserts a trigger COUNT rather than `>= 1`.
+/// — fires exactly once per damage event, once per source (this function's
+/// per-source-grouped call), which is the two-part property this function now
+/// guarantees together. This is the property PB-DX47's double-push defect
+/// violated (`OOS-DX24-4`), and it is why every behavioural probe for this
+/// primitive asserts a trigger COUNT rather than `>= 1`.
 ///
 /// On a combat-damage event (`is_combat: true`) this fires BOTH the
 /// `…CombatDamage…` events AND the `…AnyDamage…` events (combat damage is also
@@ -6986,12 +7048,18 @@ fn queue_damage_source_triggers(
     state: &GameState,
     triggers: &mut Vec<PendingTrigger>,
     source: ObjectId,
-    target: &CombatDamageTarget,
-    amount: u32,
+    targets: &[(CombatDamageTarget, u32)],
     is_combat: bool,
 ) {
-    // CR 603.2g: damage with amount == 0 (fully prevented) does not trigger.
-    if amount == 0 {
+    // CR 603.2g: damage with amount == 0 (fully prevented) does not trigger —
+    // per assignment (filtered out of `nonzero` below, so a 0-amount entry
+    // contributes nothing to the sum and cannot supply `damaged_player`) AND in
+    // aggregate (a source whose every entry was fully prevented must not fire
+    // at all, checked on `total_amount` before any dispatch).
+    let nonzero: Vec<&(CombatDamageTarget, u32)> =
+        targets.iter().filter(|(_, amt)| *amt > 0).collect();
+    let total_amount: u32 = nonzero.iter().map(|(_, amt)| *amt).sum();
+    if total_amount == 0 {
         return;
     }
     // CR 603.10: combat/noncombat "deals damage" triggers are NOT look-back —
@@ -7006,10 +7074,19 @@ fn queue_damage_source_triggers(
         return;
     }
     let source_controller = source_obj.controller;
-    let damaged_player = match target {
+    // CR 510.2/CR 509.2: at most one Player-target entry per source per event —
+    // see this function's doc.
+    let damaged_player = nonzero.iter().find_map(|(t, _)| match t {
         CombatDamageTarget::Player(pid) => Some(*pid),
         _ => None,
-    };
+    });
+    let player_amount = nonzero
+        .iter()
+        .find_map(|(t, amt)| match t {
+            CombatDamageTarget::Player(_) => Some(*amt),
+            _ => None,
+        })
+        .unwrap_or(0);
     // Set the common per-call fields on every trigger pushed since `pre_len`.
     fn populate(
         triggers: &mut [PendingTrigger],
@@ -7031,6 +7108,9 @@ fn queue_damage_source_triggers(
         }
     }
     // ── Self family: TriggerCondition::WhenDealsDamage lowering ──────────────
+    // CR 603.2c / CR 510.2: dispatched ONCE per call (i.e. once per source per
+    // event), amount = `total_amount` — the sum of every entry `source` dealt
+    // in this event.
     {
         let pre_len = triggers.len();
         collect_triggers_for_event(
@@ -7040,7 +7120,14 @@ fn queue_damage_source_triggers(
             Some(source),
             None,
         );
-        populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+        populate(
+            triggers,
+            pre_len,
+            source,
+            total_amount,
+            is_combat,
+            damaged_player,
+        );
     }
     if let Some(pid) = damaged_player {
         let pre_len = triggers.len();
@@ -7051,7 +7138,14 @@ fn queue_damage_source_triggers(
             Some(source),
             None,
         );
-        populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+        populate(
+            triggers,
+            pre_len,
+            source,
+            total_amount,
+            is_combat,
+            damaged_player,
+        );
         if pid != source_controller {
             let pre_len = triggers.len();
             collect_triggers_for_event(
@@ -7061,10 +7155,20 @@ fn queue_damage_source_triggers(
                 Some(source),
                 None,
             );
-            populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+            populate(
+                triggers,
+                pre_len,
+                source,
+                total_amount,
+                is_combat,
+                damaged_player,
+            );
         }
     }
     // ── Attachment family: Equipment + Aura ───────────────────────────────────
+    // Keyed on `player_amount` (the single Player-target entry's own amount),
+    // NOT `total_amount` — see this function's doc. Amount semantics unchanged
+    // from before this fix.
     let attachments: Vec<ObjectId> = source_obj.attachments.iter().copied().collect();
     for attachment_id in attachments {
         // CR 510.3a: "Whenever equipped creature deals combat damage to a
@@ -7080,7 +7184,14 @@ fn queue_damage_source_triggers(
                     Some(attachment_id),
                     None,
                 );
-                populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+                populate(
+                    triggers,
+                    pre_len,
+                    source,
+                    player_amount,
+                    is_combat,
+                    damaged_player,
+                );
             }
         }
         let Some(pid) = damaged_player else {
@@ -7096,7 +7207,14 @@ fn queue_damage_source_triggers(
             Some(attachment_id),
             None,
         );
-        populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+        populate(
+            triggers,
+            pre_len,
+            source,
+            player_amount,
+            is_combat,
+            damaged_player,
+        );
         if is_combat {
             let pre_len = triggers.len();
             collect_triggers_for_event(
@@ -7106,7 +7224,14 @@ fn queue_damage_source_triggers(
                 Some(attachment_id),
                 None,
             );
-            populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+            populate(
+                triggers,
+                pre_len,
+                source,
+                player_amount,
+                is_combat,
+                damaged_player,
+            );
         }
         // The "…ToOpponent" siblings are scoped to an opponent of THAT
         // ATTACHMENT'S controller (not the damage source's controller) — a
@@ -7124,7 +7249,14 @@ fn queue_damage_source_triggers(
                     Some(attachment_id),
                     None,
                 );
-                populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+                populate(
+                    triggers,
+                    pre_len,
+                    source,
+                    player_amount,
+                    is_combat,
+                    damaged_player,
+                );
                 if is_combat {
                     let pre_len = triggers.len();
                     collect_triggers_for_event(
@@ -7134,7 +7266,14 @@ fn queue_damage_source_triggers(
                         Some(attachment_id),
                         None,
                     );
-                    populate(triggers, pre_len, source, amount, is_combat, damaged_player);
+                    populate(
+                        triggers,
+                        pre_len,
+                        source,
+                        player_amount,
+                        is_combat,
+                        damaged_player,
+                    );
                 }
             }
         }

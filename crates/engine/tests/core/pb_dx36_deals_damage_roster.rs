@@ -59,6 +59,39 @@
 //! sole dispatcher, and `testing::replay_harness::build_face_triggered_abilities`,
 //! the sole `TriggerCondition` -> `TriggerEvent` lowering).
 //!
+//! **`/review` HIGH 2 defeated this gate TWICE, and the first draft's own
+//! narrative — "keyed on the mechanism, defeated once, now safe" — was itself
+//! the overclaim: keying on the WALK mechanism says nothing about the FILE SET
+//! a walk is searched over, or the SPELLING a variant name must take to be
+//! found, and both of those are separate axes with their own bypasses.**
+//!
+//! * **Bypass A (file set).** The scan was `std::fs::read_dir(crates/engine/
+//!   src/rules)` — one directory, non-recursive. A second dispatcher planted in
+//!   `crates/engine/src/effects/mod.rs` (the file `GameEvent::DamageDealt` is
+//!   emitted from at four of its five sites — the single most likely place a
+//!   future author writes one) was never scanned at all; every gate in this
+//!   file stayed green. Fixed by walking the shared, workspace-wide
+//!   `workspace_src_files_checked()` (PB-DX49) instead of a hand-rolled
+//!   `read_dir`.
+//! * **Bypass B (name spelling).** The name check required the literal
+//!   substring `TriggerEvent::{name}`. A `use crate::state::game_object::
+//!   TriggerEvent::{SelfDealsDamage as SDD, ..};` beside a walk marker spells
+//!   the bare name exactly ONCE, at the import, and the walk body that follows
+//!   compares against the alias (`SDD`), never the qualified path — the
+//!   literal `TriggerEvent::SelfDealsDamage` (unbroken by the `{`) never
+//!   appears anywhere in the file. Fixed by matching the bare name at a WORD
+//!   BOUNDARY (`word_boundary_occurs`) instead of behind the `TriggerEvent::`
+//!   prefix — but that fix alone was STILL insufficient, because the window
+//!   this gate scans was forward-only from each marker, and an import's bare
+//!   name sits textually BEFORE the marker it gives meaning to, never after.
+//!   The window had to become BIDIRECTIONAL (`walk_adjacent_event_names`'s own
+//!   doc) before the bare-word fix actually closed the bypass.
+//!
+//! Both bypasses were re-executed against the FINAL gate (workspace walk +
+//! bidirectional bare-word matching) and reproduce RED; the workspace was
+//! restored (`git diff --stat` empty) after each. See
+//! `memory/primitives/pb-DX36-execution-notes.md` for the fix-cycle record.
+//!
 //! # R4 — both new lowering `match`es are exhaustive with no wildcard arm
 //!
 //! Plan step 4: `match (combat_only, recipient)` and `match recipient` must each
@@ -72,6 +105,14 @@ use mtg_engine::cards::card_definition::{AbilityDefinition, TriggerCondition};
 use mtg_engine::{all_cards, CardDefinition};
 
 use crate::decision_site_walk::is_effectively_complete;
+// `workspace_src_files_checked` is SHARED, not mirrored -- PB-DX50's own precedent
+// (`pb_dx50_mutate_site_roster.rs` / `pb_dx50_effect_choice_gate_sites.rs` both import it
+// from here rather than re-deriving the walk). This is deliberately NOT the same
+// convention as `all_oracle_text`/`declares_when_deals_damage` above: a FILE WALK is
+// infrastructure this batch's thesis is not about, where the ORACLE-TEXT/CONDITION
+// derivations above ARE the subject and are duplicated on purpose so this file's own
+// census cannot silently inherit a second file's bug.
+use crate::pb_dx49_saga_blanking_roster::workspace_src_files_checked;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared derivations
@@ -429,9 +470,60 @@ fn strip_line_comments(src: &str) -> String {
         .join("\n")
 }
 
+/// Whether `needle` occurs in `haystack` as a bare, WORD-BOUNDARY token — the
+/// character immediately before and immediately after each occurrence (if any)
+/// is not an identifier byte (`[A-Za-z0-9_]`).
+///
+/// **This is `/review` HIGH 2's bypass B fix.** The prior check required the
+/// LITERAL substring `TriggerEvent::{name}`, so `use crate::TriggerEvent::
+/// {SelfDealsDamage as SDD, ..};` followed by bare `SDD` at a second dispatcher
+/// never spelled the qualified path anywhere and the gate stayed green. Word
+/// boundaries are enough to disambiguate the one real overlap in
+/// [`NEW_TRIGGER_EVENTS`] -- `SelfDealsDamage` is a strict PREFIX of
+/// `SelfDealsDamageToPlayer`/`SelfDealsDamageToOpponent` -- because the byte
+/// immediately after a `SelfDealsDamage` match embedded in either longer name
+/// is `T` (an identifier byte), which fails the end-boundary check for the
+/// SHORT needle at that position.
+fn word_boundary_occurs(haystack: &str, needle: &str) -> bool {
+    fn is_ident_byte(b: u8) -> bool {
+        b.is_ascii_alphanumeric() || b == b'_'
+    }
+    let bytes = haystack.as_bytes();
+    let mut start = 0usize;
+    while let Some(rel) = haystack[start..].find(needle) {
+        let at = start + rel;
+        let start_ok = at == 0 || !is_ident_byte(bytes[at - 1]);
+        let end = at + needle.len();
+        let end_ok = end >= bytes.len() || !is_ident_byte(bytes[end]);
+        if start_ok && end_ok {
+            return true;
+        }
+        start = at + 1;
+    }
+    false
+}
+
 /// Every `TriggerEvent::X` name (X in [`NEW_TRIGGER_EVENTS`]) within
-/// [`SCAN_WINDOW`] bytes after a [`WALK_MARKERS`] hit, in `src`, over-collecting
-/// deliberately (over-collection can only make R3 REDDER).
+/// [`SCAN_WINDOW`] bytes of a [`WALK_MARKERS`] hit -- BOTH DIRECTIONS -- in
+/// `src`, over-collecting deliberately (over-collection can only make R3
+/// REDDER).
+///
+/// Matches the BARE name at a word boundary (`word_boundary_occurs`), not the
+/// qualified `TriggerEvent::X` path -- see that function's doc for why a
+/// qualified-path check is bypassable by a `use` alias.
+///
+/// **The window must look BACKWARD as well as forward.** A `use` alias
+/// (`use ...::TriggerEvent::{SelfDealsDamage as SDD, ..};`) spells the bare
+/// name ONCE, at the import, which is textually BEFORE the walk marker its
+/// aliased use sits beside (`for ability in abilities.iter() { if
+/// ability.trigger_on == SDD { .. } }` never spells the name again). A
+/// forward-only window can never see backward past the marker to the import
+/// that gave the alias its meaning, so `SDD`/`SDDP`-shaped bypasses reproduced
+/// GREEN under a forward-only window even after word-boundary matching closed
+/// the qualified-path half of the same defect. Re-verified over the whole
+/// workspace at HEAD with the bidirectional window before shipping it: the
+/// two allowed dispatcher/lowering files are the ONLY hits (`t_census_report`
+/// prints the live figure rather than trusting this claim).
 fn walk_adjacent_event_names(src: &str) -> BTreeSet<String> {
     let stripped = strip_line_comments(src);
     let mut out = BTreeSet::new();
@@ -439,13 +531,18 @@ fn walk_adjacent_event_names(src: &str) -> BTreeSet<String> {
         let mut from = 0usize;
         while let Some(i) = stripped[from..].find(marker) {
             let at = from + i;
-            let mut end = (at + SCAN_WINDOW).min(stripped.len());
+            let lo = at.saturating_sub(SCAN_WINDOW);
+            let mut start = lo.min(stripped.len());
+            while start > 0 && !stripped.is_char_boundary(start) {
+                start -= 1;
+            }
+            let mut end = (at + marker.len() + SCAN_WINDOW).min(stripped.len());
             while end > at && !stripped.is_char_boundary(end) {
                 end -= 1;
             }
-            let window = &stripped[at..end];
+            let window = &stripped[start..end];
             for name in NEW_TRIGGER_EVENTS {
-                if window.contains(&format!("TriggerEvent::{name}")) {
+                if word_boundary_occurs(window, name) {
                     out.insert((*name).to_string());
                 }
             }
@@ -514,11 +611,71 @@ fn engine_src_path(rel: &str) -> String {
 /// noise only makes this gate REDDER, never greener), replace the two narrow
 /// ones. Re-executed against the SAME planted bypass: now RED. Restored;
 /// `git diff --stat crates/engine/src/rules/mana.rs` is empty.
+///
+/// # This gate's SECOND draft was defeated TWICE by an executed `/review`,
+/// # on two axes the first fix never touched
+///
+/// The first draft's re-keying above closed the WALK-mechanism axis (a second
+/// dispatcher written with a different loop-variable name or a different
+/// walked collection). It said nothing about the FILE SET this gate is
+/// searched over, or the SPELLING a `TriggerEvent` name must take to be
+/// found — and both were still bypassable.
+///
+/// **Bypass A.** A second dispatcher was appended to
+/// `crates/engine/src/effects/mod.rs` — walking
+/// `obj.characteristics.triggered_abilities.iter()` and comparing
+/// `ability.trigger_on` against `TriggerEvent::SelfDealsDamage` /
+/// `::SelfDealsDamageToPlayer` by full qualified path, no alias, nothing
+/// hidden. This gate stayed GREEN, because the scan was a single, non-recursive
+/// `read_dir(crates/engine/src/rules)` and `effects/mod.rs` sits in a sibling
+/// directory the scan never visited. Fixed by walking the shared,
+/// non-vacuity-checked `workspace_src_files_checked()` (`pb_dx49_saga_
+/// blanking_roster`, imported rather than re-derived — PB-DX50's own
+/// precedent) instead. Re-executed against the SAME planted bypass: now RED
+/// (`found_outside` names `crates/engine/src/effects/mod.rs` for both
+/// variants). Restored; `git diff --stat crates/engine/src/effects/mod.rs` is
+/// empty.
+///
+/// **Bypass B.** A `use` alias was appended to `crates/engine/src/rules/
+/// mana.rs`: `use crate::state::game_object::TriggerEvent::{SelfDealsDamage as
+/// SDD, SelfDealsDamageToPlayer as SDDP};`, consumed by a walk comparing
+/// `ability.trigger_on == SDD`. The qualified-path check
+/// (`window.contains("TriggerEvent::{name}")`) never matches, because the
+/// import spells it `TriggerEvent::{SelfDealsDamage` (a brace, not `::`,
+/// between the two) and the walk body spells only the alias. Word-boundary
+/// matching on the BARE name (`word_boundary_occurs`) alone was still not
+/// enough: this gate's window looks only FORWARD from a marker, and the bare
+/// name occurs in the `use` line, textually BEFORE the `for ability in
+/// abilities.iter()` marker it sits beside — a forward-only window can never
+/// see backward to it. Fixed by making the window bidirectional
+/// (`walk_adjacent_event_names`'s own doc). Re-executed against the SAME
+/// planted bypass: now RED (`found_outside` names `crates/engine/src/rules/
+/// mana.rs` for both aliased variants). Restored; `git diff --stat
+/// crates/engine/src/rules/mana.rs` is empty.
+///
+/// Both re-executions, and the restore after each, are recorded in
+/// `memory/primitives/pb-DX36-execution-notes.md`'s `/review` fix-cycle
+/// section — this comment states the same facts at the gate itself, which is
+/// the copy a future author reads before touching this function.
 #[test]
 fn r3_no_trigger_event_has_a_second_dispatcher() {
-    let rules_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/rules");
+    // `/review` HIGH 2's bypass A fix: this used to be a single, non-recursive
+    // `read_dir(crates/engine/src/rules)`, so a second dispatcher planted
+    // ANYWHERE outside that one directory -- `crates/engine/src/effects/mod.rs`,
+    // the file that emits `GameEvent::DamageDealt` at four of its five sites and
+    // therefore the single most likely place a future author writes one -- was
+    // invisible to this gate by construction. Walking the SHARED
+    // `workspace_src_files_checked()` (PB-DX49) makes the reach at least as wide
+    // as the subject: `queue_damage_source_triggers` is a `fn`-private helper
+    // reachable only from `rules/abilities.rs` today, but the seven
+    // `TriggerEvent`s themselves are `pub` and reachable from anywhere in the
+    // workspace, which is exactly the shape `crates/card-defs/src` is excluded
+    // for the opposite reason (declarations, not predicates) -- see that
+    // function's own doc.
+    const ABILITIES_LABEL: &str = "crates/engine/src/rules/abilities.rs";
+    const HARNESS_LABEL: &str = "crates/engine/src/testing/replay_harness.rs";
+
     let mut found_outside: Vec<(String, String)> = Vec::new();
-    let mut files_scanned = 0usize;
 
     let abilities_src = engine_src_path("src/rules/abilities.rs");
     let abilities_stripped = strip_line_comments(&abilities_src);
@@ -530,48 +687,44 @@ fn r3_no_trigger_event_has_a_second_dispatcher() {
     let allowed_harness_body =
         extract_function_body(&harness_stripped, "build_face_triggered_abilities");
 
-    for entry in std::fs::read_dir(&rules_dir).expect("crates/engine/src/rules must be readable") {
-        let path = entry.expect("readable dir entry").path();
-        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+    let hits_inside_allowed_abilities = walk_adjacent_event_names(allowed_abilities_body);
+    let hits_inside_allowed_harness = walk_adjacent_event_names(allowed_harness_body);
+
+    let files = workspace_src_files_checked();
+    let files_scanned = files.len();
+    for (label, path) in &files {
+        let Ok(src) = std::fs::read_to_string(path) else {
+            // A file the walk names but cannot read is not evidence of a second
+            // dispatcher -- skipping it can only make this gate LESS sensitive,
+            // never more, and `files_scanned` (below) still counts it, so an
+            // unreadable file cannot silently shrink the walk's own floor.
             continue;
-        }
-        files_scanned += 1;
-        let name = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("?")
-            .to_string();
-        let src = std::fs::read_to_string(&path).expect("rules source must be readable");
-        let stripped = strip_line_comments(&src);
+        };
         let hits = walk_adjacent_event_names(&src);
         if hits.is_empty() {
             continue;
         }
-        if name == "abilities.rs" {
+        if label == ABILITIES_LABEL {
             // Every walk-adjacent hit in this file must fall INSIDE the allowed
             // dispatcher's body. Checked by re-scanning that body alone and
             // requiring the two hit sets to agree.
-            let hits_inside_allowed = walk_adjacent_event_names(allowed_abilities_body);
-            if hits != hits_inside_allowed {
-                for h in hits.difference(&hits_inside_allowed) {
-                    found_outside.push((name.clone(), h.clone()));
+            if hits != hits_inside_allowed_abilities {
+                for h in hits.difference(&hits_inside_allowed_abilities) {
+                    found_outside.push((label.clone(), h.clone()));
                 }
             }
-            let _ = &stripped;
+            continue;
+        }
+        if label == HARNESS_LABEL {
+            if hits != hits_inside_allowed_harness {
+                for h in hits.difference(&hits_inside_allowed_harness) {
+                    found_outside.push((label.clone(), h.clone()));
+                }
+            }
             continue;
         }
         for h in hits {
-            found_outside.push((name.clone(), h));
-        }
-    }
-
-    // The lowering file is not under `src/rules/`, so it is checked separately
-    // with the identical inside-vs-whole-file technique.
-    let harness_hits = walk_adjacent_event_names(&harness_src);
-    let harness_hits_inside_allowed = walk_adjacent_event_names(allowed_harness_body);
-    if harness_hits != harness_hits_inside_allowed {
-        for h in harness_hits.difference(&harness_hits_inside_allowed) {
-            found_outside.push(("testing/replay_harness.rs".to_string(), h.clone()));
+            found_outside.push((label.clone(), h));
         }
     }
 
@@ -581,20 +734,19 @@ fn r3_no_trigger_event_has_a_second_dispatcher() {
          one allowed dispatcher/lowering body: {found_outside:?}"
     );
     assert!(
-        files_scanned >= 10,
-        "R3 non-vacuity: too few rules/ files scanned"
+        files_scanned >= 100,
+        "R3 non-vacuity: too few workspace .rs files scanned ({files_scanned}); \
+         `workspace_src_files_checked` has gone vacuous"
     );
     // The allowed bodies must actually contain every one of the seven names --
     // otherwise this gate would be vacuously satisfied by an empty dispatcher.
-    let abilities_hits = walk_adjacent_event_names(allowed_abilities_body);
-    let harness_hits2 = walk_adjacent_event_names(allowed_harness_body);
     for name in NEW_TRIGGER_EVENTS {
         assert!(
-            abilities_hits.contains(*name),
+            hits_inside_allowed_abilities.contains(*name),
             "R3 non-vacuity: queue_damage_source_triggers never mentions TriggerEvent::{name}"
         );
         assert!(
-            harness_hits2.contains(*name),
+            hits_inside_allowed_harness.contains(*name),
             "R3 non-vacuity: build_face_triggered_abilities never mentions TriggerEvent::{name}"
         );
     }
