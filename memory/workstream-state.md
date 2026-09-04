@@ -17,7 +17,50 @@
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | — | available (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **next dispatch PB-DX52, v4 rank 14 — NOT taken, awaiting user go**)
 
-## Last Handoff (worker, 2026-09-04) — PB-DX36 (`scutemob-228`)
+## Last Handoff (oversight session, 2026-09-04)
+
+**Date**: 2026-09-04 (coordinator/oversight session; the user-approved FOUR-task autonomous chain)
+**Workstream**: W6 dispatch loop
+**Tasks**: `scutemob-225` (PB-DX18) → `226` (PB-DX51) → `227` (PB-DX35) → `228` (PB-DX36),
+dispatched sequentially, each collected before the next launched; merges `61f9d5e1`,
+`275b00af`, `e8c212e7`, `d15692f7`.
+
+**Completed**: v4 ranks 10-13 shipped (details in the four worker handoffs below — this entry
+does not duplicate them). Tests 5,015 → **5,117 / 0 / 5**; PROTOCOL 41 → **42**, HASH 80 → **83**
+(every bump predicted in writing before code); coverage 63.1% → **63.2%** (1,139/1,803) on two
+named flips. 15 seeds CLOSED (incl. `OOS-CARDS2-6` filed-and-closed), 31 filed
+(`OOS-DX18-1..6`, `OOS-DX51-1..7`, `OOS-DX35-1..9`, `OOS-DX36-1..9`). All four `/review` cycles
+had every finding taken; PB-DX36's found two HIGHs by execution (per-assignment vs per-event
+trigger firing, CR 603.2c; a class gate bypassable via `use` alias) — both fixed before merge.
+
+**Not done / deferred**: PB-DX52 (v4 rank 14) NOT dispatched — the approved chain was exactly
+four; next dispatch awaits user go. `urzas_saga` authoring (`OOS-RR4-2`) still open. The
+pod-decks check-in (`docs/end-state.md`) still not started; user reaffirmed 2026-09-04 to
+"keep going on this tack" (the correctness queue) for now.
+
+**Next session candidates**: PB-DX52 (rank 14); the remaining correctness tier is ranks 14-21
+(eight batches, ~two sessions at today's pace), after which the v4 memo's own instruction is a
+v5 census/re-rank — ranks 22-41 are yield/hygiene with ~15 flips total, so treat rank 21 as the
+natural pivot point to the pod-decks check-in + the stale-TODO triage (565 unclassified TODO
+lines in `docs/authoring-status.md`).
+
+**Hazards** (carrying forward):
+- Coordinator chore commits on `workstream-state.md` made AFTER a worktree is created conflict
+  at collect (happened on `225`). Commit the chore FIRST, then `esm worktree create`; or
+  `git -C .worktrees/<id> merge --ff-only main` before launch (done for 227/228, no conflict).
+- A Monitor "STALL? 30 min" line is NOT a stall while a delegated implementation agent runs —
+  check `git log main..HEAD` + dirty mtimes in the worktree before reacting (three false alarms).
+- A subagent inside a worker ran a shared-stash git command that wiped the worker's in-progress
+  edit (PB-DX18; recovered from reflog). Subagent briefs in this repo must forbid git OUTRIGHT.
+- Brief cites drift within a chain: four PB-DX36 cites moved after the three earlier merges.
+  Re-derive cites at HEAD and post them as a task comment right before each launch.
+- This file is ~7.6k lines with ~24 stacked worker handoffs — an archive pass is overdue.
+
+**Commit prefix used**: `merge:` (worker collects), `chore:` (chain bookkeeping + this close)
+
+---
+
+## Worker Handoff (PB-DX36, `scutemob-228`, 2026-09-04)
 
 **Shipped**: v4 rank 13. **`OOS-CARDS2-6` FILED — it had no registry row at all — and CLOSED, both
 halves.** Filed `OOS-DX36-1..9`. Next dispatch is **PB-DX52** (v4 rank 14); ranks 1-13 all shipped.
@@ -80,7 +123,7 @@ flip (`exalted_angel`) named before regeneration. `clippy -D warnings`, `cargo f
 Benches: six runs, **no regression**, same-code band measured first and wider than every difference.
 Full record: `memory/primitives/pb-DX36-execution-notes.md`.
 
-## Prior Handoff (worker, 2026-09-04) — PB-DX35 (`scutemob-227`)
+## Worker Handoff (PB-DX35, `scutemob-227`, 2026-09-04)
 
 **Task**: `scutemob-227`, v4 queue rank 12. **Both seeds CLOSED** (`OOS-DX4-2`, `OOS-DX4-5`),
 plus **`OOS-DP10-5`** CLOSED and **`OOS-DX8-3`** updated.
@@ -189,7 +232,7 @@ HASH **82** / PROTOCOL **41** unmoved. `clippy --workspace --all-targets -D warn
 against the FINAL tree. `npm run build` **N/A and said so**: `git diff main..HEAD --numstat --
 tools/play-server/frontend` is EMPTY and `node_modules` is absent from this worktree.
 
-## Prior Handoff (worker, 2026-09-04) — PB-DX51 (`scutemob-226`)
+## Worker Handoff (PB-DX51, `scutemob-226`, 2026-09-04)
 
 **Task**: `scutemob-226`, v4 queue rank 11. **All three seeds CLOSED**: `OOS-DX21-4`,
 `OOS-DX21-2`, and rider `OOS-DX21-5`.
@@ -258,7 +301,7 @@ textual gate over it is closable; the compile-enforced version is ~160 sites and
 
 ---
 
-## Prior Handoff (worker, 2026-09-04) — PB-DX18 (`scutemob-225`)
+## Worker Handoff (PB-DX18, `scutemob-225`, 2026-09-04)
 
 **Task**: `scutemob-225`, v4 queue rank 10. **All six seeds CLOSED**: `OOS-DP2-7`,
 `OOS-DP2-4`, `OOS-DP2-8`, `OOS-DX2-4`, `OOS-DX2-1`, `OOS-M11-5`.
@@ -321,7 +364,7 @@ outright**, not merely say "do not commit".
 
 ---
 
-## Last Handoff (oversight session, 2026-09-03)
+## Previous Handoff (oversight session, 2026-09-03 — preserved for chain context)
 
 **Date**: 2026-09-03 (coordinator/oversight session; second of the two three-PB runs)
 **Workstream**: W6 dispatch loop + user-directed docs side task
