@@ -208,3 +208,127 @@ Architecture Invariant 9 makes the naked shape unreachable in a real game (every
 has a `CardDefinition`), which is why this defect could sit behind 42 green tests: **the coverage
 that would have caught it was resting on a shape production cannot produce** — `OOS-DX47-4`'s
 class, arriving again.
+
+---
+
+## §2 — What shipped, seed by seed
+
+| seed | verdict | shape |
+|---|---|---|
+| `OOS-DX2-4` | **CLOSED** | `GameState.pregame: PregamePhase` + one shared `validate_pregame_mulligan_allowed` on both commands |
+| `OOS-DP2-8` | **CLOSED** | `MAX_MULLIGANS = STARTING_HAND_SIZE + 1`, derived from the same constant the draw loop counts to |
+| `OOS-DX2-1` | **CLOSED** | `PlayerState.miracle_pending`, written unconditionally at the draw site, cleared on either answer and at `reset_turn_state` |
+| `OOS-M11-5` | **CLOSED** | CR 601.2c rejection in `validate_targets_inner` + CR 702.47a splice targets + the SR-38 splice offer gate |
+| `OOS-DP2-7` | **CLOSED** | the obligation rides on `ZoneChangeAction::Redirect` and is discharged after the move by `GameState::finish_redirect_shuffle` |
+| `OOS-DP2-4` | **CLOSED** | one `GameState::shuffle_library_seeded`, and `rand` dropped from both crates |
+
+### §2.1 Three fixture families were pins on the defects
+
+1. **Three `rules::commander` mulligan fixtures** drove `KeepHand` → `TakeMulligan` on one
+   player. CR 103.5 forbids that outright. Repaired **in place** (no test name changed) by
+   branching each keep off a clone; the escalating-bottom-count property they exist for is
+   unchanged, only the command ORDER is.
+2. **Golden script `layers/081_bestow_aura_then_falls_off.json`** issued `"cast_spell"`
+   while its metadata, its notes and all eight of its `cr_sections_tested` said **bestow**.
+   It passed only on the arm this batch closed. Now `cast_spell_bestow`.
+3. **`core::card_def_fixes::test_darksteel_colossus_shuffles_into_library`** asserted the
+   `LibraryShuffled` EVENT and never the library — exactly as `OOS-DP2-7` says — and its
+   fixture gave the player an **EMPTY library**, which is why the phantom was invisible:
+   with nothing to permute, "shuffled" and "put on top" are the same state.
+
+### §2.2 The decision on `OOS-DX2-1`'s missing offer channel: FILED, and why
+
+The AC allows shipping it "if one LegalAction away". It is not, and the reason is a CR
+reading rather than a budget. PB-DX23 could ship dredge as a `LegalAction` because
+**CR 702.52a supplies a legal default** (*"you may instead"*), so a missed offer is a
+decision the engine may make for the player without changing the game. **CR 702.94a has
+none**: the reveal happens *"as you draw it"*, and an offer surfaced at the next priority
+grant is a different game action taken with information the player did not have at the
+draw. Making it honest needs a `BlockingDecision` variant — a wire change this batch's own
+gates pin as UNMOVED. Population re-derived from `all_cards()`: **3** defs declare Miracle
+(`terminus`, `temporal_mastery`, `reforge_the_soul`).
+
+---
+
+## §3 — The revert matrix: 13 rows executed, 13 discriminating
+
+Each row edits ONE production line, runs the named target, and is restored.
+
+| row | revert | target | result |
+|---|---|---|---|
+| R1 | `finish_redirect_shuffle` performs no shuffle | `card_def_fixes::test_darksteel…` | **RED** |
+| R2 | a consumer calls `finish_redirect_shuffle(false, ..)` | `roster::r1` | **RED** *(after the fix — see below)* |
+| R2b | a consumer drops the call entirely | `roster::r1` | **RED** |
+| R3 | no pregame gate on `TakeMulligan` | `pb_dx18_pregame_command_gates` | **RED** |
+| R4 | no pregame gate on `KeepHand` | `pb_dx18_pregame_command_gates` | **RED** |
+| R5 | CR 103.5 cap disabled | `pb_dx18_pregame_command_gates` | **RED** |
+| R6 | `ChooseMiracle` stops checking the just-drawn record | `mechanics_m_z::miracle` | **RED** |
+| R7 | a decline no longer consumes the offer | `mechanics_m_z::miracle` | **RED** |
+| R8 | `miracle_pending` assigned inside an `if let Some(..)` | `roster::r3` | **RED** |
+| R9 | the CR 601.2c rejection disabled | `pb_dx18_targetless_spell` | **RED** |
+| R10 | `glacial_ray`'s splice `targets` emptied | `c2f_splice…` | **RED** |
+| R11 | the pinned PRNG seeded differently | `pinned_rng_tests` | **RED** |
+| R12 | an Arcane host given a target of its own | `roster::r2` | **RED** |
+
+**R2 IS THE ROW WORTH READING, BECAUSE IT DEFEATED THIS BATCH'S OWN GATE.** `r1`'s first
+draft looked for the string `finish_redirect_shuffle` in the arm body. A consumer written
+as `state.finish_redirect_shuffle(false, to, &mut events)` **contains that string, drops
+the obligation completely, and left `r1` GREEN.** That is `OOS-DX47`'s `r3` shape — *a gate
+keyed on a spelling measures the spelling* — committed inside the roster file whose own
+module doc states the rule. It was found by **executing** the revert, not by reading the
+gate. `r1` now requires the arm's own bound `shuffle_destination_after` to appear inside the
+call's argument list; R2 and R2b are both RED.
+
+Two further gate defeats were found the same way and fixed before shipping:
+
+* `r1`'s first draft flagged `resolve_pending_zone_change`'s chained-redirect arm, which
+  reads a destination and does **not** move the object — a false positive of the gate's
+  SHAPE. Re-keyed on the mechanism (an arm owes a discharge only if it calls one of the
+  three move helpers), with a companion assertion that exactly ONE non-moving arm exists,
+  so the split cannot silently become "everything looks non-moving".
+* `r4`'s first draft reported `core/decision_site_walk.rs` as an empty module. It is a
+  shared HELPER with no tests of its own. The two shapes are different findings and are now
+  asserted separately.
+
+---
+
+## §4 — Wire
+
+**HASH 80 → 81, ONE bump. PROTOCOL 41 UNMOVED.** Both gate-computed
+(`hash_schema` 36/36, `protocol_schema` 17/17), both predicted in writing at `82154219`
+before any production line changed, and both taken from the failing gates' own output.
+
+The prediction survived something it did not anticipate: `AbilityDefinition::Splice` gained
+a field mid-batch (the CR 702.47a discovery). PROTOCOL still did not move, because
+`AbilityDefinition` is reachable only through `CardDefinition`, which
+`CLOSURE_MUST_NOT_CONTAIN` also excludes — and it moved the STREAM digest but not the
+DECLARATION digest, because `card_registry` is `#[serde(skip)]` and so `AbilityDefinition`
+is outside the `GameState` **serde** closure while being inside the hashed one.
+
+### §4.1 A NEW failure mode of the sentinel re-pin, and it is the OPPOSITE of the known one
+
+PB-DX50 and PB-DX20b each recorded a re-pin regex that was too **narrow** (a multi-line
+spelling, then a `Nu8` type suffix). This batch's regex handled both — and was too **wide**:
+it rewrote the prose *"HASH 80 -> 81"* into *"HASH 81 -> 81"* inside the very doc paragraph
+announcing the bump, because the literal `80` sat inside its window of the symbol.
+
+**A survivor scan is structurally blind to this.** It looks for what was MISSED, and an
+over-replacement leaves no survivor — this batch's survivor scan (a differently-shaped
+line-window matcher over `crates/` + `tools/`) correctly reported **0**. The only thing that
+catches an over-replacement is reading every changed line of the diff, which is what found
+it. Census: **87 sites across 47 files** re-pinned by symbol.
+
+---
+
+## §5 — Standing measurements
+
+* **Fuzz decision partition MOVED**, in the improving direction, and the cause is
+  attributed by an **executed A/B** rather than argued: `surveil` is now reached (5 of 6
+  served rows instead of 4 of 5). An isolated worktree at `e7dee121` — this batch's tree
+  with everything except the PRNG pin — runs `test_dx32_a_fuzz_run_reaches_at_least_one_
+  served_row` **GREEN**; `c1132e44` (that plus the pin alone) fails. Re-observed and
+  re-pinned, never re-tuned (`OOS-DX21-6`).
+* **The `*_SEED` axis is the wrong axis** (§0.5). The PRNG pin cannot move an opening
+  library, because the simulator's deal uses `SliceRandom` with its own `StdRng` and is not
+  one of the four sites; it moves only in-game shuffles. Measured: exactly **one** pin in
+  the whole workspace moved.
