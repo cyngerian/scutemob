@@ -36,6 +36,13 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(2),
                 }),
+                // CR 702.47a / 601.2c (PB-DX18, `OOS-M11-5`): the spliced text is
+                // "Glacial Ray deals 2 damage to any target", so a spell it is spliced
+                // onto requires that target. Before this field existed the spliced
+                // target was announced with no requirement at all and validated for
+                // existence only — no "any target" check, no hexproof / shroud /
+                // protection, and no CR 608.2b re-validation at resolution.
+                targets: vec![TargetRequirement::TargetAny],
             },
             // Primary spell: deal 2 damage to any target.
             AbilityDefinition::Spell {

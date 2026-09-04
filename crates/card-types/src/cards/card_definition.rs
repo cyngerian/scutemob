@@ -683,6 +683,31 @@ pub enum AbilityDefinition {
         cost: ManaCost,
         onto_subtype: SubType,
         effect: Box<Effect>,
+        /// CR 702.47a / 601.2b (PB-DX18, `OOS-M11-5`): the targets the spliced TEXT
+        /// requires.
+        ///
+        /// *"copy this card's text box onto that spell"* — so a spliced spell requires
+        /// the spliced card's targets in addition to its own, and CR 601.2c makes those
+        /// a real announcement. This field did not exist before PB-DX18, so
+        /// `casting::card_def_target_requirements` could not see them and the splice
+        /// target rode `validate_targets_inner`'s existence-only arm: no type check, no
+        /// hexproof / shroud / protection check, and no CR 608.2b re-validation.
+        ///
+        /// Appended to the host spell's own requirements at cast time, never prepended —
+        /// so every pre-existing `CardEffectTarget::DeclaredTarget { index }` in the
+        /// HOST's text keeps its position (the PB-DX50 append rule).
+        ///
+        /// **Stated residual, pinned rather than assumed away**: the spliced `effect`'s
+        /// own `DeclaredTarget` indices are relative to the spliced card's text, while
+        /// resolution hands the splice context the spell's WHOLE target list, so a host
+        /// that declares targets of its own would need those indices offset by the host's
+        /// count (the PB-DX44 fuse-offset shape). No offset is built here because the
+        /// offset is provably **zero** for every combination the corpus can reach — see
+        /// `crates/engine/tests/core/pb_dx18_trust_boundary_roster.rs`, which pins the
+        /// precondition so the day it stops holding is a red test rather than a silent
+        /// mis-target.
+        #[serde(default)]
+        targets: Vec<TargetRequirement>,
     },
     /// CR 702.42: Entwine [cost]. Optional additional cost that allows the caster to
     /// choose all modes of this modal spell instead of just one.

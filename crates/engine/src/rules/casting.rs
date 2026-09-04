@@ -3040,12 +3040,19 @@ pub fn handle_cast_spell(
     // the matching subtype, no duplicates, then add the splice cost as an additional cost and
     // collect the effect for attachment to the StackObject.
     // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
-    let (mana_cost, collected_spliced_effects, collected_spliced_ids) = if !splice_cards.is_empty()
-    {
+    let (
+        mana_cost,
+        collected_spliced_effects,
+        collected_spliced_ids,
+        collected_splice_target_requirements,
+    ) = if !splice_cards.is_empty() {
         // CR 702.47b: Each card may only be spliced onto the same spell once.
         let mut seen_splice_ids = std::collections::HashSet::new();
         let mut splice_effects_out = Vec::new();
         let mut splice_ids_out = Vec::new();
+        // CR 702.47a / 601.2b (PB-DX18, `OOS-M11-5`): the spliced TEXT's own targets. The
+        // spell gains the spliced card's text box, so it requires that card's targets too.
+        let mut splice_targets_out: Vec<TargetRequirement> = Vec::new();
         let mut running_cost = mana_cost;
         for splice_card_id in &splice_cards {
             // Duplicate check (CR 702.47b).
@@ -3100,7 +3107,7 @@ pub fn handle_cast_spell(
                             ))
                         },
                     )?;
-            let (splice_cost, splice_onto_subtype, splice_effect) = splice_info;
+            let (splice_cost, splice_onto_subtype, splice_effect, splice_targets) = splice_info;
             // CR 702.47a: The spell being cast must have the matching subtype.
             // e.g., Splice onto Arcane requires the target spell to have the Arcane subtype.
             if !chars.subtypes.contains(&splice_onto_subtype) {
@@ -3121,10 +3128,16 @@ pub fn handle_cast_spell(
             running_cost = Some(total);
             splice_effects_out.push(splice_effect);
             splice_ids_out.push(*splice_card_id);
+            splice_targets_out.extend(splice_targets);
         }
-        (running_cost, splice_effects_out, splice_ids_out)
+        (
+            running_cost,
+            splice_effects_out,
+            splice_ids_out,
+            splice_targets_out,
+        )
     } else {
-        (mana_cost, vec![], vec![])
+        (mana_cost, vec![], vec![], vec![])
     };
     // CR 702.27a / 601.2f: If the player declared intention to pay buyback, validate
     // the spell has a buyback ability and bind the cost for use below.
@@ -3766,6 +3779,26 @@ pub fn handle_cast_spell(
     let announced_requirements: Vec<TargetRequirement> = mode_targets_active
         .clone()
         .unwrap_or_else(|| requirements.clone());
+    // CR 702.47a / 601.2b (PB-DX18, `OOS-M11-5`): *"copy this card's text box onto that
+    // spell"*. A spliced spell requires the spliced card's targets in addition to its own,
+    // so they are APPENDED here — the same rule PB-DX50's mutate host follows and for the
+    // same reason: appending leaves every pre-existing `DeclaredTarget { index }` in the
+    // host's own text at the position it already had.
+    //
+    // Before this, `card_def_target_requirements` could not see them (the DSL had no field
+    // for them at all), so the splice target was announced against an EMPTY requirement
+    // list and validated for existence only. The one shipped splice card, `glacial_ray`,
+    // prints *"deals 2 damage to any target"* — so its spliced target had no "any target"
+    // check, no hexproof / shroud / protection check, and no CR 608.2b re-validation.
+    //
+    // Per-mode targeting and splice do not combine on any shipped card (no Arcane spell
+    // has `ModeSelection.mode_targets`), but the append is written to be correct for both
+    // branches rather than to rely on that.
+    let announced_requirements: Vec<TargetRequirement> = {
+        let mut reqs = announced_requirements;
+        reqs.extend(collected_splice_target_requirements.iter().cloned());
+        reqs
+    };
     // CR 702.140a (PB-DX50, `OOS-DX25-1`): a mutate cast TARGETS its host. Append the
     // shared `mutate_target_requirement()` and the announced host to the lists this cast
     // is validated against and records onto its `StackObject`, so from here down the
@@ -8393,7 +8426,12 @@ fn reduce_generic_by(cost: &mut ManaCost, amount: u32) {
 fn get_splice_info(
     card_id: &Option<crate::state::CardId>,
     registry: &crate::cards::CardRegistry,
-) -> Option<(ManaCost, SubType, crate::cards::card_definition::Effect)> {
+) -> Option<(
+    ManaCost,
+    SubType,
+    crate::cards::card_definition::Effect,
+    Vec<TargetRequirement>,
+)> {
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
@@ -8401,9 +8439,15 @@ fn get_splice_info(
                     cost,
                     onto_subtype,
                     effect,
+                    targets,
                 } = a
                 {
-                    Some((cost.clone(), onto_subtype.clone(), *effect.clone()))
+                    Some((
+                        cost.clone(),
+                        onto_subtype.clone(),
+                        *effect.clone(),
+                        targets.clone(),
+                    ))
                 } else {
                     None
                 }

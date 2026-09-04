@@ -119,7 +119,7 @@
         {
           "type": "player_action",
           "player": "p1",
-          "action": "cast_spell",
+          "action": "cast_spell_bestow",
           "card": "Boon Satyr",
           "targets": [
             {
@@ -135,7 +135,7 @@
           },
           "mana_source": [],
           "cr_ref": "702.103a",
-          "note": "CR 702.103a: p1 chooses to cast Boon Satyr for its bestow cost {3}{G}{G} as an alternative cost. CR 702.103b: As it is put on the stack it becomes an Aura spell with enchant creature targeting Llanowar Elves."
+          "note": "CR 702.103a: p1 chooses to cast Boon Satyr for its bestow cost {3}{G}{G} as an alternative cost. CR 702.103b: As it is put on the stack it becomes an Aura spell with enchant creature targeting Llanowar Elves. (PB-DX18 / OOS-M11-5: this action said `cast_spell`, so the harness sent alt_cost: None and the engine cast Boon Satyr as an ordinary creature spell — every CR 702.103 cite above was aspirational. It passed only because `validate_targets_inner`'s empty-requirements arm waved the declared target through; with that arm closed (CR 601.2c) the script had to say what it means. `cast_spell_bestow` sets alt_cost: Some(AltCostKind::Bestow), so casting.rs Step 1b applies CR 702.103b's transform and `aura_spell_target_requirements` synthesizes the enchant-creature requirement the target is then validated against.)"
         },
         {
           "type": "assert_state",

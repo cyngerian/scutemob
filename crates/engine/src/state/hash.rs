@@ -8247,11 +8247,14 @@ impl HashInto for AbilityDefinition {
                 cost,
                 onto_subtype,
                 effect,
+                targets,
             } => {
                 38u8.hash_into(hasher);
                 cost.hash_into(hasher);
                 onto_subtype.0.hash_into(hasher);
                 effect.hash_into(hasher);
+                // CR 702.47a / 601.2c (PB-DX18, `OOS-M11-5`): the spliced text's targets.
+                targets.hash_into(hasher);
             }
             // Entwine (discriminant 39) -- CR 702.42
             AbilityDefinition::Entwine { cost } => {
