@@ -94,7 +94,13 @@
     border-radius: 2px;
   }
 
-  /* ---------- Layer toggle ---------- */
+  /* ---------- Layer toggle (CSS-only: works with JS disabled, e.g. iOS QuickLook) ---------- */
+  .layer-radio {
+    position: absolute;
+    width: 1px; height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
   nav.layers {
     position: sticky; top: 0; z-index: 5;
     background: var(--ground);
@@ -102,7 +108,7 @@
     padding: 0.6rem 1.25rem;
     display: flex; justify-content: center; gap: 0.5rem;
   }
-  nav.layers button {
+  nav.layers label {
     font-family: Cinzel, serif;
     font-weight: 600;
     font-size: 0.82rem;
@@ -113,16 +119,22 @@
     border-radius: 2px;
     padding: 0.5rem 0.9rem;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
   }
-  nav.layers button[aria-selected="true"] {
+  #layer-table:checked  ~ nav.layers label[for="layer-table"],
+  #layer-engine:checked ~ nav.layers label[for="layer-engine"] {
     color: var(--ground);
     background: var(--moon);
     border-color: var(--moon);
   }
-  nav.layers button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-
-  body[data-layer="table"] #engine-room { display: none; }
-  body[data-layer="engine"] #at-the-table { display: none; }
+  #layer-table:focus-visible  ~ nav.layers label[for="layer-table"],
+  #layer-engine:focus-visible ~ nav.layers label[for="layer-engine"] {
+    outline: 2px solid var(--gold); outline-offset: 2px;
+  }
+  #layer-table:checked  ~ main #engine-room  { display: none; }
+  #layer-engine:checked ~ main #at-the-table { display: none; }
 
   /* ---------- Chapters ---------- */
   section.part { padding-top: 2rem; }
@@ -261,7 +273,10 @@
   a { color: var(--moon); }
 </style>
 </head>
-<body data-layer="table">
+<body>
+
+<input type="radio" name="layer" id="layer-table" class="layer-radio" checked>
+<input type="radio" name="layer" id="layer-engine" class="layer-radio">
 
 <header class="hero">
   <svg class="moonmark" width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="A blood moon rising over three saga chapter markers">
@@ -283,9 +298,9 @@
   and — this is the strange part — <em>is never sacrificed</em>. It just sits there. Forever.</p>
 </header>
 
-<nav class="layers" role="tablist" aria-label="Explanation depth">
-  <button role="tab" id="tab-table" aria-selected="true" aria-controls="at-the-table" onclick="setLayer('table')">I &middot; At the Table</button>
-  <button role="tab" id="tab-engine" aria-selected="false" aria-controls="engine-room" onclick="setLayer('engine')">II &middot; The Engine Room</button>
+<nav class="layers" aria-label="Explanation depth">
+  <label for="layer-table">I &middot; At the Table</label>
+  <label for="layer-engine">II &middot; The Engine Room</label>
 </nav>
 
 <main class="wrap">
@@ -293,7 +308,7 @@
 <!-- ============================================================ -->
 <!-- LAYER I — AT THE TABLE                                       -->
 <!-- ============================================================ -->
-<section class="part" id="at-the-table" role="tabpanel" aria-labelledby="tab-table">
+<section class="part" id="at-the-table">
 
   <h2 class="plain">A simplified model of the engine</h2>
   <p>The engine never trusts what is printed on a card. Every time it needs to know what a
@@ -497,7 +512,7 @@
 <!-- ============================================================ -->
 <!-- LAYER II — THE ENGINE ROOM                                   -->
 <!-- ============================================================ -->
-<section class="part" id="engine-room" role="tabpanel" aria-labelledby="tab-engine">
+<section class="part" id="engine-room">
 
   <h2 class="plain">The rules, verbatim</h2>
   <p>Everything below hangs on four rules. The engine's test suite cites these by number;
@@ -719,13 +734,5 @@
 </section>
 </main>
 
-<script>
-  function setLayer(layer) {
-    document.body.dataset.layer = layer;
-    document.getElementById('tab-table').setAttribute('aria-selected', layer === 'table');
-    document.getElementById('tab-engine').setAttribute('aria-selected', layer === 'engine');
-    window.scrollTo({ top: 0 });
-  }
-</script>
 </body>
 </html>
