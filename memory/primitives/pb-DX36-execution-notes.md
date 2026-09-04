@@ -122,3 +122,28 @@ alternative (rename `CombatDamageDealt` → `DamageDealt` and generalise the sto
 kinds; only its doc said "combat". `TargetController::DamagedPlayer` (which `sigil_of_sleep`'s
 target filter uses) reads it, so the noncombat arm must populate it or the repair would ship a
 trigger with no legal target space.
+
+### §0.6 Two corrections to the task brief, made at stage 0
+
+**(i) The brief's CR cite for *"that much"* is wrong.** Both the task description and acceptance
+criterion 7333 say *"a damage-dealt `EffectAmount` ('that much', **CR 603.10a** amount from the
+triggering event)"*. **CR 603.10a is about look-back-in-time ZONE-CHANGE triggers** — verbatim:
+*"Some zone-change triggers look back in time. These are leaves-the-battlefield abilities,
+abilities that trigger when a card leaves a graveyard, and abilities that trigger when an object
+that all players can see is put into a hand or library."* It has nothing to do with a damage
+amount. The rules actually in play are **CR 603.2c** (*"An ability triggers only once each time its
+trigger event occurs"* — the exactly-once property this batch asserts by COUNT) and
+**CR 608.2h** with **CR 113.7a** (information at resolution / last known information — why the
+amount is captured onto the `PendingTrigger` at queue time rather than re-read at resolution, which
+is the idiom `EffectAmount::CombatDamageDealt` already uses). Every doc comment shipped by this
+batch cites those; **no line in this batch cites CR 603.10a**, and the brief is recorded as
+mis-cited rather than obeyed.
+
+**(ii) The disjointness claim is verified at the EMIT sites, not assumed.** The two arms are
+disjoint only if combat damage never produces a `GameEvent::DamageDealt`. Enumerated at HEAD:
+`GameEvent::CombatDamageDealt` is emitted at exactly **one** site (`rules/combat.rs:2382`), and it
+emits no `DamageDealt`. `GameEvent::DamageDealt` is emitted at exactly **five** sites —
+`effects/mod.rs:1443` and `:1462` (CR 120.3a/120.3b inside `execute_effect_inner`), `:1619`
+(same function), `:8950` (`deal_creature_power_damage`, the fight/ping path) and
+`rules/mana.rs:610` (CR 605 pain-land damage) — **all five noncombat by construction**. So a combat
+damage event reaches only the combat arm and a noncombat one only the `DamageDealt` arm.
