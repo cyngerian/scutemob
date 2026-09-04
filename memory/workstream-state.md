@@ -15,9 +15,65 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | scutemob-228 | **DISPATCH CHAIN RUNNING (user-approved 2026-09-04, exactly four)**: ~~`scutemob-225` PB-DX18 (rank 10)~~ ✅ merged `61f9d5e1` → ~~`226` PB-DX51 (rank 11)~~ ✅ merged `275b00af` → ~~`227` PB-DX35 (rank 12)~~ ✅ merged `e8c212e7` → `228` PB-DX36 (rank 13, dispatching — LAST of the four); STOP after 228, no further dispatch without user go. Briefs are the ESM task descriptions.
+| W6: Primitive + Card Authoring | scutemob-228 | **DISPATCH CHAIN RUNNING (user-approved 2026-09-04, exactly four)**: ~~`scutemob-225` PB-DX18 (rank 10)~~ ✅ merged `61f9d5e1` → ~~`226` PB-DX51 (rank 11)~~ ✅ merged `275b00af` → ~~`227` PB-DX35 (rank 12)~~ ✅ merged `e8c212e7` → ~~`228` PB-DX36 (rank 13)~~ ✅ **SHIPPED, awaiting collect** (LAST of the four); STOP after 228, no further dispatch without user go. Briefs are the ESM task descriptions.
 
-## Last Handoff (worker, 2026-09-04) — PB-DX35 (`scutemob-227`)
+## Last Handoff (worker, 2026-09-04) — PB-DX36 (`scutemob-228`)
+
+**Shipped**: v4 rank 13. **`OOS-CARDS2-6` FILED — it had no registry row at all — and CLOSED, both
+halves.** Filed `OOS-DX36-1..8`. Next dispatch is **PB-DX52** (v4 rank 14); ranks 1-13 all shipped.
+**This was the LAST of the four-batch chain the user approved on 2026-09-04. STOP here — no further
+dispatch without an explicit user go.**
+
+### What was wrong
+
+`TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer { combat_only }` was dispatched inside
+the `GameEvent::CombatDamageDealt` arm only, under a `TODO(PB-37)`, and the lowering destructured
+`combat_only` away with `{ .. }` — the runtime `TriggeredAbilityDef` had no home for it, so the flag
+was read in **exactly one place in the workspace: `state/hash.rs:6848`**. `true` and `false` were
+behaviourally identical. `sigil_of_sleep` (`Complete` by derive, deck-legal) silently dropped the
+noncombat half of its printed trigger. Separately there was no general *"whenever this permanent
+deals damage"* condition and no damage-dealt `EffectAmount`, so `exalted_angel` was unauthored.
+
+### What shipped
+
+One shared `rules::abilities::queue_damage_source_triggers`, called from BOTH damage arms with
+`is_combat` a property of the **EVENT**. Seven new `TriggerEvent` unit variants (one retired), the
+new `DamageRecipient { Any, Player, Opponent }` axis on both conditions, new
+`TriggerCondition::WhenDealsDamage`, new `EffectAmount::DamageDealt`, and `damage_dealt_amount`
+carried on `PendingTrigger` / `StackObject` / `EffectContext`. `TODO(PB-37)` and its echoes deleted.
+
+### Five things worth carrying into the next batch
+
+1. **Do not delete a flag only the hasher reads until you have run the INVERSE census.** 0 defs
+   *declare* `combat_only: true`; **1 def prints it** (`breath_of_fury`). The declared axis and the
+   printed axis do not nest — third batch in this queue saved by running both.
+2. **A brief is a claim, including its CR cites.** The task description and AC 7333 both cite
+   **CR 603.10a** for *"that much"*. CR 603.10a is look-back-in-time **zone-change** triggers.
+   Shipped against CR 603.2c + CR 608.2h/113.7a instead; recorded, not obeyed.
+3. **`TriggeredAbilityDef` still costs 190 exhaustive literals across 44 files** (`OOS-DX35-1`'s
+   figure, reproduced at HEAD). Any axis that could live on `TriggerEvent` should.
+4. **A survivor scan has TWO axes.** PB-DX50's rule ("not the same regex as the re-pin") was obeyed
+   — different SHAPE, line-window vs symbol-adjacent — and the scan still reported 0 while a
+   `41u32` sentinel stood, because the **value** pattern `\b41\b` was unchanged. Prefer an
+   absence-based check: find the symbol, assert the adjacent numeral is the NEW value.
+   (`OOS-DX36-8`.)
+5. **The re-deal budget is real and is attributable.** One marker flip reddened five seeded
+   fixtures. An ablation in an isolated worktree (engine change in, marker reverted) turned all five
+   green, which is what licences the phrase "fuzz-neutral by measurement". Two of the five needed a
+   fresh **executed sweep**, not a bump: `pb_dx22`'s census seed 0 → 1 and
+   `UI3_SPLIT_COMBAT_SEED` 13 → 26.
+
+### Numbers
+
+Tests **5,115 / 0 / 5** (+18, **64** targets, byte-exact NAME delta: 18 / 0 / 0 / 0).
+**PROTOCOL 41 → 42 / HASH 82 → 83**, one bump each, predicted per half before any code, closure
+type counts confirmed UNCHANGED at **98 / 132**. Coverage **1,138 → 1,139 / 1,803 = 63.2%**, ONE
+flip (`exalted_angel`) named before regeneration. `clippy -D warnings`, `cargo fmt --check` and
+`tools/check-defs-fmt.sh` (1,803 defs) all clean against the FINAL tree; `npm run build` N/A.
+Benches: six runs, **no regression**, same-code band measured first and wider than every difference.
+Full record: `memory/primitives/pb-DX36-execution-notes.md`.
+
+## Prior Handoff (worker, 2026-09-04) — PB-DX35 (`scutemob-227`)
 
 **Task**: `scutemob-227`, v4 queue rank 12. **Both seeds CLOSED** (`OOS-DX4-2`, `OOS-DX4-5`),
 plus **`OOS-DP10-5`** CLOSED and **`OOS-DX8-3`** updated.
