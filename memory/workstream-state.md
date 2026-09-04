@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **next dispatch PB-DX52, v4 rank 14 — NOT taken, awaiting user go**)
+| W6: Primitive + Card Authoring | — | available (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
 
 ## Last Handoff (oversight session, 2026-09-04)
 
@@ -34,7 +34,10 @@ had every finding taken; PB-DX36's found two HIGHs by execution (per-assignment 
 trigger firing, CR 603.2c; a class gate bypassable via `use` alias) — both fixed before merge.
 
 **Not done / deferred**: PB-DX52 (v4 rank 14) NOT dispatched — the approved chain was exactly
-four; next dispatch awaits user go. `urzas_saga` authoring (`OOS-RR4-2`) still open. The
+four; next dispatch awaits user go. **↻ 2026-09-04 (evening session): user approved a FIVE-task
+chain, ranks 14-18, "make sure only 5" — PB-DX52 → PB-DX39 → PB-DX53 → PB-DX54 → PB-DX42b.
+PB-DX42b's dispatch-time precondition (re-word `OOS-DX19-2` per `OOS-ADJ-3`) is the coordinator's,
+to be done before launch 5; PB-DX9 has NOT shipped, so its supply-census re-measure is not owed.** `urzas_saga` authoring (`OOS-RR4-2`) still open. The
 pod-decks check-in (`docs/end-state.md`) still not started; user reaffirmed 2026-09-04 to
 "keep going on this tack" (the correctness queue) for now.
 
