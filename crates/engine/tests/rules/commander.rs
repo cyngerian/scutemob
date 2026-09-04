@@ -1444,11 +1444,8 @@ fn test_free_mulligan_then_london_mulligan() {
         "after free mulligan keep, hand should still have 7"
     );
     // PB-DX18: and that keep really did end the procedure for this player.
-    let err_after_keep = process_command(
-        state_after_free_keep,
-        Command::TakeMulligan { player: p1 },
-    )
-    .unwrap_err();
+    let err_after_keep =
+        process_command(state_after_free_keep, Command::TakeMulligan { player: p1 }).unwrap_err();
     assert!(
         matches!(err_after_keep, mtg_engine::GameStateError::InvalidCommand(ref m)
             if m.contains("already kept")),

@@ -1108,8 +1108,7 @@ pub(crate) fn perform_one_draw(
                                     state, player, new_id,
                                 );
                                 if let Some(p) = state.expect_player_mut(player) {
-                                    p.miracle_pending =
-                                        miracle_event.as_ref().map(|_| new_id);
+                                    p.miracle_pending = miracle_event.as_ref().map(|_| new_id);
                                 }
                                 if let Some(miracle_event) = miracle_event {
                                     proceed_events.push(miracle_event);

@@ -32,7 +32,6 @@ pub use builder::{
     register_commander_zone_replacements, GameStateBuilder, ObjectSpec, PlayerBuilder,
 };
 pub use error::GameStateError;
-pub use pregame::PregamePhase;
 use imbl::{OrdMap, Vector};
 pub use mtg_card_types::state::dungeon::get_dungeon;
 pub use mtg_card_types::state::{
@@ -55,6 +54,7 @@ pub use mtg_card_types::state::{
     TriggerDoublerFilter, TriggerEvent, TriggerTargetOption, TriggeredAbilityDef, TurnFaceUpMethod,
     UpkeepCostKind, Zone, ZoneId, ZoneType,
 };
+pub use pregame::PregamePhase;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 pub use turn::{Phase, Step, TurnState};
