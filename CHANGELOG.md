@@ -6,6 +6,16 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-09-05 — CC-15 (`scutemob-252`) — simulator raw-characteristics ceiling ratchet + split-on-touch
+
+- New `crates/simulator/tests/cc15_raw_characteristics_ratchet.rs`: two-sided per-file pins on raw `.characteristics.`
+  reads in `crates/simulator/src` (47 at HEAD: 2/14/28/1/1/1) plus a directory walk so an unrostered file must count 0;
+  five executed defeats recorded in its module doc; paired per CC-17 with the SR-38 channel probes.
+- The addendum's "43 at HEAD" was a grep-LINE count: it included 3 comment mentions and missed 6 line-wrapped chains.
+- `memory/conventions.md` gains "Split on touch": engine §5.3 rule, extended to `legal_actions.rs` / `targeting.rs`
+  with `rules/queries.rs` as the destination and the battlefield qualifier (hand/library raw reads are correct).
+- Tests 5,330 → **5,333** (+3, 73 targets, 0 leavers); workspace clippy + fmt clean; 0 engine lines.
+
 ## 2026-09-05 — CC-17 (`scutemob-254`) — pair-or-demote rule for source-text gates
 
 - `memory/conventions.md` gains the rule (addendum A3, accepted as written): a new source gate standing in for a
