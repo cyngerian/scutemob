@@ -51,9 +51,9 @@
 //! **Mardu Ascendancy** (`OOS-DX5-7` residual) —
 //! *"Sacrifice this enchantment: Creatures you control get +0/+3 until end of
 //! turn"*, encoded as `Cost::SacrificeSelf` + `EffectFilter::CreaturesYouControl`
-//! + `LayerModification::ModifyToughness(3)`. The source sacrifices **itself**
+//! plus `LayerModification::ModifyToughness(3)`. The source sacrifices **itself**
 //! as the activation cost, which `rules/abilities.rs` pays *before* the ability
-//! is pushed to the stack — so the source is ALWAYS gone at resolution and the
+//! is pushed to the stack — so the source is ALWAYS gone at resolution and its
 //! +0/+3 currently applies to **nobody, in every game, every time**.
 //!
 //! # Fail-before evidence, EXECUTED at the unfixed merge base
