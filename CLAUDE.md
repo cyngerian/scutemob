@@ -100,8 +100,11 @@
   **OOS-DX5-7**'s residual CLOSED, each row corrected against three and four of its own
   claims; the class is 15× the two seeds and one deck-legal member is still broken
   one link upstream, stated rather than rounded up).
-  **Next dispatch: PB-DX53** (v4 rank 16 — CR 508.6 raid gate clobbered by re-declaration,
-  `OOS-DX21-1`); ranks 1-15 all shipped.
+  **↻ PB-DX53 SHIPPED** (`scutemob-231`, 2026-09-05; v4 rank 16 — **OOS-DX21-1** CLOSED, its row
+  corrected against three of its own claims; the class is **2** deck-legal members, not the row's
+  1, and the second is a card whose defect was that its ability was MISSING).
+  **Next dispatch: PB-DX54** (v4 rank 17 — a resolving spell cannot be its own redirect victim,
+  `OOS-DX25c-6`); ranks 1-16 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -151,7 +154,14 @@
   three sessions; and the reviews doc's `HASH 69` corrected to **70** in four places — the claim was
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
-  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,139/1,803 = 63.2%**
+  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,140/1,803 = 63.2%**
+  (**PB-DX53, 2026-09-05 — ONE flip, `minas_tirith` `partial` → `Complete`, NAMED before any code;
+  it is a THIRD member of the turn-scoped class that no document in the chain names, found by the
+  INVERSE ORACLE axis because its ability was unauthored and a declared-axis census structurally
+  cannot see a card whose defect is that it is missing. Its `ENGINE-BLOCKED` note demanded
+  `Condition::AttackedWithNCreatures(2)` — an identifier that had existed since PB-OS6, so the note
+  was FALSE at HEAD**)
+  *(historical: **1,139/1,803 = 63.2%**
   (**UNMOVED by PB-DX52, 2026-09-04 — 0 flips, predicted and reasoned per def before
   regeneration; no `Completeness` marker moved anywhere, so the `CORPUS_COMPLETE` SET is
   unmoved too and no seeded fixture was re-dealt**)
@@ -258,8 +268,11 @@
   **OOS-DX5-7**'s residual CLOSED, each row corrected against three and four of its own
   claims; the class is 15× the two seeds and one deck-legal member is still broken
   one link upstream, stated rather than rounded up).
-  **Next dispatch: PB-DX53** (v4 rank 16 — CR 508.6 raid gate clobbered by re-declaration,
-  `OOS-DX21-1`); ranks 1-15 all shipped.
+  **↻ PB-DX53 SHIPPED** (`scutemob-231`, 2026-09-05; v4 rank 16 — **OOS-DX21-1** CLOSED, its row
+  corrected against three of its own claims; the class is **2** deck-legal members, not the row's
+  1, and the second is a card whose defect was that its ability was MISSING).
+  **Next dispatch: PB-DX54** (v4 rank 17 — a resolving spell cannot be its own redirect victim,
+  `OOS-DX25c-6`); ranks 1-16 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -270,6 +283,80 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-05, PB-DX53)**: **5,209 / 0 / 5** full-workspace on branch
+  `scutemob-231` (+13 over the **5,196** baseline, measured on this branch BEFORE any edit and
+  **reproducing PB-DX39's close pin exactly** — the third consecutive batch in which an inherited
+  pin reproduces with no correction owed; the task's AC quoted **5,194**, which is a transcription
+  off by two from `CLAUDE.md`'s own PB-DX39 line, reported rather than reconciled away because a
+  non-reproducing baseline is the signal `OOS-DX51-5` exists for and must not be spent on a typo),
+  `--workspace --no-fail-fast` to a file, **67** result-producing targets (66 → 67: one new
+  simulator test binary), residual list empty.
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
+  `sort` + `comm` (`OOS-DX20b-5`): 13 additions, 0 leavers, 0 removals, 0 renames.** Count delta
+  13 == name-set delta 13, and the duplicate-name scan the byte-exact method is structurally blind
+  to (`OOS-DX35-8`) is **EMPTY on both runs** (5,201 / 5,201 distinct; 5,214 / 5,214).
+  **HASH 84 → 85 / PROTOCOL 43 → 44, ONE bump each**, both taken from the failing gates' own output
+  and **both predicted in writing before any production line** (`a37f8239`), with both closure type
+  counts predicted and confirmed UNCHANGED at **98 / 132** — measured at the merge base by raising
+  `MIN_CLOSURE_TYPES` to 9999 and reading the gates' own panic text, not inherited from PB-DX52.
+  **The AC predicted PROTOCOL UNMOVED and that prediction is REFUTED with its own ground verified
+  TRUE**: `PlayerState` really is in `CLOSURE_MUST_NOT_CONTAIN`, so a `PlayerState` field alone
+  moves HASH only — but the fix cannot BE a field alone, and `Condition` is in the wire closure via
+  `Effect::Conditional`. Verified BY EXECUTION at stage 0 (planting `Condition` in both gates'
+  `CLOSURE_MUST_NOT_CONTAIN` fails both; `TriggerCondition` fails neither), and `rules/protocol.rs`'s
+  **v21** history row already said both halves in the tree — *the same batch that created this field
+  wrote down this prediction five weeks ago*.
+  History rows appended, never edited; both `FROZEN_HISTORY_PREFIX_DIGEST`s re-pinned;
+  `history_is_append_only` and `frozen_prefix_is_pinned` green on both. **Sentinels re-pinned by
+  symbol across 49 files, then survivor-scanned on BOTH axes** (`OOS-DX36-8`) — a ±3-line window
+  instead of a symbol-adjacent match AND a suffix-tolerant value pattern, because `\b` between a
+  digit and `u` is not a word boundary: **0 candidates**. Then `OOS-DX18-3`'s OPPOSITE check, which
+  a survivor scan is structurally blind to: all **74** added lines carrying `85`/`44` read
+  individually — 58 assertion arguments, 16 history/doc/digest/continuation lines, **no prose
+  rewritten**.
+  Coverage **1,139 → 1,140 / 1,803 = 63.2%** by regeneration, **ONE flip, NAMED before any code**
+  (`minas_tirith` `partial` → `Complete`); exactly **one** `Completeness` marker line moves in the
+  whole card-def diff, checked by `git diff` over the marker rather than inferred from the total
+  (PB-DX26's lesson that a stable COUNT is not a stable SET). **3 card-def edits.**
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
+  gate) — all against the FINAL tree. **`npm run build` was NOT run and that is stated rather than
+  omitted**: N/A, because `git diff --numstat 5182600e..HEAD -- tools/` is **EMPTY** and
+  `node_modules` is absent.
+  **Engine lines** (re-taken against the FINAL tree rather than transcribed — PB-DX28's re-take
+  MEDIUM): `crates/engine/src` **+150 / −30**; `crates/card-types/src` **+67 / −14**;
+  `crates/card-defs` **+107 / −71**; and **`crates/simulator/src`, `crates/view-model` and
+  `tools/` are all EXACTLY 0** — every consumer of the raid gate lives in the engine and the card
+  defs.
+  **Benches: MEASURED, SIX runs on a quiet machine, verdict NO REGRESSION — and the FIRST A/B was
+  thrown away rather than published.** Merge-base runs 1-3 were taken while the implementation
+  agent was compiling and moved `board_wipe_4p` **120.34 → 126.52 → 139.34 µs on IDENTICAL code**
+  (a **16%** same-code spread); discarded before any comparison was computed. Re-run quiet, with
+  the same-code band measured FIRST across three base runs: **0.46-1.42%**. Base-vs-HEAD medians
+  −1.96% to +0.39%, four of six overlapping outright and both non-overlapping ones (−0.74%,
+  −1.04%) SMALLER than the widest same-code band. **The apparent improvement is deliberately NOT
+  claimed** — the controls (`priority_cycle_4p`/`6p`, `sba_check`, none of which is on any line
+  this batch touches) move the same order, which is a two-compilation layout artefact.
+  **And this batch's OWN prediction of a regression is refuted by measurement**, which is the
+  interesting half: `size_of::<PlayerState>()` moves **376 → 400 (+6.4%)**, MORE than PB-DX18's
+  +4.4% that published a real uniform 2.5-4.5% regression. The candidate explanation, offered as an
+  inference with its evidence rather than as a finding: PB-DX18 grew **BOTH** structs
+  (`GameState` 3512 → 3536 as well), while this batch leaves `size_of::<GameState>()` **UNMOVED at
+  3536** (executed at both revisions; a `PlayerState` lives behind an `OrdMap`) — so the evidence
+  points at **`GameState`'s** size as PB-DX18's real driver.
+  **Revert matrix: 3 rows, EXECUTED BY THE COORDINATOR rather than accepted from the delegated
+  report, 3 discriminating, 0 UNDISCRIMINATED** — R2 and R3 are precise complements of R1's
+  blanket, isolating *populated* vs *read by the right consumer* vs *cleared at the right time*.
+  **Two rows need their reason stated rather than their count read**: `t7` is GREEN under R1 as a
+  stated CONTROL (a correct fix must not break Legion's Landing), and `t6` reddens under R1 on its
+  NON-VACUITY FLOOR rather than its subject — without that floor, *"Legion's Landing did not
+  transform"* would be satisfied by an engine that counted nothing at all, which is the pre-fix
+  engine. **The matrix also corrected its own instrument twice**: a build-failure detector matching
+  `^error(\[|:)` also matches cargo's `error: test failed`, so all three real verdicts were first
+  reported as void builds (`OOS-DX39-8` inverted — an over-wide build detector turns a verdict into
+  a non-verdict); and an earlier R1 patch that never applied printed seven greens that were the
+  UNMODIFIED tree. Both caught before anything was published.
+  Filed **OOS-DX53-1..3**.
 - **Tests (delta 2026-09-05, PB-DX39)**: **5,196 / 0 / 5** full-workspace on branch
   `scutemob-230` (+40 over the **5,156** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX52's close pin exactly** — the second consecutive batch in which an inherited
@@ -1439,7 +1526,86 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-04 — **PB-DX52 SHIPPED** (`scutemob-229`; v4 queue rank 14 —
+- **Last Updated**: 2026-09-05 — **PB-DX53 SHIPPED** (`scutemob-231`; v4 queue rank 16 —
+  **OOS-DX21-1** CLOSED, its row corrected against three of its own claims).
+  **One DSL identifier carrying two CR concepts, and the obvious fix repairs one card by breaking
+  the other.** `rules/combat.rs` ASSIGNED `attackers_declared_this_turn = attackers.len()`, so on a
+  turn with an extra combat phase (CR 500.8) attacking with three creatures in combat 1 and one in
+  combat 2 dropped the count to one and `windbrisk_heights` went dead for the rest of the turn.
+  **The ruling settles all three of the batch's open questions in one sentence each and needed no
+  inference** (2007-10-01, via MCP): *"you'll get to play the card if you declared three
+  **different** creatures as attackers **at any point in the turn**. A creature declared as an
+  attacker in two different attack phases **counts only once**. A creature that entered attacking …
+  **doesn't count** because you never attacked with it."*
+  **But `Condition::YouAttackedWithNOrMore` had two readers wanting OPPOSITE semantics.**
+  `legions_landing` is CR 508.3d — per DECLARATION — so making the field accumulate repairs
+  Windbrisk and REGRESSES Legion's Landing (2 in combat 1 + 2 in combat 2 would transform it; the
+  printed trigger never even fires). PB-DX21's review finding M3 says exactly this, and the seed
+  row's own prescribed fix shape — *"a per-turn accumulation with per-creature dedup … and the
+  migration must leave Legion's Landing reading the per-declaration count"* — is right about the
+  two REQUIREMENTS and wrong about their being one field. **So the DSL split**:
+  `latest_attacker_declaration_size: u32` (renamed, semantics untouched) beside a new hashed
+  `creatures_declared_as_attackers_this_turn: OrdSet<ObjectId>`, read by a new
+  `YouAttackedWithNOrMoreCreaturesThisTurn` while the renamed `…ThisDeclaration` keeps the old one.
+  **Both old names were LIES and both were renamed** — the field said "this turn" and meant "the
+  latest declaration"; the Condition stated neither scope while two cards read it for opposite ones,
+  so a card author reaching for the shorter identifier got the per-declaration semantics silently,
+  which is the default-choice trap that produced this seed.
+  **TWO PROPERTIES HOLD BY CONSTRUCTION RATHER THAN BY CARE, WHICH IS THE POINT OF THE SHAPE.**
+  Legion's Landing is byte-identical — same field, same assignment, same arm body, zero behavioural
+  lines on its path — so `t6`/`t7` are a PIN on a property that already holds, not the thing
+  establishing it. And CR 508.4's exclusion (*"Such creatures are 'attacking' but, for the purposes
+  of trigger events and effects, they never 'attacked.'"*) holds because the write site reads the
+  DECLARATION command's own attacker list, never `combat.attackers` — which PB-DX51 made the shared
+  path for the four entrant sites too, so an entrant is never a parameter to that function.
+  **THE SECOND MEMBER WAS INVISIBLE TO THE DECLARED AXIS BECAUSE ITS DEFECT WAS THAT IT WAS
+  MISSING.** The row scopes this to `windbrisk_heights` ALONE and the v4 memo cell says "1
+  deck-legal `Complete`". The inverse ORACLE axis found `minas_tirith`, printing *"Activate only if
+  you attacked with two or more creatures this turn"* and `partial` behind an `ENGINE-BLOCKED` note
+  demanding `Condition::AttackedWithNCreatures(2)` — **an identifier that had existed as
+  `Condition::YouAttackedWithNOrMore(u32)` since PB-OS6 (2026-07-19)**. The note was FALSE at HEAD
+  and outlived the commit that falsified it (`OOS-DX47-6`'s shape). Authored; the batch's single
+  coverage flip. *A declared-axis census cannot see a card whose defect is an unauthored ability.*
+  **THE BATCH'S OWN ROSTER GATE THEN REPRODUCED `OOS-DX36-8` ONE AXIS OVER, AND ITS MODULE DOC
+  ARGUED FOR THE CHOICE.** R1/R3 matched on `format!("{def:#?}")` under a doc defending it —
+  correctly — on the EXHAUSTIVENESS axis: a derived `Debug` has no variant list to under-enumerate,
+  so PB-DX26's `RollDice` lesson does not apply. True, and irrelevant to the failure it had. A
+  `Debug` render also prints PROSE compiled into the def, so `scourge_of_the_throne`'s
+  `Completeness::partial("… Effect::AdditionalCombatPhase …")` — a string literal, not a comment —
+  was counted as a DECLARER and R3's population read **5** when the truth is **4**. The tree already
+  solves this and the plan told the batch to use it: `decision_site_walk::def_contains_variant`
+  suppresses bare strings under a `PROSE_FIELDS` key, and that list already carries `"Inert"` /
+  `"Partial"` / `"KnownWrong"` for exactly this. **R1 had the same shape and was ONE BLOCKER NOTE
+  away from the same false positive** — not a remote risk here, since the card this batch repaired
+  carried a note naming a `Condition` variant BY IDENTIFIER, which is what blocker notes do. Both
+  re-keyed; `scourge_of_the_throne` pinned in R3's must-be-absent list as the member that
+  DISCRIMINATES the two walks. Filed `OOS-DX53-2`. *A census walk has two axes — how exhaustively
+  it reaches, and whether what it reaches is code or prose — and defending one says nothing about
+  the other.*
+  **SR-36 HAS A WORKED EXAMPLE THREE TIMES OVER IN ONE AXIS**: `grep -rl AdditionalCombatPhase`
+  returns **8** files and **four** declare nothing — three mention it in a `//` comment and one in
+  a compiled completeness note. The plan's own §9.2, itself written as an SR-36 worked example, said
+  the population was 7; the implementation agent reported 5; it is **4**.
+  **FOUR CITES CORRECTED, INCLUDING THIS TASK'S OWN TITLE.** The v4 row title, the dispatch title
+  and AC 7368's framing all cite **CR 508.6**, which is verbatim a BOOLEAN per-player predicate with
+  no count and no turn-scope content. The `OOS-DX21-1` row already said so, and PB-DX21's review had
+  corrected `legions_landing.rs` for exactly this mis-cite — after which it propagated into the
+  queue row title and the dispatch title.
+  Tests **5,209 / 0 / 5** (+13 over a **5,196** pre-edit baseline reproducing PB-DX39's close pin
+  exactly, **67** targets, byte-exact set difference: 13 additions / 0 leavers / 0 removals / 0
+  renames, count-vs-name reconciliation run and duplicate-name scan EMPTY on both runs).
+  **HASH 84 → 85 / PROTOCOL 43 → 44, ONE bump each, both predicted in writing before any production
+  line** (`a37f8239`), closure type counts predicted and confirmed UNCHANGED at **98 / 132**;
+  **the AC's PROTOCOL-UNMOVED prediction REFUTED with its own ground verified true**. Coverage
+  **1,139 → 1,140 = 63.2%**, ONE flip named before regeneration. All gates clean against the FINAL
+  tree; `npm run build` N/A and said so. **Benches: no regression, six quiet runs, the first A/B
+  thrown away as contaminated (16% same-code spread) rather than published, and the apparent
+  improvement deliberately not claimed** — and the batch's own prediction of a regression refuted,
+  with the evidence pointing at `GameState`'s size rather than `PlayerState`'s as PB-DX18's real
+  driver. **Revert matrix 3 rows, coordinator-executed, 3 discriminating, 0 UNDISCRIMINATED**, with
+  its own instrument corrected twice. Filed **OOS-DX53-1..3**. Full record:
+  `memory/primitives/pb-DX53-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-04 — **PB-DX52 SHIPPED** (`scutemob-229`; v4 queue rank 14 —
   **OOS-DX25b-1** and **OOS-DX25b-5** CLOSED, plus **OOS-DX25c-3** CLOSED as a third).
   **A printed line with no id space to say it in.** CR 115.7a lets Bolt Bend *"change the target
   of target spell **or ability** with a single target"*, and the "or ability" half was dead:
