@@ -11,7 +11,7 @@ Status legend: `[ ]` pending · `[~]` in progress · `[x]` done.
       `ContinuousEffectDef.condition` population (re-measure the memo's 2)
 - [x] 0.5 Re-derive the seven Archangel pairs from the Artifact-moving supply — floor AND ceiling
 - [x] 0.6 Coverage flip prediction NAMED before regeneration (0 expected — state the reason)
-- [ ] 0.7 Merge-base bench worktree prepared; same-code band measured FIRST across three base runs
+- [x] 0.7 Merge-base bench worktree prepared; same-code band measured FIRST across three base runs
 
 ## Stage 1 — engine (adjudication §5.2)
 - [x] 1.1 Split `is_effect_active` into `is_effect_duration_active` + `is_effect_condition_satisfied`
@@ -65,19 +65,19 @@ Status legend: `[ ]` pending · `[~]` in progress · `[x]` done.
 - [x] 3.3 `clippy --workspace --all-targets -D warnings`, `cargo fmt --check`,
       `tools/check-defs-fmt.sh`, `cargo build --workspace` — all AGAINST THE FINAL TREE
 - [x] 3.4 Both wire gates EXECUTED; unmoved verdict published with the counterfactual
-- [ ] 3.5 Coverage regenerated, self-dating churn reverted
-- [ ] 3.6 `npm run build` N/A stated with its reason
-- [ ] 3.7 Benches: merge-base A/B on a quiet machine, published honestly; `size_of` for any
+- [x] 3.5 Coverage regenerated, self-dating churn reverted
+- [x] 3.6 `npm run build` N/A stated with its reason
+- [x] 3.7 Benches: merge-base A/B on a quiet machine, published honestly; `size_of` for any
       struct that grows
-- [ ] 3.8 Fuzz A/B on the PB-DX32 gate config; movement attributed by ablation if any
+- [x] 3.8 Fuzz A/B on the PB-DX32 gate config; movement attributed by ablation if any
 - [x] 3.9 Revert matrix executed by the coordinator; UNDISCRIMINATED rows disclosed in the test
 
 ## Stage 4 — bookkeeping
-- [ ] 4.1 `/review` run; every finding taken or declined with a reason
-- [ ] 4.2 Registry rows closed (pipes escaped); adjudication §6 rows updated
-- [ ] 4.3 `OOS-DX42b-N` seeds filed — grep the registry FIRST (dispatch hygiene 5)
-- [ ] 4.4 v4 memo §4 row 18 struck; banner repointed to rank 19 with the
+- [x] 4.1 `/review` run; every finding taken or declined with a reason
+- [x] 4.2 Registry rows closed (pipes escaped); adjudication §6 rows updated
+- [x] 4.3 `OOS-DX42b-N` seeds filed — grep the registry FIRST (dispatch hygiene 5)
+- [x] 4.4 v4 memo §4 row 18 struck; banner repointed to rank 19 with the
       "ranks 14-18 shipped, NO further dispatch authorised" note
-- [ ] 4.5 CLAUDE.md Current State + narrative; `memory/workstream-state.md` handoff AND its W6 row
-- [ ] 4.6 Headline surfaces re-checked against the registry AFTER the `/review` fix cycle (hygiene 8)
-- [ ] 4.7 `/tmp` bench dirs deleted; execution notes written
+- [x] 4.5 CLAUDE.md Current State + narrative; `memory/workstream-state.md` handoff AND its W6 row
+- [x] 4.6 Headline surfaces re-checked against the registry AFTER the `/review` fix cycle (hygiene 8)
+- [x] 4.7 `/tmp` bench dirs deleted; execution notes written
