@@ -292,6 +292,34 @@ fn r1b_pop_detector_fires_on_synthetic_violations() {
 /// * **CR 309.6** (`sba.rs`, dungeon removal): the same shape for a `RoomAbility`.
 ///
 /// `r5` pins that those two are still the only two such readers.
+///
+/// # DISCLOSURE: this gate is currently the ONLY thing that catches the wrong design
+///
+/// Revert row **R2** (delete the two inner departure calls, keep the wrapper backstop — i.e.
+/// exactly the function-boundary design) reddens **this test and nothing else in the
+/// workspace**. No behavioural probe moves. That is `OOS-DX52-2`'s shape stated out loud: *a
+/// row that reddens only a source gate is telling you the behaviour has no probe*, and a later
+/// batch that "simplifies" the two calls into one at the function boundary would satisfy every
+/// other test in this tree.
+///
+/// **The behavioural probe is not merely missing, it is currently unbuildable, and that has its
+/// own filed cause.** The property R2 breaks is CR 714.4's *"…hasn't yet left the stack"*
+/// exemption for a FINAL chapter — and `OOS-DX54-4` is that the engine never reaches that
+/// exemption correctly anyway: `enter_step` queues the chapter trigger, runs SBAs, and only
+/// then flushes, while `sba.rs`'s guard scans `state.stack_objects` alone. So a Saga is already
+/// sacrificed one mechanism early for an unrelated reason, and no fixture can isolate the
+/// departure-point property until that is fixed. Four alternative constructions were considered
+/// and rejected; they are recorded in the module doc of
+/// `crates/engine/tests/primitives/pb_dx54_resolving_entry_target_space.rs`.
+///
+/// Revert row **R3** (delete the wrapper backstop, keep both inner calls) likewise reddens only
+/// this test's exact-count assertion. The backstop's necessity rests on code reading rather
+/// than on a probe: four paths return from `resolve_top_of_stack_inner` before either
+/// CR-ordered departure — three ability-fizzle / intervening-if returns (Evolve's "no target
+/// recorded", Offspring's CR 603.4 re-check, Gift's CR 603.4 re-check) and the CR 608.2d
+/// suspension, which the wrapper's own state restore covers. The three ability paths would
+/// leave the entry on the stack with no priority granted, which is a stuck game — and **no test
+/// in this workspace drives any of them**, which is filed as `OOS-DX54-5`.
 #[test]
 fn r2_departure_precedes_every_sba_and_priority_site_in_the_resolution() {
     let stripped = strip_comments(&read_source(RESOLUTION_RS));
