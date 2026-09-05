@@ -1474,7 +1474,7 @@ pub fn check_block_pair(
     Ok(())
 }
 
-/// CR 509.1a-c / CR 702.110a / CR 702.39a: the WHOLE declaration -- 4 preamble guards,
+/// CR 509.1a-c / CR 702.111b / CR 702.39a: the WHOLE declaration -- 4 preamble guards,
 /// [`check_block_pair`] over every pair, then the two batch guards (menace, provoke).
 ///
 /// `handle_declare_blockers` calls this before mutating anything, so a rejected
@@ -1516,7 +1516,7 @@ pub fn validate_block_declaration(
         check_block_pair(state, player, *blocker_id, *attacker_id, &seen_blocker_ids)?;
         seen_blocker_ids.push(*blocker_id);
     }
-    // CR 702.110a: A creature with menace can't be blocked except by two or more creatures.
+    // CR 702.111b: A creature with menace can't be blocked except by two or more creatures.
     // Check that no attacker with menace is being blocked by only one creature.
     {
         // Count how many blockers each attacker in this declaration has (summing over all declarations so far + this one).

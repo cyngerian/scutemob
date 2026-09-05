@@ -2443,14 +2443,14 @@ pub fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCo
 /// engine will actually charge, never less, so it cannot manufacture a clean-offer-
 /// then-refusal; the existing offer-loop in `StubProvider::legal_actions` has this
 /// same blind spot already, pre-existing and unrelated to this batch). Filed as
-/// `OOS-DX55-9` for whoever next touches this arm.
+/// `OOS-DX55-6` for whoever next touches this arm.
 ///
 /// **The `CastSpell` arm is BYTE-IDENTICAL to the pre-PB-DX55 body of
 /// `auto_tap_commands_for`** — moved here, not rewritten. In particular it does NOT
 /// flatten hybrid/Phyrexian pips using `cast.hybrid_choices`; the solver's own
 /// `PipTracker::from_cost` flattens with all-default choices regardless, and that
 /// asymmetry with the command's real choices is PRE-EXISTING (filed as
-/// `OOS-DX55-8`, not fixed here, so this batch's fuzz A/B measures only what it
+/// `OOS-DX55-2`, not fixed here, so this batch's fuzz A/B measures only what it
 /// changed). The NEW arms below have no prior behaviour to preserve, so they flatten
 /// with the command's OWN `hybrid_choices`/`phyrexian_life_payments` where the
 /// command carries them (PB-DX44's rule: pass the `Command`'s own values verbatim —
@@ -2818,9 +2818,17 @@ pub fn command_mana_cost(
 ///
 /// **Known limitation, stated rather than worked around**: this covers the
 /// three `Command` variants that can conflict (`ActivateAbility`,
-/// `TapForMana`, `DeclareAttackers`'s non-Vigilance attackers) through the
-/// SAME non-pip path `command_mana_cost` and the offer loop's plain
-/// `can_afford` check use. It does NOT thread through
+/// `TapForMana`, `DeclareAttackers`'s non-Vigilance attackers).
+///
+/// **The offer-layer half of that claim is TRUE OF TWO OF THE THREE, and the
+/// first draft of this sentence said all three** (`/review` NIT 13): the
+/// `ActivateAbility` and `TapForMana` offer loops both apply the exclusion
+/// through the same excluding solver, so offer and funding cannot disagree
+/// there — but the `DeclareAttackers` offer has no CR 508.1h attack-tax
+/// affordability gate at all, so for that variant there is no offer-layer
+/// application to be consistent WITH. That is pre-existing under-mirroring, not
+/// something this batch introduced, and it is stated here rather than papered
+/// over by a sentence that claims coverage which does not exist. It does NOT thread through
 /// `resolve_hybrid_phyrexian_plan` (the OFFER's hybrid/Phyrexian pip-choice
 /// path, `pub(crate)`, several calls deep into `try_hybrid_phyrexian_plan`) —
 /// no corpus def combines a hybrid/Phyrexian-pip activated ability with a
@@ -2870,6 +2878,31 @@ pub fn objects_excluded_from_funding(state: &GameState, command: &Command) -> Ve
                 }
             })
             .collect(),
+        // ── FUNDED commands that need NO exclusion, each with its reason ───────
+        //
+        // Added because this batch's own `r1` gate — the funded-vs-excluded pairing
+        // check — went RED on all six the first time it ran (`/review` LOW 11). Every
+        // one of them was already reaching the `_ =>` arm and getting the right answer;
+        // what was missing was anyone having DECIDED it. A funded command whose
+        // exclusion is "none" for a reason is not the same object as one that fell
+        // through a wildcard, and only the first survives a new variant being added.
+        //
+        // CR 601.2f/g: a spell's cost taps no permanent of its own. Convoke and
+        // Improvise DO tap other permanents, but they ride `cast.convoke_creatures` /
+        // `cast.improvise_artifacts` and are charged by the engine as a cost REDUCTION,
+        // never as a source the solver may also spend — so there is nothing to exclude.
+        Command::CastSpell(_) => Vec::new(),
+        // CR 702.28b: the morph/megamorph/disguise turn-face-up cost is mana only; the
+        // permanent is already face down on the battlefield and is not tapped for it.
+        Command::TurnFaceUp { .. } => Vec::new(),
+        // CR 702.101a: bloodrush's cost is mana plus DISCARDING the card itself, which
+        // is in hand and therefore never a mana source.
+        Command::ActivateBloodrush { .. } => Vec::new(),
+        // CR 702.29a / CR 702.24b / CR 702.60a: echo, cumulative upkeep and recover are
+        // mana-only upkeep payments with no tap component of any kind.
+        Command::PayEcho { .. }
+        | Command::PayCumulativeUpkeep { .. }
+        | Command::PayRecover { .. } => Vec::new(),
         _ => Vec::new(),
     }
 }

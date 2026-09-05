@@ -288,16 +288,38 @@ fn enclosing_fn_name(src: &str, at: usize) -> String {
 /// losing one or two markers to reflow before `r1`'s exact-nine assertion on
 /// `check_block_pair` itself would need loosening, but a wholesale reflow of many
 /// markers at once would still need re-verifying by hand.
-const MARKERS: &[&str] = &[
-    ".contains(&KeywordAbility::Horsemanship)",
-    ".contains(&KeywordAbility::Skulk)",
-    ".contains(&KeywordAbility::Shadow)",
-    ".contains(&KeywordAbility::Intimidate)",
-    ".contains(&KeywordAbility::Fear)",
-    "required_kw.as_ref()",
-    ".any(|k| blocker_chars.keywords.contains(k))",
-    "LandwalkType::BasicType(st) => chars.subtypes.contains(st)",
-    "protection::can_block(",
+/// **Alias-proof SHAPE markers, not literal paths.** Each entry is a
+/// `(prefix, suffix)` pair matched by [`shape_hit`]: the prefix, then an OPTIONAL
+/// `ident::` path qualification of any depth, then the suffix.
+///
+/// The first draft was a list of fully-qualified literals
+/// (`".contains(&KeywordAbility::Horsemanship)"`, `"protection::can_block("`, …) and
+/// the `/review` **DEFEATED BOTH AXES with one plant**: a VERBATIM second copy of
+/// `check_block_pair` differing only by `use mtg_engine::KeywordAbility as KA;` scored
+/// 0-1 on each list, while the same file unaliased reddened both — proving the walk saw
+/// the file and that the gate was measuring the SPELLING, not the predicate. That is
+/// `OOS-DX54-7` and `OOS-DX51-6` verbatim, **one batch old**, and `r2`/`r3`/`r5` could
+/// not see it because all three plant fully-qualified bodies: *a self-test written by
+/// the same author from the same mental model exercises the spellings that author
+/// already thought of* (`OOS-DX54-6`). `OOS-DX55-9`.
+///
+/// Matching the SHAPE rather than the path keeps the precision the qualified form
+/// bought — measured across the workspace before this was adopted, `check_block_pair`
+/// scores **9 of 9** and the runner-up (`protection::check_full_targeting_protection`)
+/// scores **one**. Bare-name matching was measured too and REJECTED: it scores 5-6 on
+/// `hash_into`, `format_keyword` and `keyword_registry::handling`, which are exhaustive
+/// `match` DISPATCHERS over the same enum and not block predicates at all. The
+/// discriminating feature is the USE form (`.contains(&…)`), which no dispatcher has.
+const MARKERS: &[(&str, &str)] = &[
+    (".contains(&", "Horsemanship)"),
+    (".contains(&", "Skulk)"),
+    (".contains(&", "Shadow)"),
+    (".contains(&", "Intimidate)"),
+    (".contains(&", "Fear)"),
+    ("required_kw", ".as_ref()"),
+    (".any(|k| blocker_chars", ".keywords.contains(k))"),
+    ("", "BasicType(st) => chars.subtypes.contains(st)"),
+    ("", "can_block("),
 ];
 
 /// **AXIS B — the COMMON-case markers, added by PB-DX55's own coordinator-run revert
@@ -324,15 +346,15 @@ const MARKERS: &[&str] = &[
 /// "1" deliberately: a doc line opening with `1.` is an ordered-list item and makes
 /// the next line its lazy continuation — `clippy::doc_lazy_continuation`, which fired
 /// here on the first draft, PB-DX39's own case one punctuation mark over.)
-const COMMON_MARKERS: &[&str] = &[
-    ".contains(&KeywordAbility::Flying)",
-    ".contains(&KeywordAbility::Reach)",
-    ".contains(&KeywordAbility::CantBlock)",
-    ".contains(&KeywordAbility::Decayed)",
-    "Designations::SUSPECTED",
-    "GameStateError::CrossPlayerBlock",
-    "GameStateError::DuplicateBlocker",
-    "GameStateError::PermanentAlreadyTapped",
+const COMMON_MARKERS: &[(&str, &str)] = &[
+    (".contains(&", "Flying)"),
+    (".contains(&", "Reach)"),
+    (".contains(&", "CantBlock)"),
+    (".contains(&", "Decayed)"),
+    ("", "SUSPECTED"),
+    ("Err(", "CrossPlayerBlock"),
+    ("Err(", "DuplicateBlocker"),
+    ("Err(", "PermanentAlreadyTapped"),
 ];
 
 /// See [`COMMON_MARKERS`]. Measured headroom: real predicate 8, nearest other 2.
@@ -347,34 +369,87 @@ const THRESHOLD: usize = 5;
 /// For every function in `src` (a byte string), the set of DISTINCT markers found in
 /// it, keyed by `(file label, function name)`. A marker occurring twice in one
 /// function counts once (co-occurrence, not volume, is the signal).
-fn functions_with_markers(files: &[(String, PathBuf)]) -> Vec<(String, String, Vec<&'static str>)> {
+fn functions_with_markers(files: &[(String, PathBuf)]) -> Vec<MarkerHit> {
     functions_with_marker_set(files, MARKERS)
 }
 
 /// The same walk, parameterised by marker list, so AXIS B reuses the identical
 /// comment-stripping and enclosing-function attribution rather than a second copy of
 /// it — which would be this file's own subject matter committed inside this file.
-fn functions_with_marker_set(
-    files: &[(String, PathBuf)],
-    markers: &[&'static str],
-) -> Vec<(String, String, Vec<&'static str>)> {
+/// A `(prefix, suffix)` shape marker; see [`MARKERS`].
+type Marker = (&'static str, &'static str);
+
+/// `(file label, enclosing fn name, the distinct markers found in it)`.
+type MarkerHit = (String, String, Vec<Marker>);
+
+/// Every offset in `src` at which `(prefix, suffix)` matches with an OPTIONAL
+/// `ident::` path qualification of any depth between them.
+///
+/// This is what makes the markers alias-proof: `.contains(&KeywordAbility::Fear)`,
+/// `.contains(&KA::Fear)` and `.contains(&Fear)` all hit, and no `use … as` rename can
+/// hide a second copy. An empty prefix means "match the suffix with any qualification".
+fn shape_hits(src: &str, marker: (&str, &str)) -> Vec<usize> {
+    let (prefix, suffix) = marker;
+    let bytes = src.as_bytes();
+    let (p, s) = (prefix.as_bytes(), suffix.as_bytes());
+    let mut out = Vec::new();
+    // Byte scanning throughout — never `&src[i..]`, because this walk crosses files
+    // containing box-drawing section rules and slicing at an arbitrary byte index
+    // panics on a char boundary. An EMPTY prefix means "the suffix, with any
+    // qualification", and must still advance one byte per iteration.
+    for at in 0..bytes.len() {
+        if !bytes[at..].starts_with(p) {
+            continue;
+        }
+        let mut cur = at + p.len();
+        // Skip any number of `ident::`, with optional surrounding whitespace.
+        loop {
+            let save = cur;
+            while cur < bytes.len() && (bytes[cur] as char).is_whitespace() {
+                cur += 1;
+            }
+            let id_start = cur;
+            while cur < bytes.len() && (bytes[cur].is_ascii_alphanumeric() || bytes[cur] == b'_') {
+                cur += 1;
+            }
+            if cur == id_start {
+                cur = save;
+                break;
+            }
+            while cur < bytes.len() && (bytes[cur] as char).is_whitespace() {
+                cur += 1;
+            }
+            if bytes[cur..].starts_with(b"::") {
+                cur += 2;
+            } else {
+                cur = save;
+                break;
+            }
+        }
+        if bytes[cur..].starts_with(s) {
+            out.push(at);
+        }
+    }
+    out
+}
+
+fn functions_with_marker_set(files: &[(String, PathBuf)], markers: &[Marker]) -> Vec<MarkerHit> {
     use std::collections::BTreeMap;
-    let mut hits: BTreeMap<(String, String), std::collections::BTreeSet<&'static str>> =
-        BTreeMap::new();
+    let mut hits: BTreeMap<
+        (String, String),
+        std::collections::BTreeSet<(&'static str, &'static str)>,
+    > = BTreeMap::new();
     for (label, path) in files {
         let Ok(raw) = std::fs::read_to_string(path) else {
             continue;
         };
         let src = strip_comments(&raw);
         for marker in markers {
-            let mut from = 0usize;
-            while let Some(rel) = src[from..].find(marker) {
-                let at = from + rel;
+            for at in shape_hits(&src, *marker) {
                 let func = enclosing_fn_name(&src, at);
                 hits.entry((label.clone(), func))
                     .or_default()
-                    .insert(marker);
-                from = at + 1;
+                    .insert(*marker);
             }
         }
     }
@@ -393,7 +468,7 @@ fn r1_exactly_one_per_pair_block_predicate_exists() {
     let files = workspace_src_files_checked();
     let hits = functions_with_markers(&files);
 
-    let qualifying: Vec<&(String, String, Vec<&'static str>)> = hits
+    let qualifying: Vec<&MarkerHit> = hits
         .iter()
         .filter(|(_, _, markers)| markers.len() >= THRESHOLD)
         .collect();
@@ -627,6 +702,78 @@ fn second_hand_rolled_block_predicate(
         common_qualifying >= 1,
         "AXIS B DEFEAT CHECK FAILED: a partial hand-rolled block predicate covering \
          only the common guards must be caught by AXIS B; it scored below \
+         COMMON_THRESHOLD={COMMON_THRESHOLD}: {common:?}"
+    );
+}
+
+/// **r6 (defeat, executed against a SYNTHETIC file)** — a VERBATIM second copy of
+/// `check_block_pair` whose only difference is `use … as` aliasing must still be caught,
+/// on BOTH axes.
+///
+/// This is the `/review`'s own Plant D, kept as a test. Against the first draft's
+/// fully-qualified literal markers it scored 0-1 on each list and left `r1` AND `r4`
+/// green, while the same file unaliased reddened both — so the gate was measuring the
+/// spelling, not the predicate (`OOS-DX55-9`; `OOS-DX54-7` and `OOS-DX51-6` one batch
+/// earlier). `r2`/`r3`/`r5` could not see it because all three plant fully-qualified
+/// bodies, which is `OOS-DX54-6`: *a self-test written by the same author from the same
+/// mental model exercises the spellings that author already thought of.*
+///
+/// The repair is [`shape_hits`] — prefix, optional `ident::` of any depth, suffix — so
+/// `KA::Fear`, `KeywordAbility::Fear` and a bare imported `Fear` all hit. This test is
+/// what stops that being undone silently.
+#[test]
+fn r6_defeat_an_aliased_second_copy_reddens_on_both_axes() {
+    let real = std::fs::read_to_string(workspace_root().join("crates/engine/src/rules/combat.rs"))
+        .expect("combat.rs must exist");
+    let aliased = renamed_check_block_pair_body(&real, "sneaky_aliased_copy")
+        .replace("KeywordAbility::", "KA::")
+        .replace("GameStateError::", "GSE::")
+        .replace("Designations::", "DSG::")
+        .replace("super::protection::can_block(", "PROT::can_block(");
+
+    // Non-vacuity: the aliasing must actually have removed every qualified spelling the
+    // first draft keyed on, or this test proves nothing about aliasing.
+    for gone in [
+        "KeywordAbility::",
+        "GameStateError::",
+        "Designations::",
+        "protection::can_block(",
+    ] {
+        assert!(
+            !aliased.contains(gone),
+            "the synthetic plant must contain no `{gone}` — otherwise it is not an \
+             ALIASED copy and this test is measuring something else"
+        );
+    }
+
+    let planted_path = std::env::temp_dir().join("pb_dx55_r6_planted_aliased_copy.rs");
+    std::fs::write(&planted_path, &aliased).expect("write synthetic file");
+    let files = vec![(
+        "crates/simulator/src/sneaky_aliased_copy.rs".to_string(),
+        planted_path.clone(),
+    )];
+
+    let exotic = functions_with_marker_set(&files, MARKERS);
+    let exotic_q = exotic
+        .iter()
+        .filter(|(_, _, m)| m.len() >= THRESHOLD)
+        .count();
+    let common = functions_with_marker_set(&files, COMMON_MARKERS);
+    let common_q = common
+        .iter()
+        .filter(|(_, _, m)| m.len() >= COMMON_THRESHOLD)
+        .count();
+
+    let _ = std::fs::remove_file(&planted_path);
+
+    assert!(
+        exotic_q >= 1,
+        "AXIS A must catch a `use … as` aliased verbatim copy; it scored below \
+         THRESHOLD={THRESHOLD}: {exotic:?}"
+    );
+    assert!(
+        common_q >= 1,
+        "AXIS B must catch a `use … as` aliased verbatim copy; it scored below \
          COMMON_THRESHOLD={COMMON_THRESHOLD}: {common:?}"
     );
 }

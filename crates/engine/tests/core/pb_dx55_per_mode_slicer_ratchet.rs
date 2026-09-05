@@ -16,8 +16,15 @@
 //! `crates/engine/src` — rather than the SHAPE of any one implementation. Any new site is
 //! a compile-clean, test-suite-green change that this gate still catches, because it
 //! doesn't ask "does this look like the banned idiom" — it asks "does anything touch this
-//! field that isn't already on the reviewed list", which is a question independent of
-//! HOW the new code touches it.
+//! field that isn't already on the reviewed list".
+//!
+//! **That question was NOT independent of HOW the new code touches it, and the sentence
+//! that said so was false.** The first draft required the name to be immediately preceded
+//! by `.`, so it saw field accesses and nothing else; the `/review` planted a compiling
+//! sixth slicer reached through `let ModeSelection { mode_targets, .. } = ms;` and every
+//! test in this file stayed GREEN. Struct-pattern bindings and struct literals are now
+//! sites too, and the claim above is true as rewritten rather than as originally
+//! asserted. `OOS-DX55-9`.
 //!
 //! # Executed defeat, before this gate shipped
 //!
@@ -72,9 +79,13 @@ struct Site {
 /// A match is REAL when: (1) the line survives `//` comment stripping (covers `//`,
 /// `///` and `//!`, which all begin with the same two characters); (2) the token
 /// `mode_targets` is a whole token (not a substring of a longer identifier, e.g.
-/// `mode_targets_active`); (3) it is immediately preceded by `.` (a genuine field
-/// access, not a bare local-binding name that happens to share the field's name, e.g.
-/// `if let Some(mode_targets) = ...`); and (4) the identifier immediately before that
+/// `mode_targets_active`); (3) it is either immediately preceded by `.` (a genuine field
+/// access) OR is a struct-pattern binding / struct-literal field inside a `{ .. }` whose
+/// brace is reached scanning backwards over binding syntax only -- the SECOND half was
+/// added after the `/review` defeated this gate with a `let ModeSelection {
+/// mode_targets, .. } = ms;` slicer, and a bare local binding that merely shares the
+/// name (e.g. `if let Some(mode_targets) = ...`) still does not qualify, because a `(`
+/// stops the backward scan before any `{`; and (4) the identifier immediately before that
 /// `.` is not the literal type name `ModeSelection` -- every string-literal error message
 /// in this codebase that mentions the field spells it `ModeSelection.mode_targets`
 /// (capitalised type name, invalid as real Rust field-access syntax), so filtering that
@@ -115,9 +126,61 @@ fn mode_targets_sites() -> Vec<Site> {
                 if !(ok_before && ok_after) {
                     continue;
                 }
-                // Must be immediately preceded by `.` (a field access), else it is a
-                // bare local-binding name and not a site.
-                if at == 0 || b[at - 1] != b'.' {
+                // A site is either a FIELD ACCESS (`x.mode_targets`) or a STRUCT-PATTERN
+                // BINDING (`let ModeSelection { mode_targets, .. } = ms;`, or the same
+                // inside a `match`/`if let` arm).
+                //
+                // **The binding form was added after the `/review` DEFEATED this gate by
+                // execution**: a compiling SIXTH slicer in `queries.rs` — the very file
+                // this module's doc names — computing exactly what
+                // `per_mode_target_requirements` computes, reached through
+                // `let ModeSelection { mode_targets, .. } = ms;` instead of a `.`
+                // access, was invisible to `r_sites`, to `scanner_is_not_vacuous` and to
+                // `r_call_sites` alike. Both of the defeats recorded in this module's
+                // doc used `ms.mode_targets`, i.e. the author's own spelling —
+                // `OOS-DX54-6` again. And the doc's claim that the gate asks a question
+                // *"independent of HOW the new code touches it"* was false precisely
+                // because of the `b[at - 1] != b'.'` filter this comment replaces.
+                // `OOS-DX55-9`.
+                let is_field_access = at > 0 && b[at - 1] == b'.';
+                let is_pattern_binding = {
+                    // Scan backwards over `,`/whitespace/other binding names to a `{`
+                    // that is preceded (modulo whitespace) by an identifier — i.e. a
+                    // struct pattern or a struct literal. Either is a real touch of the
+                    // field; a struct LITERAL that sets `mode_targets` is a site too.
+                    let mut k = at;
+                    let mut found = false;
+                    while k > 0 {
+                        k -= 1;
+                        let c = b[k];
+                        if c == b'{' {
+                            found = true;
+                            break;
+                        }
+                        if !(c.is_ascii_alphanumeric()
+                            || c == b'_'
+                            || c == b','
+                            || c == b':'
+                            || c == b'.'
+                            || (c as char).is_whitespace())
+                        {
+                            break;
+                        }
+                    }
+                    found
+                };
+                if !(is_field_access || is_pattern_binding) {
+                    continue;
+                }
+                if is_pattern_binding && !is_field_access {
+                    // Recorded under a synthetic owner so the allowlist names it exactly
+                    // the way it names a field access and every count assertion below
+                    // still applies.
+                    sites.push(Site {
+                        file: rel.clone(),
+                        line: i + 1,
+                        owner: "<destructured>".to_string(),
+                    });
                     continue;
                 }
                 // Walk backward from the `.` to collect the owner identifier.

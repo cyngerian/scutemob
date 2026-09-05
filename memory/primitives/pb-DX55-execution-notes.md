@@ -251,7 +251,7 @@ Every row patches production source, runs the batch's own probes across four tar
 | R8 | a genuine top-level `_ =>` wildcard planted in `command_mana_cost` | **4** incl. the `r1` ceiling gate |
 | R9 | a PARTIAL hand-rolled per-pair block predicate planted in `combat.rs` | **0 before the fix / 1 after** |
 | R10 | a SIXTH inline copy of `per_mode_target_requirements`' body | **1** |
-| R11 | the CR 702.110a menace prune removed | **2** |
+| R11 | the CR 702.111b menace prune removed | **2** |
 
 **R1 and R2 are precise complements**: R1 reddens all three funding probes, R2 reddens exactly
 the one whose fixture puts a mana ability on the permanent that is about to tap itself. That is

@@ -720,7 +720,7 @@ pub fn check_block_pair(
     combat::check_block_pair(state, player, blocker, attacker, already_blocking)
 }
 
-/// CR 509.1a-c / CR 702.110a / CR 702.39a (PB-DX55, `OOS-SIM5-3`) — is the WHOLE
+/// CR 509.1a-c / CR 702.111b / CR 702.39a (PB-DX55, `OOS-SIM5-3`) — is the WHOLE
 /// declaration `blockers` legal for `player` right now? Thin re-export of
 /// `combat::validate_block_declaration`, the same function `handle_declare_blockers`
 /// calls before mutating anything.

@@ -1894,7 +1894,7 @@
   **EACH HALF IS ONE ARITHMETIC, NOT A SECOND COPY, AND THE COMPILER ENFORCES IT WHERE IT CAN.**
   `legal_actions::command_mana_cost` is an **exhaustive `match` over all 45 `Command` variants
   with NO wildcard arm**, so the mana-bearing census is a CEILING the compiler holds rather than a
-  document: 9 arms return a cost, 23 charge no mana, 14 charge mana but no `LegalAction` can
+  document: 9 arms return a cost, **21** charge no mana, 14 charge mana but no `LegalAction` can
   produce them, and `AnswerEffectChoice` is `None` for a stated reason rather than by omission.
   `auto_tap_commands_for` collapses to that call plus `solve_mana_payment_with_pool` — **the same
   two calls `can_afford` makes**, so SR-38 holds by construction instead of by two functions that

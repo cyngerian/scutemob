@@ -136,7 +136,7 @@ so the simulator consumes a query rather than reaching into the handler:
 pub fn check_block_pair(state, player, blocker, attacker, already_blocking: &[ObjectId])
     -> Result<(), GameStateError>;
 
-/// The whole declaration, including CR 702.110a menace and CR 702.39a provoke.
+/// The whole declaration, including CR 702.111b menace and CR 702.39a provoke.
 pub fn validate_block_declaration(state, player, blockers: &[(ObjectId, ObjectId)])
     -> Result<(), GameStateError>;
 ```

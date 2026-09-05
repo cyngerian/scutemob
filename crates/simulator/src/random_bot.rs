@@ -188,7 +188,7 @@ pub(crate) fn action_to_command(
         // OWN legal attacker candidates (`legal_blocks`), which already excludes
         // every pairing `check_block_pair` would refuse -- flying/reach, every other
         // evasion keyword, protection, landwalk, `CrossPlayerBlock`. What a per-pair
-        // predicate cannot express are the two SET-level guards, CR 702.110a menace
+        // predicate cannot express are the two SET-level guards, CR 702.111b menace
         // and CR 702.39a provoke, so those are handled by seeding provoke first and
         // then a single deterministic menace prune -- **no repeat cap, no retry-on-
         // refusal loop** (PB-DX21 deleted that shape).
@@ -232,27 +232,36 @@ pub(crate) fn action_to_command(
                 }
             }
 
-            // CR 702.110a: menace can't be blocked by exactly one creature -- a
-            // property of the WHOLE declaration (plus anything already committed by
-            // an earlier defending player this combat), which no per-pair predicate
-            // can see. Counted once, before any removal, so dropping one lone
-            // blocker cannot change another attacker's count -- a single pass is
-            // sufficient.
-            let mut blocker_count: std::collections::BTreeMap<ObjectId, usize> = Default::default();
-            if let Some(combat) = state.combat().as_ref() {
-                for (_, &att) in &combat.blockers {
-                    *blocker_count.entry(att).or_insert(0) += 1;
-                }
+            // ── The SET-level guards, decided by the ENGINE's own validator ─────
+            //
+            // CR 702.111b menace and CR 702.39a provoke are properties of the WHOLE
+            // declaration, which no per-pair predicate can see. The first draft
+            // re-implemented the menace blocker-count here by hand, and the `/review`
+            // was right that this is the batch's own defect one layer up: it is a
+            // SECOND hand-rolled copy of a rule the engine already states, in the
+            // batch whose entire subject is collapsing the first one. It also had a
+            // real (latent) divergence — a provoke pair seeded above could be dropped
+            // by the hand-rolled menace `retain`, yielding a declaration the engine
+            // then refuses with "must block … (provoke requirement)".
+            //
+            // So the verdict comes from `queries::validate_block_declaration` — the
+            // exact function `handle_declare_blockers` runs — and the bot prunes
+            // against IT. Pruning removes the LAST pair first, which is why the
+            // provoke seeds are pushed FIRST above: extras are given up before
+            // requirements are. Bounded by `blocks.len()`, so it terminates without a
+            // repeat cap or a retry-on-refusal loop (PB-DX21 deleted that shape).
+            while !blocks.is_empty()
+                && mtg_engine::rules::queries::validate_block_declaration(state, player, &blocks)
+                    .is_err()
+            {
+                blocks.pop();
             }
-            for (_, attacker) in &blocks {
-                *blocker_count.entry(*attacker).or_insert(0) += 1;
-            }
-            blocks.retain(|(_, attacker)| {
-                blocker_count.get(attacker).copied().unwrap_or(0) != 1
-                    || !mtg_engine::calculate_characteristics(state, *attacker)
-                        .is_some_and(|c| c.keywords.contains(&mtg_engine::KeywordAbility::Menace))
-            });
-
+            // An empty declaration can still be illegal (a satisfiable provoke
+            // requirement makes "block nothing" refusable), and there is nothing left
+            // to prune. Submitting it anyway is correct: it is the engine's own
+            // verdict that decides, and the rejection is RECORDED (SIM-5's channel)
+            // rather than silently swallowed, which is what a successor needs in order
+            // to see the case at all.
             params.blockers = blocks;
         }
         _ => {}

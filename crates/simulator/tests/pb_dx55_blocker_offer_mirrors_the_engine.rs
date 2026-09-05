@@ -1,7 +1,7 @@
 //! PB-DX55 Half 2 (`OOS-SIM5-3`, and `OOS-DX51-3` inside it) — the simulator side:
 //! `StubProvider`'s `DeclareBlockers` offer mirrors the engine's real per-pair
 //! legality, and `RandomBot`'s blocker picker never submits a declaration the engine
-//! will refuse for a reason a per-pair predicate cannot express (CR 702.110a menace).
+//! will refuse for a reason a per-pair predicate cannot express (CR 702.111b menace).
 //!
 //! `crates/engine/tests/primitives/pb_dx55_block_legality_query.rs` proves the
 //! ENGINE side (`check_block_pair` / `validate_block_declaration` /
@@ -166,12 +166,12 @@ fn t2_attacking_player_never_offered_declare_blockers_with_an_untapped_creature(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CR 702.110a — the bot's prune drops a lone blocker on a menace attacker rather
+// CR 702.111b — the bot's prune drops a lone blocker on a menace attacker rather
 // than submitting a declaration the engine refuses
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// With exactly ONE eligible blocker available against a menace attacker, no
-/// declaration can legally assign it alone (CR 702.110a needs two or more). Across
+/// declaration can legally assign it alone (CR 702.111b needs two or more). Across
 /// many RNG seeds, `RandomBot` must never produce a `Command::DeclareBlockers`
 /// containing that lone assignment -- and every command it DOES produce must be
 /// accepted by the real engine (asserted by RESOLUTION: `process_command`, not
@@ -237,7 +237,7 @@ fn t3_bot_prune_drops_a_lone_blocker_on_a_menace_attacker() {
         let count_on_menace_attacker = blockers.iter().filter(|(_, a)| *a == attacker_id).count();
         assert_ne!(
             count_on_menace_attacker, 1,
-            "seed {seed}: CR 702.110a: the bot must never submit exactly ONE blocker \
+            "seed {seed}: CR 702.111b: the bot must never submit exactly ONE blocker \
              against a menace attacker (the prune must drop a lone candidate rather \
              than let the declaration reach the engine and be refused): {blockers:?}"
         );
