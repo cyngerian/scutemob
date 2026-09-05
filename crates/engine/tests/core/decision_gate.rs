@@ -42,7 +42,8 @@ use mtg_engine::{
     ManaColor, PlayerTarget, SubType, TargetFilter, TargetRequirement, TriggerCondition,
     ZoneTarget,
 };
-use std::collections::{BTreeSet, HashMap};
+use serde_json::Value;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 fn defs_map() -> HashMap<String, mtg_engine::CardDefinition> {
     all_cards()
@@ -1504,7 +1505,7 @@ fn prose_field_denylist_covers_every_string_field_in_the_dsl() {
     let game_object_src = read_ct("crates/card-types/src/state/game_object.rs");
     let stripped = strip_line_comments(&game_object_src);
     let start = stripped
-        .find("pub struct TriggeredAbilityDef")
+        .find("pub struct TriggeredAbilityDef {")
         .expect("TriggeredAbilityDef struct not found");
     let open = start
         + stripped[start..]
@@ -1782,4 +1783,626 @@ fn runtime_decision_coverage_roster_matches_rows() {
         !unobservable.is_empty(),
         "UNOBSERVABLE_ROW_IDS must not be empty"
     );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The total classification of `pub enum Effect` (`OOS-DX28-1`)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Declared `Effect` variants that are deliberately NOT decision-site rows, each with the
+/// reason. See [`every_effect_variant_is_classified`] for what this list is for and why a
+/// bare `MIN_ROWS` ratchet was not enough.
+///
+/// Two kinds of entry live here and each says which it is:
+///
+/// * **no decision** — every question the variant's resolution has to answer is answered by
+///   its own payload, by a CR 115 target announced at cast/activation time, by PB-DX28's
+///   `EffectTarget::ChosenObject` channel, or by a nested `Effect` that this same RECURSIVE
+///   walk still reaches (the combinators);
+/// * **gated elsewhere** — the variant does take a choice, and a named gate holds its
+///   deck-legal population at zero. `ROWS` already carries `DecisionClass::Gated` for two
+///   such variants; these are the ones with the gate and no row.
+const NON_ROW_EFFECT_VARIANTS: &[(&str, &str)] = &[
+    (
+        "AddCounter",
+        "`counter`, `count` and an `EffectTarget` are all in the payload.",
+    ),
+    (
+        "AddCounterAmount",
+        "`counter`, `count` and an `EffectTarget` are all in the payload.",
+    ),
+    (
+        "AddMana",
+        "The exact `ManaCost` produced is in the payload — no colour is chosen.",
+    ),
+    (
+        "AddManaAnyColor",
+        "GATED by SR-33's `core::effect_choose_gate::no_complete_def_uses_an_any_color_mana_stub`, unless the def registers a real served `any_color` tap mana ability (that gate's own documented condition, with its documented hole).",
+    ),
+    (
+        "AddManaAnyColorRestricted",
+        "GATED by SR-33's `no_complete_def_uses_an_any_color_mana_stub`, which flags this variant UNCONDITIONALLY on any `Complete` def.",
+    ),
+    (
+        "AddManaChoice",
+        "GATED, not undecided. `Effect::AddManaChoice` adds one COLORLESS mana and ignores its `count`; SR-33's `core::effect_choose_gate::no_complete_def_uses_the_add_mana_choice_stub` bars it from every `Complete` def, so its deck-legal population is held at zero by a gate rather than by authoring discipline. That is the treatment ROWS gives `Choose` and `MayPayOrElse` — minus the row.",
+    ),
+    (
+        "AddManaOfAnyColorAmount",
+        "GATED by SR-33's `no_complete_def_uses_an_any_color_mana_stub`, which flags this variant UNCONDITIONALLY on any `Complete` def.",
+    ),
+    (
+        "AddManaOfChosenColor",
+        "CONSUMES a decision rather than making one: it reads `obj.chosen_color`, recorded earlier by a `ChooseColor` (CR 614.12a). That choice is the `choose_color_or_type` ROW.",
+    ),
+    (
+        "AddManaRestricted",
+        "`mana` and `restriction` are both in the payload (CR 106.6b).",
+    ),
+    (
+        "AddManaScaled",
+        "`color` and `count` are both in the payload; no colour is chosen at resolution.",
+    ),
+    (
+        "AdditionalCombatPhase",
+        "CR 506.1 — an extra phase is inserted; `followed_by_main` is in the payload.",
+    ),
+    (
+        "AdditionalLandPlay",
+        "CR 305.2 — raises the land-play allowance; nothing is chosen.",
+    ),
+    (
+        "ApplyContinuousEffect",
+        "Installs the payload's `ContinuousEffectDef` verbatim.",
+    ),
+    (
+        "AttachEquipment",
+        "Both the equipment and the creature are `EffectTarget`s (CR 702.6a's target is announced at activation).",
+    ),
+    (
+        "AttachFortification",
+        "Both the fortification and the land are `EffectTarget`s (CR 702.67a).",
+    ),
+    (
+        "BecomeCopyOf",
+        "Both the copier and the copied object are `EffectTarget`s; `duration` is in the payload. CR 707.10's choose-new-targets clause applies to a copy of a SPELL, which is `CopySpellOnStack`, on the candidate list below.",
+    ),
+    (
+        "BecomeMonarch",
+        "CR 720.2 — the new monarch is the payload's `PlayerTarget`; nothing is picked.",
+    ),
+    (
+        "Bite",
+        "Both creatures are `EffectTarget`s (CR 701.12a's fight shape, one-directional).",
+    ),
+    (
+        "BounceAll",
+        "A mass effect over a `TargetFilter` (optionally bounded by `max_toughness_amount`); every match is returned.",
+    ),
+    (
+        "Cloak",
+        "CR 702.176a cloaks the TOP card of the library; `player` is in the payload.",
+    ),
+    (
+        "CoinFlip",
+        "CR 705 — a random outcome is not a player choice, and both branch `Effect`s are reached by the recursive walk.",
+    ),
+    (
+        "Conditional",
+        "COMBINATOR — it carries no decision of its own. Its `if_true`/`if_false` branches are nested `Effect`s, and `json_contains_variant` is a RECURSIVE walk, so a decision inside a branch is still found and attributed to that branch's own row.",
+    ),
+    (
+        "CounterSpell",
+        "The spell or ability is an `EffectTarget`; `exile_instead` is in the payload.",
+    ),
+    (
+        "CreateEmblem",
+        "CR 114.1 — the emblem's abilities are the payload.",
+    ),
+    (
+        "CreateToken",
+        "The token's whole characteristic set is the payload's `TokenSpec`; nothing about it is chosen at resolution.",
+    ),
+    (
+        "CreateTokenAndAttachSource",
+        "The token is the payload's `TokenSpec` and the host is the source.",
+    ),
+    (
+        "CreateTokenCopy",
+        "The copied permanent is an `EffectTarget`; every deviation from a plain copy (`gains_haste`, `except_not_legendary`, …) is a payload flag.",
+    ),
+    (
+        "DealDamage",
+        "Payload-determined: `amount`, `source` and an `EffectTarget` recipient. Which object or player takes the damage is a CR 115 target (or PB-DX28's `ChosenObject` channel), not a resolution-time pick.",
+    ),
+    (
+        "DestroyAll",
+        "A mass effect over a `TargetFilter`: EVERY match is destroyed, so there is no 'which'. (The CR 404.3 order simultaneous deaths enter a graveyard IS a choice; it is the separate class-B site the `wheel_hand` row's own note files as `OOS-DP10-10`, and it is not a property of this variant.)",
+    ),
+    (
+        "DestroyAndReanimate",
+        "Both halves name `EffectTarget`s; the destination is fixed by the variant.",
+    ),
+    (
+        "DestroyPermanent",
+        "The permanent is an `EffectTarget` — a CR 115 target announced at cast/activation, or PB-DX28's `EffectTarget::ChosenObject` channel, both separately served.",
+    ),
+    (
+        "DetachEquipment",
+        "The equipment is an `EffectTarget`; CR 301.5c unattaching asks nothing.",
+    ),
+    (
+        "DrainLife",
+        "Payload-determined: `amount`; the two halves are the source's controller and the effect's target.",
+    ),
+    (
+        "DrawCards",
+        "CR 121.1 draws from the TOP of the library; `count` and `player` are in the payload, so there is no 'which card'.",
+    ),
+    (
+        "ExchangeControl",
+        "Both permanents are `EffectTarget`s; `duration` is in the payload (CR 613.1c).",
+    ),
+    (
+        "ExileAll",
+        "A mass effect over a `TargetFilter`; every match is exiled.",
+    ),
+    (
+        "ExileObject",
+        "The object is an `EffectTarget` — a CR 115 target, or PB-DX28's `ChosenObject` channel.",
+    ),
+    (
+        "ExileSourceAndReturnTransformed",
+        "Acts on the SOURCE alone; no participant is chosen (CR 701.28a).",
+    ),
+    (
+        "ExileWithDelayedReturn",
+        "The permanent is an `EffectTarget`; `return_timing`, `return_tapped` and `return_to` are all in the payload.",
+    ),
+    (
+        "ExtraTurn",
+        "CR 500.7 — `player` and `count` are in the payload. (WHEN the extra turn is taken is fixed; the APNAP question `extra_turns` raises is a turn-structure property, not a resolution-time pick.)",
+    ),
+    (
+        "Fight",
+        "Both creatures are `EffectTarget`s (CR 701.12a).",
+    ),
+    (
+        "Flicker",
+        "The permanent is an `EffectTarget`; CR 400.7 makes the returning object a new one and the return is automatic.",
+    ),
+    (
+        "ForEach",
+        "COMBINATOR — see `Conditional`. (The CR 101.4 APNAP order of a per-player `ForEach` is `OOS-DP9-8`'s subject, closed by PB-DX15a, and is a property of the walk rather than of this variant.)",
+    ),
+    (
+        "GainControl",
+        "The permanent is an `EffectTarget`; `duration` is in the payload.",
+    ),
+    (
+        "GainLife",
+        "Payload-determined: `amount` and a `PlayerTarget`.",
+    ),
+    (
+        "Goad",
+        "The creature is an `EffectTarget`; CR 701.38a imposes a requirement on a later declaration rather than asking anything now.",
+    ),
+    (
+        "GrantFlash",
+        "`filter` and `duration` are in the payload; CR 702.8a is granted, not chosen.",
+    ),
+    (
+        "GrantPlayerProtection",
+        "`player`, `qualities` and `duration` are all in the payload.",
+    ),
+    (
+        "Investigate",
+        "CR 701.32a names the Clue token exactly; only `count` varies and it is in the payload.",
+    ),
+    (
+        "LivingDeath",
+        "CR 701.21/400 — every creature card in every graveyard and every creature on the battlefield is exchanged; the set is total, so there is no 'which'.",
+    ),
+    (
+        "LoseLife",
+        "Payload-determined: `amount` and a `PlayerTarget`.",
+    ),
+    (
+        "Manifest",
+        "CR 701.34a manifests the TOP card of the library; `player` is in the payload.",
+    ),
+    (
+        "Meld",
+        "CR 701.37 — the partner is fixed by the source's `melded_card_id`, so there is no pick.",
+    ),
+    (
+        "MillCards",
+        "CR 701.13a mills from the TOP; `count` and `player` are in the payload.",
+    ),
+    (
+        "MoveZone",
+        "The object is an `EffectTarget` (CR 115 target, or PB-DX28's `ChosenObject`) and the destination is the payload's `ZoneTarget`.",
+    ),
+    (
+        "Nothing",
+        "The no-op. There is nothing to decide, which is the point of the variant.",
+    ),
+    (
+        "PreventAllCombatDamage",
+        "A blanket prevention shield; no participant is chosen.",
+    ),
+    (
+        "PreventCombatDamageFromOrTo",
+        "The permanent is an `EffectTarget`; the two direction flags are in the payload.",
+    ),
+    (
+        "PreventNextUntap",
+        "The permanent is an `EffectTarget`; the shield is created, not chosen (CR 614.1).",
+    ),
+    (
+        "Regenerate",
+        "The permanent is an `EffectTarget`; CR 701.15a's shield is created, not chosen.",
+    ),
+    (
+        "RegisterReplacementEffect",
+        "Installs the payload's replacement `modification` under the payload's `trigger`.",
+    ),
+    (
+        "RemoveCounter",
+        "`counter`, `count` and an `EffectTarget` are all in the payload.",
+    ),
+    (
+        "RemoveFromCombat",
+        "The creature is an `EffectTarget`; CR 506.4 removal asks nothing.",
+    ),
+    (
+        "Repeat",
+        "COMBINATOR — see `Conditional`; the nested `effect` is reached by the same recursive walk.",
+    ),
+    (
+        "RollDice",
+        "CR 706 — as `CoinFlip`. Its `results` payload is a `Vec<(u32, u32, Effect)>`; the walk runs over SERIALIZED JSON, so the nested effects inside those tuples are still visited (PB-DX26's `RollDice` nesting lesson, which a `Box`/`Vec` field count cannot see).",
+    ),
+    (
+        "Sequence",
+        "COMBINATOR — a tuple variant holding `Vec<Effect>`; every member is reached by the recursive walk.",
+    ),
+    (
+        "SetNoMaximumHandSize",
+        "CR 402.2 — `player` is in the payload; the cleanup discard it removes is `ENG-1`'s row.",
+    ),
+    (
+        "SetReturnToHandAtEndStep",
+        "A delayed trigger on the source itself; no participant is chosen.",
+    ),
+    (
+        "Shuffle",
+        "CR 701.20 — randomisation is not a player choice.",
+    ),
+    (
+        "SolveCase",
+        "CR 715 — solving is decided by the case's own condition, not by a player.",
+    ),
+    (
+        "Suspect",
+        "The creature is an `EffectTarget`; CR 701.59a confers two static abilities.",
+    ),
+    (
+        "TakeTheInitiative",
+        "CR 725.2 — the controller takes the initiative. (It then ventures, and THAT half is `VentureIntoDungeon`'s row on the candidate list below; this variant contributes no choice of its own.)",
+    ),
+    (
+        "TapPermanent",
+        "The permanent is an `EffectTarget` — a CR 115 target, or PB-DX28's `ChosenObject`.",
+    ),
+    (
+        "TransformSelf",
+        "CR 701.28a — the source transforms; no participant is chosen.",
+    ),
+    (
+        "Unsuspect",
+        "The creature is an `EffectTarget`; CR 701.59b removes the two static abilities.",
+    ),
+    (
+        "UntapAll",
+        "A mass effect over a `TargetFilter`; every match untaps.",
+    ),
+    (
+        "UntapPermanent",
+        "The permanent is an `EffectTarget` — a CR 115 target, or PB-DX28's `ChosenObject`.",
+    ),
+    (
+        "WinGame",
+        "CR 104.2a — the game ends; no participant and no ordering is chosen.",
+    ),
+];
+
+/// Declared `Effect` variants whose engine implementation VISIBLY takes a choice the CR gives
+/// a player, and which have no `ROWS` row.
+///
+/// These are filed rather than claimed. Each is stated with the CR rule and the line of
+/// `crates/engine/src` that takes the choice, and none of them is asserted to be harmless —
+/// the honest position is *"a row is probably owed here and the audit has not adjudicated
+/// one"*, which is a different thing from `NON_ROW_EFFECT_VARIANTS`' *"no row is owed"*.
+///
+/// They are separated from `NON_ROW_EFFECT_VARIANTS` so that a future batch promoting one to
+/// a `ROWS` row moves it from this list to the table, and the partition assertion below keeps
+/// working either way. Note what this list does NOT do: it does not change any count, any
+/// `BASELINE`, or any behaviour. It converts an undocumented floor into a stated bound.
+const UNADJUDICATED_DECISION_CANDIDATES: &[(&str, &str)] = &[
+    (
+        "AddManaMatchingType",
+        "CR 106.12a *\"add one mana of any type that land produced\"* is the PLAYER's choice; `effects/mod.rs` takes `ctx.mana_produced.first()` and falls back to Colorless. Unlike its four `AddMana*` siblings above it is NOT covered by SR-33's `no_complete_def_uses_an_any_color_mana_stub` (checked: that gate names `AddManaChoice`, `AddManaAnyColor`, `AddManaAnyColorRestricted` and `AddManaOfAnyColorAmount`, and not this one), so nothing holds its deck-legal population at zero either.",
+    ),
+    (
+        "CopySpellOnStack",
+        "CR 707.10 — *\"the controller of the copy may choose new targets for it.\"* `effects/mod.rs`'s own comment at the copy site says *\"choose-new-targets deferred to M10\"*, and `card_definition.rs`'s `CopySpellOnStack` doc says CR 707.10c is *\"deterministic — copies keep original targets\"*. Cross-filed with `OOS-DX54-2`.",
+    ),
+    (
+        "PlayExiledCard",
+        "CR 702.76a (hideaway) prints *\"you may play that card without paying its mana cost\"*; the engine plays it unconditionally. The optionality is the decision, which is the `may_pay_then_effect` row's family reached through a different variant.",
+    ),
+    (
+        "PutLandFromHandOntoBattlefield",
+        "Self-declared in source: *\"Deterministic land selection: pick the land card with the lowest ObjectId. In a real game with human players, this would require a choice command.\"* CR 701.17 — the player chooses which land.",
+    ),
+    (
+        "ReturnAllFromGraveyardToBattlefield",
+        "Only under its `unique_names: true` arm (Eerie Ultimatum, CR 701.17): the printed card lets the player choose ANY NUMBER of permanent cards with different names, and `effects/mod.rs` *\"keep[s] only the lowest ObjectId per name\"*. With `unique_names: false` the set is total and there is nothing to choose, so this entry is a decision site on one arm and not on the other — which is why it is a candidate rather than a row, and why the row that eventually covers it must be predicate-qualified rather than a bare variant match.",
+    ),
+    (
+        "VentureIntoDungeon",
+        "TWO engine-taken choices, both visible in `rules::engine::handle_venture_into_dungeon`. CR 701.49a gives the player the choice of WHICH dungeon; the engine hard-codes `DungeonId::LostMineOfPhandelver`. CR 701.49b gives the player the choice of next room when a room has more than one exit; the engine takes `exits.first()`.",
+    ),
+];
+
+/// `ROWS` ids whose predicate names no `Effect` variant at all, with the reason.
+///
+/// The two compound rows: both are `AbilityDefinition`-shaped, qualified by a FIELD of the
+/// matched node (`targets` non-empty / `modes` non-null) rather than by a variant name, which
+/// is why [`find_variant_nodes`] exists. A row that fell out of this list AND matched no
+/// declared `Effect` variant would be a row whose predicate has gone dead — most likely
+/// because the variant it names was renamed — and the check below says so.
+const ROWS_WITH_NO_EFFECT_VARIANT: &[(&str, &str)] = &[
+    (
+        "triggered_targets",
+        "CR 603.3d — an `AbilityDefinition::Triggered` node with a non-empty `targets` field. \
+         Not a variant-name match; see this module's doc.",
+    ),
+    (
+        "modal_trigger",
+        "CR 603.3c — an `AbilityDefinition::Triggered` node with a non-null `modes` field.",
+    ),
+];
+
+/// The `Effect` variants each `ROWS` row's predicate actually responds to, MEASURED by
+/// executing the predicate rather than read off a hand-written list.
+///
+/// For every declared variant name, this builds the one-key object `{"<Variant>": {}}` —
+/// the serde external tagging shape [`json_contains_variant`] matches — and asks each row's
+/// predicate. So the "covered" side of the classification below is derived by execution and
+/// cannot drift from what the predicates do: a predicate rewritten to name a different
+/// variant moves this map on the next run, with no list to remember to update.
+fn effect_variants_named_by_rows() -> BTreeMap<String, BTreeSet<&'static str>> {
+    let declared = crate::pb_dx57_declared_source::declared_enum_variants(
+        crate::pb_dx57_declared_source::CARD_DEFINITION_RS,
+        "Effect",
+    );
+    let mut out: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+    for name in declared {
+        let mut obj = serde_json::Map::new();
+        obj.insert(name.clone(), Value::Object(serde_json::Map::new()));
+        let probe = Value::Object(obj);
+        let hits: BTreeSet<&'static str> = ROWS
+            .iter()
+            .filter(|r| (r.predicate)(&probe))
+            .map(|r| r.id)
+            .collect();
+        if !hits.is_empty() {
+            out.insert(name, hits);
+        }
+    }
+    out
+}
+
+#[test]
+/// `OOS-DX28-1` — **every declared `Effect` variant is either a decision-site row, an
+/// explicitly non-row variant with a reason, or a filed candidate.**
+///
+/// ## What was wrong before
+///
+/// `ROWS` is a hand-maintained table of 22 entries, and the only thing guarding it was
+/// `decision_gate.rs`'s `const MIN_ROWS: usize = 22`, asserted with `>=` — *"rows may be
+/// added, never removed"*. **Nothing compared the row set to `pub enum Effect`'s
+/// declaration.** A new decision-carrying `Effect` variant therefore escaped the whole
+/// decision-point audit in silence, and the ratchet stayed green, because a ratchet's slack
+/// IS its blind spot: `MIN_ROWS` measures the table's SIZE and says nothing about the
+/// population the table is supposed to cover. The stage-0 census calls this the
+/// widest-blast-radius member of the `OOS-DX28-1` class, and it is the same failure as
+/// `TARGET_FILTER_FIELDS`: a hand-maintained fingerprint that goes blind on declaration
+/// growth with no compile error.
+///
+/// ## Why not set equality
+///
+/// Set equality against `Effect` would be wrong: most of the 106 variants carry no player
+/// decision, so `ROWS == declared` is not the property anyone wants. The correct pin is a
+/// **TOTAL CLASSIFICATION** — `core::pb_dx50_copy_additional_cost_roster::r1`'s shape, which
+/// the census calls the cleanest instance of this repair in the tree. Every declared variant
+/// must be in exactly one of three places:
+///
+/// 1. named by some `ROWS` predicate (derived by EXECUTION — see
+///    [`effect_variants_named_by_rows`], not by a second hand-written list);
+/// 2. [`NON_ROW_EFFECT_VARIANTS`], with the reason no row is owed;
+/// 3. [`UNADJUDICATED_DECISION_CANDIDATES`], with the CR rule and the engine line that takes
+///    the choice.
+///
+/// A 107th variant is then a red test whose message names the choice its author has to make.
+///
+/// ## Stated bounds
+///
+/// * **A row can name something that is not an `Effect` variant, and two do.**
+///   `ROWS_WITH_NO_EFFECT_VARIANT` holds the two compound `AbilityDefinition`-shaped rows;
+///   `choose_color_or_type` additionally matches `ReplacementModification::ChooseColor`,
+///   which is outside this pin's declaration and is not counted here. This row pins the
+///   `Effect` axis only, and says so rather than implying it covers the audit's whole domain.
+/// * **Membership of `UNADJUDICATED_DECISION_CANDIDATES` is a CLAIM about the engine, and
+///   each entry names the file and the sentence it rests on.** Two of the six quote an
+///   in-source comment that says the choice is deferred; a reader who disagrees with an
+///   entry should move it, not delete the list.
+/// * This row asserts nothing about `decision_gate.rs`'s `BASELINE` and moves no count.
+/// * **"In silence" is precise, not rhetorical.** Adding an `Effect` variant does redden the
+///   two WIRE gates (`hash_schema::declaration_fingerprint_is_pinned`,
+///   `protocol_schema::protocol_schema_fingerprint_is_pinned`) -- measured, by planting one.
+///   But those say *"the wire moved"*, which is answered by bumping a version number, and
+///   they say nothing about whether the decision-point audit still covers the enum. Before
+///   this row, the audit's own coverage was the thing that could move without any test
+///   mentioning it.
+fn every_effect_variant_is_classified() {
+    let declared = crate::pb_dx57_declared_source::declared_enum_variants(
+        crate::pb_dx57_declared_source::CARD_DEFINITION_RS,
+        "Effect",
+    );
+    assert!(
+        declared.len() >= 90,
+        "the `pub enum Effect` parse returned only {} variants — the parser is broken and \
+         every assertion below is vacuous",
+        declared.len()
+    );
+
+    let covered_map = effect_variants_named_by_rows();
+    let covered: BTreeSet<String> = covered_map.keys().cloned().collect();
+    assert!(
+        covered.len() >= 20,
+        "only {} declared `Effect` variant(s) are named by any ROWS predicate. That is not a \
+         table that shrank — every predicate is a `json_contains_variant` text match, so this \
+         means the probe shape stopped matching and the derivation has gone vacuous.",
+        covered.len()
+    );
+
+    let non_row: BTreeSet<String> = NON_ROW_EFFECT_VARIANTS
+        .iter()
+        .map(|(n, _)| (*n).to_string())
+        .collect();
+    let candidates: BTreeSet<String> = UNADJUDICATED_DECISION_CANDIDATES
+        .iter()
+        .map(|(n, _)| (*n).to_string())
+        .collect();
+
+    assert_eq!(
+        non_row.len(),
+        NON_ROW_EFFECT_VARIANTS.len(),
+        "NON_ROW_EFFECT_VARIANTS names the same variant twice"
+    );
+    assert_eq!(
+        candidates.len(),
+        UNADJUDICATED_DECISION_CANDIDATES.len(),
+        "UNADJUDICATED_DECISION_CANDIDATES names the same variant twice"
+    );
+
+    // Pairwise disjoint — a variant cannot be both covered and excused, and a candidate that
+    // has been promoted to a row must be REMOVED from the candidate list rather than left in
+    // both places, or the list stops meaning "not yet adjudicated".
+    for (a, an, b, bn) in [
+        (
+            &covered,
+            "a ROWS predicate",
+            &non_row,
+            "NON_ROW_EFFECT_VARIANTS",
+        ),
+        (
+            &covered,
+            "a ROWS predicate",
+            &candidates,
+            "UNADJUDICATED_DECISION_CANDIDATES",
+        ),
+        (
+            &non_row,
+            "NON_ROW_EFFECT_VARIANTS",
+            &candidates,
+            "UNADJUDICATED_DECISION_CANDIDATES",
+        ),
+    ] {
+        let both: Vec<&String> = a.intersection(b).collect();
+        assert!(
+            both.is_empty(),
+            "`Effect` variant(s) classified BOTH by {an} and by {bn}: {both:?}"
+        );
+    }
+
+    let classified: BTreeSet<String> = covered
+        .union(&non_row)
+        .cloned()
+        .collect::<BTreeSet<String>>()
+        .union(&candidates)
+        .cloned()
+        .collect();
+
+    assert_eq!(
+        classified,
+        declared,
+        "`OOS-DX28-1`: `pub enum Effect` and the decision-site classification have diverged.\n\
+         \n  UNCLASSIFIED (declared, but named by no ROWS predicate and on neither list): \
+         {:?}\n    → decide, in this order: does the CR give a player a choice at this \
+         effect's resolution? If YES and the engine makes it, add a `ROWS` row (and its \
+         predicate) or, if that is a bigger job than this batch, add it to \
+         UNADJUDICATED_DECISION_CANDIDATES with the CR rule and the engine line. If NO, add \
+         it to NON_ROW_EFFECT_VARIANTS with the reason. Do NOT delete this assertion: the \
+         whole point is that a new decision-carrying variant used to escape the audit in \
+         silence while `MIN_ROWS` stayed green.\n\
+         \n  DEAD (classified here, absent from the declaration): {:?}\n    → a rename or a \
+         removal. A renamed variant is the dangerous half: every `ROWS` predicate is a TEXT \
+         match on a variant name, so a rename makes that row's predicate match nothing, its \
+         population silently fall to zero, and `decision_gate.rs`'s `BASELINE` shrink without \
+         anything saying why.",
+        declared.difference(&classified).collect::<Vec<_>>(),
+        classified.difference(&declared).collect::<Vec<_>>()
+    );
+
+    // Every row's predicate must still respond to something, or be one of the two compound
+    // rows. This is the RENAME half stated directly: a row whose predicate matches no
+    // declared variant is a dead row, and it fails here rather than as an unexplained
+    // BASELINE shrink.
+    let rows_with_no_variant: BTreeSet<&str> = ROWS_WITH_NO_EFFECT_VARIANT
+        .iter()
+        .map(|(id, _)| *id)
+        .collect();
+    let live_row_ids: BTreeSet<&str> = covered_map.values().flatten().copied().collect();
+    let dead: Vec<&str> = ROWS
+        .iter()
+        .map(|r| r.id)
+        .filter(|id| !live_row_ids.contains(id) && !rows_with_no_variant.contains(id))
+        .collect();
+    assert!(
+        dead.is_empty(),
+        "ROWS row(s) whose predicate names no declared `Effect` variant: {dead:?}. Either \
+         the variant was renamed (fix the predicate) or the row is genuinely not \
+         variant-shaped (add it to ROWS_WITH_NO_EFFECT_VARIANT with the reason, as the two \
+         compound rows are)."
+    );
+    // ...and the converse, so that list cannot rot into a bucket for rows that have since
+    // become variant-shaped.
+    let stale: Vec<&str> = rows_with_no_variant
+        .iter()
+        .copied()
+        .filter(|id| live_row_ids.contains(id) || !ROWS.iter().any(|r| r.id == *id))
+        .collect();
+    assert!(
+        stale.is_empty(),
+        "ROWS_WITH_NO_EFFECT_VARIANT entr(ies) that are no longer true — either the row now \
+         DOES name a declared `Effect` variant, or the row id no longer exists in ROWS: \
+         {stale:?}"
+    );
+
+    // Every reason is a real reason. An allowlist whose justification is not checked is a
+    // comment, which is how `OOS-DX28-1`'s own class survives.
+    for (name, why) in NON_ROW_EFFECT_VARIANTS
+        .iter()
+        .chain(UNADJUDICATED_DECISION_CANDIDATES)
+        .chain(ROWS_WITH_NO_EFFECT_VARIANT)
+    {
+        assert!(
+            why.len() > 40,
+            "the classification entry for `{name}` carries no real reason: {why:?}"
+        );
+    }
 }

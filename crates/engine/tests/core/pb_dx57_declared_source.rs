@@ -523,3 +523,114 @@ fn p4_variant_payload_fields_are_scoped_to_their_own_variant() {
          easier to change."
     );
 }
+
+/// **`p5` — no declaration lookup in the test tree may use a PREFIX needle.**
+///
+/// Found by the adversarial pass, and it is `OOS-DX28-1`'s own family one level down: a
+/// hand-written declaration parser whose correctness depends on declaration ORDER.
+///
+/// `src.find("pub struct PendingTrigger")` — without the trailing ` {` — locks onto the first
+/// declaration whose name merely STARTS with that one. Proven by execution: a decoy
+/// `pub struct PendingTriggerLegacy` planted above the real declaration made
+/// `pending_trigger_shape` report `declared: {"bogus"}`; a decoy carrying the SAME 17 field
+/// names made the **entire `core` target green while every field-set pin was checking the
+/// decoy.** Not contrived — `PendingTriggerTargets` already exists in that same file and would
+/// shadow `PendingTrigger` today if it were declared 550 lines earlier.
+///
+/// **The empty-parse panic this module's own doc leans on is structurally blind to it**: a
+/// prefix-shadowed parse is non-empty and wrong, which is the one thing "panics on empty"
+/// cannot see. That is the correction this test exists to make permanent.
+///
+/// Four sites were vulnerable when PB-DX57 found them and all four are repaired
+/// (`pb_dx20b_enchant_line_roster`, `pb_dx49_saga_blanking_roster`, `decision_gate`,
+/// `pending_trigger_shape`); the other twelve already carried the brace.
+///
+/// **A correction to the adversarial report, recorded rather than accepted**: that report
+/// attributed this defeat to THIS module's parser. It is not vulnerable — its needle is
+/// `format!("pub struct {name} {{")`, brace included — and re-executing the decoy plant against
+/// it returns the real 17 fields, not the decoy's. The finding is real and valuable; its
+/// subject was the tree's four OTHER hand-written parsers.
+#[test]
+fn p5_no_declaration_lookup_uses_a_prefix_needle() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let mut offenders: Vec<String> = Vec::new();
+    let mut scanned = 0usize;
+    let mut stack = vec![root];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = std::fs::read_dir(&d) else {
+            continue;
+        };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                stack.push(p);
+                continue;
+            }
+            if p.extension().is_none_or(|x| x != "rs") {
+                continue;
+            }
+            scanned += 1;
+            let src = std::fs::read_to_string(&p).unwrap_or_default();
+            for (i, line) in src.lines().enumerate() {
+                // Skip comments -- this test's own doc quotes the bad form (`OOS-DX32-6`: a
+                // scan that cannot tell code from a comment fires on its own documentation).
+                let code = line.split("//").next().unwrap_or("");
+                for kw in ["pub struct ", "pub enum "] {
+                    // **The literal must be an argument to `find(`.** Without this the scan
+                    // flags `.expect("pub enum EffectFilter not found")` -- a MESSAGE -- and
+                    // `assert!("pub struct Serializer".contains(..))` -- a synthetic input to
+                    // an unrelated test. The first draft reported five such "offenders" and
+                    // ZERO real ones, which is an over-wide gate producing pure noise: the next
+                    // author silences it, and then it is worth less than nothing. Caught by
+                    // opening a flagged line instead of trusting the count.
+                    let needle = format!("find(\"{kw}");
+                    let Some(at) = code.find(&needle) else {
+                        continue;
+                    };
+                    let rest = &code[at + needle.len()..];
+                    let name: String = rest
+                        .chars()
+                        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                        .collect();
+                    if name.is_empty() {
+                        // A bare `"pub struct "` / `"pub enum "` literal is a TOKENIZER (it
+                        // splits a source file into declarations), not a lookup for one named
+                        // declaration, so declaration order cannot mislead it. Skipped
+                        // deliberately: the first draft flagged eight of these -- including
+                        // `hash_schema`'s own scanner and this module's internals -- which is
+                        // an over-wide gate producing noise a later author would silence by
+                        // deleting the check. A `format!("pub struct {name} {{")` template also
+                        // lands here and its brace is inside the template, not after the
+                        // keyword.
+                        continue;
+                    }
+                    let after = &rest[name.len()..];
+                    if !(after.starts_with(" {")
+                        || after.starts_with("{")
+                        || after.starts_with("<"))
+                    {
+                        offenders.push(format!(
+                            "{}:{} — searches for {:?} with no trailing `{{`",
+                            p.file_name().unwrap_or_default().to_string_lossy(),
+                            i + 1,
+                            format!("{kw}{name}")
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        scanned >= 200,
+        "p5 scanned only {scanned} files — a walk that reaches nothing reports zero offenders"
+    );
+    assert!(
+        offenders.is_empty(),
+        "declaration lookup(s) use a PREFIX needle, so which declaration they read depends on \
+         declaration ORDER:\n{offenders:#?}\n\
+         Append the opening brace: `\"pub struct Foo {{\"`. A parser that locks onto \
+         `FooLegacy` because it was declared first returns a NON-EMPTY, WRONG field set, and an \
+         empty-parse panic cannot see that. Measured once for real: a decoy carrying the same \
+         field names left the entire `core` target green with every pin checking the decoy."
+    );
+}
