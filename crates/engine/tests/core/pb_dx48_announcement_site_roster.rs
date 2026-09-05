@@ -496,9 +496,17 @@ fn r1b_source_strips_no_block_comments() {
 
 const PERMANENT_TARGETED_NEEDLE: &str = "GameEvent::PermanentTargeted {";
 
-/// The three fields of `GameEvent::PermanentTargeted` (`rules/events.rs:767`). A
-/// construction must mention all three; the parser asserts it rather than assuming
-/// it, so a payload change surfaces here instead of silently reclassifying a site.
+/// The three fields of `GameEvent::PermanentTargeted` (`rules/events.rs`). A construction
+/// must mention all three; the parser asserts it rather than assuming it.
+///
+/// **Which mechanism covers which half** (`OOS-DX28-1`; the first draft of this doc claimed
+/// both halves for `r2` and only one of them was true):
+///
+/// * a **removal or rename** reclassifies the real construction as `names_some && !names_all`,
+///   which `r2` raises as `ambiguous` and panics on;
+/// * an **addition** leaves all three old names present, so `names_all` stays true and `r2`
+///   cannot see it at all. That half is `r2d_permanent_targeted_fields_match_the_declaration`,
+///   which compares this list to the variant's own declaration.
 const PERMANENT_TARGETED_FIELDS: &[&str] =
     &["target_id", "targeting_stack_id", "targeting_controller"];
 
@@ -714,6 +722,73 @@ fn r2c_the_four_known_mention_sites_carry_no_block_comments() {
              stripper."
         );
     }
+}
+
+/// `OOS-DX28-1` -- **`PERMANENT_TARGETED_FIELDS` is pinned to the variant's own
+/// declaration.**
+///
+/// The const's doc used to say a payload change *"surfaces here instead of silently
+/// reclassifying a site"*. That was true of a REMOVAL or a RENAME and false of an
+/// ADDITION, and the false half is the one the seed is about:
+///
+/// * **removal / rename** -- `names_some && !names_all` becomes true at the real
+///   construction, `ambiguous` fires, and `r2` panics loudly. Covered, and still is.
+/// * **addition** -- a fourth field leaves all three old names present in the region,
+///   so `names_all` stays true, `is_pattern` stays false, `r2` still counts exactly
+///   one construction, and **nothing anywhere compares the const to the declaration**.
+///   The const goes stale, the doc's claim goes stale with it, and the next reader
+///   inherits a sentence that is no longer true of the code beneath it.
+///
+/// That is `TARGET_FILTER_FIELDS`' failure mode exactly: a hand-maintained field-set
+/// fingerprint that goes blind on field ADDITION, with no compile error. It does not
+/// blind `r2` today -- `r2` would keep working -- but it silently narrows what the
+/// `ambiguous` guard can see, because a site naming only the FOURTH field would be
+/// classified as a pattern rather than raised, and it leaves the wire gates
+/// (`hash_schema` / `protocol_schema`) as the only thing that knows the payload moved.
+///
+/// The fix is one `assert_eq!` against `rules/events.rs`, through the same parser every
+/// other pin in this batch uses. Both halves of the const's contract are now enforced by
+/// something, and the const's own doc has been narrowed to say which mechanism covers
+/// which half rather than claiming both.
+///
+/// This row is also the canonical side of a by-value cross-check: the `primitives` test
+/// binary cannot import this parser (separate binaries; `main.rs` may hold only `mod`
+/// lines), so `primitives::pb_eng2_targets_announced::stack_push_variants_are_classified_against_the_declaration`
+/// keeps a copy and asserts the same three names for this same variant. If the two
+/// parsers ever disagree about `events.rs`, one of the two rows moves and the other does
+/// not.
+#[test]
+fn r2d_permanent_targeted_fields_match_the_declaration() {
+    let declared = crate::pb_dx57_declared_source::declared_enum_variant_fields(
+        crate::pb_dx57_declared_source::EVENTS_RS,
+        "GameEvent",
+    );
+    let fields = declared.get("PermanentTargeted").unwrap_or_else(|| {
+        panic!(
+            "`GameEvent::PermanentTargeted` is not declared in {} at all -- the variant was \
+             renamed or removed. PERMANENT_TARGETED_FIELDS, r2's whole construction-vs-pattern \
+             heuristic and `rules::events::permanent_targeted_events` all name it; re-point \
+             them rather than deleting this pin.",
+            crate::pb_dx57_declared_source::EVENTS_RS
+        )
+    });
+    let pinned: std::collections::BTreeSet<String> = PERMANENT_TARGETED_FIELDS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    assert_eq!(
+        *fields,
+        pinned,
+        "`OOS-DX28-1`: PERMANENT_TARGETED_FIELDS no longer matches \
+         `GameEvent::PermanentTargeted`'s declared payload.\n  DECLARED but unpinned: {:?} -- \
+         a field ADDITION, which leaves `names_all` true and therefore leaves r2 green while \
+         the const (and every claim made in terms of it) goes stale.\n  PINNED but undeclared: \
+         {:?} -- a removal or rename; r2's `ambiguous` guard already fires on this one, and \
+         this row names it directly.\nUpdate the const, and re-run the wire gates \
+         (`hash_schema`, `protocol_schema`): a GameEvent payload change is a wire change.",
+        fields.difference(&pinned).collect::<Vec<_>>(),
+        pinned.difference(fields).collect::<Vec<_>>()
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

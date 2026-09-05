@@ -132,9 +132,16 @@ fn r2_chosen_object_filters_set_only_supported_axes() {
     // max_cmc_amount / min_cmc_amount (EffectContext-resolved). Any corpus
     // filter setting either would be silently mishandled (rejected outright,
     // not narrowed) -- catch it here, at author time, not in production.
+    //
+    // PB-DX57 (`OOS-DX28-1`): the list is now the named
+    // `UNSUPPORTED_UNTARGETED_AXES` const, DERIVED-CHECKED by
+    // `r2b_unsupported_untargeted_axes_are_derived_from_the_matcher` below. As an
+    // inline literal it was invisible to every enumeration of this file's variant
+    // lists, and a THIRD unimplemented `TargetFilter` field would simply not have
+    // been here -- with this loop still green.
     for f in &filters {
-        for unsupported in ["max_cmc_amount", "min_cmc_amount"] {
-            let is_set = f.get(unsupported).is_some_and(|v| !v.is_null());
+        for unsupported in UNSUPPORTED_UNTARGETED_AXES {
+            let is_set = f.get(*unsupported).is_some_and(|v| !v.is_null());
             assert!(
                 !is_set,
                 "a ChosenObject filter sets {unsupported:?}, which \
@@ -260,6 +267,19 @@ fn r3_migration_is_complete_not_additive() {
 // ── R4: the inverse axis, frozen ─────────────────────────────────────────────
 
 /// Unit-variant `TargetRequirement` names (serialize as bare JSON strings).
+///
+/// **PB-DX57 (`OOS-DX28-1`) — this list was STALE and the repair below is LIVE, not
+/// just a pin.** `TargetSpellOrAbility` (`card_definition.rs:3127`) is a unit variant
+/// and was in NEITHER this list nor [`FILTER_TARGET_VARIANTS`], so the three lists
+/// together covered **21 of the 22** declared variants. Every def declaring it was
+/// under-counted by one slot in R4's `slots > words` SUBTRACTION — which means a real
+/// over-declaration on such a def cancels to zero and is never reported, on a row whose
+/// whole mechanism the module doc already calls out as a subtraction. Live exposure at
+/// HEAD is one `Complete` deck-legal def, `deflecting_swat` (1 slot, 1 slot-shaped
+/// `"target"` word, so it does not trip R4 either before or after — the under-count was
+/// real and its cancellation happened not to be load-bearing on today's corpus).
+/// [`r4b_target_requirement_variant_lists_partition_the_declaration`] is what stops the
+/// 22nd from going missing again.
 const SIMPLE_TARGET_VARIANTS: &[&str] = &[
     "TargetCreature",
     "TargetPlayer",
@@ -275,6 +295,9 @@ const SIMPLE_TARGET_VARIANTS: &[&str] = &[
     "TargetSpellOrAbilityWithSingleTarget",
     "TargetSpellWithSingleTarget",
     "TargetOpponent",
+    // Added by PB-DX57 (`OOS-DX28-1`). Missing since the list was written; see the
+    // doc above for what it silently under-counted.
+    "TargetSpellOrAbility",
 ];
 
 /// Struct/tuple-variant `TargetRequirement` names (serialize as object keys).
@@ -289,6 +312,16 @@ const FILTER_TARGET_VARIANTS: &[&str] = &[
     "TargetCardInGraveyard",
     "TargetPermanentDistinctFrom",
 ];
+
+/// The `TargetRequirement` variants counted by NODE rather than by name/key —
+/// `UpToN { count, inner }`, whose weight is deliberately 1 (see
+/// [`declared_slot_count`]).
+///
+/// A `const` rather than the inline `"UpToN"` string literal it replaces, so that
+/// [`r4b_target_requirement_variant_lists_partition_the_declaration`] pins the
+/// spelling this file actually walks with. An inline literal is invisible to any
+/// enumeration of this file's variant lists, which is `OOS-DX28-5`'s own shape.
+const WEIGHTED_TARGET_VARIANTS: &[&str] = &["UpToN"];
 
 /// Refuted rows from `pb-plan-DX28.md` §0.1 -- axis A surfaced them, adjudication
 /// cleared each. Named, not counted, so a new candidate cannot silently join this
@@ -406,7 +439,9 @@ fn declared_slot_count(json: &Value) -> usize {
     // this census correctly flagged not because UpToN's weight mattered but
     // because "untap up to two lands" has ZERO "target" words at all -- any
     // nonzero weight exceeds that.)
-    n += find_variant_nodes(json, "UpToN").len();
+    for variant in WEIGHTED_TARGET_VARIANTS {
+        n += find_variant_nodes(json, variant).len();
+    }
     // CR 702.6a: "Equip [cost]" means "[Cost]: Attach this permanent to target
     // creature you control." The target is REAL but is never spelled "target"
     // in the printed Equip line -- it is implicit in the keyword's own rules
@@ -627,5 +662,415 @@ fn r5_every_chosen_object_sits_in_a_supported_effect_arm() {
     assert_eq!(
         supported, total,
         "the per-def loop and the running totals must agree"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PB-DX57 (`OOS-DX28-1`) — the three hand-maintained lists in this file, pinned
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// `OOS-DX28-1` is the CLASS of hand-maintained structural fingerprints that go
+// silently blind the moment their subject grows a member. This file held four of
+// them: R3's `AbilityDefinition` variant walk (repaired separately, and now
+// derived by `pb_dx57_ability_target_variants`), R4's two `TargetRequirement`
+// lists plus the inline `"UpToN"`, R5's `SUPPORTED_ARMS`, and R2's inline list of
+// `TargetFilter` axes the untargeted matcher does not implement. The three below
+// are the remaining three, and **two of them were already stale when censused**.
+
+use crate::pb_dx45_may_pay_roster::{function_body, match_arms, EFFECTS_MOD_RS};
+use crate::pb_dx57_declared_source::{
+    declared_enum_variants, declared_struct_fields, CARD_DEFINITION_RS,
+};
+
+/// The `TargetFilter` axes `effects::filter_matches_object_untargeted` refuses
+/// outright rather than narrowing by (its fail-closed prefix guard).
+///
+/// Extracted from `r2`'s inline literal by PB-DX57 so it can be pinned; see
+/// [`r2b_unsupported_untargeted_axes_are_derived_from_the_matcher`].
+const UNSUPPORTED_UNTARGETED_AXES: &[&str] = &["max_cmc_amount", "min_cmc_amount"];
+
+/// **Census row 2+3 — a PARTITION, and the repair is LIVE.**
+///
+/// [`declared_slot_count`] sums three disjoint lists —
+/// [`SIMPLE_TARGET_VARIANTS`] (bare-string unit variants),
+/// [`FILTER_TARGET_VARIANTS`] (object-key payload variants) and
+/// [`WEIGHTED_TARGET_VARIANTS`] (`UpToN`, counted by node). Together they must be
+/// **exactly** `pub enum TargetRequirement`'s declared variants: a variant in none
+/// of the three contributes ZERO to `declared_slot_count`, and because R4 is a
+/// SUBTRACTION (`slots > words`), a missing variant does not merely under-report —
+/// it silently CANCELS a real over-declaration elsewhere in the same def.
+///
+/// **What this found.** `TargetSpellOrAbility` was in none of the three, so the
+/// lists covered 21 of 22 and had done since they were written. Repaired above.
+///
+/// Set equality, not a subset, and not a count: a count assertion passes when one
+/// variant leaves and another joins, which is `OOS-DX20b-5`'s lesson one axis over.
+///
+/// **Revert to watch red**: remove any one name from any of the three lists.
+#[test]
+fn r4b_target_requirement_variant_lists_partition_the_declaration() {
+    let simple: BTreeSet<String> = SIMPLE_TARGET_VARIANTS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    let filtered: BTreeSet<String> = FILTER_TARGET_VARIANTS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    let weighted: BTreeSet<String> = WEIGHTED_TARGET_VARIANTS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+
+    // Disjointness first: a variant counted by TWO of the three lists would be
+    // double-counted by `declared_slot_count`, which is the same defect in the
+    // opposite direction and is invisible to a union-only check.
+    for (a, an, b, bn) in [
+        (&simple, "SIMPLE", &filtered, "FILTER"),
+        (&simple, "SIMPLE", &weighted, "WEIGHTED"),
+        (&filtered, "FILTER", &weighted, "WEIGHTED"),
+    ] {
+        let both: Vec<&String> = a.intersection(b).collect();
+        assert!(
+            both.is_empty(),
+            "{an}_TARGET_VARIANTS and {bn}_TARGET_VARIANTS both name {both:?}; \
+             declared_slot_count would count it twice"
+        );
+    }
+
+    let mut covered: BTreeSet<String> = BTreeSet::new();
+    covered.extend(simple.iter().cloned());
+    covered.extend(filtered.iter().cloned());
+    covered.extend(weighted.iter().cloned());
+
+    let declared = declared_enum_variants(CARD_DEFINITION_RS, "TargetRequirement");
+    println!(
+        "PB-DX57 row 2+3: {} declared TargetRequirement variants, {} covered by \
+         declared_slot_count's three lists",
+        declared.len(),
+        covered.len()
+    );
+
+    assert_eq!(
+        covered,
+        declared,
+        "declared_slot_count's three variant lists no longer partition \
+         `pub enum TargetRequirement`. A declared variant in NONE of them contributes \
+         zero slots, and because R4 subtracts word count from slot count, that does not \
+         merely under-report -- it CANCELS a real over-declaration on the same def and \
+         R4 stays green. (That is exactly how `TargetSpellOrAbility` sat outside all \
+         three lists for the whole of PB-DX28's life.) \
+         declared-but-uncovered = {:?}, covered-but-undeclared = {:?}",
+        declared.difference(&covered).collect::<Vec<_>>(),
+        covered.difference(&declared).collect::<Vec<_>>()
+    );
+}
+
+/// **Census row 4 — `SUPPORTED_ARMS`, derived from the pre-pass it describes.**
+///
+/// [`SUPPORTED_ARMS`]'s own doc says *"this list is the whole safety of the
+/// channel"*: a `ChosenObject` in an arm `effects::resolve_pending_object_choices`
+/// does not walk resolves to the EMPTY set in release, behind a `debug_assert!`
+/// that is compiled out. `r5` above compares the corpus against that list — so if
+/// the PRE-PASS ever stops walking an arm while the list still names it, `r5`
+/// stays green while the effect silently does nothing. Nothing in the workspace
+/// derived the list from the function.
+///
+/// Pinned against the FUNCTION, not against `pub enum Effect`: the semantic set is
+/// the pre-pass's arms, and comparing it to the 106-variant enum would be wrong in
+/// both directions. The subset check against the declaration is a second, weaker
+/// leg that catches a variant RENAME (which would make `find_variant_nodes` match
+/// nothing and take `r5` vacuous).
+///
+/// **Revert to watch red**: delete the `Effect::UntapPermanent { target } => target,`
+/// arm from `resolve_pending_object_choices`. It still compiles — the `_ => return
+/// true` wildcard absorbs it — `r5` stays GREEN, and only this row notices.
+#[test]
+fn r5b_supported_arms_are_derived_from_the_pre_pass() {
+    let arms = match_arms(
+        EFFECTS_MOD_RS,
+        "resolve_pending_object_choices",
+        "match effect {",
+        "Effect",
+        8,
+    );
+    let derived: BTreeSet<String> = arms.iter().flat_map(|a| a.names.iter().cloned()).collect();
+    let pinned: BTreeSet<String> = SUPPORTED_ARMS.iter().map(|s| (*s).to_string()).collect();
+
+    println!(
+        "PB-DX57 row 4: resolve_pending_object_choices walks {derived:?} \
+         ({} arm group(s) parsed)",
+        arms.len()
+    );
+
+    assert_eq!(
+        derived, pinned,
+        "SUPPORTED_ARMS no longer matches the arms `effects::resolve_pending_object_choices` \
+         actually walks. If the pre-pass LOST an arm this list still names, every \
+         `EffectTarget::ChosenObject` authored into it resolves to the empty set in a \
+         RELEASE build with no panic and no diagnostic, and r5 above stays green because \
+         it reads this list rather than the function. If the pre-pass GAINED one, r5 \
+         under-covers."
+    );
+
+    let declared = declared_enum_variants(CARD_DEFINITION_RS, "Effect");
+    assert!(
+        derived.is_subset(&declared),
+        "the pre-pass names {:?}, which `pub enum Effect` does not declare -- a rename \
+         would also make `find_variant_nodes` match nothing and take r5 vacuous",
+        derived.difference(&declared).collect::<Vec<_>>()
+    );
+}
+
+// ── Census row 19: the axes the untargeted matcher does not implement ────────
+
+/// The binding name of the `&TargetFilter` parameter of `fn <fn_name>`, read off
+/// the signature rather than assumed to be `filter`.
+fn target_filter_binding(rel: &str, fn_name: &str) -> String {
+    let raw = crate::pb_dx45_may_pay_roster::strip_comments_preserving_length(
+        &crate::pb_dx57_declared_source::read_workspace_file(rel),
+    );
+    let at = raw
+        .find(&format!("fn {fn_name}("))
+        .unwrap_or_else(|| panic!("`fn {fn_name}(` not found in {rel}"));
+    let close = raw[at..]
+        .find(')')
+        .map(|i| i + at)
+        .unwrap_or_else(|| panic!("`fn {fn_name}`'s parameter list is never closed"));
+    let sig = &raw[at..close];
+    let needle = ": &TargetFilter";
+    let hit = sig.find(needle).unwrap_or_else(|| {
+        panic!(
+            "`fn {fn_name}` in {rel} has no `&TargetFilter` parameter -- this pin is \
+                pointed at the wrong function"
+        )
+    });
+    sig[..hit]
+        .chars()
+        .rev()
+        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect()
+}
+
+/// Every `<binding>.<field>` read in `body`.
+fn filter_field_reads(body: &str, binding: &str) -> BTreeSet<String> {
+    let needle = format!("{binding}.");
+    let bytes = body.as_bytes();
+    let mut out = BTreeSet::new();
+    let mut from = 0usize;
+    while let Some(i) = body[from..].find(&needle) {
+        let at = from + i;
+        let prev_ok = at == 0 || !(bytes[at - 1].is_ascii_alphanumeric() || bytes[at - 1] == b'_');
+        let start = at + needle.len();
+        let field: String = body[start..]
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect();
+        if prev_ok && !field.is_empty() && field.starts_with(|c: char| c.is_ascii_lowercase()) {
+            out.insert(field);
+        }
+        from = at + needle.len();
+    }
+    out
+}
+
+/// Every function `body` calls with `binding` among the arguments, i.e. the
+/// helpers a filter is handed off to.
+///
+/// DERIVED rather than hand-listed, because a hand-listed callee set would itself
+/// be an `OOS-DX28-1` member: the day someone factors a fourth axis out into a new
+/// helper, a fixed list of three stops seeing it and this whole row goes quietly
+/// short.
+fn filter_callees(body: &str, binding: &str, self_name: &str) -> BTreeSet<String> {
+    let b = body.as_bytes();
+    let mut out = BTreeSet::new();
+    for (i, _) in body.match_indices('(') {
+        // The identifier immediately before the `(`.
+        let name: String = body[..i]
+            .chars()
+            .rev()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+        if name.is_empty() || !name.starts_with(|c: char| c.is_ascii_lowercase() || c == '_') {
+            continue;
+        }
+        if ["if", "match", "for", "while", "return", "fn"].contains(&name.as_str())
+            || name == self_name
+        {
+            continue;
+        }
+        // Balance the argument list.
+        let mut depth = 0usize;
+        let mut end = None;
+        for (k, ch) in body[i..].char_indices() {
+            match ch {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(i + k);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(end) = end else { continue };
+        let args = &body[i + 1..end];
+        // Word-bounded `binding` among the arguments.
+        let mut from = 0usize;
+        let mut names_it = false;
+        while let Some(rel) = args[from..].find(binding) {
+            let at = from + rel;
+            let abs = i + 1 + at;
+            let before_ok = abs == 0 || !(b[abs - 1].is_ascii_alphanumeric() || b[abs - 1] == b'_');
+            let after = abs + binding.len();
+            let after_ok =
+                after >= b.len() || !(b[after].is_ascii_alphanumeric() || b[after] == b'_');
+            if before_ok && after_ok {
+                names_it = true;
+                break;
+            }
+            from = at + binding.len();
+        }
+        if names_it {
+            out.insert(name);
+        }
+    }
+    out
+}
+
+/// **Census row 19 — two-sided, and the two sides catch opposite failures.**
+///
+/// `r2` above asserts that no corpus `ChosenObject` filter sets an axis
+/// `effects::filter_matches_object_untargeted` cannot honour. Its list of such
+/// axes was an inline literal naming two fields of a **33-field** struct, and
+/// nothing compared it to anything. A NEW `TargetFilter` field that the untargeted
+/// matcher also does not implement is silently outside the list, so a corpus def
+/// setting it is mishandled in production — *"rejected outright, not narrowed"*, in
+/// `r2`'s own words — while `r2` stays green. That is `OOS-DX28-1` exactly.
+///
+/// Two legs:
+///
+/// 1. **Nothing is unimplemented in silence.** Every declared `TargetFilter` field
+///    must be read somewhere in the matcher's own call graph — the function itself
+///    plus every helper it hands the filter to, the callee set DERIVED from the
+///    body rather than hand-listed. A field read nowhere means the untargeted
+///    channel neither honours it nor refuses it: it is ignored, which is the
+///    over-wide answer space `r2`'s doc says this must prevent.
+/// 2. **The refusal list is the matcher's own.** The fields named in the matcher's
+///    fail-closed prefix guard must be exactly [`UNSUPPORTED_UNTARGETED_AXES`].
+///
+/// **The guard region is the function body up to its FIRST `return false;`.** That
+/// is sound only because the fail-closed guard is the function's first statement —
+/// a property this row therefore also enforces, since moving it changes the
+/// extracted set and reddens leg 2. Stated because it is an assumption, not a fact
+/// about Rust.
+///
+/// **Residual, stated rather than discovered later.** Leg 1 proves each field is
+/// *read*, not that it is read *correctly*; and the callee walk is depth-1, which
+/// is checked rather than assumed (the assertion below requires each callee to hand
+/// the filter to nobody else).
+///
+/// **Revert to watch red**: add a field to `pub struct TargetFilter` and implement
+/// it nowhere (leg 1), or add a third disjunct to the matcher's opening guard
+/// without listing it above (leg 2).
+#[test]
+fn r2b_unsupported_untargeted_axes_are_derived_from_the_matcher() {
+    const MATCHER: &str = "filter_matches_object_untargeted";
+    let binding = target_filter_binding(EFFECTS_MOD_RS, MATCHER);
+    assert_eq!(
+        binding, "filter",
+        "the matcher's &TargetFilter parameter is now named {binding:?}; the derivation \
+         below reads it off the signature, so this is informational -- but every doc in \
+         this file spells it `filter`"
+    );
+
+    let body = function_body(EFFECTS_MOD_RS, MATCHER);
+
+    // ── leg 2: the fail-closed prefix guard ──────────────────────────────────
+    let guard_end = body.find("return false;").unwrap_or_else(|| {
+        panic!(
+            "`{MATCHER}` no longer contains a `return false;` -- its fail-closed guard \
+                is gone, and every corpus filter setting an unimplemented axis is now \
+                silently ignored rather than refused"
+        )
+    });
+    let guard = &body[..guard_end];
+    assert!(
+        guard.len() < 600 && !guard.contains("matches_filter("),
+        "the extracted fail-closed guard is {} bytes and/or already reaches the \
+         `matches_filter` hand-off, so it is not the function's opening statement any \
+         more. This pin assumes the guard comes FIRST; re-establish that or re-point the \
+         extraction.",
+        guard.len()
+    );
+    let guard_fields = filter_field_reads(guard, &binding);
+    let pinned: BTreeSet<String> = UNSUPPORTED_UNTARGETED_AXES
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    assert_eq!(
+        guard_fields, pinned,
+        "UNSUPPORTED_UNTARGETED_AXES no longer matches the axes \
+         `{MATCHER}` refuses outright in its opening guard. r2 above walks THIS list, so \
+         a third unimplemented axis missing from it means a corpus filter setting it is \
+         rejected outright in production with no test saying so."
+    );
+
+    // ── leg 1: every declared field is read somewhere in the call graph ──────
+    let callees = filter_callees(&body, &binding, MATCHER);
+    assert!(
+        callees.len() >= 3,
+        "non-vacuity: `{MATCHER}` hands its filter to {callees:?} (measured 3 at HEAD: \
+         matches_filter, check_has_counter_type, check_chosen_subtype_filter). A derivation \
+         that finds none would make leg 1 compare the declaration against this function's \
+         eleven direct reads and fail for the wrong reason."
+    );
+
+    let mut read: BTreeSet<String> = filter_field_reads(&body, &binding);
+    for callee in &callees {
+        let cb = function_body(EFFECTS_MOD_RS, callee);
+        let cbind = target_filter_binding(EFFECTS_MOD_RS, callee);
+        read.extend(filter_field_reads(&cb, &cbind));
+        // Depth-1 is CHECKED, not assumed: if a helper hands the filter on again,
+        // this walk stops one level short and leg 1 silently under-reads.
+        let deeper = filter_callees(&cb, &cbind, callee);
+        assert!(
+            deeper.is_empty(),
+            "`{callee}` hands the filter on to {deeper:?}, so the depth-1 call-graph walk \
+             this row performs is one level short and leg 1 would under-read. Extend the \
+             walk (or state why the deeper reads cannot matter)."
+        );
+    }
+
+    let declared = declared_struct_fields(CARD_DEFINITION_RS, "TargetFilter");
+    println!(
+        "PB-DX57 row 19: TargetFilter declares {} field(s); the untargeted matcher's \
+         call graph ({callees:?}) reads {}; refused outright: {guard_fields:?}",
+        declared.len(),
+        read.len()
+    );
+
+    let unread: Vec<&String> = declared.difference(&read).collect();
+    assert!(
+        unread.is_empty(),
+        "`pub struct TargetFilter` declares {unread:?}, which NOTHING in \
+         `{MATCHER}`'s call graph reads. The untargeted channel therefore neither honours \
+         that axis nor refuses it -- it IGNORES it, so a ChosenObject filter setting it \
+         gets a silently over-wide answer space, with r2 above green. Either implement it \
+         (in `matches_filter` or a helper) or add it to the fail-closed opening guard AND \
+         to UNSUPPORTED_UNTARGETED_AXES."
+    );
+    assert!(
+        pinned.is_subset(&declared),
+        "UNSUPPORTED_UNTARGETED_AXES names {:?}, which TargetFilter does not declare",
+        pinned.difference(&declared).collect::<Vec<_>>()
     );
 }

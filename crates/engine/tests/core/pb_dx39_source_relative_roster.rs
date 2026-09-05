@@ -1417,3 +1417,293 @@ fn t_dx39_census_report() {
     );
     println!("════════════════════════════════════════════════════════════════════\n");
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PB-DX57 (`OOS-DX28-1`) — the three hand-maintained lists in this file, pinned
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// R1/R2 above already derive [`SOURCE_RELATIVE`] from `layers.rs` and pin it
+// against `pub enum EffectFilter`. Three further lists in this file — one a
+// SUBSET of the same enum's arms, one a subset of `pub enum Cost`, one a subset of
+// `pub struct ContinuousEffectDef`'s fields — were pinned against nothing at all,
+// which is `OOS-DX28-1`'s class: each is a gate that reports green while checking
+// nothing the moment its subject grows a member.
+
+/// The `Cost` variants that do NOT move the source out of the battlefield —
+/// the complement of [`SOURCE_MOVING_COSTS`], with a reason per entry.
+///
+/// A complement rather than a comment, because
+/// [`r3b_source_moving_cost_lists_partition_pub_enum_cost`] can then require the
+/// two together to be the whole declaration. Reasons:
+///
+/// * `Mana`, `Tap`, `PayLife`, `DiscardCard`, `Forage`, `RemoveCounter`,
+///   `ExileFromHand`, `Exert` — none of these touches the source's zone. `Tap` and
+///   `Exert` change its STATUS (CR 110.5), which is not a zone change; `Forage`
+///   (CR 701.55a) exiles food or mills, never the source; `ExileFromHand` names a
+///   card in hand by colour.
+/// * `Sacrifice(TargetFilter)` — sacrifices a permanent the filter selects, which
+///   is a different object from the source; the self-sacrificing spelling is
+///   `SacrificeSelf`, which IS in the moving list.
+/// * `Sequence(Vec<Cost>)` — a COMPOSITE, not a leaf. It is classified non-moving
+///   in its own right and its members are still seen, because [`census`] collects
+///   `string_leaves` of the whole serialized cost tree: a
+///   `Sequence([SacrificeSelf, Mana])` yields the string `"SacrificeSelf"` and
+///   matches. Verified rather than assumed — the recursion is in `string_leaves`,
+///   not in this classification.
+const NON_SOURCE_MOVING_COSTS: &[&str] = &[
+    "Mana",
+    "Tap",
+    "Sacrifice",
+    "PayLife",
+    "DiscardCard",
+    "Forage",
+    "Sequence",
+    "RemoveCounter",
+    "ExileFromHand",
+    "Exert",
+];
+
+/// Does this match arm read the source object's `attached_to` field?
+///
+/// Word-bounded, so a hypothetical `attached_to_host` would not count and a
+/// `src.attached_to` / `source.attached_to` / a destructured `attached_to`
+/// binding all would. Keyed on the FIELD, which is the property being classified,
+/// rather than on today's spelling of reaching it — the same argument
+/// [`names_the_source_identifier`] makes for `source`, and for the same reason:
+/// PB-DX39's own fix changed the mechanism (`state.objects.get` → `SourceView`)
+/// without changing any membership.
+fn names_the_attached_to_field(arm_text: &str) -> bool {
+    const NEEDLE: &str = "attached_to";
+    let bytes = arm_text.as_bytes();
+    let mut from = 0usize;
+    while let Some(i) = arm_text[from..].find(NEEDLE) {
+        let at = from + i;
+        let before_ok = at == 0 || {
+            let p = bytes[at - 1];
+            !(p.is_ascii_alphanumeric() || p == b'_')
+        };
+        let end = at + NEEDLE.len();
+        let after_ok = end >= bytes.len() || {
+            let n = bytes[end];
+            !(n.is_ascii_alphanumeric() || n == b'_')
+        };
+        if before_ok && after_ok {
+            return true;
+        }
+        from = at + NEEDLE.len();
+    }
+    false
+}
+
+/// **Census row 7 — [`ATTACHED_FILTERS`], derived from `layers.rs`.**
+///
+/// Axis (ii) of this file's census, and the `:964` exclusion in R9, are both
+/// bounded by this three-name list. A FOURTH `EffectFilter` variant that reads the
+/// source's `attached_to` would drop silently out of both — R1 above would
+/// classify it as source-relative (it reads `source`), R2 would confirm it has an
+/// arm, and nothing anywhere would notice that axis (ii) had stopped covering it.
+///
+/// Derived on exactly the axis the list claims: an arm belongs iff it reads the
+/// `attached_to` field. Equality, in both directions.
+///
+/// **Revert to watch red**: replace `src.attached_to == Some(object_id)` with
+/// `false` in the `EffectFilter::AttachedLand` arm of `layers.rs`. It compiles, R1
+/// and R2 stay green (the arm still reads `source`, and still exists), and only
+/// this row notices.
+#[test]
+fn r2b_attached_filters_are_derived_from_layers_rs() {
+    assert_denominator();
+    let arms = effect_applies_to_arms();
+    let mut derived: Vec<String> = arms
+        .iter()
+        .filter(|(_, text)| names_the_attached_to_field(text))
+        .map(|(name, _)| name.clone())
+        .collect();
+    derived.sort();
+
+    let mut pinned: Vec<String> = ATTACHED_FILTERS.iter().map(|s| (*s).to_string()).collect();
+    pinned.sort();
+
+    println!(
+        "PB-DX57 row 7: {} of {} effect_applies_to arms read the source's `attached_to`: \
+         {derived:?}",
+        derived.len(),
+        arms.len()
+    );
+
+    assert_eq!(
+        derived, pinned,
+        "ATTACHED_FILTERS no longer matches the `effect_applies_to` arms that read the \
+         source's `attached_to` field. Axis (ii) of this file's census and R9's `:964` \
+         exclusion are both bounded by this list, and a fourth attachment-reading filter \
+         would drop out of both in silence -- R1 and R2 would stay green, because it still \
+         reads `source` and still has an arm."
+    );
+
+    let declared = declared_effect_filter_variants();
+    let derived_set: BTreeSet<String> = derived.into_iter().collect();
+    assert!(
+        derived_set.is_subset(&declared),
+        "ATTACHED_FILTERS names {:?}, which `pub enum EffectFilter` does not declare",
+        derived_set.difference(&declared).collect::<Vec<_>>()
+    );
+}
+
+/// **Census row 8 — [`SOURCE_MOVING_COSTS`] and its complement PARTITION
+/// `pub enum Cost`.**
+///
+/// That list's own doc already claims *"the four are read off `pub enum Cost`"* —
+/// and nothing read it. A fifteenth self-moving cost variant is silently outside
+/// axis (i), so a def guaranteed to resolve with its source gone (CR 608.2h) never
+/// appears in the census at all, and R3 above stays green on a shrunken population.
+///
+/// A partition, not a subset, and that is the whole point: `moving ⊆ declared` is
+/// satisfied by the empty set. Requiring `moving ∪ non_moving == declared` forces
+/// every new `Cost` variant to be *classified* — the `pb_dx50::r1` idiom, which
+/// that file's own doc calls the cleanest instance of this repair in the tree.
+///
+/// **What this row cannot be planted against, stated rather than left implied.**
+/// The declaration-side plant (add a 15th `Cost` variant) does not COMPILE: `Cost`
+/// is matched exhaustively in production (`effects::can_pay_optional_cost` among
+/// others), so the edit is a workspace-wide build failure, which is a NON-verdict
+/// rather than a red row. The only edit of that shape that compiles is adding the
+/// variant together with a wildcard arm, and that is exactly what this assertion
+/// catches. The executable plant is therefore on the LIST side.
+#[test]
+fn r3b_source_moving_cost_lists_partition_pub_enum_cost() {
+    // **A PARTITION IS INVARIANT UNDER MOVING A MEMBER ACROSS IT.** The adversarial pass
+    // defeated the first draft with exactly that: filing `ExileSelf` as NON-source-moving keeps
+    // the union equal to the declaration and the two lists disjoint, so the partition leg is
+    // green — and the whole `core` target stayed green — while the claim the list encodes is
+    // now false. A partition catches an ADD and a REMOVE; it says nothing about TRUTH.
+    //
+    // So the source-moving side is pinned BY NAME. Membership here is a semantic claim about
+    // `Cost` — *"paying this cost moves the source out of the battlefield, so CR 608.2h applies
+    // at resolution"* — and a claim is re-adjudicated deliberately or not at all. A genuine
+    // re-adjudication edits this list AND says why in the same commit; a misfile cannot.
+    const PINNED_SOURCE_MOVING: &[&str] = &[
+        "DiscardSelf",
+        "ExileSelf",
+        "ExileSelfFromHand",
+        "SacrificeSelf",
+    ];
+    let pinned: BTreeSet<&str> = PINNED_SOURCE_MOVING.iter().copied().collect();
+    let live: BTreeSet<&str> = SOURCE_MOVING_COSTS.iter().copied().collect();
+    assert_eq!(
+        live, pinned,
+        "SOURCE_MOVING_COSTS has changed. If a `Cost` variant was ADDED to `pub enum Cost` and \
+         genuinely moves the source, add it to BOTH lists in the same commit and say so. If a \
+         member MOVED to NON_SOURCE_MOVING_COSTS, that is a re-adjudication of a CR 608.2h \
+         claim, not a bookkeeping edit -- record the reason. The partition assertion below \
+         cannot tell those apart, which is why this one exists."
+    );
+    assert_denominator();
+    let moving: BTreeSet<String> = SOURCE_MOVING_COSTS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    let non_moving: BTreeSet<String> = NON_SOURCE_MOVING_COSTS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+
+    let both: Vec<&String> = moving.intersection(&non_moving).collect();
+    assert!(
+        both.is_empty(),
+        "{both:?} is classified BOTH source-moving and non-source-moving"
+    );
+
+    let declared = crate::pb_dx57_declared_source::declared_enum_variants(
+        crate::pb_dx57_declared_source::CARD_DEFINITION_RS,
+        "Cost",
+    );
+    let classified: BTreeSet<String> = moving.union(&non_moving).cloned().collect();
+
+    println!(
+        "PB-DX57 row 8: {} declared Cost variants; {} classified source-moving, {} not",
+        declared.len(),
+        moving.len(),
+        non_moving.len()
+    );
+
+    assert_eq!(
+        classified,
+        declared,
+        "SOURCE_MOVING_COSTS + NON_SOURCE_MOVING_COSTS no longer partition `pub enum Cost`. \
+         An UNCLASSIFIED variant is silently outside axis (i): a def whose source-relative \
+         filter sits under it is guaranteed to resolve with its source gone (CR 608.2h) and \
+         never appears in this census, with R3 above green on a shrunken population. \
+         declared-but-unclassified = {:?}, classified-but-undeclared = {:?}",
+        declared.difference(&classified).collect::<Vec<_>>(),
+        classified.difference(&declared).collect::<Vec<_>>()
+    );
+}
+
+/// **Census row 9 — [`CED_KEYS`] against `pub struct ContinuousEffectDef`, as a
+/// SUBSET, and the subset shape is deliberate.**
+///
+/// `looks_like_ced` recognises a serialized node by `CED_KEYS.iter().all(contains_key)`.
+/// Growth of the struct is therefore harmless — a sixth field still leaves all four
+/// present — and that polarity is CORRECT and must be preserved. **Do not "tighten"
+/// this to an equality**: the day `ContinuousEffectDef` gains a field, an
+/// equality-shaped `looks_like_ced` would stop matching every node in the corpus,
+/// which is `OOS-DX28-1`'s original incident verbatim (`TARGET_FILTER_FIELDS`
+/// compared a key set to a 32-entry list and the 33rd field made it match nothing).
+///
+/// What the subset shape does NOT survive is a **rename** or a
+/// `skip_serializing_if` on any of the four: `looks_like_ced` then matches nothing,
+/// [`collect_ced`] returns empty, and R3–R9's entire JSON walk goes vacuous while
+/// green. That is the same end-state, reached by a different edit, and it is what
+/// this row catches.
+///
+/// The second assertion machine-states the deliberate exclusion. `condition` is
+/// `#[serde(default)]`; requiring it would reintroduce exactly the fragility the
+/// first paragraph describes, and today that intent lives only in a comment.
+///
+/// **Revert to watch red**: rename any of `layer`/`modification`/`filter`/`duration`
+/// on `pub struct ContinuousEffectDef`, or add `"condition"` to `CED_KEYS`.
+#[test]
+fn r7b_ced_keys_are_a_checked_subset_of_the_struct_declaration() {
+    assert_denominator();
+    let declared = crate::pb_dx57_declared_source::declared_struct_fields(
+        crate::pb_dx57_declared_source::CARD_DEFINITION_RS,
+        "ContinuousEffectDef",
+    );
+    let keys: BTreeSet<String> = CED_KEYS.iter().map(|s| (*s).to_string()).collect();
+
+    println!(
+        "PB-DX57 row 9: ContinuousEffectDef declares {declared:?}; looks_like_ced requires \
+         {keys:?}"
+    );
+
+    let missing: Vec<&String> = keys.difference(&declared).collect();
+    assert!(
+        missing.is_empty(),
+        "CED_KEYS requires {missing:?}, which `pub struct ContinuousEffectDef` does not \
+         declare. `looks_like_ced` uses `.all(contains_key)`, so a key that no serialized \
+         node can carry makes it match NOTHING: collect_ced returns empty and R3-R9's \
+         whole JSON walk goes vacuous while staying green. That is OOS-DX28-1's original \
+         incident, reached by a rename instead of by a field addition."
+    );
+
+    assert!(
+        !keys.contains("condition"),
+        "`condition` has been added to CED_KEYS. It is `#[serde(default)]` and a future \
+         `skip_serializing_if` would drop it from the serialized node, at which point \
+         `looks_like_ced`'s `.all(..)` matches nothing and this file's whole census goes \
+         silently empty. The exclusion is deliberate; see this test's doc."
+    );
+    assert!(
+        declared.contains("condition"),
+        "non-vacuity: the exclusion above is only meaningful while \
+         `ContinuousEffectDef` actually declares `condition`; it declares {declared:?}"
+    );
+    // The subset must not be the EMPTY set, or the assertions above are trivially
+    // satisfied while `looks_like_ced` accepts every JSON object in the corpus.
+    assert!(
+        keys.len() >= 4,
+        "non-vacuity: CED_KEYS has shrunk to {} key(s); `looks_like_ced` is now accepting \
+         far more than a ContinuousEffectDef",
+        keys.len()
+    );
+}

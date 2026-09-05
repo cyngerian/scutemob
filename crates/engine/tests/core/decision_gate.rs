@@ -2258,6 +2258,46 @@ fn effect_variants_named_by_rows() -> BTreeMap<String, BTreeSet<&'static str>> {
 ///   this row, the audit's own coverage was the thing that could move without any test
 ///   mentioning it.
 fn every_effect_variant_is_classified() {
+    // **THE TWO LISTS CARRY OPPOSITE CLAIMS AND A PARTITION CANNOT TELL THEM APART.** The
+    // adversarial pass moved `VentureIntoDungeon` from `UNADJUDICATED_DECISION_CANDIDATES` into
+    // `NON_ROW_EFFECT_VARIANTS` with a fabricated reason and **the whole `core` target stayed
+    // green** — the union still equals the declaration, the lists are still disjoint, and the
+    // reason is still non-empty. What changed is the CLAIM: *"the engine takes a CR choice here
+    // and no audit row covers it"* became *"there is no player choice to hook"*, which is the
+    // difference between a filed gap and a closed question, laundered by an edit no gate saw.
+    //
+    // So the candidate set is pinned BY NAME. Moving a variant OUT of it is a claim that a
+    // decision-point gap has been resolved, and that is a re-adjudication with a reason, not a
+    // bookkeeping edit. Adding one is free (a new gap should be easy to file) and the pin says
+    // so — this is a subset assertion in the permissive direction and an equality in the
+    // dangerous one.
+    const PINNED_CANDIDATES: &[&str] = &[
+        "AddManaMatchingType",
+        "CopySpellOnStack",
+        "PlayExiledCard",
+        "PutLandFromHandOntoBattlefield",
+        "ReturnAllFromGraveyardToBattlefield",
+        "VentureIntoDungeon",
+    ];
+    let live_candidates: std::collections::BTreeSet<&str> = UNADJUDICATED_DECISION_CANDIDATES
+        .iter()
+        .map(|(v, _)| *v)
+        .collect();
+    let pinned_candidates: std::collections::BTreeSet<&str> =
+        PINNED_CANDIDATES.iter().copied().collect();
+    let removed: Vec<&&str> = pinned_candidates.difference(&live_candidates).collect();
+    assert!(
+        removed.is_empty(),
+        "decision-point candidate(s) {removed:?} have LEFT \
+         UNADJUDICATED_DECISION_CANDIDATES. That is not bookkeeping: membership is the claim \
+         *the engine takes a CR choice here and no audit row covers it*, and removing a member \
+         asserts the gap is resolved. If it really is — a ROWS row was added, or the CR turns \
+         out to grant no choice — say which in the same commit and update this pin. If it was \
+         merely MOVED to NON_ROW_EFFECT_VARIANTS, the claim has been INVERTED, and the \
+         partition below is invariant under exactly that move (measured: the whole core target \
+         stayed green)."
+    );
+
     let declared = crate::pb_dx57_declared_source::declared_enum_variants(
         crate::pb_dx57_declared_source::CARD_DEFINITION_RS,
         "Effect",

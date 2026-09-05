@@ -445,6 +445,22 @@ fn t_census_report() {
 // R3 -- class gate: no second dispatcher for any of the 7 new TriggerEvents
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// The `TriggerEvent` variants **`rules::abilities::queue_damage_source_triggers`
+/// dispatches**, which is what R3's "no second dispatcher" claim is scoped to.
+///
+/// **Re-keyed by PB-DX57 (`OOS-DX28-1`) from a HISTORICAL set to a SEMANTIC one, and
+/// the re-key found it short by one.** It used to be "the seven `TriggerEvent`s PB-DX36
+/// added", which is a fact about a commit rather than about the code: nothing could
+/// ever pin it, because the property "was added by PB-DX36" is not visible in any
+/// declaration. `queue_damage_source_triggers` names **eight**, the eighth being
+/// `EquippedCreatureDealsCombatDamageToPlayer` (`rules/abilities.rs:7243`), and it was
+/// outside this needle set — so R3 was not checking that event for a second dispatcher
+/// at all. Added, and now DERIVED by
+/// [`r3b_new_trigger_events_are_derived_from_the_dispatcher`].
+///
+/// Widening the needle set makes R3 strictly stronger and it stays green: measured over
+/// all 14 workspace `src` roots / 149 files, the only walk-adjacent hits for all eight
+/// names are the two allowed bodies.
 const NEW_TRIGGER_EVENTS: &[&str] = &[
     "EnchantedCreatureDealsCombatDamageToPlayer",
     "EnchantedCreatureDealsCombatDamageToOpponent",
@@ -453,6 +469,31 @@ const NEW_TRIGGER_EVENTS: &[&str] = &[
     "SelfDealsDamage",
     "SelfDealsDamageToPlayer",
     "SelfDealsDamageToOpponent",
+    // PB-DX57 (`OOS-DX28-1`): the dispatcher's eighth event. Missing from this set
+    // since PB-DX36 wrote it as a historical list.
+    "EquippedCreatureDealsCombatDamageToPlayer",
+];
+
+/// Damage-family `TriggerEvent` variants that `queue_damage_source_triggers` does NOT
+/// dispatch, because another site does.
+///
+/// R3's subject is one dispatcher's own event set, so these are legitimately outside
+/// [`NEW_TRIGGER_EVENTS`] — but "legitimately outside" must be a NAMED decision, or the
+/// difference between the declaration's damage family and the dispatcher's set is
+/// unbounded and [`r3b_new_trigger_events_are_derived_from_the_dispatcher`]'s third leg
+/// stops meaning anything. Each is dispatched from its own site in
+/// `rules/abilities.rs`, verified by that test rather than asserted here:
+///
+/// * `SelfDealsCombatDamageToPlayer` — `abilities.rs:5425` (CR 510.1c combat damage).
+/// * `AnyCreatureYouControlDealsCombatDamageToPlayer` — `abilities.rs:5810`.
+/// * `EquippedCreatureDealsCombatDamage` — `abilities.rs:6026` (the un-suffixed
+///   sibling: any damage recipient, not only a player).
+/// * `AnyCreatureDealsCombatDamageToOpponent` — `abilities.rs:6059`.
+const DAMAGE_FAMILY_DISPATCHED_ELSEWHERE: &[&str] = &[
+    "SelfDealsCombatDamageToPlayer",
+    "AnyCreatureYouControlDealsCombatDamageToPlayer",
+    "EquippedCreatureDealsCombatDamage",
+    "AnyCreatureDealsCombatDamageToOpponent",
 ];
 
 /// Ability-list / registry WALK markers -- the mechanism, not one spelling.
@@ -816,4 +857,173 @@ fn r4_lowering_matches_have_no_wildcard_arm() {
         self_match.matches("DamageRecipient::").count() >= 3,
         "R4 non-vacuity: the self-family match must name all three DamageRecipient variants"
     );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PB-DX57 (`OOS-DX28-1`) — R3's needle set, derived instead of remembered
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// **Census row 12.** [`NEW_TRIGGER_EVENTS`] is the needle set
+/// [`walk_adjacent_event_names`] scans for, so it bounds R3 completely: an event
+/// outside it cannot be reported as having a second dispatcher no matter how many
+/// there are. It was scoped **historically** — "the 7 PB-DX36 added" — and a
+/// historical set is unpinnable by construction, because "was added by PB-DX36" is
+/// not a property of any declaration. That is what makes this member's drift
+/// silent, and it had already drifted: the dispatcher names **eight**.
+///
+/// Three legs:
+///
+/// 1. `NEW_TRIGGER_EVENTS` == the `TriggerEvent::X` names inside
+///    `rules::abilities::queue_damage_source_triggers`. Both directions: an event
+///    LEAVING the dispatcher while staying on this list makes R3 scan the workspace
+///    for a second dispatcher of something that now has no first one, and an event
+///    JOINING it (as `EquippedCreatureDealsCombatDamageToPlayer` had) is simply not
+///    scanned.
+/// 2. `NEW_TRIGGER_EVENTS ⊆ pub enum TriggerEvent`. `walk_adjacent_event_names`
+///    matches BARE NAMES, so a variant rename would leave every needle matching
+///    nothing and take R3 vacuous while green — the seed's own end-state.
+/// 3. The declaration's damage FAMILY is totally classified: every declared variant
+///    whose name spells "…Deals[Combat|Any]Damage…" is either dispatched here or
+///    named in [`DAMAGE_FAMILY_DISPATCHED_ELSEWHERE`] with a site. A new
+///    damage-family event that nobody classifies is then a red row rather than a
+///    silent omission.
+///
+/// **Stated residual on leg 3.** The family is keyed on the variant NAME, which is a
+/// convention rather than a declaration: a damage-family event named without
+/// `DealsDamage`/`DealsCombatDamage`/`DealsAnyDamage` escapes it. Legs 1 and 2 do not
+/// depend on that convention; only the completeness claim does, and it is a
+/// convention this enum has followed for all 12 current members.
+///
+/// **Revert to watch red**: add `let _ = TriggerEvent::SelfDealsCombatDamageToPlayer;`
+/// inside `queue_damage_source_triggers` (leg 1, the "dispatcher gained an event
+/// nobody scanned" direction), or delete a name from
+/// [`DAMAGE_FAMILY_DISPATCHED_ELSEWHERE`] (leg 3).
+#[test]
+fn r3b_new_trigger_events_are_derived_from_the_dispatcher() {
+    use crate::pb_dx57_declared_source::{declared_enum_variants, GAME_OBJECT_RS};
+
+    let abilities_src = engine_src_path("src/rules/abilities.rs");
+    let stripped = strip_line_comments(&abilities_src);
+    let body = extract_function_body(&stripped, "queue_damage_source_triggers");
+    assert!(
+        body.len() > 500,
+        "non-vacuity: `queue_damage_source_triggers`'s extracted body is {} bytes; the \
+         extraction has broken and leg 1 would compare the pinned list against nothing",
+        body.len()
+    );
+
+    // Every `TriggerEvent::X` the dispatcher names. Qualified here (not the bare-name
+    // form `walk_adjacent_event_names` uses) BECAUSE this is a single known function
+    // body rather than a workspace-wide bypass hunt: inside it, the qualified path is
+    // the only spelling, and matching bare names would also pick up the `TriggerCondition`
+    // identifiers that share them.
+    let mut derived: BTreeSet<String> = BTreeSet::new();
+    let needle = "TriggerEvent::";
+    let mut from = 0usize;
+    while let Some(i) = body[from..].find(needle) {
+        let at = from + i + needle.len();
+        let name: String = body[at..]
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect();
+        if !name.is_empty() {
+            derived.insert(name);
+        }
+        from = at;
+    }
+
+    println!(
+        "PB-DX57 row 12: queue_damage_source_triggers dispatches {} TriggerEvent(s): \
+         {derived:?}",
+        derived.len()
+    );
+    assert!(
+        derived.len() >= 7,
+        "non-vacuity: only {derived:?} parsed out of the dispatcher body"
+    );
+
+    // ── leg 1 ────────────────────────────────────────────────────────────────
+    let pinned: BTreeSet<String> = NEW_TRIGGER_EVENTS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    assert_eq!(
+        derived, pinned,
+        "NEW_TRIGGER_EVENTS no longer matches the TriggerEvents \
+         `rules::abilities::queue_damage_source_triggers` dispatches. This list is R3's \
+         NEEDLE SET, so an event missing from it is one R3 never scans for a second \
+         dispatcher -- which is how `EquippedCreatureDealsCombatDamageToPlayer` sat outside \
+         it while the dispatcher handled it. Do not re-pin by deleting the difference; \
+         re-derive it."
+    );
+
+    // ── leg 2 ────────────────────────────────────────────────────────────────
+    let declared = declared_enum_variants(GAME_OBJECT_RS, "TriggerEvent");
+    assert!(
+        pinned.is_subset(&declared),
+        "NEW_TRIGGER_EVENTS names {:?}, which `pub enum TriggerEvent` does not declare. \
+         `walk_adjacent_event_names` matches BARE names, so every needle would match \
+         nothing and R3 would go vacuous while staying green.",
+        pinned.difference(&declared).collect::<Vec<_>>()
+    );
+
+    // ── leg 3: the declared damage family is totally classified ──────────────
+    let family: BTreeSet<String> = declared
+        .iter()
+        .filter(|n| {
+            n.contains("DealsDamage")
+                || n.contains("DealsCombatDamage")
+                || n.contains("DealsAnyDamage")
+        })
+        .cloned()
+        .collect();
+    let elsewhere: BTreeSet<String> = DAMAGE_FAMILY_DISPATCHED_ELSEWHERE
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    println!(
+        "PB-DX57 row 12 leg 3: {} damage-family TriggerEvents declared; {} dispatched here, \
+         {} elsewhere",
+        family.len(),
+        pinned.len(),
+        elsewhere.len()
+    );
+    assert!(
+        family.len() >= 12,
+        "non-vacuity: the damage-family name filter matched only {family:?}; measured 12 at \
+         HEAD, so the naming convention leg 3 rests on has changed"
+    );
+    assert!(
+        pinned.is_disjoint(&elsewhere),
+        "{:?} is classified as BOTH dispatched here and dispatched elsewhere",
+        pinned.intersection(&elsewhere).collect::<Vec<_>>()
+    );
+    let classified: BTreeSet<String> = pinned.union(&elsewhere).cloned().collect();
+    assert_eq!(
+        classified,
+        family,
+        "the declared damage-family TriggerEvents are no longer totally classified. An \
+         UNCLASSIFIED one is outside R3 entirely -- a hand-rolled second dispatcher for it \
+         is invisible. Add it to NEW_TRIGGER_EVENTS if `queue_damage_source_triggers` \
+         handles it, or to DAMAGE_FAMILY_DISPATCHED_ELSEWHERE with the site that does. \
+         declared-but-unclassified = {:?}, classified-but-undeclared = {:?}",
+        family.difference(&classified).collect::<Vec<_>>(),
+        classified.difference(&family).collect::<Vec<_>>()
+    );
+
+    // Every "dispatched elsewhere" claim is checked, not asserted: the name must
+    // really occur in `rules/abilities.rs` OUTSIDE the dispatcher's body. An entry
+    // naming an orphan event would otherwise sit here forever as a reason nobody
+    // re-read -- OOS-DX52-1's shape (an allowlist whose quoted reason has rotted).
+    for name in &elsewhere {
+        let qualified = format!("TriggerEvent::{name}");
+        let total = stripped.matches(&qualified).count();
+        let inside = body.matches(&qualified).count();
+        assert!(
+            total > inside,
+            "DAMAGE_FAMILY_DISPATCHED_ELSEWHERE claims `{name}` is dispatched somewhere \
+             other than `queue_damage_source_triggers`, and `rules/abilities.rs` names it \
+             {total} time(s), {inside} of them inside that body. The claim has rotted."
+        );
+    }
 }

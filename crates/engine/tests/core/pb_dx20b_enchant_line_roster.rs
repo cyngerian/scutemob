@@ -857,6 +857,11 @@ fn r2_lines_needing_a_filter_are_pinned_and_declare_one() {
 /// deck, so a mis-declared Enchant line on one is latent, and a mis-declared line on a
 /// `Complete` one is live in the shipped browser game. `imprisoned_in_the_moon` was the second
 /// kind, which is why `OOS-DX20-10` was filed HIGH.
+///
+/// The ROW KEYS (not the populations) are pinned to `pub enum EnchantTarget`'s own
+/// declaration at the end of `r3` — `OOS-DX28-1`. Before PB-DX57 the only check was
+/// *"every variant reached by the corpus has a row"*, which six of the nine variants satisfy
+/// vacuously.
 const VARIANT_POPULATION: &[(&str, &[&str], &[&str])] = &[
     (
         "Creature",
@@ -1017,7 +1022,49 @@ fn r3_every_enchant_target_variant_agrees_with_its_printed_lines() {
     // No variant may go unclassified — a tenth variant added to the enum must be given a row
     // here (with an empty population if the corpus does not reach it) rather than silently
     // escaping the sweep.
+    //
+    // `OOS-DX28-1`: that sentence is what this file has always CLAIMED, and until PB-DX57 the
+    // check below only asserted the weaker *"every variant REACHED BY THE CORPUS has a row"* —
+    // so a tenth variant with zero corpus reach got no row and nothing fired. The two are the
+    // same assertion only while every variant is reached, and six of the nine are reached by
+    // nothing. `VARIANT_POPULATION` is now compared to `pub enum EnchantTarget`'s own
+    // declaration, which is what makes the doc's claim true rather than aspirational.
+    //
+    // **The pre-existing mitigation is real and is preserved, not replaced.** `variant_name`
+    // above is an exhaustive `match` over `EnchantTarget` with no wildcard arm, so a tenth
+    // variant is already a COMPILE error there. What was missing is not detection of the
+    // enum's growth — it is detection by THIS list, which is what decides whether the new
+    // variant's corpus population is swept at all. A future edit that gives `variant_name` a
+    // `_ =>` arm removes the compile-time half and leaves this assertion as the only one.
+    //
+    // Measured by planting a 10th variant (with the arms needed to make the workspace
+    // compile, so the result is a verdict and not a build failure): this assertion goes RED
+    // naming the variant, the corpus-reach check below stays GREEN, and the only other reds
+    // are the two wire fingerprint gates -- which say "the wire moved", not "the sweep is
+    // one variant short".
     let classified: BTreeSet<&str> = VARIANT_POPULATION.iter().map(|(v, _, _)| *v).collect();
+    let declared: BTreeSet<String> = crate::pb_dx57_declared_source::declared_enum_variants(
+        crate::pb_dx57_declared_source::STATE_TYPES_RS,
+        "EnchantTarget",
+    );
+    let classified_owned: BTreeSet<String> = classified.iter().map(|v| (*v).to_string()).collect();
+    assert_eq!(
+        classified_owned,
+        declared,
+        "`OOS-DX28-1` / PB-DX20b r3: VARIANT_POPULATION is no longer exactly \
+         `pub enum EnchantTarget`'s declared variant set.\n  DECLARED but unrowed: {:?} — \
+         give it a row (with an empty population if the corpus does not reach it) rather \
+         than letting it escape the sweep.\n  ROWED but undeclared: {:?} — a renamed or \
+         deleted variant, whose row now pins a population that can never be reached and \
+         therefore reports a permanent, silent zero.",
+        declared.difference(&classified_owned).collect::<Vec<_>>(),
+        classified_owned.difference(&declared).collect::<Vec<_>>()
+    );
+
+    // Kept beside the equality above rather than deleted: it is the assertion whose FAILURE
+    // MESSAGE names the offending variant in terms of the corpus, which is what a reader
+    // debugging a real regression wants. It is now implied by the equality, and it costs one
+    // line to say so directly.
     let unclassified: Vec<&&str> = live.keys().filter(|v| !classified.contains(*v)).collect();
     assert!(
         unclassified.is_empty(),
@@ -1197,7 +1244,7 @@ fn declared_enchant_filter_fields() -> BTreeSet<String> {
     let raw = std::fs::read_to_string(&path).expect("types.rs is readable");
     let src = strip_comments(&raw);
     let decl = src
-        .find("pub struct EnchantFilter")
+        .find("pub struct EnchantFilter {")
         .expect("`pub struct EnchantFilter` is declared in card-types/src/state/types.rs");
     let open = src[decl..]
         .find('{')

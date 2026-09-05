@@ -268,6 +268,37 @@ fn strip_leading_attributes(mut s: &str) -> &str {
     }
 }
 
+/// Take a leading Rust identifier, **including the `r#` raw-identifier prefix**.
+///
+/// `pub r#type: bool` is a legal field declaration — `type` is a keyword, so a field of that
+/// name MUST be written `r#type` — and a parser that takes only `[A-Za-z0-9_]` reads the
+/// identifier as the empty string and drops the field silently. The adversarial pass defeated
+/// three separate pins with exactly this, including two whose whole test target stayed green:
+/// `unread_init_fields`'s 45/45 and `t12`'s. **The canonical parser here was blind too** —
+/// `p1`–`p6` were all green under the plant — which is why the fix lives at the bottom rather
+/// than in each caller. `p7` pins it.
+///
+/// The `r#` is kept in the returned name, because that is how the field is spelled everywhere
+/// a consumer will compare against it (a serde `rename` is a separate question and a separate
+/// blind spot, stated in `p7`'s doc).
+fn leading_rust_ident(s: &str) -> String {
+    let s = s.trim_start();
+    let (prefix, rest) = if let Some(r) = s.strip_prefix("r#") {
+        ("r#", r)
+    } else {
+        ("", s)
+    };
+    let body: String = rest
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+        .collect();
+    if body.is_empty() {
+        String::new()
+    } else {
+        format!("{prefix}{body}")
+    }
+}
+
 fn leading_identifier(chunk: &str) -> String {
     strip_leading_attributes(chunk)
         .chars()
@@ -328,10 +359,7 @@ pub fn declared_enum_variant_fields(
                 .filter_map(|f| {
                     let f = strip_leading_attributes(f.trim());
                     let f = f.strip_prefix("pub ").unwrap_or(f).trim_start();
-                    let ident: String = f
-                        .chars()
-                        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
-                        .collect();
+                    let ident = leading_rust_ident(f);
                     // A field is `name: Type`. Anything else in a variant body is an
                     // attribute, which `strip_leading_attributes` has removed above --
                     // and NOT removing it was this parser's first bug: five of the eight
@@ -343,7 +371,9 @@ pub fn declared_enum_variant_fields(
                     // run, before any of this was written down.
                     (!ident.is_empty()
                         && f[ident.len()..].trim_start().starts_with(':')
-                        && ident.starts_with(|c: char| c.is_ascii_lowercase() || c == '_'))
+                        && ident
+                            .trim_start_matches("r#")
+                            .starts_with(|c: char| c.is_ascii_lowercase() || c == '_'))
                     .then_some(ident)
                 })
                 .collect(),
@@ -413,18 +443,27 @@ pub fn declared_struct_fields(rel: &str, struct_name: &str) -> BTreeSet<String> 
     //
     // Rust permits it, `rustfmt` preserves it in short structs, and nothing in the tree
     // forbids it. `p6` pins the behaviour on synthetic input.
-    let out: BTreeSet<String> = top_level_chunks(&body)
-        .into_iter()
-        .filter_map(|chunk| {
-            let c = strip_leading_attributes(chunk.trim());
-            let c = c.strip_prefix("pub ")?.trim_start();
-            let ident: String = c
-                .chars()
-                .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
-                .collect();
-            (!ident.is_empty() && c[ident.len()..].trim_start().starts_with(':')).then_some(ident)
-        })
-        .collect();
+    // **Fail CLOSED.** The adversarial pass's systemic finding: the struct-field parsers in this
+    // tree silently DROP what they cannot parse, while the enum parser panics. Dropping is the
+    // dangerous polarity — a field the parser cannot see never appears in any comparison, so
+    // every consumer agrees with every other consumer about a field none of them knows exists.
+    // A `pub `-prefixed chunk that yields no acceptable name is therefore a PANIC, not a skip.
+    let mut out: BTreeSet<String> = BTreeSet::new();
+    for chunk in top_level_chunks(&body) {
+        let c = strip_leading_attributes(chunk.trim());
+        let Some(c) = c.strip_prefix("pub ").map(str::trim_start) else {
+            continue;
+        };
+        let ident = leading_rust_ident(c);
+        assert!(
+            !ident.is_empty() && c[ident.len()..].trim_start().starts_with(':'),
+            "declared_struct_fields({rel}, {struct_name}) could not parse a `pub` field from \
+             {c:?}. Refusing to return a set that silently omits it -- a dropped field is \
+             invisible to every consumer at once, which is how a raw identifier (`pub r#type: \
+             bool`) left two whole test targets green under an adversarial plant."
+        );
+        out.insert(ident);
+    }
     assert!(
         !out.is_empty(),
         "declared_struct_fields({rel}, {struct_name}) parsed ZERO fields"
@@ -670,10 +709,7 @@ fn p6_struct_field_parsing_is_comma_chunked_not_line_based() {
         .filter_map(|chunk| {
             let c = strip_leading_attributes(chunk.trim());
             let c = c.strip_prefix("pub ")?.trim_start();
-            let ident: String = c
-                .chars()
-                .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
-                .collect();
+            let ident = leading_rust_ident(c);
             (!ident.is_empty() && c[ident.len()..].trim_start().starts_with(':')).then_some(ident)
         })
         .collect();
@@ -688,4 +724,49 @@ fn p6_struct_field_parsing_is_comma_chunked_not_line_based() {
          defeat a line-based or naive-comma parser."
     );
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// `p7` — a RAW IDENTIFIER field must be parsed, not silently dropped.
+///
+/// `pub r#type: bool` is how a field named after a keyword is spelled, and it is legal in every
+/// struct and every enum variant in this workspace. The adversarial pass used it to defeat
+/// **three** pins, two of them completely (`scripts` 45/45 green, `primitives` green), and the
+/// canonical parser here was blind to it as well.
+///
+/// **Stated residual**: `#[serde(rename = "x")]` is a DIFFERENT blind spot in the same family —
+/// a field whose declared name and whose SERIALIZED name differ will be compared under the
+/// wrong one by any consumer that matches against a JSON key set. No pin in this tree covers
+/// it, and the corpus contains none today, which is exactly the circumstance under which an
+/// untested arm stays green (`OOS-DX32-6`).
+#[test]
+fn p7_raw_identifier_fields_are_parsed() {
+    assert_eq!(leading_rust_ident("r#type: bool"), "r#type");
+    assert_eq!(leading_rust_ident("  r#fn: u8,"), "r#fn");
+    assert_eq!(leading_rust_ident("ordinary: u8"), "ordinary");
+    assert_eq!(
+        leading_rust_ident("r#"),
+        "",
+        "a bare `r#` is not an identifier"
+    );
+
+    let body = " pub r#type: bool, pub ordinary: u8,";
+    let got: BTreeSet<String> = top_level_chunks(body)
+        .into_iter()
+        .filter_map(|chunk| {
+            let c = strip_leading_attributes(chunk.trim());
+            let c = c.strip_prefix("pub ")?.trim_start();
+            let ident = leading_rust_ident(c);
+            (!ident.is_empty() && c[ident.len()..].trim_start().starts_with(':')).then_some(ident)
+        })
+        .collect();
+    let want: BTreeSet<String> = ["r#type", "ordinary"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    assert_eq!(
+        got, want,
+        "a raw-identifier field was dropped. A parser that takes only [A-Za-z0-9_] reads `r#type` \
+         as the empty identifier and skips the field IN SILENCE — which left two whole test \
+         targets green under an adversarial plant."
+    );
 }

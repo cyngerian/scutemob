@@ -846,6 +846,373 @@ fn test_eng2_announcement_roster() {
     );
 }
 
+// ── The stack-push announcement variant set (`OOS-DX28-1`) ───────────────────
+
+/// The three `GameEvent` variants that mark a NEW object arriving on the stack, and whose
+/// announcement sites `every_announcement_site_is_classified` therefore has to classify.
+///
+/// Lifted out of that test's body by PB-DX57 so it can be pinned. It used to be a fn-body
+/// `const` that nothing compared to `pub enum GameEvent`'s declaration: a fourth stack-push
+/// variant would never have been scanned, its announcement sites would never have been
+/// classified, and the "closed set" claim in that test's own name would have become false in
+/// silence. `stack_push_variants_are_classified_against_the_declaration` closes that.
+const STACK_PUSH_ANNOUNCEMENT_VARIANTS: &[&str] =
+    &["SpellCast", "AbilityActivated", "AbilityTriggered"];
+
+/// `GameEvent` variants that carry a `stack_object_id` and are NOT a stack push, each with
+/// the reason it is not one. Together with [`STACK_PUSH_ANNOUNCEMENT_VARIANTS`] this must be
+/// the WHOLE `stack_object_id`-carrying population — see
+/// `stack_push_variants_are_classified_against_the_declaration`.
+const NON_PUSH_STACK_OBJECT_EVENTS: &[(&str, &str)] = &[
+    (
+        "SpellResolved",
+        "CR 608.2n -- a DEPARTURE from the stack. Nothing is announced; the targets were \
+         announced at the matching SpellCast.",
+    ),
+    (
+        "SpellCountered",
+        "CR 701.5a -- a departure. The countered spell's targets were announced at its cast.",
+    ),
+    (
+        "SpellFizzled",
+        "CR 608.2b -- a departure (every target illegal). Announcement already happened.",
+    ),
+    (
+        "AbilityResolved",
+        "CR 608.2n / 113.7a -- a departure, the ability ceasing to exist.",
+    ),
+    (
+        "TargetsAnnounced",
+        "ENG-2's own event. It is emitted ALONGSIDE a push, by \
+         `rules::events::push_target_announcement`, and reports the targets that push \
+         announced -- so it is the announcement's PAYLOAD, not a second push. Scanning for \
+         it here would double-count every site this test classifies.",
+    ),
+    (
+        "TargetsChanged",
+        "CR 115.7 -- a retarget of an object ALREADY on the stack (`Effect::ChangeTargets`, \
+         PB-DX25c). No new stack object arrives, so there is no announcement site.",
+    ),
+];
+
+/// Split on top-level `,`, counting `{}`, `()`, `[]` and generic `<>` so a payload's own
+/// commas are not boundaries. `pb_dx42a`'s `t7` recorded its own first draft anchoring on the
+/// nearest `}` and "landing INSIDE the pattern list and silently returning three of the eight".
+fn top_level_chunks(body: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut depth = 0i32;
+    let mut cur = String::new();
+    let mut prev = ' ';
+    for ch in body.chars() {
+        match ch {
+            '{' | '(' | '[' => {
+                depth += 1;
+                cur.push(ch);
+            }
+            '}' | ')' | ']' => {
+                depth -= 1;
+                cur.push(ch);
+            }
+            '<' if prev.is_ascii_alphanumeric() || prev == '_' => {
+                depth += 1;
+                cur.push(ch);
+            }
+            '>' if depth > 0 && prev != '-' && prev != '=' => {
+                depth -= 1;
+                cur.push(ch);
+            }
+            ',' if depth == 0 => out.push(std::mem::take(&mut cur)),
+            _ => cur.push(ch),
+        }
+        prev = ch;
+    }
+    if !cur.trim().is_empty() {
+        out.push(cur);
+    }
+    out
+}
+
+/// Remove leading `#[...]` attributes. Load-bearing: a `#[serde(default)]` sitting between a
+/// field's doc comment and the field itself makes a naive parser read `#` as the field's
+/// first character and drop the field entirely.
+fn strip_leading_attributes(mut s: &str) -> &str {
+    loop {
+        s = s.trim_start();
+        if !s.starts_with("#[") {
+            return s;
+        }
+        let mut d = 0usize;
+        let mut end = None;
+        for (i, ch) in s.char_indices() {
+            match ch {
+                '[' => d += 1,
+                ']' => {
+                    d -= 1;
+                    if d == 0 {
+                        end = Some(i + 1);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        match end {
+            Some(e) => s = &s[e..],
+            None => return s,
+        }
+    }
+}
+
+fn leading_identifier(chunk: &str) -> String {
+    strip_leading_attributes(chunk)
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+        .collect()
+}
+
+/// Every variant of `pub enum <enum_name>` in a workspace-relative file, paired with the set
+/// of field names its struct-like payload declares (empty for unit and tuple variants).
+///
+/// # This is a COPY, and the canonical version is named
+///
+/// The canonical implementation is
+/// `crates/engine/tests/core/pb_dx57_declared_source.rs::declared_enum_variant_fields`. It
+/// cannot be shared: `core` and `primitives` are separate test BINARIES, and
+/// `tests/no_stray_test_binaries.rs::group_main_rs_declares_modules_and_nothing_else` allows
+/// a group's `main.rs` to contain bare `mod x;` lines and nothing else, so neither a `use`
+/// nor a `#[path]` re-export is available. `primitives/pb_dp9_effect_choice.rs:2641` settled
+/// what to do about exactly this situation: keep the copy, say it is a copy, name the
+/// canonical version, and cross-check BY VALUE rather than by text. The cross-check is in
+/// the test below.
+///
+/// # Bounds, stated rather than left to be discovered
+///
+/// Strips `//` line comments only, then ASSERTS that the file carries no `/* */` block
+/// comment (PB-DX8's `OOS-DX32-6` defeat: the byte-identical sentence reddened as a line
+/// comment and left every test green as a block comment). Panics on an empty parse -- a
+/// parser that returns `{}` makes every `assert_eq!` against it trivially true, which is
+/// `OOS-DX28-1`'s own failure mode re-entering through its fix.
+fn declared_enum_variant_fields(
+    rel: &str,
+    enum_name: &str,
+) -> std::collections::BTreeMap<String, std::collections::BTreeSet<String>> {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("engine manifest dir is <workspace>/crates/engine")
+        .to_path_buf();
+    let path = root.join(rel);
+    let raw = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("{} must be readable: {e}", path.display()));
+    assert!(
+        !raw.contains("/*"),
+        "{} grew a `/* */` block comment; this parser strips `//` only, so a block comment \
+         can hide or fake a variant (`OOS-DX32-6`). Widen it, or use the canonical \
+         `core::pb_dx57_declared_source::declared_enum_variant_fields`, which handles both.",
+        path.display()
+    );
+    let clean: String = raw
+        .lines()
+        .map(|l| match l.find("//") {
+            Some(i) => format!("{}{}", &l[..i], " ".repeat(l.len() - i)),
+            None => l.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let header = format!("pub enum {enum_name} {{");
+    let at = clean.find(&header).unwrap_or_else(|| {
+        panic!(
+            "`{header}` not found in {}. The declaration was renamed or moved -- re-point \
+             this pin rather than deleting it and keeping the hand-written list, which is \
+             the defect `OOS-DX28-1` names.",
+            path.display()
+        )
+    });
+    let body_start = clean[at..].find('{').expect("enum has a body") + at + 1;
+    let mut depth = 1usize;
+    let mut end = None;
+    for (i, ch) in clean[body_start..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(body_start + i);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let body = &clean[body_start..end.expect("the enum body is never closed")];
+
+    let mut out: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> =
+        std::collections::BTreeMap::new();
+    for chunk in top_level_chunks(body) {
+        let name = leading_identifier(&chunk);
+        if name.is_empty() || !name.starts_with(|c: char| c.is_ascii_uppercase()) {
+            continue;
+        }
+        let fields: std::collections::BTreeSet<String> = match (chunk.find('{'), chunk.rfind('}')) {
+            (Some(a), Some(b)) if b > a => top_level_chunks(&chunk[a + 1..b])
+                .into_iter()
+                .filter_map(|f| {
+                    let f = strip_leading_attributes(f.trim());
+                    let f = f.strip_prefix("pub ").unwrap_or(f).trim_start();
+                    let ident: String = f
+                        .chars()
+                        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                        .collect();
+                    (!ident.is_empty()
+                        && f[ident.len()..].trim_start().starts_with(':')
+                        && ident.starts_with(|c: char| c.is_ascii_lowercase() || c == '_'))
+                    .then_some(ident)
+                })
+                .collect(),
+            _ => std::collections::BTreeSet::new(),
+        };
+        out.insert(name, fields);
+    }
+    assert!(
+        !out.is_empty(),
+        "parsed ZERO variants out of `{header}` in {}",
+        path.display()
+    );
+    out
+}
+
+#[test]
+/// `OOS-DX28-1` -- **the stack-push announcement variant set is classified against
+/// `pub enum GameEvent`'s own declaration, not hand-listed.**
+///
+/// `STACK_PUSH_ANNOUNCEMENT_VARIANTS` is what `every_announcement_site_is_classified` scans
+/// for. Until PB-DX57 nothing compared it to anything: a fourth stack-push event variant
+/// would simply not have been scanned, its announcement sites would never have been
+/// classified, and the closed-set claim in that test's own name would have gone quietly
+/// false. That is `TARGET_FILTER_FIELDS`' failure one enum over -- a hand-maintained
+/// fingerprint that goes blind on declaration growth with no compile error and no failure
+/// message pointing anywhere near the cause.
+///
+/// ## Why this is a PARTITION and not a subset check
+///
+/// A bare `push ⊆ declared` catches a RENAME -- worth having, because a renamed variant
+/// makes the scan match nothing while staying green -- and says nothing about GROWTH, which
+/// is the direction the seed is about.
+///
+/// The semantic set (*"the events that mark a new object arriving on the stack"*) is not
+/// derivable from a name, but it has a **structural necessary condition**: such an event has
+/// to identify the stack object it created, i.e. carry a `stack_object_id` field. So the
+/// candidate POOL is derivable, and this row requires every member of it to be classified
+/// either as a push or as a non-push **with a stated reason** --
+/// `core::pb_dx50_copy_additional_cost_roster::r1`'s partition shape, which the stage-0
+/// census calls the cleanest instance of this repair in the tree. A tenth
+/// `stack_object_id`-carrying variant is then a red test whose message names the choice its
+/// author has to make, rather than a silent omission.
+///
+/// **"In silence" is precise, not rhetorical.** Planting a new `stack_object_id`-carrying
+/// `GameEvent` variant was EXECUTED: it reddens the two WIRE gates
+/// (`core::hash_schema::declaration_fingerprint_is_pinned`,
+/// `core::protocol_schema::protocol_schema_fingerprint_is_pinned`) and, in the `primitives`
+/// binary, **nothing but this row**. The wire gates say *"the wire moved"*, which is answered
+/// by bumping a version number; they say nothing about whether the announcement census still
+/// covers the enum.
+///
+/// **Stated bound.** The pool is a NECESSARY condition, not a sufficient one. A stack push
+/// that somehow did not report its stack object id would sit outside it -- but such an event
+/// could not be classified by `every_announcement_site_is_classified` either (that test keys
+/// its sites on the `GameEvent::<Variant> {` construction and then asks which stack object
+/// was announced), and nothing downstream could consume it.
+///
+/// ## The by-value cross-check with the canonical parser
+///
+/// `declared_enum_variant_fields` above is a copy; see its doc for why it cannot be shared.
+/// The canonical parser lives in the `core` binary and is exercised there on this same file
+/// by `core::pb_dx48_announcement_site_roster::r2d_permanent_targeted_fields_match_the_declaration`,
+/// which asserts that `GameEvent::PermanentTargeted` declares exactly
+/// `{target_id, targeting_stack_id, targeting_controller}`. This row asserts the same three
+/// names out of its own parse. Two derivations that agree only with themselves are worth
+/// nothing; if these two ever disagree about `events.rs`, one moves and the other does not.
+fn stack_push_variants_are_classified_against_the_declaration() {
+    let declared = declared_enum_variant_fields("crates/engine/src/rules/events.rs", "GameEvent");
+
+    // Non-vacuity: a FLOOR, not a pin. `GameEvent`'s exact size is not this row's business;
+    // a parse that collapsed to a handful would make everything below trivially satisfiable.
+    assert!(
+        declared.len() >= 100,
+        "the GameEvent parse returned only {} variants -- the parser is broken, and every \
+         assertion below would be vacuous",
+        declared.len()
+    );
+
+    // ── The by-value cross-check with the canonical parser. See the doc.
+    let permanent_targeted: Vec<&str> = declared
+        .get("PermanentTargeted")
+        .map(|f| f.iter().map(String::as_str).collect())
+        .unwrap_or_default();
+    assert_eq!(
+        permanent_targeted,
+        vec!["target_id", "targeting_controller", "targeting_stack_id"],
+        "this file's COPY of the declaration parser reads GameEvent::PermanentTargeted's \
+         payload as {permanent_targeted:?}; the canonical parser, exercised on the same file \
+         by core::pb_dx48_announcement_site_roster::\
+         r2d_permanent_targeted_fields_match_the_declaration, reads target_id / \
+         targeting_stack_id / targeting_controller. One of the two parsers is wrong -- do \
+         not reconcile by editing whichever is easier to change."
+    );
+
+    // ── The partition.
+    let pool: std::collections::BTreeSet<&str> = declared
+        .iter()
+        .filter(|(_, fields)| fields.contains("stack_object_id"))
+        .map(|(name, _)| name.as_str())
+        .collect();
+    assert!(
+        pool.len() >= 5,
+        "only {} GameEvent variant(s) carry a `stack_object_id` -- the field was renamed, \
+         and this row's candidate pool has silently collapsed to something every hand-written \
+         list trivially covers",
+        pool.len()
+    );
+
+    let push: std::collections::BTreeSet<&str> =
+        STACK_PUSH_ANNOUNCEMENT_VARIANTS.iter().copied().collect();
+    let non_push: std::collections::BTreeSet<&str> = NON_PUSH_STACK_OBJECT_EVENTS
+        .iter()
+        .map(|(n, _)| *n)
+        .collect();
+
+    let overlap: Vec<&&str> = push.intersection(&non_push).collect();
+    assert!(
+        overlap.is_empty(),
+        "a GameEvent variant is classified BOTH as a stack push and as a non-push: {overlap:?}"
+    );
+
+    let classified: std::collections::BTreeSet<&str> = push.union(&non_push).copied().collect();
+    assert_eq!(
+        classified,
+        pool,
+        "`OOS-DX28-1`: the `stack_object_id`-carrying GameEvent variants are no longer \
+         exactly the classified set.\n  UNCLASSIFIED (declared in `pub enum GameEvent`, in \
+         neither list): {:?} -- decide whether each marks a NEW object arriving on the \
+         stack. If it does, add it to STACK_PUSH_ANNOUNCEMENT_VARIANTS and classify its \
+         emission sites in `every_announcement_site_is_classified`; if it does not, add it \
+         to NON_PUSH_STACK_OBJECT_EVENTS with the reason.\n  DEAD (classified here, absent \
+         from the declaration -- i.e. a rename, which would make the scan match nothing \
+         while staying green): {:?}",
+        pool.difference(&classified).collect::<Vec<_>>(),
+        classified.difference(&pool).collect::<Vec<_>>()
+    );
+
+    // Every non-push entry carries a real reason, so the exclusion list cannot rot into a
+    // bare name list: an allowlist whose reason is not checked is a comment.
+    for (name, why) in NON_PUSH_STACK_OBJECT_EVENTS {
+        assert!(
+            why.len() > 30,
+            "NON_PUSH_STACK_OBJECT_EVENTS entry `{name}` carries no real reason: {why:?}"
+        );
+    }
+}
 // ── The class gate ────────────────────────────────────────────────────────────
 
 /// CR 601.2c / 602.2b / 603.3d -- a source gate over the batch's whole
@@ -884,7 +1251,6 @@ fn every_announcement_site_is_classified() {
         "rules/resolution.rs",
         "rules/engine.rs",
     ];
-    const VARIANTS: &[&str] = &["SpellCast", "AbilityActivated", "AbilityTriggered"];
 
     struct Hit {
         line_no: usize,
@@ -933,7 +1299,7 @@ fn every_announcement_site_is_classified() {
             if !code.contains("events.push(") {
                 continue;
             }
-            for variant in VARIANTS {
+            for variant in STACK_PUSH_ANNOUNCEMENT_VARIANTS {
                 let needle = format!("GameEvent::{variant} {{");
                 if code.contains(&needle) {
                     // Walk backward for the nearest preceding fn header.
