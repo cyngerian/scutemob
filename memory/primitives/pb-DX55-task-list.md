@@ -9,15 +9,15 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 - [x] 0.1 Pre-edit full-workspace baseline to a file; reproduce the 5,243 / 0 / 5 pin on 69 targets
 - [x] 0.2 Grep the registry for OOS-SIM6-3 / OOS-SIM5-3 / OOS-SIM5-5 (dispatch hygiene 5)
 - [x] 0.3 Re-run the exact §2.6 invocation at HEAD and capture the by-class refusal table
-- [ ] 0.4 Reconcile EVERY class to a seed or a new filing; publish the merge-base histogram
-- [ ] 0.5 FILE the three seeds into the registry (pipes escaped), from their handoff source text
-- [ ] 0.6 Census: mana-bearing `Command` variants (CEILING, from the enum + payment sites)
-- [ ] 0.7 Census: blocker refusal predicates (engine) vs offer predicates (simulator)
-- [ ] 0.8 Census: modal ACTIVATED abilities in `all_cards()` (SR-36, not a source grep)
-- [ ] 0.9 Wire prediction IN WRITING per half, committed before any production line
+- [x] 0.4 Reconcile EVERY class to a seed or a new filing; publish the merge-base histogram
+- [x] 0.5 FILE the three seeds into the registry (pipes escaped), from their handoff source text
+- [x] 0.6 Census: mana-bearing `Command` variants (CEILING, from the enum + payment sites)
+- [x] 0.7 Census: blocker refusal predicates (engine) vs offer predicates (simulator)
+- [x] 0.8 Census: modal ACTIVATED abilities in `all_cards()` (SR-36, not a source grep)
+- [x] 0.9 Wire prediction IN WRITING per half, committed before any production line
 
 ## Implement
-- [ ] 1 OOS-SIM6-3 — one cost arithmetic + one solver for every mana-bearing Command, both paths
+- [~] 1 OOS-SIM6-3 — one cost arithmetic + one solver for every mana-bearing Command, both paths
 - [ ] 2 OOS-SIM6-3 — offer/acceptance agreement (SR-38): unsolvable is not offered
 - [ ] 3 OOS-SIM5-3 — ONE blocker-legality predicate consumed by engine and offer
 - [ ] 4 OOS-SIM5-5 — per-mode target slice for activated abilities through the SHARED helper
