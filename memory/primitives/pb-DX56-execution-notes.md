@@ -351,3 +351,81 @@ them.
 line and message recorded, and every reverted file restored byte-exactly. `t3` and `t5`
 correctly stayed GREEN under F1's and F2's reverts respectively — stated as controls, not
 as gaps, because they pin different properties.
+
+---
+
+## §3 The disposition, and the number that decides it
+
+### 3.1 `--stop-on-error` no longer halts: HARD **291 → 0** on the standard invocation
+
+| bucket | at HEAD (pre-edit) | after |
+|---|---|---|
+| **HARD total** | **291 raw / 17 distinct**, 14/20 games | **0 raw / 0 distinct, 0/20 games** |
+| `player_consistency` | 189 (11 games) | — split, see below |
+| `attachment_validity` | 102 (7 games) | 102, **TRANSIENT** |
+| `departed_active_player` (CR 800.4j) | — | 189, **TRANSIENT** |
+| `departed_priority_holder` (CR 800.4a) | — | **0**, HARD |
+| `attachment_symmetry` (new, HARD) | — | **0** |
+| `dangling_attachment_at_rest` (new, end-state HARD) | — | **0** |
+| TRANSIENT total | 553 | 844 |
+
+Every remaining class is transient **with its own strictly stronger property**, and every
+new hard check is silent — which is a result rather than a vacuity, because each one was
+proven to fire on a planted violation under its own revert row.
+
+### 3.2 **The transient-vs-at-rest question is settled by an ARITHMETIC, not an argument**
+
+The census predicted this in writing before any measurement: *"a dangle that never heals
+would be re-reported after every subsequent tracked command for the rest of the game —
+hundreds, not fifteen — because the check is per-command and the predicate is stateless."*
+
+Revert row **R-E** (F1 disabled at both call sites, `#[allow(dead_code)]` on the helper so
+the row is a verdict and not a build failure) executes exactly that:
+
+| class | raw | distinct | raw / distinct |
+|---|---|---|---|
+| `attachment_validity` (direction A, heals) | 102 | ~13 | **≈ 8 checkpoints** |
+| `attachment_symmetry` under R-E (direction B, never heals) | **10,290** | **7** | **≈ 1,470 checkpoints** |
+
+**Two orders of magnitude, on the same fuzz run, from the same per-command stateless
+checker.** That ratio IS the discriminator: ~8 checkpoints is one cost-payment window
+between SBA sweeps (`OOS-M11-7`'s shape); ~1,470 is "for the rest of the game". So
+*"direction A is transient and direction B is at rest"* is **measured**, and the
+prediction that produced it was written down first.
+
+**R-E is also the proof that F1 is load-bearing at run scale and that the defect was
+live**: 7 distinct dangling-`attachments` conditions across 5 of 20 games at HEAD, and
+**0** with F1 in. Both fuzz outputs are committed
+(`memory/primitives/pb-dx56-measurement-revert-F1.txt`,
+`pb-dx56-measurement-after.txt`).
+
+**The first attempt at R-E was a NON-verdict and is reported rather than quietly redone**:
+removing both call sites made the helper dead code and `-D warnings` turned it into
+`error: method is never used`, so the row produced a build failure where it looked like it
+would produce a violation count. `OOS-DX39-8`'s exact shape one axis over. Re-run with
+`#[allow(dead_code)]`.
+
+### 3.3 The tooling caught a bug in the code that consumes it, on its first run, and it was this batch's own
+
+After the disposition landed, HARD read **1**, not 0: the CR 800.4k turn-boundary promotion
+fired on seed 5. **Reading the artefact's evidence rather than its count showed the
+promotion was a FALSE POSITIVE of this batch's own code.**
+
+`LocalGame::promote_if_it_crossed_a_turn` extracted the departed seat with
+`strip_prefix("player=")` — and `check_all` **prepends** `state_context`, which emits one
+`player=PlayerId(n) life=… has_lost=…` line **per seat**. So the key was the FIRST
+state-context line: a value identical for every violation in the game. It keyed
+`PlayerId(4)`'s turn-154 report against `PlayerId(1)`'s turn-133 one and reported
+*"turns_crossed=21"* for **two different seats**. Confirmed against the pre-edit
+measurement, which records seed 5's turn-133 report as `PlayerId(1)`.
+
+Fixed by renaming the arm's own key to `arm_player=`, with the incident recorded at both
+the emit site and the consumer, and pinned by
+`t_arm_player_key_is_not_shadowed_by_state_context` — which asserts **both** that
+`arm_player=` names the right seat **and** that a `player=` lookup finds a different seat
+first, so the reason for the odd key survives a later "tidy-up".
+
+**That is `OOS-FB1-1`'s entire argument in one incident.** The count said *"one hard
+violation, diagnosed"*; the evidence said *"your own key is wrong"*. Nothing in the
+pre-batch fuzzer — which printed two integers and an empty `command_history` — could have
+told the difference.
