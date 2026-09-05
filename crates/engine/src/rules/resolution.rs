@@ -28,6 +28,89 @@ use crate::state::types::{
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 use imbl::OrdSet;
+/// CR 608.2n — the resolving object's departure from the stack, made ONCE
+/// (PB-DX54, `OOS-DX25c-6`).
+///
+/// > *"As the final part of an instant or sorcery spell's resolution, the spell is
+/// > put into its owner's graveyard. As the final part of an ability's resolution,
+/// > the ability is removed from the stack and ceases to exist."*
+///
+/// and CR 608.2's own preamble: *"The steps described in rule 608.2n and 608.2p are
+/// followed last."*
+///
+/// **This is CR 608.2n, NOT CR 608.2m** — and the seed row, the v4 memo row and this
+/// task's own acceptance criterion all cite 608.2m. CR 608.2m says *"if an instant
+/// spell, sorcery spell, or ability that can legally resolve **leaves the stack once it
+/// starts to resolve**, it will continue to resolve fully"*, which is about an object
+/// removed by SOMETHING ELSE mid-resolution. It is not the warrant for when the
+/// resolving object's own departure happens. (It IS the warrant for the second half of
+/// this function's contract; see "Idempotent, and why" below.)
+///
+/// # What this repairs
+///
+/// [`resolve_top_of_stack_inner`] used to open with `state.stack_objects.pop_back()`,
+/// keeping the popped entry in a local variable. So for the whole of the resolution the
+/// entry did not exist, and `state::stack_registry::stack_index_for_announced_target`
+/// returned `None` for it. Both single-target retarget requirements
+/// (`TargetSpellWithSingleTarget`, `TargetSpellOrAbilityWithSingleTarget`) resolve their
+/// candidate through that function, so **Misdirection's own 2004-10-04 ruling was
+/// unimplementable**:
+///
+/// > *"You can choose to make a spell on the stack target this spell … **This spell is
+/// > still on the stack when new targets are selected for the spell.**"*
+///
+/// The card stayed in `state.objects` with `zone == Stack` the whole time, so the plain
+/// `TargetSpell` / `TargetSpellWithFilter` family never had the blind spot — which is
+/// why PB-DX25c's T7 had to be built around `TargetSpellWithFilter` and its T8 needed a
+/// fourth stack object to route around it rather than through it.
+///
+/// # Why the departure point is here and not at the function boundary
+///
+/// It would be simpler to remove the entry in a wrapper once the whole body has
+/// returned. That is measurably WRONG, and the two sites that make it wrong both read
+/// `state.stack_objects` from inside `sba::check_and_apply_sbas`:
+///
+/// * **CR 714.4** (`rules::sba.rs`, the Saga sacrifice) — *"…and it isn't the source of a
+///   chapter ability that has triggered but not yet left the stack"*. CR 704.3 checks
+///   SBAs when a player would receive priority, i.e. AFTER CR 608.2n. A resolving Saga
+///   chapter ability that had not yet departed would postpone its own Saga's sacrifice by
+///   a whole SBA round.
+/// * **CR 309.6** (`rules::sba.rs`, dungeon removal) — the same shape, for a `RoomAbility`
+///   still on the stack.
+///
+/// Neither is covered by a discriminating test today (the stage-0 measurement moved the
+/// pop to the function boundary and **zero** behavioural tests reddened), so this is
+/// stated as a reason rather than left to the suite.
+///
+/// # Idempotent, and why that is CR 608.2m rather than defensive coding
+///
+/// A no-op when the entry is already gone. That is not paranoia: an effect resolving
+/// during this very resolution can now legitimately remove the entry — the resolving
+/// spell is a reachable `Effect::CounterSpell` victim for the first time — and CR 608.2m
+/// says it *"will continue to resolve fully"* anyway. So "already gone" is a legal state
+/// at every departure site, and the correct response is to do nothing rather than to
+/// panic or to remove somebody else's entry.
+///
+/// # The lookup goes through the shared arithmetic
+///
+/// `stack_index_for_announced_target`'s FIRST clause is `so.id == announced`, and
+/// `entry_id` here is a stack-ENTRY id taken from `state.stack_objects.back()` moments
+/// earlier. Its SECOND clause (`card_in_stack_zone(&so.kind) == Some(announced)`)
+/// compares against a CARD id, and the two id spaces are disjoint by construction — both
+/// minted from the one monotone `timestamp_counter`, so an id lives in exactly one of
+/// them. The second clause therefore cannot fire for an entry id, and the shared function
+/// resolves exactly the entry we mean. Routing through it rather than re-open-coding
+/// `.position(|so| so.id == ..)` is `pb_dx52_stack_target_roster::r1a`'s rule, obeyed
+/// rather than allowlisted around.
+fn depart_resolving_stack_entry(state: &mut GameState, entry_id: ObjectId) {
+    if let Some(pos) = crate::state::stack_registry::stack_index_for_announced_target(
+        &state.stack_objects,
+        entry_id,
+    ) {
+        state.stack_objects.remove(pos);
+    }
+}
+
 /// CR 608.1 / CR 608.2d (PB-DP9): resolve the top object on the stack, with one
 /// exception -- if an effect needs a CR 608.2d resolution-time choice that has
 /// not been answered, the ENTIRE resolution is rolled back to the moment before
@@ -37,9 +120,17 @@ use imbl::OrdSet;
 /// # Why an abort, and not a resumable cursor
 ///
 /// `pb-plan-DP7.md` §1.6 prescribed "a resumable effect-list cursor **on the
-/// stack object**". That is impossible: [`resolve_top_of_stack_inner`] **pops**
-/// the stack object before a single effect runs, so nothing living on it can
-/// carry a continuation. The abort is strictly better anyway:
+/// stack object**". That is impossible, though **PB-DX54 changed the reason and
+/// this paragraph is rewritten rather than left standing** (`OOS-DX47-6`'s shape:
+/// a comment outliving the commit that falsified it). What stood here said
+/// `resolve_top_of_stack_inner` *"**pops** the stack object before a single effect
+/// runs"*; since PB-DX54 it peeks, and the entry is on the stack for the whole of
+/// the resolution (CR 608.2n — see [`depart_resolving_stack_entry`]). What has NOT
+/// changed is that nothing living on the entry can carry a continuation:
+/// `resolve_top_of_stack_inner` clones the entry into a local `stack_obj` and every
+/// subsequent read is of that clone, so a cursor written back onto the vector's copy
+/// would be invisible to the body that would have to consume it. The abort is
+/// strictly better anyway:
 ///
 /// * **No continuation data structure.** `Sequence`, `Conditional`, `ForEach`,
 ///   `Repeat`, `MayPayThenEffect` and the per-player loops inside the asking
@@ -117,8 +208,23 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         "CR 608.2d: resolve_top_of_stack re-entered while a resolution-time \
          choice is outstanding"
     );
+    // CR 608.2n backstop. `resolve_top_of_stack_inner` departs the entry at the two
+    // CR-ordered points that owe it (the fizzle tail and the main trigger/SBA/priority
+    // tail); FOUR paths return before either -- three ability-fizzle/intervening-if
+    // returns and the CR 608.2d suspension -- and none of them runs a trigger, SBA or
+    // priority step, so the ordering is unobservable there but the departure is still
+    // owed. This is the one place that cannot be forgotten by adding a fifth such
+    // return: PB-DP8's rule that *a guard that returns early inherits the obligation of
+    // the statements it skipped*, discharged structurally instead of per-site.
+    //
+    // On the suspension path the departure is immediately undone by `*state =
+    // restart_point` below, exactly as the pre-PB-DX54 `pop_back()` was.
+    let resolving_entry_id = state.stack_objects.back().map(|so| so.id);
     let restart_point = state.clone();
     let result = resolve_top_of_stack_inner(state);
+    if let Some(entry_id) = resolving_entry_id {
+        depart_resolving_stack_entry(state, entry_id);
+    }
     match result {
         Ok(events) => {
             let Some(mut pending) = state.pending_effect_choice.clone() else {
@@ -183,10 +289,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
 /// unit instead of twenty.
 fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
-    // Pop the top of the stack (LIFO — last pushed, first resolved).
+    // PEEK the top of the stack (LIFO — last pushed, first resolved). CR 608.2n:
+    // the object leaves the stack as the FINAL part of its resolution, so it is
+    // still on the stack while its own effect runs. It departs through
+    // [`depart_resolving_stack_entry`] — see that function for the whole rule.
     let stack_obj = state
         .stack_objects
-        .pop_back()
+        .back()
+        .cloned()
         .ok_or_else(|| GameStateError::InvalidCommand("stack is empty".into()))?;
     match stack_obj.kind.clone() {
         StackObjectKind::Spell { source_object } => {
@@ -253,6 +363,13 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             stack_object_id: stack_obj.id,
                             source_object_id: fizzle_source_id,
                         });
+                        // CR 608.2n / CR 704.3: the entry departs BEFORE the SBA
+                        // check, because CR 704.3 checks SBAs when a player would
+                        // receive priority and CR 608.2n has already put the card
+                        // away by then. Two SBAs read `state.stack_objects` and
+                        // would answer differently otherwise -- see
+                        // `depart_resolving_stack_entry`.
+                        depart_resolving_stack_entry(state, stack_obj.id);
                         // CR 704.3: Check SBAs before granting priority.
                         let sba_evts = sba::check_and_apply_sbas(state);
                         events.extend(sba_evts);
@@ -8588,6 +8705,12 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
     //
     // `Simultaneous` here is therefore byte-identical to pre-PB-DX15a behaviour, exactly
     // like the four sites below it.
+    // CR 608.2n, then CR 608.2p: the object leaves the stack as the FINAL part of
+    // its resolution, and only THEN do abilities that trigger on it resolving
+    // trigger. This is the CR-ordered departure point; the backstop in
+    // `resolve_top_of_stack` covers the four early returns above that run no
+    // trigger/SBA/priority tail at all. See `depart_resolving_stack_entry`.
+    depart_resolving_stack_entry(state, stack_obj.id);
     let new_triggers = abilities::check_triggers_with_timing(
         state,
         &events,
@@ -8831,60 +8954,70 @@ pub fn counter_stack_object(
             // copy" marker (`stack_object_id == source_object_id`).
             Some(stack_obj.id)
         } else {
-            match &stack_obj.kind {
-                // CR 701.6a: countering an ability removes it from the stack;
-                // the source stays where it is. CR 707.10b: a copy of an
-                // ability has the SAME source, so this arm is correct for
-                // ability copies too.
-                StackObjectKind::ActivatedAbility { source_object, .. }
-                | StackObjectKind::TriggeredAbility { source_object, .. } => Some(*source_object),
-                // Every other ability/trigger kind: NO event, exactly as
-                // before PB-DX25. This wildcard is a DIAGNOSTICS omission,
-                // not a state one -- the card decision above has no wildcard
-                // and cannot lose a card. Widening the event to every kind is
-                // `OOS-DX25-4`, deliberately not taken here.
-                //
-                // Countering abilities is non-standard; just remove from stack.
-                // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
-                // card stays in the graveyard and no haunting relationship is established.
-                // Note: For HauntedCreatureDiesTrigger, if countered (e.g. by Stifle),
-                // no haunt effect fires, but the haunt card stays in exile (CR 702.55c).
-                // Note: For BloodrushAbility, if countered (e.g. by Stifle), the source
-                // card is already in the graveyard (discarded as cost — CR 602.2b). No
-                // pump or keyword is applied, but the card stays in the graveyard.
-                // Note: For BackupTrigger, if countered (e.g. by Stifle), no counters
-                // are placed and no abilities are granted (CR 702.165a).
-                // Note: For ScavengeAbility, if countered (e.g. by Stifle), the card is
-                // already in exile (exiled as cost during activation). No counters are
-                // placed on the target, but the source card stays in exile (CR 702.97a).
-                // Note: For ForecastAbility, if countered (e.g. by Stifle), the forecast
-                // activation is already consumed (once-per-turn tracked) and the card
-                // remains in hand (CR 702.57a).
-                // Note: For Echo KeywordTrigger, if countered (e.g. by Stifle), echo_pending
-                // remains set so the trigger fires again on the next upkeep (CR 702.30a).
-                // Note: For CumulativeUpkeep KeywordTrigger, if countered (e.g. by Stifle), no
-                // age counter is added (counter addition happens at resolution, not queueing).
-                // The trigger fires again next upkeep with the same counter count (CR 702.24a).
-                // Note: For EncoreAbility, the card is already in exile (exiled as cost
-                // during activation). Countering does not return the card (CR 702.141a).
-                // Note: For DashReturnTrigger, the creature stays on the battlefield
-                // with haste (haste is a static ability, not tied to this trigger -- CR 702.109a).
-                // Note: For BlitzSacrificeTrigger, the creature stays on the battlefield
-                // with haste and the draw-on-death trigger intact (CR 702.152a).
-                // Note: For Impending KeywordTrigger (CounterRemoval), if countered (e.g. by Stifle),
-                // the permanent retains its time counter(s) and remains a non-creature (CR 702.176a).
-                // Note: For CasualtyTrigger, if countered (e.g. by Stifle), the original
-                // spell stays on the stack but no copy is made (CR 702.153a).
-                // Note: For ReplicateTrigger, if countered (e.g. by Stifle), no copies are
-                // made but the original spell stays on the stack (CR 702.56a).
-                // Note: For GravestormTrigger, if countered (e.g. by Stifle), no copies are
-                // made but the original spell stays on the stack (CR 702.69a).
-                // Note: For Vanishing KeywordTrigger (CounterRemoval), if countered (e.g. by Stifle),
-                // the permanent retains its time counter(s) (CR 702.63a).
-                // Note: For Vanishing KeywordTrigger (CounterSacrifice), if countered (e.g. by Stifle),
-                // the permanent stays on the battlefield with 0 time counters (CR 702.63a ruling).
-                _ => None,
-            }
+            // PB-DX54 (`OOS-DX25-4` CLOSED): CR 113.7's source of the countered
+            // object, resolved through the ONE exhaustive classification in
+            // `state::stack_registry::source_of` -- never a two-arm `match` with a
+            // `_ => None` wildcard. Before this, `ActivatedAbility` and
+            // `TriggeredAbility` named a source and the other 23 kinds emitted NO
+            // `GameEvent::SpellCountered` at all, so a Stifle-shaped counter of a
+            // `KeywordTrigger` / `LoyaltyAbility` / `ForecastAbility` /
+            // `ScavengeAbility` removed the entry and reported nothing to the event
+            // log. PB-DX48 made four of those reachable from Ward, so the silence was
+            // live rather than theoretical.
+            //
+            // **This widens the event stream, which is the whole point and is what
+            // kept the row open**: it is a DIAGNOSTICS change, not a state one -- no
+            // card moves differently and no zone diverges. The card-ownership decision
+            // above (`card_in_stack_zone`) was already wildcard-free; only the
+            // diagnostic still had a wildcard, and PB-DX25's own note said so.
+            //
+            // Five kinds still name NO source and therefore still emit no event, and
+            // that is a MEASURED absence rather than a missing arm: `EmbalmAbility`,
+            // `EternalizeAbility`, `EncoreAbility`, `ScavengeAbility` (the card was
+            // exiled or moved as the COST, so CR 400.7 leaves no live id) and
+            // `RoomAbility` (CR 309.4c: generated by a dungeon in the command zone,
+            // which is not a `state.objects` permanent). `source_of`'s own doc carries
+            // the reasoning; it is not restated here.
+            // Countering abilities is non-standard; just remove from stack.
+            // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
+            // card stays in the graveyard and no haunting relationship is established.
+            // Note: For HauntedCreatureDiesTrigger, if countered (e.g. by Stifle),
+            // no haunt effect fires, but the haunt card stays in exile (CR 702.55c).
+            // Note: For BloodrushAbility, if countered (e.g. by Stifle), the source
+            // card is already in the graveyard (discarded as cost — CR 602.2b). No
+            // pump or keyword is applied, but the card stays in the graveyard.
+            // Note: For BackupTrigger, if countered (e.g. by Stifle), no counters
+            // are placed and no abilities are granted (CR 702.165a).
+            // Note: For ScavengeAbility, if countered (e.g. by Stifle), the card is
+            // already in exile (exiled as cost during activation). No counters are
+            // placed on the target, but the source card stays in exile (CR 702.97a).
+            // Note: For ForecastAbility, if countered (e.g. by Stifle), the forecast
+            // activation is already consumed (once-per-turn tracked) and the card
+            // remains in hand (CR 702.57a).
+            // Note: For Echo KeywordTrigger, if countered (e.g. by Stifle), echo_pending
+            // remains set so the trigger fires again on the next upkeep (CR 702.30a).
+            // Note: For CumulativeUpkeep KeywordTrigger, if countered (e.g. by Stifle), no
+            // age counter is added (counter addition happens at resolution, not queueing).
+            // The trigger fires again next upkeep with the same counter count (CR 702.24a).
+            // Note: For EncoreAbility, the card is already in exile (exiled as cost
+            // during activation). Countering does not return the card (CR 702.141a).
+            // Note: For DashReturnTrigger, the creature stays on the battlefield
+            // with haste (haste is a static ability, not tied to this trigger -- CR 702.109a).
+            // Note: For BlitzSacrificeTrigger, the creature stays on the battlefield
+            // with haste and the draw-on-death trigger intact (CR 702.152a).
+            // Note: For Impending KeywordTrigger (CounterRemoval), if countered (e.g. by Stifle),
+            // the permanent retains its time counter(s) and remains a non-creature (CR 702.176a).
+            // Note: For CasualtyTrigger, if countered (e.g. by Stifle), the original
+            // spell stays on the stack but no copy is made (CR 702.153a).
+            // Note: For ReplicateTrigger, if countered (e.g. by Stifle), no copies are
+            // made but the original spell stays on the stack (CR 702.56a).
+            // Note: For GravestormTrigger, if countered (e.g. by Stifle), no copies are
+            // made but the original spell stays on the stack (CR 702.69a).
+            // Note: For Vanishing KeywordTrigger (CounterRemoval), if countered (e.g. by Stifle),
+            // the permanent retains its time counter(s) (CR 702.63a).
+            // Note: For Vanishing KeywordTrigger (CounterSacrifice), if countered (e.g. by Stifle),
+            // the permanent stays on the battlefield with 0 time counters (CR 702.63a ruling).
+            crate::state::stack_registry::source_of(&stack_obj.kind)
         };
         if let Some(source_object_id) = named {
             events.push(GameEvent::SpellCountered {
