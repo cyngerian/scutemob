@@ -402,13 +402,28 @@ pub fn declared_struct_fields(rel: &str, struct_name: &str) -> BTreeSet<String> 
         &format!("pub struct {struct_name} {{"),
         &format!("declared_struct_fields({rel}, {struct_name})"),
     );
-    let out: BTreeSet<String> = body
-        .lines()
-        .map(str::trim)
-        .filter_map(|l| l.strip_prefix("pub "))
-        .filter_map(|l| l.split(':').next())
-        .map(|n| n.trim().to_string())
-        .filter(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+    // **Comma-chunked, not line-based.** The first draft split the body by LINES, so a
+    // declaration written `pub basic: bool, pub nonbasic: bool,` on one line contributed only
+    // its FIRST field — and the failure that produced was worse than a miss: a consumer
+    // comparing its list to this set reddened with the message *"the declaration no longer has
+    // `nonbasic`"*, which is the opposite of the truth. Found by another agent's live plant
+    // against a COPY of this function, and repaired here because this is the canonical parser
+    // that three roster rows cross-check against — `p1`'s three counts would each have gone
+    // short, with a wrong diagnosis, the day anyone wrote two fields on one line.
+    //
+    // Rust permits it, `rustfmt` preserves it in short structs, and nothing in the tree
+    // forbids it. `p6` pins the behaviour on synthetic input.
+    let out: BTreeSet<String> = top_level_chunks(&body)
+        .into_iter()
+        .filter_map(|chunk| {
+            let c = strip_leading_attributes(chunk.trim());
+            let c = c.strip_prefix("pub ")?.trim_start();
+            let ident: String = c
+                .chars()
+                .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+                .collect();
+            (!ident.is_empty() && c[ident.len()..].trim_start().starts_with(':')).then_some(ident)
+        })
         .collect();
     assert!(
         !out.is_empty(),
@@ -633,4 +648,44 @@ fn p5_no_declaration_lookup_uses_a_prefix_needle() {
          empty-parse panic cannot see that. Measured once for real: a decoy carrying the same \
          field names left the entire `core` target green with every pin checking the decoy."
     );
+}
+
+/// `p6` — the struct-field parser must not be line-based.
+///
+/// Synthetic, because the corpus happens not to contain a one-line multi-field declaration
+/// today: a parser whose only evidence of correctness is that it has never met the input is
+/// `OOS-DX32-6`'s shape, and this one HAD met it — in a copy, in another agent's plant, and it
+/// got the answer AND the diagnosis wrong.
+#[test]
+fn p6_struct_field_parsing_is_comma_chunked_not_line_based() {
+    let dir = std::env::temp_dir().join("pb_dx57_p6");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("scratch");
+    // `read_workspace_file` resolves against the workspace root, so exercise the two pure
+    // helpers directly rather than through a file.
+    let body = " pub basic: bool, pub nonbasic: bool,\n #[serde(default)] pub owner: u8,\n \
+                 pub nested: Vec<(u32, u32)>,";
+    let fields: BTreeSet<String> = top_level_chunks(body)
+        .into_iter()
+        .filter_map(|chunk| {
+            let c = strip_leading_attributes(chunk.trim());
+            let c = c.strip_prefix("pub ")?.trim_start();
+            let ident: String = c
+                .chars()
+                .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+                .collect();
+            (!ident.is_empty() && c[ident.len()..].trim_start().starts_with(':')).then_some(ident)
+        })
+        .collect();
+    let expected: BTreeSet<String> = ["basic", "nonbasic", "owner", "nested"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    assert_eq!(
+        fields, expected,
+        "the struct-field parser dropped a field. Two fields on ONE line, an attribute between \
+         the fields, and a generic argument list containing a comma are all legal Rust and all \
+         defeat a line-based or naive-comma parser."
+    );
+    let _ = std::fs::remove_dir_all(&dir);
 }
