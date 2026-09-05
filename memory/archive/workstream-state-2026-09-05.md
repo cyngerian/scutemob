@@ -8444,3 +8444,41 @@ Filed **OOS-DX28-1..10**.
   already recorded that its rank premise (a layer-querying population of exactly 1) is false.
   The order past rank 12 needs re-deciding, not reading off.
 <!-- END VERBATIM -->
+
+## Rotated 2026-09-05 (second rotation, at the CC-1..CC-4 coordinator /eot) — verbatim
+
+
+**Date**: 2026-09-05 (oversight session)
+**Workstream**: W6 → course correction (`docs/course-correction-2026-09.md`)
+**Task**: collected `scutemob-236` (PB-DX57, merge `cb6980f2`); filed `scutemob-237..254`
+
+**Completed**:
+- Independent audit of the tree at `8604207e`; `docs/course-correction-2026-09.md` written,
+  reviewed section by section with the owner, and APPROVED; the parallel addendum reconciled (§9).
+- Owner decisions: Commander; hot-seat match one; decks as export + generated plain list; judge
+  button pulled into P1; **second v4 chain CLOSED at rank 21** (PB-DX9 / PB-DX38 NOT dispatched).
+- 18 tasks filed with dependencies (`scutemob-237..254`, doc §10). PB-DX57 collected normally;
+  state-sync repointed every "next dispatch: PB-DX9" line to the chain-closed decision.
+
+**Not done / deferred**:
+- The coordinator batch (CC-1, 2, 3, 4, 14, 15, 17) — next session, no dispatch needed.
+- CC-5 (decklists) needs the owner.
+
+**Next session candidates** (highest-yield first):
+1. CC-1 (`scutemob-237`): CLAUDE.md < 250 lines, Current State archived verbatim, THIS FILE
+   rotated to `memory/archive/workstream-state-2026-09-05.md`, `CHANGELOG.md` seeded.
+2. CC-2/3/4/14/15/17 in the same session.
+3. Then CC-5 → CC-6 → CC-8.
+
+**Operator-delta line** (what can a player observe now that they could not at the last handoff?):
+nothing — PB-DX57 is tests-only (0 engine lines). This is the first of the two empty entries
+that §5.2 of the course-correction doc says forces a pod-facing item to the front; CC-9 is it.
+
+**Hazards** (carrying forward):
+- Every "Next dispatch" pointer above the §10 task table is HISTORICAL; the v4 memo banner,
+  CLAUDE.md lines 131/354 and this file all say CHAIN CLOSED. Do not `/dispatch` from the v4 queue.
+- `feedback_queue_autonomous_chaining` is still RETRACTED — every dispatch needs owner approval.
+
+**Commit prefix used**: `chore:` / `merge:`
+
+---

@@ -18,8 +18,8 @@
   regenerate with `tools/authoring-report.py`). Replaced by pod coverage (`docs/pod-coverage.md`)
   once CC-6 lands. Wire: PROTOCOL **44** / HASH **85**.
 - **Next dispatch**: NONE from the v4 queue — the second chain is **CLOSED at rank 21** (do NOT
-  dispatch PB-DX9 / PB-DX38). Current work is the coordinator batch CC-1/2/3/4/14/15/17
-  (`scutemob-237..254`, doc §10); CC-5 (six pod decklists) needs the owner. Every dispatch needs
+  dispatch PB-DX9 / PB-DX38). Coordinator batch: CC-1/2/3/4 DONE 2026-09-05; CC-17 → CC-15 →
+  CC-14 remain (`scutemob-254`/`252`/`251`, doc §10); CC-5 (six pod decklists) needs the owner. Every dispatch needs
   explicit owner approval (`feedback_queue_autonomous_chaining` RETRACTED 2026-08-01).
 - **Where the detail is**: `CHANGELOG.md` (one ≤10-line entry per batch, newest first);
   `memory/workstream-state.md` (claims + last handoff); `docs/audits/decision-point-audit.md`
