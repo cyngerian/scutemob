@@ -107,9 +107,13 @@
   rider **OOS-DX25-4** CLOSED and rider **OOS-DX25b-4** DECLINED with a measured wire cost; the
   row's "2 deck-legal `Complete`" cell REPRODUCES, the first yield cell in five batches that is
   not a floor, and the row's CR cite is wrong — CR 608.2n, not 608.2m).
-  **Next dispatch: PB-DX42b** (v4 rank 18 — CR 613.1d layer-bounded condition queries,
-  `OOS-ADJ-1` ≡ `OOS-DX19-2`); ranks 1-17 all shipped, and rank 18 is the LAST of the
-  user-approved five-task chain. Read row 18's two preconditions before dispatching it.
+  **↻ PB-DX42b SHIPPED** (`scutemob-233`, 2026-09-05; v4 rank 18 — **OOS-ADJ-1** ≡
+  **OOS-DX19-2** FILED *and* CLOSED as ONE defect, plus **OOS-DX19-1**'s residue and
+  **OOS-DX19-4** closed BY CONSTRUCTION, and the rank-21 rider **OOS-ADJ-2** taken in both
+  halves; NEITHER of the two headline seeds had a registry row until this batch wrote one).
+  **RANKS 1-18 ARE ALL SHIPPED AND NO FURTHER DISPATCH IS AUTHORISED** — rank 18 was the LAST
+  of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
+  was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -160,11 +164,17 @@
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
   `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,140/1,803 = 63.2%**
-  (**UNMOVED by PB-DX54, 2026-09-05 — 0 flips, predicted with the reason before any regeneration
-  and confirmed in every bucket (clean 1,140 / todo 516 / empty 147 identical). The batch makes
-  **0 card-def edits of any kind**, so no `Completeness` marker can move, the `CORPUS_COMPLETE`
-  SET is unmoved as well as its count, and `OOS-CARDS2-3`'s re-deal budget was checked and found
-  not owed. The empty-card-def-diff shortcut was available and the regeneration was run anyway**)
+  (**UNMOVED by PB-DX42b, 2026-09-05 — 0 flips, predicted with the reason PER DEF before any
+  code changed and confirmed in every bucket (clean 1,140 / todo 516 / empty 147 identical).
+  **3 card-def edits, all comment-only** — `indomitable_archangel`'s wrong CR cite, the
+  `greymond_avacyns_stalwart` blocker note this batch FALSIFIES, and the SR-35 reflow of the
+  latter — and `git diff` over the `Completeness::` marker lines in `crates/card-defs` is
+  **EMPTY**, so the `CORPUS_COMPLETE` SET is unmoved as well as its count and
+  `OOS-CARDS2-3`'s re-deal budget was checked and found not owed. The marker was checked by
+  `git diff` over the marker rather than inferred from the unchanged total — PB-DX26's lesson
+  that a stable COUNT is not a stable SET**)
+  *(historical: **1,140/1,803 = 63.2%**
+  (**UNMOVED by PB-DX54, 2026-09-05 — 0 flips, 0 card-def edits of any kind**)*
   *(historical: **1,140/1,803 = 63.2%**
   (**PB-DX53, 2026-09-05 — ONE flip, `minas_tirith` `partial` → `Complete`, NAMED before any code;
   it is a THIRD member of the turn-scoped class that no document in the chain names, found by the
@@ -286,9 +296,13 @@
   rider **OOS-DX25-4** CLOSED and rider **OOS-DX25b-4** DECLINED with a measured wire cost; the
   row's "2 deck-legal `Complete`" cell REPRODUCES, the first yield cell in five batches that is
   not a floor, and the row's CR cite is wrong — CR 608.2n, not 608.2m).
-  **Next dispatch: PB-DX42b** (v4 rank 18 — CR 613.1d layer-bounded condition queries,
-  `OOS-ADJ-1` ≡ `OOS-DX19-2`); ranks 1-17 all shipped, and rank 18 is the LAST of the
-  user-approved five-task chain. Read row 18's two preconditions before dispatching it.
+  **↻ PB-DX42b SHIPPED** (`scutemob-233`, 2026-09-05; v4 rank 18 — **OOS-ADJ-1** ≡
+  **OOS-DX19-2** FILED *and* CLOSED as ONE defect, plus **OOS-DX19-1**'s residue and
+  **OOS-DX19-4** closed BY CONSTRUCTION, and the rank-21 rider **OOS-ADJ-2** taken in both
+  halves; NEITHER of the two headline seeds had a registry row until this batch wrote one).
+  **RANKS 1-18 ARE ALL SHIPPED AND NO FURTHER DISPATCH IS AUTHORISED** — rank 18 was the LAST
+  of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
+  was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -299,6 +313,107 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-05, PB-DX42b)**: **5,241 / 0 / 5** full-workspace on branch
+  `scutemob-233` (+10 over the **5,231** baseline, measured on this branch BEFORE any edit and
+  **reproducing PB-DX54's close pin exactly** — the fifth consecutive batch in which an inherited
+  pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file, **69**
+  result-producing targets (68 → 69: one new simulator test binary), residual list empty.
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
+  `sort` + `comm` (`OOS-DX20b-5`): 13 additions, 3 leavers, 0 removals**, and **all three leavers
+  are disclosed and none is a removal** — every one is a rename this batch was instructed to make:
+  `deviation_animated_nexus_does_not_count_toward_metalcraft` →
+  `nexus_animated_by_a_continuous_effect_now_counts_toward_metalcraft` (the INVERSION its own
+  message demanded); `the_deviation_is_scoped_to_the_layer_walk_only` →
+  `characteristics_for_condition_gives_full_resolution_outside_any_walk` (the ambient flag it read
+  no longer exists); and `t7_control_land_with_subtypes_absent_from_population` →
+  `t7_non_target_filter_layer_querying_variants_absent_from_population` (the `OOS-ADJ-2` rider's
+  1 → 8 widening). Honest reading: **10 genuine additions and 3 mandated renames.**
+  **The first draft of this cell said 12 and 2 and was missing the third** — an enumeration error
+  inside the one cell whose whole purpose is enumeration, caught by RUNNING the set difference
+  rather than by transcribing what the batch remembered doing. Count delta 10 == name-set delta 10,
+  and the duplicate-name scan the byte-exact method is structurally blind to (`OOS-DX35-8`) is
+  **EMPTY on both runs** (5,235 / 5,235 distinct; 5,245 / 5,245).
+  **A THIRTEENTH TEST EXISTS AND DOES NOT APPEAR IN ANY OF THESE FIGURES, which is stated rather
+  than left for a later batch to trip over**: `same_layer_self_reference_is_suppressed_not_resolved`
+  is `#[cfg(not(debug_assertions))]` — the labelled deviation's wrong-way-round pin cannot be a
+  debug test, because the CR 613.1d `debug_assert!` fires first on any same-layer self-reference —
+  so it never compiles into the debug binary, never runs in CI, and no count delta will ever
+  include it. Verified by executing `cargo test --release`. Filed as **`OOS-DX42b-4`**.
+  **HASH 85 / PROTOCOL 44 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed (51/51
+  including `history_is_append_only` and `frozen_prefix_is_pinned` on both sides) and **predicted
+  in writing before any production line** (`d90b7994`). Closure type counts **MEASURED** at
+  **98 / 132** by raising each gate's `MIN_CLOSURE_TYPES` to 9999 and reading its own panic text,
+  never transcribed. `git diff` over `state/hash.rs` and `rules/protocol.rs` is **EMPTY**, so no
+  sentinel re-pin, no survivor scan, no `OOS-DX18-3` over-replacement read, no history row and no
+  frozen-prefix re-pin were owed; the two append-only gates were executed anyway, green, as the
+  evidence that none was owed rather than as a claim.
+  **The counterfactual is VERIFIED BY EXECUTION at stage 0**: planting `TargetFilter` — and
+  separately `EffectLayer` — in each gate's `CLOSURE_MUST_NOT_CONTAIN` fails **BOTH** gates each
+  time, so the rejected design (STORE the required layer on `TargetFilter` instead of computing it)
+  costs **+1 HASH and +1 PROTOCOL** plus a ~49-file sentinel re-pin, where computing it per
+  instance costs nothing. That measurement is the reason for the design, not a preference.
+  Coverage **UNMOVED at 1,140/1,803 = 63.2%** by regeneration, **0 flips** predicted with the
+  reason per def before any code changed and confirmed in every bucket (clean 1,140 / todo 516 /
+  empty 147 identical), self-dating churn reverted; **3 card-def edits, all comment-only**, with
+  `git diff` over the `Completeness::` markers **EMPTY**.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
+  gate) — all against the FINAL tree, **and TWO standing card-def gates FIRED there**, both on this
+  batch's own comment edits and both answered rather than dodged: PB-DX8's
+  `completeness_deviation_scan` on `indomitable_archangel` (answered by ALLOWLIST with the contract
+  widening STATED, on the `bolt_bend` precedent — rewording to dodge the needle was rejected
+  because *a gate you edit prose to satisfy has stopped measuring*), and SR-35's
+  `tools/check-defs-fmt.sh` on the `greymond` rewrite, which `cargo fmt --check` passes and always
+  will.
+  **`npm run build` was NOT run and that is stated rather than omitted**: N/A, because
+  `git diff --numstat <merge-base>..HEAD -- tools/` is **EMPTY** and `node_modules` is absent.
+  **Engine lines** (re-taken against the FINAL tree rather than transcribed from a mid-batch
+  figure — PB-DX28's re-take MEDIUM, and the first draft of this cell said `+400 / −144` from an
+  estimate rather than a measurement): `crates/engine/src` **+558 / −187** across `rules/layers.rs`
+  (+436/−142), `effects/mod.rs` (+112/−31), `rules/engine.rs` (+9/−13) and `lib.rs` (+1/−1);
+  `crates/card-types/src` **+209 / −0** (the two `required_characteristic_layer` impls, one of them
+  an exhaustive 33-field destructure and the other an exhaustive 53-variant match);
+  `crates/card-defs` **+26 / −8**, all comment-only across two files; and
+  **`crates/view-model`, `crates/simulator/src` and `tools/` are all EXACTLY 0** — every consumer
+  of characteristics already called `calculate_characteristics`, whose signature does not change,
+  and `check_condition`'s public signature was deliberately preserved across its 63 call sites.
+  **Benches: a REAL regression, FOUND AND REMOVED rather than published.** The first A/B measured
+  `sba_check` **+6.76% with NON-OVERLAPPING criterion intervals** against a same-code band of
+  **0.32%** on that bench. Cause 1: the bounded layer list was `.filter(..).collect::<Vec<_>>()` —
+  a **heap allocation on every `calculate_characteristics` call**, i.e. one per battlefield
+  permanent per SBA check, where the pre-batch code used a stack array (+6.76% → +2.98%). Cause 2:
+  `abilities_are_blanked` constructed a fresh eval context per effect inside an
+  O(permanents × effects) sweep; hoisting it is observationally identical because `InFlightGuard`
+  removes on drop (+2.98% → +1.29%). **Final: 3 merge-base runs and 5 HEAD runs on a quiet machine,
+  same-code band measured FIRST, EVERY criterion interval OVERLAPS**, deltas +0.05 / +1.20 / +1.29 /
+  −0.31 / +0.48 / +1.51%, each smaller than HEAD's own same-code spread on that bench — **no
+  regression demonstrated, and nothing claimed in either direction.** **No struct grew**, so no
+  `size_of` is owed, which is the same fact the wire prediction rests on.
+  **Fuzz: NEUTRAL BY MEASUREMENT and the output is byte-identical.** The PB-DX32 gate config's
+  per-seed rows are byte-identical before and after; the wider matched A/B
+  (`--games 20 --seed 1 --max-turns 200`, merge base in its own worktree with its own
+  `CARGO_TARGET_DIR`) differs in **EXACTLY ONE LINE — the wall clock** (1.9s vs 2.1s). Every
+  violation count, per-seed band and histogram row is identical: HARD **88 / distinct 4** across
+  5 of 20 games, TRANSIENT **210 / distinct 44**, rejections **2,189 / 94,770 = 23.098‰**. No
+  movement, so **no ablation was owed**.
+  **Revert matrix: 9 rows, EXECUTED BY THE COORDINATOR rather than accepted from the delegated
+  reports, all three source files restored byte-exactly (`cmp`).** **R1 and R2 are precise
+  complements** — R1 (restore the deviation) reddens 6 including both channel directions, R2 (the
+  DEPTH-COUNTER revert) reddens exactly the nesting probe and leaves every channel probe green,
+  which is the only way to show the bounded query and the `EffectId` KEYING are each load-bearing.
+  **R3 is the row worth reading, and it came back GREEN.** Deleting the activity sweep's layer
+  bound — the adjudication's OWN §3.2(iii) load-bearing precondition, the one it says is *"stated
+  here because it is stated nowhere else"* — reddens **nothing**, and that is structural rather
+  than a missing test: a later-layer effect cannot change an earlier layer's output, which is the
+  very fact that makes bounding semantically free, and the `in_flight` backstop absorbs the rest.
+  **Settled by a complementary pair, the first execution of §3.2(iii)'s claim**: sweep bound
+  PRESENT + backstop REMOVED runs **23/23 green** (termination IS by construction), and sweep bound
+  REMOVED + backstop REMOVED **aborts with `fatal runtime error: stack overflow` (SIGABRT)** —
+  `OOS-SIM2-6`'s original crash. R4/R4b are the same shape one axis over. **R7 was the second
+  coverage measurement** — restoring `OOS-DX42b-1` reddened only a VOCABULARY gate, so the
+  behaviour had no probe; both gaps are closed by probes that are RED under their own rows.
+  Filed **OOS-DX42b-1..5**, plus **`OOS-ADJ-1`** and **`OOS-ADJ-2`** FILED for the first time —
+  six of the adjudication's seven `OOS-ADJ-*` seeds had never been registered.
 - **Tests (delta 2026-09-05, PB-DX54 + `/review` fix cycle)**: **5,231 / 0 / 5**
   full-workspace on branch `scutemob-232` (+21 over the **5,210** baseline, measured on this
   branch BEFORE any edit and **reproducing PB-DX53's close pin exactly** — the fourth
@@ -1606,7 +1721,99 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-05 — **PB-DX54 SHIPPED** (`scutemob-232`; v4 queue rank 17 —
+- **Last Updated**: 2026-09-05 — **PB-DX42b SHIPPED** (`scutemob-233`; v4 queue rank 18 —
+  **OOS-ADJ-1** ≡ **OOS-DX19-2** FILED *and* CLOSED as ONE defect, plus **OOS-DX19-1**'s residue
+  and **OOS-DX19-4** CLOSED BY CONSTRUCTION, and the rank-21 rider **OOS-ADJ-2** taken in both
+  halves). **Ranks 1-18 are ALL SHIPPED and no further dispatch is authorised.**
+  **A rule the engine could not obey, because the only thing it could ask was "am I inside the
+  layer system".** CR 613.1d decides a Layer-6 effect's condition against characteristics resolved
+  through Layer 4, because Layer 4 has already run. `characteristics_for_condition` returned
+  **printed** `obj.characteristics` for **any** condition evaluated inside a
+  `calculate_characteristics` walk, because the only state available to it was an ambient
+  `thread_local!` depth counter. **A depth counter suppresses the ENTIRE layer system where an
+  `EffectId` set suppresses the one self-referential effect — and that difference IS the seven
+  live-wrong pairs.** It is also why *"two distinct conditional effects nest without mutual
+  suppression"* is unwritable against a depth counter, which is what made it the discriminating
+  probe.
+  **THE HEADLINE SEED HAD NO REGISTRY ROW, AND FIVE OF ITS SIBLINGS STILL DO NOT.** The
+  adjudication (`scutemob-186`) filed **seven** `OOS-ADJ-*` seeds in its own §6 under the heading
+  *"Filed here for the collector to register in the canonical registry … This task does not write
+  that file."* **Six of the seven were never registered.** Only `OOS-ADJ-7` has a row, and PB-DX27
+  wrote it a fortnight later. So the headline seed of a **rank-18 queue entry** — the one the v4
+  memo, the queue banner and this batch's own dispatch criterion all name — lived five weeks in a
+  document dispatch hygiene 5 does not treat as ground truth. That is the **61-of-208 registry
+  blind spot the v4 re-rank measured**, instantiated on its own highest-ranked unshipped row.
+  `OOS-ADJ-1` and `OOS-ADJ-2` now have rows; `-3`, `-4`, `-5`, `-6` still do not.
+  **THE SUPPLY CENSUS REPRODUCES EXACTLY AND IS NOW A CEILING AS WELL AS A FLOOR.** Seven
+  deck-legal `Complete` pairs — `indomitable_archangel` × { `blinkmoth_nexus`, `inkmoth_nexus`,
+  `darksteel_mutation` } under-counting and × { `eaten_by_piranhas`, `kenriths_transformation`,
+  `imprisoned_in_the_moon`, `thaumatic_compass` } over-counting — re-derived from serialized
+  payloads without consulting the adjudication's list. **The ceiling comes from enumerating the
+  five `LayerModification` arms that write `chars.card_types` at the APPLY SITE** (`Copy` /
+  `SetTypeLine` / `AddCardTypes` / `RemoveCardTypes` / `SetCardTypes`) rather than the four
+  remembered variant names: `SetLandTypes` is correctly absent (PB-DX27's `OOS-ADJ-7` repair) and
+  `Copy` has zero corpus supply. The CR 708.2a face-down class is genuinely unbounded and is
+  **stated, not tallied** — six batches have taught this queue that a yield cell is a floor, and
+  this is the first in a while that is both.
+  **THE ROW WORTH READING IS R3, AND IT CAME BACK GREEN.** Deleting the activity sweep's layer
+  bound — the adjudication's OWN §3.2(iii) load-bearing precondition, the one it says is *"stated
+  here because it is stated nowhere else"* — reddens **NOTHING** in the workspace. That is
+  structural rather than a missing test: **a later-layer effect cannot change an earlier layer's
+  output**, which is the very fact that makes bounding semantically free, and the `in_flight`
+  backstop absorbs the rest. So no assertion on characteristics can separate the two designs, and
+  it was settled by a **complementary pair** instead — **the first time §3.2(iii)'s claim has been
+  executed rather than argued**: sweep bound PRESENT + backstop REMOVED runs **23/23 green**
+  (termination IS by construction), and sweep bound REMOVED + backstop REMOVED **aborts with
+  `fatal runtime error: stack overflow` (SIGABRT)**, which is `OOS-SIM2-6`'s original crash. So the
+  labelled cycle-breaker is genuinely **UNREACHABLE**, not merely unused — and it still ships
+  LABELLED, with a wrong-way-round pin, because the CR is silent on condition-evaluation cycles.
+  **A GATE THIS BATCH WOULD HAVE DEFEATED WITH A RENAME, PROVEN BY EXECUTION.**
+  `no_condition_evaluator_resolves_characteristics_directly` scans the bodies of
+  `pub fn check_condition` and `pub fn check_static_condition`. After the refactor both are
+  three-line wrappers and the real evaluators are `check_condition_ctx` /
+  `check_static_condition_ctx`, so the gate would have gone **vacuously green**. Planting an
+  `expect_characteristics` inside `check_static_condition_ctx` — a literal re-opening of
+  `OOS-SIM2-6` — leaves the **pre-batch gate shape completely GREEN** and reddens the re-keyed one.
+  Re-keyed onto all four bodies with a per-function non-vacuity floor on body SIZE.
+  **A DEFECT THE DELEGATED WORK SHIPPED, REPRODUCED BY EXECUTION BEFORE IT WAS WRITTEN DOWN.** The
+  new CR 613.1d `debug_assert` computed its required layer with `.unwrap_or(EffectLayer::Copy)`,
+  which collapses *"this condition reads no characteristic at all"* into *"this condition needs
+  Layer 1"*. `Copy` is the FIRST layer, so `required < effect.layer` is false for **every**
+  Layer-1 effect: an `EffectLayer::Copy` effect carrying `Condition::IsYourTurn` panicked the debug
+  build with a message asserting it required characteristics it does not require. Zero corpus
+  exposure, and that is not why it matters. `OOS-DX42b-1`; the generalisation is that `None` and
+  `Some(MINIMUM)` are different claims and `unwrap_or(MINIMUM)` silently converts the first into
+  the second wherever the consumer's test is a strict inequality.
+  **TWO CR CITES CORRECTED AGAINST THE RULES SERVER, ONE OF THEM ON THIS BATCH'S OWN HEADLINE
+  CARD.** `indomitable_archangel.rs` cited **CR 702.45a** for Metalcraft from the day it was
+  authored, and **CR 702.45a is BUSHIDO**; Metalcraft has no CR 702.x entry at all, because
+  CR 207.2c names it in its own list of ability words and says ability words have *"no individual
+  entries in the Comprehensive Rules"* (`OOS-DX42b-2`). And **`CR 613.8a(a)` is not a rule NUMBER**
+  — 613.8a is a single rule with an internal (a)/(b)/(c) list, so a reader who greps for it finds
+  nothing; the CLAIM is true, the form is not, and it is inherited from the adjudication into eight
+  documents (`OOS-DX42b-3`, filed to ride PB-DX38 rather than swept here).
+  **BENCHES: A REAL REGRESSION, FOUND AND REMOVED RATHER THAN PUBLISHED.** The first A/B measured
+  `sba_check` **+6.76% with non-overlapping intervals** against a 0.32% same-code band. Cause 1: a
+  **heap allocation on every `calculate_characteristics` call** (the bounded layer list built with
+  `.filter(..).collect::<Vec<_>>()` where the pre-batch code used a stack array) — one allocation
+  per battlefield permanent per SBA check. Cause 2: a fresh eval context per effect inside
+  `abilities_are_blanked`'s O(permanents × effects) sweep. **Final: every interval OVERLAPS, max
+  +1.51%, no regression demonstrated and nothing claimed.** **Fuzz: the 20-game A/B output differs
+  in EXACTLY ONE LINE, the wall clock.**
+  Tests **5,241 / 0 / 5** (+10 over a **5,231** baseline reproducing PB-DX54's close pin exactly,
+  **69** targets, byte-exact set difference: 13 additions / 3 leavers / 0 removals, all three
+  leavers being mandated renames — **and the first draft of that cell said 12 and 2 and was missing
+  the third**, an enumeration error inside the one cell whose purpose is enumeration, caught by
+  running the set difference rather than transcribing). **HASH 85 / PROTOCOL 44 BOTH UNMOVED**,
+  gate-executed, closure counts MEASURED at **98 / 132**, and the counterfactual for the rejected
+  stored-field design verified by execution. Coverage **UNMOVED at 1,140/1,803 = 63.2%**, 0 flips,
+  3 comment-only card-def edits with the `Completeness::` marker diff EMPTY. All gates clean
+  against the FINAL tree, **where two standing card-def gates FIRED** and were answered rather than
+  dodged. **Revert matrix 9 rows, coordinator-executed, all three source files restored
+  byte-exactly**; two rows were COVERAGE MEASUREMENTS and both gaps are now closed by probes RED
+  under their own rows. Filed **OOS-DX42b-1..5**. Full record:
+  `memory/primitives/pb-DX42b-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-05 — **PB-DX54 SHIPPED** (`scutemob-232`; v4 queue rank 17 —
   **OOS-DX25c-6** CLOSED, plus rider **OOS-DX25-4** CLOSED and rider **OOS-DX25b-4** DECLINED
   and re-filed with a measured wire cost).
   **A ruling the engine could not implement, because its own resolution order put the answer out

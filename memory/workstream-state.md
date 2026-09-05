@@ -15,9 +15,106 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**PB-DX54 `scutemob-232` SHIPPED 2026-09-05 — task 4 of 5 of the approved chain; next and LAST is PB-DX42b, rank 18**) (**PB-DX53 `scutemob-231` SHIPPED 2026-09-05 `5b54081d` — task 3 of 5 of the approved chain; next is PB-DX54, rank 17, dispatching; then PB-DX42b (rank 18) is the LAST**) (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX42b `scutemob-233` SHIPPED 2026-09-05 — task 5 of 5, the LAST of the approved chain. v4 ranks 1-18 are ALL SHIPPED and NO FURTHER DISPATCH IS AUTHORISED: `feedback_queue_autonomous_chaining` was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`, the bot/human refusal surface) needs explicit user approval. Closed `OOS-ADJ-1` ≡ `OOS-DX19-2` as ONE defect plus `OOS-DX19-1`'s residue and `OOS-DX19-4` by construction, and took the rank-21 rider `OOS-ADJ-2` in both halves — and **neither headline seed had a registry row**: six of the adjudication §6's seven `OOS-ADJ-*` seeds were never registered**) (**PB-DX54 `scutemob-232` SHIPPED 2026-09-05 — task 4 of 5 of the approved chain**) (**PB-DX53 `scutemob-231` SHIPPED 2026-09-05 `5b54081d` — task 3 of 5 of the approved chain; next is PB-DX54, rank 17, dispatching; then PB-DX42b (rank 18) is the LAST**) (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
 
-## Last Handoff (worker, 2026-09-05) — PB-DX54 / `scutemob-232`
+## Last Handoff (worker, 2026-09-05) — PB-DX42b / `scutemob-233`
+
+**v4 rank 18 — the LAST of the user-approved five-task chain. `OOS-ADJ-1` ≡ `OOS-DX19-2` FILED
+*and* CLOSED as ONE defect**, plus **`OOS-DX19-1`**'s residue and **`OOS-DX19-4`** CLOSED BY
+CONSTRUCTION, and the v4 rank-21 rider **`OOS-ADJ-2`** taken in both halves. Seeds filed
+**OOS-DX42b-1..5**. **RANKS 1-18 ARE ALL SHIPPED AND NO FURTHER DISPATCH IS AUTHORISED** —
+`feedback_queue_autonomous_chaining` was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs
+explicit user approval. Full record: `memory/primitives/pb-DX42b-execution-notes.md`; the
+pre-committed wire prediction is `d90b7994`, before any production line.
+
+### The one thing to read first
+
+**A revert that reddens nothing is telling you something, and here it was telling the truth.**
+Deleting the activity sweep's `e.layer <= through` conjunct — the adjudication's OWN §3.2(iii)
+load-bearing precondition, the one it says is *"stated here because it is stated nowhere else"* —
+reddens **NOTHING** in the workspace. That is **structural, not a missing test**: a later-layer
+effect cannot change an earlier layer's output, which is the very fact that makes bounding the
+sweep semantically free, and the `in_flight` backstop absorbs the extra recursion. No assertion on
+characteristics can separate the two designs.
+
+It was settled by a **complementary pair**, and this is the first execution of §3.2(iii)'s claim
+in the five weeks since it was written:
+
+| | sweep bound | backstop | result |
+|---|---|---|---|
+| R3  | removed | present | green — nothing observes it |
+| R3c | present | removed | **green 23/23 — termination IS by construction** |
+| R3b | removed | removed | **`fatal runtime error: stack overflow`, SIGABRT** |
+
+R3b is `OOS-SIM2-6`'s original crash reproduced. So the conjunct is what makes the recursion
+finite and the labelled deviation is genuinely **UNREACHABLE** rather than merely unused. Gated by
+a source gate carrying that table in its own failure message. **The reusable rule: when a revert
+reddens nothing, ask whether the property is OBSERVABLE at all before concluding the code is
+dead — and if it is not, find the axis on which it IS observable rather than filing a coverage
+gap.**
+
+### The registry finding, which outlives this batch
+
+The adjudication (`scutemob-186`) filed **seven** `OOS-ADJ-*` seeds in its own §6, headed *"Filed
+here for the collector to register in the canonical registry … This task does not write that
+file."* **Six of the seven were never registered.** Only `OOS-ADJ-7` has a row and PB-DX27 wrote
+it a fortnight later. So the headline seed of a **rank-18 queue entry** — named by the v4 memo, by
+the queue banner and by this batch's own dispatch criterion — lived five weeks somewhere dispatch
+hygiene 5 does not treat as ground truth. `OOS-ADJ-1` and `OOS-ADJ-2` now have rows; **`-3`, `-4`,
+`-5` and `-6` still do not**, and whoever takes PB-DX57 (rank 21) or PB-DX38 (rank 23) should file
+them rather than assume the adjudication is a registry.
+
+### Two gates, one defeated by a rename and one by a default
+
+* `no_condition_evaluator_resolves_characteristics_directly` scans `pub fn check_condition` /
+  `pub fn check_static_condition`. After the refactor both are three-line wrappers, so it would
+  have gone **vacuously green** — proven by planting an `expect_characteristics` inside
+  `check_static_condition_ctx` (a literal re-opening of `OOS-SIM2-6`) and watching the pre-batch
+  shape stay GREEN. Re-keyed onto all four bodies with a per-function non-vacuity floor on body
+  SIZE. **A gate can be defeated by a rename as easily as by an edit.**
+* The new CR 613.1d `debug_assert` used `.unwrap_or(EffectLayer::Copy)`, collapsing *"reads no
+  characteristic at all"* into *"needs Layer 1"*. `Copy` is the minimum layer, so
+  `required < effect.layer` is false for **every** Layer-1 effect and a Layer-1 effect carrying
+  `Condition::IsYourTurn` panicked the debug build. `OOS-DX42b-1`. **`None` and `Some(MINIMUM)` are
+  different claims, and `unwrap_or(MINIMUM)` silently converts one into the other wherever the
+  consumer's test is a strict inequality.**
+
+### The process lesson, which is the coordinator's own
+
+Two standing card-def gates (PB-DX8's `completeness_deviation_scan`, SR-35's
+`check-defs-fmt.sh`) fired on comment edits the coordinator made **after** the last full-workspace
+run, and were discovered **by the revert matrix** — R1's first failing set had nine rows, three of
+which were already red on the restored tree. PB-DX28's re-take MEDIUM, committed twice in one
+batch by the coordinator rather than by an agent. The sharper rule: **a revert matrix whose
+baseline is not green attributes its own pre-existing failures to the revert, so the FIRST step of
+a revert matrix is a green baseline, not the first revert.** A related one: the first R6b run
+reported FAILED and that was a **stale test binary**, not a verdict — a stale build turns a green
+into a red as readily as an over-wide instrument turns a verdict into a non-verdict.
+
+### Benches — a real regression found and removed, not published
+
+First A/B: `sba_check` **+6.76%, non-overlapping**, against a 0.32% same-code band. Cause 1, a
+**heap allocation on every `calculate_characteristics` call** (the bounded layer list built with
+`.filter(..).collect::<Vec<_>>()` where the pre-batch code used a stack array) — one allocation per
+battlefield permanent per SBA check. Cause 2, a fresh eval context per effect inside
+`abilities_are_blanked`'s O(permanents × effects) sweep. Final, 3 base + 5 HEAD runs on a quiet
+machine: **every interval overlaps, max +1.51%, no regression demonstrated, nothing claimed.**
+Fuzz: the 20-game A/B output differs in **exactly one line, the wall clock**.
+
+### Numbers
+
+Tests **5,241 / 0 / 5**, **69** targets, +10 over a 5,231 baseline reproducing PB-DX54's close pin
+exactly. Byte-exact NAME set difference: **13 additions / 3 leavers / 0 removals**, all three
+leavers mandated renames — **and the first draft of that cell said 12 and 2 and was missing the
+third**, caught by running the difference rather than transcribing. **HASH 85 / PROTOCOL 44 both
+UNMOVED**, gate-executed, closure counts MEASURED at 98 / 132, counterfactual verified by
+execution. Coverage **UNMOVED at 1,140/1,803 = 63.2%**, 0 flips, 3 comment-only card-def edits with
+the `Completeness::` marker diff EMPTY. `crates/view-model`, `crates/simulator/src` and `tools/`
+are all **exactly 0**.
+
+---
+
+## Prior Handoff (worker, 2026-09-05) — PB-DX54 / `scutemob-232`
 
 **v4 rank 17. `OOS-DX25c-6` CLOSED**, plus rider **`OOS-DX25-4`** CLOSED and rider
 **`OOS-DX25b-4`** DECLINED with a measured wire cost. Next and LAST of the approved five-task
