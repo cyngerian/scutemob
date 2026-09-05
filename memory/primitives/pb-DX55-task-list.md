@@ -17,16 +17,16 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 - [x] 0.9 Wire prediction IN WRITING per half, committed before any production line
 
 ## Implement
-- [~] 1 OOS-SIM6-3 — one cost arithmetic + one solver for every mana-bearing Command, both paths
-- [ ] 2 OOS-SIM6-3 — offer/acceptance agreement (SR-38): unsolvable is not offered
+- [x] 1 OOS-SIM6-3 — one cost arithmetic + one solver for every mana-bearing Command, both paths
+- [x] 2 OOS-SIM6-3 — offer/acceptance agreement (SR-38): unsolvable is not offered
 - [ ] 3 OOS-SIM5-3 — ONE blocker-legality predicate consumed by engine and offer
-- [ ] 4 OOS-SIM5-5 — per-mode target slice for activated abilities through the SHARED helper
+- [~] 4 OOS-SIM5-5 — per-mode target slice for activated abilities through the SHARED helper
 - [ ] 5 Consumers: `targeting.rs::plan_targets`, `params.rs`, play-server, TargetPicker
 
 ## Probes and gates
 - [ ] 6 Refusal-class instrument: aggregate table printed + three classes pinned at ZERO
-- [ ] 7 LocalGame/HumanChoice drive: empty pool + untapped lands → activation accepted, resolves
-- [ ] 8 POST /api/game/action drive: same, no manual TapForMana first
+- [x] 7 LocalGame/HumanChoice drive: empty pool + untapped lands → activation accepted, resolves
+- [x] 8 POST /api/game/action drive: same, no manual TapForMana first
 - [ ] 9 Blocker probes: offer ABSENT and engine refusal ABSENT on the same fixture, per predicate
 - [ ] 10 Modal activated ability: bot announces a per-mode target, engine accepts
 - [ ] 11 Roster/mechanism gates (one arithmetic, no second copy), each revert-proven
