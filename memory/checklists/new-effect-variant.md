@@ -4,7 +4,7 @@
 
 **Scope**: a new variant of `Effect`, `AbilityDefinition`, `KeywordAbility` or `StackObjectKind`.
 Adopted 2026-09-05 (LL-3, `scutemob-257`) from `docs/mtg-engine-landscape-assessment.md` §9 row a,
-modelled on the phase.rs clone's `.claude/skills/add-engine-effect/SKILL.md`, whose own summary of
+modelled on the phase.rs clone's `.claude/skills/add-engine-effect/SKILL.md` (MIT/Apache-2.0), whose own summary of
 why a checklist exists is the reason this one does: *"Missing any step causes silent failures —
 effects parse but don't resolve, resolve but don't target, target but don't animate."*
 
@@ -64,7 +64,7 @@ Counts drift. Re-derive them; do not quote this table at anyone.
 | Where | Symbol | What to add | If you miss it |
 |---|---|---|---|
 | `crates/card-types/src/cards/card_definition.rs` | `pub enum Effect` | the variant, with typed fields — an enum, never a `bool` flag, for a semantic distinction | n/a (this is the change) |
-| `crates/card-types/src/cards/helpers.rs` | `pub use` | **nothing, for a variant.** The four enums are already re-exported. Add here only if the variant's payload names a **new type** | **COMPILE** — card defs fail with "undeclared type", and only in `card-defs`, which the engine's own build does not exercise |
+| `crates/card-types/src/cards/helpers.rs` | `pub use` | **nothing, for a variant.** `Effect`, `AbilityDefinition` and `KeywordAbility` are already re-exported (`StackObjectKind` deliberately is not — a card-def author never constructs one). Add here only if the variant's payload names a **new type** | **COMPILE** — card defs fail with "undeclared type", and only in `card-defs`, which the engine's own build does not exercise |
 
 `crates/card-defs` depends on `card-types` only, never on the engine (SR-6). If your variant's
 payload needs a helper, it goes in `card-types`, not in the engine.
@@ -81,7 +81,6 @@ These are exhaustive, wildcard-free matches. rustc stops you.
 | `crates/engine/src/state/ability_definition_registry.rs` | `pub fn handling` | classify the `AbilityDefinition` the same way | **COMPILE.** This is the ONLY exhaustive dispatch over the whole enum: its own module doc says that without it "a newly added variant compiles everywhere and is silently inert" |
 | `crates/engine/src/state/stack_registry.rs` | `card_in_stack_zone` | does this `StackObjectKind` own a card sitting in `ZoneId::Stack`? (CR 701.6a) | **COMPILE.** Deliberately wildcard-free: `Effect::CounterSpell` guessed this from the variant's NAME before PB-DX25 and no-opped on `MutatingCreatureSpell` |
 | `crates/engine/src/state/stack_registry.rs` | `source_of` | the source object for the new kind | **COMPILE** |
-| `crates/engine/src/state/stack_registry.rs` | `stack_index_for_announced_target` | announced-target indexing for the new kind | **COMPILE** |
 | `crates/simulator/src/invariants.rs` | `stack_card_of` | the same `StackObjectKind` answer, **deliberately duplicated** | **COMPILE.** Do not delegate it to `stack_registry`: this check exists to catch the engine getting the classification wrong, and reading the engine's own answer back would make it agree with the bug |
 
 ## Phase 2 — hashing (SR-8, compile error, then correctness)
@@ -107,9 +106,12 @@ fingerprint diverge with no error at the site that caused it.
 | `crates/view-model/src/lib.rs` | `stack_kind_info` | the `StackObjectKind` label + source id — the single shared classification both clients render through | **COMPILE** (exhaustive) |
 | `crates/view-model/src/lib.rs` | `format_keyword` | the `KeywordAbility` display string | **COMPILE** (exhaustive) — and runners miss this one about half the time, so `cargo build --workspace` after every impl phase, not at the end |
 | `tools/tui/src/play/panels/stack_view.rs` | `StackObjectKind` | the TUI stack-panel label | **COMPILE** (exhaustive) |
-| `crates/engine/src/state/keyword_registry.rs` | `pub fn all_keywords` | one representative value of the new variant | **SILENT-ish** — a roster test parses `pub enum KeywordAbility` out of the source and set-compares, so it reddens; nothing in the engine does |
+| `crates/engine/src/state/keyword_registry.rs` | `pub fn all_keywords` | one representative value of the new variant | **TEST** — `all_keywords_covers_every_variant` parses `pub enum KeywordAbility` out of the source and set-compares both directions, so it reddens loudly. Nothing in the engine does |
 | `crates/engine/src/state/ability_definition_registry.rs` | `pub fn all_ability_definitions` | same, for `AbilityDefinition` | same |
-| `crates/engine/tests/core/decision_gate.rs` | `Effect` | classify the new `Effect` in the total-classification table (and in the `pb_*_roster` tests that parse the enum: `pb_rs1_roster_sweep.rs`, `pb_dx39_source_relative_roster.rs`, `pb_dx28_chosen_object_roster.rs`, `pb_dx26_attach_keyword_roster.rs`) | **LOUD test failure** — these parse the enum text, so they cannot be forgotten, only mis-answered. SR-36: enumerate, never grep source for a roster |
+| `crates/engine/tests/core/decision_gate.rs` | `Effect` | classify the new `Effect` in the total-classification table. `crates/engine/tests/core/pb_rs1_roster_sweep.rs` has the same forward pin | **TEST** — both parse `pub enum Effect` out of the source, so they cannot be forgotten, only mis-answered. SR-36: enumerate a roster, never grep source for one |
+| `crates/engine/tests/core/pb_dx28_chosen_object_roster.rs` | `Pinned against the FUNCTION` | check whether the new variant belongs — but do not expect this one to tell you | **SILENT** — it and `pb_dx26_attach_keyword_roster.rs` / `pb_dx39_source_relative_roster.rs` pin against the FUNCTION, not `pub enum Effect`. They catch a name the enum does not declare; a NEW variant slips past them |
+
+| `crates/engine/tests/primitives/pb_dx25_counterspell_stack_shapes.rs` | `one_of_each_variant` | a representative value of the new kind, and bump the hard-coded `27` | **SILENT** — hand-maintained, with no forward pin against the enum. Its own message says it "does NOT detect a new StackObjectKind variant"; the fixture just goes quietly stale |
 
 ### The dangerous one — a closed list with no wildcard to fail on
 
@@ -152,7 +154,7 @@ at `GameState`, which is why the two gates are separate.
 
 | Where | Symbol | What to add | If you miss it |
 |---|---|---|---|
-| `crates/engine/tests/core/main.rs` | `mod ` | the `mod` line for your new test file, in the right group (`core`, `rules`, `combat`, `casting`, `primitives`, `scripts`, `mechanics_{a_d,e_l,m_z}`) | **SILENT** — a file in a group dir with no `mod` line is never compiled and its tests cease to exist. Demonstrated: `--test combat` reported `ok. 69 passed` with six tests missing |
+| `crates/engine/tests/core/main.rs` | `mod ` | the `mod` line for your new test file — in **your group's own** `main.rs`, one of the nine (`core`, `rules`, `combat`, `casting`, `primitives`, `scripts`, `mechanics_{a_d,e_l,m_z}`); `core` is only the example here | **SILENT** — a file in a group dir with no `mod` line is never compiled and its tests cease to exist. Demonstrated: `--test combat` reported `ok. 69 passed` with six tests missing |
 | `crates/engine/tests/no_stray_test_binaries.rs` | `NON_GROUP_DIRS` | nothing — just never add a top-level `tests/*.rs` (SR-9a) | **TEST** — the gate fails the suite |
 | `test-data/generated-scripts/` | — | a golden script driving the variant end-to-end, `review_status: approved`, with real `assert_state` entries | **SILENT** — the corpus gate is a **partition** check (`approved + retired == discovered`), not a coverage check. A script you never wrote is invisible to it |
 | `crates/engine/tests/scripts/script_replay.rs` | `check_assertions` | implement any NEW assertion path your script uses | **TEST** — an unimplemented path is now a hard mismatch. It used to return "no mismatch" and 244 assertions went unchecked |

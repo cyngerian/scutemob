@@ -140,7 +140,8 @@ in memory (`project_legal_but_wrong_gap.md`).
 |---|---|---|---|
 | `beast_within.rs` | default Complete | token to caster, not target's controller | `recipient: PlayerTarget::ControllerOf(Box::new(EffectTarget::DeclaredTarget{index:0}))` |
 | `generous_gift.rs` | default Complete | same | same |
-| `stroke_of_midnight.rs`, `emergency_eject.rs`, `saw_in_half.rs` | Partial | same, but correctly gated; the TODO text says "fix when CreateToken gains a player field", which it did (PB-EF2) — **the blocker note is stale** | set `recipient`, drop marker |
+| `stroke_of_midnight.rs`, `emergency_eject.rs` | Partial | same, but correctly gated; the TODO text says "fix when CreateToken gains a player field", which it did (PB-EF2) — **the blocker note is stale** | set `recipient`, drop marker |
+| `saw_in_half.rs` | Partial | **correction, `scutemob-257`**: lumped in with the two above when this table was written. Its blocker is a different and still-open gap — two copy-tokens with halved stats need a `CreateTokenCopy` with per-stat modification — so its marker is NOT stale | leave the marker; the gap is real |
 | `pongify.rs` | KnownWrong | same, gated | same |
 | `tokens/002_beast_within_creates_beast.json` | retired | retirement reason ("unthreaded target, Sol Ring survives") is stale: the destroy now works and the assertion that fails is the token's controller | re-approve after the def fix; it becomes the regression pin |
 

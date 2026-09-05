@@ -301,7 +301,8 @@ addendum A1 as amended in §9.1 — CC-15, `scutemob-252`). **No big-bang refact
 
 Adopted 2026-09-05 from `docs/mtg-engine-landscape-assessment.md` §9 row b and
 the phase.rs clone's `crates/manabrew-compat/CLAUDE.md` rules 1–2 (LL-3, `scutemob-257`).
-The clones are read-only reference at `~/projects/scutemob-landscape/` (MIT).
+The clones are read-only reference at `~/projects/scutemob-landscape/`: **phase.rs is MIT/Apache-2.0**
+(these rules are borrowed from it); **manabrew is AGPL-3.0/GPL-3.0** — read it, never copy from it.
 
 ### Parameterize, don't proliferate
 
@@ -361,11 +362,15 @@ writing one:
 **Why:** an unbounded absence claim is unfalsifiable, so nothing ever retires it; it outlives
 the gap it described and keeps working cards gated.
 
-**scutemob example:** `stroke_of_midnight.rs`, `emergency_eject.rs` and `saw_in_half.rs` each
-carry a `Partial` marker whose blocker text says to fix it "when `CreateToken` gains a player
-field". `TokenSpec.recipient` shipped in PB-EF2. Three deck-legal cards stayed gated on a gap
-that no longer existed, and the stale note was found by an outside comparison rather than by any
-gate (assessment §2).
+**scutemob example:** `stroke_of_midnight.rs` and `emergency_eject.rs` each carry a `Partial`
+marker whose blocker text says the token is blocked on a recipient — "fix when `CreateToken` gains
+a player field". `TokenSpec.recipient` shipped in PB-EF2. Two deck-legal cards stayed gated on a
+gap that no longer existed, and the stale note was found by an outside comparison, not by any
+gate. The counter-example is in the same family and makes the rule sharper: `saw_in_half.rs` was
+lumped in with them (assessment §2), but its blocker is a **different and still-open** gap —
+halved-stat copy tokens, which need a `CreateTokenCopy` with per-stat modification. Its marker is
+correct. An absence claim that names its population survives re-reading; one that does not gets
+swept up with its neighbours in both directions.
 
 ### Classify by payload type, never by concept name
 
