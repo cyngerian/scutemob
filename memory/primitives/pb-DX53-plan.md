@@ -123,11 +123,23 @@ the classification is a property of the DEF, not of its position.
 
 **(b) Move Legion's Landing's count onto `TriggerCondition::WheneverYouAttack { filter }`** as a
 `min_attackers` field — the CR-purest model (CR 508.3d makes the count part of the trigger
-condition, not of an effect gate). **Rejected on cost, not on correctness**: PB-OS11's history row
-(`rules/protocol.rs:256`, `state/hash.rs:567`) records that changing that very variant from a unit
-to a struct moved **both** fingerprints, so this is not cheaper on the wire; and the count would
-have to reach trigger-collection time through the runtime `TriggeredAbilityDef`, which PB-DX35
-measured at **190 exhaustive struct literals across 44 files** with no `Default` derive.
+condition, not of an effect gate). **Rejected on cost, not on correctness — and the FIRST DRAFT OF
+THIS PARAGRAPH WAS WRONG, WHICH THE STAGE-0 PROBE CAUGHT.** It said PB-OS11's history row records
+that changing `WheneverYouAttack` from a unit to a struct moved **both** fingerprints. It does not.
+`rules/protocol.rs:256-262` says the opposite in as many words — *"does NOT move this digest:
+`TriggerCondition` is not in the wire closure (correct)"* — PB-OS11's PROTOCOL move came from
+`ManaAbility`. The **executed** probe agrees: with `TriggerCondition` planted in BOTH gates'
+`CLOSURE_MUST_NOT_CONTAIN`, `protocol_closure_is_not_vacuous_and_is_bounded` and
+`state_closure_is_not_vacuous_and_bounded` both **PASS**. So the DSL half of (b) is genuinely
+wire-free, and the reason to reject it is the OTHER half: the count has to reach
+`collect_triggers_for_event` at `abilities.rs:7541`, which reads the **runtime**
+`TriggeredAbilityDef` (PB-OS11's filter rides the pre-existing
+`triggering_creature_filter: Option<TargetFilter>`, and a `TargetFilter` carries no count). A new
+`TriggeredAbilityDef` field costs the **190 exhaustive struct literals across 44 files** PB-DX35
+measured on a struct with no `Default` derive — and `TriggeredAbilityDef` is itself ON-wire
+(PB-DX36's stage-0 probe), so the PROTOCOL bump comes back anyway at the far end. *A cite is a
+claim like any other; this one was read off the right file and inverted, and only running the gate
+separated them.*
 
 **(c) Delete the `u32` and read the per-declaration count off `CombatState`** — a new
 `CombatState.declared_attackers: OrdSet<ObjectId>` set by the declaration only. Cleaner naming and
@@ -168,7 +180,15 @@ shows one identifier cannot carry both CR concepts, so the DSL must split, and `
 in the PROTOCOL closure — reachable from `Effect` (a `CLOSURE_MUST_CONTAIN` root) through
 `Effect::Conditional { condition: Condition, .. }`.
 
-This is not an inference. `rules/protocol.rs`'s **v21** history row says it in the tree already:
+This is not an inference, and it was **verified by execution at stage 0** rather than read off a
+comment: with `Condition` planted in `CLOSURE_MUST_NOT_CONTAIN` in *both* gates, both fail —
+
+```
+protocol_schema.rs:822: Condition entered the Command/GameEvent closure.
+hash_schema.rs:963:     Condition entered the GameState serde closure.
+```
+
+`rules/protocol.rs`'s **v21** history row says the same thing in the tree already:
 
 > "`Condition` (**already in the closure via `Effect::Conditional`**) gains two new unit/tuple
 > variants … and `YouAttackedWithNOrMore(u32)` … (`PlayerState.attackers_declared_this_turn`, the
@@ -180,7 +200,10 @@ prediction five weeks ago. The refutation is of the AC's *scope assumption*, not
 
 ### 5.3 Closure type counts — predicted UNMOVED
 
-PROTOCOL **98**, HASH **132** (PB-DX52's gate-confirmed figures). Neither half adds a **type**:
+PROTOCOL **98**, HASH **132** — **measured at the merge base by execution**, not inherited from
+PB-DX52's published figures: `MIN_CLOSURE_TYPES` was temporarily raised to 9999 in both gates and
+the counts read off their own panic text (`protocol closure is only 98 types` /
+`GameState serde closure is only 132 types`), the PB-DX51 method. Neither half adds a **type**:
 `Condition` gains a variant of an existing type, and `OrdSet<ObjectId>` on `PlayerState` is a
 generic already in the HASH closure (`dungeons_completed_set: OrdSet<DungeonId>`) over an element
 type already in it. Both to be read off the gates' own output, never invented.
@@ -273,3 +296,37 @@ document is a transcription of executed output (PB-DX8's rule):
 Every gate and probe proven RED by an **executed** revert; the matrix is executed by the
 coordinator rather than accepted from a delegated report, and any UNDISCRIMINATED row is disclosed
 in the test's own module doc, not only in `memory/`.
+
+
+---
+
+## 9. Stage-0 measurements, all by execution (merge base `5182600e`)
+
+| measurement | value | how |
+|---|---|---|
+| full-workspace baseline | **5,196 passed / 0 failed / 5 ignored**, **66** result-producing targets | `cargo test --workspace --no-fail-fast` to a file, before any edit |
+| baseline test-NAME set | **5,201** lines, **5,201** distinct — duplicate-name scan **EMPTY** (`OOS-DX35-8`) | extracted from the run log, byte-exact |
+| `Condition` in PROTOCOL closure | **YES** | planted in `CLOSURE_MUST_NOT_CONTAIN`, gate FAILED |
+| `Condition` in HASH closure | **YES** | planted in `CLOSURE_MUST_NOT_CONTAIN`, gate FAILED |
+| `TriggerCondition` in either closure | **NO** (both gates PASS) | same method |
+| PROTOCOL closure type count | **98** | `MIN_CLOSURE_TYPES` raised to 9999, count read off the panic |
+| HASH closure type count | **132** | same |
+| `Effect::AdditionalCombatPhase` declarers | **7** (to be confirmed by `all_cards()`) | see the SR-36 note below |
+
+### 9.1 The baseline pin: the AC's figure does not reproduce and CLAUDE.md's does
+
+AC 7371 says the baseline "must reproduce PB-DX39's **5,194** / 0 / 5 pin on 66 targets or report
+the discrepancy". The measurement is **5,196 / 0 / 5 on 66 targets**, which reproduces
+**CLAUDE.md's own published PB-DX39 close-out exactly** — `CLAUDE.md:273` reads
+"**5,196 / 0 / 5** full-workspace on branch `scutemob-230`". So the pin reproduces and the AC's
+number is a transcription off by two; reported here rather than reconciled away, because a
+baseline that "does not reproduce" is the signal `OOS-DX51-5` exists for and it must not be spent
+on a typo.
+
+### 9.2 SR-36 has a worked example before the batch even starts
+
+`grep -rl AdditionalCombatPhase crates/card-defs/src/defs/` returns **8** files. One of them is
+`windbrisk_heights.rs`, which declares no such effect — it only *mentions* the variant in the
+KNOWN RESIDUAL comment this batch is here to rewrite. The declared population is **7**. That is
+SR-36's rule (*enumerate `all_cards()` for rosters, never grep source*) failing on this batch's own
+subject matter, available as evidence rather than as a lesson learned afterwards.
