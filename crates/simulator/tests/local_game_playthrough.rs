@@ -87,8 +87,17 @@ struct Playthrough {
     /// say `token`, and that stopped being true when the set grew**; renamed rather than
     /// left to read as a narrower claim than it makes.
     ///
-    /// Reported, not asserted on — what *is* asserted is [`Self::leaked_tokens`] plus the
-    /// two end-state/boundary properties, which prove every one was transient.
+    /// Reported, not asserted on. **What *is* asserted here is [`Self::leaked_tokens`] and
+    /// nothing else** — and the first draft of this sentence claimed *"plus the two
+    /// end-state/boundary properties"*, which is FALSE about this file (`/review` MEDIUM 10,
+    /// `OOS-DX56-14`): this test never calls `LocalGame::result_snapshot`, so
+    /// `invariants::check_no_dangling_attachment_at_rest` never runs in it at all. That is
+    /// precisely why the bypass row that deleted that call from `result_snapshot` left the
+    /// whole workspace green, and why the gate that catches it had to be a SOURCE gate
+    /// (`invariants::tests::t_every_end_state_check_is_called_from_result_snapshot`).
+    /// The CR 800.4k boundary half IS incidentally covered, because a promoted violation
+    /// lands in `violations()`, which this file does assert on — stated as the incidental
+    /// fact it is rather than as coverage this file was designed to give.
     transient_violations: Vec<String>,
     /// Tokens outside the battlefield in the **final** state. Must be empty: a token
     /// still there once the game has stopped survived every SBA check the engine

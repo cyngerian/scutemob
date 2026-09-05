@@ -450,8 +450,24 @@ pub const MAX_SAMPLED_REJECTIONS: usize = 8;
 /// ([`LocalGame::commands_dropped_from_history`]) rather than silently truncating.
 ///
 /// **Measured, not estimated**: `std::mem::size_of::<Command>()` is **160 bytes** on
-/// this build (a throwaway `#[test]` printed it and was removed — see the PB-DX56
-/// execution notes for the exact command used to reproduce the measurement). Peak
+/// this build, re-measured independently by the `/review`. Reproduce it with a throwaway
+/// probe rather than trusting this line:
+///
+/// ```text
+/// #[test]
+/// fn t() { panic!("{}", std::mem::size_of::<mtg_engine::Command>()); }
+/// ```
+///
+/// (A `text` block, not `ignore`: an `ignore` block IS a doctest, and registering one
+/// would have moved the workspace's inherited `ignored` pin from 5 to 6 for a snippet
+/// nothing runs. Caught by this batch's own close-out delta, whose non-end-anchored regex
+/// — `OOS-DX42b-6` — is what makes an ignored test visible at all.)
+///
+/// (The first draft of this sentence said *"see the PB-DX56 execution notes for the exact
+/// command"* and **the notes recorded no such command** — `OOS-DX56-12`, PB-DX8's
+/// "doc comment citing a test that does not exist" one shape over. The NUMBER was right;
+/// the pointer was dead, which is worse than no pointer because it reads as verifiable.)
+/// Peak
 /// retention per LIVE game is therefore `256 * 160 = 40,960` bytes (40 KiB). Unlike
 /// [`MAX_RETAINED_REJECTIONS`], this is NOT gated behind `LocalGameLimits::record_journal`
 /// — a crash artefact needs the command history precisely in the fuzzer's own
@@ -638,80 +654,19 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// `violations`, the hard bucket `--stop-on-error` and the crash-report writer key
     /// on. Mirrors `crates/simulator/tests/local_game_playthrough.rs:457-463`'s own
     /// treatment.
-    fn record_violations(&mut self, mut new: Vec<InvariantViolation>) {
-        for v in new.drain(..) {
-            let v = self.promote_if_it_crossed_a_turn(v);
-            if invariants::is_transient_check(&v.check) {
-                self.transient_violations.push(v);
-            } else {
-                self.violations.push(v);
-            }
-        }
-    }
-
-    /// CR 800.4k, the strictly stronger property that keeps
-    /// [`invariants::TRANSIENT_DEPARTED_ACTIVE_PLAYER`] honest (PB-DX56, `OOS-DX32-1`).
-    ///
-    /// `turn.active_player` naming a departed player is what CR 800.4j *describes* — the
-    /// turn *"continues to its completion without an active player"* and this engine has no
-    /// way to say that, `TurnState::active_player` being a bare `PlayerId`. So the report is
-    /// transient. **But it is only transient because it is BOUNDED**, and the bound is
-    /// CR 800.4k: *"If a player who has left the game would begin a turn, that turn doesn't
-    /// begin."* `rules/turn_structure.rs::advance_turn` picks the next turn's active player
-    /// through `next_player_in_turn_order`, which skips `has_lost || has_conceded`, and
-    /// PB-DX56's **F2** closed that function's extra-turn branch, which applied no liveness
-    /// filter at all and was the one route by which the condition was unbounded.
-    ///
-    /// So the condition may hold for the remainder of ONE turn and no longer. The same
-    /// departed player still named as active at a **strictly greater** turn number is
-    /// therefore a real CR 800.4k defect, and is promoted out of the transient bucket under
-    /// its own name. That is a stronger assertion than an end-state check would be, and an
-    /// end-state check would be the WRONG shape here: when the game ends, the player who
-    /// just died may legitimately still be `active_player`.
-    ///
-    /// Keyed per player rather than globally: two different seats departing on two different
-    /// turns are two independent bounded windows, not one window that crossed a boundary.
-    fn promote_if_it_crossed_a_turn(&mut self, v: InvariantViolation) -> InvariantViolation {
-        if v.check != invariants::TRANSIENT_DEPARTED_ACTIVE_PLAYER {
-            return v;
-        }
-        // The seat is carried in the check's own evidence rather than re-derived from the
-        // state here: re-reading `state.turn().active_player` would be a second copy of the
-        // arithmetic `check_player_consistency` already did, and the two could drift.
-        //
-        // The key is `arm_player=`, NOT `player=`, and the difference is load-bearing:
-        // `check_all` prepends `state_context`, which emits a `player=` line PER SEAT, so a
-        // `player=` lookup returns the first state-context line -- a value identical across
-        // every violation in the game. This draft's first version did exactly that and
-        // manufactured a false CR 800.4k promotion on fuzz seed 5, keying PlayerId(4)'s
-        // turn-154 report against PlayerId(1)'s turn-133 one. It was caught by READING the
-        // evidence the artefact printed, not by the count -- which is the whole argument for
-        // `OOS-FB1-1` in one incident.
-        let Some(seat) = invariants::arm_player_of(&v).map(str::to_string) else {
-            return v;
-        };
-        let first = *self
-            .departed_active_first_turn
-            .entry(seat)
-            .or_insert(v.turn_number);
-        if !invariants::crosses_a_turn_boundary(&v.check, v.turn_number, first) {
-            return v;
-        }
-        let mut promoted = v;
-        promoted
-            .evidence
-            .push(format!("first_seen_on_turn={first}"));
-        promoted.evidence.push(format!(
-            "turns_crossed={}",
-            promoted.turn_number.saturating_sub(first)
-        ));
-        promoted.description = format!(
-            "{} -- and it was already true on turn {}, so it survived a turn boundary \
-             (CR 800.4k: a departed player's turn does not begin)",
-            promoted.description, first
-        );
-        promoted.check = invariants::HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN.into();
-        promoted
+    /// **A pure delegation to [`invariants::bucket_violations`], deliberately.** The
+    /// classification and the CR 800.4k promotion used to live here inline, where no test
+    /// could reach them — the PB-DX56 `/review` planted an argument swap in the promotion
+    /// call and separately ORed two HARD class names into the transient test, and BOTH left
+    /// all 42 simulator targets green (`OOS-DX56-7`). Gating the two predicates at their
+    /// definitions said nothing about this site. Everything they decided now lives in one
+    /// free function that a unit test can drive directly, and this body must stay a
+    /// delegation — `t_record_violations_is_a_pure_delegation` is what says so.
+    fn record_violations(&mut self, new: Vec<InvariantViolation>) {
+        let (hard, transient) =
+            invariants::bucket_violations(new, &mut self.departed_active_first_turn);
+        self.violations.extend(hard);
+        self.transient_violations.extend(transient);
     }
 
     pub fn journal(&self) -> &[CommandRecord] {

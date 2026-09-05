@@ -26,8 +26,19 @@
 //! A game that DOES finish with a HARD violation gets a full `crash-reports/
 //! crash_<seed>.json` written (from the parallel run's post-`.collect()` loop, or
 //! immediately for `--replay`), carrying the check's own structured `evidence` (see
-//! `invariants::InvariantViolation`) and the retained command history (see
-//! `local_game::MAX_RETAINED_COMMAND_HISTORY`) needed to reproduce it.
+//! `invariants::InvariantViolation`) and the retained command history.
+//!
+//! **What each half is FOR, stated precisely, because the first draft of this paragraph
+//! said the history was "needed to reproduce it" and that is not true** (`/review` LOW 12,
+//! `OOS-DX56-11`). The command history is a bounded RING of the last
+//! `local_game::MAX_RETAINED_COMMAND_HISTORY` commands, so on a long game it is the TAIL of
+//! the command stream and can lie entirely AFTER the violation -- measured: a violation
+//! first seen on turn 117 of 128 came with `256 retained, 4970 dropped`, all 256 of them
+//! subsequent. **Reproduction comes from the SEED plus the same build** (and the
+//! `max_turns` and `bot` the artefact now carries so the command line can be rebuilt); the
+//! history is DIAGNOSTIC CONTEXT and `commands_dropped_from_history` is printed beside it
+//! so the truncation is visible rather than implied. A ring that looks complete is worse
+//! than no ring.
 //!
 //! # Run it with assertions on (SR-32)
 //!
@@ -190,6 +201,8 @@ fn main() {
             &cli.bot,
             &cards,
             &registry,
+            // `--replay` is the diagnostic mode and holds one result: keep the ring.
+            true,
         );
         // PB-DX56 / OOS-FB1-1: a replay writes the crash artefact too, so a replay
         // is self-documenting instead of depending on a prior parallel run's
@@ -243,6 +256,7 @@ fn main() {
                 &cli.bot,
                 &cards,
                 &registry,
+                false,
             );
 
             if !result.violations.is_empty() {
@@ -390,6 +404,7 @@ fn run_single_game(
     bot_type: &BotType,
     cards: &[CardDefinition],
     registry: &Arc<CardRegistry>,
+    retain_history_even_if_clean: bool,
 ) -> (GameResult, MechanicsTally) {
     // PB-DX56 / OOS-FB1-1: write-before / delete-after in-flight tombstone. This
     // is the ONLY mechanism that survives `abort()` -- see `InFlightGame`'s own
@@ -478,7 +493,14 @@ fn run_single_game(
     // (unlike the old `Vec::new()` this line replaces) always populates
     // `command_history`, so a clean game's peak ring is freed here rather than
     // carried for the life of the run.
-    if result.violations.is_empty() {
+    //
+    // `/review` LOW 14: `--replay` passes `retain_history_even_if_clean = true`. The
+    // retention argument above is about `main()`'s `results` vector across `--games N`;
+    // `--replay` holds exactly ONE result and is the mode a human uses to diagnose, so
+    // clearing there printed `0 retained, 4878 dropped` -- which reads as "the ring threw
+    // everything away", the opposite of what happened. The bound this line exists for does
+    // not apply to a single-game run.
+    if result.violations.is_empty() && !retain_history_even_if_clean {
         result.command_history = Vec::new();
     }
 
@@ -1051,14 +1073,28 @@ fn print_game_result(result: &GameResult, verbose: bool) {
     );
 
     if verbose {
-        let distinct_violations = invariants::distinct(&result.violations);
-        for v in &distinct_violations {
-            println!(
-                "    [{}] {} (turn {})",
-                v.check, v.description, v.turn_number
-            );
-            for e in &v.evidence {
-                println!("        {e}");
+        // HARD first, then TRANSIENT -- and the transient half is NOT optional.
+        //
+        // `/review` HIGH 2 (`OOS-DX56-8`): this loop used to walk `result.violations`
+        // alone, and PB-DX56's own disposition then made BOTH of the two classes that fire
+        // on the standard invocation TRANSIENT. So the evidence this batch exists to
+        // produce -- `player_consistency_evidence`, `attachment_validity_evidence` -- was
+        // printed NOWHERE on any real run, and `--replay 8` reported `Violations: 0` with
+        // 24 departed-active and 9 attachment reports sitting unshown in the other bucket.
+        // A diagnosis you cannot read is not a diagnosis; "transient" means "does not halt
+        // the run", never "not worth printing".
+        for (label, bucket) in [
+            ("", &result.violations),
+            ("TRANSIENT ", &result.transient_violations),
+        ] {
+            for v in &invariants::distinct(bucket) {
+                println!(
+                    "    {}[{}] {} (turn {})",
+                    label, v.check, v.description, v.turn_number
+                );
+                for e in &v.evidence {
+                    println!("        {e}");
+                }
             }
         }
         println!(

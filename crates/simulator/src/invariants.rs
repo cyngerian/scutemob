@@ -1,12 +1,13 @@
 //! Invariant checks run after every state transition during fuzzing.
 //!
-//! **Twelve checks exist; ten of them fire from [`check_all`]**, one of those ten being a
-//! deliberate no-op, and two are END-OF-GAME checks that run once per game instead.
+//! **Thirteen checks exist; ELEVEN of them fire from [`check_all`]**, one of those eleven
+//! being a deliberate no-op, and two are END-OF-GAME checks that run once per game instead.
 //!
-//! From [`check_all`]: zone integrity, ID uniqueness, stack consistency, player
-//! consistency, turn order, object-zone agreement, attachment validity, **attachment
-//! symmetry** (PB-DX56), game progression, orphaned tokens — plus
-//! `check_mana_non_negative`, which cannot fail because `ManaPool` is `u32`.
+//! From [`check_all`], in call order — count them there, not here:
+//! zone integrity, ID uniqueness, `check_mana_non_negative` (the no-op: `ManaPool`'s fields
+//! are `u32`), stack consistency, player consistency, turn order, object-zone agreement,
+//! attachment validity, **attachment symmetry** (PB-DX56), game progression, orphaned
+//! tokens. **Eleven.**
 //!
 //! Not from [`check_all`], deliberately: [`check_no_leaked_tokens`] (PB-DX32 Stage 4) and
 //! [`check_no_dangling_attachment_at_rest`] (PB-DX56). Both are END-OF-GAME checks — they
@@ -15,10 +16,15 @@
 //! `t_every_end_state_check_is_called_from_result_snapshot` is what stops either call from
 //! being deleted in silence, which it could be until PB-DX56 (`OOS-DX56-5`).
 //!
-//! **This header said "Ten checks exist; nine of them fire from `check_all`" until
-//! PB-DX56, and PB-DX56's own first draft left it saying so** — a count in a module doc
-//! is a claim like any other and it rots the moment a check is added. `check_all`'s call
-//! count is the ground truth; count it there before trusting this paragraph.
+//! **This header has now been wrong THREE times and the third was inside the paragraph
+//! telling you to count.** It said "Ten checks exist; nine of them fire from `check_all`"
+//! until PB-DX56; PB-DX56's first draft left that standing while adding two checks; its
+//! second draft said "Twelve … ten of them fire", took `main`'s already-wrong nine and
+//! added one **instead of counting**, and shipped that under a sentence reading *"count it
+//! there before trusting this paragraph"*. The `/review` counted: `check_all` makes
+//! **eleven** calls (`check_game_progression` is nested inside an `if let`, which is how a
+//! `grep -c` on a fixed indent misses it). A count in a module doc is a claim like any
+//! other; `check_all`'s call list is the ground truth. `OOS-DX56-13`.
 //!
 //! This header used to say "12 checks", and `docs/mtg-engine-simulator.md` still
 //! lists twelve. Two of those twelve (legal-action soundness, SBA idempotency)
@@ -31,7 +37,7 @@
 
 use mtg_engine::{GameState, ObjectId, ZoneId};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 /// The `check` name of the CR 704.3 / `OOS-M11-7` token class: a token in a
 /// non-battlefield zone at a checkpoint, cleared by the next SBA sweep. Split out of the
@@ -95,6 +101,78 @@ pub const HARD_ATTACHMENT_SYMMETRY: &str = "attachment_symmetry";
 /// The `check` name of [`check_no_dangling_attachment_at_rest`], the END-STATE answer to
 /// [`TRANSIENT_ATTACHMENT_VALIDITY`].
 pub const HARD_DANGLING_ATTACHMENT_AT_REST: &str = "dangling_attachment_at_rest";
+
+/// Split a batch of fresh violations into the HARD and TRANSIENT buckets, applying the
+/// CR 800.4k promotion on the way (PB-DX56).
+///
+/// **This is a free function taking its own state by `&mut` so it is testable WITHOUT
+/// building a `LocalGame`, and that is not a convenience — it is the fix for a defect the
+/// `/review` found by execution.** The classification used to live inline in
+/// `LocalGame::record_violations`, where nothing could reach it: a planted ARGUMENT SWAP in
+/// the promotion call (`crosses_a_turn_boundary(&v.check, first, v.turn_number)` — which
+/// compiles and uses every binding) made the promotion unfireable and left all 42 simulator
+/// targets GREEN, and separately, ORing two hard class names into the transient test routed
+/// both new HARD classes into the transient bucket and silently disarmed `--stop-on-error`,
+/// also GREEN. Gating [`is_transient_check`] and [`crosses_a_turn_boundary`] at their
+/// DEFINITIONS said nothing about the site that calls them — **PB-DX50's `r3` finding
+/// verbatim, cited elsewhere in this repo and not carried across by this batch until the
+/// `/review` re-executed it** (`OOS-DX56-7`).
+///
+/// `departed_active_first_turn` is the per-seat memory the CR 800.4k bound needs: the turn
+/// at which each seat's [`TRANSIENT_DEPARTED_ACTIVE_PLAYER`] condition was FIRST seen.
+/// Keyed per seat, because two seats departing on two different turns are two independent
+/// bounded windows and not one window that crossed a boundary.
+pub fn bucket_violations(
+    new: Vec<InvariantViolation>,
+    departed_active_first_turn: &mut BTreeMap<String, u32>,
+) -> (Vec<InvariantViolation>, Vec<InvariantViolation>) {
+    let mut hard = Vec::new();
+    let mut transient = Vec::new();
+    for v in new {
+        let v = promote_if_it_crossed_a_turn(v, departed_active_first_turn);
+        if is_transient_check(&v.check) {
+            transient.push(v);
+        } else {
+            hard.push(v);
+        }
+    }
+    (hard, transient)
+}
+
+/// The CR 800.4k promotion applied to one violation — see [`crosses_a_turn_boundary`] for
+/// the rule and [`bucket_violations`] for why this is reachable from a test.
+fn promote_if_it_crossed_a_turn(
+    v: InvariantViolation,
+    departed_active_first_turn: &mut BTreeMap<String, u32>,
+) -> InvariantViolation {
+    if v.check != TRANSIENT_DEPARTED_ACTIVE_PLAYER {
+        return v;
+    }
+    let Some(seat) = arm_player_of(&v).map(str::to_string) else {
+        return v;
+    };
+    let first = *departed_active_first_turn
+        .entry(seat)
+        .or_insert(v.turn_number);
+    if !crosses_a_turn_boundary(&v.check, v.turn_number, first) {
+        return v;
+    }
+    let mut promoted = v;
+    promoted
+        .evidence
+        .push(format!("first_seen_on_turn={first}"));
+    promoted.evidence.push(format!(
+        "turns_crossed={}",
+        promoted.turn_number.saturating_sub(first)
+    ));
+    promoted.description = format!(
+        "{} -- and it was already true on turn {}, so it survived a turn boundary \
+         (CR 800.4k: a departed player's turn does not begin)",
+        promoted.description, first
+    );
+    promoted.check = HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN.into();
+    promoted
+}
 
 /// The seat an [`InvariantViolation`]'s evidence names as the ARM's own subject, if it has
 /// one (PB-DX56).
@@ -870,8 +948,13 @@ fn check_no_orphaned_tokens(state: &GameState, violations: &mut Vec<InvariantVio
 /// That matters because `attachments` is not decorative: it is HASHED
 /// (`state/hash.rs`), so a stale entry perturbs `public_state_hash` AND
 /// `loop_detection::compute_mandatory_state_hash` — CR 104.4b mandatory-loop detection can
-/// fail to recognise a repeated board state; it is read by the CR 510.3a equipped-creature
-/// combat-damage trigger family; it is walked by CR 702.26g/h phasing through
+/// fail to recognise a repeated board state; it is read by the equipped-creature
+/// combat-damage trigger family (**CR 301.5f**, *"An ability of a permanent that refers to
+/// the 'equipped creature' refers to whatever creature that permanent is attached to"*,
+/// dispatched under CR 603.2 — **not CR 510.3a**, which the `/review` correctly refuses:
+/// 510.3a is only about WHEN damage triggers reach the stack and says nothing about
+/// Equipment. The loose cite is pre-existing at five sites in `rules/abilities.rs` and this
+/// batch's first draft propagated it; `OOS-DX56-10`); it is walked by CR 702.26g/h phasing through
 /// `expect_object_mut`, an IMPOSSIBLE-class SR-4 lookup that fires a `debug_assert`, so a
 /// stale entry is a latent debug-build panic; and it is rendered to the browser.
 ///
@@ -951,6 +1034,24 @@ fn check_attachment_symmetry(state: &GameState, violations: &mut Vec<InvariantVi
 pub fn check_no_dangling_attachment_at_rest(state: &GameState) -> Vec<InvariantViolation> {
     let mut violations = Vec::new();
     for obj in state.objects_in_zone(&ZoneId::Battlefield) {
+        // CR 702.26b: *"Permanents that are phased out are treated as though they do not
+        // exist."* `rules/sba.rs`'s CR 704.5m arm exempts a phased-out Aura for exactly
+        // this reason, and CR 702.26i puts the cleanup at PHASE-IN time -- *"...phases in
+        // unattached. State-based actions apply as appropriate."* So a phased-out attacher
+        // whose host died legitimately keeps a dangling `attached_to` for as long as it
+        // stays phased out, INCLUDING at the end of the game, and reporting it as a hard
+        // violation would be a false positive.
+        //
+        // `/review` MEDIUM 5 (`OOS-DX56-9`). It measured 0/20 only because phasing is rare
+        // in the corpus -- a check that is correct by luck is the shape SIM-3's
+        // `stack_consistency` withdrawal was about. The sibling constant
+        // `TRANSIENT_ATTACHMENT_VALIDITY`'s own doc already listed "phased out" as one of
+        // the two conditions under which the dangle is CORRECT; this function's first
+        // draft classified the same case as a permanent blind spot, i.e. as a defect. The
+        // two docs contradicted each other and this is the half that was wrong.
+        if obj.status.phased_out {
+            continue;
+        }
         if let Some(target_id) = obj.attached_to {
             if state.object(target_id).is_err() {
                 violations.push(InvariantViolation {
@@ -2115,6 +2216,51 @@ mod tests {
         );
     }
 
+    /// Blank out `//` line comments and `/* */` blocks, preserving newlines and byte
+    /// offsets, so a `contains`-based source gate cannot be satisfied by a COMMENTED-OUT
+    /// call (`OOS-DX56-6`).
+    ///
+    /// The `/review` defeated both of this batch's source gates with a two-character edit:
+    /// commenting out `result_snapshot`'s end-state call left every target GREEN, re-opening
+    /// the exact hole (`B1''`/`B1b`) the gate had just been written to close. This repo
+    /// already knew the class — PB-DX8's `OOS-DX32-6` is a `/* */`-wrapped roster row that
+    /// left a gate and twelve probes green — and this batch did not carry it across.
+    fn strip_comments(src: &str) -> String {
+        let b = src.as_bytes();
+        let mut out = String::with_capacity(src.len());
+        let mut i = 0usize;
+        while i < b.len() {
+            if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'/' {
+                while i < b.len() && b[i] != b'\n' {
+                    out.push(' ');
+                    i += 1;
+                }
+            } else if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'*' {
+                let mut depth = 1usize;
+                out.push_str("  ");
+                i += 2;
+                while i < b.len() && depth > 0 {
+                    if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'*' {
+                        depth += 1;
+                        out.push_str("  ");
+                        i += 2;
+                    } else if b[i] == b'*' && i + 1 < b.len() && b[i + 1] == b'/' {
+                        depth -= 1;
+                        out.push_str("  ");
+                        i += 2;
+                    } else {
+                        out.push(if b[i] == b'\n' { '\n' } else { ' ' });
+                        i += 1;
+                    }
+                }
+            } else {
+                out.push(src[i..].chars().next().expect("in bounds"));
+                i += src[i..].chars().next().expect("in bounds").len_utf8();
+            }
+        }
+        out
+    }
+
     /// **Bypass B1, closed — and the hole was INHERITED, not introduced.** Deleting
     /// `check_no_dangling_attachment_at_rest`'s call from `LocalGame::result_snapshot`
     /// left the whole workspace GREEN. So does deleting `check_no_leaked_tokens`'s, which
@@ -2180,7 +2326,11 @@ mod tests {
                 _ => {}
             }
         }
-        let body = &local_game_src[open..=end.expect("result_snapshot's body is balanced")];
+        let raw_body = &local_game_src[open..=end.expect("result_snapshot's body is balanced")];
+        // `OOS-DX56-6`: comments are BLANKED before the `contains` below. Without this the
+        // gate is defeated by commenting the call out, which the `/review` executed.
+        let body = strip_comments(raw_body);
+        let body = body.as_str();
         assert!(
             body.len() > 200,
             "non-vacuity: the brace match returned a body too small to be real ({} bytes)",
@@ -2196,5 +2346,223 @@ mod tests {
                  of them reaches that function (OOS-DX56-5). Body was: {body}"
             );
         }
+    }
+
+    /// **`/review` HIGH 3 and HIGH 4, closed together.** These are CONSUMER tests: they
+    /// drive the site that decides, not the two predicates it calls. Gating
+    /// [`is_transient_check`] and [`crosses_a_turn_boundary`] at their definitions left the
+    /// caller untested, and the `/review` defeated it twice by execution — an ARGUMENT SWAP
+    /// in the promotion call (which compiles and uses every binding) made the promotion
+    /// unfireable, and ORing two HARD class names into the transient test disarmed
+    /// `--stop-on-error` — both with all 42 simulator targets GREEN. `OOS-DX56-7`.
+    fn departed_active(seat: u64, turn: u32) -> InvariantViolation {
+        InvariantViolation {
+            check: TRANSIENT_DEPARTED_ACTIVE_PLAYER.into(),
+            description: format!("Active player PlayerId({seat}) has lost or conceded"),
+            turn_number: turn,
+            evidence: vec![
+                format!("player=PlayerId(999) life=1 has_lost=false has_conceded=false"),
+                format!("arm=active_player"),
+                format!("arm_player=PlayerId({seat})"),
+            ],
+        }
+    }
+
+    #[test]
+    fn t_bucket_violations_promotes_only_across_a_turn_boundary_and_only_per_seat() {
+        let mut seen: BTreeMap<String, u32> = BTreeMap::new();
+
+        // Same seat, same turn, several checkpoints: the CR 800.4j bounded window.
+        let (hard, transient) = bucket_violations(
+            vec![departed_active(2, 10), departed_active(2, 10)],
+            &mut seen,
+        );
+        assert!(
+            hard.is_empty(),
+            "the bounded window must not promote: {hard:?}"
+        );
+        assert_eq!(transient.len(), 2);
+
+        // A DIFFERENT seat departing on a LATER turn is its own window, not a crossing.
+        // This is `OOS-DX56-1`'s defect: keying on the state context's first `player=` line
+        // collapses the two seats and promotes here.
+        let (hard, transient) = bucket_violations(vec![departed_active(4, 31)], &mut seen);
+        assert!(
+            hard.is_empty(),
+            "a second seat's FIRST report is its own bounded window, not seat 2's window \
+             crossing a boundary: {hard:?}"
+        );
+        assert_eq!(transient.len(), 1);
+
+        // The SAME seat at a strictly greater turn: CR 800.4k, promoted.
+        let (hard, transient) = bucket_violations(vec![departed_active(2, 11)], &mut seen);
+        assert!(
+            transient.is_empty(),
+            "the promoted report leaves the transient bucket"
+        );
+        assert_eq!(hard.len(), 1, "CR 800.4k: promoted");
+        assert_eq!(hard[0].check, HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN);
+        assert!(
+            hard[0]
+                .evidence
+                .contains(&"first_seen_on_turn=10".to_string())
+                && hard[0].evidence.contains(&"turns_crossed=1".to_string()),
+            "the promotion must carry the window it crossed: {:?}",
+            hard[0].evidence
+        );
+        // An argument swap would compile and use every binding, so the ORDER is asserted:
+        // `first_seen` is 10 and the report is turn 11, not the other way round.
+        assert!(
+            hard[0].description.contains("already true on turn 10"),
+            "argument order: {:?}",
+            hard[0].description
+        );
+    }
+
+    #[test]
+    fn t_bucket_violations_routes_every_hard_class_to_the_hard_bucket() {
+        let mut seen: BTreeMap<String, u32> = BTreeMap::new();
+        // Every HARD_* class constant, parsed from this file rather than hand-listed, so a
+        // class added tomorrow is covered by construction.
+        let src = include_str!("invariants.rs");
+        let mut hard_names = Vec::new();
+        for chunk in src.split("pub const ").skip(1) {
+            let Some((name, tail)) = chunk.split_once(": &str =") else {
+                continue;
+            };
+            if name.contains(char::is_whitespace) || !name.starts_with("HARD_") {
+                continue;
+            }
+            let Some((value, _)) = tail.split_once(';') else {
+                continue;
+            };
+            hard_names.push(value.trim().trim_matches('"').to_string());
+        }
+        assert!(
+            hard_names.len() >= 4,
+            "non-vacuity: expected the four HARD_* classes, got {hard_names:?}"
+        );
+        for name in &hard_names {
+            let v = InvariantViolation {
+                check: name.clone(),
+                description: "planted".into(),
+                turn_number: 1,
+                evidence: Vec::new(),
+            };
+            let (hard, transient) = bucket_violations(vec![v], &mut seen);
+            assert_eq!(
+                hard.len(),
+                1,
+                "`{name}` is a HARD class and must reach the hard bucket THROUGH the \
+                 classification site -- routing it transient silently disarms \
+                 --stop-on-error and no test at the predicate's definition can see it"
+            );
+            assert!(transient.is_empty(), "`{name}` must not be transient");
+        }
+    }
+
+    /// **The delegation itself.** `bucket_violations` can be perfectly correct and
+    /// `record_violations` can still swap the two returned vectors. Source-gated because
+    /// reaching `record_violations` needs a driven `LocalGame`, and what is asserted is a
+    /// WIRING fact. Comments are blanked first (`OOS-DX56-6`).
+    #[test]
+    fn t_record_violations_is_a_pure_delegation() {
+        let src = strip_comments(include_str!("local_game.rs"));
+        let at = src
+            .find("fn record_violations(")
+            .expect("record_violations exists");
+        let open = at + src[at..].find('{').expect("body opens");
+        let bytes = src.as_bytes();
+        let mut depth = 0usize;
+        let mut end = None;
+        for (i, b) in bytes.iter().enumerate().skip(open) {
+            match b {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let body = &src[open..=end.expect("balanced")];
+        assert!(
+            body.len() > 60,
+            "non-vacuity: body too small to be real ({} bytes)",
+            body.len()
+        );
+        assert!(
+            body.contains("bucket_violations("),
+            "record_violations must DELEGATE to invariants::bucket_violations -- the \
+             classification lives in one place so a unit test can reach it: {body}"
+        );
+        for forbidden in [
+            "is_transient_check(",
+            "crosses_a_turn_boundary(",
+            "arm_player=",
+        ] {
+            assert!(
+                !body.contains(forbidden),
+                "`{forbidden}` must NOT appear in record_violations -- a second copy of the \
+                 classification here is exactly what the /review defeated twice \
+                 (OOS-DX56-7): {body}"
+            );
+        }
+        assert!(
+            body.contains("self.violations.extend(hard)")
+                && body.contains("self.transient_violations.extend(transient)"),
+            "the two buckets must be extended into the matching fields -- swapping them is \
+             a defect `bucket_violations`' own tests cannot see: {body}"
+        );
+    }
+
+    /// **`/review` MEDIUM 5, closed** (`OOS-DX56-9`). CR 702.26b: *"Permanents that are
+    /// phased out are treated as though they do not exist."* `rules/sba.rs`'s CR 704.5m arm
+    /// exempts a phased-out Aura for that reason, and CR 702.26i puts the cleanup at
+    /// PHASE-IN. So a phased-out attacher with a dangling `attached_to` is a CR-legitimate
+    /// end state and must not be a hard violation. Both directions.
+    #[test]
+    fn t_a_phased_out_attacher_is_not_a_dangling_attachment_at_rest() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .object(ObjectSpec::creature(p(1), "Bearer", 2, 2))
+            .build()
+            .expect("fixture builds");
+        let bearer = state
+            .objects_in_zone(&ZoneId::Battlefield)
+            .into_iter()
+            .next()
+            .expect("bearer")
+            .id;
+        state
+            .objects_mut()
+            .get_mut(&bearer)
+            .expect("bearer")
+            .attached_to = Some(ObjectId(999_999));
+
+        // Phased IN: a real report.
+        assert_eq!(
+            check_no_dangling_attachment_at_rest(&state).len(),
+            1,
+            "a phased-IN attacher with a dead target is a hard end-state violation"
+        );
+
+        // Phased OUT: CR 702.26b, silent.
+        state
+            .objects_mut()
+            .get_mut(&bearer)
+            .expect("bearer")
+            .status
+            .phased_out = true;
+        let vs = check_no_dangling_attachment_at_rest(&state);
+        assert!(
+            vs.is_empty(),
+            "CR 702.26b / CR 702.26i: a phased-out permanent is treated as though it does \
+             not exist and its cleanup happens at phase-in, so this is a CR-legitimate end \
+             state, not a defect: {vs:?}"
+        );
     }
 }

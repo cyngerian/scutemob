@@ -287,6 +287,74 @@ action early, and it would silently delete the transient class rather than class
 
 ---
 
+## §1a The two mandated proofs, EXECUTED and RECORDED
+
+The `/review` found that AC 1's two proofs were **claimed but recorded nowhere** — no
+occurrence of "SIGABRT" or of a planted panic anywhere in these notes, and the task list
+unticked. Both were re-executed by the coordinator and the transcripts are here, because a
+proof nobody wrote down is indistinguishable from one nobody ran.
+
+Plant (temporary, in `LocalGame::push_command_history`, restored byte-exactly afterwards —
+`cmp` clean):
+
+```rust
+if self.seed == 555_555 && self.state.turn().turn_number >= 2 { panic!("PB-DX56 planted panic"); }
+if self.seed == 666_666 && self.state.turn().turn_number >= 2 { std::process::abort(); }
+```
+
+**Proof 1 — a planted PANIC writes NO crash report and DOES leave its tombstone.**
+
+```
+$ mtg-fuzzer --games 1 --seed 555555 --max-turns 200 --threads 1
+exit=101
+thread 'main' panicked at crates/simulator/src/local_game.rs:624:73:
+PB-DX56 planted panic
+$ ls crash-reports/
+inflight_555555.json
+```
+
+No `crash_555555.json` — the crash-report block runs only after `.collect()`, which a
+panic never reaches. That is the whole of `OOS-FB1-1`'s point 2, reproduced.
+
+**Proof 1b — `--replay <seed>` from the tombstone's own fields reproduces the same
+failure at the same point.** The tombstone carries everything the command line needs:
+
+```json
+{ "seed": 555555, "player_count": 4, "max_turns": 200, "bot": "Random",
+  "note": "Present at the start of a LATER run: the game that wrote this file aborted the
+   WHOLE process ... Reproduce with `mtg-fuzzer --replay <seed> --players <player_count>
+   --max-turns <max_turns> --bot <bot>` using this file's own fields." }
+```
+
+```
+$ mtg-fuzzer --replay 555555 --players 4 --max-turns 200
+exit=101
+thread 'main' panicked at crates/simulator/src/local_game.rs:624:73:
+PB-DX56 planted panic
+```
+
+**Proof 2 — a planted `std::process::abort()` (a real SIGABRT, exit 134,
+`Aborted (core dumped)`) leaves its tombstone identically.**
+
+```
+$ mtg-fuzzer --games 1 --seed 666666 --max-turns 200 --threads 1
+Aborted (core dumped)    exit=134
+$ ls crash-reports/
+inflight_555555.json  inflight_666666.json
+```
+
+**Proof 3 — a later run REPORTS the leftovers**, which is what makes the tombstone a
+mechanism rather than a file nobody reads:
+
+```
+  crash-reports/inflight_555555.json: seed=555555 players=4 max_turns=200 bot=Random
+  crash-reports/inflight_666666.json: seed=666666 players=4 max_turns=200 bot=Random
+```
+
+`crash-reports/` is gitignored and was removed after these runs.
+
+---
+
 ## §2 The three engine fixes, and the CR that decides the shape of F1
 
 Delegated to a `primitive-impl-runner` on `crates/engine/` alone (disjoint from the
@@ -499,9 +567,17 @@ and F3 write — in each gate's `CLOSURE_MUST_NOT_CONTAIN`:
 * **PROTOCOL stays GREEN**, because both are reachable only through `GameState`, which that
   list already excludes — the same asymmetry PB-DX51 measured with `CombatState`.
 
-For **Half A** the counterfactual is not merely unmoved but **unexpressible**: `crates/engine`
-does not depend on `mtg-simulator`, so a simulator type cannot be named in either list and
-the plant would not compile (§0.4a).
+**§0.4a's "the plant would not compile / the counterfactual is UNEXPRESSIBLE" is REFUTED
+by execution and is corrected here rather than left standing.** `CLOSURE_MUST_NOT_CONTAIN`
+is a list of type-NAME STRINGS, not of types, so planting `"GameResult"` — a
+`mtg-simulator` type — compiles fine, and `hash_schema` then passes **36/36**. So the
+Half-A counterfactual is **expressible and VACUOUS**, which is exactly the *"we planted it
+and nothing happened"* this batch claimed to be avoiding, and not the stronger
+"unexpressible" claim it published. **The conclusion survives and the stated reason does
+not**: Half A really is off both wires, because `crates/engine` does not depend on
+`mtg-simulator` and the closure walk starts from engine types — but that is an argument
+from the dependency graph, and the batch dressed it as a compile-time impossibility it had
+not tried. `OOS-DX56-15`.
 
 ### 4.4 The rest of the standard gates, against the FINAL tree
 
@@ -547,7 +623,9 @@ rather than presenting reasoning as results**. It produced 16 traced predictions
 alternative — a report of 16 confident GREEN/RED verdicts that were actually inferences —
 is precisely the failure mode this project keeps filing.
 
-### 5.2 Result: **SEVEN of eight plants bypassed the shipped gates.** All seven are closed.
+### 5.2 Result: **EIGHT plants bypassed the shipped gates, and the `/review` then found THREE MORE.** All eleven are closed.
+
+**The heading here read "SEVEN of eight" and its own table listed EIGHT rows, every one `before: GREEN`** — an arithmetic error inside the one cell whose purpose is arithmetic (`/review` MEDIUM 11). The eight below are the coordinator's executed pass; the `/review` then defeated three further gates (§5.6), so the true count of gates on this batch defeated by execution is **eleven**.
 
 | row | plant | before | after the fix | what it means |
 |---|---|---|---|---|
@@ -607,7 +685,7 @@ each has a non-vacuity floor on body size.
 
 ## §6 Close-out figures (re-taken AFTER the bypass fix cycle — dispatch hygiene 8)
 
-**Tests: 5,312 / 0 / 5** full-workspace, **+25** over the **5,287** baseline (which
+**Tests: 5,316 / 0 / 5** full-workspace, **+29** over the **5,287** baseline (which
 reproduced PB-DX55's close pin exactly — the **eighth** consecutive batch in which an
 inherited pin reproduces with no correction owed), on **72** result-producing targets
 (unmoved: the new engine probes join existing targets and the simulator ones are unit
@@ -616,11 +694,11 @@ tests). Residual list empty.
 **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs**
 — never `sort` + `comm` (`OOS-DX20b-5`), with the extraction regex deliberately NOT
 end-anchored (`OOS-DX42b-6`), and **re-taken AFTER the bypass fix cycle rather than before
-it** (dispatch hygiene 8 — the cycle added 10 tests, so the pre-cycle figure of 15 is
-superseded by this line rather than left standing beside it): **25 additions, 0 leavers,
-0 removals, 0 renames.** Count delta 25 == name-set delta 25, and the duplicate-name scan
+it** (dispatch hygiene 8 — the cycle added 14 tests, so the pre-cycle figure of 15 is
+superseded by this line rather than left standing beside it): **29 additions, 0 leavers,
+0 removals, 0 renames.** Count delta 29 == name-set delta 29, and the duplicate-name scan
 the byte-exact method is structurally blind to (`OOS-DX35-8`) is **EMPTY on both runs**
-(5,292 / 5,292 distinct; 5,317 / 5,317).
+(5,292 / 5,292 distinct; 5,321 / 5,321).
 
 **"0 leavers" must NOT be read as "nothing was touched"** — two tests were edited IN PLACE
 and their names are unchanged, so the name-set delta cannot see either, and both are

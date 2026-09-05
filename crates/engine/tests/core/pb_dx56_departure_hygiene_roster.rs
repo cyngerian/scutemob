@@ -25,6 +25,52 @@ fn state_mod_src() -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 
+/// Blank out `//` line comments and `/* */` blocks, preserving newlines, so a
+/// `contains`-based source gate cannot be satisfied by a COMMENTED-OUT call
+/// (`OOS-DX56-6`).
+///
+/// The PB-DX56 `/review` defeated this file's `r1` with a two-character edit: commenting
+/// out the call at the bottom-of-zone site — **the one this file's own doc says has no
+/// behavioural probe** — left `r1`, `r2` and all eight `pb_dx56_departure_hygiene` probes
+/// GREEN. This repo already knew the class (PB-DX8's `OOS-DX32-6`) and this batch did not
+/// carry it across.
+fn strip_comments(src: &str) -> String {
+    let b = src.as_bytes();
+    let mut out = String::with_capacity(src.len());
+    let mut i = 0usize;
+    while i < b.len() {
+        if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'/' {
+            while i < b.len() && b[i] != b'\n' {
+                out.push(' ');
+                i += 1;
+            }
+        } else if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'*' {
+            let mut depth = 1usize;
+            out.push_str("  ");
+            i += 2;
+            while i < b.len() && depth > 0 {
+                if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'*' {
+                    depth += 1;
+                    out.push_str("  ");
+                    i += 2;
+                } else if b[i] == b'*' && i + 1 < b.len() && b[i + 1] == b'/' {
+                    depth -= 1;
+                    out.push_str("  ");
+                    i += 2;
+                } else {
+                    out.push(if b[i] == b'\n' { '\n' } else { ' ' });
+                    i += 1;
+                }
+            }
+        } else {
+            let c = src[i..].chars().next().expect("in bounds");
+            out.push(c);
+            i += c.len_utf8();
+        }
+    }
+    out
+}
+
 /// The brace-matched body of `fn <name>(`, so a byte window cannot fail OPEN by
 /// over-scanning into the next function and vouching for a call that is not there
 /// (`OOS-DX49-2`).
@@ -41,7 +87,9 @@ fn body_of(src: &str, needle: &str) -> String {
             b'}' => {
                 depth -= 1;
                 if depth == 0 {
-                    return src[open..=i].to_string();
+                    // `OOS-DX56-6`: comments blanked, so a commented-out call cannot
+                    // satisfy a `contains` assertion over this body.
+                    return strip_comments(&src[open..=i]);
                 }
             }
             _ => {}

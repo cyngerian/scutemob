@@ -345,6 +345,78 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-05, PB-DX56 + `/review` fix cycle)**: **5,316 / 0 / 5** full-workspace on
+  branch `scutemob-235` (+29 over the **5,287** baseline, measured on this branch BEFORE any edit
+  and **reproducing PB-DX55's close pin exactly** — the **eighth** consecutive batch in which an
+  inherited pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file,
+  **72** result-producing targets (unmoved), residual list empty.
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs** —
+  never `sort` + `comm` (`OOS-DX20b-5`), with the extraction regex deliberately NOT end-anchored
+  (`OOS-DX42b-6`), and **RE-TAKEN AFTER the `/review` fix cycle** (dispatch hygiene 8, the ninth
+  batch running): **29 additions, 0 leavers, 0 removals, 0 renames.** Count delta 29 == name-set
+  delta 29, duplicate-name scan **EMPTY on both runs** (5,292 / 5,292 distinct; 5,321 / 5,321).
+  **"0 leavers" must NOT be read as "nothing was touched"** — two tests were edited IN PLACE with
+  their names unchanged, so the name-set delta is structurally blind to both:
+  `mechanics_e_l::extra_turns::test_extra_turn_eliminated_player_skipped`, whose docstring
+  **DOCUMENTED the CR 800.4k violation F2 closes as expected behaviour** (corrected, and the
+  correction is strictly stronger — `assert_ne!` becomes `assert_eq!`), and
+  `t_check_all_prepends_state_context_before_the_checks_own_evidence`, repointed when the class
+  split.
+  **HASH 85 / PROTOCOL 44 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed
+  (`hash_schema` 36/36, `protocol_schema` 17/17) and **predicted PER HALF in writing before any
+  production line** (`1f16e2c9`), with a stated stop-condition had the engine fix needed a field.
+  `git diff` over `state/hash.rs` and `rules/protocol.rs` is **EMPTY**, so no sentinel re-pin, no
+  survivor scan, no history row and no frozen-prefix re-pin were owed.
+  **The counterfactual is VERIFIED BY EXECUTION**: planting `GameObject` and `TurnState` — the two
+  types whose already-existing fields F1/F2/F3 write — in each gate's `CLOSURE_MUST_NOT_CONTAIN`
+  **FAILS HASH** and leaves **PROTOCOL green** (both are reachable only through `GameState`, which
+  that list excludes), reproducing PB-DX51's `CombatState` asymmetry. *(**And §0.4a's stronger
+  claim about the simulator half is REFUTED and corrected**: `CLOSURE_MUST_NOT_CONTAIN` is a list
+  of type-NAME STRINGS, so planting `"GameResult"` compiles and the gate passes 36/36 — the
+  counterfactual is **expressible and vacuous**, not "unexpressible". The conclusion survives on
+  the dependency graph; the claimed epistemic strength did not. `OOS-DX56-15`.)*
+  Coverage **UNMOVED at 1,140/1,803 = 63.2%** by regeneration, **0 flips** predicted with the
+  reason before any code, self-dating churn reverted; **0 card-def edits of any kind**, so the
+  empty-diff shortcut was available and the regeneration was run anyway.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
+  gate) — all against the FINAL tree, and `cargo fmt` FIRED there once and was answered.
+  **`npm run build` NOT run — N/A with the reason**: `git diff main..HEAD --numstat --
+  tools/play-server/frontend` is **EMPTY** (the only `tools/` change is one
+  `..Default::default()` inside a `#[cfg(test)]` `GameResult` literal) and `node_modules` is
+  absent from this worktree.
+  **Benches NOT measured, and the reason is a mechanism bound checked by execution**:
+  `crates/engine/benches/engine_perf.rs` contains **zero** occurrences of any symbol the engine
+  half touches (`detach_from_host_on_departure`, `advance_turn`,
+  `grant_priority_to_active_player`, `extra_turns`, `attachments`); F1 adds one `Option` test and,
+  only when `Some`, one `retain` over a `Vector` that is empty for every unattached permanent, on
+  the zone-move path, which none of the six benches drives.
+  **Engine lines**: `crates/engine/src` **+82 / −20** across four files — `state/mod.rs` +39/−0,
+  `rules/turn_structure.rs` +21/−1, `rules/engine.rs` +16/−11, `rules/priority.rs` +6/−8 (two doc
+  inventories that became false the moment F3 landed). **`crates/card-types`, `crates/card-defs`
+  and `crates/view-model` are all EXACTLY 0.**
+  **FUZZ: HARD 291 → 0 on the standard invocation**, so `--stop-on-error` no longer halts. A/B'd
+  against merge base `e0da3cc9` in an isolated worktree with its own `CARGO_TARGET_DIR` (deleted
+  after — dispatch hygiene 11): the merge-base run and this batch's PRE-EDIT run **differ in
+  EXACTLY ONE LINE, the wall clock**. Every per-class raw count and per-class game list is
+  IDENTICAL across the boundary (189 / 102 / 553), TRANSIENT 553 → **844 = 553 + 189 + 102
+  exactly**, wins / draws / errors / avg turns unchanged at 20 / 0 / 0 / **122.0** — so the whole
+  movement is the RECLASSIFICATION plus three new hard checks measuring zero, and **the three
+  engine fixes are trajectory-neutral by measurement**, which is why no seeded pin moved. PB-DX32
+  gate config re-observed **13/13 green** with **no ratchet constant touched** — answered, not
+  loosened.
+  **Revert / bypass matrix: 5 revert rows + 8 executed bypass plants + 3 more the `/review` found
+  — ELEVEN gates on this batch defeated by execution, all eleven now RED**, every file restored
+  byte-exactly. **R-E is the row worth reading**: with F1 reverted the new `attachment_symmetry`
+  check measures **10,290 raw / 7 distinct across 5 of 20 games** — ~1,470 checkpoints per
+  condition — against `attachment_validity`'s 102 / ~13, ~8. **Two orders of magnitude on the same
+  run from the same stateless per-command checker is what settles "at rest" versus "transient",
+  and the census wrote that prediction down first.** **THREE plants produced NON-VERDICTS that
+  looked like passes** — two build failures (`-D warnings` dead code; a `break` outside a loop)
+  and two that silently failed to APPLY after `cargo fmt` rewrapped their target line —
+  `OOS-DX39-8`'s shape three times in one batch, reported rather than counted.
+  Filed **OOS-DX56-1..15** (`-6` through `-15` by the `/review` fix cycle — dispatch hygiene 8's
+  exact case for the eighth batch running).
 - **Tests (delta 2026-09-05, PB-DX55 + `/review` fix cycle)**: **5,287 / 0 / 5** full-workspace on branch
   `scutemob-234` (+44 over the **5,243** baseline, measured on the MERGE BASE in its own worktree
   and **reproducing PB-DX42b's close pin exactly** — the sixth consecutive batch in which an
@@ -1887,7 +1959,93 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-05 — **PB-DX55 SHIPPED** (`scutemob-234`; v4 queue rank 19, task 1
+- **Last Updated**: 2026-09-05 — **PB-DX56 SHIPPED** (`scutemob-235`; v4 queue rank 20, task 2
+  of 5 of the SECOND chain — **OOS-FB1-1** *(the stated prerequisite)*, **OOS-DX32-1** and
+  **OOS-DX22-8** ALL CLOSED, plus the rider **OOS-DP9-19(b)**).
+  **THE FUZZER'S HARD BUCKET GOES 291 → 0 ON THE STANDARD INVOCATION**, so `--stop-on-error` no
+  longer halts on an undiagnosed class.
+  **BOTH filed figures were re-measured FIRST and NEITHER reproduces, both UP** — for the third
+  time each: `player_consistency` 84 → **189** across 4 → **11** of 20 games,
+  `attachment_validity` 22 → **102** across 3 → **7**. The row's *"79.2% of the HARD bucket"* is
+  now **64.9%**, because the other class grew faster.
+  **`player_consistency` IS NOT ONE CLASS — IT IS TWO ARMS THE CR GIVES OPPOSITE DISPOSITIONS,
+  AND THE REGISTRY ROW, THE v4 MEMO CELL AND THE DISPATCH CRITERION ALL TREAT THEM AS ONE.**
+  **189 of 189 reports are the ACTIVE-PLAYER arm; the priority-holder arm produced ZERO.** The
+  active arm asserts what **CR 800.4j** *permits* — *"that turn continues to its completion
+  **without an active player**"* — and `TurnState::active_player` is a bare `PlayerId`, not an
+  `Option`, with exactly ONE production write site, so *"without an active player"* is
+  **inexpressible in this engine's state type** and it necessarily encodes that turn by leaving
+  the departed id in the field. Everything CR 800.4j actually requires is discharged elsewhere:
+  `grant_priority_to_active_player` routes past a dead active player **citing 800.4j by name**,
+  and `validate_player_active` rejects every command from a departed seat. **CR 800.4a's last
+  sentence, by contrast, is unconditional**, so the priority arm is a real defect and stays HARD.
+  **The strictly stronger property is a TURN-BOUNDARY rule, not an end-state one, and the shape
+  matters**: CR 800.4k bounds the condition to the remainder of that turn, and an end-state check
+  would fire spuriously because at game end the player who just died may legitimately still be
+  `active_player`.
+  **TWO holes made that bound lucky rather than true and both are FIXED**: `advance_turn`'s
+  EXTRA-TURN branch applied **no liveness filter at all** and nothing ever pruned the queue, so a
+  departed player's queued extra turn BEGAN (CR 800.4k-wrong — the one UNBOUNDED route); and
+  `enter_step`'s cleanup-SBA-round grant was unconditional, the single live route for the priority
+  arm, closing `OOS-DP9-19(b)` as a rider by **finishing the wiring of a helper whose own doc named
+  that site as the one unrouted hole**.
+  **`OOS-DX22-8`'s answer is neither of the two the row told its successor to check first: the
+  check was pointed at the direction of a two-directional relation that HEALS.**
+  `move_object_to_zone` and its bottom-of-library sibling retire an object performing exactly TWO
+  cross-object fix-ups — CR 702.95e soulbond and the replacement-effect GC — and touch the
+  attachment relation in **NEITHER direction**. Direction A (a HOST leaves) IS cleared by
+  CR 704.5m / CR 704.5n and survives a checkpoint only because the engine sweeps SBAs at nine
+  sites and `rules/{abilities,casting,combat,mana,turn_actions}.rs` contain **zero** —
+  `OOS-M11-7`'s shape one field over. **The ENGINE DEFECT is direction B, which had no check
+  anywhere and never heals**: when an ATTACHER leaves by any route other than the six that clean
+  up, the host keeps the dead `ObjectId` in `attachments` for the rest of the game — a **HASHED**
+  field, so it perturbs `public_state_hash` **and** `compute_mandatory_state_hash` (CR 104.4b
+  loop detection), is read by the equipped-creature trigger family (**CR 301.5f**, not CR 510.3a),
+  is walked by CR 702.26g/h phasing through `expect_object_mut` (a latent debug-build panic), and
+  is rendered to the browser.
+  **THE TRANSIENT-VS-AT-REST QUESTION IS SETTLED BY AN ARITHMETIC THE CENSUS WROTE DOWN FIRST.**
+  Revert row R-E measures direction B at **10,290 raw / 7 distinct across 5 of 20 games**
+  (~**1,470** checkpoints per condition) against direction A's 102 / ~13 (~**8**) — two orders of
+  magnitude, same run, same stateless per-command checker. With F1 in, it is **0**.
+  **CR 400.7f is what makes the fix's one-directionality load-bearing** rather than merely
+  conservative: it exists so a leaves-the-battlefield trigger can find an Aura in its owner's
+  graveyard *"as a result of being put there as a state-based action for not being attached to a
+  permanent. (See rule 704.5m.)"* — a rule whose antecedent is that the Aura got there THROUGH
+  704.5m. Pinned wrong-way-round so a later batch cannot "finish the job".
+  **THE TOOLING CAUGHT A DEFECT IN ITS OWN CONSUMER ON ITS FIRST RUN AND IT WAS THIS BATCH'S
+  OWN.** After the disposition, HARD read **1**, not 0 — and reading the artefact's EVIDENCE
+  rather than its count showed the promotion was a false positive: it keyed the departed seat on
+  `player=`, which the prepended state context emits **per seat**, so it collapsed
+  `PlayerId(4)`'s turn-154 report against `PlayerId(1)`'s turn-133 one and reported
+  *"turns_crossed=21"* for two DIFFERENT seats. **That is `OOS-FB1-1`'s entire argument
+  instantiated on the batch that closed it** (`OOS-DX56-1`): the count said *"one hard violation,
+  diagnosed"*; the evidence said *"your own key is wrong"*.
+  **ELEVEN GATES ON THIS BATCH WERE DEFEATED BY EXECUTION AND ALL ELEVEN ARE NOW RED** — 8 by the
+  coordinator's bypass pass (two whose probes called a PRIVATE function directly so nothing
+  asserted `check_all` dispatched to it; an end-state check with **no call-site gate whose hole is
+  INHERITED from PB-DX32**; a promotion with **no test of any kind**) and 3 more by the `/review`
+  (a **commented-out call** satisfies a `contains`-based source gate — PB-DX8's `OOS-DX32-6`, not
+  carried across; an **argument swap** in the promotion call that compiles and uses every binding;
+  and ORing two HARD class names into the transient test, which silently disarms
+  `--stop-on-error` — **PB-DX50's `r3` finding verbatim, that a gate on a predicate's DEFINITION
+  says nothing about its CONSUMER**). The classification now lives in one free function a unit
+  test can drive, and `record_violations` is a delegation with a gate saying so.
+  **The `/review` found 15 and all 15 were taken.** Its other keepers: the new `evidence` was
+  printed **NOWHERE on any real invocation**, because the disposition made both firing classes
+  transient and only the HARD bucket was dumped (`OOS-DX56-8`); the new end-state check reported a
+  **CR-legitimate** state, a phased-out attacher, which CR 702.26b and CR 702.26i exempt and which
+  measured 0/20 only because phasing is rare (`OOS-DX56-9`); and the module doc's own check count
+  was wrong **inside the paragraph telling you to count it** — `check_all` makes **eleven** calls,
+  and this batch took `main`'s already-wrong nine and added one instead of counting
+  (`OOS-DX56-13`).
+  Tests **5,316 / 0 / 5** (+29, 72 targets, byte-exact NAME set difference, 0 leavers, duplicate
+  scan EMPTY, re-taken AFTER the fix cycle). **HASH 85 / PROTOCOL 44 both UNMOVED — zero bumps**,
+  predicted per half before any production line, counterfactual executed. Coverage **UNMOVED at
+  1,140/1,803 = 63.2%**, 0 flips, **0 card-def edits**. Filed **OOS-DX56-1..15**. Full record:
+  `memory/primitives/pb-DX56-execution-notes.md`; census:
+  `memory/primitives/pb-DX56-mechanism-census.md`; bypass rows:
+  `memory/primitives/pb-DX56-bypass-attempts.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-05 — **PB-DX55 SHIPPED** (`scutemob-234`; v4 queue rank 19, task 1
   of 5 of the SECOND user-approved chain — **OOS-SIM6-3**, **OOS-SIM5-3** and **OOS-SIM5-5** ALL
   **FILED** *and* **CLOSED**, plus the rider **OOS-DX51-3** CLOSED. **None of the three had a
   registry row**, for the second batch running: all three lived only inside `OOS-DX32-9`'s

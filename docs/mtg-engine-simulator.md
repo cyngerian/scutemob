@@ -221,8 +221,8 @@ mtg-fuzzer [OPTIONS]
 ### Invariant Checks (run after every state transition)
 
 > **↻ PB-DX56 (`scutemob-235`, 2026-09-05) moved this count and SPLIT one entry.** The list
-> below is now **fourteen**, of which **ten** fire from `check_all` (one of those ten being
-> the no-op at #3) and **two** are END-OF-GAME checks run once per game at
+> below is now **fifteen**, of which **eleven** fire from `check_all` (one of those eleven
+> being the no-op at #3) and **two** are END-OF-GAME checks run once per game at
 > `LocalGame::result_snapshot`. Entry **#5 is two entries**, because PB-DX56 measured 189 of
 > 189 reports on one of its arms and zero on the other and then found the CR gives them
 > OPPOSITE dispositions — see #5a/#5b. New: **#12 attachment symmetry** (per-command, hard),
