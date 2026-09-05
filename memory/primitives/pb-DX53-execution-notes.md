@@ -142,9 +142,17 @@ A `Debug` render also prints PROSE that is compiled into the def. So `scourge_of
 was counted as a **declarer**, and R3's published population read **5** when the truth is **4**.
 
 The tree already solves this and the plan (§7) told the batch to use it:
-`decision_site_walk::def_contains_variant` walks the serde JSON and suppresses bare strings under a
-`PROSE_FIELDS` key — and that list already carries `"Inert"` / `"Partial"` / `"KnownWrong"`, the
-`Completeness` variant keys, for exactly this. The batch hand-rolled instead.
+`decision_site_walk::def_contains_variant` walks the serde JSON. The batch hand-rolled instead.
+
+**The MECHANISM that makes it work here is exact matching, not `PROSE_FIELDS`, and the first
+draft of this paragraph said otherwise** — caught by the `/review`. That walk's string arm fires
+only when a string is EQUAL to the variant name; a `Completeness::partial("… Effect::
+AdditionalCombatPhase. …")` note is a sentence, never equal to `"AdditionalCombatPhase"`, so the
+`PROSE_FIELDS` denylist is never consulted on this input and contributes nothing to the result.
+`PROSE_FIELDS` defends the narrower case of a note whose ENTIRE text is a variant name. The
+distinction is load-bearing rather than pedantic: a later batch "hardening" one of these censuses
+by adding a key to `PROSE_FIELDS` would be doing **nothing at all**. *A reason is the half the next
+batch reuses* (`OOS-DX49`).
 
 **R1 had the same shape and was ONE BLOCKER NOTE away from the same false positive.** That is not a
 remote risk in this class specifically: the card this batch repaired, `minas_tirith`, carried a
@@ -299,3 +307,114 @@ accumulation is spelled across a line break) printed seven greens. Those greens 
 UNMODIFIED tree. Caught because the script's own assertion error was read rather than the test
 output beneath it. *A revert row that does not apply produces a green run indistinguishable from a
 non-discriminating gate* — assert the patch applied before reading any verdict.
+
+---
+
+## §9 — the `/review` fix cycle (2026-09-05)
+
+**13 findings: 2 HIGH, 5 MEDIUM, 4 LOW, 2 NIT. All thirteen taken, none declined.** The reviewer
+had a shell and used it; every claim below that says "defeated" was defeated by execution, and
+every fix was re-executed against the defeat before being written down.
+
+### HIGH 1 — the mechanism gate was defeated two ways, on two different axes
+
+**(a) Read-side vs write-side enumeration.** The gate keyed on `field.insert(` / `field =` /
+`field:` — an enumeration of MUTATING forms. Appending
+
+```rust
+let set = &mut ps.creatures_declared_as_attackers_this_turn;
+set.insert(id);
+```
+
+to a NON-allowlisted file (`rules/resolution.rs`) left it **GREEN**: the field is followed by `;`,
+so it classified as a read-only reference and the file was skipped. That is **`OOS-DX51-6`
+verbatim** (`let map = &mut combat.attackers; map.insert(..)`), whose published remedy is *"re-key
+on the MECHANISM — all four ways to obtain a mutable path to the map, on ANY receiver"* — and this
+gate's own body cites `OOS-DX51` for a different lesson (multi-line spellings) without carrying
+that one across.
+
+**(b) A file-scoped allowlist exempts the file, not the mechanism.** The match was
+`rel.ends_with(file) && joined.contains(needle)` — a PRESENCE check — so a SECOND `.insert(` beside
+the real one in `combat.rs` was also green. `OOS-DX48`'s r1 defeat (*a duplicated call inside a
+marked site*), and not academic for this field in particular: **inserting twice per declaration IS
+the double-count the CR 400.7 dedup exists to prevent.**
+
+**Fix — invert the polarity.** *Enumerating what may mutate a container is unbounded and fails
+OPEN; enumerating what provably does not is short and fails CLOSED.* `READ_ONLY_METHODS` is 8
+names; anything else reachable through a `.` on the field is an offender. Added a preceding-path
+axis (`&mut` before any receiver path) and made `ALLOWED_WRITE_SITES` carry an EXACT COUNT per
+file. Also generalised the construction-vs-declaration discriminator from the literal `imbl::`
+to the presence of `(` in the value, so `OrdSet::new()` (no path prefix) is still caught.
+
+Both defeats re-executed against the fix: **(a)** fails with *"found a mutating path … outside the
+three allowlisted sites"*, **(b)** with *"combat.rs holds 2 mutating references …, not the 1 its
+entry allows: [MutMethod("insert"), MutMethod("insert")]"*. New
+`mechanism_gate_classifier_discriminates` pins all nine forms on synthetic input, so the
+classifier's discrimination is **asserted rather than inferred from the gate passing**. Filed
+`OOS-DX53-4`.
+
+### HIGH 2 — R2 was defeated by the exact false positive its own module doc says was fixed
+
+R1 and R3 were re-keyed onto `def_contains_variant`; **R2 was not**, and R2 is the only test in the
+file whose job is to find an UNDECLARED printed member — i.e. the method that found `minas_tirith`
+in the first place. Planting a printed *"attacked with three or more creatures this turn"* line
+plus `Completeness::partial("blocked: needs Condition::YouAttackedWithNOrMoreCreaturesThisTurn(3)")`
+made `is_declared` come back **TRUE from the note**, and the `undeclared` assertion came back
+**EMPTY** with all four roster tests green. Re-keyed; the defeat re-executed and is now RED with
+`[("Bear Umbra", true, false, "per-turn-count")]`.
+
+*The module doc had named this risk for R1 and left it standing in R2 — a stated hazard is not a
+fixed one, and the test most exposed to it was the one that went unpatched.*
+
+### MEDIUM 3 — AC 7368's second conjunct was vacuous
+
+`c1` asserted only `stack_objects().is_empty()`. The fixture placed `windbrisk_heights` straight
+onto the battlefield, which fires no ETB, so CR 702.75a's Hideaway exile never happened; the
+reviewer instrumented it and measured `exile zone = []`. `Effect::PlayExiledCard` resolved on
+nothing and the probe was **exactly as green as it would have been with that effect deleted**.
+
+Fixed by driving the real thing: Windbrisk starts in HAND and is played as p1's land, its Hideaway
+ETB resolves (automatic — the engine's deterministic fallback exiles the top card, no decision to
+answer), and the drive then spans to **p1's NEXT turn**, because the land enters TAPPED under its
+own CR 614.1c self-replacement and cannot pay its `{T}` the turn it arrives. That is the printed
+card's timing, not a fixture convenience. The exiled object is captured before activation and
+asserted GONE from exile after. Revert-proven: with `Effect::PlayExiledCard`'s lookup forced to
+`None`, `c1` fails on **its own line** (*"must have moved the Hideaway-exiled card out of exile
+(was [ObjectId(55)])"*) and is green without. Filed `OOS-DX53-5`.
+
+### MEDIUM 4-6, LOW 7-10, NIT 11-13 — the record was wrong in eight places
+
+| # | What was false | Corrected to |
+|---|---|---|
+| M4 | R3's doc said the declared population is **5** while its own assertion said **4** and named four absentees | 4, with the fourth (`scourge_of_the_throne`, a compiled note) named |
+| M5 | `minas_tirith.rs`: *"That claim was already false at the time this file was authored"* | The note is in `b6f748f8` (2026-07-10); the variant arrived in PB-OS6's `bc79a72c` (2026-07-19). It was **TRUE when written and ROTTED** — the same defect one direction over |
+| M6 | *"`def_contains_variant` suppresses bare strings under `PROSE_FIELDS`, and that list carries `"Inert"`/`"Partial"`/`"KnownWrong"` precisely for this"* — in the module doc, these notes, and `CLAUDE.md` | The mechanism is **EXACT matching**. A sentence-shaped note is never equal to a variant name, so `PROSE_FIELDS` is never consulted here. It defends only a note whose ENTIRE text is a variant name. *A later batch "hardening" the census by adding a `PROSE_FIELDS` key would do nothing* (`OOS-DX49`) |
+| L7 | `pb_dx32_fuzz_output.rs`'s failure message said *"5 of 7 served rows"* and listed `look_at_top_then_place_optional` as reached — the row the same pin had just dropped | 4 of 7, with the dropped row named as dropped |
+| L8 | *"CR 702.111a Melee"*, and Melee described as a TOTAL POWER gate | Melee is **CR 702.121a** and scales with OPPONENTS attacked; **CR 702.111 is Menace**. The filter keys on `"total power"` and selects the Pack-tactics family, which is correct for a different reason |
+| L9 | CR **602.5b** cited for *"a failing condition is never even OFFERED"* | CR **602.5** (*"can't begin to activate an ability that's prohibited"*). 602.5b is about a use restriction surviving a controller change |
+| L10 | CR **500.10a** cited for sorcery-speed activation timing | CR **602.5d** (what *"Activate only as a sorcery"* means) + CR **307.5** (the timing). 500.10a is about extra phases on another player's turn |
+| L11 | CR **506.5** cited for *"a fresh `CombatState` at each `BeginningOfCombat`"*, in `windbrisk_heights.rs` and `combat.rs` | CR **500.8** adds the phase, CR **506.1** gives each combat phase its own declare-attackers step. 506.5 defines *"attacks alone"* |
+| N12 | `player.rs` quoted CR 508.3d as *"Whenever [a player] attacks ... **if** one or more creatures ..."* | The rule has no "if" in that position; quoted verbatim instead |
+| N13 | r1's retired-name assertion described as a non-vacuity check | The compiler already guarantees it. Kept as a narrow tripwire, with that narrow reason written down |
+
+### LOW — `c2`'s control shape, disclosed
+
+Under revert R1, `c2` goes red on its `set_len == 2` **PRECONDITION**, not on its subject: an
+engine that counts nothing also refuses the activation. `c2` is a negative control for `c1`'s
+CONDITION and is deliberately not evidence for the accumulation. Disclosed in the test's own doc,
+matching what was already disclosed for `t6`/`t7`. ***"All rows RED" is a true sentence the wrong
+assertion can produce*** — read the panic LINE (PB-DX48).
+
+### Post-cycle measurements (re-taken, not transcribed)
+
+- Tests **5,210 / 0 / 5** on **67** targets, **+14** over the 5,196 baseline; byte-exact name-set
+  difference **14 additions / 0 leavers / 0 removals / 0 renames**, count delta 14 == name-set
+  delta 14, duplicate-name scan **EMPTY on both runs** (5,196/5,196 and 5,210/5,210).
+- `clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`,
+  `tools/check-defs-fmt.sh` (1,803 defs) and `cargo build --workspace` all clean against the
+  **FINAL** tree.
+- Coverage **UNMOVED at 1,140/1,803 = 63.2%**, by regeneration; the fix cycle's two card-def edits
+  are comment-only and `git diff` over the `Completeness` marker in that diff is **EMPTY**, so no
+  seeded fixture is re-dealt.
+- Wire **UNMOVED** by the cycle: `git diff` over `state/hash.rs` and `rules/protocol.rs` is empty,
+  so no sentinel re-pin and no history row were owed.

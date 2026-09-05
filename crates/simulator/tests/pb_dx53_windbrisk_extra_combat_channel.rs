@@ -8,9 +8,12 @@
 //! (`kaito_shizuki`'s lesson, PB-DX43): `windbrisk_heights`'s raid ability
 //! carries an `activation_condition`, and `legal_actions.rs`'s
 //! `activated_ability_is_activatable` gates the OFFER on the identical
-//! `check_condition` call the engine uses at resolution (CR 602.5b) -- so a
-//! failing condition is never even OFFERED (SR-38), and a passing one both
-//! offers AND resolves.
+//! `check_condition` call the engine uses at resolution (CR 602.5, "a player
+//! can't begin to activate an ability that's prohibited from being
+//! activated") -- so a failing condition is never even OFFERED (SR-38), and a
+//! passing one both offers AND resolves. (The first draft cited CR 602.5b,
+//! which is the unrelated rule that a use restriction survives a change of
+//! controller.)
 //!
 //! `aggravated_assault` (`Complete`, deck-legal) is the REAL CR 500.8 card that
 //! creates the extra combat phase -- driven end to end rather than spliced into
@@ -102,7 +105,7 @@ impl Bot for AlwaysPassBot {
 
 fn limits() -> LocalGameLimits {
     LocalGameLimits {
-        max_turns: 2,
+        max_turns: 4,
         max_commands: 2000,
         max_consecutive_passes: 500,
         record_journal: false,
@@ -130,7 +133,7 @@ fn fixture() -> GameState {
         .with_registry(build_registry())
         .active_player(p(1))
         .object(real("Aggravated Assault", ZoneId::Battlefield))
-        .object(real("Windbrisk Heights", ZoneId::Battlefield))
+        .object(real("Windbrisk Heights", ZoneId::Hand(p(1))))
         .object(ObjectSpec::creature(p(1), "Bear A", 2, 2))
         .object(ObjectSpec::creature(p(1), "Bear B", 2, 2))
         .object(ObjectSpec::creature(p(1), "Bear C", 2, 2))
@@ -219,6 +222,39 @@ fn drive_until(
     panic!("drive_until exceeded its iteration budget without finding a matching action");
 }
 
+/// Every object sitting face down in exile. Used both to prove the Hideaway
+/// ETB really exiled a card and to prove the raid ability's
+/// `Effect::PlayExiledCard` really moved it out again.
+fn face_down_exiled(state: &GameState) -> Vec<ObjectId> {
+    let mut v: Vec<ObjectId> = state
+        .objects()
+        .iter()
+        .filter(|(_, o)| o.zone == ZoneId::Exile && o.status.face_down)
+        .map(|(id, _)| *id)
+        .collect();
+    v.sort();
+    v
+}
+
+/// Pass priority until the stack is empty, panicking rather than returning
+/// early: a probe that silently stops with something still on the stack has
+/// asserted nothing about the resolution it is named for.
+fn pass_until_stack_empty(game: &mut LocalGame<StubProvider>, what: &str) {
+    for _ in 0..40 {
+        if game.state().stack_objects().is_empty() {
+            return;
+        }
+        let d = advance_human(game);
+        let pass = d
+            .actions
+            .iter()
+            .position(|a| matches!(a, LegalAction::PassPriority))
+            .unwrap_or_else(|| panic!("no PassPriority while resolving {what}: {:?}", d.actions));
+        submit(game, &d, pass, ActionParams::default());
+    }
+    panic!("{what} never left the stack");
+}
+
 fn is_named(state: &GameState, id: ObjectId, name: &str) -> bool {
     state
         .objects()
@@ -260,9 +296,83 @@ fn drive_through_two_combats(
     Vec<ObjectId>,
 ) {
     let mut game = start_human_game();
+
+    // ── Prologue (CR 702.75a) ────────────────────────────────────────────
+    // Play Windbrisk Heights as p1's land for their FIRST turn, so its
+    // Hideaway ETB really fires and really exiles a card face down.
+    //
+    // The first draft of this file placed the land straight onto the
+    // battlefield with `GameStateBuilder`, which never fires an ETB: the
+    // exile zone stayed EMPTY, `Effect::PlayExiledCard` resolved on nothing,
+    // and the probe would have been exactly as green with that effect
+    // entirely broken. The `/review` measured it (`exile zone = []`), which
+    // is what makes AC 7368's second conjunct -- "and its exiled card
+    // resolving" -- assertable here instead of merely stated.
+    //
+    // Windbrisk enters TAPPED (its own CR 614.1c self-replacement), so its
+    // `{W}, {T}` raid ability cannot be activated on the turn it is played.
+    // That is why this drive spans to p1's NEXT turn rather than doing
+    // everything on turn 1 -- and it is the printed card's own timing, not a
+    // fixture convenience.
+    let hand_windbrisk = id_of(game.state(), "Windbrisk Heights");
+    let d = drive_until(
+        &mut game,
+        |a| matches!(a, LegalAction::PlayLand { card } if *card == hand_windbrisk),
+    );
+    let idx = d
+        .actions
+        .iter()
+        .position(|a| matches!(a, LegalAction::PlayLand { card } if *card == hand_windbrisk))
+        .expect("drive_until returned a decision without the PlayLand it matched on");
+    submit(&mut game, &d, idx, ActionParams::default());
+    pass_until_stack_empty(&mut game, "Windbrisk Heights' Hideaway ETB trigger");
+    assert_eq!(
+        face_down_exiled(game.state()).len(),
+        1,
+        "CR 702.75a: playing Windbrisk Heights must exile exactly one card face down --          without it `Effect::PlayExiledCard` has nothing to resolve on and the raid          activation's effect assertion would be vacuous"
+    );
+    // Pass through to p1's next turn: Windbrisk untaps in that turn's untap
+    // step (CR 502.2) and only then can pay its own `{T}`.
+    let first_turn = game.state().turn().turn_number;
+    for _ in 0..400 {
+        if game.state().turn().turn_number >= first_turn + 2
+            && game.state().turn().active_player == p(1)
+        {
+            break;
+        }
+        let d = advance_human(&mut game);
+        let pass = d
+            .actions
+            .iter()
+            .position(|a| matches!(a, LegalAction::PassPriority))
+            .unwrap_or_else(|| {
+                panic!(
+                    "no PassPriority while waiting for p1's next turn: {:?}",
+                    d.actions
+                )
+            });
+        submit(&mut game, &d, pass, ActionParams::default());
+    }
+    assert_eq!(
+        game.state().turn().active_player,
+        p(1),
+        "prologue must land on p1's own second turn"
+    );
+
     let state0 = game.state().clone();
     let aggravated_id = id_of(&state0, "Aggravated Assault");
+    // Re-resolved AFTER the land was played: CR 400.7 makes the battlefield
+    // permanent a NEW object, so the hand id captured above is dead here.
     let windbrisk_id = id_of(&state0, "Windbrisk Heights");
+    assert!(
+        !state0
+            .objects()
+            .get(&windbrisk_id)
+            .expect("Windbrisk permanent must exist")
+            .status
+            .tapped,
+        "Windbrisk Heights must have untapped in p1's second untap step -- its `{{W}}, {{T}}`          raid cost cannot be paid otherwise"
+    );
     let bears: Vec<ObjectId> = ["Bear A", "Bear B", "Bear C", "Bear D"]
         .iter()
         .map(|n| id_of(&state0, n))
@@ -276,8 +386,11 @@ fn drive_through_two_combats(
         combat1 + combat2
     );
 
-    // 1. Reach Aggravated Assault's own activation window (CR 500.10a sorcery
-    // speed: precombat main, empty stack, active player, priority). Mana
+    // 1. Reach Aggravated Assault's own activation window ("Activate only as
+    // a sorcery" -- CR 602.5d for what that phrase means, CR 307.5 for the
+    // timing itself: precombat main, empty stack, active player, priority).
+    // The first draft cited CR 500.10a, which is about extra phases added to
+    // another player's turn and says nothing about activation timing. Mana
     // affordability is NOT checked at offer time (`activated_ability_is_activatable`
     // has no such gate), so this appears before any Mountain is tapped.
     let d = drive_until(
@@ -387,25 +500,35 @@ fn c1_windbrisk_accepted_after_three_plus_one_across_an_extra_combat() {
             decision.actions
         )
     });
+    // The card the Hideaway ETB exiled, captured BEFORE the raid ability
+    // resolves -- this is what "its exiled card resolving" has to be measured
+    // against.
+    let hidden_before = face_down_exiled(game.state());
+    assert_eq!(
+        hidden_before.len(),
+        1,
+        "the Hideaway-exiled card must still be in exile at activation time"
+    );
+
     submit(&mut game, &decision, idx, ActionParams::default());
 
     // Resolve the stack: pass until it is empty, proving genuine ACCEPTANCE
     // rather than a submission that merely didn't panic.
-    for _ in 0..20 {
-        if game.state().stack_objects().is_empty() {
-            break;
-        }
-        let d = advance_human(&mut game);
-        let pass = d
-            .actions
-            .iter()
-            .position(|a| matches!(a, LegalAction::PassPriority))
-            .expect("PassPriority must be legal while the ability resolves");
-        submit(&mut game, &d, pass, ActionParams::default());
-    }
+    pass_until_stack_empty(&mut game, "Windbrisk Heights' raid ability");
     assert!(
         game.state().stack_objects().is_empty(),
         "Windbrisk Heights' raid ability must resolve off the stack"
+    );
+
+    // AC 7368's second conjunct, asserted rather than assumed: the ability did
+    // not merely leave the stack, it PLAYED the hidden card -- that object is
+    // no longer a face-down card in exile. Without the prologue's real ETB this
+    // assertion is unwritable, which is precisely why the first draft did not
+    // have it.
+    assert!(
+        face_down_exiled(game.state()).is_empty(),
+        "Effect::PlayExiledCard must have moved the Hideaway-exiled card out of exile \
+         (was {hidden_before:?}), not resolved on nothing"
     );
 }
 
@@ -423,6 +546,19 @@ fn c1_windbrisk_accepted_after_three_plus_one_across_an_extra_combat() {
 /// turn" and must be ACCEPTED, not refused -- the plan's own numbers describe
 /// c1's outcome a second time, not a negative control for it. This test uses
 /// 1 + 1 = 2 (genuinely under the threshold) instead.
+///
+/// **What this row does NOT discriminate, disclosed rather than left to be
+/// inferred from "all rows RED"**: under revert R1 (delete the accumulation
+/// loop entirely) c2 does go red -- but on its `set_len == 2` PRECONDITION,
+/// not on its subject. Its subject, "the raid ability is absent from the
+/// offered actions", is satisfied under R1 too, because an engine that counts
+/// nothing at all also refuses. c2 is a negative control for c1's CONDITION,
+/// and it is deliberately not evidence for the accumulation itself; `t1`-`t5`
+/// in `crates/engine/tests/primitives/pb_dx53_raid_count_split.rs` are what
+/// carry that. This is the same shape already disclosed for `t6`/`t7`, and it
+/// was missing here until the `/review` executed R1 and read which line each
+/// row failed on -- *"all rows RED" is a true sentence the wrong assertion can
+/// produce* (PB-DX48).
 fn c2_windbrisk_refused_when_the_turn_total_never_reaches_three() {
     let (game, decision, windbrisk_id, _bears) = drive_through_two_combats(1, 1);
 

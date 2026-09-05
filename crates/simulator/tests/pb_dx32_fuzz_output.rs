@@ -1205,10 +1205,13 @@ fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     assert_eq!(
         reached, expected_reached,
         "the reached/never-reached partition of a 10-seed x 60-turn fuzz-shaped run \
-         changed from the measured baseline (5 of 7 served rows: triggered_targets, \
-         search_library, scry, discard_cards, look_at_top_then_place_optional; \
+         changed from the measured baseline (4 of 7 served rows: triggered_targets, \
+         search_library, scry, discard_cards; look_at_top_then_place_optional, \
          may_pay_then_effect and surveil never reached at this budget — re-observed by \
-         PB-DX53 after the CORPUS_COMPLETE 1139 -> 1140 re-deal). \
+         PB-DX53 after the CORPUS_COMPLETE 1139 -> 1140 re-deal, which is what dropped \
+         look_at_top_then_place_optional from the served set; the first draft of this \
+         message kept listing it as reached and still said 5 of 7, contradicting the \
+         pin three lines above it). \
          Report this as a finding (does the engine now serve fewer/more decisions, or \
          did an unrelated change move which cards get drawn/cast) rather than \
          silently re-tuning the seed range to make it pass: reached {reached:?}, \

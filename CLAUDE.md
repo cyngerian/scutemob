@@ -283,8 +283,8 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-05, PB-DX53)**: **5,209 / 0 / 5** full-workspace on branch
-  `scutemob-231` (+13 over the **5,196** baseline, measured on this branch BEFORE any edit and
+- **Tests (delta 2026-09-05, PB-DX53 + `/review` fix cycle)**: **5,210 / 0 / 5** full-workspace on
+  branch `scutemob-231` (+14 over the **5,196** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX39's close pin exactly** — the third consecutive batch in which an inherited
   pin reproduces with no correction owed; the task's AC quoted **5,194**, which is a transcription
   off by two from `CLAUDE.md`'s own PB-DX39 line, reported rather than reconciled away because a
@@ -292,9 +292,12 @@
   `--workspace --no-fail-fast` to a file, **67** result-producing targets (66 → 67: one new
   simulator test binary), residual list empty.
   **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
-  `sort` + `comm` (`OOS-DX20b-5`): 13 additions, 0 leavers, 0 removals, 0 renames.** Count delta
-  13 == name-set delta 13, and the duplicate-name scan the byte-exact method is structurally blind
-  to (`OOS-DX35-8`) is **EMPTY on both runs** (5,201 / 5,201 distinct; 5,214 / 5,214).
+  `sort` + `comm` (`OOS-DX20b-5`): 14 additions, 0 leavers, 0 removals, 0 renames.** Count delta
+  14 == name-set delta 14, and the duplicate-name scan the byte-exact method is structurally blind
+  to (`OOS-DX35-8`) is **EMPTY on both runs** (5,196 / 5,196 distinct; 5,210 / 5,210).
+  **RE-TAKEN AFTER the `/review` fix cycle, not before it** (dispatch hygiene 8): the cycle added
+  `mechanism_gate_classifier_discriminates`, so the pre-cycle figure of 13 is superseded by this
+  line rather than left standing beside it.
   **HASH 84 → 85 / PROTOCOL 43 → 44, ONE bump each**, both taken from the failing gates' own output
   and **both predicted in writing before any production line** (`a37f8239`), with both closure type
   counts predicted and confirmed UNCHANGED at **98 / 132** — measured at the merge base by raising
@@ -1573,9 +1576,12 @@
   `Debug` render also prints PROSE compiled into the def, so `scourge_of_the_throne`'s
   `Completeness::partial("… Effect::AdditionalCombatPhase …")` — a string literal, not a comment —
   was counted as a DECLARER and R3's population read **5** when the truth is **4**. The tree already
-  solves this and the plan told the batch to use it: `decision_site_walk::def_contains_variant`
-  suppresses bare strings under a `PROSE_FIELDS` key, and that list already carries `"Inert"` /
-  `"Partial"` / `"KnownWrong"` for exactly this. **R1 had the same shape and was ONE BLOCKER NOTE
+  solves this and the plan told the batch to use it: `decision_site_walk::def_contains_variant`,
+  whose string arm matches a variant name EXACTLY — **and the mechanism is that exactness, not the
+  `PROSE_FIELDS` denylist, which the first draft of this cell credited and which is never even
+  consulted on a sentence-shaped note** (a later batch "hardening" one of these censuses by adding
+  a `PROSE_FIELDS` key would be doing nothing; `OOS-DX49`'s rule that a reason is the half the next
+  batch reuses). **R1 had the same shape and was ONE BLOCKER NOTE
   away from the same false positive** — not a remote risk here, since the card this batch repaired
   carried a note naming a `Condition` variant BY IDENTIFIER, which is what blocker notes do. Both
   re-keyed; `scourge_of_the_throne` pinned in R3's must-be-absent list as the member that
@@ -1591,9 +1597,10 @@
   no count and no turn-scope content. The `OOS-DX21-1` row already said so, and PB-DX21's review had
   corrected `legions_landing.rs` for exactly this mis-cite — after which it propagated into the
   queue row title and the dispatch title.
-  Tests **5,209 / 0 / 5** (+13 over a **5,196** pre-edit baseline reproducing PB-DX39's close pin
-  exactly, **67** targets, byte-exact set difference: 13 additions / 0 leavers / 0 removals / 0
-  renames, count-vs-name reconciliation run and duplicate-name scan EMPTY on both runs).
+  Tests **5,210 / 0 / 5** (+14 over a **5,196** pre-edit baseline reproducing PB-DX39's close pin
+  exactly, **67** targets, byte-exact set difference: 14 additions / 0 leavers / 0 removals / 0
+  renames, count-vs-name reconciliation run and duplicate-name scan EMPTY on both runs; re-taken
+  AFTER the `/review` fix cycle).
   **HASH 84 → 85 / PROTOCOL 43 → 44, ONE bump each, both predicted in writing before any production
   line** (`a37f8239`), closure type counts predicted and confirmed UNCHANGED at **98 / 132**;
   **the AC's PROTOCOL-UNMOVED prediction REFUTED with its own ground verified true**. Coverage
@@ -1603,7 +1610,47 @@
   improvement deliberately not claimed** — and the batch's own prediction of a regression refuted,
   with the evidence pointing at `GameState`'s size rather than `PlayerState`'s as PB-DX18's real
   driver. **Revert matrix 3 rows, coordinator-executed, 3 discriminating, 0 UNDISCRIMINATED**, with
-  its own instrument corrected twice. Filed **OOS-DX53-1..3**. Full record:
+  its own instrument corrected twice.
+  **↻ The `/review` found 2 HIGH / 5 MEDIUM / 4 LOW / 2 NIT and ALL THIRTEEN WERE TAKEN — and both
+  HIGHs are this batch's own thesis committed inside the gates that state it.** *(1)* The
+  single-write-site mechanism gate was defeated **two ways by execution**: an aliased
+  `let set = &mut ps.<field>; set.insert(id);` in a NON-allowlisted file (which is `OOS-DX51-6`
+  verbatim, cited in that gate's own body for a different lesson and not carried across), and a
+  SECOND `.insert(` planted beside the real one inside an allowlisted file, because the allowlist
+  match was a PRESENCE check (`OOS-DX48`'s r1 defeat — and not academic, since inserting twice per
+  declaration IS the double-count the CR 400.7 dedup exists to prevent). Re-keyed by INVERTING the
+  polarity — enumerating what may mutate a container is unbounded and fails open, enumerating the
+  8 READ methods is short and fails closed — plus a preceding-path `&mut` axis and an EXACT COUNT
+  per allowlisted file; both defeats re-executed and RED, with a new classifier test pinning all
+  nine forms on synthetic input (`OOS-DX53-4`). *(2)* **R2 still classified declaredness with
+  `format!("{def:#?}")` while R1 and R3 had been re-keyed** — and R2 is the ONLY test whose job is
+  to find an undeclared printed member, i.e. the exact method that found `minas_tirith`. Proven by
+  planting a printed "attacked with ... this turn" line plus a `Completeness::partial` note naming
+  the missing identifier: `is_declared` came back TRUE **from the note** and the `undeclared` list
+  came back EMPTY with all four roster tests green. This file's own module doc had named that risk
+  **for R1** and left it standing in R2.
+  Also taken: **AC 7368's "and its exiled card resolving" was VACUOUS** — the fixture placed
+  Windbrisk on the battlefield, so no Hideaway ETB ever fired, the exile zone was measured EMPTY
+  and `Effect::PlayExiledCard` resolved on nothing; now driven for real (played from HAND, spanning
+  to p1's next turn because the land enters TAPPED and cannot pay its own `{T}` that turn) and RED
+  under an executed revert (`OOS-DX53-5`). **R3's doc said the population was 5 while its own
+  assertion said 4** and named four absentees. **`minas_tirith`'s replacement comment was itself
+  false**: it called the old `ENGINE-BLOCKED` note *"already false when authored"*, but that note
+  is present in `b6f748f8` (2026-07-10) and the variant did not exist until PB-OS6's `bc79a72c`
+  (2026-07-19) — it was TRUE when written and ROTTED, which is the same defect one direction over.
+  **The stated REASON `def_contains_variant` works was wrong in three places** (the mechanism is
+  EXACT matching; `PROSE_FIELDS` is never consulted on a sentence-shaped note, so a later batch
+  "hardening" the census by adding a key there would do nothing — `OOS-DX49`'s rule that a reason
+  is the half the next batch reuses). Plus a fuzz-gate failure message contradicting its own pin,
+  **four wrong CR cites** (Melee is **702.121a**, not 702.111 which is Menace; CR **602.5** not
+  602.5b for activation legality; CR **602.5d/307.5** not 500.10a for sorcery timing; CR **506.1**
+  not 506.5 for the per-phase combat state), c2's control shape disclosed (it reddens under R1 on
+  its PRECONDITION, not its subject — *"all rows RED" is a true sentence the wrong assertion can
+  produce*), and an r1 assertion described as a non-vacuity check that the compiler already
+  guarantees.
+  Filed **OOS-DX53-1..5** — and the first draft of this line said `-1..3`, which is dispatch
+  hygiene 8's exact case for the fourth batch running, caught by re-checking this cell against the
+  registry AFTER the fix cycle rather than before it. Full record:
   `memory/primitives/pb-DX53-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-09-04 — **PB-DX52 SHIPPED** (`scutemob-229`; v4 queue rank 14 —
   **OOS-DX25b-1** and **OOS-DX25b-5** CLOSED, plus **OOS-DX25c-3** CLOSED as a third).

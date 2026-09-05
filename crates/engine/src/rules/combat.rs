@@ -811,7 +811,9 @@ pub fn handle_declare_attackers(
             // PB-OS6(b) / PB-DX53 / CR 508.3d: capture the size of THIS declaration
             // for Condition::YouAttackedWithNOrMoreThisDeclaration. Only declared
             // attackers count; OVERWRITTEN (not accumulated) on MULTI-COMBAT turns
-            // (CR 500.8/506.5, e.g. `aurelia_the_warleader`'s extra combat phase) --
+            // (CR 500.8 adds the phase and CR 506.1 gives each combat phase its own
+            // declare-attackers step -- NOT CR 506.5, which defines "attacks alone";
+            // e.g. `aurelia_the_warleader`'s extra combat phase) --
             // which is CORRECT for CR 508.3d, a per-declaration trigger gate
             // (Legion's Landing). PB-DX21 (`OOS-M11-9`) makes a second
             // `DeclareAttackers` in one combat phase an error

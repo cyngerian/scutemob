@@ -20,6 +20,9 @@
 ## Last Handoff (worker, 2026-09-05) — PB-DX53 / `scutemob-231`
 
 **v4 rank 16. `OOS-DX21-1` CLOSED.** Next dispatch: **PB-DX54** (rank 17, `OOS-DX25c-6`).
+**`/review` run: 13 findings (2 HIGH / 5 MEDIUM / 4 LOW / 2 NIT), all thirteen taken** — both
+HIGHs were this batch's own thesis committed inside the gates that state it. Fix-cycle record:
+execution notes §9. Seeds filed **OOS-DX53-1..5**.
 Full record: `memory/primitives/pb-DX53-execution-notes.md`. Plan and the pre-committed
 predictions: `memory/primitives/pb-DX53-plan.md` (`a37f8239`, before any production line).
 
@@ -48,8 +51,26 @@ two `PlayerState` fields, two `Condition` variants, both old names renamed becau
 3. **A census walk over a def has TWO axes** — how exhaustively it reaches, and whether what it
    reaches is CODE or PROSE. This batch's own roster gate defended the first in its module doc and
    was blind to the second: a `Debug` render counted a `Completeness` note as a declaration.
-   **Use `decision_site_walk::def_contains_variant`**; its `PROSE_FIELDS` already carries the
-   `Completeness` variant keys. (`OOS-DX53-2`.)
+   **Use `decision_site_walk::def_contains_variant`** — and the mechanism is that its string arm
+   matches a variant name **EXACTLY**, NOT the `PROSE_FIELDS` denylist, which is never consulted
+   on a sentence-shaped note. (The first draft of this bullet credited `PROSE_FIELDS`; the
+   `/review` refuted it. A later batch adding a key there to "harden" a census would do nothing —
+   `OOS-DX49`: a reason is the half the next batch reuses.) And **fixing R1/R3 while leaving R2 on
+   the old walk is the shape that shipped here**: R2 was the only test whose job is to find an
+   UNDECLARED member, so it was the one most exposed. (`OOS-DX53-2`.)
+
+3b. **A source gate that enumerates the MUTATING forms is unbounded and fails OPEN.** Enumerate the
+   READ forms instead — 8 method names — so an unknown method is an offender rather than a pass;
+   add a preceding-path `&mut` axis (`OOS-DX51-6`'s aliased binding); and make an allowlist entry
+   carry an EXACT COUNT, because a file-scoped presence check exempts the whole file rather than
+   the one mechanism that earned it (`OOS-DX48`'s duplicated-call defeat). This batch's gate was
+   defeated on **both** and is now RED on both. (`OOS-DX53-4`.)
+
+3c. **A probe whose FIXTURE cannot produce the state its assertion is about is vacuous, and "the
+   stack emptied" is not evidence that anything resolved.** `c1` asserted a hideaway card resolving
+   against an EMPTY exile zone, because the fixture placed the land on the battlefield and no ETB
+   ever fired. The tell is an assertion that cannot distinguish *"it worked"* from *"there was
+   nothing to work on"*. (`OOS-DX53-5`.)
 4. **Assert a revert PATCH APPLIED before reading any verdict**, and key the build-failure detector
    on `^error\[E` / `could not compile` — not `^error:`, which cargo also prints for ordinary test
    failures. This matrix got both wrong once each and caught both before publishing.

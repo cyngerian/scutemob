@@ -545,8 +545,11 @@ pub struct PlayerState {
     /// alongside `attacked_this_turn` in `handle_declare_attackers`; reset for ALL
     /// players at each turn boundary in `reset_turn_state`. Used ONLY by
     /// `Condition::YouAttackedWithNOrMoreThisDeclaration`, which is CR 508.3d's
-    /// per-declaration trigger gate ("Whenever [a player] attacks ... if one or more
-    /// creatures ... are declared as attackers") -- e.g. `legions_landing`. Only
+    /// per-declaration trigger gate -- verbatim: "An ability that reads 'Whenever
+    /// [a player] attacks, . . .' triggers if one or more creatures that player
+    /// controls are declared as attackers." (The first draft elided this into a
+    /// "Whenever ... if ..." shape the rule does not have.) E.g. `legions_landing`.
+    /// Only
     /// creatures actually declared as attackers count -- creatures put onto the
     /// battlefield attacking (CR 508.4) do NOT set this. On a turn with multiple
     /// combats (CR 500.8, Aggravated Assault etc.) this field is OVERWRITTEN by each

@@ -39,12 +39,16 @@ pub fn card() -> CardDefinition {
             // deduplicated attack-count gate -- Condition::YouAttackedWithNOrMoreCreaturesThisTurn
             // reads PlayerState.creatures_declared_as_attackers_this_turn (an OrdSet<ObjectId>,
             // deduplicated by CR 400.7 identity, CR 508.4 entrants excluded by construction).
-            // An earlier version of this file carried a comment asserting that no engine
-            // primitive could express a count-based attack condition and citing a Condition
-            // variant that never existed under that name. That claim was already false at the
-            // time this file was authored: an attack-count Condition variant has existed since
-            // PB-OS6 (2026-07-19). PB-DX53 gives the per-turn scope its own correctly-named
-            // variant, which is what this ability now reads.
+            // An earlier version of this file carried an ENGINE-BLOCKED comment asserting
+            // that no engine primitive could express a count-based attack condition, and
+            // naming a `Condition` variant that never existed under that spelling. Stated
+            // precisely, because the first replacement for it overcorrected and was itself
+            // false: that note was TRUE WHEN WRITTEN -- it is present in `b6f748f8`
+            // (2026-07-10) and `Condition::YouAttackedWithNOrMore` was not added until
+            // PB-OS6's `bc79a72c` (2026-07-19). It ROTTED, outliving by nine days the commit
+            // that falsified it, and was still false at HEAD when PB-DX53 read it
+            // (`OOS-DX47-6`'s shape). It was never false at authoring time, and a comment
+            // that says so is the same defect one direction over.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {

@@ -12,7 +12,9 @@
 // (scutemob-200, `OOS-M11-9`) closed the WITHIN-one-combat half of the resulting defect: the
 // engine now rejects a second `DeclareAttackers` in the same combat
 // (`GameStateError::AlreadyDeclaredAttackers`). The EXTRA-COMBAT half survived that fix,
-// because a fresh `CombatState` is installed at each `BeginningOfCombat` (CR 500.8/506.5):
+// because a fresh `CombatState` is installed at each `BeginningOfCombat` (CR 500.8 adds the
+// phase; CR 506.1 gives every combat phase its own declare-attackers step -- NOT CR 506.5,
+// which defines "attacks alone" and was the first draft's cite):
 // attacking with three in combat 1 and then one in combat 2 dropped the count to one and this
 // land went dead for the rest of the turn, which the printed card does not do (ruling
 // 2007-10-01: "at any point in the turn"). It was also not deduplicated by creature.
