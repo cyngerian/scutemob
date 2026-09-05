@@ -17,6 +17,43 @@
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | — | available | — | (**PB-DX57 `scutemob-236` SHIPPED 2026-09-05 — task 3 of 5 of the SECOND approved chain (ranks 19-23). **OOS-DX28-1** and **OOS-DX28-6** CLOSED **as CLASSES**, **OOS-DX28-5**, **OOS-DX26-3** and **OOS-DX21-7** CLOSED, and **OOS-ADJ-2** — already taken by PB-DX42b — VERIFIED BY EXECUTION on both halves rather than redone. The fingerprint class is **35 members**, PRINTED by a test; **three were already stale** when censused and a fourth was found by the repairs. **The DX28-5 instance had ALREADY REGROWN**: PB-DX28 widened the list to six and `Splice.targets` arrived one batch later via PB-DX18, with the compiler, both wire gates and the walk all structurally blind to it. `OOS-DX21-7`'s sweep read 216 candidate functions in full, repaired 17 sites with 19 guard-removal proofs all RED, and the new gate then found an **18th the sweep missed**. **EVERY gate this batch wrote was DEFEATED** — five of five in adversarial round 1, five more in round 2 (three of them completely, whole test target green), and FOUR more by the `/review`: **fourteen in all**, every one re-keyed and re-executed RED. One defeat was **re-attributed with evidence** and turned out to be about four OTHER parsers in the tree whose declaration lookups are ORDER-DEPENDENT; the `/review`'s sharpest was that two of this batch's own regression gates were pinning a **COPY** of the parser they claim to check, so reverting the exact bug this batch had just fixed left them GREEN. Wire NONE as predicted, both gates executed unmoved, **0 engine lines**. Filed `OOS-DX57-1..5`. Next is **PB-DX9, rank 22****) (**PB-DX56 `scutemob-235` SHIPPED 2026-09-05 — task 2 of 5 of the SECOND approved chain (ranks 19-23). **OOS-FB1-1** (the prerequisite), **OOS-DX32-1** and **OOS-DX22-8** ALL CLOSED, plus the rider **OOS-DP9-19(b)**. The fuzzer's HARD bucket goes **291 → 0** on the standard invocation, so `--stop-on-error` no longer halts. BOTH filed figures were re-measured FIRST and neither reproduces, both UP (189 across 11 of 20, and 102 across 7). `player_consistency` is TWO ARMS the CR gives OPPOSITE dispositions and every document in the chain treated them as one; `attachment_validity` watched the direction that HEALS while the direction that never does had no check at all. The adversarial bypass pass defeated SEVEN of eight shipped gates, and the `/review` then found THREE MORE — **eleven in all, all now RED**. Next is **PB-DX57, rank 21****) (**PB-DX55 `scutemob-234` SHIPPED 2026-09-05 — task 1 of 5 of the SECOND approved chain (ranks 19-23: PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38, exactly five, sequential, collect-before-next); ALL THREE of its seeds — `OOS-SIM6-3`, `OOS-SIM5-3`, `OOS-SIM5-5` — were FILED (none had a registry row, the second batch running) and CLOSED, plus the rider `OOS-DX51-3`; the bot refusal surface goes 70 → 9 and the memo §2.6 table is refuted in three directions; next is PB-DX56, rank 20**) (**PB-DX42b `scutemob-233` SHIPPED 2026-09-05 — task 5 of 5, the LAST of the FIRST approved chain; v4 ranks 1-18 ALL SHIPPED**neither headline seed had a registry row**: six of the adjudication §6's seven `OOS-ADJ-*` seeds were never registered**) (**PB-DX54 `scutemob-232` SHIPPED 2026-09-05 — task 4 of 5 of the approved chain**) (**PB-DX53 `scutemob-231` SHIPPED 2026-09-05 `5b54081d` — task 3 of 5 of the approved chain; next is PB-DX54, rank 17, dispatching; then PB-DX42b (rank 18) is the LAST**) (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**) |
 
+## Last Handoff (oversight session, 2026-09-05) — course correction; DX57 collected
+
+**Date**: 2026-09-05 (oversight session)
+**Workstream**: W6 → course correction (`docs/course-correction-2026-09.md`)
+**Task**: collected `scutemob-236` (PB-DX57, merge `cb6980f2`); filed `scutemob-237..254`
+
+**Completed**:
+- Independent audit of the tree at `8604207e`; `docs/course-correction-2026-09.md` written,
+  reviewed section by section with the owner, and APPROVED; the parallel addendum reconciled (§9).
+- Owner decisions: Commander; hot-seat match one; decks as export + generated plain list; judge
+  button pulled into P1; **second v4 chain CLOSED at rank 21** (PB-DX9 / PB-DX38 NOT dispatched).
+- 18 tasks filed with dependencies (`scutemob-237..254`, doc §10). PB-DX57 collected normally;
+  state-sync repointed every "next dispatch: PB-DX9" line to the chain-closed decision.
+
+**Not done / deferred**:
+- The coordinator batch (CC-1, 2, 3, 4, 14, 15, 17) — next session, no dispatch needed.
+- CC-5 (decklists) needs the owner.
+
+**Next session candidates** (highest-yield first):
+1. CC-1 (`scutemob-237`): CLAUDE.md < 250 lines, Current State archived verbatim, THIS FILE
+   rotated to `memory/archive/workstream-state-2026-09-05.md`, `CHANGELOG.md` seeded.
+2. CC-2/3/4/14/15/17 in the same session.
+3. Then CC-5 → CC-6 → CC-8.
+
+**Operator-delta line** (what can a player observe now that they could not at the last handoff?):
+nothing — PB-DX57 is tests-only (0 engine lines). This is the first of the two empty entries
+that §5.2 of the course-correction doc says forces a pod-facing item to the front; CC-9 is it.
+
+**Hazards** (carrying forward):
+- Every "Next dispatch" pointer above the §10 task table is HISTORICAL; the v4 memo banner,
+  CLAUDE.md lines 131/354 and this file all say CHAIN CLOSED. Do not `/dispatch` from the v4 queue.
+- `feedback_queue_autonomous_chaining` is still RETRACTED — every dispatch needs owner approval.
+
+**Commit prefix used**: `chore:` / `merge:`
+
+---
+
 ## Last Handoff (worker, 2026-09-05) — PB-DX57 / `scutemob-236`
 
 **v4 queue rank 21, task 3 of 5 of the SECOND approved chain. `OOS-DX28-1` and `OOS-DX28-6` CLOSED
