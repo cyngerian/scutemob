@@ -390,3 +390,20 @@ than one.
 source gate is telling you the behaviour has no probe. Both drive a **real
 `Command::ActivateLoyaltyAbility`** rather than a hand-built `StackObject`, so the classification
 is proven on a shape production can actually produce (`OOS-DX47-4`'s naked-`ObjectSpec` lesson).
+
+### Coverage regeneration, RUN rather than shortcut
+
+`python3 tools/authoring-report.py` against the tree:
+
+```
+1,803 files | clean 1,140 (63.2%) | todo 516 | empty 147
+```
+
+**Identical to PB-DX53's close in every bucket** — clean 1,140, todo 516, empty 147 — so
+coverage is **UNMOVED at 1,140/1,803 = 63.2%** with **0 flips**, exactly as predicted before the
+run. The only diff against the committed report is self-dating churn (the generation timestamp,
+the branch/SHA line, and the delta columns, which read `+1 / -1` on the committed copy because
+PB-DX53's flip is what they are measuring against); all three generated files reverted.
+
+The empty card-def diff made the shortcut available and it was **not taken** — the regeneration
+was run anyway, which is the standing rule in this queue.
