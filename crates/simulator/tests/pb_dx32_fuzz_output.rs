@@ -1194,24 +1194,45 @@ fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     // source simply is not drawn at this budget any more. Nothing about the engine's
     // willingness to SERVE the row changed -- `decision_site_walk`'s partition is
     // untouched.
+    // PB-DX55 Half 1 (2026-09-05, `OOS-SIM6-3`): the reached set GROWS 4 -> 7 --
+    // `look_at_top_then_place_optional`, `may_pay_then_effect` and `surveil` all
+    // JOIN the served set, and none LEAVES it. **Attributed by an EXECUTED
+    // ablation, not argued, and it is a MECHANISM movement, not a re-deal**: this
+    // batch makes ZERO card-def edits, so `CORPUS_COMPLETE` and every seeded
+    // deck are byte-identical to the PB-DX53 pin. Reverting ONLY
+    // `LocalGame::auto_tap_commands_for` to its pre-batch `Command::CastSpell`
+    // narrowing (`legal_actions::command_mana_cost` and the rest of the fix left
+    // in the tree) reproduces the PRE-PB-DX55 reached set EXACTLY (4 of 7:
+    // triggered_targets, search_library, scry, discard_cards), so the movement is
+    // this batch's own mechanism and nothing else. The reason a wider auto-tapper
+    // moves THIS gate at all: `may_pay_then_effect` (CR 118.12) and
+    // `look_at_top_then_place_optional` are asked only once an eligible payer can
+    // actually AFFORD the optional cost, and `surveil`'s only reachable corpus
+    // source needs an activated ability paid for -- before this batch, bots
+    // routinely could not pay activation costs beyond whatever happened to
+    // already be floating (18 `InsufficientMana` refusals on the
+    // `sim5_bot_cast_discipline` A/B, stage 0), so those resolution paths were
+    // starved of the funded activations that lead to them. Nothing about
+    // `decision_site_walk`'s partition changed -- every row was already SERVABLE;
+    // this batch is what lets bots actually REACH more of them.
     let expected_reached: BTreeSet<&str> = [
         "triggered_targets",
         "search_library",
         "scry",
         "discard_cards",
+        "look_at_top_then_place_optional",
+        "may_pay_then_effect",
+        "surveil",
     ]
     .into_iter()
     .collect();
     assert_eq!(
         reached, expected_reached,
         "the reached/never-reached partition of a 10-seed x 60-turn fuzz-shaped run \
-         changed from the measured baseline (4 of 7 served rows: triggered_targets, \
-         search_library, scry, discard_cards; look_at_top_then_place_optional, \
-         may_pay_then_effect and surveil never reached at this budget — re-observed by \
-         PB-DX53 after the CORPUS_COMPLETE 1139 -> 1140 re-deal, which is what dropped \
-         look_at_top_then_place_optional from the served set; the first draft of this \
-         message kept listing it as reached and still said 5 of 7, contradicting the \
-         pin three lines above it). \
+         changed from the measured baseline (7 of 7 served rows: triggered_targets, \
+         search_library, scry, discard_cards, look_at_top_then_place_optional, \
+         may_pay_then_effect, surveil — re-observed by PB-DX55 after the auto-tap \
+         widening, attributed by an executed ablation, see the comment above). \
          Report this as a finding (does the engine now serve fewer/more decisions, or \
          did an unrelated change move which cards get drawn/cast) rather than \
          silently re-tuning the seed range to make it pass: reached {reached:?}, \

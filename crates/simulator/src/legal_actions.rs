@@ -9,7 +9,7 @@ use mtg_engine::cards::card_definition::{Cost, GiftType};
 use mtg_engine::state::game_object::SacrificeFilter;
 use mtg_engine::{
     apply_commander_tax, AbilityDefinition, ActivatedAbility, AdditionalCost, AltCostKind,
-    AttackTarget, CardType, Color, CounterType, EffectChoiceAnswer, EffectChoiceQuestion,
+    AttackTarget, CardType, Color, Command, CounterType, EffectChoiceAnswer, EffectChoiceQuestion,
     EffectDuration, FaceDownKind, FlashGrantFilter, GameObject, GameRestriction, GameState,
     HybridMana, HybridManaPayment, KeywordAbility, ManaColor, ManaCost, ObjectId, PhyrexianMana,
     PlayerId, SpellAdditionalCost, Step, SubType, Target, TriggerTargetOption, TurnFaceUpMethod,
@@ -784,17 +784,25 @@ impl LegalActionProvider for StubProvider {
         // player activate mana abilities first -- so TapForMana must stay available
         // alongside these. Appending (not early-returning) is deliberate: the commander-zone
         // and mulligan blocks above early-return because those decisions genuinely exclude
-        // everything else, but a payment must not -- the engine's payment path reads only
-        // the pool (it never auto-taps), so early-returning would make `pay: true` reachable
-        // only when the pool happens to already be funded.
+        // everything else, but a payment must not.
+        //
+        // PB-DX55 Half 1 (`OOS-SIM6-3`'s under-offer dual): this used to read
+        // "the engine's payment path reads only the pool (it never auto-taps), so
+        // early-returning would make `pay: true` reachable only when the pool
+        // happens to already be funded" -- true when it was written, and false now.
+        // `LocalGame::auto_tap_commands_for` funds a `pay: true` answer through
+        // `legal_actions::command_mana_cost` exactly like a `CastSpell`, prepending
+        // `TapForMana` commands in the SAME atomic `apply_sequence` -- nothing here
+        // blocks OTHER commands from being applied while a pending payment is
+        // outstanding (unlike `PendingEffectChoice`'s admission gate), so the gate
+        // below is widened from `can_pay_cost(&pool, ..)` (pool ONLY) to
+        // `can_afford` (pool + untapped sources, the same function the tap plan
+        // itself is built from) -- SR-38 by construction, not by two functions that
+        // happen to agree.
         //
         // Not answering is a legal decline (CR 118.12a); the engine applies it at the
         // boundary. `pay: false` is always offered; `pay: true` is gated on affordability
         // (SR-38: never offer a payment the engine will reject).
-        let pool = state
-            .player(player)
-            .map(|p| p.mana_pool.clone())
-            .unwrap_or_default();
         for (owing, permanent, cost) in state.pending_echo_payments().iter() {
             if *owing != player {
                 continue;
@@ -803,7 +811,7 @@ impl LegalActionProvider for StubProvider {
                 permanent: *permanent,
                 pay: false,
             });
-            if mtg_engine::rules::casting::can_pay_cost(&pool, cost) {
+            if can_afford(state, player, cost) {
                 actions.push(LegalAction::PayEcho {
                     permanent: *permanent,
                     pay: true,
@@ -829,10 +837,7 @@ impl LegalActionProvider for StubProvider {
                 .unwrap_or(0);
             let affordable = match per_counter_cost {
                 mtg_engine::CumulativeUpkeepCost::Mana(mc) => {
-                    mtg_engine::rules::casting::can_pay_cost(
-                        &pool,
-                        &multiply_mana_cost(mc, age_count),
-                    )
+                    can_afford(state, player, &multiply_mana_cost(mc, age_count))
                 }
                 // CR 119.4 / 119.4b: mirrors engine.rs Change 2e's affordability gate.
                 // Fix cycle (T7): short-circuit on a total of 0 BEFORE comparing against
@@ -840,7 +845,8 @@ impl LegalActionProvider for StubProvider {
                 // exactly. Without this, a Life(0) cost at a negative life_total (itself
                 // reachable -- nothing clamps life_total at 0) was withheld here even
                 // though the engine always accepts it -- a real divergence from the
-                // engine this provider claims to mirror (SR-38).
+                // engine this provider claims to mirror (SR-38). Life is never fundable
+                // by auto-tap, so this arm is deliberately NOT widened to `can_afford`.
                 mtg_engine::CumulativeUpkeepCost::Life(amount) => {
                     let total = amount * age_count;
                     total == 0 || life_total >= total as i32
@@ -861,7 +867,7 @@ impl LegalActionProvider for StubProvider {
                 recover_card: *recover_card,
                 pay: false,
             });
-            if mtg_engine::rules::casting::can_pay_cost(&pool, cost) {
+            if can_afford(state, player, cost) {
                 actions.push(LegalAction::PayRecover {
                     recover_card: *recover_card,
                     pay: true,
@@ -1237,6 +1243,28 @@ impl LegalActionProvider for StubProvider {
                             None => continue,
                         }
                     } else {
+                        // PB-DX55 Half 1 (`OOS-SIM6-3`): before this batch this
+                        // ability's own mana cost (a Signet's "{1}, {T}: Add
+                        // {C}{C}") was never funded by auto-tap at all, so this
+                        // branch offered it unconditionally and left
+                        // `handle_tap_for_mana` to refuse it at apply time --
+                        // exactly the SR-38 gap this batch closes. `obj` (the
+                        // permanent this SAME activation is about to tap) is
+                        // excluded from its own funding pool, mirroring the
+                        // ActivateAbility loop above and
+                        // `objects_excluded_from_funding`'s doc.
+                        if let Some(mc) = ability.mana_cost.as_ref() {
+                            if crate::mana_solver::solve_mana_payment_with_pool_excluding(
+                                state,
+                                player,
+                                mc,
+                                std::slice::from_ref(&obj.id),
+                            )
+                            .is_none()
+                            {
+                                continue;
+                            }
+                        }
                         (vec![], vec![])
                     };
                     actions.push(LegalAction::TapForMana {
@@ -1395,8 +1423,27 @@ impl LegalActionProvider for StubProvider {
                 } else {
                     // Basic mana check (no hybrid/Phyrexian pips — the raw cost's
                     // standard fields already fully describe what must be paid).
+                    //
+                    // PB-DX55 Half 1 (`OOS-SIM6-3`): `can_afford` alone is wrong here
+                    // in the SAME direction the fix removes elsewhere -- if this
+                    // ability's own cost requires tapping `obj` itself (Karn's
+                    // Bastion's "{4}, {T}: Proliferate." beside its own "{T}: Add
+                    // {C}."), `obj` cannot ALSO be counted as a mana source for
+                    // funding its own activation. See
+                    // `objects_excluded_from_funding`'s doc for the full account;
+                    // this is the offer-side half of the same fix, so the offer and
+                    // `LocalGame::auto_tap_commands_for` cannot disagree.
                     if let Some(ref cost) = ability.cost.mana_cost {
-                        if !can_afford(state, player, cost) {
+                        let excluded: &[ObjectId] = if ability.cost.requires_tap {
+                            std::slice::from_ref(&obj.id)
+                        } else {
+                            &[]
+                        };
+                        if crate::mana_solver::solve_mana_payment_with_pool_excluding(
+                            state, player, cost, excluded,
+                        )
+                        .is_none()
+                        {
                             continue;
                         }
                     }
@@ -2316,6 +2363,482 @@ pub fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCo
         return false;
     }
     crate::mana_solver::solve_mana_payment_with_pool(state, player, cost).is_some()
+}
+
+/// CR 601.2f/602.2a/508.1h/701.40 et al. (PB-DX55 Half 1, `OOS-SIM6-3`): the mana
+/// cost the engine will actually charge if `command` is applied right now, or `None`
+/// if `command` carries no mana component for `auto_tap_commands_for` to fund.
+///
+/// **Exhaustive over `Command`, with NO wildcard arm, deliberately.** A 46th
+/// variant that charges mana is a compile error here until someone classifies it —
+/// that is the whole point of writing this as a `match` rather than an `if let`
+/// chain, and it is what makes the census below a CEILING rather than a floor (the
+/// failure mode `OOS-CARDS2-7` / `OOS-DX47-2` named for a `grep`-based census: a
+/// floor silently stays a floor forever).
+///
+/// **The census, and where it disagrees with the plan.** Of the 45 `Command`
+/// variants, `params::action_to_command_with_params` can only ever construct 24 of
+/// them (the human `submit` path and the bot `choose_action` path both route through
+/// it — verified by reading `random_bot.rs`/`heuristic_bot.rs`, not assumed), so
+/// `auto_tap_commands_for` can only ever be called with one of those 24. Walking
+/// every caller of `ManaPool::spend`/`casting::pay_cost`/`casting::pay_cost_with_context`
+/// up to its `Command` dispatch arm gives a DIFFERENT set of 24 "this Command family
+/// can charge mana in the engine" variants — it additionally contains `BringCompanion`,
+/// `CycleCard`, `ActivateForecast`, `ForetellCard`, `PlotCard`, `SuspendCard`,
+/// `UnearthCard`, `EmbalmCard`, `EternalizeCard`, `EncoreCard`, `ActivateNinjutsu`,
+/// `ScavengeCard`, `ActivateCraft` and `LevelUpClass` — none of which
+/// `action_to_command_with_params` (equivalently: no `LegalAction`) can ever produce
+/// today — and it additionally contains `AnswerEffectChoice`, which the plan's own
+/// table filed under "charges no mana." That table cell is imprecise: see the
+/// `AnswerEffectChoice` arm below for why it is `None` for a REASON, not because the
+/// claim is true. The intersection of the two 24-element sets is 10 variants, and
+/// that intersection — not either raw 24 — is what this function and
+/// `auto_tap_commands_for` need to get right.
+///
+/// **Known limitation, stated rather than worked around**: the `ActivateAbility` arm
+/// omits CR 601.2f's self-activated-cost-reduction
+/// (`abilities.rs::get_self_activated_reduction`/`evaluate_self_activated_reduction`,
+/// both `fn`-private to `abilities.rs`, the latter calling the engine-private
+/// `effects::matches_filter`). Exposing them is an engine-crate change outside this
+/// half's stated scope (its own wire prediction: "the change is in
+/// `crates/simulator`... No engine type, variant or field is added"). This arm
+/// therefore OVER-reports the activation cost for the 6 corpus defs that declare a
+/// non-empty `activated_ability_cost_reductions` (`boseiju_who_endures`,
+/// `eiganjo_seat_of_the_empire`, `otawara_soaring_city`,
+/// `sokenzan_crucible_of_defiance`, `takenuma_abandoned_mire`, `voldaren_estate`) —
+/// safe-direction (it can only make `auto_tap_commands_for` try to fund MORE than the
+/// engine will actually charge, never less, so it cannot manufacture a clean-offer-
+/// then-refusal; the existing offer-loop in `StubProvider::legal_actions` has this
+/// same blind spot already, pre-existing and unrelated to this batch). Filed as
+/// `OOS-DX55-9` for whoever next touches this arm.
+///
+/// **The `CastSpell` arm is BYTE-IDENTICAL to the pre-PB-DX55 body of
+/// `auto_tap_commands_for`** — moved here, not rewritten. In particular it does NOT
+/// flatten hybrid/Phyrexian pips using `cast.hybrid_choices`; the solver's own
+/// `PipTracker::from_cost` flattens with all-default choices regardless, and that
+/// asymmetry with the command's real choices is PRE-EXISTING (filed as
+/// `OOS-DX55-8`, not fixed here, so this batch's fuzz A/B measures only what it
+/// changed). The NEW arms below have no prior behaviour to preserve, so they flatten
+/// with the command's OWN `hybrid_choices`/`phyrexian_life_payments` where the
+/// command carries them (PB-DX44's rule: pass the `Command`'s own values verbatim —
+/// `&[]` there is the wrong first draft) via the inherent
+/// `ManaCost::flatten_hybrid_phyrexian`, the same method every engine payment site
+/// this arm mirrors calls.
+pub fn command_mana_cost(
+    state: &GameState,
+    player: PlayerId,
+    command: &Command,
+) -> Option<ManaCost> {
+    match command {
+        // ── CR 601 (covered before this batch; moved, not rewritten) ──────────────
+        Command::CastSpell(cast) => {
+            let mut cost = effective_cast_cost_with_additional(
+                state,
+                player,
+                cast.card,
+                &cast.additional_costs,
+                &cast.modes_chosen,
+                cast.alt_cost,
+            )?;
+            cost.generic = cost
+                .generic
+                .saturating_add(cast.x_value.saturating_mul(cost.x_count));
+            Some(cost)
+        }
+
+        // ── CR 602.2a/602.2b (`OOS-SIM6-3`'s headline): the layer-resolved
+        // activation cost of a non-mana activated ability, mirroring
+        // `abilities.rs::handle_activate_ability`'s derivation up to (not including)
+        // the CR 601.2f self-cost-reduction step — see this function's own doc.
+        Command::ActivateAbility {
+            source,
+            ability_index,
+            x_value,
+            hybrid_choices,
+            phyrexian_life_payments,
+            ..
+        } => {
+            let resolved = mtg_engine::rules::layers::calculate_characteristics(state, *source)?;
+            let ability = resolved.activated_abilities.get(*ability_index)?;
+            let mana_cost = ability.cost.mana_cost.as_ref()?;
+            let mut resolved_cost = mana_cost.clone();
+            let xv = x_value.unwrap_or(0);
+            if resolved_cost.x_count > 0 {
+                resolved_cost.generic += resolved_cost.x_count * xv;
+                resolved_cost.x_count = 0;
+            } else if xv > 0 {
+                resolved_cost.generic += xv;
+            }
+            let (flat_cost, _phyrexian_life) =
+                if !resolved_cost.hybrid.is_empty() || !resolved_cost.phyrexian.is_empty() {
+                    resolved_cost
+                        .flatten_hybrid_phyrexian(hybrid_choices, phyrexian_life_payments)
+                        .ok()?
+                } else {
+                    (resolved_cost, 0)
+                };
+            Some(flat_cost)
+        }
+
+        // ── CR 605.1a/602.2b (`OOS-SIM6-3`): a mana ability's OWN activation cost —
+        // a filter land's `{B/R}, {T}: ...` — funded by tapping OTHER sources first.
+        // Mirrors `mana.rs::handle_tap_for_mana`'s cost derivation; every other
+        // legality check in that function is re-validated by the engine at apply
+        // time, so this arm only needs the flattened mana component.
+        Command::TapForMana {
+            source,
+            ability_index,
+            hybrid_choices,
+            phyrexian_life_payments,
+            ..
+        } => {
+            let resolved = mtg_engine::rules::layers::calculate_characteristics(state, *source)?;
+            let ability = resolved.mana_abilities.get(*ability_index)?;
+            let mana_cost = ability.mana_cost.as_ref()?;
+            let (flat_cost, _phyrexian_life) =
+                if !mana_cost.hybrid.is_empty() || !mana_cost.phyrexian.is_empty() {
+                    mana_cost
+                        .flatten_hybrid_phyrexian(hybrid_choices, phyrexian_life_payments)
+                        .ok()?
+                } else {
+                    (mana_cost.clone(), 0)
+                };
+            Some(flat_cost)
+        }
+
+        // ── CR 508.1h (`OOS-SIM6-3`): the accumulated attack-tax total, via the
+        // SAME `queries::attack_tax_total` query `handle_declare_attackers`'s own
+        // validation consults — see that query's doc for the canonical copy-major
+        // order `hybrid_choices`/`phyrexian_life_payments` index against, and its
+        // stated "`None` does not always mean free" residue (`OOS-DX6-1`, untouched
+        // by this batch: an X-only restriction is unrepresentable on this command
+        // either way, funded or not).
+        Command::DeclareAttackers {
+            attackers,
+            hybrid_choices,
+            phyrexian_life_payments,
+            ..
+        } => {
+            let total = mtg_engine::rules::queries::attack_tax_total(state, player, attackers)?;
+            let (flat_cost, _phyrexian_life) =
+                if !total.hybrid.is_empty() || !total.phyrexian.is_empty() {
+                    total
+                        .flatten_hybrid_phyrexian(hybrid_choices, phyrexian_life_payments)
+                        .ok()?
+                } else {
+                    (total, 0)
+                };
+            Some(flat_cost)
+        }
+
+        // ── CR 701.40b/702.37e/702.168d (`OOS-SIM6-3`): the Morph/Megamorph/
+        // Disguise/mana-cost turn-face-up cost, mirroring
+        // `engine.rs::handle_turn_face_up`'s own three-armed cost derivation.
+        Command::TurnFaceUp {
+            permanent,
+            method,
+            hybrid_choices,
+            phyrexian_life_payments,
+            ..
+        } => {
+            let obj = state.object(*permanent).ok()?;
+            let card_id = obj.card_id.clone()?;
+            let def = state.card_registry().get(card_id)?;
+            let raw_cost: ManaCost = match method {
+                TurnFaceUpMethod::MorphCost => def.abilities.iter().find_map(|a| match a {
+                    AbilityDefinition::Morph { cost } | AbilityDefinition::Megamorph { cost } => {
+                        Some(cost.clone())
+                    }
+                    _ => None,
+                })?,
+                TurnFaceUpMethod::DisguiseCost => def.abilities.iter().find_map(|a| match a {
+                    AbilityDefinition::Disguise { cost } => Some(cost.clone()),
+                    _ => None,
+                })?,
+                TurnFaceUpMethod::ManaCost => def.mana_cost.clone()?,
+            };
+            let (flat_cost, _phyrexian_life) =
+                if !raw_cost.hybrid.is_empty() || !raw_cost.phyrexian.is_empty() {
+                    raw_cost
+                        .flatten_hybrid_phyrexian(hybrid_choices, phyrexian_life_payments)
+                        .ok()?
+                } else {
+                    (raw_cost, 0)
+                };
+            Some(flat_cost)
+        }
+
+        // ── CR 702.92a/602.2b (`OOS-SIM6-3`): the bloodrush activation cost. No
+        // hybrid/Phyrexian flatten here: `Command::ActivateBloodrush` carries no
+        // `hybrid_choices`/`phyrexian_life_payments` fields at all, matching
+        // `handle_activate_bloodrush`'s own RAW-cost payment (a pre-existing gap in
+        // the engine, not introduced or widened here — zero corpus bloodrush def
+        // carries a hybrid or Phyrexian pip).
+        Command::ActivateBloodrush { card, .. } => {
+            let card_id = state.object(*card).ok()?.card_id.clone()?;
+            let def = state.card_registry().get(card_id)?;
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Bloodrush { cost, .. } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        }
+
+        // ── CR 702.30a (`OOS-SIM6-3`'s under-offer dual): the echo cost is stored
+        // verbatim on `pending_echo_payments` when the trigger resolves
+        // (`resolution.rs`), so this reads the SAME recorded cost
+        // `handle_pay_echo` will charge — never re-derived from the card. `pay:
+        // false` funds nothing (the permanent is sacrificed, not paid for).
+        Command::PayEcho { permanent, pay, .. } => {
+            if !*pay {
+                return None;
+            }
+            for (owing, perm, cost) in state.pending_echo_payments().iter() {
+                if *owing == player && *perm == *permanent {
+                    return Some(cost.clone());
+                }
+            }
+            None
+        }
+
+        // ── CR 702.24a (`OOS-SIM6-3`'s under-offer dual): total = per-counter cost
+        // x the permanent's CURRENT age-counter count (CR 702.24b), mirroring
+        // `handle_pay_cumulative_upkeep`'s `Mana` arm exactly, including the
+        // necessary duplicate `multiply_mana_cost` this file already carries
+        // (`OOS-DP4-7` — the engine's own copy is `fn`-private to `engine.rs`).
+        // `CumulativeUpkeepCost::Life` has no mana component to fund at all.
+        Command::PayCumulativeUpkeep { permanent, pay, .. } => {
+            if !*pay {
+                return None;
+            }
+            for (owing, perm, per_counter_cost) in state.pending_cumulative_upkeep_payments().iter()
+            {
+                if *owing == player && *perm == *permanent {
+                    return match per_counter_cost {
+                        mtg_engine::CumulativeUpkeepCost::Mana(mc) => {
+                            let age_count = state
+                                .object(*permanent)
+                                .ok()
+                                .and_then(|obj| obj.counters.get(&CounterType::Age).copied())
+                                .unwrap_or(0);
+                            Some(multiply_mana_cost(mc, age_count))
+                        }
+                        mtg_engine::CumulativeUpkeepCost::Life(_) => None,
+                    };
+                }
+            }
+            None
+        }
+
+        // ── CR 702.59a (`OOS-SIM6-3`'s under-offer dual): the recover cost is
+        // stored verbatim on `pending_recover_payments`, mirroring
+        // `handle_pay_recover`'s own recorded-cost read. `pay: false` exiles the
+        // card instead of paying for it.
+        Command::PayRecover {
+            recover_card, pay, ..
+        } => {
+            if !*pay {
+                return None;
+            }
+            for (owing, card, cost) in state.pending_recover_payments().iter() {
+                if *owing == player && *card == *recover_card {
+                    return Some(cost.clone());
+                }
+            }
+            None
+        }
+
+        // ── No mana component at all — each checked against its own handler,
+        // never assumed from the command's name ────────────────────────────────
+        // CR 117.3d: passing priority is free.
+        Command::PassPriority { .. } => None,
+        // CR 104.3a: conceding is free.
+        Command::Concede { .. } => None,
+        // CR 305.1: playing a land is a special action with no cost of any kind.
+        Command::PlayLand { .. } => None,
+        // CR 509.1: declaring blockers has no cost (CR 509.1b's block restrictions
+        // are legality, not a mana component).
+        Command::DeclareBlockers { .. } => None,
+        // CR 509.2: choosing damage-assignment order has no cost.
+        Command::OrderBlockers { .. } => None,
+        // CR 616.1: choosing replacement order has no cost.
+        Command::OrderReplacements { .. } => None,
+        // CR 903.9a: returning a commander to the command zone is free.
+        Command::ReturnCommanderToCommandZone { .. } => None,
+        // CR 903.9a: declining to return a commander is free.
+        Command::LeaveCommanderInZone { .. } => None,
+        // CR 103.5: taking a mulligan has no mana cost.
+        Command::TakeMulligan { .. } => None,
+        // CR 103.5: keeping a hand (and bottoming cards) has no mana cost.
+        Command::KeepHand { .. } => None,
+        // CR 702.52a: dredging substitutes milling library cards for the draw; no
+        // mana is ever involved.
+        Command::ChooseDredge { .. } => None,
+        // CR 702.94a: revealing a miracle card is a free choice — the miracle's own
+        // mana cost, if paid, is paid later through a normal `CastSpell`.
+        Command::ChooseMiracle { .. } => None,
+        // CR 514.1: the cleanup discard turn-based action has no cost.
+        Command::DiscardToHandSize { .. } => None,
+        // CR 603.3d: announcing a trigger's targets has no cost of its own.
+        Command::ChooseTriggerTargets { .. } => None,
+        // CR 702.122a/702.171a: crewing/saddling costs are "tap creatures with
+        // total power >= N" — a `SacrificeFilter`-shaped tap cost, never a
+        // `ManaCost`. Neither `ActivationCost` nor the crew/saddle handlers
+        // reference `ManaPool` at all.
+        Command::CrewVehicle { .. } => None,
+        Command::SaddleMount { .. } => None,
+        // CR 701.54a: the Ring tempting a player has no cost.
+        Command::TheRingTemptsYou { .. } => None,
+        // CR 701.49/CR 309: venturing into (or choosing a room within) a dungeon
+        // has no cost.
+        Command::VentureIntoDungeon { .. } => None,
+        Command::ChooseDungeonRoom { .. } => None,
+        // CR 701.27a: `handle_transform` pays nothing — a direct transform has no
+        // cost mechanism of its own (a costed flip is a Morph/Disguise/Manifest
+        // `TurnFaceUp`, handled above, or an effect-driven transform with no
+        // `Command` of its own).
+        Command::Transform { .. } => None,
+        // CR 606: the loyalty cost is loyalty counters, never mana (CR 606.4;
+        // `handle_activate_loyalty_ability` contains no `ManaPool` payment site at
+        // all — checked, not assumed, since this one "looks like it should").
+        Command::ActivateLoyaltyAbility { .. } => None,
+
+        // ── CR 608.2d (`AnswerEffectChoice`): the plan's own table filed this as
+        // "charges no mana," and that is imprecise, not wrong-in-outcome. When the
+        // answer is `EffectChoiceAnswer::PayOptionalCost { pay: true }` for a
+        // `Cost::Mana` question (CR 118.12, PB-DX45), the ENGINE's own
+        // `can_pay_optional_cost` — the pre-check run BEFORE the question is even
+        // asked — already restricts eligibility to the player's FLOATING pool at
+        // that instant (its own doc: "mana costs are payable only from the floating
+        // mana pool at resolution time"), and the admission gate while a
+        // `PendingEffectChoice` is outstanding admits only this command and
+        // `Concede`. So there is no window between the ask and the answer in which
+        // a `TapForMana` could be inserted, atomically or otherwise, and therefore
+        // nothing for a tap PLAN to fund — the pool state at answer time is fixed
+        // by construction, not merely by convention. Returning `None` here is
+        // therefore correct, but for this reason rather than "no mana involved."
+        Command::AnswerEffectChoice { .. } => None,
+
+        // ── Mana-charging in the engine, but UNREACHABLE from this crate today:
+        // `params::action_to_command_with_params` has no `LegalAction` variant that
+        // ever constructs one of these, so `auto_tap_commands_for` can never
+        // receive one in practice (verified: `LegalAction`'s own variant list has
+        // no Companion/Cycle/Forecast/Foretell/Plot/Suspend/Unearth/Embalm/
+        // Eternalize/Encore/Ninjutsu/Scavenge/Craft/LevelUp entry at all). Each one
+        // DOES pay mana in the engine — cited below so a future batch that wires up
+        // the corresponding `LegalAction` finds this arm waiting rather than
+        // silently under-funding it — but authoring that derivation here now would
+        // be scope this half's plan never asked for, and every helper it would need
+        // is `fn`-private to the engine file that has it.
+        // CR 702.139a: pay {3} generic (`commander.rs::handle_bring_companion`).
+        Command::BringCompanion { .. } => None,
+        // CR 702.29a: the cycling cost from `AbilityDefinition::Cycling { cost }`
+        // (`abilities.rs::handle_cycle_card` / `get_cycling_cost`).
+        Command::CycleCard { .. } => None,
+        // CR 702.57a: the forecast cost from `AbilityDefinition::Forecast { cost,
+        // .. }` (`abilities.rs::handle_activate_forecast`).
+        Command::ActivateForecast { .. } => None,
+        // CR 702.143a: a fixed {2} generic (`foretell.rs::handle_foretell_card`).
+        Command::ForetellCard { .. } => None,
+        // CR 702.170a: the plot cost (`plot.rs::handle_plot_card`).
+        Command::PlotCard { .. } => None,
+        // CR 702.62a: the suspend cost (`suspend.rs::handle_suspend_card`).
+        Command::SuspendCard { .. } => None,
+        // CR 702.84a: the unearth cost (`abilities.rs::handle_unearth_card`).
+        Command::UnearthCard { .. } => None,
+        // CR 702.128a: the embalm cost (`abilities.rs::handle_embalm_card`).
+        Command::EmbalmCard { .. } => None,
+        // CR 702.129a: the eternalize cost (`abilities.rs::handle_eternalize_card`).
+        Command::EternalizeCard { .. } => None,
+        // CR 702.141a: the encore cost (`abilities.rs::handle_encore_card`).
+        Command::EncoreCard { .. } => None,
+        // CR 702.97a: the scavenge cost (`abilities.rs::handle_scavenge_card` /
+        // `get_scavenge_cost`).
+        Command::ScavengeCard { .. } => None,
+        // CR 702.49a: the ninjutsu cost (`abilities.rs::handle_ninjutsu` /
+        // `get_ninjutsu_cost`).
+        Command::ActivateNinjutsu { .. } => None,
+        // CR 702.167a: the craft cost (`engine.rs::handle_activate_craft`), plus a
+        // non-mana material-exile component this function's `ManaCost`-only
+        // signature could not express even if it were reachable.
+        Command::ActivateCraft { .. } => None,
+        // CR 716.2a: the target level's cost from `AbilityDefinition::ClassLevel
+        // { level, cost, .. }` (`engine.rs::handle_level_up_class`).
+        Command::LevelUpClass { .. } => None,
+    }
+}
+
+/// PB-DX55 Half 1 (`OOS-SIM6-3`), found while proving `t1` by execution rather
+/// than assumed: a permanent cannot be tapped twice, so any object `command`
+/// is ALREADY going to tap as part of its own (non-mana) cost must be excluded
+/// from the candidate mana-source pool `command_mana_cost`'s caller solves
+/// against — otherwise a permanent that is BOTH a mana source and the very
+/// thing being tapped (Karn's Bastion: "{T}: Add {C}." beside its OWN "{4},
+/// {T}: Proliferate.") gets offered to itself as funding, and the resulting
+/// plan is rejected with `PermanentAlreadyTapped` — a clean offer followed by
+/// a guaranteed refusal, the exact SR-38 shape this whole batch exists to
+/// remove. Reproduced by execution before this function existed: `t1`
+/// (`crates/simulator/tests/pb_dx55_activation_auto_tap.rs`) failed with
+/// exactly that error on its first draft.
+///
+/// **Known limitation, stated rather than worked around**: this covers the
+/// three `Command` variants that can conflict (`ActivateAbility`,
+/// `TapForMana`, `DeclareAttackers`'s non-Vigilance attackers) through the
+/// SAME non-pip path `command_mana_cost` and the offer loop's plain
+/// `can_afford` check use. It does NOT thread through
+/// `resolve_hybrid_phyrexian_plan` (the OFFER's hybrid/Phyrexian pip-choice
+/// path, `pub(crate)`, several calls deep into `try_hybrid_phyrexian_plan`) —
+/// no corpus def combines a hybrid/Phyrexian-pip activated ability with a
+/// mana ability on the SAME permanent (checked: zero `AbilityDefinition::
+/// Activated` defs with a hybrid/Phyrexian-pip cost also declare a
+/// `ManaAbility`), so the gap is currently unreachable rather than merely
+/// untested, and threading `excluded` through that whole call chain is out of
+/// this half's stated scope. Every OTHER `Command` variant needs no
+/// exclusion: `CastSpell` never taps the card being cast, `TurnFaceUp` is a
+/// special action with no `{T}` component of its own, and
+/// `PayEcho`/`PayCumulativeUpkeep`/`PayRecover`/`ActivateBloodrush` never tap
+/// the permanent/card their own cost is paid for.
+pub fn objects_excluded_from_funding(state: &GameState, command: &Command) -> Vec<ObjectId> {
+    match command {
+        Command::ActivateAbility {
+            source,
+            ability_index,
+            ..
+        } => mtg_engine::rules::layers::calculate_characteristics(state, *source)
+            .and_then(|chars| chars.activated_abilities.get(*ability_index).cloned())
+            .filter(|ability| ability.cost.requires_tap)
+            .map(|_| vec![*source])
+            .unwrap_or_default(),
+        Command::TapForMana {
+            source,
+            ability_index,
+            ..
+        } => mtg_engine::rules::layers::calculate_characteristics(state, *source)
+            .and_then(|chars| chars.mana_abilities.get(*ability_index).cloned())
+            .filter(|ability| ability.requires_tap)
+            .map(|_| vec![*source])
+            .unwrap_or_default(),
+        // CR 508.1f: a non-Vigilance attacker is tapped as part of the
+        // declaration itself, so it cannot ALSO fund the SAME declaration's
+        // CR 508.1h attack tax by tapping for mana.
+        Command::DeclareAttackers { attackers, .. } => attackers
+            .iter()
+            .filter_map(|(id, _)| {
+                let chars = mtg_engine::rules::layers::calculate_characteristics(state, *id)?;
+                if chars
+                    .keywords
+                    .contains(&mtg_engine::KeywordAbility::Vigilance)
+                {
+                    None
+                } else {
+                    Some(*id)
+                }
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
 }
 
 /// PB-AC8 / CR 701.21a (UI-2 §1.2): mirrors `effects::object_cant_be_sacrificed`,

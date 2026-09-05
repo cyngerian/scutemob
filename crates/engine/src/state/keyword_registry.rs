@@ -174,7 +174,16 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
             ],
         },
         K::Trample => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
-        K::Vigilance => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
+        // PB-DX55 Half 1 (`OOS-SIM6-3`): `legal_actions::objects_excluded_from_funding`
+        // reads Vigilance to decide whether a declared attacker will be tapped by
+        // the declaration itself (CR 508.1f) and so must be excluded from funding
+        // its own declaration's CR 508.1h attack tax.
+        K::Vigilance => KeywordHandling::Handled {
+            sites: &[
+                "crates/engine/src/rules/combat.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
+        },
         K::Ward(..) => KeywordHandling::Handled {
             sites: &[
                 "crates/engine/src/rules/layers.rs",
