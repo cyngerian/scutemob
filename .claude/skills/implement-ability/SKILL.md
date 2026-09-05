@@ -3,6 +3,11 @@ name: implement-ability
 description: Orchestrate the ability implementation pipeline — pick, plan, implement, review, fix, card, script, close
 ---
 
+
+> **DORMANT DEPENDENCIES (CC-14, 2026-09-05)**: this skill's three agents (`ability-impl-planner`,
+> `ability-impl-runner`, `ability-impl-reviewer`) live in `.claude/agents-dormant/`. Restore them with
+> `git mv` and restart the session before running this skill — see that directory's README.
+
 # Implement Ability
 
 Orchestrate the full ability implementation pipeline. Manages `memory/ability-wip.md` as

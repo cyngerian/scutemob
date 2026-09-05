@@ -172,7 +172,7 @@ And stop.
 
 - **If called standalone** (`/docs check`): check all templates regardless of frequency.
 - **If called from `/done`**: only check templates with `frequency: task` (or no frequency, since task is default). Use `git diff --name-only main..HEAD` for the changed file list.
-- **If called from `/end`**: check templates with `frequency: task` or `frequency: session`. Use the session's full commit range for changed files.
+- **If called from `/eot`** (or the global `/end`): check templates with `frequency: task` or `frequency: session`. Use the session's full commit range for changed files.
 
 When scoped, only check templates whose trigger patterns match at least one changed file.
 
@@ -286,6 +286,6 @@ When inferring triggers for adopted or detected docs, use these defaults:
 
 - The config file is `.claude/docs.yaml` (committed, durable config alongside skills and settings).
 - The `.esm/` directory is for ephemeral state (worker.md, migration.json) — docs config does not go there.
-- `frequency` supports `task` (default, checked on `/done`) and `session` (checked on `/end`).
+- `frequency` supports `task` (default, checked on `/done`) and `session` (checked on `/eot`).
 - When updating a doc, always update the `<!-- last_updated: YYYY-MM-DD -->` comment.
 - Section headings are case-sensitive and must match exactly.
