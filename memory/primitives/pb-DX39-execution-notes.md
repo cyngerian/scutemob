@@ -332,3 +332,94 @@ discriminating evidence, and the file says so in its own doc rather than leaving
 assume otherwise. (`c1` does carry a `require_stack: 1` response-ordering floor proving it
 genuinely reaches the destroyed-in-response condition.) The discriminating evidence for the
 engine change is §2.1's primitive RED plus the executed revert matrix in §6.
+
+---
+
+## §3 THE SECOND DECK-LEGAL SUBJECT IS LIVE-WRONG FOR A DIFFERENT REASON, AND THIS BATCH'S OWN CLAIM ABOUT IT WAS REFUTED BY EXECUTION
+
+`crates/simulator/tests/pb_dx49_saga_blanking_channel.rs`'s module doc records, one batch old
+and in the tree:
+
+> *"**Chapter III** … Its grant is an `EffectFilter::CreaturesYouControl` continuous effect,
+> and that filter resolves its controller through `state.objects.get(&source_id)` at
+> layer-application time … CR 714.4 sacrifices the Saga in the same window it resolves in,
+> **the source id is gone, and the filter matches nothing.** A draft of this file used it and
+> failed on exactly that."*
+
+`binding_the_old_gods` is `Complete` **by derive** (it declares no `Completeness` line at all)
+and therefore **deck-legal**, and it is a member of this batch's census axis (iv). The
+coordinator read that note, connected it to this seed, and published — in a task comment —
+that *"the deck-legal live-wrong count is at least TWO"*. **That was published before it was
+executed, and execution refuted it.**
+
+Measured on a real `LocalGame` human-seat drive, engine untouched, no `objects_mut()` poke:
+
+1. CR 714.3b puts the crossing lore counter on (`CounterAdded { counter: Lore, count: 3 }`).
+2. CR 117.5 runs SBAs **before** putting triggers on the stack, so `rules/sba.rs`'s
+   *"don't sacrifice while a chapter ability is on the stack"* guard does not see a trigger
+   still sitting in `pending_triggers`. The Saga **is** sacrificed and its `ObjectId` retired.
+   **The CR 608.2h condition is genuinely reached.**
+3. With the chapter on the stack and the Saga gone, `lki_objects` reads
+   `Some((PlayerId(1), "Binding the Old Gods"))` — **PB-DX39's capture half works on this card.**
+4. The chapter resolves (`AbilityTriggered` + `AbilityResolved` both in the journal) and
+   **`state.continuous_effects()` is EMPTY.** No `ApplyContinuousEffect` ever ran, so
+   `snapshot_affected_set` was never called and `EffectFilter::CreaturesYouControl` was
+   **never consulted.**
+
+**The symptom reproduces; the stated cause does not.** The real blocker is one link upstream:
+`rules/resolution.rs`'s card-registry fallback for a `PendingTriggerKind::Normal` trigger opens
+with `let obj = state.fizzle_object(source_object);`, and `fizzle_object`
+(`state/diagnostics.rs:373`) is a documented **live-only** `self.objects` lookup that returns
+no LKI. A departed source yields `None`, the arm falls through to `(None, None)`, and **the
+whole ability resolves as a complete no-op.** That is CR 113.7a-wrong (*"an ability exists on
+the stack independently of its source"*) for **every** registry-fallback triggered ability
+whose source has left — not only Sagas. Out of PB-DX39's scope, filed as **`OOS-DX39-3`**.
+
+### §3.1 THE CONSEQUENCE FOR THIS BATCH'S YIELD CLAIM, STATED BEFORE ANYONE ELSE HAS TO FIND IT
+
+`OOS-DX5-3` and `OOS-DX5-7` are closed and `umezawas_jitte` is repaired. But **"this batch
+repairs all 21 deck-legal resolution-site defs" is NOT a claim the evidence supports**, and it
+is withdrawn here rather than left standing in a headline. What the fix guarantees is that
+**the FILTER answers correctly when it is consulted**. Whether a given axis-(iv) member
+*reaches* the filter is a property of its own dispatch path, and at least one deck-legal member
+— `binding_the_old_gods` — provably does not, for a reason one link upstream that this batch
+does not touch. The other 15 axis-(iv) deck-legal members are **unmeasured individually**;
+saying so is worth more than a number nobody executed. *A class fix repairs the arithmetic, not
+every caller's route to it.*
+
+### §3.2 The probe shipped WRONG-WAY-ROUND rather than as the thing that was asked for
+
+The brief asked for two green probes proving the `CreaturesYouControl` half through a real
+`LocalGame` on this card. That is **impossible at HEAD** and the agent said so instead of
+substituting something that looked like it. What shipped:
+
+- `dx39_c4_binding_chapter_iii_grant_is_still_unreachable_and_the_blocker_is_downstream` —
+  a real `LocalGame` drive that genuinely reaches the CR 608.2h condition and pins that the
+  chapter registers **no continuous effect at all**. Its own failure message instructs the next
+  reader to **invert** it for the controller's creatures and **keep it negated** for the
+  opponent's. (The standalone "an opponent must not gain it" probe was deliberately NOT written:
+  today nobody gains the keyword, so it would pass **vacuously**. Both directions live inside
+  `c4` with the asymmetry spelled out.)
+- `dx39_c5_binding_chapter_iii_source_lki_is_captured_while_the_chapter_is_on_the_stack` — the
+  one positive assertion that IS reachable: the Saga's LKI is in `lki_objects` with
+  `controller == PlayerId(1)` at exactly the instant `source_view_at_resolution` would read it.
+
+### §3.3 A REVERT ROW THAT IS A COVERAGE MEASUREMENT, FOR THE SECOND TIME IN THIS BATCH
+
+Under **R1** (delete the `.or_else(|| state.lki_object_snapshot(source_id))` LKI branch from
+`source_view_at_resolution`) `c1`/`c2`/`c3` go RED and **`c4`/`c5` stay GREEN** — because on that
+card the LKI *read* is never reached, so a revert of the read cannot move it. Rather than record
+that as an UNDISCRIMINATED row, a **second** revert was executed: **R2**, neutralising the
+`is_source_of_a_pending_ability` disjunct in `capture_lki_snapshot` (the LKI *capture*), reddens
+`c5` and `c1` and leaves `c2`/`c3` green — informative rather than a gap, because Mardu departs
+as an *activation cost* and is captured by the other clause, which R2 cannot reach. **Two
+reverts were needed to discriminate five probes, and neither alone would have done it** —
+PB-DX20b's "two reverts were not enough" finding, arrived at from the other direction.
+
+Two mechanical hazards worth carrying forward, both caught by the agent rather than by a gate:
+- **`cp -p` on restore preserves the BACKUP's mtime, so `cargo` does not rebuild** and the next
+  test run reports the *reverted binary's* results against *restored* source. Caught by md5,
+  fixed with `touch` and a forced rebuild; the published green is post-rebuild.
+- A backup of `layers.rs` taken at 20:02 was **stale within 7 minutes** because a sibling agent
+  wrote the file at 20:09. Restoring from it would have silently reverted another agent's work.
+  Detected by md5 before use. *In a multi-agent worktree a file backup has an expiry date.*
