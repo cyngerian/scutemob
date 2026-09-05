@@ -522,3 +522,71 @@ outside any resolution, so this batch's departure point is never reached in that
    stops only for a human seat, so a bot's pass and everything it triggers runs inside
    `advance()` and never reaches the caller. `c1` reads `game.journal_since(cursor)` instead,
    with the mechanism documented rather than only the fix.
+
+---
+
+## §9 — Revert matrix: **7 rows, EXECUTED BY THE COORDINATOR**, all three source files restored byte-exactly (`cmp`)
+
+| row | what it undoes | RED | GREEN |
+|---|---|---|---|
+| **R1** | the whole fix: peek → `pop_back()` | **6** — `r1`, `t1`, `t2`, `t4`, `t5`, `c1` | `t3`, `t6`, `t7`, `t4b`, `c2`, `c3`, `r2`, `r3`, `r4`, `r4b`, `r5`, `r6` |
+| **R2** | the two INNER departures, keeping the backstop — i.e. **the function-boundary design** | **1**, `r2` ONLY | everything else, including every behavioural probe |
+| **R3** | the wrapper backstop, keeping both inner departures | **1**, `r2`'s exact-count assertion ONLY | everything else |
+| **R4** | rider: the two-arm `match` restored at `counter_stack_object` only | `r4` | **`r4b` GREEN** |
+| **R5** | rider: the two-arm `match` restored at `Effect::CounterSpell` only | `r4b` | **`r4` GREEN** |
+| **R6** | `depart_resolving_stack_entry`'s lookup respelled as `retain(\|so\| so.id != entry_id)` | `r3` | **PB-DX52's `r1a` stays GREEN** |
+| **R7** | a third `stack_objects` reader planted in `sba.rs`, in the `for so in &state.stack_objects` form | `r5` | — |
+
+### R4 and R5 are precise complements, and that is the rider's whole proof
+
+Each reddens exactly one of the two probes and leaves the other green. The row's fix shape says
+*"consumed by both paths"*; a probe on one path proves nothing about the other, and these two
+rows are what turn that sentence into a measurement. The two counter paths carried
+**byte-identical** copies of the defect, which is precisely the configuration where a
+single-path probe reads as sufficient.
+
+### R6 is the row worth reading, and it defeats an INHERITED gate
+
+Respelling the departure as `state.stack_objects.retain(|so| so.id != entry_id)` **satisfies
+PB-DX52's `r1a`** — that gate stays green, because `retain` is not `.find(`/`.position(` — while
+re-opening exactly the announced-id-to-stack-entry drift `OOS-DX25-3`/`OOS-SIM3-5` were. Only
+this batch's `r3` catches it. That is *"a gate you edit prose to satisfy has stopped
+measuring"* (PB-DX52) demonstrated by execution rather than quoted, and it is why the shipped
+departure routes through `stack_index_for_announced_target` instead of being allowlisted around
+`r1a` — obeying the gate rather than respelling past it.
+
+### R7 proves the `r5` widening earned its keep
+
+The planted third reader is written `for so in &state.stack_objects`, which the FIRST draft of
+`r5` — keyed on the literal `stack_objects.iter()` — could not have seen. The widening to the
+RECEIVER is what makes it RED. Five batches in this queue have been defeated by a gate keyed on
+one spelling (PB-DX26 → PB-DX43 → PB-DX45 → PB-DX47 → PB-DX51); this one was widened before it
+was defeated rather than after.
+
+### R2 and R3 are COVERAGE MEASUREMENTS, not passes, and are disclosed IN THE TEST ITSELF
+
+Both redden a source gate and **no behavioural probe anywhere**. That is `OOS-DX52-2`'s shape
+said out loud. `r2`'s own doc now carries the disclosure, with the reason each missing probe is
+missing:
+
+* **R2's probe is currently UNBUILDABLE**, not merely unwritten. The property it breaks is
+  CR 714.4's final-chapter exemption, and `OOS-DX54-4` is that the engine never reaches that
+  exemption correctly anyway — so no fixture can isolate the departure-point property until
+  that is fixed. Four alternative constructions were considered and rejected; they are in the
+  probe file's module doc.
+* **R3's probe needs three fixtures nothing in the tree builds** — Evolve's "no target
+  recorded", Offspring's and Gift's CR 603.4 re-checks — filed as `OOS-DX54-5`, together with
+  the generalisation that is worth more than the three instances: an early `return` inside
+  `resolve_top_of_stack_inner` is a debt-inheriting guard, and the workspace cannot currently
+  tell whether a FIFTH one has been added correctly.
+
+**Neither is dressed up as a discriminating row.** A matrix in which every row is RED is easy to
+produce and easy to over-read; two of these seven are honest coverage findings and say so.
+
+### A measurement NOT taken, and why it is reported rather than omitted
+
+R3's blast radius was attempted against the FULL workspace **three times** and killed three
+times by the machine running out of memory — `ps` shows **three sibling `claude --model opus`
+worker processes** on this host besides this one. What IS measured for R3 is the whole
+`--test core` target (770 tests, only `r2` red). The wider sweep is reported as **not measured**
+rather than as a pass.
