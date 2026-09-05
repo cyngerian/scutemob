@@ -6,6 +6,14 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-09-05 — CC-17 (`scutemob-254`) — pair-or-demote rule for source-text gates
+
+- `memory/conventions.md` gains the rule (addendum A3, accepted as written): a new source gate standing in for a
+  behaviour ships with a behavioural probe under the same revert or a one-line reason + seed ID; no retroactive sweep —
+  an existing unpaired gate gets its probe when re-keyed after a defeat; a paired gate is a backstop, no bypass matrix.
+- Exemptions (SR-3/5/8/36, count ratchets) and the A5 must-not-retire list restated; `docs/engine-invariants.md`
+  preamble cross-references it. Markdown only.
+
 ## 2026-09-05 — CC-4 (`scutemob-240`) — change-class acceptance table recorded
 
 - `memory/conventions.md` gains "## Change-class acceptance table": the four rows verbatim from the course-correction doc
