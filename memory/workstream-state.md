@@ -21,7 +21,7 @@
 
 **v4 rank 17. `OOS-DX25c-6` CLOSED**, plus rider **`OOS-DX25-4`** CLOSED and rider
 **`OOS-DX25b-4`** DECLINED with a measured wire cost. Next and LAST of the approved five-task
-chain: **PB-DX42b** (rank 18, `OOS-ADJ-1` ≡ `OOS-DX19-2`). Seeds filed **OOS-DX54-1..5**.
+chain: **PB-DX42b** (rank 18, `OOS-ADJ-1` ≡ `OOS-DX19-2`). Seeds filed **OOS-DX54-1..8** (`-6`/`-7`/`-8` by the `/review` fix cycle).
 Full record: `memory/primitives/pb-DX54-execution-notes.md`; the pre-committed wire prediction
 is `54415c25`, before any production line.
 
@@ -36,6 +36,19 @@ breaks **CR 714.4**'s Saga sacrifice and **CR 309.6**'s dungeon removal, both of
 CR 608.2n. The suite is measurably incapable of noticing. So the departure goes at the two
 CR-ordered points inside `resolve_top_of_stack_inner`, with an idempotent backstop in the wrapper
 for the four early returns that run no trigger/SBA/priority tail.
+
+### The `/review`: 8 findings, all 8 taken, both HIGHs gates defeated by execution
+
+`r1` fell to `.remove(len-1)` — a method its own doc sentence named and its code did not
+iterate — leaving all nine roster gates green while reproducing the entire pre-fix defect.
+`r2` fell to a fifth tail 945 bytes after an existing departure, because a backward distance
+window vouches for anything downstream of a legitimate call. `r5` fell to a reader planted one
+module over (PB-DX48's `SITE_SRCS` defeat, PB-DX49's repair, one batch old and not carried
+across). The §2 consumer audit missed the LKI capture clause, which really does move
+`public_state_hash` at a command boundary. Both HIGH defeats were re-executed against the fixes
+and are RED, and all three are pinned as synthetic cases so they cannot come back silently.
+Seeds `OOS-DX54-6/-7/-8` are the general shapes.
+
 
 ### What the next batch should carry forward
 

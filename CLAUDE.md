@@ -299,9 +299,9 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-05, PB-DX54 + `/review` fix cycle)**: **5,231 / 0 / 5** full-workspace on branch
-  `scutemob-232` (+21 over the **5,210** baseline, measured on this branch BEFORE any edit and
-  **reproducing PB-DX53's close pin exactly** — the fourth consecutive batch in which an inherited
+- **Tests (delta 2026-09-05, PB-DX54 + `/review` fix cycle)**: **5,231 / 0 / 5**
+  full-workspace on branch `scutemob-232` (+21 over the **5,210** baseline, measured on this
+  branch BEFORE any edit and **reproducing PB-DX53's close pin exactly** — the fourth consecutive batch in which an inherited
   pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file, **68**
   result-producing targets (67 → 68: one new simulator test binary), residual list empty.
   **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
@@ -358,7 +358,7 @@
   behavioural probe anywhere** — `OOS-DX52-2`'s shape said out loud. R2's probe is currently
   **UNBUILDABLE** rather than merely unwritten, blocked behind `OOS-DX54-4`; R3's needs three
   fixtures nothing in the tree builds (`OOS-DX54-5`).
-  Filed **OOS-DX54-1..5**.
+  Filed **OOS-DX54-1..8** (`-6`, `-7` and `-8` by the `/review` fix cycle).
 - **Tests (delta 2026-09-05, PB-DX53 + `/review` fix cycle)**: **5,210 / 0 / 5** full-workspace on
   branch `scutemob-231` (+14 over the **5,196** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX39's close pin exactly** — the third consecutive batch in which an inherited
@@ -1695,6 +1695,36 @@
   assertion message **overclaimed**: its count is taken BEFORE the resolution, when the entry is
   present under both revisions, so the 0 it described happens somewhere no assertion in the file
   can see; reworded to state it is a PRECONDITION.
+  **↻ THE `/review` FOUND 2 HIGH / 2 MEDIUM / 3 LOW / 1 NIT AND ALL EIGHT WERE TAKEN — AND BOTH
+  HIGHs WERE THIS BATCH'S OWN GATES, DEFEATED BY EXECUTION.** *(1)* `r1`'s needle set was
+  **narrower than its own doc sentence**: the doc said *"Every `X.pop_back(` / `X.remove(` /
+  `X.pop_front(`…"* and the code iterated two of the three, so planting
+  `state.stack_objects.remove(len - 1)` after the peek left **all nine roster gates GREEN** while
+  `t1`/`t2`/`t4`/`t5` went RED — the plant reproduced the entire pre-fix defect, R1's exact red
+  set, invisibly. It cited `OOS-DX51-6` **by name** as the reason it was *"keyed on the
+  MECHANISM"*. **Why it was invisible from inside the file is the durable half**: `r1b`, the
+  companion proving the detector fires, exercised only the two spellings the detector already
+  handled — *a revert-proof written by the same author from the same mental model tests the
+  needle set against itself* (`OOS-DX54-6`). *(2)* `r2` asked *"is there a departure within the
+  preceding N bytes"*, so a **fifth tail placed 945 bytes AFTER an existing departure** was
+  vouched for by it — precisely the CR 714.4 / CR 309.6 violation the gate exists to forbid, and
+  every gate stayed green. Its own second measurement (*"the two departures are 464,693 bytes
+  apart"*) ruled out the two EXISTING sites vouching for each other and said nothing about a new
+  one. Re-keyed from a DISTANCE to a per-departure **COUNT**. Both defeats re-executed against
+  the fixes: RED.
+  Also taken: **the consumer audit missed the LKI CAPTURE clause**, and the change really does
+  move `public_state_hash` at a command boundary (`[93,250,169,233]` vs `[225,85,133,201]`,
+  measured) — not a regression, since CR 608.2h / CR 113.7a make capturing a resolving ability's
+  source correct, but §7's fuzz justification rested on the omission and is rewritten
+  (`OOS-DX54-8`); **`r5` was file-scoped while the reader set is a call graph**, defeated by a
+  reader planted in `rules::saga::saga_view`, which is PB-DX48's `SITE_SRCS` defeat and PB-DX49's
+  workspace-walk repair **one batch old and not carried across** (`OOS-DX54-7`); the census
+  narrative said FIVE copy-family members and left two of seven unaccounted; `r3`'s stated claim
+  was wider than what it measures; `c2`'s bot probe never reaches the redirect and now says so;
+  and **the worker's own provenance claim about an untracked `None` file was wrong** — it compared
+  a local EDT filesystem mtime against a UTC session start, and in one timezone the file was
+  created 17 minutes INTO the session. *A timestamp comparison across two clocks is not a
+  comparison.*
   Tests **5,231 / 0 / 5** (+21 over a **5,210** pre-edit baseline reproducing PB-DX53's close pin
   exactly, **68** targets, byte-exact set difference: 21 additions / 0 leavers / 0 removals / 0
   renames, count-vs-name reconciliation AGREES and the duplicate-name scan is EMPTY on both runs).
@@ -1703,7 +1733,9 @@
   **UNMOVED at 1,140/1,803 = 63.2%**, 0 flips, 0 card-def edits. All gates clean against the FINAL
   tree; `npm run build` N/A and said so. **Revert matrix 7 rows, coordinator-executed, all three
   source files restored byte-exactly** — R4/R5 precise complements, R6 defeating an inherited gate,
-  R2/R3 disclosed. Filed **OOS-DX54-1..5**. Full record:
+  R2/R3 disclosed. Filed **OOS-DX54-1..8** — and the first draft of this line said `-1..5`, which
+  is dispatch hygiene 8's exact case for the FIFTH batch running, caught by re-checking this cell
+  against the registry AFTER the `/review` fix cycle rather than before it. Full record:
   `memory/primitives/pb-DX54-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-09-05 — **PB-DX53 SHIPPED** (`scutemob-231`; v4 queue rank 16 —
   **OOS-DX21-1** CLOSED, its row corrected against three of its own claims).
