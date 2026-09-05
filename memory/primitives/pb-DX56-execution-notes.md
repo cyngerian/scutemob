@@ -63,3 +63,224 @@ text and repairs no card-def blocker — it changes the fuzzer's instrumentation
 most) one engine attachment/priority path. No `Completeness` marker can move, because no
 def's expressible-ness changes. To be confirmed by regeneration rather than by the
 empty-diff shortcut.
+
+### 0.2 Both filed figures RE-MEASURED at HEAD — and **NEITHER reproduces, both in the same direction: UP**
+
+The exact filed invocation, run at HEAD before any edit
+(`cargo run --profile fuzz --bin mtg-fuzzer -- --games 20 --seed 1 --max-turns 200 --threads 1`,
+raw output at `memory/primitives/pb-dx56-measurement-head.txt`):
+
+```
+Games completed: 20   Wins: 20  Draws: 0  Errors: 0   Avg turns per game: 122.0
+Total violations (HARD): 291
+Total violations (TRANSIENT, reported -- does not halt --stop-on-error): 553
+
+  HARD (raw 291 / distinct 17), 14/20 game(s)
+    player_consistency       189    in 11 game(s): [3, 4, 5, 7, 8, 10, 11, 12, 13, 16, 17]
+    attachment_validity      102    in 7 game(s):  [1, 8, 9, 11, 12, 13, 18]
+  TRANSIENT (raw 553 / distinct 118), 13/20 game(s)
+    no_orphaned_tokens       553    in 13 game(s)
+```
+
+| class | as FILED | at the 2026-08-14 re-measure | **at HEAD (this batch)** |
+|---|---|---|---|
+| `player_consistency` | 114 raw / 5 of 20 games | 84 raw / 4 of 20 [12,13,14,19] | **189 raw / 11 of 20** [3,4,5,7,8,10,11,12,13,16,17] |
+| `attachment_validity` | 11 raw / 3 of 20 | 22 raw / 3 of 20 [2,5,10] | **102 raw / 7 of 20** [1,8,9,11,12,13,18] |
+
+So `OOS-DX32-1`'s own instruction — *"neither number should be carried forward again"* —
+is honoured, and it was right: `player_consistency` is **2.25×** its last re-measure and
+`attachment_validity` **4.6×**, with the game sets disjoint from the ones recorded a
+fortnight ago. Five more PB-DX batches have perturbed bot play on the same seeds since,
+which is the recorded reason.
+
+**The HARD bucket is EXACTLY these two classes** (`histogram total (HARD): 291`, and the
+by-check breakdown lists two rows), so *"every remaining HARD class on the standard
+invocation"* is a closed set of two, not an open-ended sweep. `player_consistency`'s share
+of HARD is **189 / 291 = 64.9%** — the row's headline "79.2% of the HARD bucket" does not
+reproduce either, because the other class grew faster.
+
+### 0.2a The share that decides the disposition, read off the run rather than assumed
+
+**Every one of the 189 `player_consistency` reports is the ACTIVE-PLAYER arm.**
+`grep -c "Priority holder" ` over the whole run output is **0**; `grep -c "Active player
+Player"` over the printed sample is 88. The two arms of that check are therefore not one
+class, and the registry row treats them as one.
+
+Per-game replays (`--replay <seed>`, which prints ALL of a game's violations rather than
+the first five games' worth) give the distinct instances:
+
+| seed | class | instances |
+|---|---|---|
+| 1 | attachment | `631 → 637` t52 |
+| 8 | attachment | `667 → 574` t92, `667 → 918` t101, `667 → 937` t104 |
+| 8 | player | active `PlayerId(3)` t79 |
+| 9 | attachment | `477 → 756` t109, `477 → 852` t129, `477 → 912` t141, `477 → 1000` t154 |
+| 11 | attachment | `490 → 444` t55 |
+| 11 | player | active `PlayerId(1)` t146 |
+| 12 | attachment | `880 → 786` t159 |
+| 12 | player | active `PlayerId(4)` t174 |
+| 13 | attachment | `472 → 532` t67 |
+| 13 | player | active `PlayerId(4)` t148 |
+| 18 | attachment | `803 → 478` t130, `803 → 489` t140 |
+
+**The shape worth reading is seeds 8, 9 and 18**: ONE attacher (`667`, `477`, `803`) dangles
+against a SUCCESSION of different dead targets across dozens of turns — `477` at turns
+109, 129, 141 and 154, a 45-turn span. A single object that survives that long on the
+battlefield and keeps acquiring new attachment targets is Equipment-shaped, not Aura-shaped
+(an Aura that lost its target goes to the graveyard under CR 704.5m and never re-attaches).
+That is a hypothesis at this point in the batch; the evidence field built in Stage 1 is what
+decides it, because the check as shipped reports **two integers and nothing else**.
+
+### 0.4a Half A's wire-neutrality is a DEPENDENCY-DIRECTION fact, not a closure-walk result
+
+Checked rather than asserted: `crates/engine/Cargo.toml` does not depend on
+`mtg-simulator`, and neither `crates/engine/tests/core/hash_schema.rs` nor
+`crates/engine/tests/core/protocol_schema.rs` mentions it. **The engine crate cannot name
+a simulator type at all**, so `InvariantViolation`, `GameResult`, `CrashReport` and the
+command-history ring are outside both closures by construction — the dependency arrow
+points the other way. The two forbidden lists are
+
+* HASH: `["Command", "ReplayLog", "Envelope", "CardRegistry", "CardDefinition"]`
+* PROTOCOL: `["GameState", "PlayerState", "StackObject", "CardDefinition"]`
+
+and neither can be extended with a simulator type even to run the counterfactual — the
+plant would not compile. **That is worth saying out loud rather than reporting a vacuous
+"we planted it and nothing happened"**: for Half A the counterfactual is not merely
+unmoved, it is *unexpressible*, and an unexpressible counterfactual is a different
+(stronger) claim than an executed one that came back green.
+
+The counterfactual that IS expressible is the one for Halves B and C, and it is the one
+that matters: the fields those halves write — `GameObject.attached_to` and
+`TurnState.priority_holder` — are **already on both wires**, which is exactly why writing
+them at a different moment adds nothing. Executed at stage 0; result recorded in §0.4b.
+
+---
+
+## §1 The diagnosis — both classes, from source, before any fix
+
+Full census: `memory/primitives/pb-DX56-mechanism-census.md` (read-only, `file:line` or a
+verbatim CR sentence behind every claim, each one tagged ESTABLISHED or INFERENCE).
+
+### 1.1 `OOS-DX32-1` — the check has TWO arms and they need OPPOSITE dispositions
+
+The registry row, the v4 memo cell and the dispatch criterion all treat
+`player_consistency` as one class. **It is two**, and the run says so before the CR does:
+**189 of 189 reports are the ACTIVE-PLAYER arm and the priority-holder arm produced ZERO
+hits.**
+
+**The active-player arm is asserting something CR 800.4j explicitly permits.** Verbatim:
+
+> **CR 800.4j** — *"If a player leaves the game during their turn, that turn continues to
+> its completion **without an active player**. If the active player would receive priority,
+> instead the next player in turn order receives priority, or the top object on the stack
+> resolves, or the phase or step ends, whichever is appropriate."*
+
+`TurnState::active_player` is a bare `PlayerId` (`state/turn.rs:95`), not an `Option`, with
+**exactly one** production write site — `turn_structure.rs:161`, inside `advance_turn`. So
+*"without an active player"* is **inexpressible in this state type**, and the engine
+necessarily encodes that turn by leaving the departed player's id in the field. Every
+consequence CR 800.4j actually requires is discharged elsewhere and was checked:
+`priority::grant_priority_to_active_player` (`priority.rs:172-193`) routes past a dead
+active player **citing CR 800.4j by name**, and `validate_player_active`
+(`engine.rs:3192-3198`) rejects every command from a departed seat.
+
+So the answer to the criterion's question — *"is it ever true at rest?"* — is **it is true,
+it is bounded, and it is not a defect**: it is a representation choice the CR describes.
+**Bounded** because `next_player_in_turn_order` (`turn_structure.rs:197-201`) skips
+`has_lost || has_conceded`, so CR 800.4k holds and the next turn picks a live player. That
+is exactly the observed shape: one turn number per game, repeated across that turn's
+commands.
+
+**The priority-holder arm is a real defect and stays HARD.** CR 800.4a's last sentence is
+unconditional and has no "continues without" escape:
+
+> *"If the player who left the game had priority at the time they left, priority passes to
+> the next player in turn order who's still in the game."*
+
+Its zero hits are the evidence that keeping it hard costs nothing.
+
+**Two holes make the boundedness lucky rather than true, and both are fixed here rather
+than asserted away** — this is the difference between classifying a class transient and
+merely hoping it is:
+
+* **`advance_turn`'s EXTRA-TURN branch applies no liveness filter** (`turn_structure.rs:149`,
+  `turn.extra_turns.pop_back()`), and nothing ever prunes the queue (written at
+  `resolution.rs:8822` and `effects/mod.rs:7663`, read only there). An extra turn queued
+  for a player who then leaves **begins** — CR 800.4k-wrong, and it is the one route by
+  which the active-player condition is UNBOUNDED. → **F2**.
+* **`enter_step`'s cleanup-SBA-round grant is unconditional** (`engine.rs:2723-2726`) — the
+  single live route by which the priority-holder arm can fire. Already filed as
+  `OOS-DP9-19`, and named as the surviving exception in `engine.rs:3079`'s own comment.
+  → **F3**.
+
+### 1.2 `OOS-DX22-8` — the check watches the side that heals and is blind to the side that does not
+
+**Supply, ESTABLISHED**: `GameState::move_object_to_zone` (`state/mod.rs:1632`) and
+`move_object_to_bottom_of_zone` (`:2146`) retire the departing object and mint a new one.
+They perform exactly **two** cross-object fix-ups — CR 702.95e soulbond `paired_with` and
+the MR-M8-16 `replacement_effects` GC — and **touch the attachment relation in neither
+direction**.
+
+**Direction A** (a HOST leaves; its attachers' `attached_to` dangles) is what
+`check_attachment_validity` reports. It is **cleared by an SBA**, and the iff is exact:
+
+> an attacher holds a dangling `attached_to` indefinitely **iff** at every later sweep it
+> is phased out (`sba.rs:1134`; `sba.rs:186` → `:1304-1306`) **or** its **layer-resolved**
+> subtypes contain none of `Aura` / `Equipment` / `Fortification` (`sba.rs:1140`,
+> `:1307-1312`).
+
+Neither holds for the ordinary case, so the ordinary case heals — but **not before the
+invariant runs**. The engine sweeps SBAs at **nine** call sites and
+`abilities.rs`, `casting.rs`, `combat.rs`, `mana.rs`, `turn_actions.rs`,
+`turn_structure.rs` and `replacement.rs` contain **zero** of them, so a permanent that
+leaves the battlefield while paying a cost (`abilities.rs:1216`, `mana.rs:493`, 21 sites in
+`casting.rs`) dangles across the checkpoint and heals at the next step entry or resolution.
+That is **`OOS-M11-7`'s recorded shape, one field over** — the same CR 704.3 timing
+deviation that made `no_orphaned_tokens` transient.
+
+**Direction B is the engine defect, it is AT REST, and nothing has ever looked at it.**
+When an *attacher* leaves the battlefield by any route other than the six that clean up
+(`sba.rs:1239`, `sba.rs:1406`, `effects/mod.rs:2060`, `:6074`, `:6214`, `:6277` — two SBAs
+and four equip effects), its host keeps the dead `ObjectId` in `host.attachments`
+**permanently**. Destroy an Equipment with a Disenchant, bounce an Aura, exile either: the
+host is corrupted for the rest of the game. Consequences, each read off a real consumer
+rather than asserted:
+
+* `attachments` is **HASHED** (`state/hash.rs:2670`), so a stale entry perturbs
+  `public_state_hash` **and** `loop_detection::compute_mandatory_state_hash` — CR 104.4b
+  mandatory-loop detection can fail to recognise a repeated board state;
+* it is read by the CR 510.3a equipped-creature combat-damage trigger family
+  (`abilities.rs:6013`, `:7232`);
+* it is walked by CR 702.26g/h phasing (`turn_actions.rs:1105`, `:1128`), where a dead id
+  reaches **`expect_object_mut`** — an IMPOSSIBLE-class SR-4 lookup that fires a
+  `debug_assert` — so a stale entry is a **latent debug-build panic** on the phasing path;
+* it is rendered to the browser (`crates/view-model/src/lib.rs:472`).
+
+**So the diagnosis is not "the reported class is a bug" and not "the reported class is
+noise" — it is that the check was pointed at the healing direction of a two-directional
+relation, and the direction that never heals had no check at all.** → **F1**.
+
+The other direction is deliberately NOT fixed at the zone-move site, and the reason is a CR
+reason rather than a scope one: CR 704.5m puts an illegal Aura into its **owner's
+graveyard** while CR 704.5n merely **unattaches** an Equipment or Fortification and leaves
+it on the battlefield. **Opposite dispositions for the same input**, already implemented as
+two separate SBA arms. Clearing `attached_to` eagerly would be performing a state-based
+action early, and it would silently delete the transient class rather than classify it.
+
+### 1.3 Three findings the census produced that no document names
+
+* **Three of the four `attached_to = Some(..)` production writers never check the SOURCE's
+  subtype at all.** `Effect::AttachEquipment` (`effects/mod.rs:6007-6090`) validates the
+  target's zone, phasing, controller and layer-resolved creature-ness and checks **nothing**
+  about the source — not the `Equipment` subtype, not even that it is on the battlefield.
+  `effects/mod.rs:2050-2065` carries a comment reading *"Verify source is still on the
+  battlefield and is an Equipment"* while checking only the battlefield half — **a false
+  comment on this batch's own subject matter**, PB-DX47's `OOS-DX47-6` shape again.
+* **The aura ATTACH site reads RAW characteristics where the aura SBA reads LAYER-RESOLVED
+  ones** (`resolution.rs:2015-2026` vs `sba.rs:1138-1142`), so an Aura resolving under a
+  subtype-stripping continuous effect is attached by the first and **permanently invisible**
+  to the second. That is blind spot (b) with an established code-level route.
+* **CR 800.4a's object procedure is implemented nowhere.** `sba.rs:300` and
+  `diagnostics.rs:134` both carry a comment asserting *"CR 800.4a removes their objects, not
+  the PlayerState"* while no site removes or exiles a departed player's objects. A comment
+  describing a procedure the engine does not run.
