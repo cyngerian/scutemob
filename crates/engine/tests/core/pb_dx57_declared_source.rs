@@ -61,9 +61,12 @@ pub const STATE_TYPES_RS: &str = "crates/card-types/src/state/types.rs";
 /// `crates/card-types/src/state/continuous_effect.rs`.
 pub const CONTINUOUS_EFFECT_RS: &str = "crates/card-types/src/state/continuous_effect.rs";
 /// `crates/card-types/src/state/game_object.rs`.
-#[allow(dead_code, reason = "consumed by pins added in this batch's later stages and by any \
+#[allow(
+    dead_code,
+    reason = "consumed by pins added in this batch's later stages and by any \
                              future pin against TriggerEvent; declared here so the path \
-                             literal is not re-typed per call site")]
+                             literal is not re-typed per call site"
+)]
 pub const GAME_OBJECT_RS: &str = "crates/card-types/src/state/game_object.rs";
 /// `crates/engine/src/rules/events.rs` — one of the two declaration files that is NOT in
 /// `card-types`.
@@ -355,6 +358,42 @@ pub fn declared_enum_variant_fields(
     out
 }
 
+/// Every `pub enum` declared in the given workspace-relative file, mapped to its variant
+/// names.
+///
+/// Used by the `OOS-DX28-6` mechanism-note ratchet to answer *"is this `X::Y` token in an
+/// author's comment a real declared identifier, or prose that happens to look like one"* —
+/// which must be decided against the DECLARATION and never against corpus usage, or the
+/// dictionary is learned from the thing being checked and cannot disagree with it (PB-DX8).
+pub fn declared_enums_in(rel: &str) -> std::collections::BTreeMap<String, BTreeSet<String>> {
+    let src = strip_comments(&read_workspace_file(rel));
+    let mut out = std::collections::BTreeMap::new();
+    let mut from = 0usize;
+    while let Some(rel_at) = src[from..].find("pub enum ") {
+        let at = from + rel_at;
+        let name: String = src[at + "pub enum ".len()..]
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect();
+        from = at + 1;
+        if name.is_empty() {
+            continue;
+        }
+        // Re-enter through the public API so the two paths cannot drift; it re-reads and
+        // re-strips, which is cheap next to being wrong.
+        if let Ok(v) = std::panic::catch_unwind(|| declared_enum_variants(rel, &name)) {
+            out.insert(name, v);
+        }
+    }
+    assert!(
+        !out.is_empty(),
+        "declared_enums_in({rel}) found no `pub enum` at all -- a dictionary that is empty \
+         makes every 'is this a real identifier' question answer NO, so a ratchet built on it \
+         reports zero offenders forever"
+    );
+    out
+}
+
 /// Every `pub` field name declared by `pub struct <struct_name>` in the given file.
 pub fn declared_struct_fields(rel: &str, struct_name: &str) -> BTreeSet<String> {
     let src = read_workspace_file(rel);
@@ -402,9 +441,15 @@ fn p1_the_parser_agrees_with_the_independent_parsers_already_in_the_tree() {
         declared_struct_fields(CARD_DEFINITION_RS, "ContinuousEffectDef").len(),
         5
     );
-    assert_eq!(declared_struct_fields(CARD_DEFINITION_RS, "TargetFilter").len(), 33);
+    assert_eq!(
+        declared_struct_fields(CARD_DEFINITION_RS, "TargetFilter").len(),
+        33
+    );
     // `pb_dx20b_enchant_line_roster::r5` pins EnchantFilter at 7.
-    assert_eq!(declared_struct_fields(STATE_TYPES_RS, "EnchantFilter").len(), 7);
+    assert_eq!(
+        declared_struct_fields(STATE_TYPES_RS, "EnchantFilter").len(),
+        7
+    );
 }
 
 /// The comment stripper must remove BOTH comment kinds, and must not remove code that merely

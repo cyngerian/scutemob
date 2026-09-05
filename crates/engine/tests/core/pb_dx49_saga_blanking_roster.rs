@@ -1250,18 +1250,114 @@ fn contains_face_down_effect(json: &Value, key: &str) -> bool {
     nodes.iter().any(|n| n.get("player").is_some())
 }
 
+/// The `Effect` variants that put a face-down permanent onto the battlefield.
+///
+/// **Derived, not typed** (PB-DX57, `OOS-DX28-1`). This was an inline
+/// `for key in ["Manifest", "Cloak"]`, and a THIRD face-down-making `Effect` variant would
+/// have been silently outside `face_down_makers()` — `FACE_DOWN_MAKERS` would stay a 3-row
+/// pin, `r5`'s *"reachable from these defs and no others"* claim would quietly become false,
+/// and the whole CR 708.2a half of this file's census would under-cover while green. That is
+/// `OOS-DX28-1`'s class: a hand-maintained list is a gate that reports success while checking
+/// less than it claims, the moment its subject grows.
+///
+/// The derivation reads `crates/engine/src/effects/mod.rs` for the sites that actually create
+/// a face-down permanent — `obj.status.face_down = true` followed by the `FaceDownKind` the
+/// site assigns — and takes the assigned kind's NAME. That is the mechanism rather than a
+/// spelling: a new face-down-making effect arm has to set that field and name its kind, and
+/// the moment it does it joins this list automatically.
+///
+/// **The bound this does NOT cover, stated rather than implied.** `status.face_down = true`
+/// occurs at **six** sites in `crates/engine/src`, and the other four are deliberately out of
+/// scope for a reason, not by omission: `casting.rs:4874` is the CR 702.37 morph/disguise CAST
+/// path (a face-down SPELL, not an `Effect`), `resolution.rs:974` is that spell resolving,
+/// and `foretell.rs:109` / `resolution.rs:6554` put a card face-down in EXILE, which is not
+/// the battlefield and so is not CR 708.2a's subject at all. This list answers *"which
+/// `Effect` variants"*, which is the question `face_down_makers` asks of the corpus.
+fn face_down_making_effect_variants() -> BTreeSet<String> {
+    let src = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(std::path::Path::parent)
+            .expect("engine manifest dir is <workspace>/crates/engine")
+            .join("crates/engine/src/effects/mod.rs"),
+    )
+    .expect("effects/mod.rs must be readable");
+
+    let mut out = BTreeSet::new();
+    let mut from = 0usize;
+    while let Some(rel) = src[from..].find("status.face_down = true") {
+        let at = from + rel;
+        // The `FaceDownKind` this site assigns, looked for in the window AFTER the
+        // assignment. A window rather than a statement parse, and the non-vacuity floor
+        // below is what stops a widened window from silently returning nothing.
+        let window = &src[at..(at + 400).min(src.len())];
+        if let Some(k) = window.find("FaceDownKind::") {
+            let name: String = window[k + "FaceDownKind::".len()..]
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !name.is_empty() {
+                out.insert(name);
+            }
+        }
+        from = at + 1;
+    }
+    assert!(
+        !out.is_empty(),
+        "no face-down-making Effect arm was found in effects/mod.rs. Either the creation \
+         site was reworded (re-derive this) or the scan is broken -- and a scan that returns \
+         the empty set makes `face_down_makers` walk NOTHING, so every CR 708.2a assertion in \
+         this file would go vacuously green. That is exactly OOS-DX28-1's failure mode."
+    );
+    out
+}
+
 fn face_down_makers() -> Vec<(String, String)> {
     let mut out = Vec::new();
+    let variants = face_down_making_effect_variants();
     for def in all_cards().iter() {
         let json = serde_json::to_value(def).expect("CardDefinition serializes");
-        for key in ["Manifest", "Cloak"] {
+        for key in &variants {
             if contains_face_down_effect(&json, key) {
-                out.push((def.name.clone(), key.to_string()));
+                out.push((def.name.clone(), key.clone()));
             }
         }
     }
     out.sort();
     out
+}
+
+/// PB-DX57 (`OOS-DX28-1`): the derived face-down-maker set must be real `Effect` variants,
+/// and it must be what `FACE_DOWN_MAKERS` was pinned against.
+///
+/// Two axes, because one is not a check. Axis 1 catches a RENAME of the `Effect` variant (the
+/// failure mode that makes `contains_face_down_effect` match nothing corpus-wide while every
+/// row here stays green); axis 2 catches the derivation NARROWING, which is the direction a
+/// window-based scan fails in.
+#[test]
+fn r5d_face_down_effect_variants_are_derived_and_are_real_effect_variants() {
+    let derived = face_down_making_effect_variants();
+    let declared = crate::pb_dx57_declared_source::declared_enum_variants(
+        crate::pb_dx57_declared_source::CARD_DEFINITION_RS,
+        "Effect",
+    );
+    let not_effects: BTreeSet<&String> = derived.difference(&declared).collect();
+    assert!(
+        not_effects.is_empty(),
+        "the face-down creation sites in effects/mod.rs name {not_effects:?}, which is not a \
+         declared `Effect` variant. Either the variant was renamed (and \
+         `contains_face_down_effect` now matches NOTHING in the corpus, so FACE_DOWN_MAKERS \
+         and r5 are vacuous) or the derivation is picking up a `FaceDownKind` from a site \
+         that is not an Effect arm -- `FaceDownKind` also has Morph/Megamorph/Disguise \
+         variants used by the CAST path."
+    );
+    assert!(
+        derived.len() >= 2,
+        "the face-down-maker derivation returned {derived:?} (floor 2: Manifest and Cloak, \
+         CR 701.40a and CR 701.58a). A raise-only floor -- if a variant was genuinely removed, \
+         lower it deliberately in the same commit and say which; if not, the scan has narrowed \
+         and every CR 708.2a row below is under-covering in silence."
+    );
 }
 
 /// The CR 708.2a channel's corpus reach.
