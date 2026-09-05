@@ -1,0 +1,42 @@
+# CHANGELOG
+
+One entry per shipped batch, newest first, **at most ten lines each** (`docs/course-correction-2026-09.md`
+§3.1 item 2). Each entry names the task, the merge commit, the seeds closed, the wire/test/coverage
+deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/workstream-state.md`
+carry pointers only, never narrative. Entries before 2026-09-05 are in
+`memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
+
+## 2026-09-05 — PB-DX57 (`scutemob-236`, merge `cb6980f2`) — the gate-widening cluster
+
+- Closed **OOS-DX28-1** and **OOS-DX28-6** as classes, plus **OOS-DX28-5**, **OOS-DX26-3**, **OOS-DX21-7**;
+  **OOS-ADJ-2** (already taken by PB-DX42b) verified by execution. Filed OOS-DX57-1..5.
+- 35 hand-written declaration mirrors censused by a test; 20 pinned against the declaration they mirror,
+  three found already stale (one a subtraction gate that cancels against an over-declaration).
+- OOS-DX21-7: 216 functions read, 17 vacuous assert-on-unchanged-state sites repaired (19 guard-removal
+  proofs RED); the new gate then found an 18th in `rules/commander.rs`.
+- Every gate the batch wrote was defeated and re-keyed: 10 adversarial defeats + 4 from `/review` (16 findings, all taken).
+- **0 engine lines**; HASH 85 / PROTOCOL 44 unmoved; coverage unmoved 1,140/1,803; tests 5,316 → **5,363** (+47, 0 leavers).
+- Notes: `memory/primitives/pb-DX57-execution-notes.md`. Chain CLOSED here by owner decision.
+
+## 2026-09-05 — PB-DX56 (`scutemob-235`, merge `8604207e`) — fuzz violations made diagnosable, then diagnosed
+
+- Closed **OOS-FB1-1** (crash→seed→replay evidence), **OOS-DX32-1**, **OOS-DX22-8**, rider **OOS-DP9-19(b)**. Filed OOS-DX56-1..15.
+- Fuzzer HARD bucket **291 → 0** on the standard invocation; `--stop-on-error` no longer halts on an undiagnosed class.
+- `player_consistency` was two arms with opposite CR dispositions (CR 800.4j permits the active-player arm;
+  CR 800.4a forbids the priority arm); two extra-turn / cleanup-grant holes fixed (CR 800.4k).
+- `attachment_validity` watched the direction that heals; the never-healing direction (attacher leaves,
+  host keeps the dead id in a HASHED field) had no check and is now fixed one-directionally (CR 400.7f).
+- Engine +82/−20 in four files; HASH 85 / PROTOCOL 44 unmoved; coverage unmoved; tests 5,287 → **5,316** (+29).
+- Eleven gates defeated by execution and re-keyed (8 bypass pass + 3 `/review`; 15 findings, all taken).
+- Notes: `memory/primitives/pb-DX56-execution-notes.md`; census `pb-DX56-mechanism-census.md`.
+
+## 2026-09-05 — PB-DX55 (`scutemob-234`, merge `e0da3cc9`) — the whole bot/human refusal surface
+
+- Filed and closed **OOS-SIM6-3**, **OOS-SIM5-3**, **OOS-SIM5-5** (none had a registry row) plus rider **OOS-DX51-3**. Filed OOS-DX55-1..10.
+- Bot refusal surface **70 → 9**, every survivor one parked class (OOS-SIM5-4); PB-DX32 gate-config rejection rate 1.843‰ → **0**, pinned.
+- Auto-tap now funds activations, not only casts; `command_mana_cost` is an exhaustive 45-arm match with no wildcard.
+- Two hand-rolled block predicates inside `handle_declare_blockers` collapsed into `check_block_pair`
+  (`combat.rs` net −131 lines); `LegalAction::DeclareBlockers` now carries per-attacker legal blocks.
+- Browser half proven by a real `POST /api/game/action` drive (the 422 reproduces under revert).
+- HASH 85 / PROTOCOL 44 unmoved; coverage unmoved; tests 5,243 → **5,287** (+44); `npm run build` NOT run (OOS-DX55-7).
+- Notes: `memory/primitives/pb-DX55-execution-notes.md`. Revert harness itself was wrong first (OOS-DX55-4, mtime).
