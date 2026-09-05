@@ -250,13 +250,21 @@ fn any_target_def(name: &str, card_id: &str) -> CardDefinition {
 }
 
 /// A "fizzle target BLUE spell" instant -- `TargetSpellWithFilter` restricted
-/// to blue spells. Used by T7. **Not** `TargetSpellWithSingleTarget`: a
-/// discovered structural fact (recorded on T7 itself) makes that requirement
-/// unable to observe the ACTIVELY-RESOLVING spell as a candidate, because its
-/// own `StackObject` entry has already been popped by the time its effect
-/// runs -- `TargetSpellWithFilter` only ever consults `state.objects` +
-/// layer-resolved characteristics, never `state.stack_objects`, so it has no
-/// such blind spot.
+/// to blue spells. Used by T7.
+///
+/// **↻ PB-DX54 (`scutemob-232`): the ORIGINAL reason for choosing this
+/// requirement over `TargetSpellWithSingleTarget` is GONE, and the choice
+/// stands on a different one.** What stood here said the single-target
+/// requirement *"[is] unable to observe the ACTIVELY-RESOLVING spell as a
+/// candidate, because its own `StackObject` entry has already been popped by
+/// the time its effect runs"*. That was `OOS-DX25c-6`, and PB-DX54 closed it
+/// (CR 608.2n: `resolve_top_of_stack_inner` peeks, and the entry departs at
+/// the end). The requirement still stands because `TargetSpellWithFilter` is
+/// the one variant of the 2004-10-04 ruling nothing else in the tree
+/// exercises -- see T7's own doc. `TargetSpellWithFilter` consults
+/// `state.objects` + layer-resolved characteristics and never
+/// `state.stack_objects`, which is why it never had the blind spot in the
+/// first place.
 fn target_spell_with_filter_def(name: &str, card_id: &str, colors: Vec<Color>) -> CardDefinition {
     CardDefinition {
         card_id: CardId(card_id.to_string()),
@@ -1071,21 +1079,37 @@ fn t6_cross_kind_redirect_lands_on_a_player_and_rebuilds_zone_at_cast() {
 /// card's effect before it moves to its final zone"), must be a legal
 /// candidate for a `TargetSpellWithFilter` victim whose filter it satisfies.
 ///
-/// **Discovered structural fact, worth recording because it decided this
-/// test's shape**: `TargetSpellWithSingleTarget` / `TargetSpellOrAbilityWith
-/// SingleTarget` CANNOT observe the actively-resolving spell as a candidate.
-/// Both requirements resolve the candidate through `stack_index_for_
-/// announced_target(&state.stack_objects, id)` -- but `resolution.rs` pops a
-/// `StackObject` off `state.stack_objects` BEFORE running its effect (the
-/// popped entry is kept in a local `stack_obj` variable, not the vector), so
-/// while Misdirection's own CARD is still in `state.objects` with
-/// `zone == Stack` (confirmed empirically), its STACK-OBJECT ENTRY is
-/// already gone by the time `plan_target_change` runs during its own
-/// resolution -- `stack_index_for_announced_target` returns `None` for it,
-/// and both single-target requirements report "not a spell". Plain
-/// `TargetSpell` / `TargetSpellWithFilter` have no such blind spot (they
-/// only ever consult `state.objects` + layer-resolved characteristics), so
-/// this probe uses `TargetSpellWithFilter` instead.
+/// **↻ REWRITTEN BY PB-DX54 (`scutemob-232`, `OOS-DX25c-6` CLOSED). What
+/// stood here was TRUE when written and is FALSE at HEAD**, which is the
+/// more dangerous of the two ways a comment rots (`OOS-DX47-6`), so it is
+/// rewritten rather than left standing beside the code that falsified it.
+///
+/// It said: *"`TargetSpellWithSingleTarget` / `TargetSpellOrAbilityWith
+/// SingleTarget` CANNOT observe the actively-resolving spell as a
+/// candidate"*, because `resolution.rs` popped the `StackObject` off
+/// `state.stack_objects` BEFORE running its effect, so
+/// `stack_index_for_announced_target` returned `None` for it and both
+/// single-target requirements reported "not a spell". That mechanism was
+/// real, and PB-DX25c's `/review` filed it as `OOS-DX25c-6`.
+///
+/// **PB-DX54 closed it.** `resolve_top_of_stack_inner` now PEEKS and the
+/// entry departs at CR 608.2n's own point (`resolution::
+/// depart_resolving_stack_entry`), so both single-target requirements DO
+/// observe the resolving spell — see
+/// `primitives::pb_dx54_resolving_entry_target_space`, which drives exactly
+/// that with the real corpus Misdirection and Bolt Bend and asserts by
+/// resolution effect.
+///
+/// **This fixture nevertheless keeps its `TargetSpellWithFilter` shape, and
+/// the reason is coverage rather than inertia**: it is the ONLY probe in the
+/// tree that exercises the FILTER variant of the 2004-10-04 ruling (a
+/// colour-restricted "target spell" whose filter the resolving Misdirection
+/// must satisfy), and PB-DX54's own probes deliberately do not duplicate it.
+/// Plain `TargetSpell` / `TargetSpellWithFilter` never had the blind spot at
+/// all — they consult `state.objects` + layer-resolved characteristics and
+/// never `state.stack_objects` — which is precisely why routing around the
+/// defect through them worked, and why PB-DX54's `t3` treats
+/// `TargetSpellOrAbility` as a STATED CONTROL rather than a third subject.
 ///
 /// **Historical note, corrected by fix cycle 2 (`OOS-DX25c-5` CLOSED)**: this
 /// fixture's colour filter was ORIGINALLY engineered to double as a
@@ -1354,23 +1378,35 @@ fn t7b_plain_target_spell_victim_cannot_redirect_onto_its_own_card() {
 /// The victim spell cannot be retargeted onto its own card (`self_id`) --
 /// discriminates `plan_target_change` step 4's `victim_card` argument.
 ///
-/// **FOUR stack objects, not three -- measured, not assumed.** An earlier
-/// draft used three (decoy/clone/Misdirection) and asserted `new_target !=
-/// self` only inside an `if let Some(...)`, reasoning that CR 115.7a's
-/// no-change fallback would ALSO prove self-exclusion if Misdirection's own
-/// card were the only other candidate. Executed, that draft produced **zero**
-/// `TargetsChanged` events -- vacuously "passing" without exercising
-/// anything, for the SAME structural reason T7's doc records: Misdirection's
-/// own `StackObject` entry has already been popped by the time its effect
-/// runs, so it ALSO fails `TargetSpellWithSingleTarget`'s "is this a spell"
-/// check (for "entry not found", not for self-exclusion) -- with clone(self,
-/// excluded) and Misdirection(not-found) both gone, nothing remained and the
-/// whole plan returned `None`. A fourth object -- "T8 Alternative", cast
+/// **FOUR stack objects, not three -- and PB-DX54 removed the REASON while
+/// leaving the fixture, which is stated rather than left to look
+/// load-bearing.**
+///
+/// The history: an earlier draft used three (decoy/clone/Misdirection) and
+/// asserted `new_target != self` only inside an `if let Some(...)`, reasoning
+/// that CR 115.7a's no-change fallback would ALSO prove self-exclusion if
+/// Misdirection's own card were the only other candidate. Executed, that
+/// draft produced **zero** `TargetsChanged` events -- vacuously "passing"
+/// without exercising anything, for the SAME structural reason T7's doc
+/// recorded: Misdirection's own `StackObject` entry had already been popped
+/// by the time its effect ran, so it ALSO failed
+/// `TargetSpellWithSingleTarget`'s "is this a spell" check (for "entry not
+/// found", not for self-exclusion). A fourth object -- "T8 Alternative", cast
 /// AFTER the clone and BEFORE Misdirection so its `ObjectId` sits between
-/// them, structurally untouched by any of this -- gives self-exclusion a
-/// REAL alternative to be measured against, so the redirect fires and both
-/// halves of the CR 601.2c claim (never-self, correctly-elsewhere) are
-/// positive assertions rather than one conditional and a comment.
+/// them -- gave self-exclusion a REAL alternative to be measured against.
+///
+/// **↻ PB-DX54 (`scutemob-232`) closed `OOS-DX25c-6`, so the resolving
+/// Misdirection IS now a candidate and the fourth object is no longer a
+/// WORKAROUND.** It is kept, deliberately, because removing it would change
+/// what this test measures: with four objects the redirect has a choice
+/// between two legal alternatives and self-exclusion is measured against a
+/// candidate that is neither the current target nor the redirector, which is
+/// a strictly wider assertion than the three-object case. The three-object
+/// version -- self-exclusion measured with Misdirection's own card as the
+/// only remaining candidate, which is what the 2004-10-04 ruling's headline
+/// scenario actually is -- is shipped separately as
+/// `primitives::pb_dx54_resolving_entry_target_space::t4`. Neither subsumes
+/// the other, so both stand.
 #[test]
 fn t8_self_targeting_is_still_refused() {
     let p1 = p(1);
