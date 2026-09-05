@@ -14,44 +14,31 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep COMPLETE 2026-05-16; 6 LOWs remain, deferred |
 | W4: M10 Networking | — | not-started | — | P3 of the course correction; after hot-seat |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6 |
-| W6: Primitive + Card Authoring | — | available | — | v4 queue CLOSED at rank 21. Course-correction coordinator batch COMPLETE 2026-09-05 (CC-1/2/3/4/14/15/17). Next: CC-5 decklists (owner), then CC-6/7/8; CC-9 hot-seat needs a dispatch with owner approval. History: `CHANGELOG.md` |
+| W6: Primitive + Card Authoring | `scutemob-255` | dispatching | 2026-09-05 | v4 queue CLOSED at rank 21. CC batch COMPLETE; LL-3 (`-257`) collected `9a560313`. Approved chain: LL-1 (`-255`) → STOP, ask for CC-9 (`-245`) → LL-2 (`-256`). LL-4 (`-258`) blocked on CC-5 (owner). History: `CHANGELOG.md` |
 
-## Last Handoff (oversight session, 2026-09-05) — course correction; DX57 collected
-## Last Handoff (coordinator session, 2026-09-05) — coordinator batch COMPLETE, CC-1..4 + 17/15/14
+## Last Handoff (coordinator session, 2026-09-05 evening) — landscape assessment; LL-3 collected
 
-**Date**: 2026-09-05 (coordinator session, all seven tasks self-assigned inline, no dispatch)
-**Workstream**: course correction (`docs/course-correction-2026-09.md` §9.2 coordinator batch)
-**Task**: `scutemob-237/238/239/240` (morning) and `scutemob-254` (`d2be14f9`), `-252` (`cdaffd6e`),
-`-251` (`294072ad`) — all done and merged; one `CHANGELOG.md` entry each.
+**Date**: 2026-09-05 (coordinator; `/collect scutemob-257` merge `9a560313`)
+**Workstream**: landscape lessons (`docs/mtg-engine-landscape-assessment.md`, commit `9677fa0c`)
 
-**Completed** (this half; the CC-1..4 half is in the previous rotation of this handoff):
-- CC-17: pair-or-demote rule in `memory/conventions.md` (probe under the same revert or reason +
-  seed ID; no sweep; re-key-after-defeat is the moment), cross-referenced from engine-invariants.
-- CC-15: `crates/simulator/tests/cc15_raw_characteristics_ratchet.rs` — two-sided per-file pins
-  + directory walk; five executed defeats; paired with the SR-38 probes. **Finding**: the
-  addendum's grep-line "43" counted 3 comment mentions and missed 6 line-wrapped chains; the
-  whitespace-blind count is 47 (28 in `legal_actions.rs`). Suite 5,330 → 5,333 / 0 / 6, 73 targets.
-- CC-14: 8 agents → `.claude/agents-dormant/`, 5 skills → `.claude/skills-dormant/` (READMEs with
-  the restore recipe); `start-work`/`end`/`spawn` deleted; Agents table == disk == dispatch roster.
+**Completed**: assessment of phase.rs / Manabrew / XMage / Forge vs scutemob (survey §6 tasks);
+LL-1..LL-4 filed (`scutemob-255..258`); LL-3 dispatched, reviewed, collected — new-variant
+checklist (`memory/checklists/new-effect-variant.md`, 31 sites, two the brief missed:
+`state/stack_registry.rs`, `rules/mana.rs::is_mana_producing_effect`), "## Landscape rules" in
+`memory/conventions.md`, most-prohibited-pattern line in CLAUDE.md (now **249 lines** — one under
+the `/eot` guard; the next CLAUDE.md edit must shave), exit-3 rule in `/dispatch`.
 
-**Not done / deferred**:
-- Nothing left in the coordinator batch. CC-5 (six pod decklists) needs the owner; everything
-  else in backlog is blocked on it or on a dispatch.
+**Finding worth a player's attention**: `beast_within.rs` and `generous_gift.rs` are deck-legal and
+give the token to the CASTER (`TokenSpec.recipient` defaulted); golden `tokens/002` retired with a
+stale reason. LL-1 fixes it and makes `completeness:` mandatory (964 defs default today).
 
-**Next session candidates** (highest-yield first):
-1. CC-5 with the owner (`scutemob-241`) → unblocks CC-6/7/8 (`242/243/244`, dispatchable).
-2. CC-9 hot-seat (`scutemob-245`) — pod-facing, needs owner approval to dispatch.
+**Next**: LL-1 (`scutemob-255`, approved) → then STOP and ask the owner for CC-9 (`-245`) before
+LL-2 (`-256`) — the portfolio agent's critique (process ahead of pod-facing work) was accepted.
+LL-4 (`-258`) and everything pod-facing wait on CC-5 (owner: six decklists).
 
-**Operator-delta line** (what can a player observe now that they could not at the last
-handoff?): nothing — housekeeping only, 0 engine lines all day. THIRD empty entry in a row:
-doc §5.2 says a pod-facing item goes to the front, and CC-9 is it.
+**Operator-delta line**: nothing yet — LL-1 will be the first (Beast Within right at a 4-player
+table). Fourth empty entry; CC-9 is next after LL-1 by agreement.
 
-**Hazards** (carrying forward):
-- `esm doctor` now reports `missing: end, spawn` at every `/start` — expected (deleted by
-  CC-14, both ESM-provisioned). Never `esm update` to clear it; it re-adds them.
-- The eight dormant agents stay listed as `subagent_type` values until a session restart.
-- `/implement-ability` depends on dormant agents (banner at its top); `/author-wave` has a new
-  `--cards` mode for CC-13; `/dispatch` now writes `.esm/brief.md` and watches via Monitor.
-- Every dispatch still needs owner approval; the v4 queue is closed.
-
-**Commit prefix used**: `scutemob-N:` / `merge:` / `chore:`
+**Hazards**: `esm worktree check` flags `.claude/skills/dispatch/SKILL.md` as provisioned damage
+whenever a task edits it on purpose — inspect, then `--allow-provisioned-changes`. `esm doctor`
+`missing: end, spawn` is expected. Landscape clones live at `~/projects/scutemob-landscape/`.

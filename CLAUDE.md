@@ -13,15 +13,15 @@
   `tools/play-server`). M10+ roadmap milestones are HISTORICAL pending CC-8.
 - **Status**: 5,333 tests passing / 0 failing / 6 ignored (after CC-15, 73 targets);
   208 approved golden scripts; CI green since 2026-07-10.
-- **Last Updated**: 2026-09-05 — coordinator batch complete (CC-1/2/3/4/14/15/17).
+- **Last Updated**: 2026-09-05 — LL-3 collected (`9a560313`); LL-1 dispatching.
 - **Headline metric**: live card coverage **1,140 / 1,803 = 63.2%** (`docs/authoring-status.md`,
   regenerate with `tools/authoring-report.py`). Replaced by pod coverage (`docs/pod-coverage.md`)
   once CC-6 lands. Wire: PROTOCOL **44** / HASH **85**.
 - **Next dispatch**: NONE from the v4 queue — the second chain is **CLOSED at rank 21** (do NOT
-  dispatch PB-DX9 / PB-DX38). Coordinator batch CC-1/2/3/4/14/15/17 COMPLETE 2026-09-05. Next:
-  CC-5 six pod decklists (`scutemob-241`, owner) → CC-6/7/8; CC-9 hot-seat (`scutemob-245`) is the
-  pod-facing item and needs a dispatch with owner approval. Every dispatch needs
-  explicit owner approval (`feedback_queue_autonomous_chaining` RETRACTED 2026-08-01).
+  dispatch PB-DX9 / PB-DX38). Approved chain 2026-09-05: LL-1 (`scutemob-255`) in flight → STOP and
+  ask for CC-9 hot-seat (`scutemob-245`, pod-facing) → LL-2 (`-256`). CC-5 decklists (`-241`,
+  owner) gate LL-4 (`-258`) and CC-6/7/8. Every dispatch needs explicit owner approval
+  (`feedback_queue_autonomous_chaining` RETRACTED 2026-08-01).
 - **Where the detail is**: `CHANGELOG.md` (one ≤10-line entry per batch, newest first);
   `memory/workstream-state.md` (claims + last handoff); `docs/audits/decision-point-audit.md`
   (the OOS seed registry — ground truth; grep it before filing); v4 queue memo
