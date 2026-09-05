@@ -301,8 +301,9 @@
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
 - **Tests (delta 2026-09-05, PB-DX54 + `/review` fix cycle)**: **5,231 / 0 / 5**
   full-workspace on branch `scutemob-232` (+21 over the **5,210** baseline, measured on this
-  branch BEFORE any edit and **reproducing PB-DX53's close pin exactly** — the fourth consecutive batch in which an inherited
-  pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file, **68**
+  branch BEFORE any edit and **reproducing PB-DX53's close pin exactly** — the fourth
+  consecutive batch in which an inherited pin reproduces with no correction owed),
+  `--workspace --no-fail-fast` to a file, **68**
   result-producing targets (67 → 68: one new simulator test binary), residual list empty.
   **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
   `sort` + `comm` (`OOS-DX20b-5`): 21 additions, 0 leavers, 0 removals, 0 renames.** Count delta
