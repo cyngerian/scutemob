@@ -258,3 +258,77 @@ itself**: deleting the walk's array recursion reddens R4/R5/R6/R9 and leaves **R
 because `mardu_ascendancy`'s path carries no array segment. A shallow walk satisfies axis (i)
 completely — so R3's green is not evidence that the census reached anything nested, and the
 file says so where a reader will find it.
+
+---
+
+## §2 Fail-before evidence, and the two limits it exposed
+
+### §2.1 The RED output, captured at the unfixed merge base
+
+Four probes RED, every failure on the **verdict** assertion rather than on a floor (each
+probe's non-vacuity floors — the source really absent from `state.objects`, the ability
+really on the stack, the Jitte really attached — passed in every case):
+
+```
+dx39_t1_jitte_bonus_survives_the_jitte_being_destroyed_in_response
+  CR 608.2h + Jitte ruling 2005-02-01: the bonus goes to the creature that was most
+  recently equipped, even though the Jitte itself is gone
+    left: Some(1)   right: Some(3)
+
+dx39_t4_mardu_sacrifice_self_pumps_every_creature_you_control
+    left: Some(2)   right: Some(5)
+
+dx39_t5_mardu_does_not_pump_an_opponents_creature
+    left: Some(2)   right: Some(5)
+
+dx39_t6_mardu_set_is_determined_at_resolution_not_activation
+    left: Some(2)   right: Some(5)
+
+test result: FAILED. 2 passed; 4 failed
+```
+
+The two that passed are the **controls**, and they are the direction a careless widening
+breaks: `dx39_t2` (the ruling's legal-empty half — an unequipped Jitte on the battlefield
+pumps nobody) and `dx39_t3` (the live attachment wins while the source is alive). Both green
+before and after.
+
+### §2.2 THE BRIEF'S OWN `t6` SPECIFICATION IS CR-WRONG, AND THE PROBE WAS WRITTEN TO THE CR INSTEAD
+
+The coordinator's brief specified *"a creature that enters the battlefield BETWEEN activation
+and resolution is NOT a member"*. That is the **activation-time** rule and there is no such
+rule: CR 611.2c determines the set *"when that continuous effect begins"*, which is at
+**resolution**, so a creature that entered in the meantime **IS** a member. The probe was
+written to CR 611.2c and the shipped engine agrees. Recorded in the test's own docstring.
+*A brief is a claim like any other* — this is the second one this batch has had to refute,
+after the site-count floor.
+
+### §2.3 `OOS-DX5-7`'s SUBJECT CANNOT BE DRIVEN THROUGH `LocalGame` AT ALL, AND THAT IS STATED RATHER THAN SUBSTITUTED
+
+Acceptance criterion 7359 asks for both subjects *"on a real `LocalGame`/`HumanChoice`
+drive"*. For `mardu_ascendancy` that is **impossible at HEAD**, and the refusal is
+Architecture Invariant 9 doing its job:
+
+```
+PB-DX39 channel game must start: Engine(IncompleteCardsInGame {
+  count: 1, first_name: "Mardu Ascendancy", first_kind: "partial", .. })
+```
+
+`validate_deck` rejects non-`Complete` cards, `mardu_ascendancy` is `partial`, and this batch
+deliberately does **not** promote it (its nontoken attack filter is still missing). So **no
+validated game can contain the card**, which is the same fact §1.2 states from the census
+side: the residual's deck-legal blast radius is zero.
+
+What was written instead is named rather than passed off as the thing asked for: the Mardu
+channel probes drive `StubProvider::legal_actions` → `action_to_command_with_params` →
+`process_command`, which is the **same production mapping `LocalGame::submit` calls**, and the
+test file's own module doc states exactly what that omits. **And the criterion's substance is
+then met on a different card** — see §3.
+
+### §2.4 THE CHANNEL PROBES CARRY NO FAIL-BEFORE EVIDENCE OF THEIR OWN, AND SAY SO
+
+The engine repair landed while the channel file was being written, so all three channel probes
+were first executed against the **fixed** tree. They are channel-**reachability** pins, not
+discriminating evidence, and the file says so in its own doc rather than leaving a reader to
+assume otherwise. (`c1` does carry a `require_stack: 1` response-ordering floor proving it
+genuinely reaches the destroyed-in-response condition.) The discriminating evidence for the
+engine change is §2.1's primitive RED plus the executed revert matrix in §6.
