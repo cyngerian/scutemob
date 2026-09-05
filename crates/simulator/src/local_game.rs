@@ -13,7 +13,7 @@
 //! see `decision_kind_for` below. Session 2 owns pregame setup and mulligans.
 //! See `memory/m11-session-plan.md` §3-4.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 
 use mtg_engine::{
     process_command, start_game, Command, GameEvent, GameState, GameStateError, PlayerId,
@@ -372,6 +372,21 @@ pub struct LocalGame<P: LegalActionProvider> {
     /// The decision `submit` is currently allowed to answer, if any.
     pending: Option<PendingDecision>,
     journal: Vec<CommandRecord>,
+    /// PB-DX56 / OOS-FB1-1: every `Command` this game has committed, oldest first,
+    /// bounded at [`MAX_RETAINED_COMMAND_HISTORY`]. Unlike `journal` (event-carrying,
+    /// gated behind `LocalGameLimits::record_journal` because the fuzzer runs
+    /// thousands of long games in parallel and cannot afford to retain events for
+    /// all of them -- see that field's doc) this is ALWAYS populated: it holds
+    /// `Command`s alone, no events, and it is the only thing that lets a crash
+    /// artefact reconstruct what happened to a game the fuzzer never journals. See
+    /// [`Self::push_command_history`].
+    command_history: VecDeque<Command>,
+    /// How many entries have fallen off the front of `command_history` because the
+    /// ring filled up. Uncapped and unguarded, like `rejection_count` beside
+    /// `rejections` -- a truncated history that LOOKS complete is worse than none,
+    /// so truncation stays visible rather than silent. See
+    /// [`Self::commands_dropped_from_history`].
+    commands_dropped_from_history: usize,
     /// Bot-seat commands the engine refused (SIM-5 fix (3)). Retention is capped at
     /// [`MAX_RETAINED_REJECTIONS`] with the journal on and [`MAX_SAMPLED_REJECTIONS`]
     /// with it off (PB-DX32 Stage 2, `OOS-SIM3-2`) — see [`Self::record_rejection`];
@@ -385,6 +400,11 @@ pub struct LocalGame<P: LegalActionProvider> {
     /// stays in `violations`, the hard bucket `--stop-on-error` and the crash-report
     /// writer key on.
     transient_violations: Vec<InvariantViolation>,
+    /// Per-seat turn number at which [`invariants::TRANSIENT_DEPARTED_ACTIVE_PLAYER`] was
+    /// first observed, so the CR 800.4k turn-boundary promotion can tell a bounded window
+    /// from a real defect — see [`Self::promote_if_it_crossed_a_turn`]. Keyed by the seat
+    /// string the check's own evidence carries.
+    departed_active_first_turn: std::collections::BTreeMap<String, u32>,
     check_invariants: bool,
     /// Constant-size mechanics census (PB-DX22 fix cycle). Always on: it costs a fold
     /// over events already in hand and no retention, so unlike `journal` it does not
@@ -424,6 +444,42 @@ pub const MAX_RETAINED_REJECTIONS: usize = 256;
 /// the sample itself is small.
 pub const MAX_SAMPLED_REJECTIONS: usize = 8;
 
+/// How many [`Command`]s [`LocalGame::command_history`] retains, oldest evicted
+/// first (PB-DX56 / OOS-FB1-1). Mirrors the [`MAX_RETAINED_REJECTIONS`] idiom just
+/// above: the count of dropped entries stays visible
+/// ([`LocalGame::commands_dropped_from_history`]) rather than silently truncating.
+///
+/// **Measured, not estimated**: `std::mem::size_of::<Command>()` is **160 bytes** on
+/// this build, re-measured independently by the `/review`. Reproduce it with a throwaway
+/// probe rather than trusting this line:
+///
+/// ```text
+/// #[test]
+/// fn t() { panic!("{}", std::mem::size_of::<mtg_engine::Command>()); }
+/// ```
+///
+/// (A `text` block, not `ignore`: an `ignore` block IS a doctest, and registering one
+/// would have moved the workspace's inherited `ignored` pin from 5 to 6 for a snippet
+/// nothing runs. Caught by this batch's own close-out delta, whose non-end-anchored regex
+/// — `OOS-DX42b-6` — is what makes an ignored test visible at all.)
+///
+/// (The first draft of this sentence said *"see the PB-DX56 execution notes for the exact
+/// command"* and **the notes recorded no such command** — `OOS-DX56-12`, PB-DX8's
+/// "doc comment citing a test that does not exist" one shape over. The NUMBER was right;
+/// the pointer was dead, which is worse than no pointer because it reads as verifiable.)
+/// Peak
+/// retention per LIVE game is therefore `256 * 160 = 40,960` bytes (40 KiB). Unlike
+/// [`MAX_RETAINED_REJECTIONS`], this is NOT gated behind `LocalGameLimits::record_journal`
+/// — a crash artefact needs the command history precisely in the fuzzer's own
+/// configuration (`record_journal: false`), so gating it there would remove the
+/// history from the exact case it exists for. `bin/fuzzer.rs`'s `run_single_game`
+/// keeps the AGGREGATE `--games N` cost bounded a different way: it clears
+/// `GameResult::command_history` for any game with no HARD violations before
+/// returning, so `results` in `bin/fuzzer.rs` (which retains every game's
+/// `GameResult` for the whole run) only pays this 40 KiB peak for games that
+/// actually violated, not for all `N` of them.
+pub const MAX_RETAINED_COMMAND_HISTORY: usize = 256;
+
 impl<P: LegalActionProvider> LocalGame<P> {
     /// Starts a game from an assembled (but not yet started) `GameState`. Delegates to
     /// `mtg_engine::start_game`, which enforces Architecture Invariant 9 — a game
@@ -454,10 +510,13 @@ impl<P: LegalActionProvider> LocalGame<P> {
             decision_seq: 0,
             pending: None,
             journal: Vec::new(),
+            command_history: VecDeque::new(),
+            commands_dropped_from_history: 0,
             rejections: Vec::new(),
             rejection_count: 0,
             violations: Vec::new(),
             transient_violations: Vec::new(),
+            departed_active_first_turn: std::collections::BTreeMap::new(),
             check_invariants,
             mechanics: MechanicsTally::default(),
             waste: WasteTally::default(),
@@ -496,6 +555,14 @@ impl<P: LegalActionProvider> LocalGame<P> {
         // not a checkpoint artefact.
         let mut violations = self.violations.clone();
         violations.extend(invariants::check_no_leaked_tokens(&self.state));
+        // PB-DX56 (`OOS-DX22-8`): the second strictly-stronger end-state property, added
+        // beside the token one for the same reason and at the same single shared call site
+        // both real terminal paths go through. A dangling `attached_to` at a CHECKPOINT is
+        // the CR 704.3 / `OOS-M11-7` window; one still there when the game is OVER is a
+        // permanent CR 704.5m/704.5n blind spot.
+        violations.extend(invariants::check_no_dangling_attachment_at_rest(
+            &self.state,
+        ));
         GameResult {
             seed: self.seed,
             winner,
@@ -514,6 +581,12 @@ impl<P: LegalActionProvider> LocalGame<P> {
             transient_violations: self.transient_violations.clone(),
             // PB-DX32 Stage 6.
             decision_coverage: self.decisions,
+            // PB-DX56 / OOS-FB1-1: see `Self::command_history` for why this is
+            // ALWAYS populated here (never gated on `record_journal`); the fuzzer
+            // trims it back down for non-violating games (`bin/fuzzer.rs`'s
+            // `run_single_game`), not here.
+            command_history: self.command_history(),
+            commands_dropped_from_history: self.commands_dropped_from_history(),
         }
     }
 
@@ -523,6 +596,42 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
     pub fn violations(&self) -> &[InvariantViolation] {
         &self.violations
+    }
+
+    /// PB-DX56 / OOS-FB1-1: the retained command-history ring, oldest first.
+    /// Bounded at [`MAX_RETAINED_COMMAND_HISTORY`] -- see
+    /// [`Self::commands_dropped_from_history`] to tell whether it has ever
+    /// truncated.
+    pub fn command_history(&self) -> Vec<Command> {
+        self.command_history.iter().cloned().collect()
+    }
+
+    /// How many commands have fallen off the front of the ring because
+    /// [`MAX_RETAINED_COMMAND_HISTORY`] was exceeded. A truncated history that
+    /// LOOKS complete is worse than none -- this is what makes the truncation
+    /// visible instead.
+    pub fn commands_dropped_from_history(&self) -> usize {
+        self.commands_dropped_from_history
+    }
+
+    /// Push `command` onto the bounded command-history ring, evicting the oldest
+    /// entry once [`MAX_RETAINED_COMMAND_HISTORY`] is reached (PB-DX56 /
+    /// OOS-FB1-1).
+    ///
+    /// Called from BOTH commit paths -- [`Self::apply_sequence`]'s commit loop and
+    /// [`Self::apply_command`]'s `Ok` arm. Verified by reading every
+    /// `process_command(` call site in this file: those two are the ONLY places a
+    /// `Command` is ever actually committed to `self.state` (every other call site
+    /// in this crate operates on a state that is not `self` -- bots planning
+    /// against a clone, tests driving their own fixture -- and none of them is a
+    /// third commit path for THIS game's history).
+    fn push_command_history(&mut self, command: Command) {
+        if self.command_history.len() >= MAX_RETAINED_COMMAND_HISTORY {
+            self.command_history.pop_front();
+            self.commands_dropped_from_history =
+                self.commands_dropped_from_history.saturating_add(1);
+        }
+        self.command_history.push_back(command);
     }
 
     /// `no_orphaned_tokens` reports split out from [`Self::violations`] at collection
@@ -545,14 +654,19 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// `violations`, the hard bucket `--stop-on-error` and the crash-report writer key
     /// on. Mirrors `crates/simulator/tests/local_game_playthrough.rs:457-463`'s own
     /// treatment.
+    /// **A pure delegation to [`invariants::bucket_violations`], deliberately.** The
+    /// classification and the CR 800.4k promotion used to live here inline, where no test
+    /// could reach them — the PB-DX56 `/review` planted an argument swap in the promotion
+    /// call and separately ORed two HARD class names into the transient test, and BOTH left
+    /// all 42 simulator targets green (`OOS-DX56-7`). Gating the two predicates at their
+    /// definitions said nothing about this site. Everything they decided now lives in one
+    /// free function that a unit test can drive directly, and this body must stay a
+    /// delegation — `t_record_violations_is_a_pure_delegation` is what says so.
     fn record_violations(&mut self, new: Vec<InvariantViolation>) {
-        for v in new {
-            if v.check == "no_orphaned_tokens" {
-                self.transient_violations.push(v);
-            } else {
-                self.violations.push(v);
-            }
-        }
+        let (hard, transient) =
+            invariants::bucket_violations(new, &mut self.departed_active_first_turn);
+        self.violations.extend(hard);
+        self.transient_violations.extend(transient);
     }
 
     pub fn journal(&self) -> &[CommandRecord] {
@@ -1179,6 +1293,8 @@ impl<P: LegalActionProvider> LocalGame<P> {
         for record in &records {
             self.mechanics.record(&record.events, record.turn);
             self.fold_waste(&record.command, &record.events);
+            // PB-DX56 / OOS-FB1-1.
+            self.push_command_history(record.command.clone());
         }
 
         if self.check_invariants {
@@ -1218,6 +1334,9 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 self.mechanics
                     .record(&events, self.state.turn().turn_number);
                 self.fold_waste(&command, &events);
+                // PB-DX56 / OOS-FB1-1. Unconditional, like `mechanics`/`fold_waste`
+                // just above -- NOT gated on `track` or `record_journal`.
+                self.push_command_history(command.clone());
                 if self.limits.record_journal {
                     self.journal.push(CommandRecord {
                         command,

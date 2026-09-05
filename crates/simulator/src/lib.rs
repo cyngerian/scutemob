@@ -68,12 +68,14 @@ pub use local_game::{
 // the two retention caps are re-exported for the same reason `MAX_AUTO_CHOSEN_COMPLETE_UNION`-
 // style constants are exported elsewhere: a caller reading `rejections().len() ==
 // MAX_SAMPLED_REJECTIONS` needs the same symbol this crate compares against.
-pub use local_game::{RejectedCommand, MAX_RETAINED_REJECTIONS, MAX_SAMPLED_REJECTIONS};
+pub use local_game::{
+    RejectedCommand, MAX_RETAINED_COMMAND_HISTORY, MAX_RETAINED_REJECTIONS, MAX_SAMPLED_REJECTIONS,
+};
 pub use mana_solver::solve_mana_payment;
 pub use params::{action_to_command_with_params, ActionParams, HumanChoice, ParamError};
 pub use random_bot::RandomBot;
 pub use report::{
-    CrashReport, GameDriverError, GameResult, MAX_BOT_REJECTION_PER_MILLE,
+    CrashReport, GameDriverError, GameResult, InFlightGame, MAX_BOT_REJECTION_PER_MILLE,
     MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG, MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED,
     MAX_RANDOM_BOT_WASTED_TAP_PCT, MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG,
 };

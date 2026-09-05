@@ -1,12 +1,30 @@
 //! Invariant checks run after every state transition during fuzzing.
 //!
-//! **Ten checks exist; nine of them fire from [`check_all`]**, plus one deliberate
-//! no-op: zone integrity, ID uniqueness, stack consistency, player consistency, turn
-//! order, object-zone agreement, attachment validity, game progression, orphaned
-//! tokens — and `check_mana_non_negative`, which cannot fail because `ManaPool` is
-//! `u32`. The tenth, [`check_no_leaked_tokens`] (PB-DX32 Stage 4), is an END-OF-GAME
-//! check and is deliberately NOT in [`check_all`] — it runs once per game, at both
-//! real `LocalGame` terminal paths, not per command.
+//! **Thirteen checks exist; ELEVEN of them fire from [`check_all`]**, one of those eleven
+//! being a deliberate no-op, and two are END-OF-GAME checks that run once per game instead.
+//!
+//! From [`check_all`], in call order — count them there, not here:
+//! zone integrity, ID uniqueness, `check_mana_non_negative` (the no-op: `ManaPool`'s fields
+//! are `u32`), stack consistency, player consistency, turn order, object-zone agreement,
+//! attachment validity, **attachment symmetry** (PB-DX56), game progression, orphaned
+//! tokens. **Eleven.**
+//!
+//! Not from [`check_all`], deliberately: [`check_no_leaked_tokens`] (PB-DX32 Stage 4) and
+//! [`check_no_dangling_attachment_at_rest`] (PB-DX56). Both are END-OF-GAME checks — they
+//! run at `LocalGame::result_snapshot`, the one site both real terminal paths go through,
+//! and each is the strictly stronger property that keeps one transient split honest.
+//! `t_every_end_state_check_is_called_from_result_snapshot` is what stops either call from
+//! being deleted in silence, which it could be until PB-DX56 (`OOS-DX56-5`).
+//!
+//! **This header has now been wrong THREE times and the third was inside the paragraph
+//! telling you to count.** It said "Ten checks exist; nine of them fire from `check_all`"
+//! until PB-DX56; PB-DX56's first draft left that standing while adding two checks; its
+//! second draft said "Twelve … ten of them fire", took `main`'s already-wrong nine and
+//! added one **instead of counting**, and shipped that under a sentence reading *"count it
+//! there before trusting this paragraph"*. The `/review` counted: `check_all` makes
+//! **eleven** calls (`check_game_progression` is nested inside an `if let`, which is how a
+//! `grep -c` on a fixed indent misses it). A count in a module doc is a claim like any
+//! other; `check_all`'s call list is the ground truth. `OOS-DX56-13`.
 //!
 //! This header used to say "12 checks", and `docs/mtg-engine-simulator.md` still
 //! lists twelve. Two of those twelve (legal-action soundness, SBA idempotency)
@@ -19,14 +37,250 @@
 
 use mtg_engine::{GameState, ObjectId, ZoneId};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+
+/// The `check` name of the CR 704.3 / `OOS-M11-7` token class: a token in a
+/// non-battlefield zone at a checkpoint, cleared by the next SBA sweep. Split out of the
+/// hard bucket by PB-DX32 Stage 4 and answered by [`check_no_leaked_tokens`].
+pub const TRANSIENT_ORPHANED_TOKENS: &str = "no_orphaned_tokens";
+
+/// The `check` name of the CR 800.4j class (PB-DX56, `OOS-DX32-1`): `turn.active_player`
+/// naming a player who has left the game.
+///
+/// **Transient because CR 800.4j says the turn "continues to its completion without an
+/// active player" and this engine cannot say that** — see [`check_player_consistency`].
+/// It is BOUNDED to the remainder of that turn, and the bound is CR 800.4k: *"If a player
+/// who has left the game would begin a turn, that turn doesn't begin."*
+/// `rules/turn_structure.rs::next_player_in_turn_order` skips `has_lost || has_conceded`,
+/// and PB-DX56's F2 closed `advance_turn`'s extra-turn branch, which applied no liveness
+/// filter at all and was the one route by which this condition was UNBOUNDED.
+///
+/// **The strictly stronger property that keeps this split honest is therefore a
+/// TURN-BOUNDARY rule, not an end-state one**, and it is enforced by
+/// `LocalGame::record_violations`: the same departed player reported as active at a
+/// STRICTLY GREATER turn number than the one the condition was first seen at is promoted
+/// to the HARD bucket as [`HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN`]. An end-state check
+/// would be the wrong shape here and would fire spuriously: when the game ends, the last
+/// player to die may legitimately still be `active_player`.
+pub const TRANSIENT_DEPARTED_ACTIVE_PLAYER: &str = "departed_active_player";
+
+/// The promotion of [`TRANSIENT_DEPARTED_ACTIVE_PLAYER`] that is NOT transient: the
+/// condition survived a turn boundary, which CR 800.4k forbids.
+pub const HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN: &str =
+    "departed_active_player_crossed_a_turn";
+
+/// The `check` name of the CR 800.4a class (PB-DX56, `OOS-DX32-1`): `priority_holder`
+/// naming a player who has left the game. **Hard** — CR 800.4a's last sentence is
+/// unconditional. Measured at ZERO on the standard invocation, which is the evidence that
+/// keeping it hard costs nothing.
+pub const HARD_DEPARTED_PRIORITY_HOLDER: &str = "departed_priority_holder";
+
+/// The `check` name of the CR 704.5m / 704.5n class (`OOS-DX22-8`): a battlefield object
+/// whose `attached_to` names an `ObjectId` that is not a key of `state.objects`.
+///
+/// **Transient, and PB-DX56 established the exact iff.** The two SBA arms
+/// (`rules/sba.rs::check_aura_sbas`, `::check_equipment_sbas`) clear this unless the
+/// attacher is phased out or its LAYER-RESOLVED subtypes contain none of
+/// `Aura`/`Equipment`/`Fortification`. What makes it survive a checkpoint is the same
+/// CR 704.3 timing deviation as the token class (`OOS-M11-7`): the engine sweeps SBAs at
+/// nine sites and `rules/{abilities,casting,combat,mana,turn_actions}.rs` contain **zero**,
+/// so a permanent that leaves the battlefield while paying a cost dangles across the
+/// invariant check and heals at the next step entry or resolution.
+///
+/// Answered by TWO strictly stronger properties, because one would not be enough:
+/// [`check_no_dangling_attachment_at_rest`] (the end state must be clean) and
+/// [`check_attachment_symmetry`] (the direction that NEVER heals, which had no check at
+/// all until PB-DX56 — see that function).
+pub const TRANSIENT_ATTACHMENT_VALIDITY: &str = "attachment_validity";
+
+/// The `check` name of the direction of the attachment relation that never heals — see
+/// [`check_attachment_symmetry`]. **Hard and per-command**: no SBA is supposed to clean this
+/// up, so there is no CR 704.3 window to excuse a report.
+pub const HARD_ATTACHMENT_SYMMETRY: &str = "attachment_symmetry";
+
+/// The `check` name of [`check_no_dangling_attachment_at_rest`], the END-STATE answer to
+/// [`TRANSIENT_ATTACHMENT_VALIDITY`].
+pub const HARD_DANGLING_ATTACHMENT_AT_REST: &str = "dangling_attachment_at_rest";
+
+/// Split a batch of fresh violations into the HARD and TRANSIENT buckets, applying the
+/// CR 800.4k promotion on the way (PB-DX56).
+///
+/// **This is a free function taking its own state by `&mut` so it is testable WITHOUT
+/// building a `LocalGame`, and that is not a convenience — it is the fix for a defect the
+/// `/review` found by execution.** The classification used to live inline in
+/// `LocalGame::record_violations`, where nothing could reach it: a planted ARGUMENT SWAP in
+/// the promotion call (`crosses_a_turn_boundary(&v.check, first, v.turn_number)` — which
+/// compiles and uses every binding) made the promotion unfireable and left all 42 simulator
+/// targets GREEN, and separately, ORing two hard class names into the transient test routed
+/// both new HARD classes into the transient bucket and silently disarmed `--stop-on-error`,
+/// also GREEN. Gating [`is_transient_check`] and [`crosses_a_turn_boundary`] at their
+/// DEFINITIONS said nothing about the site that calls them — **PB-DX50's `r3` finding
+/// verbatim, cited elsewhere in this repo and not carried across by this batch until the
+/// `/review` re-executed it** (`OOS-DX56-7`).
+///
+/// `departed_active_first_turn` is the per-seat memory the CR 800.4k bound needs: the turn
+/// at which each seat's [`TRANSIENT_DEPARTED_ACTIVE_PLAYER`] condition was FIRST seen.
+/// Keyed per seat, because two seats departing on two different turns are two independent
+/// bounded windows and not one window that crossed a boundary.
+pub fn bucket_violations(
+    new: Vec<InvariantViolation>,
+    departed_active_first_turn: &mut BTreeMap<String, u32>,
+) -> (Vec<InvariantViolation>, Vec<InvariantViolation>) {
+    let mut hard = Vec::new();
+    let mut transient = Vec::new();
+    for v in new {
+        let v = promote_if_it_crossed_a_turn(v, departed_active_first_turn);
+        if is_transient_check(&v.check) {
+            transient.push(v);
+        } else {
+            hard.push(v);
+        }
+    }
+    (hard, transient)
+}
+
+/// The CR 800.4k promotion applied to one violation — see [`crosses_a_turn_boundary`] for
+/// the rule and [`bucket_violations`] for why this is reachable from a test.
+fn promote_if_it_crossed_a_turn(
+    v: InvariantViolation,
+    departed_active_first_turn: &mut BTreeMap<String, u32>,
+) -> InvariantViolation {
+    if v.check != TRANSIENT_DEPARTED_ACTIVE_PLAYER {
+        return v;
+    }
+    let Some(seat) = arm_player_of(&v).map(str::to_string) else {
+        return v;
+    };
+    let first = *departed_active_first_turn
+        .entry(seat)
+        .or_insert(v.turn_number);
+    if !crosses_a_turn_boundary(&v.check, v.turn_number, first) {
+        return v;
+    }
+    let mut promoted = v;
+    promoted
+        .evidence
+        .push(format!("first_seen_on_turn={first}"));
+    promoted.evidence.push(format!(
+        "turns_crossed={}",
+        promoted.turn_number.saturating_sub(first)
+    ));
+    promoted.description = format!(
+        "{} -- and it was already true on turn {}, so it survived a turn boundary \
+         (CR 800.4k: a departed player's turn does not begin)",
+        promoted.description, first
+    );
+    promoted.check = HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN.into();
+    promoted
+}
+
+/// The seat an [`InvariantViolation`]'s evidence names as the ARM's own subject, if it has
+/// one (PB-DX56).
+///
+/// **The key is `arm_player=`, not `player=`, and the difference is the whole of
+/// `OOS-DX56-1`.** [`check_all`] PREPENDS [`state_context`], which emits one
+/// `player=PlayerId(n) life=… has_lost=…` line PER SEAT, so a `player=` lookup returns the
+/// first state-context line — a value identical for every violation in the game. Reading
+/// the seat is factored here rather than open-coded at the consumer so there is exactly
+/// one place that knows which key means what.
+pub fn arm_player_of(v: &InvariantViolation) -> Option<&str> {
+    v.evidence
+        .iter()
+        .find_map(|e| e.strip_prefix("arm_player="))
+}
+
+/// The CR 800.4k decision, as a PURE function so it can be tested without building a game
+/// (`OOS-DX56-1`'s companion finding: the promotion had no test of any kind, and a plant
+/// that made it never fire left the whole workspace green).
+///
+/// `first_seen` is the turn number at which this seat's
+/// [`TRANSIENT_DEPARTED_ACTIVE_PLAYER`] condition was first observed. CR 800.4j lets the
+/// condition hold for the remainder of THAT turn; CR 800.4k — *"If a player who has left
+/// the game would begin a turn, that turn doesn't begin."* — is what forbids it holding
+/// into a later one. So a report at a **strictly greater** turn number is the promotion,
+/// and anything at or before it is the bounded window.
+pub fn crosses_a_turn_boundary(check: &str, turn_number: u32, first_seen: u32) -> bool {
+    check == TRANSIENT_DEPARTED_ACTIVE_PLAYER && turn_number > first_seen
+}
+
+/// Is this `check` name a known-transient class — reported, but not counted toward the hard
+/// bucket and not halting `--stop-on-error`?
+///
+/// **One arithmetic, deliberately.** Before PB-DX56 the classification was a bare literal
+/// `if v.check == "no_orphaned_tokens"` inside `LocalGame::record_violations`, and adding a
+/// second and third transient class by editing that literal is how a class ends up
+/// transient in one consumer and hard in another. Every consumer calls this instead.
+///
+/// **Stated precisely, because the obvious stronger claim is false at HEAD**:
+/// `tests/local_game_playthrough.rs` does NOT hold a second copy — PB-DX32's own `/review`
+/// (finding M1) already found and deleted the duplicate branch there, and that file now
+/// reads the split from `LocalGame`'s two accessors. This function exists to keep it that
+/// way as the transient set GROWS, not to repair a drift that currently exists.
+pub fn is_transient_check(check: &str) -> bool {
+    matches!(
+        check,
+        TRANSIENT_ORPHANED_TOKENS
+            | TRANSIENT_DEPARTED_ACTIVE_PLAYER
+            | TRANSIENT_ATTACHMENT_VALIDITY
+    )
+}
 
 /// An invariant violation found during fuzzing.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+///
+/// # `evidence` (PB-DX56 / OOS-FB1-1)
+///
+/// `check` and `description` name WHAT is wrong; `evidence` is the check's own
+/// account of the state it was found in -- structured facts a human (or a later
+/// pass of tooling) can use to decide what to do about it, rather than two
+/// `ObjectId`s and a prose sentence. [`check_all`] prepends a common state
+/// snapshot (turn/phase/step/active player/priority holder/every player's
+/// life-and-status, see [`state_context`]) to every violation's `evidence` after
+/// collection; individual checks may append their OWN facts on top of that (see
+/// [`check_player_consistency`] and [`check_attachment_validity`] for the two that
+/// do, as of this batch).
+///
+/// **Deliberately NOT part of [`distinct`]'s dedupe key.** `evidence` carries
+/// PER-INSTANCE facts (in particular the turn number the state snapshot was taken
+/// at), so the same underlying condition observed at two different checkpoints
+/// produces two different `evidence` vectors even though it is still one defect.
+/// Folding `evidence` into the key would turn ONE defect-shaped condition into N
+/// "distinct" conditions -- one per checkpoint it happened to be observed at --
+/// which is exactly the defect-shaped-number property `OOS-SIM3-3` exists to
+/// preserve (see [`distinct`]'s own doc).
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct InvariantViolation {
     pub check: String,
     pub description: String,
     pub turn_number: u32,
+    /// The check's own evidence for this instance -- see this struct's doc.
+    /// `#[serde(default)]` so a pre-PB-DX56 crash-report JSON (which has no
+    /// `evidence` field at all) still deserializes.
+    #[serde(default)]
+    pub evidence: Vec<String>,
+}
+
+/// Common state facts prepended (by [`check_all`]) to every violation's
+/// `evidence` -- the "dumps the violating state" half of `OOS-FB1-1`. One
+/// arithmetic used by every checkpoint rather than each check reaching for it
+/// independently: a check that forgets to call a shared helper cannot happen if
+/// there is only one call site, in `check_all` itself, after collection.
+fn state_context(state: &GameState) -> Vec<String> {
+    let turn = state.turn();
+    let mut ctx = vec![
+        format!("turn={}", turn.turn_number),
+        format!("phase={:?}", turn.phase),
+        format!("step={:?}", turn.step),
+        format!("active_player={:?}", turn.active_player),
+        format!("priority_holder={:?}", turn.priority_holder),
+    ];
+    for (id, p) in state.players().iter() {
+        ctx.push(format!(
+            "player={:?} life={} has_lost={} has_conceded={}",
+            id, p.life_total, p.has_lost, p.has_conceded
+        ));
+    }
+    ctx.push(format!("turn_order={:?}", turn.turn_order));
+    ctx
 }
 
 /// Run all invariant checks on a game state. Returns violations found.
@@ -41,10 +295,27 @@ pub fn check_all(state: &GameState, prev_turn: Option<u32>) -> Vec<InvariantViol
     check_turn_order(state, &mut violations);
     check_object_zone_agreement(state, &mut violations);
     check_attachment_validity(state, &mut violations);
+    check_attachment_symmetry(state, &mut violations);
     if let Some(prev) = prev_turn {
         check_game_progression(state, prev, &mut violations);
     }
     check_no_orphaned_tokens(state, &mut violations);
+
+    // PB-DX56 / OOS-FB1-1: prepend the common state snapshot to EVERY violation
+    // found this checkpoint, in ONE place, after collection -- not inside each
+    // check. A check-local call could be forgotten by a future check; a single
+    // call site here cannot be, because every violation any check produces flows
+    // through this vec before `check_all` returns it. Per-check evidence (see
+    // `check_player_consistency` / `check_attachment_validity`) is appended AFTER
+    // this common context, so it reads general-first, specific-second.
+    if !violations.is_empty() {
+        let ctx = state_context(state);
+        for v in &mut violations {
+            let mut evidence = ctx.clone();
+            evidence.append(&mut v.evidence);
+            v.evidence = evidence;
+        }
+    }
 
     violations
 }
@@ -71,6 +342,7 @@ fn check_zone_integrity(state: &GameState, violations: &mut Vec<InvariantViolati
                     zones
                 ),
                 turn_number: state.turn().turn_number,
+                evidence: Vec::new(),
             });
         }
     }
@@ -82,6 +354,7 @@ fn check_zone_integrity(state: &GameState, violations: &mut Vec<InvariantViolati
                 check: "zone_integrity".into(),
                 description: format!("Object {:?} not found in any zone", obj_id),
                 turn_number: state.turn().turn_number,
+                evidence: Vec::new(),
             });
         }
     }
@@ -97,6 +370,7 @@ fn check_id_uniqueness(state: &GameState, violations: &mut Vec<InvariantViolatio
                     check: "id_uniqueness".into(),
                     description: format!("Duplicate ObjectId {:?} across zones", obj_id),
                     turn_number: state.turn().turn_number,
+                    evidence: Vec::new(),
                 });
             }
         }
@@ -360,6 +634,7 @@ fn check_stack_consistency(state: &GameState, violations: &mut Vec<InvariantViol
                     so.id, card
                 ),
                 turn_number: state.turn().turn_number,
+                evidence: Vec::new(),
             });
         }
     }
@@ -374,6 +649,7 @@ fn check_stack_consistency(state: &GameState, violations: &mut Vec<InvariantViol
                     id
                 ),
                 turn_number: state.turn().turn_number,
+                evidence: Vec::new(),
             });
         }
     }
@@ -390,6 +666,7 @@ fn check_stack_consistency(state: &GameState, violations: &mut Vec<InvariantViol
                     card, count
                 ),
                 turn_number: state.turn().turn_number,
+                evidence: Vec::new(),
             });
         }
     }
@@ -404,19 +681,49 @@ fn check_stack_consistency(state: &GameState, violations: &mut Vec<InvariantViol
                 stack_zone_ids, claimed_order
             ),
             turn_number: state.turn().turn_number,
+            evidence: Vec::new(),
         });
     }
 }
 
-/// 5. Player consistency: active player and priority holder are alive
+/// 5. Player consistency: active player and priority holder are alive.
+///
+/// # This check reports TWO conditions and the CR gives them OPPOSITE dispositions
+///
+/// PB-DX56 (`OOS-DX32-1`) measured 189 of 189 reports on the ACTIVE-PLAYER arm and
+/// **zero** on the priority-holder arm, and then read the two rules:
+///
+/// * **CR 800.4j**, verbatim: *"If a player leaves the game during their turn, that turn
+///   continues to its completion **without an active player**."* `TurnState::active_player`
+///   is a bare `PlayerId`, not an `Option`, with exactly ONE production write site
+///   (`rules/turn_structure.rs`, inside `advance_turn`), so *"without an active player"* is
+///   **inexpressible in this engine's state type** and it necessarily encodes that turn by
+///   leaving the departed player's id in the field. Everything CR 800.4j actually requires
+///   is discharged elsewhere: the departed seat never receives priority
+///   (`rules/priority.rs::grant_priority_to_active_player`, which cites 800.4j by name) and
+///   never acts (`rules/engine.rs::validate_player_active`). So this arm asserts a
+///   REPRESENTATION CHOICE, not a rules violation — it is [`TRANSIENT_DEPARTED_ACTIVE_PLAYER`].
+/// * **CR 800.4a**, last sentence, verbatim: *"If the player who left the game had priority
+///   at the time they left, priority passes to the next player in turn order who's still in
+///   the game."* Unconditional, with no "continues without" escape. There is no state in
+///   which a departed player legitimately holds priority, so this arm is a REAL DEFECT and
+///   stays hard — [`HARD_DEPARTED_PRIORITY_HOLDER`].
+///
+/// **The two arms therefore carry different `check` names.** They used to share
+/// `"player_consistency"`, which is why the registry row, the v4 memo cell and the dispatch
+/// criterion all treat them as one class; folding a CR-permitted representation and a real
+/// CR 800.4a defect into one bucket is what made a quarter of the fuzzer's HARD signal
+/// undiagnosable. The transient half is answered by the strictly stronger CR 800.4k
+/// turn-boundary property — see [`TRANSIENT_DEPARTED_ACTIVE_PLAYER`].
 fn check_player_consistency(state: &GameState, violations: &mut Vec<InvariantViolation>) {
     let active = state.turn().active_player;
     if let Ok(p) = state.player(active) {
         if p.has_lost || p.has_conceded {
             violations.push(InvariantViolation {
-                check: "player_consistency".into(),
+                check: TRANSIENT_DEPARTED_ACTIVE_PLAYER.into(),
                 description: format!("Active player {:?} has lost or conceded", active),
                 turn_number: state.turn().turn_number,
+                evidence: player_consistency_evidence(state, "active_player", active, p),
             });
         }
     }
@@ -425,13 +732,51 @@ fn check_player_consistency(state: &GameState, violations: &mut Vec<InvariantVio
         if let Ok(p) = state.player(priority) {
             if p.has_lost || p.has_conceded {
                 violations.push(InvariantViolation {
-                    check: "player_consistency".into(),
+                    check: HARD_DEPARTED_PRIORITY_HOLDER.into(),
                     description: format!("Priority holder {:?} has lost or conceded", priority),
                     turn_number: state.turn().turn_number,
+                    evidence: player_consistency_evidence(state, "priority_holder", priority, p),
                 });
             }
         }
     }
+}
+
+/// Evidence for [`check_player_consistency`] (PB-DX56 / OOS-FB1-1). The description
+/// says "has lost or conceded", but CR 704.5a (loss, an SBA) and CR 104.3a
+/// (concession, a special action a player takes) are different CR situations with
+/// different likely fixes, so `arm`, `has_lost` and `has_conceded` are all reported
+/// SEPARATELY rather than left folded into one prose sentence. Also reports whether
+/// ANY OTHER player is still alive: "the whole table is out and the game should have
+/// ended" and "one straggler is out but everyone else is fine" are different failure
+/// shapes with different fixes.
+fn player_consistency_evidence(
+    state: &GameState,
+    arm: &str,
+    id: mtg_engine::PlayerId,
+    p: &mtg_engine::PlayerState,
+) -> Vec<String> {
+    let any_other_player_alive = state
+        .players()
+        .iter()
+        .any(|(other_id, other)| *other_id != id && !other.has_lost && !other.has_conceded);
+    vec![
+        format!("arm={arm}"),
+        // `arm_player=`, deliberately NOT `player=`. `check_all` PREPENDS
+        // `state_context`, which emits one `player=PlayerId(n) life=... has_lost=...` line
+        // PER SEAT, so a consumer looking for the arm's own subject with a `player=` prefix
+        // finds the FIRST state-context line instead -- a value that is identical for every
+        // violation in the game and therefore collapses two different departed seats into
+        // one. That is not hypothetical: it is exactly what
+        // `LocalGame::promote_if_it_crossed_a_turn`'s first draft did, and it manufactured
+        // a false CR 800.4k promotion on fuzz seed 5 by keying PlayerId(4)'s turn-154
+        // report against PlayerId(1)'s turn-133 one. Pinned by
+        // `t_arm_player_key_is_not_shadowed_by_state_context`.
+        format!("arm_player={id:?}"),
+        format!("has_lost={}", p.has_lost),
+        format!("has_conceded={}", p.has_conceded),
+        format!("any_other_player_alive={any_other_player_alive}"),
+    ]
 }
 
 /// 6. Turn order: all players in turn_order
@@ -443,6 +788,7 @@ fn check_turn_order(state: &GameState, violations: &mut Vec<InvariantViolation>)
                 check: "turn_order".into(),
                 description: format!("Active player {:?} not in turn_order", p),
                 turn_number: state.turn().turn_number,
+                evidence: Vec::new(),
             });
         }
     }
@@ -461,6 +807,7 @@ fn check_object_zone_agreement(state: &GameState, violations: &mut Vec<Invariant
                             obj_id, obj.zone, zone_id
                         ),
                         turn_number: state.turn().turn_number,
+                        evidence: Vec::new(),
                     });
                 }
             }
@@ -474,16 +821,69 @@ fn check_attachment_validity(state: &GameState, violations: &mut Vec<InvariantVi
         if let Some(target_id) = obj.attached_to {
             if state.object(target_id).is_err() {
                 violations.push(InvariantViolation {
-                    check: "attachment_validity".into(),
+                    check: TRANSIENT_ATTACHMENT_VALIDITY.into(),
                     description: format!(
                         "Object {:?} attached to {:?} which doesn't exist",
                         obj.id, target_id
                     ),
                     turn_number: state.turn().turn_number,
+                    evidence: attachment_validity_evidence(state, obj, target_id),
                 });
             }
         }
     }
+}
+
+/// Evidence for [`check_attachment_validity`] (PB-DX56 / OOS-FB1-1, `OOS-DX22-8`).
+/// The whole point of this seed is that `Object A attached to B which doesn't exist`
+/// names two `ObjectId`s and nothing that lets anyone decide between CR 704.5m (an
+/// Aura with an illegal attachment goes to the graveyard) and CR 704.5n (an
+/// Equipment/Fortification with an illegal attachment stays on the battlefield,
+/// merely unattached) -- and the ATTACHER's card type is the first thing that
+/// decides between them, so it is the first thing reported here.
+///
+/// The target's own last-known information is included when the engine has one:
+/// `GameState::lki_objects()` is a `pub` read-only accessor onto the CR 113.7a /
+/// 608.2h LKI store (`state/mod.rs`) -- contrary to this task's brief, which
+/// expected that accessor might not be public, it already is, so no engine change
+/// was needed to reach it. A target this check has never seen an LKI snapshot for
+/// (never left the battlefield with the stack non-empty, or the snapshot was
+/// already cleared) reports that explicitly rather than silently omitting the
+/// fact.
+fn attachment_validity_evidence(
+    state: &GameState,
+    obj: &mtg_engine::GameObject,
+    target_id: ObjectId,
+) -> Vec<String> {
+    let mut evidence = vec![
+        format!("attacher={:?}", obj.id),
+        format!("attacher_name={:?}", obj.characteristics.name),
+        format!("attacher_card_types={:?}", obj.characteristics.card_types),
+        format!("attacher_subtypes={:?}", obj.characteristics.subtypes),
+        format!("attacher_controller={:?}", obj.controller),
+        format!("attacher_owner={:?}", obj.owner),
+        format!("attacher_is_token={}", obj.is_token),
+        format!("attacher_phased_out={}", obj.status.phased_out),
+        format!("attacher_zone={:?}", obj.zone),
+        format!("attacher_attachments={:?}", obj.attachments),
+        format!("target={target_id:?}"),
+        "target_present_in_state_objects=false".to_string(),
+    ];
+    match state.lki_objects().get(&target_id) {
+        Some(lki) => {
+            evidence.push(format!("target_lki_name={:?}", lki.characteristics.name));
+            evidence.push(format!(
+                "target_lki_card_types={:?}",
+                lki.characteristics.card_types
+            ));
+        }
+        None => evidence.push(
+            "target_lki=<no snapshot: target never left the battlefield with the stack \
+             non-empty, or the snapshot was already cleared>"
+                .to_string(),
+        ),
+    }
+    evidence
 }
 
 /// 9. Game progression: turn number never decreases
@@ -501,6 +901,7 @@ fn check_game_progression(
                 state.turn().turn_number
             ),
             turn_number: state.turn().turn_number,
+            evidence: Vec::new(),
         });
     }
 }
@@ -520,15 +921,158 @@ fn check_no_orphaned_tokens(state: &GameState, violations: &mut Vec<InvariantVio
             // Tokens can briefly exist on the stack (e.g., copy of a spell).
             // But in graveyard/exile/hand they should be cleaned up by SBAs.
             violations.push(InvariantViolation {
-                check: "no_orphaned_tokens".into(),
+                check: TRANSIENT_ORPHANED_TOKENS.into(),
                 description: format!(
                     "Token {:?} '{}' found in zone {:?}",
                     obj_id, obj.characteristics.name, obj.zone
                 ),
                 turn_number: state.turn().turn_number,
+                evidence: Vec::new(),
             });
         }
     }
+}
+
+/// The direction of the attachment relation that **never heals**, and that nothing in this
+/// workspace looked at before PB-DX56 (`OOS-DX22-8`).
+///
+/// [`check_attachment_validity`] watches one side of a two-sided relation: a HOST leaves,
+/// and the attacher's `attached_to` dangles. That side is cleared by CR 704.5m /
+/// CR 704.5n. **The other side has no state-based action at all.** When an ATTACHER leaves
+/// the battlefield by any route other than the six sites that clean up (`rules/sba.rs`'s
+/// two arms and `effects/mod.rs`'s four equip/unequip paths) — destroyed by an effect,
+/// bounced, exiled — `GameState::move_object_to_zone` retires its id while performing only
+/// two cross-object fix-ups (CR 702.95e soulbond and the replacement-effect GC), so the
+/// **host keeps the dead `ObjectId` in `attachments` for the rest of the game.**
+///
+/// That matters because `attachments` is not decorative: it is HASHED
+/// (`state/hash.rs`), so a stale entry perturbs `public_state_hash` AND
+/// `loop_detection::compute_mandatory_state_hash` — CR 104.4b mandatory-loop detection can
+/// fail to recognise a repeated board state; it is read by the equipped-creature
+/// combat-damage trigger family (**CR 301.5f**, *"An ability of a permanent that refers to
+/// the 'equipped creature' refers to whatever creature that permanent is attached to"*,
+/// dispatched under CR 603.2 — **not CR 510.3a**, which the `/review` correctly refuses:
+/// 510.3a is only about WHEN damage triggers reach the stack and says nothing about
+/// Equipment. The loose cite is pre-existing at five sites in `rules/abilities.rs` and this
+/// batch's first draft propagated it; `OOS-DX56-10`); it is walked by CR 702.26g/h phasing through
+/// `expect_object_mut`, an IMPOSSIBLE-class SR-4 lookup that fires a `debug_assert`, so a
+/// stale entry is a latent debug-build panic; and it is rendered to the browser.
+///
+/// PB-DX56's **F1** closes the supply. This function is the run-scale assertion that it
+/// stays closed, and it is HARD and per-command rather than end-state: unlike the token
+/// class there is no CR 704.3 window here, because no SBA is supposed to be doing this
+/// cleanup at all — the pointer is simply garbage the moment the attacher's id is retired.
+///
+/// Two conditions, both directions of the same relation:
+/// 1. every `ObjectId` in a battlefield object's `attachments` must resolve;
+/// 2. and it must point back — `attachment.attached_to == Some(host)`.
+///
+/// (2) is not redundant with (1): an equip that moved an Equipment to a new host without
+/// clearing the old host's list leaves a LIVE id in the wrong list, which (1) cannot see.
+fn check_attachment_symmetry(state: &GameState, violations: &mut Vec<InvariantViolation>) {
+    for host in state.objects_in_zone(&ZoneId::Battlefield) {
+        for att_id in host.attachments.iter() {
+            match state.object(*att_id) {
+                Err(_) => violations.push(InvariantViolation {
+                    check: HARD_ATTACHMENT_SYMMETRY.into(),
+                    description: format!(
+                        "Object {:?} lists {:?} in its attachments, but that object does \
+                         not exist",
+                        host.id, att_id
+                    ),
+                    turn_number: state.turn().turn_number,
+                    evidence: vec![
+                        format!("direction=host_lists_dead_attacher"),
+                        format!("host={:?}", host.id),
+                        format!("host_name={:?}", host.characteristics.name),
+                        format!("host_attachments={:?}", host.attachments),
+                        format!("dead_attacher={att_id:?}"),
+                    ],
+                }),
+                Ok(att) => {
+                    if att.attached_to != Some(host.id) {
+                        violations.push(InvariantViolation {
+                            check: HARD_ATTACHMENT_SYMMETRY.into(),
+                            description: format!(
+                                "Object {:?} lists {:?} in its attachments, but that \
+                                 object's attached_to is {:?}",
+                                host.id, att_id, att.attached_to
+                            ),
+                            turn_number: state.turn().turn_number,
+                            evidence: vec![
+                                format!("direction=host_lists_attacher_that_points_elsewhere"),
+                                format!("host={:?}", host.id),
+                                format!("host_name={:?}", host.characteristics.name),
+                                format!("host_attachments={:?}", host.attachments),
+                                format!("attacher={att_id:?}"),
+                                format!("attacher_name={:?}", att.characteristics.name),
+                                format!("attacher_attached_to={:?}", att.attached_to),
+                                format!("attacher_zone={:?}", att.zone),
+                            ],
+                        });
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The strictly stronger END-STATE property that keeps the
+/// [`TRANSIENT_ATTACHMENT_VALIDITY`] split honest (PB-DX56, `OOS-DX22-8`) — the same shape
+/// [`check_no_leaked_tokens`] gives the token class.
+///
+/// [`check_attachment_validity`] reports a dangling `attached_to` at EVERY checkpoint until
+/// the next SBA sweep clears it, which makes the report transient by construction (see that
+/// constant). This function asks the question that would be a real defect: is any dangling
+/// attachment still there when the game is **OVER**? By then CR 704.5m and CR 704.5n have
+/// had every sweep in the game to run, so a survivor is a permanent blind spot — an
+/// attacher that is phased out, or whose layer-resolved subtypes contain none of
+/// `Aura`/`Equipment`/`Fortification` — and not a checkpoint artefact.
+///
+/// Run once per game at both real terminal paths via `LocalGame::result_snapshot`, and
+/// folded into the HARD bucket.
+pub fn check_no_dangling_attachment_at_rest(state: &GameState) -> Vec<InvariantViolation> {
+    let mut violations = Vec::new();
+    for obj in state.objects_in_zone(&ZoneId::Battlefield) {
+        // CR 702.26b: *"Permanents that are phased out are treated as though they do not
+        // exist."* `rules/sba.rs`'s CR 704.5m arm exempts a phased-out Aura for exactly
+        // this reason, and CR 702.26i puts the cleanup at PHASE-IN time -- *"...phases in
+        // unattached. State-based actions apply as appropriate."* So a phased-out attacher
+        // whose host died legitimately keeps a dangling `attached_to` for as long as it
+        // stays phased out, INCLUDING at the end of the game, and reporting it as a hard
+        // violation would be a false positive.
+        //
+        // `/review` MEDIUM 5 (`OOS-DX56-9`). It measured 0/20 only because phasing is rare
+        // in the corpus -- a check that is correct by luck is the shape SIM-3's
+        // `stack_consistency` withdrawal was about. The sibling constant
+        // `TRANSIENT_ATTACHMENT_VALIDITY`'s own doc already listed "phased out" as one of
+        // the two conditions under which the dangle is CORRECT; this function's first
+        // draft classified the same case as a permanent blind spot, i.e. as a defect. The
+        // two docs contradicted each other and this is the half that was wrong.
+        if obj.status.phased_out {
+            continue;
+        }
+        if let Some(target_id) = obj.attached_to {
+            if state.object(target_id).is_err() {
+                violations.push(InvariantViolation {
+                    check: HARD_DANGLING_ATTACHMENT_AT_REST.into(),
+                    description: format!(
+                        "Object {:?} is still attached to {:?}, which doesn't exist, in \
+                         the FINAL state",
+                        obj.id, target_id
+                    ),
+                    turn_number: state.turn().turn_number,
+                    evidence: attachment_validity_evidence(state, obj, target_id),
+                });
+            }
+        }
+    }
+    for v in violations.iter_mut() {
+        let mut ctx = state_context(state);
+        ctx.append(&mut v.evidence);
+        v.evidence = ctx;
+    }
+    violations
 }
 
 /// The strictly stronger END-STATE property that keeps the PB-DX32 Stage 4 noise-floor
@@ -567,6 +1111,7 @@ pub fn check_no_leaked_tokens(state: &GameState) -> Vec<InvariantViolation> {
                     obj_id, obj.characteristics.name, obj.zone
                 ),
                 turn_number: state.turn().turn_number,
+                evidence: Vec::new(),
             });
         }
     }
@@ -582,6 +1127,17 @@ pub fn check_no_leaked_tokens(state: &GameState) -> Vec<InvariantViolation> {
 /// `InvariantViolation` derives no `PartialEq`/`Hash` (it is a wire type, not a
 /// set-keyed one — see its own doc), so this dedupes on the two `String` fields
 /// directly via a `BTreeSet<(String, String)>` rather than deriving anything onto it.
+///
+/// **`evidence` (PB-DX56) is deliberately NOT part of the key, for the same reason
+/// `turn_number` never was.** `check_all` stamps every violation's `evidence` with a
+/// state snapshot that includes the turn number, so the SAME underlying condition
+/// reported at two different checkpoints carries two DIFFERENT `evidence` vectors
+/// even though it is still one defect. Folding `evidence` into the key would turn
+/// one defect-shaped condition into N "distinct" conditions — one per checkpoint it
+/// happened to be observed at — which is exactly the defect-shaped-number property
+/// this function exists to preserve. The FIRST occurrence's evidence is what
+/// survives (`out.push(v.clone())` below), which is also the earliest and therefore
+/// most useful-for-diagnosis snapshot.
 pub fn distinct(violations: &[InvariantViolation]) -> Vec<InvariantViolation> {
     let mut seen: BTreeSet<(String, String)> = BTreeSet::new();
     let mut out = Vec::new();
@@ -615,7 +1171,9 @@ pub fn distinct(violations: &[InvariantViolation]) -> Vec<InvariantViolation> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mtg_engine::{GameStateBuilder, ObjectSpec, PlayerId, StackObject, StackObjectKind};
+    use mtg_engine::{
+        GameStateBuilder, ObjectSpec, PlayerId, StackObject, StackObjectKind, SubType,
+    };
 
     fn p(n: u64) -> PlayerId {
         PlayerId(n)
@@ -955,5 +1513,1056 @@ mod tests {
             },
         ));
         assert_eq!(named(&state), 0, "…and silent once it is claimed");
+    }
+
+    /// PB-DX56 / OOS-FB1-1: two violations differing ONLY in `evidence` still
+    /// dedupe to one. This is the load-bearing claim behind `evidence` being
+    /// excluded from `distinct`'s key -- see that function's own doc for the
+    /// reasoning; this test is the executed proof.
+    #[test]
+    fn t_distinct_ignores_evidence_only_differences() {
+        let a = InvariantViolation {
+            check: "no_orphaned_tokens".into(),
+            description: "Token ObjectId(1) 'Spirit' found in zone Graveyard(PlayerId(1))".into(),
+            turn_number: 3,
+            evidence: vec!["turn=3".into()],
+        };
+        let b = InvariantViolation {
+            check: "no_orphaned_tokens".into(),
+            description: "Token ObjectId(1) 'Spirit' found in zone Graveyard(PlayerId(1))".into(),
+            turn_number: 4,
+            evidence: vec!["turn=4".into(), "phase=PreCombatMain".into()],
+        };
+        let deduped = distinct(&[a.clone(), b]);
+        assert_eq!(deduped.len(), 1, "{deduped:?}");
+        assert_eq!(
+            deduped[0].evidence, a.evidence,
+            "the FIRST occurrence's evidence must be kept, not merged or dropped"
+        );
+    }
+
+    /// PB-DX56 / OOS-FB1-1: `check_player_consistency`'s evidence names the ARM
+    /// (active_player vs priority_holder) and reports `has_lost`/`has_conceded`
+    /// separately, per this task's brief -- CR 704.5a (loss) and CR 104.3a
+    /// (concession) are different CR situations with different likely fixes.
+    #[test]
+    fn t_player_consistency_evidence_names_the_arm_and_conceded_flag() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .build()
+            .expect("builder state");
+
+        // Builder default: priority_holder == active_player == p(1). Move
+        // priority to p(2) and mark p(2) conceded, so the ACTIVE player is fine
+        // and only the PRIORITY HOLDER arm should fire.
+        state.turn_mut().priority_holder = Some(p(2));
+        state
+            .players_mut()
+            .get_mut(&p(2))
+            .expect("p2 exists")
+            .has_conceded = true;
+
+        let mut v = Vec::new();
+        check_player_consistency(&state, &mut v);
+        assert_eq!(v.len(), 1, "{v:?}");
+        let evidence = &v[0].evidence;
+        assert!(
+            evidence.contains(&"arm=priority_holder".to_string()),
+            "{evidence:?}"
+        );
+        assert!(
+            evidence.contains(&"has_conceded=true".to_string()),
+            "{evidence:?}"
+        );
+        assert!(
+            evidence.contains(&"has_lost=false".to_string()),
+            "{evidence:?}"
+        );
+        assert!(
+            evidence.contains(&"any_other_player_alive=true".to_string()),
+            "p(1) is untouched and must still read alive: {evidence:?}"
+        );
+    }
+
+    /// …and the ACTIVE PLAYER arm reports itself, not the other arm, when it is
+    /// the active player who has lost.
+    #[test]
+    fn t_player_consistency_evidence_names_the_active_player_arm() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .build()
+            .expect("builder state");
+        // Builder default: priority_holder == active_player == p(1). Move
+        // priority to p(2) (who has NOT lost) so only the ACTIVE PLAYER arm fires
+        // -- otherwise both arms would fire off the same lost p(1), since p(1) is
+        // the default priority holder too.
+        state.turn_mut().priority_holder = Some(p(2));
+        state
+            .players_mut()
+            .get_mut(&p(1))
+            .expect("p1 exists")
+            .has_lost = true;
+
+        let mut v = Vec::new();
+        check_player_consistency(&state, &mut v);
+        assert_eq!(v.len(), 1, "{v:?}");
+        let evidence = &v[0].evidence;
+        assert!(
+            evidence.contains(&"arm=active_player".to_string()),
+            "{evidence:?}"
+        );
+        assert!(
+            evidence.contains(&"has_lost=true".to_string()),
+            "{evidence:?}"
+        );
+        assert!(
+            evidence.contains(&"has_conceded=false".to_string()),
+            "{evidence:?}"
+        );
+    }
+
+    /// PB-DX56 / OOS-FB1-1: `check_attachment_validity`'s evidence names the
+    /// attacher's card types -- the fact CR 704.5m (Aura -> graveyard) vs
+    /// CR 704.5n (Equipment -> stays, unattached) is decided by first.
+    #[test]
+    fn t_attachment_validity_evidence_names_the_attachers_card_types() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .object(
+                ObjectSpec::enchantment(p(1), "Test Aura")
+                    .with_subtypes(vec![SubType("Aura".to_string())])
+                    .in_zone(ZoneId::Battlefield),
+            )
+            .build()
+            .expect("builder state");
+
+        let aura_id = state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == "Test Aura")
+            .map(|(id, _)| *id)
+            .expect("aura object");
+        // A dangling id that genuinely names no object in `state.objects()`.
+        let dangling = ObjectId(aura_id.0 + 5_000);
+        state
+            .objects_mut()
+            .get_mut(&aura_id)
+            .expect("aura object")
+            .attached_to = Some(dangling);
+        assert!(
+            state.object(dangling).is_err(),
+            "the fixture's whole premise is that this id is dangling"
+        );
+
+        let mut v = Vec::new();
+        check_attachment_validity(&state, &mut v);
+        assert_eq!(v.len(), 1, "{v:?}");
+        let evidence = &v[0].evidence;
+        assert!(
+            evidence
+                .iter()
+                .any(|e| e.starts_with("attacher_card_types=") && e.contains("Enchantment")),
+            "{evidence:?}"
+        );
+        assert!(
+            evidence
+                .iter()
+                .any(|e| e.starts_with("attacher_subtypes=") && e.contains("Aura")),
+            "{evidence:?}"
+        );
+        assert!(
+            evidence.contains(&"target_present_in_state_objects=false".to_string()),
+            "{evidence:?}"
+        );
+        assert!(
+            evidence
+                .iter()
+                .any(|e| e.starts_with(&format!("target={dangling:?}"))),
+            "{evidence:?}"
+        );
+    }
+
+    /// PB-DX56 / OOS-FB1-1: `check_all` prepends the common state snapshot to
+    /// EVERY violation, in front of the check's own evidence -- proven through the
+    /// front door (`check_all`, not `check_player_consistency` directly), so a
+    /// future change that stops calling `state_context` from `check_all` cannot
+    /// pass this test by accident.
+    #[test]
+    fn t_check_all_prepends_state_context_before_the_checks_own_evidence() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .build()
+            .expect("builder state");
+        state.turn_mut().priority_holder = Some(p(2));
+        state
+            .players_mut()
+            .get_mut(&p(2))
+            .expect("p2 exists")
+            .has_conceded = true;
+
+        let violations = check_all(&state, None);
+        let v = violations
+            .iter()
+            .find(|v| v.check == HARD_DEPARTED_PRIORITY_HOLDER)
+            .expect("the priority-holder violation must be present");
+        assert!(
+            v.evidence.iter().any(|e| e.starts_with("turn=")),
+            "{:?}",
+            v.evidence
+        );
+        assert!(
+            v.evidence.iter().any(|e| e.starts_with("phase=")),
+            "{:?}",
+            v.evidence
+        );
+        assert!(
+            v.evidence.contains(&"arm=priority_holder".to_string()),
+            "the check's OWN evidence must still be present, appended after the \
+             common context: {:?}",
+            v.evidence
+        );
+        // General-first, specific-second: the common context's `turn=` line comes
+        // before the check-specific `arm=` line.
+        let turn_idx = v
+            .evidence
+            .iter()
+            .position(|e| e.starts_with("turn="))
+            .unwrap();
+        let arm_idx = v
+            .evidence
+            .iter()
+            .position(|e| e == "arm=priority_holder")
+            .unwrap();
+        assert!(turn_idx < arm_idx, "{:?}", v.evidence);
+    }
+
+    // ── PB-DX56 (`OOS-DX32-1` / `OOS-DX22-8` / `OOS-FB1-1`) ────────────────────────
+
+    /// **The evidence key that the state context shadows.**
+    ///
+    /// `check_all` PREPENDS `state_context`, which emits one `player=PlayerId(n) …` line
+    /// per seat. A consumer keying the departed-active arm on `player=` therefore reads the
+    /// FIRST state-context line — a value identical for every violation in the game — and
+    /// collapses two different departed seats into one CR 800.4k window.
+    ///
+    /// This is not a hypothetical: `LocalGame::promote_if_it_crossed_a_turn`'s first draft
+    /// did exactly that and manufactured a false promotion on fuzz seed 5, keying
+    /// `PlayerId(4)`'s turn-154 report against `PlayerId(1)`'s turn-133 one. RED before the
+    /// `arm_player=` rename (executed).
+    #[test]
+    fn t_arm_player_key_is_not_shadowed_by_state_context() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .build()
+            .expect("two-player state builds");
+        // Seat 2 is the departed ACTIVE player; seat 1 is alive and comes FIRST in the
+        // state-context lines, which is precisely what shadowed the lookup.
+        state.players_mut().get_mut(&p(2)).expect("seat 2").has_lost = true;
+        state.turn_mut().active_player = p(2);
+
+        let vs = check_all(&state, None);
+        let departed: Vec<_> = vs
+            .iter()
+            .filter(|v| v.check == TRANSIENT_DEPARTED_ACTIVE_PLAYER)
+            .collect();
+        assert_eq!(
+            departed.len(),
+            1,
+            "exactly one departed-active report: {vs:?}"
+        );
+
+        let ev = &departed[0].evidence;
+        let by_arm_key: Vec<_> = ev
+            .iter()
+            .filter_map(|e| e.strip_prefix("arm_player="))
+            .collect();
+        assert_eq!(
+            by_arm_key,
+            vec!["PlayerId(2)"],
+            "`arm_player=` must name the arm's OWN subject, exactly once: {ev:?}"
+        );
+
+        // And the shadowing itself is pinned, so the reason for the odd key survives:
+        // a `player=` lookup finds a state-context line for a DIFFERENT seat first.
+        let first_player_prefixed = ev
+            .iter()
+            .find_map(|e| e.strip_prefix("player="))
+            .expect("state_context emits per-seat `player=` lines");
+        assert!(
+            first_player_prefixed.starts_with("PlayerId(1)"),
+            "the first `player=`-prefixed evidence line must be a state-context line for a \
+             DIFFERENT seat -- that is what makes `player=` the wrong key: {ev:?}"
+        );
+    }
+
+    /// **CR 800.4a vs CR 800.4j: the two arms carry different `check` names, and the split
+    /// is the finding.** A departed ACTIVE player is the CR 800.4j class (transient); a
+    /// departed PRIORITY HOLDER is the CR 800.4a class (hard). Both directions asserted, so
+    /// a future edit that collapses them back reddens here.
+    #[test]
+    fn t_player_consistency_arms_are_separate_classes() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .add_player(p(3))
+            .build()
+            .expect("three-player state builds");
+        state.players_mut().get_mut(&p(1)).expect("seat 1").has_lost = true;
+        state
+            .players_mut()
+            .get_mut(&p(2))
+            .expect("seat 2")
+            .has_conceded = true;
+        state.turn_mut().active_player = p(1);
+        state.turn_mut().priority_holder = Some(p(2));
+
+        let vs = check_all(&state, None);
+        let names: Vec<&str> = vs
+            .iter()
+            .filter(|v| {
+                v.check == TRANSIENT_DEPARTED_ACTIVE_PLAYER
+                    || v.check == HARD_DEPARTED_PRIORITY_HOLDER
+            })
+            .map(|v| v.check.as_str())
+            .collect();
+        assert!(
+            names.contains(&TRANSIENT_DEPARTED_ACTIVE_PLAYER),
+            "the CR 800.4j arm must report under its own name: {vs:?}"
+        );
+        assert!(
+            names.contains(&HARD_DEPARTED_PRIORITY_HOLDER),
+            "the CR 800.4a arm must report under its own name: {vs:?}"
+        );
+        assert!(
+            is_transient_check(TRANSIENT_DEPARTED_ACTIVE_PLAYER),
+            "CR 800.4j: the active-player arm is the transient half"
+        );
+        assert!(
+            !is_transient_check(HARD_DEPARTED_PRIORITY_HOLDER),
+            "CR 800.4a's last sentence is unconditional -- the priority arm is NOT transient"
+        );
+        // The concession/loss distinction the old shared description folded away.
+        let prio = vs
+            .iter()
+            .find(|v| v.check == HARD_DEPARTED_PRIORITY_HOLDER)
+            .expect("priority arm reported");
+        assert!(
+            prio.evidence.iter().any(|e| e == "has_conceded=true")
+                && prio.evidence.iter().any(|e| e == "has_lost=false"),
+            "CR 104.3a concession and CR 704.5a loss are different situations and must be \
+             reported separately: {:?}",
+            prio.evidence
+        );
+    }
+
+    /// **The direction of the attachment relation that never heals** — `OOS-DX22-8`'s
+    /// at-rest half, planted. A host listing a dead `ObjectId` is a hard violation, and so
+    /// is a host listing a live attacher that points somewhere else. Paired with a healthy
+    /// state that must be silent.
+    #[test]
+    fn t_attachment_symmetry_catches_both_asymmetries() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .object(ObjectSpec::creature(p(1), "Bearer", 2, 2))
+            .object(ObjectSpec::artifact(p(1), "Jitte"))
+            .object(ObjectSpec::creature(p(1), "Other", 1, 1))
+            .build()
+            .expect("attachment fixture builds");
+        let find = |state: &GameState, name: &str| -> ObjectId {
+            state
+                .objects_in_zone(&ZoneId::Battlefield)
+                .into_iter()
+                .find(|o| o.characteristics.name == name)
+                .expect("fixture object present")
+                .id
+        };
+        let bearer = find(&state, "Bearer");
+        let jitte = find(&state, "Jitte");
+        let other = find(&state, "Other");
+        assert_eq!(
+            state.objects_in_zone(&ZoneId::Battlefield).len(),
+            3,
+            "three battlefield objects in the fixture"
+        );
+
+        // Healthy: a symmetric attachment must be silent.
+        state
+            .objects_mut()
+            .get_mut(&jitte)
+            .expect("jitte")
+            .attached_to = Some(bearer);
+        state
+            .objects_mut()
+            .get_mut(&bearer)
+            .expect("bearer")
+            .attachments
+            .push_back(jitte);
+        let mut vs = Vec::new();
+        check_attachment_symmetry(&state, &mut vs);
+        assert!(
+            vs.is_empty(),
+            "a symmetric attachment must be silent: {vs:?}"
+        );
+
+        // Asymmetry 1: the host lists an attacher that points somewhere ELSE.
+        //
+        // **A correction to this comment's first draft, which was a false claim about
+        // coverage inside a batch whose own findings are false claims about coverage.** It
+        // said the dead-id direction was "covered end-to-end by
+        // `crates/engine/tests/primitives/pb_dx56_departure_hygiene.rs`". It is not: that
+        // file is in another crate, `check_attachment_symmetry` is private to this one, and
+        // it never calls it -- that file covers the ENGINE fix (F1), which is a different
+        // proposition from "this check catches the condition". An executed plant making the
+        // `Err(_)` arm unreachable left the whole workspace GREEN. The dead-id direction is
+        // now driven by `t_attachment_symmetry_catches_a_dead_object_id`.
+        state
+            .objects_mut()
+            .get_mut(&jitte)
+            .expect("jitte")
+            .attached_to = Some(other);
+        let mut vs = Vec::new();
+        check_attachment_symmetry(&state, &mut vs);
+        assert_eq!(
+            vs.len(),
+            1,
+            "a host listing an attacher whose attached_to points elsewhere is one \
+             violation: {vs:?}"
+        );
+        assert_eq!(vs[0].check, HARD_ATTACHMENT_SYMMETRY);
+        assert!(
+            !is_transient_check(HARD_ATTACHMENT_SYMMETRY),
+            "no SBA is supposed to clean this up, so there is no CR 704.3 window to \
+             excuse a report -- it must NOT be transient"
+        );
+    }
+
+    /// **The end-state answer to the `attachment_validity` transient split.** A dangling
+    /// `attached_to` at a checkpoint is the CR 704.3 / `OOS-M11-7` window; one still there
+    /// when the game is OVER is a permanent CR 704.5m/704.5n blind spot. Both directions.
+    #[test]
+    fn t_dangling_attachment_at_rest_is_a_hard_violation() {
+        let clean = GameStateBuilder::new()
+            .add_player(p(1))
+            .object(ObjectSpec::creature(p(1), "Bearer", 2, 2))
+            .build()
+            .expect("clean fixture builds");
+        assert!(
+            check_no_dangling_attachment_at_rest(&clean).is_empty(),
+            "a state with no attachment at all must be silent"
+        );
+
+        let mut state = clean.clone();
+        let bearer = state
+            .objects_in_zone(&ZoneId::Battlefield)
+            .into_iter()
+            .next()
+            .expect("bearer")
+            .id;
+        // `ObjectId` values are minted monotonically, so an id far above every live one is
+        // guaranteed absent from `state.objects` -- which is exactly the CR 400.7 condition
+        // this check is about.
+        state
+            .objects_mut()
+            .get_mut(&bearer)
+            .expect("bearer")
+            .attached_to = Some(ObjectId(999_999));
+        let vs = check_no_dangling_attachment_at_rest(&state);
+        assert_eq!(vs.len(), 1, "exactly one dangling attachment: {vs:?}");
+        assert_eq!(vs[0].check, HARD_DANGLING_ATTACHMENT_AT_REST);
+        assert!(
+            !is_transient_check(HARD_DANGLING_ATTACHMENT_AT_REST),
+            "the END-STATE property must be hard, or the split it answers is a whitewash"
+        );
+        assert!(
+            vs[0]
+                .evidence
+                .iter()
+                .any(|e| e.starts_with("attacher_card_types=")),
+            "the evidence must name the attacher's card types -- that is the single fact \
+             that decides between CR 704.5m and CR 704.5n: {:?}",
+            vs[0].evidence
+        );
+    }
+
+    // ── PB-DX56 `/review` fix cycle: every one of these closes a bypass that was
+    // EXECUTED and came back GREEN. See `memory/primitives/pb-DX56-bypass-attempts.md`.
+
+    /// **Bypass A1, closed.** Deleting `check_attachment_symmetry(..)` from [`check_all`]
+    /// left all 74 simulator tests and all 6 engine probes GREEN, because both of that
+    /// check's probes call the private function DIRECTLY. `check_stack_consistency` has had
+    /// exactly this gate since SIM-3 (`t10_check_all_dispatches_to_this_check`) and the new
+    /// check did not get one. Driven through the FRONT DOOR, both directions.
+    #[test]
+    fn t_check_all_dispatches_to_attachment_symmetry() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .object(ObjectSpec::creature(p(1), "Bearer", 2, 2))
+            .object(ObjectSpec::artifact(p(1), "Jitte"))
+            .build()
+            .expect("fixture builds");
+        let find = |st: &GameState, n: &str| -> ObjectId {
+            st.objects_in_zone(&ZoneId::Battlefield)
+                .into_iter()
+                .find(|o| o.characteristics.name == n)
+                .expect("present")
+                .id
+        };
+        let bearer = find(&state, "Bearer");
+        let jitte = find(&state, "Jitte");
+        let named = |st: &GameState| {
+            check_all(st, None)
+                .into_iter()
+                .filter(|v| v.check == HARD_ATTACHMENT_SYMMETRY)
+                .count()
+        };
+
+        // Symmetric: silent through `check_all`.
+        state
+            .objects_mut()
+            .get_mut(&jitte)
+            .expect("jitte")
+            .attached_to = Some(bearer);
+        state
+            .objects_mut()
+            .get_mut(&bearer)
+            .expect("bearer")
+            .attachments
+            .push_back(jitte);
+        assert_eq!(
+            named(&state),
+            0,
+            "a symmetric attachment must be silent via check_all"
+        );
+
+        // Asymmetric: reported through `check_all`, which is what A1 removed.
+        state
+            .objects_mut()
+            .get_mut(&jitte)
+            .expect("jitte")
+            .attached_to = None;
+        assert_eq!(
+            named(&state),
+            1,
+            "check_all must DISPATCH to check_attachment_symmetry -- deleting that one \
+             line reddened nothing before this test existed"
+        );
+    }
+
+    /// **Bypass A2, closed.** The `Err(_)` arm — a host listing an `ObjectId` that does not
+    /// resolve — is the whole of `OOS-DX22-8`'s direction B, and **no test drove it**: both
+    /// branches of `t_attachment_symmetry_catches_both_asymmetries` exercise `Ok(att)`.
+    /// Making the arm unreachable left everything GREEN.
+    ///
+    /// That test's own comment excused the gap by claiming the dead-id direction was
+    /// *"covered end-to-end by `pb_dx56_departure_hygiene.rs`"*. **That claim was FALSE
+    /// about this check**: that file is in another crate, this function is private, and it
+    /// never calls it — it covers the ENGINE fix (F1), not this check's arm. The comment is
+    /// corrected at the site; this is the coverage.
+    #[test]
+    fn t_attachment_symmetry_catches_a_dead_object_id() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .object(ObjectSpec::creature(p(1), "Bearer", 2, 2))
+            .build()
+            .expect("fixture builds");
+        let bearer = state
+            .objects_in_zone(&ZoneId::Battlefield)
+            .into_iter()
+            .next()
+            .expect("bearer")
+            .id;
+        // `ObjectId`s are minted monotonically, so an id far above every live one cannot be
+        // a key of `state.objects` — which is exactly the CR 400.7 condition after a zone
+        // change retires an attacher's id.
+        state
+            .objects_mut()
+            .get_mut(&bearer)
+            .expect("bearer")
+            .attachments
+            .push_back(ObjectId(999_999));
+
+        let vs = check_all(&state, None);
+        let sym: Vec<_> = vs
+            .iter()
+            .filter(|v| v.check == HARD_ATTACHMENT_SYMMETRY)
+            .collect();
+        assert_eq!(sym.len(), 1, "exactly one dead-attacher report: {vs:?}");
+        assert!(
+            sym[0]
+                .evidence
+                .contains(&"direction=host_lists_dead_attacher".to_string()),
+            "the DEAD-ID arm specifically, not the points-elsewhere one: {:?}",
+            sym[0].evidence
+        );
+    }
+
+    /// **Bypass C1, closed.** Adding `HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN` as a
+    /// fourth arm of [`is_transient_check`] routes the CR 800.4k promotion straight back
+    /// into the transient bucket — silently voiding the entire justification for calling
+    /// the CR 800.4j class transient — and left the workspace GREEN.
+    ///
+    /// Keyed on the NAMING CONVENTION and parsed from this file's own source, so a class
+    /// constant added tomorrow is covered by construction rather than by someone
+    /// remembering to extend a hand-written list. That is the repair PB-DX43's
+    /// `TOKEN_SPEC_FIELDS` finding prescribes: gate the list against the declaration.
+    #[test]
+    fn t_every_class_constant_is_classified_by_its_own_name() {
+        // Parsed over the WHOLE source with the line break tolerated, not line by line.
+        // The single-line first draft found 3 hard constants instead of 4, because
+        // `cargo fmt` wraps
+        //     pub const HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN: &str =
+        //         "departed_active_player_crossed_a_turn";
+        // across two lines -- the multi-line-spelling blind spot PB-DX45's re-pin and
+        // PB-DX50's sentinel census each hit once. **The non-vacuity floor below is what
+        // caught it**, which is the entire argument for having one on a parsing gate.
+        let src = include_str!("invariants.rs");
+        let mut transient = Vec::new();
+        let mut hard = Vec::new();
+        for chunk in src.split("pub const ").skip(1) {
+            let Some((name, tail)) = chunk.split_once(": &str =") else {
+                continue;
+            };
+            if name.contains(char::is_whitespace) {
+                continue;
+            }
+            let Some((value, _)) = tail.split_once(';') else {
+                continue;
+            };
+            let value = value.trim().trim_matches('"').to_string();
+            if name.starts_with("TRANSIENT_") {
+                transient.push(value);
+            } else if name.starts_with("HARD_") {
+                hard.push(value);
+            }
+        }
+        assert!(
+            transient.len() >= 3 && hard.len() >= 4,
+            "non-vacuity: the parse must find the class constants it is gating -- \
+             transient {transient:?}, hard {hard:?}"
+        );
+        for v in &transient {
+            assert!(
+                is_transient_check(v),
+                "`TRANSIENT_*` constant {v:?} must be classified transient"
+            );
+        }
+        for v in &hard {
+            assert!(
+                !is_transient_check(v),
+                "`HARD_*` constant {v:?} must NOT be classified transient -- moving a hard \
+                 class into the transient set silently deletes the strictly stronger \
+                 property it exists to be"
+            );
+        }
+    }
+
+    /// **Bypass C2, closed.** The CR 800.4k promotion had **no test of any kind** — the
+    /// constant occurred in exactly two places workspace-wide, its declaration and its
+    /// assignment — so a plant that made it never fire left everything GREEN. The decision
+    /// is now a pure function and both directions are asserted, including the boundary.
+    #[test]
+    fn t_crosses_a_turn_boundary_is_strict_and_class_scoped() {
+        assert!(
+            !crosses_a_turn_boundary(TRANSIENT_DEPARTED_ACTIVE_PLAYER, 10, 10),
+            "CR 800.4j: the SAME turn is the bounded window, not a crossing"
+        );
+        assert!(
+            !crosses_a_turn_boundary(TRANSIENT_DEPARTED_ACTIVE_PLAYER, 9, 10),
+            "a report at an EARLIER turn is not a crossing either"
+        );
+        assert!(
+            crosses_a_turn_boundary(TRANSIENT_DEPARTED_ACTIVE_PLAYER, 11, 10),
+            "CR 800.4k: a departed player's turn does not begin, so the condition may not \
+             survive into a later turn"
+        );
+        // Class-scoped: the other transient classes have their own strictly stronger
+        // properties and must not be promoted by this one.
+        assert!(
+            !crosses_a_turn_boundary(TRANSIENT_ORPHANED_TOKENS, 11, 10),
+            "the token class is answered by check_no_leaked_tokens, not by a turn boundary"
+        );
+        assert!(
+            !crosses_a_turn_boundary(TRANSIENT_ATTACHMENT_VALIDITY, 11, 10),
+            "the attachment class is answered by check_no_dangling_attachment_at_rest"
+        );
+    }
+
+    /// **`OOS-DX56-1`'s seat key, at the consumer.** `arm_player_of` must read the ARM's
+    /// subject and not the first `player=` line `state_context` prepends.
+    #[test]
+    fn t_arm_player_of_reads_the_arm_not_the_state_context() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .build()
+            .expect("state builds");
+        state.players_mut().get_mut(&p(2)).expect("seat 2").has_lost = true;
+        state.turn_mut().active_player = p(2);
+        let v = check_all(&state, None)
+            .into_iter()
+            .find(|v| v.check == TRANSIENT_DEPARTED_ACTIVE_PLAYER)
+            .expect("departed-active report present");
+        assert_eq!(
+            arm_player_of(&v),
+            Some("PlayerId(2)"),
+            "must name the departed ACTIVE player, not the first seat in the state \
+             context: {:?}",
+            v.evidence
+        );
+    }
+
+    /// Blank out `//` line comments and `/* */` blocks, preserving newlines and byte
+    /// offsets, so a `contains`-based source gate cannot be satisfied by a COMMENTED-OUT
+    /// call (`OOS-DX56-6`).
+    ///
+    /// The `/review` defeated both of this batch's source gates with a two-character edit:
+    /// commenting out `result_snapshot`'s end-state call left every target GREEN, re-opening
+    /// the exact hole (`B1''`/`B1b`) the gate had just been written to close. This repo
+    /// already knew the class — PB-DX8's `OOS-DX32-6` is a `/* */`-wrapped roster row that
+    /// left a gate and twelve probes green — and this batch did not carry it across.
+    fn strip_comments(src: &str) -> String {
+        let b = src.as_bytes();
+        let mut out = String::with_capacity(src.len());
+        let mut i = 0usize;
+        while i < b.len() {
+            if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'/' {
+                while i < b.len() && b[i] != b'\n' {
+                    out.push(' ');
+                    i += 1;
+                }
+            } else if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'*' {
+                let mut depth = 1usize;
+                out.push_str("  ");
+                i += 2;
+                while i < b.len() && depth > 0 {
+                    if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'*' {
+                        depth += 1;
+                        out.push_str("  ");
+                        i += 2;
+                    } else if b[i] == b'*' && i + 1 < b.len() && b[i + 1] == b'/' {
+                        depth -= 1;
+                        out.push_str("  ");
+                        i += 2;
+                    } else {
+                        out.push(if b[i] == b'\n' { '\n' } else { ' ' });
+                        i += 1;
+                    }
+                }
+            } else {
+                out.push(src[i..].chars().next().expect("in bounds"));
+                i += src[i..].chars().next().expect("in bounds").len_utf8();
+            }
+        }
+        out
+    }
+
+    /// **Bypass B1, closed — and the hole was INHERITED, not introduced.** Deleting
+    /// `check_no_dangling_attachment_at_rest`'s call from `LocalGame::result_snapshot`
+    /// left the whole workspace GREEN. So does deleting `check_no_leaked_tokens`'s, which
+    /// has sat at the same call site since PB-DX32 Stage 4.
+    ///
+    /// These are END-STATE checks: they are the strictly stronger properties that keep the
+    /// transient splits honest, they run once per game at the one site both real terminal
+    /// paths go through, and **nothing asserted they were still invoked**. The per-command
+    /// behavioural probes cannot notice, because they never reach `result_snapshot` — which
+    /// is `OOS-DX52-2`'s shape one axis worse: not "a row that reddens only a source gate",
+    /// but a property with no gate at all.
+    ///
+    /// A source gate rather than a behavioural one, deliberately: reaching `result_snapshot`
+    /// needs a full driven game, and what is being asserted is a WIRING fact, not a
+    /// behaviour. Keyed on the `check_no_` prefix so a THIRD end-state check added tomorrow
+    /// is covered by construction. `OOS-DX56-5`.
+    #[test]
+    fn t_every_end_state_check_is_called_from_result_snapshot() {
+        let invariants_src = include_str!("invariants.rs");
+        let local_game_src = include_str!("local_game.rs");
+
+        let mut end_state_checks: Vec<String> = Vec::new();
+        for chunk in invariants_src.split("pub fn check_no_").skip(1) {
+            let Some((name, _)) = chunk.split_once('(') else {
+                continue;
+            };
+            // The name must be a real Rust identifier. Without this the parse matches its
+            // OWN source -- `include_str!` pulls in this test module, whose literal
+            // `"pub fn check_no_"` yields the "name" `").skip`. A self-referential source
+            // gate that scans the file it lives in has to exclude itself, and the cheapest
+            // honest way is to insist the capture is spellable as an identifier.
+            if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                continue;
+            }
+            end_state_checks.push(format!("check_no_{name}"));
+        }
+        assert!(
+            end_state_checks.len() >= 2,
+            "non-vacuity: the parse must find the end-state checks it is gating, got \
+             {end_state_checks:?}"
+        );
+
+        // `result_snapshot`'s body, brace-matched — a byte window would fail OPEN by
+        // over-scanning into the next function and vouching for a call that is not there
+        // (`OOS-DX49-2`).
+        let at = local_game_src
+            .find("pub fn result_snapshot(")
+            .expect("result_snapshot exists");
+        let open = at + local_game_src[at..].find('{').expect("body opens");
+        let mut depth = 0usize;
+        let bytes = local_game_src.as_bytes();
+        let mut end = None;
+        for (i, b) in bytes.iter().enumerate().skip(open) {
+            match b {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let raw_body = &local_game_src[open..=end.expect("result_snapshot's body is balanced")];
+        // `OOS-DX56-6`: comments are BLANKED before the `contains` below. Without this the
+        // gate is defeated by commenting the call out, which the `/review` executed.
+        let body = strip_comments(raw_body);
+        let body = body.as_str();
+        assert!(
+            body.len() > 200,
+            "non-vacuity: the brace match returned a body too small to be real ({} bytes)",
+            body.len()
+        );
+
+        for name in &end_state_checks {
+            assert!(
+                body.contains(name.as_str()),
+                "`invariants::{name}` is an END-STATE check and must be called from \
+                 `LocalGame::result_snapshot` -- the ONE site both real terminal paths go \
+                 through. Deleting such a call reddens no behavioural probe, because none \
+                 of them reaches that function (OOS-DX56-5). Body was: {body}"
+            );
+        }
+    }
+
+    /// **`/review` HIGH 3 and HIGH 4, closed together.** These are CONSUMER tests: they
+    /// drive the site that decides, not the two predicates it calls. Gating
+    /// [`is_transient_check`] and [`crosses_a_turn_boundary`] at their definitions left the
+    /// caller untested, and the `/review` defeated it twice by execution — an ARGUMENT SWAP
+    /// in the promotion call (which compiles and uses every binding) made the promotion
+    /// unfireable, and ORing two HARD class names into the transient test disarmed
+    /// `--stop-on-error` — both with all 42 simulator targets GREEN. `OOS-DX56-7`.
+    fn departed_active(seat: u64, turn: u32) -> InvariantViolation {
+        InvariantViolation {
+            check: TRANSIENT_DEPARTED_ACTIVE_PLAYER.into(),
+            description: format!("Active player PlayerId({seat}) has lost or conceded"),
+            turn_number: turn,
+            evidence: vec![
+                format!("player=PlayerId(999) life=1 has_lost=false has_conceded=false"),
+                format!("arm=active_player"),
+                format!("arm_player=PlayerId({seat})"),
+            ],
+        }
+    }
+
+    #[test]
+    fn t_bucket_violations_promotes_only_across_a_turn_boundary_and_only_per_seat() {
+        let mut seen: BTreeMap<String, u32> = BTreeMap::new();
+
+        // Same seat, same turn, several checkpoints: the CR 800.4j bounded window.
+        let (hard, transient) = bucket_violations(
+            vec![departed_active(2, 10), departed_active(2, 10)],
+            &mut seen,
+        );
+        assert!(
+            hard.is_empty(),
+            "the bounded window must not promote: {hard:?}"
+        );
+        assert_eq!(transient.len(), 2);
+
+        // A DIFFERENT seat departing on a LATER turn is its own window, not a crossing.
+        // This is `OOS-DX56-1`'s defect: keying on the state context's first `player=` line
+        // collapses the two seats and promotes here.
+        let (hard, transient) = bucket_violations(vec![departed_active(4, 31)], &mut seen);
+        assert!(
+            hard.is_empty(),
+            "a second seat's FIRST report is its own bounded window, not seat 2's window \
+             crossing a boundary: {hard:?}"
+        );
+        assert_eq!(transient.len(), 1);
+
+        // The SAME seat at a strictly greater turn: CR 800.4k, promoted.
+        let (hard, transient) = bucket_violations(vec![departed_active(2, 11)], &mut seen);
+        assert!(
+            transient.is_empty(),
+            "the promoted report leaves the transient bucket"
+        );
+        assert_eq!(hard.len(), 1, "CR 800.4k: promoted");
+        assert_eq!(hard[0].check, HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN);
+        assert!(
+            hard[0]
+                .evidence
+                .contains(&"first_seen_on_turn=10".to_string())
+                && hard[0].evidence.contains(&"turns_crossed=1".to_string()),
+            "the promotion must carry the window it crossed: {:?}",
+            hard[0].evidence
+        );
+        // An argument swap would compile and use every binding, so the ORDER is asserted:
+        // `first_seen` is 10 and the report is turn 11, not the other way round.
+        assert!(
+            hard[0].description.contains("already true on turn 10"),
+            "argument order: {:?}",
+            hard[0].description
+        );
+    }
+
+    #[test]
+    fn t_bucket_violations_routes_every_hard_class_to_the_hard_bucket() {
+        let mut seen: BTreeMap<String, u32> = BTreeMap::new();
+        // Every HARD_* class constant, parsed from this file rather than hand-listed, so a
+        // class added tomorrow is covered by construction.
+        let src = include_str!("invariants.rs");
+        let mut hard_names = Vec::new();
+        for chunk in src.split("pub const ").skip(1) {
+            let Some((name, tail)) = chunk.split_once(": &str =") else {
+                continue;
+            };
+            if name.contains(char::is_whitespace) || !name.starts_with("HARD_") {
+                continue;
+            }
+            let Some((value, _)) = tail.split_once(';') else {
+                continue;
+            };
+            hard_names.push(value.trim().trim_matches('"').to_string());
+        }
+        assert!(
+            hard_names.len() >= 4,
+            "non-vacuity: expected the four HARD_* classes, got {hard_names:?}"
+        );
+        for name in &hard_names {
+            let v = InvariantViolation {
+                check: name.clone(),
+                description: "planted".into(),
+                turn_number: 1,
+                evidence: Vec::new(),
+            };
+            let (hard, transient) = bucket_violations(vec![v], &mut seen);
+            assert_eq!(
+                hard.len(),
+                1,
+                "`{name}` is a HARD class and must reach the hard bucket THROUGH the \
+                 classification site -- routing it transient silently disarms \
+                 --stop-on-error and no test at the predicate's definition can see it"
+            );
+            assert!(transient.is_empty(), "`{name}` must not be transient");
+        }
+    }
+
+    /// **The delegation itself.** `bucket_violations` can be perfectly correct and
+    /// `record_violations` can still swap the two returned vectors. Source-gated because
+    /// reaching `record_violations` needs a driven `LocalGame`, and what is asserted is a
+    /// WIRING fact. Comments are blanked first (`OOS-DX56-6`).
+    #[test]
+    fn t_record_violations_is_a_pure_delegation() {
+        let src = strip_comments(include_str!("local_game.rs"));
+        let at = src
+            .find("fn record_violations(")
+            .expect("record_violations exists");
+        let open = at + src[at..].find('{').expect("body opens");
+        let bytes = src.as_bytes();
+        let mut depth = 0usize;
+        let mut end = None;
+        for (i, b) in bytes.iter().enumerate().skip(open) {
+            match b {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let body = &src[open..=end.expect("balanced")];
+        assert!(
+            body.len() > 60,
+            "non-vacuity: body too small to be real ({} bytes)",
+            body.len()
+        );
+        assert!(
+            body.contains("bucket_violations("),
+            "record_violations must DELEGATE to invariants::bucket_violations -- the \
+             classification lives in one place so a unit test can reach it: {body}"
+        );
+        for forbidden in [
+            "is_transient_check(",
+            "crosses_a_turn_boundary(",
+            "arm_player=",
+        ] {
+            assert!(
+                !body.contains(forbidden),
+                "`{forbidden}` must NOT appear in record_violations -- a second copy of the \
+                 classification here is exactly what the /review defeated twice \
+                 (OOS-DX56-7): {body}"
+            );
+        }
+        assert!(
+            body.contains("self.violations.extend(hard)")
+                && body.contains("self.transient_violations.extend(transient)"),
+            "the two buckets must be extended into the matching fields -- swapping them is \
+             a defect `bucket_violations`' own tests cannot see: {body}"
+        );
+    }
+
+    /// **`/review` MEDIUM 5, closed** (`OOS-DX56-9`). CR 702.26b: *"Permanents that are
+    /// phased out are treated as though they do not exist."* `rules/sba.rs`'s CR 704.5m arm
+    /// exempts a phased-out Aura for that reason, and CR 702.26i puts the cleanup at
+    /// PHASE-IN. So a phased-out attacher with a dangling `attached_to` is a CR-legitimate
+    /// end state and must not be a hard violation. Both directions.
+    #[test]
+    fn t_a_phased_out_attacher_is_not_a_dangling_attachment_at_rest() {
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .object(ObjectSpec::creature(p(1), "Bearer", 2, 2))
+            .build()
+            .expect("fixture builds");
+        let bearer = state
+            .objects_in_zone(&ZoneId::Battlefield)
+            .into_iter()
+            .next()
+            .expect("bearer")
+            .id;
+        state
+            .objects_mut()
+            .get_mut(&bearer)
+            .expect("bearer")
+            .attached_to = Some(ObjectId(999_999));
+
+        // Phased IN: a real report.
+        assert_eq!(
+            check_no_dangling_attachment_at_rest(&state).len(),
+            1,
+            "a phased-IN attacher with a dead target is a hard end-state violation"
+        );
+
+        // Phased OUT: CR 702.26b, silent.
+        state
+            .objects_mut()
+            .get_mut(&bearer)
+            .expect("bearer")
+            .status
+            .phased_out = true;
+        let vs = check_no_dangling_attachment_at_rest(&state);
+        assert!(
+            vs.is_empty(),
+            "CR 702.26b / CR 702.26i: a phased-out permanent is treated as though it does \
+             not exist and its cleanup happens at phase-in, so this is a CR-legitimate end \
+             state, not a defect: {vs:?}"
+        );
     }
 }

@@ -911,6 +911,22 @@ const LKI_SITES: &[(&str, &str, usize, &str)] = &[
          controller / attached_to / chosen_creature_type / chosen_color -- NO keyword, which \
          is why widening LKI_RELEVANT_KEYWORDS is not how a future reader is served.",
     ),
+    (
+        "crates/simulator/src/invariants.rs",
+        "attachment_validity_evidence",
+        1,
+        "PB-DX56 / OOS-FB1-1 reader 4, and the first from OUTSIDE the engine crate: a \
+         `check_attachment_validity` violation names an ATTACHER whose `attached_to` \
+         target has already departed the battlefield, and this function looks up the \
+         target's last-known name/card-types for the crash artefact via the `pub` \
+         `GameState::lki_objects()` accessor. Deliberately NOT silent about the SR-24 \
+         gate this row's own doc warns about: `None` (no snapshot captured for this \
+         target, or the store was already cleared) is reported explicitly as \
+         `target_lki=<no snapshot: ...>` in the evidence rather than treated as \
+         equivalent to a captured one -- this is diagnostic ENRICHMENT for a human \
+         reading a crash report, not a game-rules decision, so an empty map here \
+         changes what gets PRINTED, never what the engine DOES.",
+    ),
 ];
 
 /// Byte offsets at which `needle` occurs in `src` **as a whole token** — neither neighbour

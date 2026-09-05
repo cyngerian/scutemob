@@ -1565,6 +1565,33 @@ impl GameState {
             self.store_lki_snapshot(object_id, old_object, chars);
         }
     }
+    /// CR 400.7 attachment hygiene companion to the CR 702.95e soulbond fix-up
+    /// applied alongside it at both call sites: when a permanent that is attached
+    /// to a host (an Aura, Equipment, or Fortification) leaves the battlefield by a
+    /// zone change, remove its departing id from the host's `attachments` so the
+    /// host is not left holding a dead `ObjectId` forever (`OOS-DX22-8`, PB-DX56 F1).
+    ///
+    /// Deliberately **one-directional**. This does NOT clear `attached_to` on
+    /// objects that were attached to a departing HOST — that is a state-based
+    /// action with type-dependent and OPPOSITE dispositions: CR 704.5m puts an
+    /// illegally-attached Aura into its owner's graveyard, while CR 704.5n merely
+    /// unattaches an illegally-attached Equipment/Fortification and leaves it on
+    /// the battlefield. `check_aura_sbas` / `check_equipment_sbas` in
+    /// `rules/sba.rs` already implement both dispositions correctly. Performing
+    /// either one here, outside an SBA sweep, would be CR-wrong, so a future edit
+    /// must not "finish the job" by clearing `attached_to` symmetrically in this
+    /// function — see the wrong-way-round pin in
+    /// `crates/engine/tests/primitives/pb_dx56_departure_hygiene.rs`.
+    fn detach_from_host_on_departure(&mut self, departing: ObjectId, old_object: &GameObject) {
+        if let Some(host_id) = old_object.attached_to {
+            // The host may itself have left the battlefield in the same SBA batch
+            // (CR 400.7 retires its id), so a missing host is a legal fizzle —
+            // mirroring the CR 702.95e soulbond fix-up applied beside this call.
+            if let Some(host) = self.fizzle_object_mut(host_id) {
+                host.attachments.retain(|id| *id != departing);
+            }
+        }
+    }
     /// Move a game object from its current zone to a new zone.
     ///
     /// Implements CR 400.7: "An object that moves from one zone to another becomes
@@ -1763,6 +1790,12 @@ impl GameState {
                 partner.paired_with = None;
             }
         }
+        // CR 400.7 (F1, PB-DX56 / OOS-DX22-8): if the departing object was attached
+        // to a host, remove it from that host's `attachments` so the host does not
+        // keep a dead id forever. See `detach_from_host_on_departure` for why the
+        // reverse direction (an attacher's host departing) is deliberately not
+        // handled here.
+        self.detach_from_host_on_departure(object_id, &old_object);
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
         // that is not the stack or battlefield, revert characteristics to the card's
         // printed values. The prototype-modified P/T, mana_cost, and colors were written
@@ -2267,6 +2300,12 @@ impl GameState {
                 partner.paired_with = None;
             }
         }
+        // CR 400.7 (F1, PB-DX56 / OOS-DX22-8): if the departing object was attached
+        // to a host, remove it from that host's `attachments` so the host does not
+        // keep a dead id forever. See `detach_from_host_on_departure` for why the
+        // reverse direction (an attacher's host departing) is deliberately not
+        // handled here.
+        self.detach_from_host_on_departure(object_id, &old_object);
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
         // that is not the stack or battlefield, revert characteristics to the card's
         // printed values.

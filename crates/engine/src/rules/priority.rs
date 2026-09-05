@@ -138,8 +138,11 @@ pub fn grant_initial_priority(state: &GameState) -> (OrdSet<PlayerId>, Vec<GameE
 ///
 /// * **Through this helper** (CR 800.4j honoured): `resolution.rs`'s two
 ///   `resolve_top_of_stack_inner` grants (the CR 117.3b tail and the CR 608.2b
-///   fizzle path), `resolution.rs`'s `counter_stack_object` tail, and
-///   `combat.rs`'s `handle_declare_blockers` CR 509.1 / 117.3a tail.
+///   fizzle path), `resolution.rs`'s `counter_stack_object` tail,
+///   `combat.rs`'s `handle_declare_blockers` CR 509.1 / 117.3a tail, and
+///   (PB-DX56 F3, closing `OOS-DP9-19`) `engine.rs`'s **cleanup-SBA-round
+///   grant inside `enter_step`** -- the third grant in that function, and the
+///   one the closing review's "all carried the liveness test" claim missed.
 /// * **A second, independent implementation of the same test**:
 ///   `abilities::grant_priority_after_batch` (PB-DP8's CR 603.3b batch grant,
 ///   also used by `repair_departed_priority_holder`). Same liveness rule, kept
@@ -155,12 +158,7 @@ pub fn grant_initial_priority(state: &GameState) -> (OrdSet<PlayerId>, Vec<GameE
 ///   business.
 /// * **Clears** (`= None`): `turn_structure.rs` ×2, plus the no-live-seat branch
 ///   of every conditional grant including this one.
-/// * **Still unconditional, deliberately not routed here** -- both on seed
-///   **OOS-DP9-19**:
-///   * `engine.rs`'s **cleanup-SBA-round grant inside `enter_step`** (the third
-///     grant in that function, and the one the closing review's "all carried the
-///     liveness test" claim missed). Reachability is not proven; it needs its own
-///     fail-before probe before being touched.
+/// * **Still unconditional, deliberately not routed here**:
 ///   * `resolution.rs`'s cipher-copy grant (`StackObjectKind::KeywordTrigger` /
 ///     `KeywordAbility::Cipher`). Benign: the arm falls through to the CR 117.3b
 ///     tail, which overwrites the field before the command returns, and the write

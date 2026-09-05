@@ -1,0 +1,53 @@
+MTG Fuzzer — Commander Rules Engine
+===================================
+Games: 20  Players: 4  Max turns: 200  Bot: Random  Seed: 1
+Cards available: 1803
+
+
+Results
+-------
+Games completed: 20  Time: 19.1s  (1 games/sec)
+Wins: 20  Draws: 0  Errors: 0
+Total violations (HARD): 10290
+Total violations (TRANSIENT, reported -- does not halt --stop-on-error): 844
+Avg turns per game: 122.0
+
+Violations by check (ALL 20 games)
+---------------------------------
+  Raw counts are CHECKPOINT-weighted (OOS-SIM3-3): the same underlying condition can be reported once per checkpoint until the next SBA sweep clears it. Distinct counts (deduped by (check, description), first occurrence wins) are the defect-shaped number.
+
+  HARD (raw 10290 / distinct 7), 5/20 game(s)
+    attachment_symmetry      10290  in 5 game(s): [2, 4, 11, 13, 17]
+
+  TRANSIENT (reported, does NOT halt --stop-on-error and does NOT write a crash report -- known-transient class only, PB-DX32 Stage 4) (raw 844 / distinct 135), 16/20 game(s)
+    no_orphaned_tokens       553    in 13 game(s): [1, 3, 4, 5, 6, 9, 10, 11, 12, 13, 15, 16, 18]
+    departed_active_player   189    in 11 game(s): [3, 4, 5, 7, 8, 10, 11, 12, 13, 16, 17]
+    attachment_validity      102    in 7 game(s): [1, 8, 9, 11, 12, 13, 18]
+
+  games with >=1 HARD violation: 5 / 20
+  histogram total (HARD): 10290  (TRANSIENT): 844
+
+── TRUNCATED BY THE COORDINATOR ─────────────────────────────────────────────────
+The raw file was 10,407 lines: this row's whole point is that ONE condition is
+re-reported at EVERY subsequent checkpoint for the rest of the game (~1,470 per
+condition), so the per-violation detail is 10,290 near-identical lines. The
+summary above carries the numbers; twelve sample lines follow so the shape is
+checkable. Re-derive with: revert `detach_from_host_on_departure`'s two call
+sites in `crates/engine/src/state/mod.rs` (add `#[allow(dead_code)]` to the
+helper, or `-D warnings` turns the row into a build failure rather than a
+verdict), then
+  cargo run --profile fuzz --bin mtg-fuzzer -- --games 20 --seed 1 --max-turns 200 --threads 1
+
+── SAMPLE OF THE 10,290 ──────────────────────────────────────────────────────────
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)
+  [attachment_symmetry] Object ObjectId(585) lists ObjectId(597) in its attachments, but that object does not exist (turn 117)

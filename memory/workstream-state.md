@@ -15,7 +15,88 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**PB-DX55 `scutemob-234` SHIPPED 2026-09-05 — task 1 of 5 of the SECOND approved chain (ranks 19-23: PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38, exactly five, sequential, collect-before-next); ALL THREE of its seeds — `OOS-SIM6-3`, `OOS-SIM5-3`, `OOS-SIM5-5` — were FILED (none had a registry row, the second batch running) and CLOSED, plus the rider `OOS-DX51-3`; the bot refusal surface goes 70 → 9 and the memo §2.6 table is refuted in three directions; next is PB-DX56, rank 20**) (**PB-DX42b `scutemob-233` SHIPPED 2026-09-05 — task 5 of 5, the LAST of the FIRST approved chain; v4 ranks 1-18 ALL SHIPPED**neither headline seed had a registry row**: six of the adjudication §6's seven `OOS-ADJ-*` seeds were never registered**) (**PB-DX54 `scutemob-232` SHIPPED 2026-09-05 — task 4 of 5 of the approved chain**) (**PB-DX53 `scutemob-231` SHIPPED 2026-09-05 `5b54081d` — task 3 of 5 of the approved chain; next is PB-DX54, rank 17, dispatching; then PB-DX42b (rank 18) is the LAST**) (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX56 `scutemob-235` SHIPPED 2026-09-05 — task 2 of 5 of the SECOND approved chain (ranks 19-23). **OOS-FB1-1** (the prerequisite), **OOS-DX32-1** and **OOS-DX22-8** ALL CLOSED, plus the rider **OOS-DP9-19(b)**. The fuzzer's HARD bucket goes **291 → 0** on the standard invocation, so `--stop-on-error` no longer halts. BOTH filed figures were re-measured FIRST and neither reproduces, both UP (189 across 11 of 20, and 102 across 7). `player_consistency` is TWO ARMS the CR gives OPPOSITE dispositions and every document in the chain treated them as one; `attachment_validity` watched the direction that HEALS while the direction that never does had no check at all. The adversarial bypass pass defeated SEVEN of eight shipped gates, and the `/review` then found THREE MORE — **eleven in all, all now RED**. Next is **PB-DX57, rank 21****) (**PB-DX55 `scutemob-234` SHIPPED 2026-09-05 — task 1 of 5 of the SECOND approved chain (ranks 19-23: PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38, exactly five, sequential, collect-before-next); ALL THREE of its seeds — `OOS-SIM6-3`, `OOS-SIM5-3`, `OOS-SIM5-5` — were FILED (none had a registry row, the second batch running) and CLOSED, plus the rider `OOS-DX51-3`; the bot refusal surface goes 70 → 9 and the memo §2.6 table is refuted in three directions; next is PB-DX56, rank 20**) (**PB-DX42b `scutemob-233` SHIPPED 2026-09-05 — task 5 of 5, the LAST of the FIRST approved chain; v4 ranks 1-18 ALL SHIPPED**neither headline seed had a registry row**: six of the adjudication §6's seven `OOS-ADJ-*` seeds were never registered**) (**PB-DX54 `scutemob-232` SHIPPED 2026-09-05 — task 4 of 5 of the approved chain**) (**PB-DX53 `scutemob-231` SHIPPED 2026-09-05 `5b54081d` — task 3 of 5 of the approved chain; next is PB-DX54, rank 17, dispatching; then PB-DX42b (rank 18) is the LAST**) (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
+
+## Last Handoff (worker, 2026-09-05) — PB-DX56 / `scutemob-235`
+
+**v4 queue rank 20, task 2 of 5 of the SECOND approved chain. `OOS-FB1-1` (the stated
+prerequisite), `OOS-DX32-1` and `OOS-DX22-8` all CLOSED, plus the rider `OOS-DP9-19(b)`.
+The fuzzer's HARD bucket goes 291 → 0 on the standard invocation. Next: PB-DX57, rank 21.**
+
+### The four things worth carrying forward
+
+1. **`player_consistency` was never one class.** It has two arms and the CR gives them
+   OPPOSITE dispositions — and this row, the v4 memo cell and the dispatch criterion all
+   treated them as one, which is what made a quarter of the fuzzer's HARD signal
+   undiagnosable. **189 of 189 reports were the ACTIVE-PLAYER arm; the priority-holder arm
+   measured ZERO.** CR 800.4j says the turn *"continues to its completion **without an
+   active player**"*, and `TurnState::active_player` is a bare `PlayerId` with ONE
+   production write site, so that is **inexpressible** and the engine encodes the turn by
+   leaving the departed id there. CR 800.4a's last sentence, by contrast, is unconditional.
+   The generalisation: **before splitting a class transient, check whether the check has
+   more than one arm** — the arms may not agree.
+
+2. **A transient split needs a strictly stronger property of the RIGHT SHAPE, and the
+   shape is not always end-state.** PB-DX32 answered the token class with an end-state
+   check. That would be WRONG here and would fire spuriously: at game end the player who
+   just died may legitimately still be `active_player`. The right property is CR 800.4k's
+   **turn boundary**. Ask what BOUNDS the condition, then assert the bound.
+
+3. **A two-directional relation can have a check on the direction that heals and none on
+   the direction that does not.** `check_attachment_validity` watched a host's departure
+   (cleared by CR 704.5m/704.5n); nothing watched an *attacher's* departure, which leaves a
+   dead `ObjectId` in the host's HASHED `attachments` forever. **The discriminator is an
+   arithmetic, not an argument**: checkpoints-per-condition, ~8 for the healing direction
+   and **~1,470** for the one that does not, measured on the same run by the same stateless
+   per-command checker. Write the prediction down before you measure it, as the census did.
+
+4. **`OOS-DX56-1` is the one a later batch will want**, because it is about diagnostics
+   generally rather than this batch's subject: a diagnostic envelope that PREPENDS shared
+   context to a payload creates a **namespace collision**, and a consumer that parses the
+   flattened result by prefix silently reads the envelope instead of the payload. Prefix
+   your payload keys, or do not flatten. It cost this batch a false CR 800.4k promotion that
+   read as its only HARD violation, and it was found by reading the evidence rather than the
+   count — which is `OOS-FB1-1`'s entire argument, instantiated on the batch that closed it.
+
+### Hazards for the next worker
+
+* **The adversarial bypass pass defeated SEVEN of eight shipped gates**, including two whose
+  probes called a private function DIRECTLY (so nothing asserted `check_all` dispatched to
+  it) and an end-state check with **no call-site gate whose hole is INHERITED from PB-DX32**.
+  All seven are closed and re-executed RED. **If your batch adds a check, add the front-door
+  dispatch probe in the same commit** — `check_stack_consistency` has had one since SIM-3.
+* **Three plants in this batch produced NON-VERDICTS that looked like passes**: one failed to
+  compile under `-D warnings` (dead code), one failed to compile on a `break` outside a loop,
+  and two failed to APPLY because `cargo fmt` had rewrapped their target line between passes.
+  A plant that does not apply produces a green run, and a green run nobody checked applied is
+  indistinguishable from a working gate. **Assert the plant applied.**
+* **Two of this batch's own new source gates caught themselves on their non-vacuity floors** —
+  one parsed `pub const` line-by-line and missed a declaration `cargo fmt` wraps; one matched
+  its OWN source through `include_str!`. Put a floor on every parsing gate.
+* The delegated bypass agent **had no `Bash` tool** (disabled in subagents in this build) and
+  said so at the top of its report rather than presenting reasoning as results. Its
+  predictions were then executed by the coordinator and 7 of 8 were right. **Budget for
+  executing a review agent's findings yourself.**
+* `crash-reports/` is gitignored; the new `inflight_<seed>.json` tombstones live there. A run
+  that aborts leaves one behind on purpose — the fuzzer reports leftovers at end of run.
+
+### The `/review`'s three additional gate defeats, because they are all reusable shapes
+
+* **A `contains`-based source gate cannot tell code from a comment.** Commenting the call
+  out defeated BOTH of this batch's source gates. PB-DX8 filed `OOS-DX32-6` for the same
+  class and this batch did not carry it across. **Strip comments before any `contains` on
+  source text** — and note that a brace-matching body extractor is exactly the shape that
+  forgets to, because it is careful about SCOPE and silent about whether what it found
+  compiles.
+* **A gate on a predicate's DEFINITION says nothing about its CONSUMER** (`OOS-DX56-7`,
+  PB-DX50's `r3` verbatim). An argument swap in the call — which compiles and uses every
+  binding — and an OR added to the classification test both left 42 targets green. **If the
+  decision lives at a call site, move it into a function a unit test can drive, and gate the
+  call site down to a delegation.**
+* **A disposition that moves a class between buckets must re-check every consumer that keys
+  on a bucket** (`OOS-DX56-8`). Making both live classes transient made this batch's own new
+  evidence unprintable on every real invocation. *"Transient" means "does not halt the run",
+  never "not worth printing".*
 
 ## Last Handoff (worker, 2026-09-05) — PB-DX55 / `scutemob-234`
 

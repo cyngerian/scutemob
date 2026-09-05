@@ -13,7 +13,7 @@
 //! * **zero** `InvariantViolation`s (`invariants::check_all`, running on every
 //!   tracked command because `check_invariants` is on) — with exactly one class
 //!   separated out and reported rather than asserted: see `OOS-M11-7` on
-//!   [`Playthrough::transient_token_violations`], where what is asserted instead is
+//!   [`Playthrough::transient_violations`], where what is asserted instead is
 //!   the strictly stronger end-state property that no token leaked at all;
 //! * the game reaches `GameOver` or the configured turn cap — never
 //!   `Halted(NoLegalActions)`, never `Halted(EngineError)`.
@@ -70,14 +70,35 @@ struct Playthrough {
     /// Every violation except the known-transient CR 704.3 token class below. Any
     /// entry here fails the test.
     violations: Vec<String>,
-    /// `no_orphaned_tokens` violations, kept separate because this engine checks
+    /// The known-transient classes, kept separate — `invariants::is_transient_check`
+    /// decides membership and is the single arithmetic every consumer shares.
+    ///
+    /// The original member is `no_orphaned_tokens`, separate because this engine checks
     /// SBAs on **step entry and at resolution**, not on every priority grant as CR
     /// 704.3 requires — so a Treasure sacrificed to pay a mana cost sits in the
     /// graveyard, legally under this engine's model, until the next of those.
-    /// Pre-existing and out of M11-local's scope (no engine change this milestone);
-    /// filed as **OOS-M11-7**. Reported, not asserted on — what *is* asserted is
-    /// [`Self::leaked_tokens`], which proves every one was transient.
-    transient_token_violations: Vec<String>,
+    /// Pre-existing and out of M11-local's scope; filed as **OOS-M11-7**.
+    ///
+    /// PB-DX56 (`OOS-DX32-1` / `OOS-DX22-8`) added two more, each with its OWN strictly
+    /// stronger property rather than a shared one: `departed_active_player` (CR 800.4j —
+    /// answered by the CR 800.4k turn-boundary promotion in
+    /// `LocalGame::record_violations`) and `attachment_validity` (CR 704.5m/704.5n —
+    /// answered by `check_no_dangling_attachment_at_rest`). **This field's name used to
+    /// say `token`, and that stopped being true when the set grew**; renamed rather than
+    /// left to read as a narrower claim than it makes.
+    ///
+    /// Reported, not asserted on. **What *is* asserted here is [`Self::leaked_tokens`] and
+    /// nothing else** — and the first draft of this sentence claimed *"plus the two
+    /// end-state/boundary properties"*, which is FALSE about this file (`/review` MEDIUM 10,
+    /// `OOS-DX56-14`): this test never calls `LocalGame::result_snapshot`, so
+    /// `invariants::check_no_dangling_attachment_at_rest` never runs in it at all. That is
+    /// precisely why the bypass row that deleted that call from `result_snapshot` left the
+    /// whole workspace green, and why the gate that catches it had to be a SOURCE gate
+    /// (`invariants::tests::t_every_end_state_check_is_called_from_result_snapshot`).
+    /// The CR 800.4k boundary half IS incidentally covered, because a promoted violation
+    /// lands in `violations()`, which this file does assert on — stated as the incidental
+    /// fact it is rather than as coverage this file was designed to give.
+    transient_violations: Vec<String>,
     /// Tokens outside the battlefield in the **final** state. Must be empty: a token
     /// still there once the game has stopped survived every SBA check the engine
     /// ever ran, which is the real leak the `no_orphaned_tokens` check is for.
@@ -320,7 +341,7 @@ fn play(seed: u64) -> Playthrough {
         seed,
         error: None,
         violations: Vec::new(),
-        transient_token_violations: Vec::new(),
+        transient_violations: Vec::new(),
         leaked_tokens: Vec::new(),
         outcome: String::new(),
         turns: 0,
@@ -406,13 +427,13 @@ fn play(seed: u64) -> Playthrough {
     // happens upstream, inside `LocalGame::record_violations` (PB-DX32 Stage 4) —
     // `game.violations()` can no longer contain that check at all, so the old
     // `if v.check == "no_orphaned_tokens"` branch here was permanently dead and
-    // `transient_token_violations` printed `0` on every seed forever. Read each
+    // `transient_violations` printed `0` on every seed forever. Read each
     // half from the game's own two accessors instead of re-deriving the split.
     for v in game.violations() {
         result.violations.push(format!("{v:?}"));
     }
     for v in game.transient_violations() {
-        result.transient_token_violations.push(format!("{v:?}"));
+        result.transient_violations.push(format!("{v:?}"));
     }
     // The proof that every one of those was transient: at the end of the game no
     // token is anywhere but the battlefield.
@@ -510,13 +531,13 @@ fn test_s8_scripted_human_playthrough_is_clean_on_five_seeds() {
     for run in &runs {
         println!(
             "seed {:>5}: {} after {} turns / {} commands, {} human decisions, \
-             {} transient-token reports (OOS-M11-7), kinds {:?}",
+             {} transient reports (OOS-M11-7 tokens + PB-DX56 classes), kinds {:?}",
             run.seed,
             run.outcome,
             run.turns,
             run.commands,
             run.decisions,
-            run.transient_token_violations.len(),
+            run.transient_violations.len(),
             run.submitted_kinds
         );
     }

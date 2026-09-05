@@ -62,6 +62,7 @@ mod pb_dx54_resolving_entry_roster;
 mod pb_dx55_block_legality_roster;
 mod pb_dx55_modal_activated_roster;
 mod pb_dx55_per_mode_slicer_ratchet;
+mod pb_dx56_departure_hygiene_roster;
 mod pb_dx5_continuous_effect_roster;
 mod pb_dx6_turn_face_up_and_attack_tax_roster;
 mod pb_dx8_oracle_decision_cross_check;

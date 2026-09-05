@@ -15,6 +15,31 @@
 //!   --replay <SEED>     Replay a specific game by seed
 //!   --verbose           Print each game result
 //!
+//! # Crash artefacts (PB-DX56 / OOS-FB1-1)
+//!
+//! Every game writes `crash-reports/inflight_<seed>.json` BEFORE it starts and
+//! removes it on clean completion (see `report::InFlightGame`'s doc for why this,
+//! and not `Drop`/`catch_unwind`, is the only mechanism that survives a process
+//! `abort()`). A file left behind at the START of a later run means a PRIOR
+//! invocation aborted the whole process before it could clean up after itself;
+//! this binary prints a warning naming any such leftovers at the end of every run.
+//! A game that DOES finish with a HARD violation gets a full `crash-reports/
+//! crash_<seed>.json` written (from the parallel run's post-`.collect()` loop, or
+//! immediately for `--replay`), carrying the check's own structured `evidence` (see
+//! `invariants::InvariantViolation`) and the retained command history.
+//!
+//! **What each half is FOR, stated precisely, because the first draft of this paragraph
+//! said the history was "needed to reproduce it" and that is not true** (`/review` LOW 12,
+//! `OOS-DX56-11`). The command history is a bounded RING of the last
+//! `local_game::MAX_RETAINED_COMMAND_HISTORY` commands, so on a long game it is the TAIL of
+//! the command stream and can lie entirely AFTER the violation -- measured: a violation
+//! first seen on turn 117 of 128 came with `256 retained, 4970 dropped`, all 256 of them
+//! subsequent. **Reproduction comes from the SEED plus the same build** (and the
+//! `max_turns` and `bot` the artefact now carries so the command line can be rebuilt); the
+//! history is DIAGNOSTIC CONTEXT and `commands_dropped_from_history` is printed beside it
+//! so the truncation is visible rather than implied. A ring that looks complete is worse
+//! than no ring.
+//!
 //! # Run it with assertions on (SR-32)
 //!
 //! The SR-4 / SR-14 tripwires that flag IMPOSSIBLE-class state absences are
@@ -81,10 +106,15 @@ use rayon::prelude::*;
 
 use mtg_engine::{all_cards, CardDefinition, CardRegistry, PlayerId};
 use mtg_simulator::{
-    build_fuzz_state, build_registry, CrashReport, FuzzSetupError, GameDriver, GameDriverError,
-    GameResult, HeuristicBot, MechanicsTally, RandomBot, StubProvider,
+    build_fuzz_state, build_registry, invariants, CrashReport, FuzzSetupError, GameDriver,
+    GameDriverError, GameResult, HeuristicBot, InFlightGame, MechanicsTally, RandomBot,
+    StubProvider,
 };
 use rand::prelude::*;
+
+/// Where crash artefacts and in-flight tombstones both live (PB-DX56 / OOS-FB1-1).
+/// One constant so the writer and the reader can never spell it differently.
+const CRASH_REPORTS_DIR: &str = "crash-reports";
 
 #[derive(Parser)]
 #[command(
@@ -163,6 +193,7 @@ fn main() {
     // Single-game replay mode
     if let Some(replay_seed) = cli.replay {
         println!("Replaying game with seed {}...", replay_seed);
+        let crash_dir = std::path::Path::new(CRASH_REPORTS_DIR);
         let (result, mechanics) = run_single_game(
             replay_seed,
             cli.players,
@@ -170,6 +201,18 @@ fn main() {
             &cli.bot,
             &cards,
             &registry,
+            // `--replay` is the diagnostic mode and holds one result: keep the ring.
+            true,
+        );
+        // PB-DX56 / OOS-FB1-1: a replay writes the crash artefact too, so a replay
+        // is self-documenting instead of depending on a prior parallel run's
+        // artefact already existing on disk.
+        write_crash_report_if_violated(
+            &result,
+            crash_dir,
+            cli.players as usize,
+            cli.max_turns,
+            &cli.bot,
         );
         print_game_result(&result, true);
         // One game, so the per-run summaries below are a per-game report here — which is
@@ -180,6 +223,7 @@ fn main() {
         print_sr38_summary(std::slice::from_ref(&result));
         print_waste_summary(std::slice::from_ref(&result), &cli.bot);
         print_decision_coverage(std::slice::from_ref(&result));
+        report_leftover_inflight_files(crash_dir);
         return;
     }
 
@@ -212,6 +256,7 @@ fn main() {
                 &cli.bot,
                 &cards,
                 &registry,
+                false,
             );
 
             if !result.violations.is_empty() {
@@ -315,25 +360,27 @@ fn main() {
         println!("Replay violations with: mtg-fuzzer --replay <SEED>");
     }
 
-    // Write crash reports for games with violations
-    let crash_dir = std::path::Path::new("crash-reports");
-    if !results.iter().all(|r| r.violations.is_empty()) {
-        std::fs::create_dir_all(crash_dir).ok();
-        for result in &results {
-            if let Some(v) = result.violations.first() {
-                let report = CrashReport {
-                    seed: result.seed,
-                    player_count: cli.players as usize,
-                    violation: v.clone(),
-                    command_history: Vec::new(), // Would need to capture during game
-                    turn_number: v.turn_number,
-                    total_commands: result.total_commands,
-                };
-                let path = crash_dir.join(format!("crash_{}.json", result.seed));
-                report.write_to_file(&path).ok();
-            }
-        }
+    // Write crash reports for games with violations (PB-DX56: now via the shared
+    // helper `--replay` also uses, and now carrying the real command history
+    // instead of the `Vec::new() // Would need to capture during game` this line
+    // used to leave here -- see `local_game::LocalGame::command_history`).
+    let crash_dir = std::path::Path::new(CRASH_REPORTS_DIR);
+    for result in &results {
+        write_crash_report_if_violated(
+            result,
+            crash_dir,
+            cli.players as usize,
+            cli.max_turns,
+            &cli.bot,
+        );
     }
+
+    // PB-DX56 / OOS-FB1-1: a tombstone nobody reads is not a mechanism -- name any
+    // that are still on disk at the end of this run. Every game this run itself
+    // ran either completed (and removed its own tombstone in `run_single_game`) or
+    // aborted the WHOLE process (in which case this line never executes at all),
+    // so anything found here is necessarily left over from a PRIOR crashed run.
+    report_leftover_inflight_files(crash_dir);
 
     // SR-38 (PB-DX32 Stage 2): fail the run loudly on a threshold breach. Safe to do
     // unconditionally -- F19, this binary is not run in CI, so a non-zero exit here
@@ -343,6 +390,13 @@ fn main() {
     }
 }
 
+/// PB-DX56 / OOS-FB1-1: where a given seed's in-flight tombstone lives. One
+/// function so the write site and the read site (`report_leftover_inflight_files`)
+/// can never spell the filename pattern differently.
+fn inflight_path(crash_dir: &std::path::Path, seed: u64) -> std::path::PathBuf {
+    crash_dir.join(format!("inflight_{seed}.json"))
+}
+
 fn run_single_game(
     seed: u64,
     player_count: u32,
@@ -350,7 +404,32 @@ fn run_single_game(
     bot_type: &BotType,
     cards: &[CardDefinition],
     registry: &Arc<CardRegistry>,
+    retain_history_even_if_clean: bool,
 ) -> (GameResult, MechanicsTally) {
+    // PB-DX56 / OOS-FB1-1: write-before / delete-after in-flight tombstone. This
+    // is the ONLY mechanism that survives `abort()` -- see `InFlightGame`'s own
+    // doc for why `Drop`/`catch_unwind` are unavailable here. Written BEFORE the
+    // game runs, deliberately dumb: its contents exist only to reconstruct the
+    // `--replay` command line, nothing derived from in-flight game state (which we
+    // could not safely read from outside an aborted process anyway).
+    let crash_dir = std::path::Path::new(CRASH_REPORTS_DIR);
+    std::fs::create_dir_all(crash_dir).ok();
+    let inflight_file = inflight_path(crash_dir, seed);
+    InFlightGame {
+        seed,
+        player_count: player_count as usize,
+        max_turns,
+        bot: format!("{bot_type:?}"),
+        note: "Present at the start of a LATER run: the game that wrote this file \
+               aborted the WHOLE process (SIGABRT or an unwinding panic rayon \
+               resumed on the joining thread) before it could remove this file. \
+               Reproduce with `mtg-fuzzer --replay <seed> --players <player_count> \
+               --max-turns <max_turns> --bot <bot>` using this file's own fields."
+            .to_string(),
+    }
+    .write_to_file(&inflight_file)
+    .ok();
+
     // PB-DX22 §B3: the state build lives in `mtg_simulator::fuzz_setup` so integration
     // tests can reach it. This function does nothing else to the state, so a probe on
     // `build_fuzz_state` is a probe on this binary.
@@ -361,6 +440,9 @@ fn run_single_game(
         // Byte-identical to the string this arm produced before the extraction — crash
         // reports and `driver.rs`'s error-shape comment depend on it.
         Err(FuzzSetupError::Builder(e)) => {
+            // The game never started (no `LocalGame` was ever created), which is
+            // a clean, ordinary `Err` return, not a crash -- remove the tombstone.
+            std::fs::remove_file(&inflight_file).ok();
             return (
                 // Error path: state build failed before any `LocalGame` existed.
                 // `..Default::default()` picks up every instrumentation field PB-DX32
@@ -399,7 +481,103 @@ fn run_single_game(
 
     // Run game
     let driver = GameDriver::new(StubProvider, bots, max_turns, seed);
-    driver.run_game_with_mechanics(state, seed)
+    let (mut result, mechanics) = driver.run_game_with_mechanics(state, seed);
+
+    // The process is still alive to run this line, so the game did NOT abort the
+    // process -- remove the tombstone (PB-DX56 / OOS-FB1-1).
+    std::fs::remove_file(&inflight_file).ok();
+
+    // PB-DX56 (4a): keep `--games N` aggregate retention bounded by the number of
+    // VIOLATING games, not `N` itself -- `results` in `main()` retains every
+    // game's `GameResult` for the whole run, and `LocalGame::result_snapshot`
+    // (unlike the old `Vec::new()` this line replaces) always populates
+    // `command_history`, so a clean game's peak ring is freed here rather than
+    // carried for the life of the run.
+    //
+    // `/review` LOW 14: `--replay` passes `retain_history_even_if_clean = true`. The
+    // retention argument above is about `main()`'s `results` vector across `--games N`;
+    // `--replay` holds exactly ONE result and is the mode a human uses to diagnose, so
+    // clearing there printed `0 retained, 4878 dropped` -- which reads as "the ring threw
+    // everything away", the opposite of what happened. The bound this line exists for does
+    // not apply to a single-game run.
+    if result.violations.is_empty() && !retain_history_even_if_clean {
+        result.command_history = Vec::new();
+    }
+
+    (result, mechanics)
+}
+
+/// Shared by the parallel run's post-`.collect()` loop and `--replay`, so a replay
+/// is self-documenting instead of depending on a prior parallel run's artefact
+/// already existing on disk (PB-DX56 / OOS-FB1-1).
+fn write_crash_report_if_violated(
+    result: &GameResult,
+    crash_dir: &std::path::Path,
+    player_count: usize,
+    max_turns: u32,
+    bot: &BotType,
+) {
+    let Some(v) = result.violations.first() else {
+        return;
+    };
+    std::fs::create_dir_all(crash_dir).ok();
+    let report = CrashReport {
+        seed: result.seed,
+        player_count,
+        violation: v.clone(),
+        command_history: result.command_history.clone(),
+        turn_number: v.turn_number,
+        total_commands: result.total_commands,
+        commands_dropped_from_history: result.commands_dropped_from_history,
+        max_turns,
+        bot: format!("{bot:?}"),
+    };
+    let path = crash_dir.join(format!("crash_{}.json", result.seed));
+    report.write_to_file(&path).ok();
+}
+
+/// PB-DX56 / OOS-FB1-1: "a tombstone nobody reads is not a mechanism" -- scan
+/// `crash_dir` for `inflight_*.json` files and print each one found. Called at
+/// the end of every run (both `--replay` and the parallel path); anything found
+/// there is necessarily left over from a run that aborted the whole process
+/// before it could remove its own tombstone (see [`InFlightGame`]'s doc).
+fn report_leftover_inflight_files(crash_dir: &std::path::Path) {
+    let Ok(entries) = std::fs::read_dir(crash_dir) else {
+        return;
+    };
+    let mut leftovers: Vec<std::path::PathBuf> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| n.starts_with("inflight_") && n.ends_with(".json"))
+                .unwrap_or(false)
+        })
+        .collect();
+    if leftovers.is_empty() {
+        return;
+    }
+    leftovers.sort();
+    println!();
+    println!(
+        "WARNING: {} in-flight tombstone file(s) on disk -- a PRIOR run aborted the \
+         whole process before it could clean up after itself:",
+        leftovers.len()
+    );
+    for path in &leftovers {
+        match InFlightGame::read_from_file(path) {
+            Ok(g) => println!(
+                "  {}: seed={} players={} max_turns={} bot={}",
+                path.display(),
+                g.seed,
+                g.player_count,
+                g.max_turns,
+                g.bot
+            ),
+            Err(_) => println!("  {} (unreadable)", path.display()),
+        }
+    }
 }
 
 /// One bucket of [`print_violation_histogram`] — HARD (`result.violations`) or
@@ -871,6 +1049,11 @@ fn print_decision_coverage(results: &[GameResult]) {
     }
 }
 
+/// `verbose` is `true` only from `--replay` (PB-DX56 / OOS-FB1-1: this is where a
+/// replay DUMPS the violating state -- the check's own `evidence`, deduped by
+/// [`invariants::distinct`] so a condition reported at every checkpoint of a long
+/// game prints once rather than once per checkpoint, plus the tail of the retained
+/// command history so a reproduction is self-contained).
 fn print_game_result(result: &GameResult, verbose: bool) {
     let status = if let Some(winner) = result.winner {
         format!("Winner: P{}", winner.0)
@@ -890,11 +1073,38 @@ fn print_game_result(result: &GameResult, verbose: bool) {
     );
 
     if verbose {
-        for v in &result.violations {
-            println!(
-                "    [{}] {} (turn {})",
-                v.check, v.description, v.turn_number
-            );
+        // HARD first, then TRANSIENT -- and the transient half is NOT optional.
+        //
+        // `/review` HIGH 2 (`OOS-DX56-8`): this loop used to walk `result.violations`
+        // alone, and PB-DX56's own disposition then made BOTH of the two classes that fire
+        // on the standard invocation TRANSIENT. So the evidence this batch exists to
+        // produce -- `player_consistency_evidence`, `attachment_validity_evidence` -- was
+        // printed NOWHERE on any real run, and `--replay 8` reported `Violations: 0` with
+        // 24 departed-active and 9 attachment reports sitting unshown in the other bucket.
+        // A diagnosis you cannot read is not a diagnosis; "transient" means "does not halt
+        // the run", never "not worth printing".
+        for (label, bucket) in [
+            ("", &result.violations),
+            ("TRANSIENT ", &result.transient_violations),
+        ] {
+            for v in &invariants::distinct(bucket) {
+                println!(
+                    "    {}[{}] {} (turn {})",
+                    label, v.check, v.description, v.turn_number
+                );
+                for e in &v.evidence {
+                    println!("        {e}");
+                }
+            }
+        }
+        println!(
+            "    Command history: {} retained, {} dropped from the ring (see \
+             MAX_RETAINED_COMMAND_HISTORY):",
+            result.command_history.len(),
+            result.commands_dropped_from_history
+        );
+        for c in &result.command_history {
+            println!("        {c:?}");
         }
     }
 }

@@ -3607,6 +3607,7 @@ mod tests {
                 check: "no_orphaned_tokens".to_string(),
                 description: format!("token {PLANTED} (id 412) is in Graveyard(2)"),
                 turn_number: 19,
+                ..Default::default()
             }],
             error: Some(GameDriverError::EngineError(format!(
                 "InvalidTarget {{ object: {PLANTED} }}"

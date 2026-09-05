@@ -583,21 +583,31 @@ fn test_self_shuffle_on_resolution() {
     );
 }
 
-/// CR 500.7 + CR 800.4a — If a player with a queued extra turn is eliminated, that extra turn
-/// should be skipped and normal turn order (to the next non-eliminated player) should resume.
+/// CR 500.7 + CR 800.4k — If a player with a queued extra turn is eliminated before that
+/// turn is taken, the turn is dropped rather than begun, and normal turn order resumes as
+/// if it had never been queued.
 ///
-/// NOTE: CR 800.4a states eliminated players skip all their remaining turns. This test
-/// documents engine behavior when an eliminated player has an extra turn queued.
-/// The extra turn entry is consumed during advance_turn; the eliminated player may briefly
-/// be set as active_player, but priority is held by the next active player so the eliminated
-/// player's "extra turn" is effectively a no-op turn that immediately passes to the next active.
+/// **PB-DX56 F2 (`memory/primitives/pb-DX56-mechanism-census.md` §2.5): this assertion is
+/// CORRECTED, not merely re-pinned.** CR 800.4k, verbatim: "If a player who has left the
+/// game would begin a turn, that turn doesn't begin." Before F2, `advance_turn`'s
+/// extra-turn branch (`turn.extra_turns.pop_back()`) applied no liveness filter at all, so
+/// a departed player's queued extra turn DID begin -- `active_player` was briefly set to
+/// the eliminated player for a whole turn, `last_regular_active` stayed untouched (extra
+/// turns never update it), and only the SEPARATE priority-grant liveness check kept that
+/// turn from being interactively played. This test's previous form documented exactly that
+/// as expected behavior ("the eliminated player may briefly be set as active_player ...
+/// effectively a no-op turn"), which is the CR 800.4k violation F2 exists to close, not a
+/// property to preserve. With the fix, p2's dead entry is discarded WITHOUT ever setting
+/// `active_player = p2`, so a single `complete_turn` call jumps directly from p1 to p3.
 #[test]
 fn test_extra_turn_eliminated_player_skipped() {
-    // CR 500.7: Extra turns are LIFO. CR 800.4a: Eliminated players skip turns.
+    // CR 500.7: Extra turns are LIFO. CR 800.4k: a departed player's queued turn is
+    // dropped, not begun.
     let mut state = four_player_with_libraries(Step::End);
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
     let p3 = PlayerId(3);
+    let p4 = PlayerId(4);
 
     // Grant an extra turn to p2.
     state.turn_mut().extra_turns.push_back(PlayerId(2));
@@ -611,37 +621,45 @@ fn test_extra_turn_eliminated_player_skipped() {
         1,
         "extra turn should be queued for p2 before elimination takes effect"
     );
-
-    // Advance past p1's turn. The extra_turns queue has p2 in it.
-    // The engine pops p2's extra turn and processes it. Because p2 is eliminated,
-    // only non-eliminated players (p1, p3, p4) hold priority; p2's "turn" is
-    // traversed but produces no meaningful actions.
-    let (state, _) = complete_turn(state);
-
-    // After the extra turn slot is consumed, verify normal order resumes.
-    // The turn should now belong to p2 (eliminated — extra turn popped) or
-    // have already advanced further. In either case, p2's extra_turns slot is gone.
-    assert!(
-        state.turn().extra_turns.is_empty(),
-        "CR 500.7 + 800.4a: p2's extra turn slot should be consumed (queue empty)"
-    );
-
-    // The active player should NOT be p1 (we advanced at least one turn).
-    assert_ne!(
+    assert_eq!(
         state.turn().active_player,
         p1,
-        "turn should have advanced past p1"
+        "precondition: p1's own turn should be the one this test completes past"
     );
 
-    // CR 800.4a: normal order after eliminating p2 should resume. After p2's extra turn
-    // slot is consumed, the next normal turn goes to p2 (still in turn_order at position 2,
-    // but has_lost=true → next_player_in_turn_order skips p2 → p3 gets the regular turn).
-    // Complete one more turn to confirm normal order skips p2.
+    // Complete p1's turn. CR 800.4k: p2's queued extra turn does not begin -- it is
+    // discarded during `advance_turn`'s extra-turn branch -- so normal turn order takes
+    // over immediately and skips the eliminated p2 (still in `turn_order` at position 2,
+    // but `has_lost = true` → `next_player_in_turn_order` skips it). `active_player`
+    // should land on p3 directly, never having been p2.
     let (state, _) = complete_turn(state);
+
+    // The dead entry is consumed (dropped), not left queued for a later advance_turn.
+    assert!(
+        state.turn().extra_turns.is_empty(),
+        "CR 800.4k: p2's queued extra turn should be discarded (queue empty), not left \
+         to be retried"
+    );
+
+    // CR 800.4k: p2's turn never begins, so active_player jumps straight from p1 to p3 --
+    // this is now an EXACT assertion, not merely "not p1", because the fix makes the
+    // departed player's entry structurally unable to ever become active_player.
     assert_eq!(
         state.turn().active_player,
         p3,
-        "CR 800.4a: normal turn order skips eliminated p2; p3 should follow p1's regular turn"
+        "CR 800.4k: a departed player's queued extra turn doesn't begin, so normal turn \
+         order should hand the turn directly to p3, skipping both p2's discarded extra \
+         turn and (since p2 is eliminated) p2's own regular turn"
+    );
+
+    // Complete p3's turn: normal order continues exactly as if p2's extra turn had never
+    // been queued at all -- p4 follows p3.
+    let (state, _) = complete_turn(state);
+    assert_eq!(
+        state.turn().active_player,
+        p4,
+        "CR 800.4k / CR 800.4a: normal turn order continues past p3 to p4, unaffected by \
+         the discarded extra turn or by eliminated p2"
     );
 }
 
