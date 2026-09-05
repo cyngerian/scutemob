@@ -378,6 +378,20 @@ fn c1_animated_nexus_completes_metalcraft_and_the_engine_refuses_the_target() {
     );
     match result {
         Err(LocalGameError::Rejected(err)) => {
+            // **Assert the REASON, not merely the refusal.** The first draft accepted any
+            // `Rejected` and only printed the payload, so an incidental `InsufficientMana`
+            // or an unrelated `InvalidTarget` would have satisfied it — and criterion 7386
+            // asks for a refusal *under the Archangel's shroud*, which is a different
+            // claim from "the engine said no". Found by the PB-DX42b `/review`; the value
+            // was already correct, so this closes a hole rather than a bug.
+            let text = format!("{err:?}");
+            assert!(
+                text.to_lowercase().contains("shroud"),
+                "CR 702.18a: the refusal must be FOR THE SHROUD the Archangel's Metalcraft \
+                 granted, not for any other reason. Got: {text}. A probe that accepts any \
+                 rejection cannot tell a CR 613.1d success from an unrelated \
+                 InsufficientMana."
+            );
             eprintln!("PB-DX42b c1: engine correctly rejected the shrouded target: {err:?}");
         }
         Err(other) => panic!(

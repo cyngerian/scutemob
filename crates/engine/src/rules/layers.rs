@@ -3459,8 +3459,23 @@ pub(crate) fn resolve_cda_amount(
         // are set by Layer 4 effects like Dryad, not by CDAs).
         // CR 305.6 / ability word "Domain".
         // Limitation: Layer 4 type-changing effects (Blood Moon, Dryad) are not reflected
-        // here because resolve_cda_amount runs inside the layer loop. The resolve_amount
-        // path (effects/mod.rs) does use calculate_characteristics().
+        // here. The resolve_amount path (effects/mod.rs) does use
+        // calculate_characteristics().
+        //
+        // **The stated REASON for this limitation was retired by PB-DX42b and the
+        // limitation was not** (`OOS-DX42b-7`). The sentence used to read "...because
+        // resolve_cda_amount runs inside the layer loop" -- which was the same
+        // justification `characteristics_for_condition` gave for its own CR 613.1d
+        // deviation until this batch replaced it with a LAYER-BOUNDED query. Running
+        // inside the layer loop is no longer a reason to read base characteristics: a
+        // CDA is Layer 7a, and `EffectAmount::DomainCount` needs land SUBTYPES, which
+        // are Layer 4, so `calculate_characteristics_through(state, id,
+        // EffectLayer::TypeChange, eval)` strictly decreases the bound and terminates by
+        // construction exactly as the condition path now does. This function has EIGHT
+        // such base reads and none of them is threaded a `CharacteristicEvalContext`, so
+        // the repair is a batch rather than a line and is deliberately NOT taken here.
+        // **Read "OOS-ADJ-1 CLOSED" as "the CONDITION path is fixed", not as "in-walk
+        // base-characteristics reads are gone".**
         // The `player` field is ignored in the CDA context — CDAs always reference the
         // controller (the permanent's controller at the time of evaluation).
         EffectAmount::DomainCount { .. } => {

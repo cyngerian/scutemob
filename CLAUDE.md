@@ -313,13 +313,16 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-05, PB-DX42b)**: **5,241 / 0 / 5** full-workspace on branch
-  `scutemob-233` (+10 over the **5,231** baseline, measured on this branch BEFORE any edit and
+- **Tests (delta 2026-09-05, PB-DX42b + `/review` fix cycle)**: **5,243 / 0 / 5** full-workspace
+  on branch `scutemob-233` (+12 over the **5,231** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX54's close pin exactly** — the fifth consecutive batch in which an inherited
   pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file, **69**
   result-producing targets (68 → 69: one new simulator test binary), residual list empty.
   **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
-  `sort` + `comm` (`OOS-DX20b-5`): 13 additions, 3 leavers, 0 removals**, and **all three leavers
+  `sort` + `comm` (`OOS-DX20b-5`), and **RE-TAKEN AFTER the `/review` fix cycle rather than before
+  it** (dispatch hygiene 8 — the cycle added two probes, so the pre-cycle figure of 13 is
+  superseded by this line rather than left standing beside it): **15 additions, 3 leavers,
+  0 removals**, and **all three leavers
   are disclosed and none is a removal** — every one is a rename this batch was instructed to make:
   `deviation_animated_nexus_does_not_count_toward_metalcraft` →
   `nexus_animated_by_a_continuous_effect_now_counts_toward_metalcraft` (the INVERSION its own
@@ -327,20 +330,31 @@
   `characteristics_for_condition_gives_full_resolution_outside_any_walk` (the ambient flag it read
   no longer exists); and `t7_control_land_with_subtypes_absent_from_population` →
   `t7_non_target_filter_layer_querying_variants_absent_from_population` (the `OOS-ADJ-2` rider's
-  1 → 8 widening). Honest reading: **10 genuine additions and 3 mandated renames.**
+  1 → 8 widening). Honest reading: **12 genuine additions and 3 mandated renames.**
   **The first draft of this cell said 12 and 2 and was missing the third** — an enumeration error
   inside the one cell whose whole purpose is enumeration, caught by RUNNING the set difference
-  rather than by transcribing what the batch remembered doing. Count delta 10 == name-set delta 10,
+  rather than by transcribing what the batch remembered doing. Count delta 12 == name-set delta 12,
   and the duplicate-name scan the byte-exact method is structurally blind to (`OOS-DX35-8`) is
-  **EMPTY on both runs** (5,235 / 5,235 distinct; 5,245 / 5,245).
+  **EMPTY on both runs** (5,236 / 5,236 distinct; 5,248 / 5,248) — **and the first draft of those
+  four numbers was 5,235 / 5,245, off by one each, because the extraction regex was ANCHORED at
+  the end of the line (`\.\.\. (ok|FAILED|ignored)$`) and the corpus contains one
+  `#[ignore = "reason"]` test whose line reads `... ignored, <reason>`. The additions and leavers
+  were unaffected (none of the 16 is an ignored test) but the DUPLICATE SCAN was blind to that one
+  name, which is the only thing that scan exists to see. `OOS-DX42b-6`: an end-anchored test-line
+  regex silently drops every `#[ignore = "..."]` test, and it is a duplicate-name scan's blind
+  spot that it cannot report a name it never extracted.**
   **A THIRTEENTH TEST EXISTS AND DOES NOT APPEAR IN ANY OF THESE FIGURES, which is stated rather
   than left for a later batch to trip over**: `same_layer_self_reference_is_suppressed_not_resolved`
   is `#[cfg(not(debug_assertions))]` — the labelled deviation's wrong-way-round pin cannot be a
   debug test, because the CR 613.1d `debug_assert!` fires first on any same-layer self-reference —
   so it never compiles into the debug binary, never runs in CI, and no count delta will ever
   include it. Verified by executing `cargo test --release`. Filed as **`OOS-DX42b-4`**.
-  **HASH 85 / PROTOCOL 44 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed (51/51
-  including `history_is_append_only` and `frozen_prefix_is_pinned` on both sides) and **predicted
+  **HASH 85 / PROTOCOL 44 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed
+  (`hash_schema::` **34** + `protocol_schema::` **17** = **51/51**, including
+  `history_is_append_only` and `frozen_prefix_is_pinned` on both sides; the `/review` reported 53
+  from a BARE-SUBSTRING filter, which also matches two tests OUTSIDE those modules that merely
+  mention the name — SR-36's shape applied to a test filter, so the module-scoped 51 is the figure
+  and the looser one is recorded here rather than silently discarded) and **predicted
   in writing before any production line** (`d90b7994`). Closure type counts **MEASURED** at
   **98 / 132** by raising each gate's `MIN_CLOSURE_TYPES` to 9999 and reading its own panic text,
   never transcribed. `git diff` over `state/hash.rs` and `rules/protocol.rs` is **EMPTY**, so no
@@ -401,7 +415,10 @@
   complements** — R1 (restore the deviation) reddens 6 including both channel directions, R2 (the
   DEPTH-COUNTER revert) reddens exactly the nesting probe and leaves every channel probe green,
   which is the only way to show the bounded query and the `EffectId` KEYING are each load-bearing.
-  **R3 is the row worth reading, and it came back GREEN.** Deleting the activity sweep's layer
+  **R3 is the row worth reading, and it came back GREEN AT THE TIME IT WAS RUN.** *(It no longer
+  does: the `/review` defeated the source gate that R3 was reddening, the gate was re-keyed on the
+  mechanism, and at HEAD deleting the conjunct reddens it. The sentence below describes the state
+  in which the finding was made.)* Deleting the activity sweep's layer
   bound — the adjudication's OWN §3.2(iii) load-bearing precondition, the one it says is *"stated
   here because it is stated nowhere else"* — reddens **nothing**, and that is structural rather
   than a missing test: a later-layer effect cannot change an earlier layer's output, which is the
@@ -412,7 +429,9 @@
   `OOS-SIM2-6`'s original crash. R4/R4b are the same shape one axis over. **R7 was the second
   coverage measurement** — restoring `OOS-DX42b-1` reddened only a VOCABULARY gate, so the
   behaviour had no probe; both gaps are closed by probes that are RED under their own rows.
-  Filed **OOS-DX42b-1..5**, plus **`OOS-ADJ-1`** and **`OOS-ADJ-2`** FILED for the first time —
+  Filed **OOS-DX42b-1..7** (`-6` and `-7` by the `/review` fix cycle — dispatch hygiene 8's exact
+  case for the sixth batch running, caught by re-checking this cell against the registry AFTER the
+  cycle rather than before it), plus **`OOS-ADJ-1`** and **`OOS-ADJ-2`** FILED for the first time —
   six of the adjudication's seven `OOS-ADJ-*` seeds had never been registered.
 - **Tests (delta 2026-09-05, PB-DX54 + `/review` fix cycle)**: **5,231 / 0 / 5**
   full-workspace on branch `scutemob-232` (+21 over the **5,210** baseline, measured on this
@@ -1800,18 +1819,18 @@
   `abilities_are_blanked`'s O(permanents × effects) sweep. **Final: every interval OVERLAPS, max
   +1.51%, no regression demonstrated and nothing claimed.** **Fuzz: the 20-game A/B output differs
   in EXACTLY ONE LINE, the wall clock.**
-  Tests **5,241 / 0 / 5** (+10 over a **5,231** baseline reproducing PB-DX54's close pin exactly,
-  **69** targets, byte-exact set difference: 13 additions / 3 leavers / 0 removals, all three
-  leavers being mandated renames — **and the first draft of that cell said 12 and 2 and was missing
-  the third**, an enumeration error inside the one cell whose purpose is enumeration, caught by
-  running the set difference rather than transcribing). **HASH 85 / PROTOCOL 44 BOTH UNMOVED**,
+  Tests **5,243 / 0 / 5** (+12 over a **5,231** baseline reproducing PB-DX54's close pin exactly,
+  **69** targets, byte-exact set difference RE-TAKEN AFTER the fix cycle: 15 additions / 3 leavers /
+  0 removals, all three leavers being mandated renames — **and the first draft of that cell said 12
+  and 2 and was missing the third**, an enumeration error inside the one cell whose purpose is
+  enumeration, caught by running the set difference rather than transcribing). **HASH 85 / PROTOCOL 44 BOTH UNMOVED**,
   gate-executed, closure counts MEASURED at **98 / 132**, and the counterfactual for the rejected
   stored-field design verified by execution. Coverage **UNMOVED at 1,140/1,803 = 63.2%**, 0 flips,
   3 comment-only card-def edits with the `Completeness::` marker diff EMPTY. All gates clean
   against the FINAL tree, **where two standing card-def gates FIRED** and were answered rather than
   dodged. **Revert matrix 9 rows, coordinator-executed, all three source files restored
   byte-exactly**; two rows were COVERAGE MEASUREMENTS and both gaps are now closed by probes RED
-  under their own rows. Filed **OOS-DX42b-1..5**. Full record:
+  under their own rows. Filed **OOS-DX42b-1..7** (`-6` and `-7` by the `/review` fix cycle). Full record:
   `memory/primitives/pb-DX42b-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-09-05 — **PB-DX54 SHIPPED** (`scutemob-232`; v4 queue rank 17 —
   **OOS-DX25c-6** CLOSED, plus rider **OOS-DX25-4** CLOSED and rider **OOS-DX25b-4** DECLINED

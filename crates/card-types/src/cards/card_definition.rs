@@ -4349,29 +4349,38 @@ impl Condition {
     /// **Exhaustive, no wildcard arm** (SR-5 / PB-DX43 shape) -- a 54th
     /// `Condition` variant is a compile error here until it is classified.
     ///
-    /// `YouControlNOrMoreWithFilter` is the only variant whose layer requirement
-    /// depends on an arbitrary caller-supplied `TargetFilter`, so it alone
-    /// delegates to `TargetFilter::required_characteristic_layer`. The other ten
-    /// layer-querying variants (`YouControlPermanent` / `OpponentControlsPermanent`
-    /// included, even though both carry a `TargetFilter`) are fixed at
-    /// `TypeChange` here: every one of them, AS CODED in
-    /// `effects::check_condition` / `effects::check_static_condition`, tests only
-    /// card types, supertypes or subtypes -- never power/toughness, color or
-    /// keywords -- so `TypeChange` is what the CORPUS's actual dispatch needs
-    /// today. This is a coarser answer than asking the filter itself would give
-    /// for `YouControlPermanent`/`OpponentControlsPermanent` (whose filter COULD
-    /// in principle carry a higher-layer field); the individual call sites in
-    /// `effects/mod.rs` compute their own precise `required` value for
-    /// `characteristics_for_condition_ctx` rather than trusting this coarser
-    /// summary, which exists for the `debug_assert!` alone.
+    /// **All THREE variants that carry an arbitrary caller-supplied `TargetFilter`
+    /// delegate to [`TargetFilter::required_characteristic_layer`]**, because the
+    /// layer a filter needs is a property of the filter INSTANCE and nothing else
+    /// can know it. The remaining eight layer-querying variants carry no filter and
+    /// test card types, supertypes or subtypes only (`effects::check_condition`'s
+    /// land/legendary/subtype arms), so they are fixed at `TypeChange`.
+    ///
+    /// **The first draft fixed `YouControlPermanent` and `OpponentControlsPermanent`
+    /// at `TypeChange` too, and that was this batch's own defect one variant over.**
+    /// Both arms pass the WHOLE filter to `matches_filter` (`effects/mod.rs`), which
+    /// reads power, toughness, colors and keywords as well as types. Proven by
+    /// execution during the `/review`: a Layer-6 `AddKeyword(Flying)` conditioned on
+    /// `YouControlPermanent(TargetFilter { min_power: Some(4), .. })`, over a 2/2
+    /// pumped to 4/2 by a Layer-7c `ModifyPower(2)`, resolved the condition against
+    /// the PRE-Layer-7 power and wrongly did not grant — **the exact CR 613.1d defect
+    /// this batch exists to close** — while the `debug_assert!` in
+    /// `is_effect_condition_satisfied` stayed silent, because `TypeChange < Ability`
+    /// holds on the coarse value even though the real requirement (`PtSwitch`) is at
+    /// or AFTER the effect's own layer. *A summary that is coarser than the thing it
+    /// summarises does not merely lose precision — it defeats the assertion that was
+    /// supposed to catch the imprecision.* Zero corpus exposure (both layer-querying
+    /// corpus members are `YouControlNOrMoreWithFilter`), which is why no test caught
+    /// it and why the fix is one line rather than a batch.
     pub fn required_characteristic_layer(&self) -> Option<EffectLayer> {
         match self {
-            Condition::YouControlNOrMoreWithFilter { filter, .. } => {
+            // The three filter-carrying variants: ask the filter, never guess.
+            Condition::YouControlNOrMoreWithFilter { filter, .. }
+            | Condition::YouControlPermanent(filter)
+            | Condition::OpponentControlsPermanent(filter) => {
                 filter.required_characteristic_layer()
             }
-            Condition::YouControlPermanent(_)
-            | Condition::OpponentControlsPermanent(_)
-            | Condition::ControlLandWithSubtypes(_)
+            Condition::ControlLandWithSubtypes(_)
             | Condition::ControlAtMostNOtherLands(_)
             | Condition::ControlBasicLandsAtLeast(_)
             | Condition::ControlAtLeastNOtherLands(_)

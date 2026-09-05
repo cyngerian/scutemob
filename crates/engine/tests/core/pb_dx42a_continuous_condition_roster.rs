@@ -654,11 +654,68 @@ fn t7_non_target_filter_layer_querying_variants_absent_from_population() {
         "ControlCreatureWithSubtype",
         "OpponentControlsMoreLandsThanYou",
     ];
+    // **This list is GATED AGAINST ITS SOURCE, not against its own length.** The first
+    // draft's only guard was `assert_eq!(NON_FILTER_LAYER_QUERYING.len(), 8)` — a check
+    // of the const against itself, which the PB-DX42b `/review` correctly called out: if
+    // an eleventh variant joined the fixed-`TypeChange` arm of
+    // `Condition::required_characteristic_layer`, the list and the assert would both stay
+    // at 8 and this gate would silently under-cover. `t9` already does the right thing
+    // for the two field fingerprints (it compares them to the struct DECLARATION), and
+    // this is the same treatment one file over: parse the arm out of
+    // `card_definition.rs` and require set equality.
+    let card_def_src = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(std::path::Path::parent)
+            .expect("engine manifest dir is <workspace>/crates/engine")
+            .join("crates/card-types/src/cards/card_definition.rs"),
+    )
+    .expect("card_definition.rs must be readable");
+    let arm_at = card_def_src
+        .find("=> Some(EffectLayer::TypeChange),")
+        .expect(
+            "Condition::required_characteristic_layer no longer has a fixed \
+             `=> Some(EffectLayer::TypeChange)` arm. Re-derive this list from wherever the \
+             filter-free layer-querying variants are now classified.",
+        );
+    // The arm's pattern list starts where the DELEGATING arm's body ends. Anchoring on
+    // that body rather than on the nearest `}` is load-bearing: two of the eight patterns
+    // are struct-like (`ControlAtLeastNOtherLandsWithSubtype { .. }`), so a bare
+    // `rfind('}')` lands INSIDE the pattern list and silently returns three of the eight.
+    // The first draft did exactly that and this assertion caught it.
+    let arm_start = card_def_src[..arm_at]
+        .rfind("filter.required_characteristic_layer()")
+        .expect(
+            "the delegating arm (the filter-carrying variants) must precede the fixed \
+             TypeChange arm -- anchor re-derivation needed",
+        );
+    let declared: BTreeSet<String> = card_def_src[arm_start..arm_at]
+        .split('|')
+        .filter_map(|frag| frag.split("Condition::").nth(1))
+        .map(|t| {
+            t.chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect::<String>()
+        })
+        .filter(|t| !t.is_empty())
+        .collect();
+    let pinned: BTreeSet<String> = NON_FILTER_LAYER_QUERYING
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     assert_eq!(
-        NON_FILTER_LAYER_QUERYING.len(),
-        8,
-        "non-vacuity: the derived list itself must have eight entries, or this \
-         test's own construction has drifted from its doc comment"
+        pinned, declared,
+        "NON_FILTER_LAYER_QUERYING has desynced from \
+         `Condition::required_characteristic_layer`'s fixed-TypeChange arm, which is its \
+         SOURCE. A variant added there and not here makes this gate under-cover in \
+         silence; a variant removed there and not here makes it assert about something \
+         that no longer exists. (This replaced a `len() == 8` self-check, which could not \
+         detect either.)"
+    );
+    assert!(
+        !declared.is_empty(),
+        "non-vacuity: the arm parse found no variants, so the set equality above would \
+         be comparing the pinned list against nothing"
     );
 
     let roster = build_roster();

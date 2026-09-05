@@ -38,6 +38,17 @@ against.
 
 ### 3a. Every `LayerModification` that writes `chars.card_types`, enumerated from the apply site
 
+> **↻ CORRECTED by the `/review`.** The heading below is accurate and §3d's conclusion drawn from
+> it was over-stated: *"there is no sixth way for a continuous effect to move `card_types`"* is
+> true of the modification `match`, and `layers.rs` writes `chars.card_types` at **six further
+> sites OUTSIDE it**. Two were accounted for (the DFC face swap in §3c, the face-down class in
+> §3d) and **four were mentioned nowhere: meld, Impending, Reconfigure and Living Metal.** All
+> four were measured during the review and none moves `Artifact` on this corpus — meld's only
+> corpus pair (`Hanweir`) produces a plain Creature, and Living Metal / Impending / Reconfigure
+> insert or remove `Creature` only. **So the answer of 7 survives, but by measurement rather than
+> by the published argument**, and the ceiling below is a ceiling on the **continuous-effect**
+> class specifically, not on every way `card_types` can move.
+
 Read off `rules/layers.rs`'s modification `match` rather than assumed — five arms write
 `chars.card_types`:
 
@@ -74,11 +85,20 @@ the ones whose payload actually **moves `CardType::Artifact`**:
 | `vraska_betrayals_sting` | `SetCardTypes=["Artifact"]` | `Partial` | **excluded — not deck-legal** |
 | `oko_thief_of_crowns` | `SetTypeLine={"card_types":["Creature"],…}` | `KnownWrong` | **excluded — not deck-legal** |
 
-The other ten defs in the 18 move `Creature` or `Land` and never `Artifact`
-(`awaken_the_ancient`, `creeping_tar_pit`, `den_of_the_bugbear`, `purphoros_god_of_the_forge`,
-`arixmethes_slumbering_isle`, `athreos_god_of_passage`, `destiny_spinner`, `druid_class`,
-`iroas_god_of_victory`, `tatyova_steward_of_tides`, `wrenn_and_realmbreaker` — eleven names for
-ten rows because `arixmethes` carries two).
+The remaining defs in the 18 move `Creature` or `Land` and never `Artifact`:
+`awaken_the_ancient`, `creeping_tar_pit`, `den_of_the_bugbear`, `purphoros_god_of_the_forge`,
+`arixmethes_slumbering_isle`, `athreos_god_of_passage`, `destiny_spinner`,
+`iroas_god_of_victory`, `tatyova_steward_of_tides`, `wrenn_and_realmbreaker` — **ten names
+carrying eleven payload instances**, because `arixmethes_slumbering_isle` carries two.
+
+> **↻ TWO CORRECTIONS by the `/review`, and the first is this document's own subject matter.**
+> The list above originally included **`druid_class`**, which carries **no type-writing payload
+> at all**: its only `AddCardTypes` occurrence is inside a `Completeness::partial(...)` **note
+> string**. That is `OOS-DX53-2`'s exact shape — **compiled prose counted as a declaration** —
+> committed inside a document whose own method paragraph says *"No def source was grepped
+> (SR-36)"*, because the serde walk that produced it descends into every string field. And with
+> `druid_class` removed the reconciliation inverts: the parenthetical read *"eleven names for ten
+> rows"* and the truth is **ten names for eleven instances**. Neither correction moves 18 / 8 / 7.
 
 **For a REPLACEMENT modification the payload is the whole answer, so "does not contain Artifact" is
 as much a change to Artifact as "contains Artifact" is.** That is the adjudication §2.5's own
@@ -101,8 +121,12 @@ floor rather than a floor alone:
 * **floor** — every one of the seven was re-derived here, from the payloads, without consulting the
   adjudication's list;
 * **ceiling** — the enumeration in 3a is over the *apply site's own `match` arms*, so there is no
-  sixth way for a continuous effect to move `card_types`, and `Copy` (the one arm the corpus does
-  not use) is measured at zero.
+  sixth **`LayerModification`** way to move `card_types`, and `Copy` (the one arm the corpus does
+  not use) is measured at zero. **Scope of that ceiling, corrected by the `/review`**: it bounds
+  the CONTINUOUS-EFFECT class. `layers.rs` also writes `chars.card_types` at six sites outside the
+  `match` — the DFC face swap (§3c, and its `Complete` Artifact-mover enumerates to exactly one),
+  meld, face-down, Impending, Reconfigure and Living Metal — and the last four were measured and
+  move `Creature` only on this corpus.
 
 The ceiling holds **only for the bounded class**. The CR 708.2a face-down class is genuinely
 unbounded — any `Complete` card can be played face down, and `layers.rs:333` replaces `card_types`

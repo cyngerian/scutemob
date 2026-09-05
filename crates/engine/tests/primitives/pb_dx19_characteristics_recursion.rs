@@ -1054,6 +1054,38 @@ fn no_condition_evaluator_resolves_characteristics_directly() {
         }
     }
 
+    // ── The SECOND axis: an alias. ────────────────────────────────────────────
+    //
+    // **The PB-DX42b `/review` defeated the scan above with one line placed OUTSIDE
+    // every body it reads:**
+    //
+    //     use crate::rules::layers::expect_characteristics as resolve_chars_alias;
+    //
+    // plus `let chars = resolve_chars_alias(state, obj.id);` inside
+    // `check_static_condition_ctx`. All four bodies stayed clean of the literal
+    // needles and the gate went GREEN while the plant reproduced `OOS-SIM2-6`
+    // exactly — `recursion_metalcraft_on_grants_shroud_and_terminates` and
+    // `two_distinct_conditional_effects_nest_without_mutual_suppression` both
+    // aborted the whole binary with `fatal runtime error: stack overflow` (SIGABRT).
+    //
+    // So the consequence WAS caught, but by a process abort that names no test rather
+    // than by the gate written for it — and a misroute whose bound happens not to
+    // recurse would pass in total silence. This is PB-DX36's / PB-DX48's / PB-DX49's
+    // recorded `use`-alias defeat, **one batch old in `OOS-DX54-7` and not carried
+    // across**, which is why it is written into the gate rather than only into a seed.
+    for (n, line) in src.lines().enumerate() {
+        let code = line.split("//").next().unwrap_or("");
+        let trimmed = code.trim_start();
+        if !trimmed.starts_with("use ") {
+            continue;
+        }
+        if (code.contains("expect_characteristics") || code.contains("calculate_characteristics"))
+            && code.contains(" as ")
+        {
+            offenders.push((format!("ALIAS IMPORT: {}", code.trim()), n));
+        }
+    }
+
     // Non-vacuity: prove the extraction found real bodies, not empty strings. All
     // four functions must have been located, or the size floors above could not
     // have been checked at all.

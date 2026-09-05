@@ -41,9 +41,13 @@
 //! - **"Metalcraft" has no CR-numbered definition at all** — it is an *ability word*
 //!   (CR 207.2c: ability words "have no special rules meaning and no individual
 //!   entries in the Comprehensive Rules"), governed generically by CR 604.2 above.
-//!   `crates/card-defs/src/defs/indomitable_archangel.rs`'s own comment cites
-//!   "CR 702.45a (Metalcraft)" — **wrong**; CR 702.45a is Bushido. Not fixed here
-//!   (out of this file's scope, a card-def comment), reported at close-out.
+//!   `indomitable_archangel.rs` cited "CR 702.45a (Metalcraft)" from the day it was
+//!   authored — **wrong**; CR 702.45a is Bushido. **FIXED in this batch**
+//!   (`indomitable_archangel.rs`, `OOS-DX42b-2`); the first draft of this paragraph
+//!   said "Not fixed here … reported at close-out" and was already false when the
+//!   `/review` read it, which is a false comment inside the batch whose subject matter
+//!   is false comments. `mox_opal.rs` carries the SAME wrong cite twice and is fixed
+//!   too — the seed's site list was a floor (dispatch hygiene 6).
 //! - **CR 702.18a** (Shroud): "'Shroud' means 'This permanent or player can't be the
 //!   target of spells or abilities.'"
 //! - **CR 712.8d/712.8e** (double-faced permanent characteristics): "712.8d: While a
@@ -53,8 +57,12 @@
 //! - **CR 613.8a / CR 613.8b** (the dependency/timestamp tiebreak that does NOT
 //!   govern the labelled deviation this file pins wrong-way-round): CR 613.8a's own
 //!   text is a single rule with an internal (a)/(b)/(c) list — **"CR 613.8a(a)" is
-//!   not a real citation form** (both `layers.rs` and this batch's own plan use it;
-//!   flagged at close-out, not fixed here). Cited as plain **CR 613.8a** below.
+//!   not a real citation form**, because a reader who greps the CR for it finds
+//!   nothing. `layers.rs`'s two NEW sites say "CR 613.8a clause (a)"; its only
+//!   remaining `613.8a(` occurrence is `613.8a(c)` at the CDA-symmetry comment, which
+//!   is pre-existing and a different clause. The form survives in the adjudication and
+//!   the memo and is filed as `OOS-DX42b-3` to ride PB-DX38's cite sweep. Cited as
+//!   plain **CR 613.8a** below.
 //!   613.8a's list item (a) is the "same layer" confinement clause; 613.8b is the
 //!   timestamp tiebreak for effects that DO depend on each other.
 
@@ -722,6 +730,47 @@ fn the_activity_sweep_is_bounded_by_the_same_layer_as_the_query() {
         .collect::<Vec<_>>()
         .join("\n");
 
+    // Locate the SWEEP itself -- the loop over `state.continuous_effects` -- and scope
+    // the bound check to it. **The first draft asserted `code.contains("e.layer <=
+    // through")` over the whole body, and the `/review` defeated it with one dead line**:
+    //
+    //     let _spelling_kept_for_the_gate = |e: &ContinuousEffect| e.layer <= through;
+    //
+    // planted beside a sweep whose conjunct had been deleted. All gates green, the
+    // load-bearing conjunct gone. A PRESENCE check over a whole function body asks
+    // "does this string occur", which is not the property; the property is "the sweep
+    // is bounded", and a string can occur anywhere. This gate is the ENTIRE coverage
+    // for that conjunct -- the batch measured that removing it reddens nothing else in
+    // the workspace -- so a presence check here is worth less than nothing, because it
+    // reads as coverage.
+    let sweep_at = code
+        .find("for e in state.continuous_effects.iter()")
+        .expect(
+            "the activity sweep is no longer a `for e in state.continuous_effects.iter()` \
+             loop in `calculate_characteristics_through`. Re-derive where the sweep lives \
+             and re-key this gate on it; do NOT relax it to a whole-body search, which is \
+             what the /review defeated with a dead closure.",
+        );
+    // The sweep's own condition: everything from the loop header to the first `{` that
+    // opens the `active_effects.push` body. Brace-matched rather than a byte window, so
+    // a longer condition cannot slide out of range (PB-DX49's `r5b` over-scan lesson).
+    let sweep_tail = &code[sweep_at..];
+    let cond_end = sweep_tail
+        .find("active_effects.push")
+        .expect("the sweep must still push into `active_effects`");
+    let sweep_condition = &sweep_tail[..cond_end];
+
+    assert_eq!(
+        sweep_condition.matches("e.layer <= through").count(),
+        1,
+        "the activity sweep's layer bound must appear EXACTLY ONCE inside the sweep's own \
+         condition, and it appears {} time(s) there. A COUNT rather than a presence check, \
+         and scoped to the sweep rather than the body, because the /review defeated both \
+         weaker forms. Sweep condition as scanned:\n{}",
+        sweep_condition.matches("e.layer <= through").count(),
+        sweep_condition
+    );
+
     assert!(
         code.contains("e.layer <= through"),
         "the activity sweep in `calculate_characteristics_through` no longer bounds \
@@ -736,4 +785,158 @@ fn the_activity_sweep_is_bounded_by_the_same_layer_as_the_query() {
          while with the conjunct present and the backstop removed it terminates 23/23. \
          See adjudication section 3.2(iii) and this test's doc comment before changing it."
     );
+}
+
+// ── The `/review` finding: a coarse summary defeats the assert that guards it ──
+
+/// **The CR 613.1d defect this batch closes was STILL LIVE one `Condition` variant over,
+/// and this batch's own `debug_assert!` was silenced by the very thing that caused it.**
+///
+/// `Condition::required_characteristic_layer` originally delegated to
+/// [`TargetFilter::required_characteristic_layer`] for `YouControlNOrMoreWithFilter`
+/// alone and fixed `YouControlPermanent` / `OpponentControlsPermanent` at
+/// `EffectLayer::TypeChange`, under a doc sentence asserting that those two *"test only
+/// card types, supertypes or subtypes -- never power/toughness, color or keywords"*.
+/// **That sentence was false**: both arms pass the WHOLE filter to
+/// `effects::matches_filter`, which reads `power`, `toughness`, `colors` and `keywords`
+/// alongside the type fields.
+///
+/// **What the coarse answer actually cost, measured rather than argued.** With a Layer-6
+/// `AddKeyword(Flying)` conditioned on
+/// `YouControlPermanent(TargetFilter { min_power: Some(4), .. })`, over a 2/2 pumped to
+/// 4/2 by a Layer-7c `ModifyPower(2)`:
+///
+/// * **before**: `required` came back `TypeChange`, so `TypeChange < Ability` held, the
+///   `debug_assert!` stayed **silent**, the nested walk was bounded at Layer 4, the
+///   condition compared the **printed** power of 2, and the grant silently did not apply.
+///   A wrong answer with no signal — CR 613.1d violated exactly as this batch's headline
+///   defect violated it.
+/// * **after**: `required` comes back `PtSwitch`, and the `debug_assert!` **FIRES**,
+///   naming the effect, the layer it needs and its own layer.
+///
+/// **The fix does not make that configuration WORK, and it is not supposed to.** A
+/// Layer-6 effect whose condition depends on Layer 7 is not a case CR 613.1 can answer:
+/// Layer 7 runs *after* Layer 6, so the query cannot be bounded below its own effect and
+/// the walk has no termination-by-construction argument left. Refusing it loudly is the
+/// correct engine behaviour and is the documented deviation
+/// (`is_effect_condition_satisfied`). **What the fix changes is a SILENT WRONG ANSWER
+/// into a LOUD NAMED FAILURE** — and that is the whole value of the assert, which the
+/// coarse map had disabled.
+///
+/// *A summary coarser than the thing it summarises does not merely lose precision — it
+/// defeats the assertion that was supposed to catch the imprecision.*
+///
+/// Zero corpus exposure: both layer-querying corpus members are
+/// `YouControlNOrMoreWithFilter`, which always delegated, so nothing in the tree could
+/// have gone red. CR 613.1d, CR 613.4c (Layer 7c), CR 604.2.
+#[test]
+fn every_filter_carrying_condition_variant_asks_the_filter_for_its_layer() {
+    use mtg_engine::CardType;
+
+    let pt_filter = TargetFilter {
+        min_power: Some(4),
+        has_card_type: Some(CardType::Creature),
+        ..Default::default()
+    };
+    // Non-vacuity: the filter must really need a LATER layer than TypeChange, or this
+    // test would pass against the coarse map it exists to reject.
+    assert_eq!(
+        pt_filter.required_characteristic_layer(),
+        Some(EffectLayer::PtSwitch),
+        "precondition: a min_power filter needs P/T, which is Layer 7 (CR 613.4a-d)"
+    );
+
+    for (label, cond) in [
+        (
+            "YouControlPermanent",
+            Condition::YouControlPermanent(pt_filter.clone()),
+        ),
+        (
+            "OpponentControlsPermanent",
+            Condition::OpponentControlsPermanent(pt_filter.clone()),
+        ),
+        (
+            "YouControlNOrMoreWithFilter",
+            Condition::YouControlNOrMoreWithFilter {
+                count: 1,
+                filter: pt_filter.clone(),
+            },
+        ),
+    ] {
+        assert_eq!(
+            cond.required_characteristic_layer(),
+            Some(EffectLayer::PtSwitch),
+            "Condition::{label} carries an arbitrary caller-supplied TargetFilter and \
+             passes it WHOLE to effects::matches_filter, which reads power / toughness / \
+             colors / keywords as well as types. It must ASK THE FILTER rather than claim \
+             a fixed layer. A coarse TypeChange answer does two things, and the second is \
+             the dangerous one: it bounds the nested walk BELOW the layer the filter \
+             actually reads (CR 613.1d), and it DEFEATS `is_effect_condition_satisfied`'s \
+             debug_assert, which is handed this value and sees TypeChange < Ability as \
+             satisfied. The result is a wrong answer with no signal."
+        );
+    }
+
+    // And the eight filter-free layer-querying variants must still answer TypeChange --
+    // asserted so the fix above cannot be over-applied into "everything asks a filter".
+    assert_eq!(
+        Condition::ControlLegendaryCreature.required_characteristic_layer(),
+        Some(EffectLayer::TypeChange),
+        "a variant carrying no TargetFilter tests supertypes/card types only (CR 613.1d)"
+    );
+}
+
+/// The behavioural complement of the pin above: the configuration the coarse map made
+/// SILENT now fails LOUDLY, naming the effect and both layers.
+///
+/// Under the pre-fix map this fixture answered `keywords = {}` — the printed power of 2
+/// compared against `min_power: 4` — with no assertion anywhere. See the sibling test's
+/// doc for the full before/after.
+#[test]
+#[cfg(debug_assertions)]
+#[should_panic(expected = "condition requires characteristics resolved through")]
+fn a_layer_six_effect_whose_condition_needs_layer_seven_is_refused_loudly() {
+    use mtg_engine::CardType;
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1())
+        .add_player(p2())
+        .object(ObjectSpec::creature(p1(), "Bear", 2, 2))
+        .build()
+        .unwrap();
+    let bear = find_on_battlefield(&state, "Bear");
+
+    // Layer 7c (CR 613.4c): the Bear becomes a 4/2.
+    state.continuous_effects_mut().push_back(ContinuousEffect {
+        id: EffectId(9_810),
+        source: Some(bear),
+        timestamp: 1,
+        layer: EffectLayer::PtModify,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::SingleObject(bear),
+        modification: LayerModification::ModifyPower(2),
+        condition: None,
+        is_cda: false,
+        affected_set: None,
+    });
+    // Layer 6 (CR 613.1f) conditioned on a Layer-7 fact — unanswerable by construction,
+    // because Layer 7 runs after Layer 6.
+    state.continuous_effects_mut().push_back(ContinuousEffect {
+        id: EffectId(9_811),
+        source: Some(bear),
+        timestamp: 2,
+        layer: EffectLayer::Ability,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::SingleObject(bear),
+        modification: LayerModification::AddKeyword(KeywordAbility::Flying),
+        condition: Some(Condition::YouControlPermanent(TargetFilter {
+            min_power: Some(4),
+            has_card_type: Some(CardType::Creature),
+            ..Default::default()
+        })),
+        is_cda: false,
+        affected_set: None,
+    });
+
+    let _ = calculate_characteristics(&state, bear);
 }
