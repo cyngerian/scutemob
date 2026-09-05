@@ -957,23 +957,32 @@ fn test_exile_self_with_mana_fails_without_mana() {
         .build()
         .unwrap();
 
+    let mut state = state;
     let source_id = find_object(&state, "Costly Exile Stone");
+    assert!(
+        find_object_in_zone(&state, "Costly Exile Stone", ZoneId::Battlefield).is_some(),
+        "non-vacuity floor: the Stone starts on the battlefield"
+    );
 
-    // Activation should fail due to insufficient mana
-    let result = process_command(
-        state.clone(),
-        Command::ActivateAbility {
-            player: p1,
-            source: source_id,
-            ability_index: 0,
-            targets: vec![],
-            discard_card: None,
-            sacrifice_target: None,
-            x_value: None,
-            modes_chosen: vec![],
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        },
+    // OOS-DX21-7 (PB-DX57): this used to call `process_command(state.clone(), ..)` and
+    // then read the untouched ORIGINAL `state`. `process_command` takes `GameState` by
+    // value and returns none on `Err`, so "the exile did NOT happen" was a claim about a
+    // state nothing had run against — it held whatever `handle_activate_ability` did.
+    // Cost atomicity is at risk INSIDE that handler, which takes `&mut GameState` and
+    // pays the exile-self cost (`abilities.rs`, CR 118.12 / CR 602.2c) well AFTER the
+    // mana check, with no rollback. Drive the handler directly and read its own state.
+    let result = mtg_engine::rules::abilities::handle_activate_ability(
+        &mut state,
+        p1,
+        source_id,
+        0,
+        vec![],
+        None,
+        None,
+        None,
+        vec![],
+        vec![],
+        vec![],
     );
 
     assert!(
@@ -981,11 +990,18 @@ fn test_exile_self_with_mana_fails_without_mana() {
         "CR 602.2: activation should fail when mana cost cannot be paid"
     );
 
-    // Source remains on battlefield — exile did NOT happen
+    // Source remains on battlefield — exile did NOT happen. This reads the state the
+    // handler mutated in place, so it fails if the {3} check is removed (the exile-self
+    // cost then runs and CR 400.7 retires the id into exile).
     let still_on_bf = find_object_in_zone(&state, "Costly Exile Stone", ZoneId::Battlefield);
     assert!(
         still_on_bf.is_some(),
-        "Source should remain on battlefield when activation fails"
+        "CR 601.2h: an unpayable mana cost must abort the whole activation before the \
+         exile-self cost is paid — the Stone must still be on the battlefield"
+    );
+    assert!(
+        state.stack_objects().is_empty(),
+        "and nothing reached the stack"
     );
 }
 

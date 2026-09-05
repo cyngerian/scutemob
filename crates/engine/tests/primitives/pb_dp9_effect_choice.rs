@@ -613,14 +613,32 @@ fn test_dp9_unrestricted_search_may_not_fail_to_find() {
         other => panic!("expected a search question, got {other:?}"),
     }
 
+    let mut state = state;
     let hash_before = state.public_state_hash();
-    let entry = state.pending_effect_choice().unwrap();
-    let cmd = Command::AnswerEffectChoice {
-        player: entry.player,
-        choice_id: entry.choice_id,
-        answer: EffectChoiceAnswer::SearchLibrary { found: None },
+    let entry = state.pending_effect_choice().unwrap().clone();
+    let candidates = match &entry.question {
+        EffectChoiceQuestion::SearchLibrary { candidates, .. } => candidates.clone(),
+        other => panic!("expected a search question, got {other:?}"),
     };
-    let err = process_command(state.clone(), cmd).expect_err("fail-to-find must be rejected");
+    assert!(
+        !candidates.is_empty(),
+        "non-vacuity floor: the search has candidates, so the control below is a real \
+         accepted answer"
+    );
+
+    // OOS-DX21-7 (PB-DX57): this used to call `process_command(state.clone(), ..)` and
+    // then read the ORIGINAL `state`, which the failing call never received --
+    // structurally the same defect T7's own siblings at `:875` and `:957` were already
+    // repaired for. `handle_answer_effect_choice` takes `&mut GameState` and REPLAYS the
+    // resolution from the entry, so "a rejected answer mutates nothing" is only at risk
+    // there. Drive the handler and read its own receiver.
+    let err = mtg_engine::effects::handle_answer_effect_choice(
+        &mut state,
+        entry.player,
+        entry.choice_id,
+        EffectChoiceAnswer::SearchLibrary { found: None },
+    )
+    .expect_err("fail-to-find must be rejected");
     assert!(
         format!("{err:?}").contains("701.23d"),
         "the rejection must cite CR 701.23d; got {err:?}"
@@ -628,7 +646,30 @@ fn test_dp9_unrestricted_search_may_not_fail_to_find() {
     assert_eq!(
         state.public_state_hash(),
         hash_before,
-        "a rejected command must leave the state untouched"
+        "CR 701.23d: the rejection must happen before the resolution is replayed -- this \
+         reads the `&mut state` the handler was handed"
+    );
+    assert!(
+        state.pending_effect_choice().is_some(),
+        "and the question is still outstanding"
+    );
+
+    // The control: a LEGAL answer through the same handler DOES move the hash, so the
+    // pin above cannot be passing because nothing ever moves.
+    let mut accepted = state.clone();
+    mtg_engine::effects::handle_answer_effect_choice(
+        &mut accepted,
+        entry.player,
+        entry.choice_id,
+        EffectChoiceAnswer::SearchLibrary {
+            found: Some(candidates[0]),
+        },
+    )
+    .expect("a legal answer must be accepted");
+    assert_ne!(
+        accepted.public_state_hash(),
+        hash_before,
+        "an accepted answer must change the state"
     );
 }
 
@@ -1054,17 +1095,55 @@ fn test_dp9_admission_gate_while_blocked() {
             format!("{err:?}").contains("BlockedByPendingDecision"),
             "{label}: expected BlockedByPendingDecision, got {err:?}"
         );
-        assert_eq!(
-            state.public_state_hash(),
-            hash,
-            "{label}: the state must be untouched"
-        );
-        assert_eq!(
-            state.stack_objects().len(),
-            stack_len,
-            "{label}: the suspended object cannot leave the stack (plan §1.5 exit 5)"
-        );
     }
+
+    // OOS-DX21-7 (PB-DX57). The two per-iteration assertions that used to close this
+    // loop -- `state.public_state_hash() == hash` and `state.stack_objects().len() ==
+    // stack_len` -- were DOUBLY vacuous. They read the ORIGINAL `state`, which every
+    // `process_command(state.clone(), ..)` above left untouched by construction; and
+    // this rejection is `process_command`'s `blocking_decision` ADMISSION GATE
+    // (`rules/engine.rs`), which returns before the `match command` runs, so no handler
+    // executes and nothing could mutate under any implementation. Neither
+    // `handle_pass_priority` nor the gate itself is reachable from an integration test
+    // (`handle_pass_priority` is a private `fn`), so there is no direct-handler rewrite;
+    // what the gate's FILTERING claim needs is the positive control below.
+    //
+    // Plan §1.5 exit 5 -- "the suspended object cannot leave the stack" -- is preserved
+    // as a property of the ADMITTED path: the answer is the only command that gets in,
+    // and it leaves the stack entry in place until the resolution completes.
+    let entry = state
+        .pending_effect_choice()
+        .expect("the choice is still outstanding")
+        .clone();
+    let found = match &entry.question {
+        EffectChoiceQuestion::SearchLibrary { candidates, .. } => candidates[0],
+        other => panic!("expected a search question, got {other:?}"),
+    };
+    let (accepted, _) = process_command(
+        state.clone(),
+        Command::AnswerEffectChoice {
+            player: entry.player,
+            choice_id: entry.choice_id,
+            answer: EffectChoiceAnswer::SearchLibrary { found: Some(found) },
+        },
+    )
+    .expect("the answering command from the NAMED player must be ADMITTED");
+    assert_ne!(
+        accepted.public_state_hash(),
+        hash,
+        "the gate is a filter, not a wall: the one command it must admit is admitted and \
+         moves the state -- otherwise every rejection above would be satisfied by a gate \
+         that refuses everything"
+    );
+    assert!(
+        accepted.pending_effect_choice().is_none(),
+        "and answering discharges the block (plan §1.5 exit 5's complement: the object \
+         leaves the stack only via the admitted answer)"
+    );
+    assert_eq!(
+        stack_len, 1,
+        "non-vacuity: the pre-answer stack really did hold the suspended spell"
+    );
 }
 
 // ── T9 / T10 / T12 — the roll-back and the replay ────────────────────────────
@@ -1690,15 +1769,20 @@ fn test_dp9_stale_choice_id_rejected() {
             EffectChoiceQuestion::Scry { looked_at } => looked_at.clone(),
             other => panic!("expected a scry question, got {other:?}"),
         };
-        let err = process_command(
-            state.clone(),
-            Command::AnswerEffectChoice {
-                player: second.player,
-                choice_id: id,
-                answer: EffectChoiceAnswer::Scry {
-                    bottom: vec![],
-                    top: looked_at,
-                },
+        // OOS-DX21-7 (PB-DX57): this used to call `process_command(state.clone(), ..)`
+        // and then read the ORIGINAL `state`, which the failing call never received --
+        // the sibling of `:875`/`:957`, which were already on the sound idiom. The
+        // moment guard is at risk inside `handle_answer_effect_choice`, which takes
+        // `&mut GameState` and replays the resolution, so drive it and read its own
+        // receiver. One `&mut probe` per iteration keeps the loop's cases independent.
+        let mut probe = state.clone();
+        let err = mtg_engine::effects::handle_answer_effect_choice(
+            &mut probe,
+            second.player,
+            id,
+            EffectChoiceAnswer::Scry {
+                bottom: vec![],
+                top: looked_at,
             },
         )
         .expect_err(&format!("{label} must be rejected"));
@@ -1707,11 +1791,39 @@ fn test_dp9_stale_choice_id_rejected() {
             "{label}: got {err:?}"
         );
         assert_eq!(
-            state.public_state_hash(),
+            probe.public_state_hash(),
             hash,
-            "{label}: the state must be untouched"
+            "{label}: CR 608.2d -- the moment guard must reject before the resolution is \
+             replayed; this reads the `&mut probe` the handler was handed"
+        );
+        assert!(
+            probe.pending_effect_choice().is_some(),
+            "{label}: and the real question is still outstanding"
         );
     }
+
+    // The control: the CORRECT id through the same handler is accepted and moves the
+    // hash, so the pins above cannot be passing because nothing ever moves.
+    let looked_at = match &second.question {
+        EffectChoiceQuestion::Scry { looked_at } => looked_at.clone(),
+        other => panic!("expected a scry question, got {other:?}"),
+    };
+    let mut accepted = state.clone();
+    mtg_engine::effects::handle_answer_effect_choice(
+        &mut accepted,
+        second.player,
+        second.choice_id,
+        EffectChoiceAnswer::Scry {
+            bottom: vec![],
+            top: looked_at,
+        },
+    )
+    .expect("the correctly-quoted answer must be accepted");
+    assert_ne!(
+        accepted.public_state_hash(),
+        hash,
+        "an accepted answer must change the state"
+    );
 }
 
 // ── T14 / T15 — the concede exits (plan §1.5) ────────────────────────────────

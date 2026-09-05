@@ -670,20 +670,48 @@ fn test_dp8_stale_choice_id_rejected() {
     let good = entry.slots[0].candidates[0].target.clone();
     let hash_before = state.public_state_hash();
 
-    let err = process_command(
-        state.clone(),
-        Command::ChooseTriggerTargets {
-            player: p(1),
-            choice_id: choice_id + 1,
-            targets: vec![vec![good.clone()]],
-        },
+    // OOS-DX21-7 (PB-DX57): this used to call `process_command(state.clone(), ..)` and
+    // then compare `hash_before` against the ORIGINAL `state`, which the failing call
+    // never received -- the exact shape T3's doc comment (`:359`) spells out and this
+    // sibling was left with. Drive `handle_choose_trigger_targets` against `&mut state`
+    // so the read is of the receiver, as T3 does.
+    let err = mtg_engine::rules::abilities::handle_choose_trigger_targets(
+        &mut state,
+        p(1),
+        choice_id + 1,
+        vec![vec![good.clone()]],
     )
     .unwrap_err();
     assert!(
         matches!(&err, GameStateError::InvalidCommand(m) if m.contains("stale")),
         "expected a stale-choice_id rejection, got {err:?}"
     );
-    assert_eq!(hash_before, state.public_state_hash());
+    assert_eq!(
+        hash_before,
+        state.public_state_hash(),
+        "CR 608.2d moment guard: a stale answer must be rejected before any mutation -- \
+         this reads the `&mut state` the handler was handed"
+    );
+    assert_eq!(
+        state.pending_trigger_targets().map(|e| e.choice_id),
+        Some(choice_id),
+        "non-vacuity: the block is still outstanding and still answerable"
+    );
+
+    // The control: the SAME handler with the CORRECT id is accepted and moves the hash,
+    // so the pin above cannot be passing because nothing ever moves.
+    mtg_engine::rules::abilities::handle_choose_trigger_targets(
+        &mut state,
+        p(1),
+        choice_id,
+        vec![vec![good.clone()]],
+    )
+    .expect("the correctly-quoted answer must be accepted");
+    assert_ne!(
+        hash_before,
+        state.public_state_hash(),
+        "an accepted answer must change the state"
+    );
 
     // Answering when nothing is pending is also rejected.
     let clean = board_with_creatures(2, 2);
@@ -871,8 +899,37 @@ fn test_dp8_admission_gate_while_suspended() {
             matches!(err, GameStateError::BlockedByPendingDecision { .. }),
             "{cmd:?} must be rejected while a CR 603.3d announcement is outstanding, got {err:?}"
         );
-        assert_eq!(hash_before, state.public_state_hash());
     }
+
+    // OOS-DX21-7 (PB-DX57): the per-iteration `assert_eq!(hash_before,
+    // state.public_state_hash())` that used to close this loop was DOUBLY vacuous. It
+    // read the ORIGINAL `state`, which `process_command(state.clone(), ..)` never
+    // touched; and this rejection is `process_command`'s `blocking_decision` ADMISSION
+    // GATE (`rules/engine.rs`), which returns before the `match command` runs at all, so
+    // no handler executes and nothing can mutate under any implementation. There is no
+    // handler to drive directly either (`handle_pass_priority` is private). What the
+    // gate's FILTERING claim needs instead is the positive control below: the one
+    // command it must admit is admitted, and moves the state.
+    let entry = state
+        .pending_trigger_targets()
+        .expect("the announcement is still outstanding")
+        .clone();
+    let good = entry.slots[0].candidates[0].target.clone();
+    let (accepted, _) = process_command(
+        state.clone(),
+        Command::ChooseTriggerTargets {
+            player: p(1),
+            choice_id: entry.choice_id,
+            targets: vec![vec![good]],
+        },
+    )
+    .expect("the answering command from the named player must be ADMITTED");
+    assert_ne!(
+        hash_before,
+        accepted.public_state_hash(),
+        "the gate is a filter, not a wall -- otherwise the rejections above would be \
+         indistinguishable from a gate that refuses everything"
+    );
 }
 
 // ── T12 ───────────────────────────────────────────────────────────────────────

@@ -2098,23 +2098,37 @@ fn test_companion_rejected_when_not_in_command_zone() {
     // Register the companion CardId, but the card itself is nowhere on the board.
     state.players_mut().get_mut(&p1).unwrap().companion = Some(comp_id.clone());
 
-    let err = process_command(state.clone(), Command::BringCompanion { player: p1 }).unwrap_err();
+    // `OOS-DX21-7` repair (PB-DX57). This test used to call
+    // `process_command(state.clone(), ..)`, expect the `Err`, and then read the ORIGINAL
+    // `state` under the comment *"The action failed atomically: the state the caller keeps is
+    // unchanged"*. That comment describes a TAUTOLOGY: `process_command` takes `GameState` by
+    // value and its `Err` arm returns no state, so ownership discards whatever the callee did
+    // and the two assertions below passed whether the validation ran before the payment or
+    // after it — which is the only thing they were written to distinguish.
+    //
+    // It is the sound idiom now: `rules::commander::handle_bring_companion` takes
+    // `&mut GameState`, so the state the assertions read IS the state the failing call
+    // mutated. Found by this batch's own `pb_dx57_vacuous_rejection_gate`, NOT by the stage-0
+    // sweep that enumerated the other 17 sites — the sweep's report called its own population
+    // a FLOOR for five named reasons, and this is one of them realised.
+    let mut state = state;
+    let err = mtg_engine::rules::commander::handle_bring_companion(&mut state, p1).unwrap_err();
     assert!(
         matches!(err, mtg_engine::GameStateError::InvalidCommand(_)),
         "expected InvalidCommand when companion is not in the command zone: {:?}",
         err
     );
 
-    // The action failed atomically: the state the caller keeps is unchanged —
-    // no mana spent, action not marked used.
+    // Now a real claim: the handler mutated NOTHING on the state it was handed.
     assert!(
         !state.players().get(&p1).unwrap().companion_used,
-        "companion_used must remain false after a rejected BringCompanion"
+        "CR 702.139a: companion_used must remain false on the state the REJECTED handler \
+         actually held — this is the assertion the process_command form could not make"
     );
     assert_eq!(
         state.players().get(&p1).unwrap().mana_pool.colorless,
         3,
-        "mana must not be deducted when BringCompanion is rejected"
+        "mana must not be deducted on the state the REJECTED handler actually held"
     );
 }
 

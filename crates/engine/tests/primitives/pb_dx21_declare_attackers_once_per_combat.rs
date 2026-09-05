@@ -650,11 +650,16 @@ fn test_dx21_empty_declaration_counts_and_blocks_redeclaration() {
         "expected AlreadyDeclaredAttackers(p1), got: {err:?}"
     );
 
-    // (3) `attackers` is still empty.
-    assert!(
-        state.combat().as_ref().unwrap().attackers.is_empty(),
-        "attackers must still be empty after the rejected attempt"
-    );
+    // (3) `attackers` is still empty -- ASSERTED BELOW, in step (4), not here.
+    //
+    // OOS-DX21-7 (PB-DX57): this assertion used to sit here, immediately after step
+    // (2)'s `process_command(state.clone(), ..)`, reading the pristine ORIGINAL `state`.
+    // That is the same structural vacuity step (4)'s comment spells out for
+    // `players_passed`: the `Err` arm carries no `GameState`, so "attackers is still
+    // empty" was true under ANY engine behaviour, including one that inserts the
+    // attacker and only then rejects. It is now asserted against the SAME
+    // (mutated-in-place) `state` the direct `handle_declare_attackers` call in step (4)
+    // is handed, which is the only receiver that can observe it.
 
     // (4) The fourth consequence (stage 0), pinned via the direct-handler idiom
     // T6 establishes (review finding M5). `process_command`'s `Err` arm carries
@@ -688,6 +693,14 @@ fn test_dx21_empty_declaration_counts_and_blocks_redeclaration() {
         passed_before_reject,
         "a rejected re-declaration must not hold the CR 117.4 pass-round open by \
          resetting players_passed"
+    );
+    // (3), relocated: the THIRD consequence, now read off the state the handler received.
+    assert!(
+        state.combat().as_ref().unwrap().attackers.is_empty(),
+        "CR 508.1a/508.8: a rejected re-declaration must not insert its attacker -- this \
+         reads the `&mut state` `handle_declare_attackers` was handed, so it fails if the \
+         once-per-combat guard is removed (the insert then happens) or moved below the \
+         insertion"
     );
 }
 
