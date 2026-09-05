@@ -54,7 +54,12 @@ For each engine change in the plan:
 1. **Read the relevant files** — the plan specifies which files and line numbers.
 2. **Implement the change** as described. Follow the plan's type names and patterns exactly.
 3. **Handle exhaustive matches** — the plan lists every file that needs a new match arm.
-   Update ALL of them. This includes:
+   Update ALL of them. **If the change adds a variant to `Effect`, `AbilityDefinition`,
+   `KeywordAbility` or `StackObjectKind`, read `memory/checklists/new-effect-variant.md` first
+   and treat the plan's site list as a FLOOR over it** — that page marks which points fail at
+   compile time and which fail silently (`rules/mana.rs::is_mana_producing_effect` is a closed
+   allow-list that just returns `false`), and it carries a paste-able verifier for its own paths.
+   The list below is the short form of it:
    - `state/hash.rs` — hash new fields/variants
    - `crates/view-model/src/lib.rs` — exhaustive matches on `StackObjectKind` (`stack_kind_info`) AND `KeywordAbility` (`format_keyword`); moved here from `tools/replay-viewer` 2026-08-01
    - `tools/tui/src/play/panels/stack_view.rs` — display for new StackObjectKind variants

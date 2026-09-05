@@ -49,7 +49,7 @@ fn test_613_10_humility_opalescence() { ... }
   - Good: `test_sba_creature_zero_toughness_goes_to_graveyard`
   - Good: `test_priority_all_four_players_pass_stack_resolves`
   - Bad: `test_combat` (too vague), `test_1` (meaningless)
-- **Golden test format**: JSON files in `test-data/golden-games/`. Schema in architecture
+- **Golden test format**: JSON files in `test-data/generated-scripts/<group>/`. Schema in architecture
   doc §6.4.
 - **Property tests**: Use `proptest` crate. Define invariants in `tests/properties/`.
 - **Full-dispatch tests for new `LayerModification` variants**: every new variant added to `LayerModification` MUST ship with at least one test that exercises the full dispatch path — effect application, layer resolution, dispatch-site reads, and a game-state mutation verifying the behavior through `calculate_characteristics` after full layer resolution. Not a direct unit test of the substitution function. Established after PB-S (discriminant 23 was unreachable at runtime, surfaced by a retroactive L2 test that caught 2 HIGH bugs neither plan nor review noticed). Reinforced by PB-X (C1 HIGH — Obelisk's observability-window bug was invisible until `test_obelisk_of_urd_chosen_type_pump` exercised the post-ETB pre-priority characteristics read).
@@ -300,7 +300,7 @@ addendum A1 as amended in §9.1 — CC-15, `scutemob-252`). **No big-bang refact
 ## Landscape rules (the phase.rs / Manabrew comparison)
 
 Adopted 2026-09-05 from `docs/mtg-engine-landscape-assessment.md` §9 row b and
-`crates/manabrew-compat/CLAUDE.md` rules 1–2 of the phase.rs clone (LL-3, `scutemob-257`).
+the phase.rs clone's `crates/manabrew-compat/CLAUDE.md` rules 1–2 (LL-3, `scutemob-257`).
 The clones are read-only reference at `~/projects/scutemob-landscape/` (MIT).
 
 ### Parameterize, don't proliferate
