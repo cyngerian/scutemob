@@ -22,7 +22,7 @@
 **v4 rank 18 — the LAST of the user-approved five-task chain. `OOS-ADJ-1` ≡ `OOS-DX19-2` FILED
 *and* CLOSED as ONE defect**, plus **`OOS-DX19-1`**'s residue and **`OOS-DX19-4`** CLOSED BY
 CONSTRUCTION, and the v4 rank-21 rider **`OOS-ADJ-2`** taken in both halves. Seeds filed
-**OOS-DX42b-1..5**. **RANKS 1-18 ARE ALL SHIPPED AND NO FURTHER DISPATCH IS AUTHORISED** —
+**OOS-DX42b-1..7** (`-6` and `-7` by the `/review` fix cycle). **RANKS 1-18 ARE ALL SHIPPED AND NO FURTHER DISPATCH IS AUTHORISED** —
 `feedback_queue_autonomous_chaining` was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs
 explicit user approval. Full record: `memory/primitives/pb-DX42b-execution-notes.md`; the
 pre-committed wire prediction is `d90b7994`, before any production line.
@@ -103,10 +103,36 @@ Fuzz: the 20-game A/B output differs in **exactly one line, the wall clock**.
 
 ### Numbers
 
-Tests **5,241 / 0 / 5**, **69** targets, +10 over a 5,231 baseline reproducing PB-DX54's close pin
-exactly. Byte-exact NAME set difference: **13 additions / 3 leavers / 0 removals**, all three
-leavers mandated renames — **and the first draft of that cell said 12 and 2 and was missing the
-third**, caught by running the difference rather than transcribing. **HASH 85 / PROTOCOL 44 both
+Tests **5,243 / 0 / 5**, **69** targets, +12 over a 5,231 baseline reproducing PB-DX54's close pin
+exactly. Byte-exact NAME set difference, **re-taken AFTER the `/review` fix cycle** (dispatch
+hygiene 8): **15 additions / 3 leavers / 0 removals**, all three leavers mandated renames — **and
+the first draft of that cell said 12 and 2 and was missing the third**, caught by running the
+difference rather than transcribing.
+
+### The `/review`: 12 findings, all 12 taken, and the MEDIUM outranks both HIGHs
+
+**The defect this batch closes was still LIVE one `Condition` variant over.**
+`YouControlPermanent` and `OpponentControlsPermanent` were fixed at `TypeChange` while both pass
+their WHOLE `TargetFilter` to `matches_filter`, which reads power, toughness, colors and keywords.
+Worse than imprecise: the coarse value is what
+`is_effect_condition_satisfied`'s `debug_assert` is handed, so `TypeChange < Ability` held and the
+assert stayed silent while the nested walk compared a pre-Layer-7 power. **A summary coarser than
+the thing it summarises does not merely lose precision — it defeats the assertion that was supposed
+to catch the imprecision.** Fixed by delegating all three filter-carrying variants to the filter;
+the resulting behaviour is that the assert now FIRES, which is correct, because a Layer-6 effect
+whose condition needs Layer 7 has no termination-by-construction argument at all.
+
+**Both of this batch's new gates fell to a one-line plant**: the activity-sweep gate was a PRESENCE
+check over a whole body, satisfied by a dead closure keeping the spelling alive while the conjunct
+was deleted — and that gate is the ENTIRE coverage for the conjunct, so a presence check there read
+as coverage and was worth less than nothing. The `OOS-DX19-1` source gate fell to `use … as`
+aliasing, which is **`OOS-DX54-7` verbatim, one batch old and not carried across**. Both re-keyed,
+both defeats re-executed and RED.
+
+**And `t7`'s eight-variant list was guarded by `assert_eq!(len, 8)` — a check of the const against
+itself.** Re-keyed against its SOURCE (the fixed-`TypeChange` arm of
+`Condition::required_characteristic_layer`), the way `t9` already checks the two field fingerprints
+against their struct declarations. **HASH 85 / PROTOCOL 44 both
 UNMOVED**, gate-executed, closure counts MEASURED at 98 / 132, counterfactual verified by
 execution. Coverage **UNMOVED at 1,140/1,803 = 63.2%**, 0 flips, 3 comment-only card-def edits with
 the `Completeness::` marker diff EMPTY. `crates/view-model`, `crates/simulator/src` and `tools/`

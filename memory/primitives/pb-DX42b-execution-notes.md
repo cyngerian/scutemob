@@ -91,7 +91,7 @@ Both the container and the field type are already in **both** closures, so a sto
 instance costs **zero** on both wires. That measurement is the reason for the design, not a
 preference.
 
-## 5. The revert matrix — 9 rows, EXECUTED BY THE COORDINATOR, all three source files restored byte-exactly (`cmp`)
+## 5. The revert matrix — 9 rows at the close, plus 3 more in the `/review` fix cycle (§12), EXECUTED BY THE COORDINATOR, all three source files restored byte-exactly (`cmp`)
 
 | row | what it undoes | result |
 |---|---|---|
@@ -256,3 +256,99 @@ all identical). Self-dating churn reverted.
 plus the SR-35 reflow of the latter). `git diff` over the `Completeness::` marker lines in
 `crates/card-defs` is **EMPTY**, so the `CORPUS_COMPLETE` SET is unmoved as well as its count and
 `OOS-CARDS2-3`'s re-deal budget was checked and found **not owed**.
+
+## 12. The `/review` — 12 findings, all 12 taken, and the MEDIUM outranks both HIGHs
+
+The reviewer had a shell and used it: it reproduced the baseline, the delta, the wire gates, all
+four line-count buckets and — by an independent `all_cards()` walk — every one of the nine census
+figures including the seven pairs by member name. What it found is below.
+
+### The finding that matters: the defect was still LIVE one `Condition` variant over
+
+`Condition::required_characteristic_layer` delegated to `TargetFilter::required_characteristic_layer`
+for `YouControlNOrMoreWithFilter` **alone**, and fixed `YouControlPermanent` /
+`OpponentControlsPermanent` at `EffectLayer::TypeChange` under a doc sentence claiming those two
+*"test only card types, supertypes or subtypes -- never power/toughness, color or keywords"*.
+**False**: both arms pass the WHOLE filter to `matches_filter`, which reads all of them. A second
+sentence in the same doc — *"the individual call sites in `effects/mod.rs` compute their own precise
+`required` value … rather than trusting this coarser summary"* — was false too; both call sites use
+the coarse summary.
+
+Measured: a Layer-6 `AddKeyword(Flying)` conditioned on
+`YouControlPermanent(TargetFilter { min_power: Some(4), .. })`, over a 2/2 pumped to 4/2 by a
+Layer-7c `ModifyPower(2)`, bounded the nested walk at Layer 4, compared the **printed** power of 2
+and silently did not grant — **CR 613.1d violated exactly as this batch's headline defect violated
+it**.
+
+**And the coarse value is what silenced the guard.** `is_effect_condition_satisfied`'s
+`debug_assert!(required < effect.layer)` is handed it, so `TypeChange < Ability` held. *A summary
+coarser than the thing it summarises does not merely lose precision — it defeats the assertion that
+was supposed to catch the imprecision.*
+
+Fixed by delegating all **three** filter-carrying variants. **The resulting behaviour is not "the
+grant applies", and that is the interesting half**: with the true requirement (`PtSwitch`) the
+assert now FIRES, which is correct — a Layer-6 effect whose condition depends on Layer 7 has no
+termination-by-construction argument, because Layer 7 runs after Layer 6. What the fix buys is a
+**silent wrong answer converted into a loud named failure**. Two probes pin it, plus an assertion
+that the eight filter-free variants still answer `TypeChange` so the fix cannot be over-applied.
+
+### Both of this batch's new gates fell to a one-line plant
+
+* **The activity-sweep gate was a PRESENCE check** over the whole function body. Plant:
+  `let _spelling_kept_for_the_gate = |e: &ContinuousEffect| e.layer <= through;` beside a sweep
+  whose conjunct had been deleted → **all gates green**. This gate is the *entire* coverage for
+  that conjunct — §6 measured that removing it reddens nothing else — so a presence check there
+  read as coverage and was worth less than nothing. Re-keyed: locate the sweep loop, brace-scope
+  its condition, assert the bound occurs **exactly once inside it**. Defeat re-executed: RED.
+* **The `OOS-DX19-1` source gate fell to `use … as`**. Plant:
+  `use crate::rules::layers::expect_characteristics as resolve_chars_alias;` outside every scanned
+  body, called inside `check_static_condition_ctx` → **green**, while the plant reproduced
+  `OOS-SIM2-6` and aborted two other tests with SIGABRT. So the consequence was caught by a process
+  abort that names no test rather than by the gate written for it. This is **`OOS-DX54-7` verbatim,
+  one batch old and not carried across**. Second axis added; defeat re-executed: RED.
+* **`t7`'s eight-variant list was guarded by `assert_eq!(len, 8)`** — a check of the const against
+  itself. Re-keyed against its SOURCE (the fixed-`TypeChange` arm of
+  `Condition::required_characteristic_layer`), the way `t9` already checks the two field
+  fingerprints against their struct declarations. Its own first draft anchored on `rfind('}')` and
+  returned three of eight, because two patterns are struct-like — caught by the new assertion.
+
+### Two disputed numbers, settled by execution, one each way
+
+* **The reviewer was RIGHT** about the duplicate-name counts: **5,236 / 5,246**, not 5,235 / 5,245.
+  The extraction regex was **anchored at end of line**, and `cargo test` prints an ignored test
+  WITH ITS REASON, so the corpus's one `#[ignore = "reason"]` test was dropped from every
+  distinct-name set. The additions and leavers were unaffected — but the duplicate scan is the one
+  thing that count exists for, and *a scan that reports "no duplicates" over a set it built by
+  dropping members is not reporting anything about the dropped members.* `OOS-DX42b-6`.
+* **The reviewer was WRONG** about the gate count. `hash_schema::` is **34** and
+  `protocol_schema::` is **17** = **51**. Its 53 came from a bare-substring filter, which also
+  matches two tests OUTSIDE those modules that merely mention the name — SR-36's shape applied to a
+  test filter. Both figures are recorded rather than one silently discarded.
+
+### Also taken
+
+The **CEILING** argument was narrower than the property it bounds: `layers.rs` writes
+`chars.card_types` at six sites outside the modification `match` and **four** (meld, Impending,
+Reconfigure, Living Metal) were mentioned nowhere. All four measured, none moves `Artifact`, so the
+**7 survives by measurement rather than by the published argument** and the ceiling is restated as
+a ceiling on the continuous-effect class. `c1` accepted any `Rejected` error and now asserts the
+refusal is **for the shroud**. `mox_opal.rs` carried the identical wrong CR 702.45a Metalcraft cite
+**twice** — `OOS-DX42b-2`'s site list was a floor (dispatch hygiene 6); the class censuses to
+exactly 2 defs and both are fixed. `resolve_cda_amount` is a **second in-walk base-characteristics
+reader whose stated justification is the one this batch retired** — `OOS-DX42b-7`, with the note at
+the site so *"`OOS-ADJ-1` CLOSED"* is not read as *"in-walk base reads are gone"*. Three false
+statements in this batch's own new prose corrected, **including one saying the Metalcraft cite was
+"not fixed here" when it had been** — a false comment inside the batch whose subject matter is
+false comments. And the census's `druid_class` member was a `Completeness` **note string** counted
+as a declaration (`OOS-DX53-2`'s shape, inside a document whose own method paragraph says no def
+source was grepped), with its *"eleven names for ten rows"* the two numbers inverted.
+
+### Close-out figures, RE-TAKEN AFTER the cycle (dispatch hygiene 8)
+
+Tests **5,243 / 0 / 5** across **69** targets; byte-exact NAME set difference **15 additions /
+3 leavers / 0 removals**, count delta 12 == name delta 12, duplicate scan EMPTY on both runs
+(5,236 / 5,236 and 5,248 / 5,248). HASH **85** / PROTOCOL **44** still gate-executed and UNMOVED
+(51/51). `clippy`, `cargo fmt --check` and `tools/check-defs-fmt.sh` clean against the final tree.
+Filed **OOS-DX42b-1..7** — and the first draft of the close-out cells said `-1..5` on three
+surfaces, **dispatch hygiene 8's exact case for the sixth batch running**, caught by re-checking
+each surface against the registry AFTER the fix cycle rather than before it.
