@@ -19,8 +19,8 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 ## Implement
 - [x] 1 OOS-SIM6-3 — one cost arithmetic + one solver for every mana-bearing Command, both paths
 - [x] 2 OOS-SIM6-3 — offer/acceptance agreement (SR-38): unsolvable is not offered
-- [ ] 3 OOS-SIM5-3 — ONE blocker-legality predicate consumed by engine and offer
-- [~] 4 OOS-SIM5-5 — per-mode target slice for activated abilities through the SHARED helper
+- [~] 3 OOS-SIM5-3 — ONE blocker-legality predicate consumed by engine and offer
+- [x] 4 OOS-SIM5-5 — per-mode target slice for activated abilities through the SHARED helper
 - [ ] 5 Consumers: `targeting.rs::plan_targets`, `params.rs`, play-server, TargetPicker
 
 ## Probes and gates
@@ -28,7 +28,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 - [x] 7 LocalGame/HumanChoice drive: empty pool + untapped lands → activation accepted, resolves
 - [x] 8 POST /api/game/action drive: same, no manual TapForMana first
 - [ ] 9 Blocker probes: offer ABSENT and engine refusal ABSENT on the same fixture, per predicate
-- [ ] 10 Modal activated ability: bot announces a per-mode target, engine accepts
+- [x] 10 Modal activated ability: bot announces a per-mode target, engine accepts
 - [ ] 11 Roster/mechanism gates (one arithmetic, no second copy), each revert-proven
 
 ## Close-out
