@@ -6,6 +6,16 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-09-05 — CC-14 (`scutemob-251`) — dormant agents and skills moved aside; retired skills deleted
+
+- Eight agents → `.claude/agents-dormant/` (milestone ×4, ability ×3, ability-coverage-auditor); five skills →
+  `.claude/skills-dormant/` (start-milestone, next-ability, ability-status, audit-abilities, remedy); each dir has a
+  README with the restore recipe. `start-work`, `end`, `spawn` deleted.
+- CLAUDE.md Agents table (9) == `.claude/agents/` == the `/dispatch` worker-prompt roster, checked by script.
+- `/crew` and `/docs` repointed off `/spawn` and `/end`; `/implement-ability` carries a dormant-dependencies banner.
+- **Expected side effect**: `end` and `spawn` are ESM-provisioned, so `esm doctor` now lists them as missing; do NOT
+  `esm update` to "fix" it. Markdown and file moves only.
+
 ## 2026-09-05 — CC-15 (`scutemob-252`) — simulator raw-characteristics ceiling ratchet + split-on-touch
 
 - New `crates/simulator/tests/cc15_raw_characteristics_ratchet.rs`: two-sided per-file pins on raw `.characteristics.`

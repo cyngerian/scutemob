@@ -14,9 +14,9 @@ This is a parallel alternative to `/dispatch`. Both skills coexist — use `/cre
 
 ## Procedure
 
-### Steps 1–7: Same as /spawn
+### Steps 1–7: Same as /dispatch
 
-Follow steps 1–7 of `/spawn`:
+Follow steps 1–7 of `/dispatch` (`/spawn` was retired by CC-14; the recipe below mirrors it):
 
 1. Get project context from `CLAUDE.md` (ESM project ID, agent ID).
 2. Verify coordinator is on `main` (or the project's base branch). Abort if not.
