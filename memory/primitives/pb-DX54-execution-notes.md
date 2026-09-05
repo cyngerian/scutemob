@@ -82,3 +82,282 @@ option except C, which adds one variant of an existing type and therefore also l
 counts unchanged.
 
 ---
+
+## §0.4 — BLAST RADIUS, MEASURED BY EXECUTION (AC 7379's own requirement)
+
+The acceptance criterion says the design is *"settled at stage 0 with the blast radius of
+each MEASURED by executing the suite with the pop moved"*. It was, before the design was
+chosen and before a single line of the real fix was written.
+
+**Scaffold**: `resolve_top_of_stack_inner` renamed to `resolve_top_of_stack_body`, its
+`pop_back()` changed to `back().cloned()`, and a wrapper that removes the entry BY ID after
+the body returns (`.iter().position(|so| so.id == rid)`).
+
+**Result — `cargo test --workspace --no-fail-fast`:**
+
+```
+5,207 passed / 3 failed / 5 ignored     67 result-producing targets
+```
+
+**All three failures are SOURCE gates. ZERO behavioural tests moved.**
+
+| Failing test | Why it fired |
+|---|---|
+| `core::pb_dx48_announcement_site_roster::r1_call_site_census_is_pinned` | keyed on `func: "resolve_top_of_stack_inner"`; the scaffold RENAMED that function |
+| `core::pb_eng2_targets_announced::every_announcement_site_is_classified` | same key, same cause |
+| `core::pb_dx52_stack_target_roster::r1a_no_reopened_find_or_position_scan_of_stack_objects` | the scaffold's `.position(\|so\| so.id == rid)` genuinely re-open-codes the announced-id-to-stack-entry resolution that gate exists to forbid |
+
+All three are the gate being **right**, and all three are avoidable rather than
+allowlistable — which is what the shipped shape does (see §1).
+
+## §0.5 — DESIGN: resolve-in-place, and why not the shadow entry
+
+| | resolve-in-place | shadow entry on `GameState` |
+|---|---|---|
+| wire | **HASH unmoved / PROTOCOL unmoved** | HASH **+1** / PROTOCOL unmoved |
+| behavioural blast radius | **0 tests** (measured, §0.4) | 0 by construction — nothing else can see the field |
+| call sites changed | 1 peek + 3 departure calls | `stack_index_for_announced_target` returns `Option<usize>`, an index into a vector the shadow is **not in**, so its return type must become an enum and all **6** consumers (`Effect::CounterSpell`, `Effect::ChangeTargets`, `Effect::CopySpellOnStack`, `casting.rs`'s two single-target arms, `validate_stack_object_satisfies_requirement`) must learn the new shape |
+| CR fidelity | CR 608.2n verbatim: the object really is on the stack until the final part of its resolution | the object is on the stack *for targeting* and off it for everything else — a second, partial answer to "is it on the stack" |
+
+**Chosen: resolve-in-place.** It is cheaper on every axis measured, and the axis where it
+could have been more expensive — behavioural blast radius — came back at zero.
+
+The wire prediction for the chosen option (**both gates UNMOVED**) is the one committed in
+§0.3 before any production line changed.
+
+**Both alternatives' wire costs were VERIFIED BY EXECUTION at stage 0, not inferred:**
+
+* `StackObject` planted into `hash_schema.rs`'s `CLOSURE_MUST_NOT_CONTAIN` → `hash_schema::
+  state_closure_is_not_vacuous_and_bounded` **FAILS** (*"StackObject entered the GameState
+  serde closure"*), while `protocol_schema.rs` already lists `StackObject` and its gate is
+  **green** at HEAD. So option B is HASH-only, exactly as predicted.
+* `EffectChoiceQuestion` planted into BOTH lists → **both** gates fail
+  (*"EffectChoiceQuestion entered the GameState serde closure"* / *"…entered the
+  Command/GameEvent closure"*). So option C — the variant rider `OOS-DX25b-4` would need —
+  moves BOTH, exactly as predicted.
+
+Both plants were reverted by restoring byte-exact copies; `git diff` over
+`crates/engine/tests/core/` is empty.
+
+---
+
+## §1 — The shipped shape, and the design the suite could NOT have refuted
+
+`resolve_top_of_stack_inner` PEEKS (`state.stack_objects.back().cloned()`). The entry
+departs through one new function, `depart_resolving_stack_entry`, called at **three** sites:
+
+1. the CR 608.2b **fizzle tail**, immediately before `sba::check_and_apply_sbas`;
+2. the **main tail**, immediately before `check_triggers_with_timing` (CR 608.2p) →
+   `check_and_apply_sbas` (CR 704.3) → `grant_priority_to_active_player` (CR 117.3b);
+3. an idempotent **backstop** in `resolve_top_of_stack`, after `resolve_top_of_stack_inner`
+   returns.
+
+### Why NOT the function boundary — and this is the half no test would have told us
+
+The §0.4 scaffold removed the entry only at the function boundary, and **every behavioural
+test in the workspace stayed green**. It is still wrong, on two SBAs that read
+`state.stack_objects` from inside `check_and_apply_sbas`:
+
+* **CR 714.4** (`rules/sba.rs`, the Saga sacrifice): *"…and it isn't the source of a chapter
+  ability that has triggered but not yet left the stack"*. CR 704.3 checks SBAs when a
+  player would receive priority, i.e. AFTER CR 608.2n. A resolving FINAL chapter ability
+  that had not yet departed would postpone its own Saga's sacrifice by a whole SBA round.
+* **CR 309.6** (`rules/sba.rs`, dungeon removal): the same shape, for a `RoomAbility` still
+  on the stack.
+
+Stated as a reason rather than discovered by the suite, because the suite is measurably
+incapable of discovering it — that is what "5,207 / 3, zero behavioural" means.
+
+### Why a backstop, and why it is idempotent
+
+**Four** paths return from `resolve_top_of_stack_inner` before either departure site: three
+ability-fizzle / intervening-if returns (`AbilityResolved` with no target, Offspring's
+CR 603.4 check, Gift's CR 603.4 check) and the CR 608.2d suspension. None of the four runs a
+trigger, SBA or priority step, so the ORDER is unobservable on those paths — but the
+departure is still owed. Discharging it in one place rather than at four `return` statements
+is PB-DP8's rule (*a guard that returns early inherits the obligation of the statements it
+skipped*) made structural: a FIFTH such return cannot forget it.
+
+Idempotence is **CR 608.2m**, and this is the one place in this batch where 608.2m is the
+right cite: an effect resolving during this very resolution can now legitimately remove the
+entry — the resolving spell is a reachable `Effect::CounterSpell` victim for the first time —
+and CR 608.2m says it *"will continue to resolve fully"* anyway. "Already gone" is therefore
+a LEGAL state at every departure site, and the correct response is to do nothing.
+
+### The lookup obeys `r1a` rather than being allowlisted around it
+
+`stack_index_for_announced_target`'s first clause is `so.id == announced`, and the id passed
+here is a stack-ENTRY id read from `state.stack_objects.back()` moments earlier. Its second
+clause compares against a CARD id, and the two spaces are disjoint by construction (both
+minted from the one monotone `timestamp_counter`), so it cannot fire. The shared function
+therefore resolves exactly the entry meant, and `pb_dx52_stack_target_roster::r1a` stays
+green with no allowlist entry added — the gate is obeyed, not respelled around. (Respelling
+it as `retain(|so| so.id != rid)` would also have satisfied the needle, and would have been
+exactly the *"a gate you edit prose to satisfy has stopped measuring"* failure PB-DX52 names.)
+
+### Suite after the engine change alone
+
+**5,210 / 0 / 5** — unmoved from the pre-edit baseline. No gate fired.
+
+---
+
+## §2 — Consumer audit (AC 7379): every resolution-time reader of `state.stack_objects`
+
+Derived by grepping every `stack_objects` read across `crates/engine/src`,
+`crates/simulator/src`, `crates/view-model/src` and `tools/`, then classifying each by its
+ENCLOSING FUNCTION — command-time or resolution-time. A `handle_*` function reached from
+`process_command` is command-time by construction: the entry is already gone.
+
+| Consumer | When it runs | Verdict |
+|---|---|---|
+| `casting.rs:3542` sorcery-speed `StackNotEmpty`, `:1675` Plot (CR 702.170d), `:7636` Teferi (CR 101.2) | `handle_cast_spell`, whose **only** caller is `rules/engine.rs:472` (`Command::CastSpell`) | command-time. **A cast during resolution — cascade, CR 608.2g — does NOT go through `handle_cast_spell`**; `resolution.rs` builds the stack object directly and says so in its own comment at `:557-562`. Unaffected. |
+| `lands.rs:49`, `plot.rs:72`, `suspend.rs:107`, `commander.rs:1068`, `abilities.rs:259/2165/2556/2728/2909/11453/11858`, `engine.rs:2027/3794/4045` | all inside `handle_*` command handlers | command-time. Unaffected. |
+| `engine.rs:2535` `handle_all_passed` | decides whether to resolve at all, BEFORE `resolve_top_of_stack` | unaffected. |
+| `engine.rs:2898` `discharge_effect_choice_on_concede` | `Command::Concede` handler | command-time. Unaffected. |
+| `state/mod.rs:789` `maybe_clear_lki_objects` (SR-13) | THREE call sites — `finish_stack_resolution` (AFTER `resolve_top_of_stack` returns), `handle_all_passed`'s stack-empty branch, and `reset_turn_state` | all command-time. **Checked specifically because a stack that is non-empty during resolution would suppress the LKI clear**; it cannot be reached there. Unaffected. |
+| `loop_detection.rs:144` `compute_mandatory_state_hash` | reached only via `check_for_mandatory_loop`, whose three call sites are `engine.rs:2714/2761` (stack-empty branch) and `abilities.rs:10541` (`EnterStepPriority`/`EnterStepCleanup` only) | never computed during a resolution. **Checked specifically because the entry's id is fresh per iteration and would have defeated CR 726 loop detection had it been folded in.** Unaffected. |
+| `sba.rs:903` CR 714.4 Saga sacrifice, `sba.rs:1587` CR 309.6 dungeon removal | inside `check_and_apply_sbas`, called from resolution's own tails | **AFFECTED, and this is why the departure point is where it is.** See §1. |
+| `effects/mod.rs:3279` `Effect::CounterSpell`, `:8211` `Effect::CopySpellOnStack`, `:8254` `Effect::ChangeTargets` | resolution-time, through `stack_index_for_announced_target` | **AFFECTED, and this is the fix.** `ChangeTargets` is the seed; the other two now see the resolving entry too — see the "never double-seen / never resolved twice" analysis below. |
+| `effects/mod.rs:8353`, `:8385`, `:10719`, `casting.rs:6748`, `abilities.rs:1393`, `resolution.rs:8750` — the six `exists_on_stack` liveness reads (PB-DX52's `r1` population) | resolution-time and cast-time | affected only in the direction of ACCEPTING the resolving entry as live, which CR 608.2n makes correct. Unreachable in practice for the resolving object itself, because CR 601.2c self-exclusion refuses it at announcement (`t4`). |
+| `copy.rs:342/545/780`, `resolution.rs:5609/6340` — copy / cascade / storm / suspend pushes | resolution-time, all `push_back` | unaffected in ORDER: a push during resolution lands ABOVE the resolving entry, which is CR 608.2g verbatim (*"That spell becomes the topmost object on the stack, and the currently resolving spell or ability continues to resolve"*). Before this batch it also landed on top, because the entry had been popped — so the topmost-ness is identical and only the entry BELOW it differs. |
+| `crates/simulator/src/invariants.rs` `check_stack_consistency`, `crates/view-model` `stack_kind_info`, `tools/tui/.../stack_view.rs`, `tools/play-server`, `tools/replay-viewer` | all read a state at a COMMAND BOUNDARY | the entry is gone by then. Unaffected — and this is what makes "never double-seen" true for every external observer by construction rather than by care. |
+
+**Never double-seen**: the entry is in `state.stack_objects` exactly once (it was never
+copied out and back — it is the same element, never popped), and the local `stack_obj` the
+body reads is a CLONE, not a second vector element. **Never resolved twice**: nothing calls
+`resolve_top_of_stack` re-entrantly — its only two callers are `handle_all_passed` and
+`effects::handle_answer_effect_choice`'s CR 608.2d replay tail, both command handlers.
+
+---
+
+## §3 — Riders (AC 7380), each decided with the reason posted as a task comment
+
+### `OOS-DX25-4` — **TAKEN**
+
+The row's own prescribed fix shape, verbatim: *"a sibling `source_of(&StackObjectKind) ->
+Option<ObjectId>` in `state::stack_registry`, exhaustive like `card_in_stack_zone`, consumed
+by both paths."* PB-DX52 built the helper (it was a live requirement on the retarget path,
+`OOS-DX25c-3`); this batch consumes it, which is all the row had left.
+
+Both counter paths — `effects/mod.rs`'s `Effect::CounterSpell` and
+`resolution.rs::counter_stack_object` — carried a **byte-identical** two-arm `match` naming
+`ActivatedAbility` and `TriggeredAbility` and falling through `_ => None` for the other 23
+kinds, so a Stifle-shaped counter removed the entry and reported nothing to the event log.
+PB-DX48 made four of those kinds (`ForecastAbility`, `ScavengeAbility`, `LoyaltyAbility`,
+`KeywordTrigger`) reachable from Ward, so the silence was live rather than theoretical.
+
+`GameEvent::SpellCountered` now names a source for **20 of 25** kinds. The five that still
+name none — `EmbalmAbility`, `EternalizeAbility`, `EncoreAbility`, `ScavengeAbility`,
+`RoomAbility` — are a **measured absence** already documented on `source_of` itself (CR 400.7
+retired the card that was the cost; CR 309.4c puts a Room's generator in the command zone),
+not a missing arm. This is a diagnostics change and not a state one: no card moves
+differently and no zone diverges, exactly as the row says.
+
+### `OOS-DX25b-4` — **DECLINED, and re-filed with the exact missing variant and its measured wire cost**
+
+AC 7380 offers both: take it, *"or [it] is explicitly re-filed with the exact missing
+question variant and its wire cost"*. Re-filed, on cost measured rather than estimated:
+
+* **The missing variant** is `EffectChoiceQuestion::ChooseNewTargets { stack_object:
+  ObjectId, per_index_candidates: Vec<Vec<Target>> }` with the matching
+  `EffectChoiceAnswer::ChooseNewTargets { chosen: Vec<Option<Target>> }` — `Option` per index
+  because CR 115.7d is *"you MAY choose new targets"*, so declining a single index is a legal
+  answer where CR 115.7a's `must_change` has no such option. `retarget_candidates` +
+  `validate_targets_inner` already compute the candidate sets; what does not exist is the
+  question, the answer, and their consumers.
+* **Wire cost, VERIFIED BY EXECUTION** (§0.5): `EffectChoiceQuestion` is in BOTH closures, so
+  a new variant moves **HASH +1 and PROTOCOL +1**. AC 7381 budgets *"ONE bump each at most"*,
+  which this would exactly consume — for a rider, in a batch whose own subject moves neither.
+* **Consumer cost, MEASURED not estimated**: `grep -rn "EffectChoiceQuestion::"` over
+  production source (tests excluded) finds **~110 sites across 14 files** —
+  `effects/mod.rs` (32), `tools/play-server/src/api.rs` (15), `view.rs` (10), `main.rs` (9),
+  `simulator/src/decision_coverage.rs` (8), `state/hash.rs` (8), `tools/tui/src/play/app.rs`
+  (7), `testing/replay_harness.rs` (7), `simulator/src/params.rs` (4),
+  `card-types/src/cards/card_definition.rs` (4), and five more. That is PB-DX45's
+  eight-consumer shape at more than ten times the scale, plus a new picker component in the
+  Svelte frontend.
+
+So it is a batch of its own, and it is **not** dead weight in the meantime: `must_change:
+false` leaves `deflecting_swat` a deterministic no-op, which is under-permission (the player
+never gets a decision CR 115.7d gives them), not a wrong outcome.
+
+**One correction to the row, and it is this batch's own subject**: the row says the seed is
+about the RESOLUTION being a no-op while *"the announcement half now works"*. Both halves are
+now more reachable than the row records — PB-DX52 widened the announcement to
+`TargetSpellOrAbility`, and PB-DX54 makes the RESOLVING redirector itself a legal new target
+for a `must_change: true` victim. Neither moves `deflecting_swat`, because its own
+`must_change` is `false`; the row is updated to say so rather than left implying PB-DX54
+touched it.
+
+### T7 / T8's route-around docs (AC 7380)
+
+`crates/engine/tests/primitives/pb_dx25c_retarget_legality.rs`:
+
+* **T7** (`t7_misdirection_is_itself_a_legal_candidate`) carries a paragraph headed
+  *"Discovered structural fact, worth recording because it decided this test's shape"* which
+  states that `TargetSpellWithSingleTarget` / `TargetSpellOrAbilityWithSingleTarget` *"CANNOT
+  observe the actively-resolving spell as a candidate"*. **That is false at HEAD** and is
+  rewritten to say what is now true, with the reason the fixture keeps its
+  `TargetSpellWithFilter` shape anyway (it is the only probe in the tree covering the FILTER
+  variant, which PB-DX54's own probes do not).
+* **T8** (`t8_self_targeting_is_still_refused`) carries a paragraph explaining why it needs
+  **FOUR** stack objects rather than three: the fourth exists *only* because the resolving
+  Misdirection was invisible and so could not serve as the alternative self-exclusion is
+  measured against. With the fix it can, so PB-DX54's own `t4` is the three-object version
+  and T8's doc records that its fourth object is now redundant-but-harmless coverage rather
+  than a workaround.
+
+---
+
+## §4 — Census and coverage (AC 7381)
+
+### The census, PRINTED by `core::pb_dx54_resolving_entry_roster::r6`
+
+Union **11** defs across the two axes. Declared axis (the three `TargetRequirement` variants
+AC 7381 names, decided by `decision_site_walk::def_contains_variant` — **not** by a substring
+scan over `format!("{def:#?}")`, which counts a `Completeness` note as a declarer;
+`OOS-DX53-2`, and the mechanism that separates them is that `def_contains_variant` matches a
+unit variant's serialized name EXACTLY):
+
+| def | declared | completeness |
+|---|---|---|
+| Misdirection | `TargetSpellWithSingleTarget` | **Complete** |
+| Bolt Bend | `TargetSpellOrAbilityWithSingleTarget` | **Complete** |
+| Untimely Malfunction | `TargetSpellOrAbilityWithSingleTarget` | `Partial` |
+| Deflecting Swat | `TargetSpellOrAbility` | **Complete** |
+
+**`OOS-DX25c-6`'s "2 deck-legal `Complete`" cell REPRODUCES**, and this is worth saying
+plainly after four consecutive batches in which a yield cell turned out to be a floor. The two
+are Misdirection and Bolt Bend. `Untimely Malfunction` declares one of the two affected
+requirements and is `Partial`, so its deck-legal exposure is zero; `Deflecting Swat` declares
+the THIRD variant, which was never blind (see below).
+
+**Why only the two single-target requirements were blind**, re-derived rather than inherited:
+`plan_target_change` validates candidates against the **VICTIM's** `target_requirements`, and
+only `TargetSpellWithSingleTarget` / `TargetSpellOrAbilityWithSingleTarget` consult
+`state.stack_objects` (through `stack_index_for_announced_target`, to count the candidate's
+targets and classify it as a spell). `TargetSpell`, `TargetSpellWithFilter` and
+`TargetSpellOrAbility` decide the object branch on `obj.zone == ZoneId::Stack` alone
+(`casting.rs:7022-7037`), and the resolving spell's CARD never left `ZoneId::Stack` — which is
+exactly why PB-DX25c's T7 could route around the defect with `TargetSpellWithFilter`.
+
+### The INVERSE ORACLE axis found a sibling gap no document names
+
+**7 printed-only** defs, and `declared-only` is **0**. Five of the seven print *"choose new
+targets"* for a **COPY** (CR 707.10's *"you may choose new targets for the copy"*), not for
+CR 115.7's retarget: `Rings of Brighthearth`, `Illusionist's Bracers`, `Complete the Circuit`,
+`Flusterstorm`, `Train of Thought`. `Effect::CopySpellOnStack`'s own doc says
+*"choose-new-targets deferred to M10"* — so the copy family has the SAME under-permission
+`OOS-DX25b-4` describes for `must_change: false`, through a different effect, and no registry
+row names it. Filed as **`OOS-DX54-2`**.
+
+*The two axes do not nest*, for the fifth batch running (PB-DX26 → PB-DX43 → PB-DX35 →
+PB-DX53 → here), asserted by `r6` rather than stated.
+
+### Coverage flips: **0, predicted with the reason BEFORE any regeneration**
+
+`git diff --numstat <merge-base>..HEAD` over `crates/card-defs` and
+`crates/card-types/src/cards` is **EMPTY** — this batch edits no card definition of any kind,
+so no `Completeness` marker can move, `CORPUS_COMPLETE` cannot move, and no seeded fixture can
+be re-dealt (`OOS-CARDS2-3`'s budget checked and found not owed). The regeneration is run
+anyway, against the FINAL tree, rather than the empty-diff shortcut being taken as the answer.
