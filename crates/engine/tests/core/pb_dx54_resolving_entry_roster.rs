@@ -251,7 +251,8 @@ fn pop_receivers(stripped: &str) -> Vec<String> {
 #[test]
 fn r1b_pop_detector_fires_on_synthetic_violations() {
     // Direct.
-    let direct = strip_comments("fn f(state: &mut GameState) { let x = state.stack_objects.pop_back(); }");
+    let direct =
+        strip_comments("fn f(state: &mut GameState) { let x = state.stack_objects.pop_back(); }");
     assert!(
         !pop_receivers(&direct).is_empty(),
         "r1b: the detector must fire on the DIRECT `state.stack_objects.pop_back()` -- the \
@@ -773,7 +774,9 @@ fn r6_census_report() {
         .collect();
     assert_eq!(
         single_target,
-        ["Bolt Bend", "Misdirection"].into_iter().collect::<BTreeSet<&str>>(),
+        ["Bolt Bend", "Misdirection"]
+            .into_iter()
+            .collect::<BTreeSet<&str>>(),
         "r6: `OOS-DX25c-6` scopes itself to 2 deck-legal `Complete` defs, and this is the \
          reproduction of that claim. It HOLDS -- unlike the last four batches in this queue, \
          whose yield cells were floors. The third single-target declarer, `Untimely \
