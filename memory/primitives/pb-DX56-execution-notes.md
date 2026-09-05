@@ -720,3 +720,78 @@ disclosed here rather than left for it to hide:
 (two doc inventories that became false). **`crates/card-types`, `crates/card-defs` and
 `crates/view-model` are all EXACTLY 0.** `crates/simulator/src` is the bulk of the batch;
 `tools/` is one `..Default::default()` inside a `#[cfg(test)]` `GameResult` literal.
+
+---
+
+## §7 The `/review` fix cycle — 15 findings, all 15 taken
+
+The `/review` had a shell and used it. **It defeated THREE MORE shipped gates by execution,
+taking this batch's total to ELEVEN gates defeated**, and it found two substantive
+correctness issues that the coordinator's own bypass pass had not looked for.
+
+### 7.1 The three further gate defeats, each a reusable shape
+
+* **A `contains`-based source gate cannot tell code from a COMMENT.** Replacing the live
+  call with the identical text inside `//` comments defeated **both** of this batch's source
+  gates — re-opening `B1''`, `B1b` and `D1'`, including at the bottom-of-zone site the
+  roster file's own doc says has no behavioural probe. **PB-DX8 filed `OOS-DX32-6` for
+  exactly this class** (a `/* */`-wrapped roster row that left a gate and twelve probes
+  green) and this batch did not carry it across. Closed by blanking `//` and nested
+  `/* */` — offsets and newlines preserved — before every `contains`. `OOS-DX56-6`.
+* **Gating a predicate at its DEFINITION says nothing about its CONSUMER.** An **argument
+  swap** in the CR 800.4k promotion call (`crosses_a_turn_boundary(&v.check, first,
+  v.turn_number)` — it compiles and uses every binding) made the promotion unfireable, and
+  ORing two HARD class names into the transient test **silently disarmed
+  `--stop-on-error`**; both left all 42 simulator targets GREEN. **PB-DX50's `r3` finding
+  verbatim**, cited elsewhere in this repo. Closed by moving the whole decision into one
+  free function (`invariants::bucket_violations`) a unit test drives directly, reducing
+  `record_violations` to a delegation, and gating that the delegation holds **no second
+  copy** of either predicate. `OOS-DX56-7`.
+
+### 7.2 The two findings the bypass pass could not have found, because they are not gates
+
+* **This batch's disposition made this batch's own new evidence unreachable.**
+  `print_game_result` walked `result.violations` alone, and the disposition then made BOTH
+  classes that fire on the standard invocation TRANSIENT — so `player_consistency_evidence`
+  and `attachment_validity_evidence`, the whole point of the `OOS-FB1-1` stage, printed
+  **nowhere on any real run**. `--replay 8` reported `Violations: 0` with 33 reports sitting
+  unshown in the other bucket. *"Transient" means "does not halt the run", never "not worth
+  printing"* — and **a disposition that moves a class between buckets must re-check every
+  consumer that keys on a bucket.** `OOS-DX56-8`.
+* **The new end-state check reported a CR-LEGITIMATE state.** CR 702.26b — *"a phased-out
+  permanent is treated as though it does not exist"* — and CR 702.26i, which puts the
+  cleanup at PHASE-IN, make a phased-out attacher's dangling `attached_to` correct;
+  `rules/sba.rs`'s CR 704.5m arm already exempts it. **It measured 0/20 only because phasing
+  is rare in the corpus — correct by luck, which is the shape SIM-3's `stack_consistency`
+  withdrawal was about.** And the batch's own two docs contradicted each other on it.
+  `OOS-DX56-9`.
+
+### 7.3 Four claims of this batch's own, refuted
+
+* **AC 1's two mandated proofs were claimed and recorded NOWHERE** — no occurrence of
+  "SIGABRT" or of a planted panic anywhere in these notes, and the task list unticked. Both
+  re-executed; transcripts in §1a.
+* **"The counterfactual is UNEXPRESSIBLE" is refuted by execution** — the list holds type
+  NAME STRINGS, so the plant compiles and the gate passes **vacuously**. Conclusion
+  survives, stated reason and epistemic strength do not. `OOS-DX56-15`.
+* **"SEVEN of eight plants bypassed" contradicted its own EIGHT-row table**, every row
+  `before: GREEN` — an arithmetic error inside the one cell whose purpose is arithmetic.
+* **`local_game_playthrough.rs` claimed to assert two properties it never reaches**, which
+  is exactly why bypass row `B1''` left the workspace green. `OOS-DX56-14`.
+
+### 7.4 And the module doc's own count was wrong INSIDE the paragraph telling you to count
+
+`check_all` makes **eleven** calls (`check_game_progression` is nested in an `if let`, which
+is how a fixed-indent `grep -c` misses it). This batch took `main`'s already-wrong "nine"
+and **added one instead of counting**, then shipped it under the sentence *"count it there
+before trusting this paragraph"*. Corrected to eleven / thirteen in both the module doc and
+`docs/mtg-engine-simulator.md`. `OOS-DX56-13`.
+
+### 7.5 Close-out re-taken AFTER the cycle (dispatch hygiene 8)
+
+Tests **5,316 / 0 / 5**, +29, 72 targets, 0 leavers, duplicate scan EMPTY on both runs.
+The fuzz was re-run against the FINAL tree: **HARD 0 / 0 distinct, 0 of 20 games**;
+TRANSIENT 844 unchanged. **And the `ignored` pin was nearly perturbed 5 → 6** by an
+```ignore``` doc example added in this very cycle, which IS a doctest — caught by this
+batch's own non-end-anchored delta regex (`OOS-DX42b-6`, the discipline earning its keep on
+the batch that inherited it) and changed to a ```text``` block, which registers no test.

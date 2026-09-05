@@ -6,7 +6,7 @@ Cards available: 1803
 
 Results
 -------
-Games completed: 20  Time: 19.4s  (1 games/sec)
+Games completed: 20  Time: 19.6s  (1 games/sec)
 Wins: 20  Draws: 0  Errors: 0
 Total violations (HARD): 0
 Total violations (TRANSIENT, reported -- does not halt --stop-on-error): 844
