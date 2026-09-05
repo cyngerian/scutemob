@@ -328,3 +328,134 @@ enum genuinely IS authorable. The hit is recorded on its merits instead.
 That is `A || !A` — **`t9_fingerprints_match_their_structs`'s ORIGINAL defect
 (`intersection.is_none() || len != len`) reproduced by hand, inside the batch whose subject is
 assertions that cannot fail.** Deleted rather than reworded, with the note left at the site.
+
+---
+
+## §4. `OOS-DX21-7` — the sweep, the repairs, and the site the sweep missed
+
+### §4.1 The census
+
+| step | | count |
+|---|---|---|
+| 1 | files mentioning `process_command` | **387** |
+| 2 | raw call sites | **3,115** |
+| 3 | of those, TEST files | **369** |
+| 4 | of those, files with an error expectation — *the honest search space* | **191** |
+| 5 | test FUNCTIONS whose `Err` provably came from a `process_command` result | **534** |
+| 6 | of those, with ≥1 `assert` after the `Err` — **the read set, all read in full** | **216** |
+| 7 | shape A (`X.clone()` argument) sites / files | 46 / 19 |
+| 8 | shape B (value snapshot bound before the call) sites / files | 22 / 8 |
+| 9 | **VACUOUS after reading** | **17 sites / 15 fns / 9 files** |
+
+**Zero AMBIGUOUS** — every candidate resolved by reading binding provenance in its own function.
+
+**No shared helper wraps the shape.** Only four non-test helpers call `process_command` and handle
+an error, and none makes an absence-of-mutation claim — one of them,
+`scripts/harness_equivalence.rs:853`, uses the mechanism *knowingly and correctly*. So the defect was
+17 hand-written instances rather than one helper multiplied: **there was nothing to fix once and
+everything to fix once each.**
+
+**The concentration is the tell.** `pb_dp7` / `pb_dp8` / `pb_dp9` are three blocking-decision batches
+written to one template and held **9 of the 17**; `pb_dp8` had **exactly one** of its tests repaired
+(`:359`), with a doc comment that is the best statement of `OOS-DX21-7` in the repository — while its
+own siblings and the whole of `pb_dp7`/`pb_dp9` were left. *The lesson was learned once and not
+carried across the file, let alone the batch.*
+
+**Three vacuous tests DOCUMENT the mechanism in their own comments and assert anyway.**
+`primitive_sr34_composite_mana_costs.rs:267` says *"`process_command` takes `GameState` by value, so
+a rejected command's mutations (if any had happened) are unobservable"* — and then asserts on the
+clone 27 lines later.
+
+### §4.2 The load-bearing constraint on the repair
+
+`process_command` dispatches **44** handlers over 45 `Command` variants. **34 are `pub`**; **10 are
+private `fn` in `rules/engine.rs`** (`handle_pass_priority`, `handle_activate_loyalty_ability`,
+`handle_concede`, `handle_transform`, `handle_turn_face_up`, `handle_level_up_class`,
+`handle_activate_craft`, `handle_pay_echo`, `handle_pay_recover`, `handle_pay_cumulative_upkeep`),
+`blocking_decision` is `pub(crate)`, and `LocalGame` is not an engine dev-dependency. **For those ten
+commands the direct-handler rewrite does not compile from an integration test**, which is a fact
+about the repair and not an excuse: it is why one row is class C and why the structural fix is filed.
+
+### §4.3 The three repair classes, all 17 sites, 19 guard-removal experiments, 19 RED
+
+* **Class A — admission-gate rows** (5). `process_command` returns `Err(BlockedByPendingDecision)`
+  **before the `match` on `command` runs at all**, so no handler executes and the property is true by
+  construction — *there is no handler to call*. Repair is DELETION of the tautology plus the positive
+  control that discriminates: the ALLOWED command from the named player IS admitted and DOES move the
+  hash. Guard removed: the admitting clause for that command.
+* **Class B — handler-validation rows** (11). Direct-handler `&mut state` with an ACCEPTED control, so
+  the probe cannot be satisfied by an engine that mutates nothing ever. `pb_dp7:257` was a **one-token
+  fix**: `&mut state.clone()` → `&mut state`.
+* **Class C — the unbuildable row** (1). `loyalty_target_validation.rs`'s handler is private.
+  Rewritten to an observable, **with the residual in the test's own doc**, and the handler was NOT
+  made `pub`, because that is an engine line.
+
+**The load-bearing detail of the proofs**: R1-R6 and R16's guard removals were designed so the error
+assertion the OLD test already had stays GREEN and only the repaired receiver-reading assertion
+fails. That is the direct demonstration that each repair ADDED discrimination rather than restating
+it. **Zero `#[test]` added, renamed or deleted** — 157 == 157 by byte-exact name-set difference over
+the nine modules.
+
+### §4.4 THE 18TH SITE, found by this batch's own gate, and the sweep called its own count a FLOOR
+
+`rules/commander.rs::test_companion_rejected_when_not_in_command_zone`. Its comment reads:
+
+> *"The action failed atomically: the state the caller keeps is unchanged — no mana spent, action not
+> marked used."*
+
+…and then asserts on the ORIGINAL `state` after `process_command(state.clone(), ..)`. Repaired to
+`rules::commander::handle_bring_companion(&mut state, ..)` (`pub`, `commander.rs:1028`).
+
+**Proven by a COMPLEMENTARY PAIR rather than by one red row.** MR-M9-13's guard is *"locate the
+companion in the command zone BEFORE paying any cost"*. Move that lookup BELOW the mana payment:
+
+| form | verdict |
+|---|---|
+| repaired (`&mut state`) | **RED** — `assertion left == right failed: mana must not be deducted on the state the REJECTED handler actually held` |
+| original (`process_command(state.clone(), ..)`) | **GREEN** |
+
+The defect is in the tree and the old test says nothing about it. Both files restored `cmp`-identical.
+
+### §4.5 The gate, and what it does NOT claim
+
+`crates/engine/tests/core/pb_dx57_vacuous_rejection_gate.rs`. Keyed **per ASSERTION** on binding
+provenance, because per-FILE is green on the three files holding 9 of the 17 and per-FUNCTION is
+green on `pb_dp7`'s `&mut state.clone()` — PB-DX50's `r3` instantiated twice on real data. Comments
+and string literals stripped; `use ... as` aliases resolved; the `&mut` exemption requires a **bare
+identifier**, never an expression.
+
+**It ships labelled a RATCHET, not a proof.** The sweep's adversarial section found seven bypasses,
+of which **two are not closable at the source level**: a helper wrapper (the test then contains no
+`process_command`, no `.clone()` and no `Err` token — and it is exactly what a later batch does on
+noticing 17 sites repeat) and a macro. Saying so in the module doc rather than letting the name imply
+more is `OOS-DX49-6`'s own lesson, applied to this batch's own gate.
+
+**The bypass-proof repair is stated and deliberately NOT taken**: split `process_command` into a
+`pub process_command_mut(&mut GameState, Command)` — its body is already `let mut state = state;`
+followed by `&mut`-dispatch — plus the by-value wrapper. That makes the property falsifiable for all
+45 command variants **including the 10 whose handlers are private and for which no such test can be
+written today**. It is an engine change and this is a 0-engine-lines batch, so it is FILED.
+
+### §4.6 The gate over-fired twice and both were caught by ADJUDICATING hits, not by reading a count
+
+* It attributed **any later `Err` in the function** to the flagged call. Three false positives, all
+  the same real shape: a `.clone()` handed to a call that SUCCEEDS (`.unwrap()`), with a separate,
+  correctly by-value rejection elsewhere in the function.
+* It had **no rebinding awareness**. `let (state, _) = process_command(state, good).unwrap();` after
+  a rejection means every later assertion reads the ACCEPTED path — sound. *Dozens of the 216
+  functions the sweep read in full do exactly this*, which is why that sweep had to READ them.
+
+Both narrowed; both now carry a synthetic control in `v3`. **The first draft's shape-A detector was
+also dead**: it anchored the statement at the CALL, so `let r = process_command(..)` never showed its
+own `let` and the binding-then-Err-check arm never ran — caught by `v3`'s synthetic case, which is
+the whole reason the self-test uses synthetic input rather than the corpus.
+
+### §4.7 Two disclosed positive controls, RECORDED rather than rewritten or filtered
+
+PB-DX21's two second-declaration probes read a `state` that a PREVIOUS **accepted**
+`process_command` produced, and each assertion's own message says *"positive control"*. That is the
+second sound idiom. They are recorded with the adjudication because the distinction the gate would
+need — *"is this comparing to a pre-call snapshot, or to a value the accepted path established"* — is
+a claim about INTENT, and the gate strips comments and so cannot read the disclosure that makes them
+sound. Encoding the judgement once, with the reason, is honest; teaching the scanner to guess would
+make it fail OPEN on the real shape.
