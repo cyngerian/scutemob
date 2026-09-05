@@ -931,6 +931,14 @@ pub fn handle_activate_ability(
     // CR 702.34: Pay discard-self cost (Channel abilities). The source card is in the
     // player's hand; discarding it is part of the activation cost.
     if ability_cost.discard_self {
+        // CR 608.2h / CR 113.7a (PB-DX39): costs are paid during activation (CR 601.2h /
+        // CR 602.2c), i.e. BEFORE this ability is pushed onto the stack a few statements
+        // below -- so `GameState::capture_lki_snapshot`'s pending-ability clause cannot
+        // see it and declines. Capture explicitly. A measured no-op for THIS cost (the
+        // source is in hand by construction, CR 702.34, and the helper is battlefield-only
+        // so it does not put hidden information into a public store); present so the three
+        // self-move cost blocks stay uniform and a fourth cannot be written without it.
+        state.capture_source_lki_for_pending_ability(source);
         let (new_grave_id, _) = state.move_object_to_zone(source, ZoneId::Graveyard(player))?;
         events.push(GameEvent::CardDiscarded {
             player,
@@ -982,6 +990,16 @@ pub fn handle_activate_ability(
                 pre_chars_opt,
             )
         };
+        // CR 608.2h / CR 113.7a (PB-DX39, `OOS-DX5-7`): the ORDER is the reason this call
+        // must exist. This block's own comment says "Move source to graveyard before
+        // pushing to stack", and it means it -- at this instant `state.stack_objects`
+        // does not yet contain the ability and `state.pending_triggers` does not contain a
+        // trigger for it, so `capture_lki_snapshot`'s `is_source_of_a_pending_ability`
+        // clause answers `false` and declines. The ability reaches the stack immediately
+        // afterwards and then needs exactly this information. Mardu Ascendancy's
+        // `EffectFilter::CreaturesYouControl` applied to NOBODY in every game before this.
+        // If costs are ever paid after the push, this becomes redundant, not wrong.
+        state.capture_source_lki_for_pending_ability(source);
         let (new_id, _) = state.move_object_to_zone(source, ZoneId::Graveyard(owner))?;
         if is_creature {
             events.push(GameEvent::CreatureDied {
@@ -1024,6 +1042,11 @@ pub fn handle_activate_ability(
                 (o.controller, o.counters.clone(), lki_power)
             })
             .unwrap_or((state.turn.active_player, imbl::OrdMap::new(), None));
+        // CR 608.2h / CR 113.7a (PB-DX39): same ordering as the sacrifice-self block --
+        // the exile happens before the push, so the departure-driven clause cannot see the
+        // ability yet. CR 700.4: exile is not death, but CR 400.7 retires the id either
+        // way, which is what a source-relative filter would otherwise fail to resolve.
+        state.capture_source_lki_for_pending_ability(source);
         let (new_exile_id, _) = state.move_object_to_zone(source, ZoneId::Exile)?;
         events.push(crate::rules::events::GameEvent::ObjectExiled {
             player: pre_exile_controller,

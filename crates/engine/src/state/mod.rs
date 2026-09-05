@@ -285,12 +285,20 @@ pub struct GameState {
     /// when the stack empties (`handle_all_passed`). `ObjectId`s are monotonic
     /// (`next_object_id`), so a stale entry can never be matched by a different object.
     ///
-    /// SR-24: only a departing permanent whose layer-resolved characteristics carry one
-    /// of the four consumed keywords (wither / infect / deathtouch / lifelink) is stored
-    /// — the sole readers (`effects::damage_source_characteristics` /
-    /// `damage_source_controller`) test for exactly those, so a keyword-less permanent's
-    /// snapshot could never be observed. Board wipes therefore no longer clone every
-    /// vanilla creature into this map. See `capture_lki_snapshot`.
+    /// SR-24: a departing permanent whose layer-resolved characteristics carry one of the
+    /// four consumed damage keywords (wither / infect / deathtouch / lifelink) is stored,
+    /// because `effects::damage_source_characteristics` /
+    /// `effects::damage_source_controller` test for exactly those. Board wipes therefore
+    /// do not clone every vanilla creature into this map.
+    ///
+    /// PB-DX39 (`OOS-DX5-3` / `OOS-DX5-7`) adds a second, disjunctive reason to store:
+    /// the departing permanent is the **source of an ability already on the stack or
+    /// already queued as a pending trigger**, whatever its keywords. The third reader,
+    /// `rules::layers::source_view_at_resolution`, consults `controller`, `attached_to`,
+    /// `chosen_creature_type` and `chosen_color` under CR 608.2h / CR 113.7a — none of
+    /// which is a keyword. `GameState::capture_source_lki_for_pending_ability` covers the
+    /// activation-cost self-move case, where the cost is paid before the ability reaches
+    /// the stack and neither queue can yet see it. See `capture_lki_snapshot`.
     #[serde(default)]
     pub(crate) lki_objects: OrdMap<ObjectId, GameObject>,
     /// CR 103.4-103.6 (PB-DX18, `OOS-DX2-4`): where this game is in the pregame
@@ -1384,6 +1392,93 @@ impl GameState {
         }
         object_id
     }
+    /// CR 113.7a / CR 608.2h (PB-DX39): is `object_id` the source of an ability that can
+    /// still read it — one already on the stack, or one queued as a pending trigger?
+    ///
+    /// `stack_registry::source_of` is exhaustive over every `StackObjectKind` with **no
+    /// wildcard arm**, so a new kind is a compile error there until someone decides what
+    /// its source is; this predicate inherits that guarantee rather than hand-rolling a
+    /// match. `PendingTrigger::source` is the same question for a trigger that has been
+    /// queued but not yet put on the stack (CR 603.3b).
+    ///
+    /// This is the exact set `maybe_clear_lki_objects` waits on before discarding the
+    /// store — it clears only when `stack_objects` AND `pending_triggers` are both empty
+    /// — so a snapshot captured because of this predicate lives exactly as long as the
+    /// ability that needed it. Pinned by
+    /// `core::pb_dx39_source_view_gates::r6_clear_condition_covers_the_capture_condition`.
+    fn is_source_of_a_pending_ability(&self, object_id: ObjectId) -> bool {
+        self.stack_objects
+            .iter()
+            .any(|so| crate::state::stack_registry::source_of(&so.kind) == Some(object_id))
+            || self.pending_triggers.iter().any(|t| t.source == object_id)
+    }
+    /// The single store path into `lki_objects`, shared by both capture clauses.
+    ///
+    /// Two insert sites that could drift is exactly the shape PB-DX39 exists to remove,
+    /// so `capture_lki_snapshot` (departure-driven) and
+    /// [`capture_source_lki_for_pending_ability`](GameState::capture_source_lki_for_pending_ability)
+    /// (activation-cost-driven) both end here. `chars` is the caller's already-computed
+    /// **layer-resolved** characteristics, which is what makes the snapshot usable by
+    /// `damage_source_characteristics` and by `rules::layers::source_view_at_resolution`.
+    fn store_lki_snapshot(
+        &mut self,
+        object_id: ObjectId,
+        old_object: &GameObject,
+        chars: Characteristics,
+    ) {
+        let mut snapshot = old_object.clone();
+        snapshot.characteristics = chars;
+        self.lki_objects.insert(object_id, snapshot);
+    }
+    /// CR 608.2h / CR 113.7a (PB-DX39, `OOS-DX5-7`): capture the source's last known
+    /// information **before an activation cost moves it out of the battlefield**.
+    ///
+    /// # Why `capture_lki_snapshot`'s pending-ability clause cannot cover this
+    ///
+    /// `rules::abilities.rs` pays `Cost::SacrificeSelf` / `Cost::ExileSelf` /
+    /// `Cost::DiscardSelf` (CR 602.2c: costs are paid during activation, CR 601.2h) and
+    /// its own comment says *"Move source to graveyard **before pushing to stack**"* — it
+    /// means it. At the moment `move_object_to_zone` runs, `stack_objects` does not yet
+    /// contain the ability and `pending_triggers` does not contain a trigger for it, so
+    /// `is_source_of_a_pending_ability` answers `false` and the departure-driven clause
+    /// declines. The ability reaches the stack a few statements later and then needs
+    /// exactly the information that was not captured. Mardu Ascendancy — `Sacrifice this
+    /// enchantment: Creatures you control get +0/+3 until end of turn` — is this case in
+    /// **every** game, which is why its `EffectFilter::CreaturesYouControl` applied to
+    /// nobody before PB-DX39.
+    ///
+    /// **If a future refactor pushes the ability onto the stack before paying costs, this
+    /// becomes redundant rather than wrong** — the departure clause would then see the
+    /// stack entry and capture the same snapshot through the same store function.
+    ///
+    /// Unconditional within its guards, because the only callers are the three self-move
+    /// cost blocks, where the ability is about to reach the stack by construction.
+    ///
+    /// Battlefield-only, deliberately: `lki_objects` is reachable from the public
+    /// `GameState::lki_objects()` accessor and is folded into `public_state_hash`, so
+    /// snapshotting a card leaving a player's **hand** (the `Cost::DiscardSelf` /
+    /// CR 702.34 Channel case) would put hidden information into a public store —
+    /// Architecture Invariant 7. A hand card also has no `attached_to`, so there is
+    /// nothing a source-relative filter could learn from it that its controller does not
+    /// already know. The `discard_self` call site is therefore a measured no-op today and
+    /// is present so the three cost blocks stay uniform.
+    pub(crate) fn capture_source_lki_for_pending_ability(&mut self, object_id: ObjectId) {
+        // SR-25/SR-4: `expect_object`, not a bare `.objects.get(..)`. All three callers
+        // are activation-cost blocks in `rules::abilities`, and
+        // `handle_activate_ability` has already established that `source` exists (it
+        // reads the object to validate the activation zone before any cost is paid), so
+        // a `None` here is an engine bug, not a CR 608.2b fizzle.
+        let Some(old_object) = self.expect_object(object_id).cloned() else {
+            return;
+        };
+        if old_object.zone != ZoneId::Battlefield {
+            return;
+        }
+        let Some(chars) = crate::rules::layers::calculate_characteristics(self, object_id) else {
+            return;
+        };
+        self.store_lki_snapshot(object_id, &old_object, chars);
+    }
     fn capture_lki_snapshot(&mut self, object_id: ObjectId, from: ZoneId, old_object: &GameObject) {
         if from != ZoneId::Battlefield {
             return;
@@ -1411,29 +1506,59 @@ impl GameState {
             // SR-17 fingerprint moves and `HASH_SCHEMA_VERSION` does not bump (measured
             // numbers + compatibility reasoning: `docs/sr-24-lki-capture-cost.md`).
             //
-            // COUPLING: this set must equal the keywords the two readers in
+            // COUPLING (rewritten by PB-DX39 — the pre-PB-DX39 text described a
+            // two-reader, keywords-only contract that is no longer true):
+            //
+            // This keyword set must equal the keywords the two DAMAGE readers in
             // `effects/mod.rs` consult on a snapshot — `damage_source_characteristics`
             // (wither/infect/deathtouch) and `damage_source_controller` (lifelink).
             // Removing one here reddens `tests/primitives/sr13_lki_damage_source.rs`
-            // (that source's effect stops applying from a dead source). Adding a *new*
-            // reader that consults a fifth snapshot keyword is NOT machine-caught: add
-            // it here and add a matching sr13 case, or the gate will silently drop those
-            // snapshots.
+            // (that source's effect stops applying from a dead source).
+            //
+            // There is now a THIRD reader, and it consults no keyword at all:
+            // `rules::layers::source_view_at_resolution` reads `controller`,
+            // `attached_to`, `chosen_creature_type` and `chosen_color` (CR 608.2h /
+            // CR 113.7a). It is served by the `is_source_of_a_pending_ability` disjunct
+            // below, not by this keyword list, which is why widening the keyword list is
+            // NOT the way to serve a future non-keyword reader.
+            //
+            // SR-24's own note said *"adding a NEW READER that consults a fifth snapshot
+            // keyword is NOT machine-caught"*. It is now: the reader set is pinned by
+            // `core::pb_dx39_source_view_gates::r3`, which walks the whole workspace and
+            // fails on an unlisted consumer of `lki_objects` / `lki_object_snapshot`. A
+            // new reader must be added to that allowlist, which is where whoever adds it
+            // is told to check that this gate captures what they intend to read.
             const LKI_RELEVANT_KEYWORDS: [KeywordAbility; 4] = [
                 KeywordAbility::Wither,
                 KeywordAbility::Infect,
                 KeywordAbility::Deathtouch,
                 KeywordAbility::Lifelink,
             ];
+            // CR 608.2h / CR 113.7a (PB-DX39): the keyword test is no longer the whole
+            // gate. A departing permanent that is the SOURCE of an ability already on the
+            // stack or already queued as a pending trigger must also be captured, whatever
+            // its keywords — that ability "exists on the stack independently of its
+            // source" (CR 113.7a) and, at resolution, "uses the object's last known
+            // information" (CR 608.2h). `rules::layers::source_view_at_resolution` is the
+            // third reader and it consults `controller` / `attached_to` /
+            // `chosen_creature_type` / `chosen_color`, none of which is a keyword.
+            //
+            // Umezawa's Jitte destroyed in response to its own `+2/+2` ability is exactly
+            // this case (`OOS-DX5-3`): Equipment, none of the four keywords, and the
+            // ability on the stack needing `attached_to`.
+            //
+            // SR-24's optimisation survives intact for the case it was written for: a
+            // board wipe still clones in only the keyworded creatures, because a vanilla
+            // creature dying with nothing of its own on the stack answers `false` to both
+            // halves.
             if !LKI_RELEVANT_KEYWORDS
                 .iter()
                 .any(|kw| chars.keywords.contains(kw))
+                && !self.is_source_of_a_pending_ability(object_id)
             {
                 return;
             }
-            let mut snapshot = old_object.clone();
-            snapshot.characteristics = chars;
-            self.lki_objects.insert(object_id, snapshot);
+            self.store_lki_snapshot(object_id, old_object, chars);
         }
     }
     /// Move a game object from its current zone to a new zone.
