@@ -482,3 +482,88 @@ Filed as **`OOS-DX39-1`** with the population stated as UNMEASURED rather than a
    because **line 54 opened with `+ \`LayerModification::…\``, which markdown reads as a list
    bullet**. Line 54 was reworded rather than the three symptom lines indented. It slipped through
    because the probe agent ran clippy on the simulator target only.
+
+---
+
+## §5 Revert matrix — EXECUTED BY THE COORDINATOR, 6 rows, 6 discriminating, 0 UNDISCRIMINATED
+
+Run by the coordinator against the final tree rather than accepted from the four delegated
+reports; all three engine files verified restored **byte-exactly** afterwards (`diff -q`, clean).
+
+| row | what it undoes | reddens |
+|---|---|---|
+| R0 | *(control, unreverted)* | **nothing — all 33 green** |
+| **R1** | delete `.or_else(\|\| state.lki_object_snapshot(..))` from `source_view_at_resolution` — the READ | `t1`,`t4`,`t5`,`t6`, `c1`,`c2`,`c3`, `r3`, `r5b` — **9** |
+| **R2** | neutralise the `is_source_of_a_pending_ability` disjunct — the STACK capture clause | `c1`, `c5`, `t1` |
+| **R3** | drop the `sacrifice_self` capture call — the ACTIVATION-COST capture clause | `c2`,`c3`, `t4`,`t5`,`t6`, `r6b` |
+| **R4** | give `source_view_live` an LKI fallback — the OVER-WIDE direction | `r3`, `r5b` **only** |
+| **R5** | point `snapshot_affected_set` at the live constructor | `r5`, `t1`,`t4`,`t5`,`t6`, `c1`,`c2`,`c3` — **8** |
+| **R7** | move the `sacrifice_self` capture to AFTER the move | same set as R3 — so `r6b` catches ORDER, not just presence |
+
+### §5.1 R2 AND R3 ARE PRECISE COMPLEMENTS, AND THAT IS THE PROOF BOTH CLAUSES ARE LOAD-BEARING
+
+R2 reddens the Jitte probes and leaves the Mardu ones green; R3 does the exact opposite. Neither
+revert alone can discriminate the other's subject, because the two subjects leave the battlefield
+at different moments (§0.3). **A batch that built only one clause would have passed every probe it
+thought to write for its own half** — which is precisely how `OOS-DX5-7`'s residual survived
+PB-DX5's fix of the same mechanism.
+
+### §5.2 R4 REDDENS ONLY SOURCE GATES, AND THIS TIME THAT IS A MEASUREMENT RATHER THAN A GAP
+
+`OOS-DX52-2` records that *"a row that reddens only a source gate is telling you the behaviour has
+no probe"*. R4 moves no behavioural probe — and here the correct reading is the other one: `r7`
+measures the exposed live-path population at **0 statics**, with the 4 emblem members unreachable
+because CR 114.1 keeps an emblem in the command zone and nothing ever retires its `ObjectId`. There
+is no behaviour to probe, so gates are the right instrument. Filed as **`OOS-DX39-6`**, which
+refines `OOS-DX52-2` into a pair: *a source-gate-only row means either "no probe" or "no reachable
+behaviour", and a population measurement is what tells them apart.*
+
+### §5.3 R5 PRODUCED NO VERDICT ON ITS FIRST RUN, AND THE FAILURE MODE IS THE DANGEROUS DIRECTION
+
+Swapping `snapshot_affected_set` onto the live constructor leaves `source_view_at_resolution` with
+no callers, so `-D warnings` turns it into `error: function ... is never used` and the crate does
+not build. **A matrix that does not separate "the gate stayed silent" from "the crate did not
+build" reports the wrong verdict in the SAFE-LOOKING direction** — the implementer hit the same
+shape twice with plants that named nonexistent enum variants and with a detector that matched
+`error: test failed` (which means the test *ran*). The harness now prints `BUILD FAILED (not a gate
+verdict)` rather than a row of greens; R5 was re-run with `#[allow(dead_code)]` and is
+discriminating at 8 red. Filed as **`OOS-DX39-8`**.
+
+---
+
+## §6 Benches — MEASURED, SIX RUNS, SAME-CODE BAND FIRST, VERDICT NO REGRESSION
+
+`effect_applies_to` is on the layer walk, so a regression was genuinely possible and the A/B is
+owed rather than optional. Matched-set A/B against merge base `604b7242`, each revision in its own
+worktree with its own `CARGO_TARGET_DIR`, **all three merge-base runs taken before any HEAD run was
+compiled**, on a machine with no test suite or agent running (PB-DX52's contaminated first A/B is
+the reason that ordering is stated).
+
+**Same-code repeatability band, measured FIRST across three merge-base runs: 0.46% – 3.80%**
+(widest `board_wipe_4p`).
+
+| bench | base min-max (µs) | head min-max (µs) | band | Δ mean | verdict |
+|---|---|---|---|---|---|
+| `board_wipe_4p` | 118.48-122.98 | 118.38-121.69 | 3.80% | +0.05% | overlap — noise |
+| `full_turn_4p` | 216.11-217.36 | 214.57-217.14 | 0.58% | −0.36% | overlap — noise |
+| `full_turn_6p` | 344.32-347.29 | 341.49-342.88 | 0.86% | −1.06% | non-overlapping |
+| `priority_cycle_4p` | 24.22-24.34 | 23.85-24.00 | 0.46% | −1.49% | non-overlapping |
+| `priority_cycle_6p` | 38.29-39.08 | 37.75-38.61 | 2.05% | −1.13% | overlap — noise |
+| `sba_check` | 14.86-15.15 | 14.97-15.46 | 1.90% | +0.89% | overlap — noise |
+
+**Verdict: NO REGRESSION.** Every interval is inside or barely outside the same-code band, and the
+one bench that moved the slow way (`sba_check`, +0.89%) overlaps.
+
+**THE APPARENT ~1-1.5% IMPROVEMENT IS DELIBERATELY NOT CLAIMED**, on the ground this queue has
+used three times before (PB-DX51, PB-DX35, PB-DX52): **the two non-overlapping benches include the
+control.** `priority_cycle_4p` executes no line this batch touched, and it moves −1.49% — the same
+order as `full_turn_6p`'s −1.06%. A uniform shift across a bench that cannot be affected is a
+build/layout artefact of two separate compilations, not an effect.
+
+**The mechanism is also bounded rather than argued.** There IS a real saving in the change —
+`snapshot_affected_set` previously let each of its candidates' matching arm do its own
+`state.objects.get(&source_id)`, and now resolves the view **once** for the whole scan — but that
+path is a mass-filter RESOLUTION, and none of the six benches resolves one. On the live path the
+lookup count is essentially unchanged (one arm runs per call, and the wrapper does the lookup the
+arm used to do). So there is no mechanism on any benched path that could produce the observed
+shift, which is the tell.
