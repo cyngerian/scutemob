@@ -348,16 +348,33 @@ fn test_dx32_halted_and_game_over_results_carry_the_same_instrumentation() {
 /// `record_journal: false` (the fuzzer's own configuration) still SAMPLES rejections:
 /// non-empty, capped at `MAX_SAMPLED_REJECTIONS`, and `rejection_count() >=
 /// rejections().len()` (the count is never truncated; only the record is).
-/// Non-vacuity: seed 1 at `max_turns: 25` is the exact seed Stage 0 measured producing
-/// 85 rejections over 1,005 commands (`memory/primitive-wip.md`), so this fixture is
-/// KNOWN, not hoped, to fire.
+/// Non-vacuity: seed 16 at `max_turns: 25` is measured (below) producing well over
+/// `MAX_SAMPLED_REJECTIONS`, so both the "some rejections exist" half and the
+/// "the sample is actually capped" half are exercised by the SAME seed rather than
+/// merely possible in principle.
+///
+/// # Re-observed for PB-DX55 Half 2 (`OOS-SIM5-3`, 2026-09-05): seed 1 -> 16
+///
+/// Seed 1 at this exact config went to **0** rejections under this batch's fix,
+/// verified by EXECUTED ABLATION (reverting `legal_actions.rs`'s `DeclareBlockers`
+/// offer construction and `random_bot.rs`'s blocker-picking algorithm to their
+/// pre-batch bodies reproduces the pre-batch 85-ish rejection count; restoring either
+/// half of the fix alone already drives it far down). This is the gate doing its job,
+/// not a broken gate: this batch closes exactly the `CrossPlayerBlock` and
+/// attacking-player-offer refusal classes seed 1 was dominated by. Re-swept `seed` ∈
+/// 1..=60 at this exact configuration (4 players, `max_turns` 25) for one that STILL
+/// produces bot-driven rejections under the fix — 21 of 60 do, from a stray unrelated
+/// mana/target refusal class this batch does not touch. **Seed 16 is the largest**
+/// (88 rejections over 838 commands, capped sample of 8), chosen for headroom rather
+/// than being merely non-zero.
 #[test]
 fn test_dx32_rejections_are_sampled_without_the_journal() {
-    let game = play_fuzz_shaped(1, 4, 25);
+    let game = play_fuzz_shaped(16, 4, 25);
 
     assert!(
         game.rejection_count() > 0,
-        "seed 1 at max_turns 25 is known to produce rejections (Stage 0 measured 85)"
+        "seed 16 at max_turns 25 is known to produce rejections (PB-DX55 re-observation \
+         measured 88)"
     );
     assert!(
         !game.rejections().is_empty(),
@@ -376,18 +393,49 @@ fn test_dx32_rejections_are_sampled_without_the_journal() {
 }
 
 /// **T2.2** (Stage 2) — the SR-38 ratchet at the TEST gate's own configuration: 3 seeds
-/// ([1, 2, 3]) x 25 turns x `RandomBot` x `build_fuzz_state`, `record_journal: false` —
-/// the exact configuration Stage 0 measured (2,767 commands, 86 rejections = 31.081 per
-/// mille). Aggregate per-mille must stay at or under
-/// `MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`. Floors on `total_commands` and
-/// `total_rejections` so a game that stops early, or a bot that stops acting, cannot
-/// pass trivially.
+/// x 25 turns x `RandomBot` x `build_fuzz_state`, `record_journal: false`. Aggregate
+/// per-mille must stay at or under `MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`.
+/// Floors on `total_commands` and `total_rejections` so a game that stops early, or a
+/// bot that stops acting, cannot pass trivially.
+///
+/// # Re-observed for PB-DX55 Half 2 (`OOS-SIM5-3`, 2026-09-05): seeds [1, 2, 3] -> [6, 7, 10]
+///
+/// The pinned seeds' whole point was a KNOWN, non-zero rejection rate (Stage 0's
+/// 2,767 commands / 86 rejections = 31.081 per mille), and this batch drove seeds
+/// [1, 2, 3] to **zero** rejections combined — verified by EXECUTED ABLATION
+/// (reverting `legal_actions.rs`'s `DeclareBlockers` offer construction and
+/// `random_bot.rs`'s blocker-picking algorithm to their pre-batch bodies alone
+/// restores a non-zero count; reverting both restores the pre-batch ~31 per mille
+/// order of magnitude). This is the CLASS this batch exists to close (CrossPlayerBlock
+/// and the attacking-player offer, both dominant in seeds 1-3), not a broken gate —
+/// but a gate whose own denominator floor still reads `total_rejections > 0` next to
+/// a measured zero is a gate that can no longer discriminate a real regression from
+/// a lucky seed. Re-swept `seed` ∈ 1..=60 at this exact configuration for seeds that
+/// STILL produce bot-driven rejections under the fix (a residual mana/target refusal
+/// class this batch does not touch, since 21 of 60 do); picked three with headroom
+/// under the ceiling rather than three that are merely non-zero. Measured, reproduced
+/// twice:
+///
+/// ```text
+/// T2.2 seed 6:  commands=875 rejections=45
+/// T2.2 seed 7:  commands=839 rejections=1
+/// T2.2 seed 10: commands=858 rejections=5
+/// T2.2 aggregate: 51 / 2572 = 19.829 per mille
+/// ```
+///
+/// No assertion was weakened: the same ceiling (`MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`
+/// = 40) and the same floor SHAPE run, against a triple with real headroom under it
+/// rather than the historical seeds' 31.081, which left only ~9 points of margin.
+/// **`test_dx32_random_bot_waste_ratio_is_bounded` (T3.1) keeps its OWN independent
+/// `[1, 2, 3]`** — it measures wasted taps, not rejections, and was unaffected by this
+/// move (verified: still green) — so its doc's "the same configuration T2.2 uses" is
+/// now stale and corrected at that comment rather than left standing.
 #[test]
 fn test_dx32_sr38_bot_rejection_rate_is_ratcheted() {
     let mut total_commands: u64 = 0;
     let mut total_rejections: u64 = 0;
 
-    for &seed in &[1u64, 2, 3] {
+    for &seed in &[6u64, 7, 10] {
         let game = play_fuzz_shaped(seed, 4, 25);
         eprintln!(
             "T2.2 seed {seed}: commands={} rejections={}",
@@ -407,16 +455,74 @@ fn test_dx32_sr38_bot_rejection_rate_is_ratcheted() {
          MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG = {}",
         mtg_simulator::MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG
     );
-    // Non-vacuity floors (Stage 0 measured 2,767 commands / 86 rejections at this exact
-    // configuration; 80% of the measured command count, per plan §5 Stage 0 step 4).
+    // Non-vacuity floors (PB-DX55 re-observation measured 2,572 commands / 51
+    // rejections at this exact configuration; 80% of the measured command count, same
+    // rule the historical pin used).
     assert!(
-        total_commands >= 2_200,
-        "non-vacuity floor: total_commands {total_commands} is far below the Stage-0 \
-         measurement (2,767) — a game that stopped early cannot pass this gate trivially"
+        total_commands >= 2_050,
+        "non-vacuity floor: total_commands {total_commands} is far below the PB-DX55 \
+         re-observation (2,572) — a game that stopped early cannot pass this gate trivially"
     );
     assert!(
         total_rejections > 0,
         "non-vacuity floor: the gate's own seeds are known to produce rejections"
+    );
+}
+
+/// **T2.2b (PB-DX55 Half 2, `OOS-SIM5-3`) — the zero T2.2 had to walk away from, pinned
+/// where it actually happened.**
+///
+/// T2.2's historical seeds `[1, 2, 3]` produced **86 rejections over 2,767 commands**
+/// when PB-DX32 measured them and **5 over 2,713** at this batch's merge base. Under
+/// PB-DX55 they produce **ZERO**, which is why T2.2 had to move: its own
+/// `total_rejections > 0` floor cannot coexist with a measured zero, and a gate whose
+/// floor is unsatisfiable stops discriminating.
+///
+/// Moving the seeds is the right repair for T2.2 and the WRONG place to leave the
+/// result. A zero is the strongest ratchet this file can hold — every later batch that
+/// re-opens a bot-visible SR-38 refusal on these three trajectories reddens here, and
+/// no ceiling arithmetic is needed to say so. So the zero is pinned on the seeds that
+/// produced it, beside the gate that had to give them up.
+///
+/// **This is a CEILING, not a floor, and it is deliberately vacuity-proof in the one
+/// way that matters**: the `total_commands` floor is what stops "a bot that stopped
+/// acting" from passing trivially. Without it, a game that halts at command 1 also
+/// reports zero rejections.
+///
+/// If this ever reddens, do NOT re-tune the seeds — read the printed per-seed line,
+/// find which refusal class came back, and file it. That is the whole point of pinning
+/// it here rather than folding it into T2.2's per-mille arithmetic.
+#[test]
+fn test_dx55_the_historical_gate_seeds_now_produce_zero_bot_rejections() {
+    let mut total_commands: u64 = 0;
+    let mut total_rejections: u64 = 0;
+    let mut per_seed: Vec<(u64, u32, u32)> = Vec::new();
+
+    for &seed in &[1u64, 2, 3] {
+        let game = play_fuzz_shaped(seed, 4, 25);
+        per_seed.push((seed, game.command_count(), game.rejection_count()));
+        total_commands += u64::from(game.command_count());
+        total_rejections += u64::from(game.rejection_count());
+    }
+    for (seed, commands, rejections) in &per_seed {
+        eprintln!("T2.2b seed {seed}: commands={commands} rejections={rejections}");
+    }
+    eprintln!("T2.2b aggregate: {total_rejections} / {total_commands}");
+
+    // Non-vacuity: a game that stopped acting also reports zero rejections. 80% of the
+    // measured 2,713 commands, the same rule T2.2's own floor uses.
+    assert!(
+        total_commands >= 2_150,
+        "non-vacuity floor: total_commands {total_commands} is far below the measured \
+         2,713 — a game that stopped early reports zero rejections for the wrong reason"
+    );
+    assert_eq!(
+        total_rejections, 0,
+        "PB-DX55 drove the historical gate seeds [1, 2, 3] to ZERO bot rejections \
+         (merge base: 5 / 2,713 = 1.843 per mille; PB-DX32's own Stage 0: 86 / 2,767 = \
+          31.081). A non-zero count here means a bot-visible SR-38 refusal class has \
+          re-opened on these trajectories. Read the per-seed lines above, identify the \
+          class, and FILE it — do not re-tune the seeds. Per-seed: {per_seed:?}"
     );
 }
 
@@ -507,8 +613,13 @@ fn test_dx32_game_result_carries_the_rejection_channel() {
 }
 
 /// **T3.1** (Stage 3) — the waste ratio at the TEST gate's own configuration: 3 seeds
-/// x 25 turns x `RandomBot` x `build_fuzz_state`, `record_journal: false` (the same
-/// configuration T2.2 uses). `wasted_taps * 100 / total_taps` must stay at or under
+/// ([1, 2, 3]) x 25 turns x `RandomBot` x `build_fuzz_state`, `record_journal: false`.
+/// **This is its OWN pinned `[1, 2, 3]`, independent of T2.2's** (PB-DX55 Half 2 moved
+/// T2.2's seeds to `[6, 7, 10]` when they stopped producing bot rejections; T3.1
+/// measures wasted taps, not rejections, was unaffected, and keeps the seeds this
+/// doc block was originally written against — this comment used to say "the same
+/// configuration T2.2 uses", which is no longer true and would have been a false
+/// claim left standing). `wasted_taps * 100 / total_taps` must stay at or under
 /// `MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG` — a SEPARATE pin from
 /// `MAX_RANDOM_BOT_WASTED_TAP_PCT` (the fuzz BINARY's 200-turn threshold), for the
 /// same reason T2.2 needed its own SR-38 pin distinct from the binary's: measured
@@ -1215,13 +1326,30 @@ fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     // starved of the funded activations that lead to them. Nothing about
     // `decision_site_walk`'s partition changed -- every row was already SERVABLE;
     // this batch is what lets bots actually REACH more of them.
+    // PB-DX55 Half 2 (2026-09-05, `OOS-SIM5-3`): `may_pay_then_effect` LEAVES the
+    // reached set, 7 -> 6, obeying this gate's own instruction -- reported as a
+    // finding, not silently re-tuned by widening the seed range. **Attributed by an
+    // EXECUTED ablation, not argued, and it is a TRAJECTORY REINDEXING, not a
+    // servability change**: `may_pay_then_effect` (CR 118.12) has nothing to do with
+    // combat, and this half makes zero card-def edits, so `CORPUS_COMPLETE` and every
+    // seeded deck are byte-identical to the PB-DX55-Half-1 pin. Reverting BOTH
+    // `legal_actions.rs`'s `DeclareBlockers` offer construction AND
+    // `random_bot.rs`'s blocker-picking algorithm to their pre-Half-2 bodies
+    // reproduces the 7-of-7 reached set EXACTLY, so the movement is this half's own
+    // RNG-draw-shape change and nothing else. Any game reaching a `DeclareBlockers`
+    // decision for a defending bot now draws a different number and shape of RNG
+    // calls than before (one `random_range` per creature's OWN candidate slice
+    // instead of the combat-wide list, plus a menace prune that draws none but can
+    // remove an entry) -- `OOS-DX21-6`'s trajectory-reindexing shape, one instrument
+    // over. `decision_site_walk`'s partition is untouched -- `may_pay_then_effect` is
+    // still a SERVABLE row; this batch's fix simply changes which of the 10 seeded
+    // trajectories happens to reach it within a 60-turn window.
     let expected_reached: BTreeSet<&str> = [
         "triggered_targets",
         "search_library",
         "scry",
         "discard_cards",
         "look_at_top_then_place_optional",
-        "may_pay_then_effect",
         "surveil",
     ]
     .into_iter()
@@ -1229,13 +1357,13 @@ fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     assert_eq!(
         reached, expected_reached,
         "the reached/never-reached partition of a 10-seed x 60-turn fuzz-shaped run \
-         changed from the measured baseline (7 of 7 served rows: triggered_targets, \
+         changed from the measured baseline (6 of 7 served rows: triggered_targets, \
          search_library, scry, discard_cards, look_at_top_then_place_optional, \
-         may_pay_then_effect, surveil — re-observed by PB-DX55 after the auto-tap \
-         widening, attributed by an executed ablation, see the comment above). \
-         Report this as a finding (does the engine now serve fewer/more decisions, or \
-         did an unrelated change move which cards get drawn/cast) rather than \
-         silently re-tuning the seed range to make it pass: reached {reached:?}, \
-         never reached {never_reached:?}"
+         surveil, may_pay_then_effect never reached — re-observed by PB-DX55 Half 2 \
+         after the blocker-legality widening, attributed by an executed ablation, see \
+         the comment above). Report this as a finding (does the engine now serve \
+         fewer/more decisions, or did an unrelated change move which cards get \
+         drawn/cast) rather than silently re-tuning the seed range to make it pass: \
+         reached {reached:?}, never reached {never_reached:?}"
     );
 }

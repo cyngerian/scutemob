@@ -366,24 +366,38 @@ fn validate_combat_params(
         LegalAction::DeclareBlockers {
             eligible,
             attackers,
+            legal_blocks,
         } => {
             let mut seen = std::collections::BTreeSet::new();
             for (blocker, attacker) in &params.blockers {
-                if !eligible.contains(blocker) {
-                    return Err(bad(format!(
-                        "object {} is not an eligible blocker (CR 509.1a); this decision \
-                         offered {:?}",
-                        blocker.0,
-                        eligible.iter().map(|o| o.0).collect::<Vec<_>>()
-                    )));
-                }
-                if !attackers.contains(attacker) {
-                    return Err(bad(format!(
-                        "object {} is not an attacking creature in this combat (CR 509.1a); \
-                         this decision offered {:?}",
-                        attacker.0,
-                        attackers.iter().map(|o| o.0).collect::<Vec<_>>()
-                    )));
+                // CR 509.1a-c (PB-DX55, `OOS-SIM5-3`): validate the PAIR against
+                // `legal_blocks`, not membership in the two flat `eligible`/
+                // `attackers` lists separately -- that cross product is what let a
+                // human submit a pairing (e.g. a non-flying blocker against a flying
+                // attacker) the engine would refuse even though each half, checked
+                // alone, looked legal.
+                let blocker_entry = legal_blocks.iter().find(|(b, _)| b == blocker);
+                match blocker_entry {
+                    None => {
+                        return Err(bad(format!(
+                            "object {} is not an eligible blocker (CR 509.1a); this decision \
+                             offered {:?}",
+                            blocker.0,
+                            eligible.iter().map(|o| o.0).collect::<Vec<_>>()
+                        )));
+                    }
+                    Some((_, candidates)) if !candidates.contains(attacker) => {
+                        return Err(bad(format!(
+                            "object {} cannot legally block object {} (CR 509.1a-c); this \
+                             blocker's legal attackers are {:?} (all attackers this combat: \
+                             {:?})",
+                            blocker.0,
+                            attacker.0,
+                            candidates.iter().map(|o| o.0).collect::<Vec<_>>(),
+                            attackers.iter().map(|o| o.0).collect::<Vec<_>>()
+                        )));
+                    }
+                    Some(_) => {}
                 }
                 // CR 509.1a: a creature blocks one attacker unless something says
                 // otherwise. The exceptions ("can block an additional creature")

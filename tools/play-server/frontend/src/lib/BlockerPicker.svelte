@@ -1,15 +1,29 @@
 <script>
   /**
-   * BlockerPicker — CR 509.1a: pair each eligible blocker with the attacker it
-   * blocks, or leave it unassigned.
+   * BlockerPicker — CR 509.1a-c: pair each eligible blocker with an attacker it may
+   * LEGALLY block, or leave it unassigned.
    *
    * M11-local Session 7 (`memory/m11-session-plan.md` §4, item 5).
+   * PB-DX55 Half 2 (`OOS-SIM5-3`): `legalBlocks` replaces the old flat
+   * `eligible` x `attackers` CROSS PRODUCT as the driver of each row's options.
+   * That cross product could not express CR 509.1a's attacking-player exclusion,
+   * `CrossPlayerBlock`, or any of the engine's per-pair guards (flying/reach,
+   * protection, evasion keywords, landwalk, ...) -- a human could pick a pairing
+   * that LOOKED offered and get a 422 back. `legalBlocks` is per-creature: exactly
+   * which declared attackers THAT creature may legally block, from
+   * `rules::queries::legal_blocks` (the same predicate the engine validates a real
+   * declaration against), so a pairing offered here is one the engine accepts.
    *
    * Props:
-   *   eligible (CombatantOptionView[]) — `{id, label}`, creatures that may block,
-   *     from `LegalAction::DeclareBlockers { eligible, .. }`
-   *   attackers (CombatantOptionView[]) — `{id, label}`, the attacking creatures
-   *     a blocker may be assigned to, from the same `LegalAction`'s `attackers`
+   *   eligible (CombatantOptionView[]) — `{id, label}`, the union of every
+   *     creature with a non-empty `legalBlocks` entry (used only for the
+   *     "no creature is eligible to block" empty-state message)
+   *   attackers (CombatantOptionView[]) — `{id, label}`, the union of every
+   *     attacker named in some `legalBlocks` entry (used only for the
+   *     "no attacker to block" empty-state message)
+   *   legalBlocks (Array<{blocker: CombatantOptionView, attackers:
+   *     CombatantOptionView[]}>) — per creature, the attackers it may legally
+   *     block; THIS drives each row's `<select>` options, not `attackers` above
    *   disabled (bool)
    *   onConfirm (fn(blockers)) — `blockers` is `[[blockerId, attackerId], ...]`
    *     for every blocker the human actually assigned; an unassigned blocker
@@ -37,6 +51,7 @@
   const {
     eligible = [],
     attackers = [],
+    legalBlocks = [],
     disabled = false,
     onConfirm = null,
     onCancel = null,
@@ -80,17 +95,19 @@
     <span class="no-candidates">no attacker to block</span>
   {:else}
     <div class="blockers">
-      {#each eligible as creature (creature.id)}
+      {#each legalBlocks as entry (entry.blocker.id)}
         <div class="blocker-row">
-          <span class="blocker-label">{creature.label}</span>
+          <span class="blocker-label">{entry.blocker.label}</span>
           <select
             class="block-target"
             disabled={disabled}
-            value={assignment.has(creature.id) ? String(assignment.get(creature.id)) : NO_BLOCK}
-            onchange={(e) => setBlock(creature.id, e.currentTarget.value)}
+            value={assignment.has(entry.blocker.id)
+              ? String(assignment.get(entry.blocker.id))
+              : NO_BLOCK}
+            onchange={(e) => setBlock(entry.blocker.id, e.currentTarget.value)}
           >
             <option value={NO_BLOCK}>doesn't block</option>
-            {#each attackers as attacker (attacker.id)}
+            {#each entry.attackers as attacker (attacker.id)}
               <option value={attacker.id}>block {attacker.label}</option>
             {/each}
           </select>

@@ -69,6 +69,7 @@ mod pb_dx51_cr_508_8_skip;
 mod pb_dx52_stack_entry_target_space;
 mod pb_dx53_raid_count_split;
 mod pb_dx54_resolving_entry_target_space;
+mod pb_dx55_block_legality_query;
 mod pb_dx55_modal_activated_targets;
 mod pb_dx5_affected_set_snapshot;
 mod pb_dx6_unflattened_payment_sites;

@@ -363,9 +363,24 @@ pub enum LegalAction {
         eligible: Vec<ObjectId>,
         targets: Vec<AttackTarget>,
     },
+    /// CR 509.1a-c (PB-DX55, `OOS-SIM5-3`): `eligible` and `attackers` are kept for
+    /// existing consumers -- they were always a flat CROSS PRODUCT, since
+    /// `handle_declare_blockers` enforces real per-pair legality independently -- but
+    /// neither can express CR 509.1a's attacking-player exclusion, `CrossPlayerBlock`,
+    /// or any of the engine's 26 per-pair guards (evasion keywords, protection,
+    /// landwalk, ...). `legal_blocks` is what a bot or a browser should actually pick
+    /// from: per controlled creature, exactly which declared attackers it may legally
+    /// be assigned to block, from `rules::queries::legal_blocks` -- the SAME per-pair
+    /// predicate `handle_declare_blockers` validates a real declaration against, so
+    /// this cannot drift from what the engine will accept.
     DeclareBlockers {
+        /// The union of every blocker with a non-empty `legal_blocks` entry.
         eligible: Vec<ObjectId>,
+        /// The union of every attacker named in some blocker's `legal_blocks` entry.
         attackers: Vec<ObjectId>,
+        /// CR 509.1a-c: per controlled creature, the declared attackers it may
+        /// legally be assigned to block.
+        legal_blocks: Vec<(ObjectId, Vec<ObjectId>)>,
     },
     TakeMulligan,
     KeepHand,
@@ -1346,34 +1361,32 @@ impl LegalActionProvider for StubProvider {
         // engine will refuse is never offered. This is the CR 509.1a twin of the
         // attacker-side suppression above (PB-DX21, `OOS-M11-9`), written as ONE
         // condition on the offer for the same reason.
+        //
+        // CR 509.1a (PB-DX55, `OOS-SIM5-3`): the candidate lists are no longer a raw
+        // battlefield scan approximating "is a creature" off RAW characteristics --
+        // `rules::queries::legal_blocks` decides per-pair legality with the SAME
+        // predicate the engine validates a real declaration against
+        // (`check_block_pair`), which also closes the attacking-player exclusion this
+        // scan never checked (`OOS-DX51-3`): `legal_blocks` returns `vec![]` for the
+        // attacking player by construction, so the offer is suppressed by the
+        // non-vacuity check below without a second explicit condition here.
         if state.turn().step == Step::DeclareBlockers && stack_empty {
             if let Some(ref combat) = state.combat() {
                 if !combat.attackers.is_empty() && !combat.defenders_declared.contains(&player) {
-                    let mut eligible = Vec::new();
-                    let mut attacker_ids: Vec<ObjectId> = Vec::new();
-
-                    // Defending player(s) can block
-                    for obj in state.objects_in_zone(&ZoneId::Battlefield) {
-                        if obj.controller != player {
-                            continue;
-                        }
-                        if !obj.characteristics.card_types.contains(&CardType::Creature) {
-                            continue;
-                        }
-                        if obj.status.tapped {
-                            continue;
-                        }
-                        eligible.push(obj.id);
-                    }
-
-                    for (attacker_id, _) in &combat.attackers {
-                        attacker_ids.push(*attacker_id);
-                    }
-
-                    if !eligible.is_empty() && !attacker_ids.is_empty() {
+                    let legal_blocks = mtg_engine::rules::queries::legal_blocks(state, player);
+                    if !legal_blocks.is_empty() {
+                        let eligible: Vec<ObjectId> =
+                            legal_blocks.iter().map(|(blocker, _)| *blocker).collect();
+                        let mut attacker_ids: Vec<ObjectId> = legal_blocks
+                            .iter()
+                            .flat_map(|(_, attackers)| attackers.iter().copied())
+                            .collect();
+                        attacker_ids.sort();
+                        attacker_ids.dedup();
                         actions.push(LegalAction::DeclareBlockers {
                             eligible,
                             attackers: attacker_ids,
+                            legal_blocks,
                         });
                     }
                 }

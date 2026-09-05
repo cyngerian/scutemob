@@ -19,8 +19,8 @@ use crate::rules::casting;
 use crate::rules::combat;
 use crate::rules::layers::calculate_characteristics;
 use crate::state::{
-    AltCostKind, AttackTarget, CardType, EnchantTarget, GameState, KeywordAbility, ManaCost,
-    ObjectId, PlayerId, SubType, Target, ZoneId,
+    AltCostKind, AttackTarget, CardType, EnchantTarget, GameState, GameStateError, KeywordAbility,
+    ManaCost, ObjectId, PlayerId, SubType, Target, ZoneId,
 };
 
 /// CR 601.2c — the target requirements a spell cast from `card` announces, honouring
@@ -694,4 +694,106 @@ pub fn legal_mutate_hosts(state: &GameState, caster: PlayerId, card: ObjectId) -
             Target::StackObject(_) => None,
         })
         .collect()
+}
+
+/// CR 509.1a-c (PB-DX55, `OOS-SIM5-3`) — may `blocker` legally be declared blocking
+/// `attacker`, for the declaring `player`? Thin re-export of `combat::check_block_pair`
+/// (module header: this is the sanctioned query surface for UI/simulator callers, not
+/// `rules::combat` directly) -- `handle_declare_blockers`'s per-pair loop and its
+/// CR 702.39a provoke satisfiability check both call the SAME function in `combat.rs`,
+/// so an offer built from this and the engine's own validation cannot drift the way the
+/// old per-pair loop and the old provoke mirror had (they omitted phased-out,
+/// `CrossPlayerBlock` and the duplicate-blocker check between them).
+///
+/// `already_blocking` is for within-declaration duplicate detection when validating a
+/// full submitted declaration in order; pass `&[]` for a standalone single-pair query.
+///
+/// Advisory only (module header): a value returned here can still be rejected by
+/// `handle_declare_blockers`, which re-validates independently against LIVE state.
+pub fn check_block_pair(
+    state: &GameState,
+    player: PlayerId,
+    blocker: ObjectId,
+    attacker: ObjectId,
+    already_blocking: &[ObjectId],
+) -> Result<(), GameStateError> {
+    combat::check_block_pair(state, player, blocker, attacker, already_blocking)
+}
+
+/// CR 509.1a-c / CR 702.110a / CR 702.39a (PB-DX55, `OOS-SIM5-3`) — is the WHOLE
+/// declaration `blockers` legal for `player` right now? Thin re-export of
+/// `combat::validate_block_declaration`, the same function `handle_declare_blockers`
+/// calls before mutating anything.
+///
+/// Advisory only (module header): a value returned here can still be rejected by
+/// `handle_declare_blockers`, which re-validates independently against LIVE state.
+pub fn validate_block_declaration(
+    state: &GameState,
+    player: PlayerId,
+    blockers: &[(ObjectId, ObjectId)],
+) -> Result<(), GameStateError> {
+    combat::validate_block_declaration(state, player, blockers)
+}
+
+/// CR 509.1a-c (PB-DX55, `OOS-SIM5-3`) — per creature `player` controls, exactly which
+/// of the combat's declared attackers it may legally be assigned to block, using
+/// [`check_block_pair`] -- the SAME per-pair predicate `handle_declare_blockers`
+/// validates a real declaration against, so an offer built from this cannot drift from
+/// what the engine will accept.
+///
+/// **This exists because the pre-PB-DX55 offer mirrored only 5 of the engine's 4
+/// preamble + 26 per-pair + 2 batch guards, and approximated a sixth (is-a-creature)
+/// off RAW characteristics where the engine uses `calculate_characteristics`.**
+/// `LegalAction::DeclareBlockers { eligible, attackers }`'s flat cross product could not
+/// express CR 509.1a's attacking-player exclusion, `CrossPlayerBlock`, or any evasion
+/// keyword; this is what a bot or a browser client should actually offer from.
+///
+/// Only creatures with at least one legal attacker are included -- a creature that
+/// cannot legally block anything is simply absent from the returned list (the
+/// `attack_tax_total`/`None` idiom one level up: "not present" carries the same meaning
+/// as "empty" here, so there is exactly one way to spell it). Returns `vec![]` if
+/// `player` is the attacking player (CR 509.1a names the DEFENDING player;
+/// `OOS-DX51-3`) or if there is no active combat -- both cases where NO creature this
+/// player controls may ever legally be declared as a blocker.
+///
+/// Sorted by blocker `ObjectId`, then by attacker `ObjectId` within each entry, for
+/// determinism (the `dredge_options` idiom).
+///
+/// Advisory only (module header): a value returned here can still be rejected by
+/// `handle_declare_blockers`, which re-validates independently against LIVE state at
+/// the moment of the answer, not against whatever this function returned when the offer
+/// was computed.
+pub fn legal_blocks(state: &GameState, player: PlayerId) -> Vec<(ObjectId, Vec<ObjectId>)> {
+    let Some(combat) = state.combat().as_ref() else {
+        return Vec::new();
+    };
+    // CR 509.1a names the DEFENDING player; the attacking player may never declare
+    // blockers at all, so every creature they control has an empty legal-attacker
+    // list by construction rather than by iterating and finding each one illegal.
+    if player == combat.attacking_player {
+        return Vec::new();
+    }
+    let mut attacker_ids: Vec<ObjectId> = combat.attackers.keys().copied().collect();
+    attacker_ids.sort();
+    let mut result: Vec<(ObjectId, Vec<ObjectId>)> = state
+        .objects()
+        .values()
+        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == player)
+        .filter_map(|obj| {
+            let legal: Vec<ObjectId> = attacker_ids
+                .iter()
+                .copied()
+                .filter(|&attacker_id| {
+                    combat::check_block_pair(state, player, obj.id, attacker_id, &[]).is_ok()
+                })
+                .collect();
+            if legal.is_empty() {
+                None
+            } else {
+                Some((obj.id, legal))
+            }
+        })
+        .collect();
+    result.sort_by_key(|(id, _)| *id);
+    result
 }

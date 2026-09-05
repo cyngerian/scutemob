@@ -1070,6 +1070,7 @@
       <BlockerPicker
         eligible={activeOption.block.eligible}
         attackers={activeOption.block.attackers}
+        legalBlocks={activeOption.block.legal_blocks}
         disabled={loading}
         onConfirm={onBlockConfirm}
         onCancel={cancelChain}

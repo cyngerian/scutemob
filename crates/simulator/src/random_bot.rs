@@ -184,18 +184,75 @@ pub(crate) fn action_to_command(
                 .collect();
             params.attackers = attackers;
         }
-        // Random subset of blockers (moved verbatim from the pre-Session-3 body).
-        LegalAction::DeclareBlockers {
-            eligible,
-            attackers,
-        } => {
-            let mut blocks = Vec::new();
-            for &blocker in eligible {
-                if rng.random_bool(0.4) && !attackers.is_empty() {
-                    let attacker = attackers[rng.random_range(0..attackers.len())];
-                    blocks.push((blocker, attacker));
+        // CR 509.1a-c (PB-DX55, `OOS-SIM5-3`): each blocker now picks ONLY from its
+        // OWN legal attacker candidates (`legal_blocks`), which already excludes
+        // every pairing `check_block_pair` would refuse -- flying/reach, every other
+        // evasion keyword, protection, landwalk, `CrossPlayerBlock`. What a per-pair
+        // predicate cannot express are the two SET-level guards, CR 702.110a menace
+        // and CR 702.39a provoke, so those are handled by seeding provoke first and
+        // then a single deterministic menace prune -- **no repeat cap, no retry-on-
+        // refusal loop** (PB-DX21 deleted that shape).
+        LegalAction::DeclareBlockers { legal_blocks, .. } => {
+            let mut blocks: Vec<(ObjectId, ObjectId)> = Vec::new();
+            let mut committed: std::collections::BTreeSet<ObjectId> = Default::default();
+
+            // CR 702.39a: seed a satisfiable provoke requirement FIRST, unconditionally,
+            // so an unrelated random pick can never crowd out a legal forced block by
+            // assigning that same creature elsewhere before this loop reaches it.
+            let forced: Vec<(ObjectId, ObjectId)> = state
+                .combat()
+                .as_ref()
+                .map(|c| c.forced_blocks.iter().map(|(&k, &v)| (k, v)).collect())
+                .unwrap_or_default();
+            for (provoked, must_block) in forced {
+                if mtg_engine::rules::queries::check_block_pair(
+                    state,
+                    player,
+                    provoked,
+                    must_block,
+                    &[],
+                )
+                .is_ok()
+                {
+                    blocks.push((provoked, must_block));
+                    committed.insert(provoked);
                 }
             }
+
+            // Random subset of the REMAINING blockers, each choosing only among its
+            // own legal attackers (moved verbatim in spirit from the pre-PB-DX55
+            // body, which chose uniformly from the whole flat `attackers` list).
+            for (blocker, candidates) in legal_blocks {
+                if committed.contains(blocker) || candidates.is_empty() {
+                    continue;
+                }
+                if rng.random_bool(0.4) {
+                    let attacker = candidates[rng.random_range(0..candidates.len())];
+                    blocks.push((*blocker, attacker));
+                }
+            }
+
+            // CR 702.110a: menace can't be blocked by exactly one creature -- a
+            // property of the WHOLE declaration (plus anything already committed by
+            // an earlier defending player this combat), which no per-pair predicate
+            // can see. Counted once, before any removal, so dropping one lone
+            // blocker cannot change another attacker's count -- a single pass is
+            // sufficient.
+            let mut blocker_count: std::collections::BTreeMap<ObjectId, usize> = Default::default();
+            if let Some(combat) = state.combat().as_ref() {
+                for (_, &att) in &combat.blockers {
+                    *blocker_count.entry(att).or_insert(0) += 1;
+                }
+            }
+            for (_, attacker) in &blocks {
+                *blocker_count.entry(*attacker).or_insert(0) += 1;
+            }
+            blocks.retain(|(_, attacker)| {
+                blocker_count.get(attacker).copied().unwrap_or(0) != 1
+                    || !mtg_engine::calculate_characteristics(state, *attacker)
+                        .is_some_and(|c| c.keywords.contains(&mtg_engine::KeywordAbility::Menace))
+            });
+
             params.blockers = blocks;
         }
         _ => {}

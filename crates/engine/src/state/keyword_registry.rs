@@ -162,6 +162,11 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
                 "crates/engine/src/rules/combat.rs",
                 "crates/engine/src/rules/layers.rs",
                 "crates/card-types/src/state/dungeon.rs",
+                // PB-DX55 (`OOS-SIM5-3`): the bot's blocker prune reads this keyword
+                // to decide whether a lone candidate blocker must be dropped rather
+                // than submitted as a declaration the engine's CR 702.110a guard
+                // (combat.rs) will refuse.
+                "crates/simulator/src/random_bot.rs",
             ],
         },
         K::ProtectionFrom(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/protection.rs"] },

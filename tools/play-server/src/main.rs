@@ -2575,7 +2575,33 @@ mod tests {
     /// split and says nothing about blockers. Recorded because the next re-observer
     /// will reuse this recipe: **drive the real test against each split seed in order;
     /// do not filter on the probe's blocker column.**
-    const UI3_SPLIT_COMBAT_SEED: u64 = 26;
+    ///
+    /// *Seventh re-observation* — **PB-DX55 Half 2 (`OOS-SIM5-3`), 26 -> 47.** This
+    /// move is NOT a `CORPUS_COMPLETE` re-deal — `git diff --numstat -- crates/card-defs`
+    /// is empty for this half — so `random_deck`'s pool and every seeded hand/library
+    /// order are byte-identical. What moved is the DEFENDING bots' `DeclareBlockers`
+    /// RNG draw shape: `random_bot::action_to_command`'s blocker arm used to draw one
+    /// `random_bool` per creature in the flat `eligible` list and one `random_range`
+    /// against the flat `attackers` list; it now iterates `legal_blocks` (a per-creature
+    /// candidate map that can be shorter, since a creature with no legal attacker is no
+    /// longer present at all) and draws its `random_range` against each creature's OWN
+    /// candidate slice rather than the combat-wide list, plus a menace-prune pass that
+    /// draws no RNG at all but can remove an entry after the fact. Any bot decision that
+    /// reaches a `DeclareBlockers` offer anywhere in the game re-indexes every RNG draw
+    /// after it — the `OOS-DX21-6` trajectory-reindexing shape, one turn-phase over.
+    ///
+    /// **Verified by direct re-run, not inferred from the shape of the change**: none
+    /// of the four previously-split seeds survives. 26, 28 and 42 still split the
+    /// attack but no longer reach a declared blocker within 40 passes; 39 loses the
+    /// split itself (down to one eligible attacker), which is the sharpest evidence
+    /// that the reindexing reaches upstream of the very decision this batch touched,
+    /// not just the blocker choice. Full re-sweep 0..46 (not reused from the prior
+    /// probe, which measured a different bot): **zero** of those 47 seeds satisfies
+    /// both halves under the new code. **47 is the first that does**, checked by
+    /// running the real test (not a throwaway probe) against each candidate in
+    /// ascending order until one passes — `2 attacker(s) across 2 defender(s), blockers
+    /// exercised = true`.
+    const UI3_SPLIT_COMBAT_SEED: u64 = 47;
 
     /// **UI-3 AC 6006**: after attackers are declared, the seat payload says
     /// **which attacker is attacking which defending player**, and after blockers

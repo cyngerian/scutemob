@@ -911,14 +911,32 @@ pub struct AttackOptionsView {
     pub targets: Vec<AttackTargetOptionView>,
 }
 
-/// CR 509.1: what a `DeclareBlockers` option may declare.
+/// CR 509.1a-c: what a `DeclareBlockers` option may declare.
 #[derive(Debug, Serialize)]
 pub struct BlockOptionsView {
     /// Creatures that may be declared as blockers, from the provider's
-    /// `LegalAction::DeclareBlockers { eligible, .. }`.
+    /// `LegalAction::DeclareBlockers { eligible, .. }` -- the union of every
+    /// creature named in `legal_blocks`.
     pub eligible: Vec<CombatantOptionView>,
-    /// CR 509.1a: the attacking creatures a blocker may be assigned to, from the
-    /// same `LegalAction`'s `attackers`.
+    /// CR 509.1a: the attacking creatures SOME blocker may be assigned to, from the
+    /// same `LegalAction`'s `attackers` -- the union of every attacker named in
+    /// `legal_blocks`.
+    pub attackers: Vec<CombatantOptionView>,
+    /// CR 509.1a-c (PB-DX55, `OOS-SIM5-3`): per creature, exactly which of
+    /// `attackers` it may legally be assigned to block, from `rules::queries::
+    /// legal_blocks`. `eligible` x `attackers` above is a flat CROSS PRODUCT a
+    /// client must NOT read as "any blocker may block any attacker" -- the engine
+    /// applies 26 per-pair restrictions (flying, protection, evasion keywords,
+    /// landwalk, `CrossPlayerBlock`, ...), so most pairs in that cross product are
+    /// illegal. This is what a client should actually offer.
+    pub legal_blocks: Vec<BlockCandidateView>,
+}
+
+/// One creature's legal blocking assignments (PB-DX55, `OOS-SIM5-3`).
+#[derive(Debug, Serialize)]
+pub struct BlockCandidateView {
+    pub blocker: CombatantOptionView,
+    /// The declared attackers `blocker` may legally be assigned to block.
     pub attackers: Vec<CombatantOptionView>,
 }
 
@@ -1991,11 +2009,22 @@ fn combat_options(
         LegalAction::DeclareBlockers {
             eligible,
             attackers,
+            legal_blocks,
         } => (
             None,
             Some(BlockOptionsView {
                 eligible: combatants(eligible),
                 attackers: combatants(attackers),
+                legal_blocks: legal_blocks
+                    .iter()
+                    .map(|(blocker, candidates)| BlockCandidateView {
+                        blocker: CombatantOptionView {
+                            id: blocker.0,
+                            label: names.label(*blocker),
+                        },
+                        attackers: combatants(candidates),
+                    })
+                    .collect(),
             }),
         ),
         _ => (None, None),

@@ -247,6 +247,7 @@ impl HeuristicBot {
             LegalAction::DeclareBlockers {
                 eligible,
                 attackers,
+                ..
             } => {
                 // Block if we have enough creatures
                 if eligible.is_empty() || attackers.is_empty() {
