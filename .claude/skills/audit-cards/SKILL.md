@@ -159,14 +159,14 @@ If new issues found, loop back to X-2.
 ### X-4: Final Build + Test
 
 ```bash
-~/.cargo/bin/cargo build --workspace && ~/.cargo/bin/cargo test --all && ~/.cargo/bin/cargo clippy -- -D warnings
+~/.cargo/bin/cargo build --workspace && ~/.cargo/bin/cargo test --all && ~/.cargo/bin/cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 All must pass.
 
 ### X-5: Update Documentation
 
-1. Update `CLAUDE.md` "Current State" with final card counts
+1. Update the headline metric line in `CLAUDE.md` "Current State" (one line) and prepend a ≤10-line `CHANGELOG.md` entry with the final card counts
 2. Regenerate card health: `python3 tools/authoring-report.py` (writes `docs/authoring-status.md`).
    Do **not** edit `docs/project-status.md` — it is RETIRED with no successor generator.
 3. Update the active campaign's progress in `memory/card-authoring/campaign-plan-2026-05-16.md`

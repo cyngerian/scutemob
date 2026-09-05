@@ -2,12 +2,12 @@
 name: bulk-card-author
 description: |
   Use this agent to author a batch of CardDefinition files from an authoring plan session.
-  Reads session data from _authoring_plan.json, looks up oracle text, writes .rs files.
+  Reads its card list from the pod-coverage missing-card list (or the brief), looks up oracle text, writes .rs files.
 
   <example>
   Context: User wants to author a batch of cards from the authoring plan
   user: "author session 5 from the authoring plan"
-  assistant: "I'll read session 5 from _authoring_plan.json, look up each card's oracle text, read a reference card def for the group pattern, and write all card files."
+  assistant: "I'll read the five cards named in the brief (from the pod-coverage missing list), look up each card's oracle text, read a reference card def for the group pattern, and write all card files."
   <commentary>Triggered by explicit session authoring request.</commentary>
   </example>
 
@@ -57,7 +57,10 @@ auto-discovers all files. Adding a card = creating one new file. No other files 
 
 Read the session from the authoring plan:
 ```
-Read file_path="/home/skydude/projects/scutemob/test-data/test-cards/_authoring_plan.json"
+Read the card list from the brief / task criteria. The canonical source is the ranked missing-card
+list in `docs/pod-coverage.md` (CC-6; until it exists, the missing worklist that
+`python3 tools/authoring-report.py` writes beside `docs/authoring-status.md`). The old
+`test-data/test-cards/_authoring_plan.json` is a 2026-03-10 snapshot — do not read it.
 ```
 
 Find the session by ID. Note the `group_id`, `group_label`, and the list of cards

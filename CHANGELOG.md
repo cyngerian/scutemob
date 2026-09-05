@@ -6,6 +6,17 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-09-05 — CC-3 (`scutemob-239`) — skills and agents tuning
+
+- `/collect`, `/eot`, `/implement-primitive`, `/implement-ability`, `/audit-cards` now write `CHANGELOG.md` + the batch
+  notes file and touch only CLAUDE.md's three snapshot lines; `/eot` enforces the 250-line guard and carries the operator-delta line.
+- `/dispatch`: steps 1–7 inlined (no `/spawn`), a ≤80-line `.esm/brief.md` step, worker prompt uses an `esm task comment`
+  task list + change class; step 10 is the Monitor recipe (hygiene 5/12/13), the sleep polling loop is gone.
+- Reviewer agents get read-only `Bash`; `/review` ranks findings (HIGH/MEDIUM fixed in-cycle, LOW logged).
+- Stale refs corrected: primitive-card-plan, dsl-gap-closure-plan, view_model path, oos-retriage-plan, `_authoring_plan.json`
+  (`/author-wave --cards` added for CC-13), `"Task"` → `"Agent"`, 7 clippy invocations to the CI bar. `.claude/docs.yaml`
+  had no CLAUDE.md writer (the §6.1 row was wrong). Markdown only; no Rust touched.
+
 ## 2026-09-05 — CC-2 (`scutemob-238`) — scattered HASH/PROTOCOL version sentinels deleted
 
 - 53 literal `assert_eq!(HASH_SCHEMA_VERSION|PROTOCOL_VERSION, <n>)` sites in 43 test files: 33 sentinel-only

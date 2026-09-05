@@ -68,15 +68,22 @@ Update the "Last Handoff" section with a fresh entry following this template:
 **Next session candidates**:
 - <bullet list, highest-yield first>
 
+**Operator-delta line** (what can a player observe now that they could not at the last
+handoff?): <one line — a concrete in-game observable, or "nothing — <reason>". Two empty
+entries in a row force a pod-facing item to the front; `docs/course-correction-2026-09.md` §5.2>
+
 **Hazards** (carrying forward):
 - <bullet list of gotchas this session surfaced or reinforced>
 
 **Commit prefix used**: <e.g., scutemob-N: + chore: for end-session>
 ```
 
-**Rotate history**:
-1. Move the existing "Last Handoff" content into "Previous Handoff (preserved for chain context)" IF this session is part of a multi-PB chain and the immediate predecessor handoff is still load-bearing. Otherwise rotate it straight to "Handoff History" as the most recent entry.
-2. If the existing "Previous Handoff" content rotates into "Handoff History", drop the oldest history entry to maintain a 5-entry window.
+**Rotate history** (CC-1, 2026-09-05 — the file keeps ONLY the Active Claims table and the
+Last Handoff, under 60 lines):
+1. Move the existing "Last Handoff" VERBATIM to `memory/archive/workstream-state-<YYYY-MM-DD>.md`
+   (append under a dated `##` header if the file for today already exists). No in-file history.
+2. Write the fresh handoff in its place. If `wc -l memory/workstream-state.md` exceeds 60, the
+   handoff is too long: move detail to the batch notes file and point at it.
 
 If no workstream was ACTIVE (exploratory session), skip the rotation but still
 write a one-line "Last Handoff" entry summarizing what happened.
@@ -124,23 +131,24 @@ For each memory topic file **read or modified this session**:
 
 Only check files already in context. Do not read topic files solely for this step.
 
-### 6. CLAUDE.md minimal update (Step 2 from old /end-session)
+### 6. CLAUDE.md guard and snapshot lines (Step 2 from old /end-session)
 
-Apply only these specific changes if applicable:
-- Update **Current State** header (active milestone, status, test count, date) — but
-  only the snapshot fields; detailed PB history goes to `memory/workstream-state.md`,
-  not here.
-- Remove stale content (completed milestones, finished plans).
+CLAUDE.md is a pointer file (CC-1, 2026-09-05). This step may edit **only** the three snapshot
+lines in "Current State" — `Status` (test count), the **headline metric** line and the
+**Next dispatch** line — plus `Last Updated`. Batch narrative goes to `CHANGELOG.md` (one
+≤10-line entry) and the batch notes file, never here.
+
+**Size guard — ENFORCED, this step FAILS if it trips**:
+```bash
+wc -l CLAUDE.md   # must print a number under 250
+```
+If it is 250 or more, do not end the session: move the offending content to `CHANGELOG.md`,
+a `memory/` topic file or `memory/archive/`, re-run the count, and only then continue.
 
 **Do NOT**:
-- Add new gotchas, conventions, or decisions to CLAUDE.md — those go to memory topic files (see Step 5 routing).
-- Add detailed file/type/function inventories.
-- Expand sections already comprehensive.
-
-**Size guard**: CLAUDE.md target ≤250 lines. If a change would push it over, route
-the content to a topic file instead. (Current state: file may be over the guard
-due to durable reference tables — Architecture Invariants, Agents, Primary Documents.
-Don't reduce those without explicit user direction.)
+- Add gotchas, conventions, decisions, or file/type inventories to CLAUDE.md — those go to the
+  memory topic files (Step 5 routing).
+- Add a "↻ PB-X SHIPPED" line or any per-batch bullet; that is what `CHANGELOG.md` is for.
 
 ### 7. End the ESM session
 

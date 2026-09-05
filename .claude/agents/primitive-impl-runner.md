@@ -19,7 +19,7 @@ description: |
   </example>
 model: sonnet
 color: green
-tools: ["Read", "Edit", "Write", "Grep", "Glob", "Bash", "Task"]
+tools: ["Read", "Edit", "Write", "Grep", "Glob", "Bash", "Agent"]
 ---
 
 # Primitive Batch Implementation Runner
@@ -56,7 +56,7 @@ For each engine change in the plan:
 3. **Handle exhaustive matches** — the plan lists every file that needs a new match arm.
    Update ALL of them. This includes:
    - `state/hash.rs` — hash new fields/variants
-   - `tools/replay-viewer/src/view_model.rs` — display for new StackObjectKind/KeywordAbility variants
+   - `crates/view-model/src/lib.rs` — exhaustive matches on `StackObjectKind` (`stack_kind_info`) AND `KeywordAbility` (`format_keyword`); moved here from `tools/replay-viewer` 2026-08-01
    - `tools/tui/src/play/panels/stack_view.rs` — display for new StackObjectKind variants
    - `crates/engine/src/testing/replay_harness.rs` — harness wiring if needed
    - Any other files the plan identifies
@@ -115,7 +115,7 @@ For new cards listed in the plan:
   ```bash
   ~/.cargo/bin/cargo build --workspace 2>&1
   ```
-  This catches missed match arms in replay-viewer and TUI that `cargo check` misses.
+  This catches missed match arms in `crates/view-model` and the TUI that `cargo check` misses.
 - **No speculative additions.** Only implement what the plan describes.
 - **helpers.rs exports**: If card defs fail to compile with "undeclared type", add the type
   to `crates/card-types/src/cards/helpers.rs` re-exports.
@@ -144,11 +144,11 @@ After completing ALL steps (or all fixes):
 
 2. **Run clippy**:
    ```bash
-   ~/.cargo/bin/cargo clippy -- -D warnings 2>&1
+   ~/.cargo/bin/cargo clippy --workspace --all-targets -- -D warnings 2>&1
    ```
    Zero warnings required.
 
-3. **Build workspace** (catches replay-viewer and TUI match arm gaps):
+3. **Build workspace** (catches `crates/view-model` and TUI match arm gaps):
    ```bash
    ~/.cargo/bin/cargo build --workspace 2>&1
    ```

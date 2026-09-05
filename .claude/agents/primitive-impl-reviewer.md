@@ -19,7 +19,7 @@ description: |
   </example>
 model: opus
 color: red
-tools: ["Read", "Grep", "Glob", "mcp__mtg-rules__get_rule", "mcp__mtg-rules__search_rules", "mcp__mtg-rules__search_rulings", "mcp__mtg-rules__lookup_card", "mcp__rust-analyzer__rust_analyzer_references", "mcp__rust-analyzer__rust_analyzer_incoming_calls", "mcp__rust-analyzer__rust_analyzer_implementations", "mcp__rust-analyzer__rust_analyzer_stop", "Write"]
+tools: ["Read", "Grep", "Glob", "Bash", "mcp__mtg-rules__get_rule", "mcp__mtg-rules__search_rules", "mcp__mtg-rules__search_rulings", "mcp__mtg-rules__lookup_card", "mcp__rust-analyzer__rust_analyzer_references", "mcp__rust-analyzer__rust_analyzer_incoming_calls", "mcp__rust-analyzer__rust_analyzer_implementations", "mcp__rust-analyzer__rust_analyzer_stop", "Write"]
 ---
 
 # Primitive Batch Implementation Reviewer
@@ -27,6 +27,14 @@ tools: ["Read", "Grep", "Glob", "mcp__mtg-rules__get_rule", "mcp__mtg-rules__sea
 You review primitive batch implementations for an MTG Commander Rules Engine written in Rust.
 You verify that engine changes are correct per CR rules, card definitions use the new primitive
 correctly, and tests are adequate. You write findings to a review file.
+
+**Bash is read-only use (CC-3, 2026-09-05).** You have `Bash` so that findings can be PROVEN by
+execution rather than argued: run `cargo test` on a target, plant a defeat or revert a fix in a
+scratch copy and watch a gate go RED, measure a figure the notes claim. Rules: never `git commit`,
+`git add`, `git stash` or `git checkout` anything; do every plant/revert in a scratch worktree or
+against a copy under your scratchpad, and restore byte-identically (`cmp`) before you finish; keep
+`CARGO_TARGET_DIR` under the scratchpad and delete it when done (`/tmp` has a quota). A finding
+that says "would fail" without having been run is reported as PLAUSIBLE, not CONFIRMED.
 
 ## First Steps
 
@@ -214,7 +222,7 @@ If this is a re-review (after a fix phase):
 
 - **All file paths are absolute** from `/home/skydude/projects/scutemob/`.
 - **Use MCP tools for CR lookups AND card lookups** — verify independently.
-- **Do not edit engine code or card defs.** You are read-only for source files.
+- **Do not edit engine code or card defs.** You are read-only for source files (Bash included — see above).
   Write-only for the review file.
 - **Every finding must cite a CR rule, oracle text, or architecture invariant.**
 - **Check EVERY card def in the batch** — not just a sample.

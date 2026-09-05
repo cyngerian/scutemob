@@ -8,7 +8,7 @@ description: |
   <example>
   Context: primitive-wip.md exists with phase: plan for PB-18
   user: "plan PB-18 implementation (stax/restrictions)"
-  assistant: "I'll read the primitive-card-plan.md PB-18 section, research CR rules for casting restrictions, study how continuous effects work in layers.rs, identify all 13 cards, and write memory/primitives/pb-plan-18.md."
+  assistant: "I'll read the batch specification the brief points at, research CR rules for casting restrictions, study how continuous effects work in layers.rs, identify all 13 cards, and write memory/primitives/pb-plan-18.md."
   <commentary>Triggered by /implement-primitive when phase is plan.</commentary>
   </example>
 
@@ -38,10 +38,13 @@ add a keyword), primitives add DSL expressiveness.
 1. **Read `CLAUDE.md`** at `/home/skydude/projects/scutemob/CLAUDE.md` for architecture invariants
    and current project state.
 2. **Read `memory/primitive-wip.md`** to determine which PB batch you're planning.
-3. **Read the PB-N section of `docs/primitive-card-plan.md`** for the batch specification:
-   which primitive, which cards, estimated sessions, dependencies.
-   **For PB-23+**: batch details are in `docs/dsl-gap-closure-plan.md` (gap inventory,
-   engine change descriptions, backfill protocol). Read both files.
+3. **Read the batch specification** from wherever the brief / `primitive-wip.md` points:
+   the ESM task's criteria plus `.esm/brief.md`, the seed registry rows it names
+   (`docs/audits/decision-point-audit.md`), and — once CC-6 lands — the ranked missing-card
+   list in `docs/pod-coverage.md`. `docs/primitive-card-plan.md` and
+   `docs/dsl-gap-closure-plan.md` are HISTORICAL and must not be planned from. Card health
+   comes from `docs/authoring-status.md` (`known_wrong` / `partial` buckets with their notes),
+   never from a remembered count.
 4. **Read `memory/conventions.md`** for coding standards.
 5. **Read `memory/gotchas-rules.md`** and `memory/gotchas-infra.md` for known pitfalls.
 6. **Check deferred items** — read `memory/workstream-state.md` "Last Handoff" section for
@@ -96,7 +99,7 @@ to free ~2.5GB RAM.
 
 Cross-reference the PB specification's card list with:
 - **Existing card defs that have TODOs**: Grep for TODO in those card files
-- **Cards producing wrong game state**: Check if any of the 122 dangerous cards are fixed by this primitive
+- **Cards producing wrong game state**: check which `known_wrong` defs in `docs/authoring-status.md` this primitive repairs (walk `all_cards()`; never grep source for the roster — SR-36)
 - **Deferred items from prior PBs**: Check if this primitive resolves any
 
 ```
@@ -203,7 +206,7 @@ Write the plan to `memory/primitives/pb-plan-<N>.md` with this structure:
     | File | Match expression | Line | Action |
     |------|-----------------|------|--------|
     | `state/hash.rs` | HashInto | L<N> | Hash new field/variant |
-    | `tools/replay-viewer/src/view_model.rs` | <match> | L<N> | Display arm |
+    | `crates/view-model/src/lib.rs` | <match> | L<N> | Display arm (`stack_kind_info` / `format_keyword`) |
     | `tools/tui/src/play/panels/stack_view.rs` | <match> | L<N> | Display arm |
     | ... | ... | ... | ... |
 
@@ -240,7 +243,7 @@ Write the plan to `memory/primitives/pb-plan-<N>.md` with this structure:
     - [ ] All existing card def TODOs for this batch resolved
     - [ ] New card defs authored (if any)
     - [ ] Unit tests pass (`cargo test --all`)
-    - [ ] Clippy clean (`cargo clippy -- -D warnings`)
+    - [ ] Clippy clean (`cargo clippy --workspace --all-targets -- -D warnings`, the CI bar)
     - [ ] Workspace builds (`cargo build --workspace`)
     - [ ] No remaining TODOs in affected card defs
 

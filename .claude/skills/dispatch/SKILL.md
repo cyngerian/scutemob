@@ -10,22 +10,58 @@ argument-hint: "<title>"
 
 Run `/dispatch <title>` to create an ESM task, a git worktree, launch a worker Claude
 session in a new kitty terminal pane, and begin monitoring for completion. This is the
-automated version of `/spawn` — instead of telling the user to launch a worker manually,
-the coordinator launches it directly.
+coordinator's one way to hand out implementation work: it launches the worker directly and
+watches it with the Monitor tool.
 
 ## Procedure
 
-### Steps 1–7: Same as /spawn
+### 1–7. Create the task and its worktree
 
-Follow the exact same procedure as `/spawn` (steps 1 through 7):
-1. Get project context from CLAUDE.md
-2. Verify coordinator is on main
-3. Clarify the task and acceptance criteria
-4. Create the ESM task (`esm task create`)
-5. Create the worktree (`esm worktree create <task_id>`) — **capture the absolute
-   `worktree` path from the JSON response**; you need it verbatim in step 8
-6. Transition to in_progress (`esm task transition`)
-7. Release the lock (`esm task unlock`)
+(Formerly "same as `/spawn`"; `/spawn` was retired by CC-14. These steps are the whole recipe.)
+
+1. **Project context**: ESM Project ID and Agent ID are under "Project Info" in `CLAUDE.md`.
+2. **Coordinator state**: `git branch --show-current` must be `main`; otherwise abort. Any doc
+   the brief will cite must already be COMMITTED on main (dispatch hygiene 2 — the worktree forks
+   from main and cannot see untracked coordinator files). Land any `workstream-state.md` chore
+   commit BEFORE the next step (dispatch hygiene 9).
+3. **Clarify the task**: propose acceptance criteria if none were given. Always include a testing
+   criterion. Name the **change class** (`memory/conventions.md`, change-class acceptance table)
+   so the criteria ask for that class's ritual and no more.
+4. **Create the ESM task** — `--criteria` is REPEATABLE, one flag per criterion (dispatch hygiene 4;
+   a pipe-joined string becomes one mega-criterion):
+   ```bash
+   esm task create --project <project_id> --title "<title>" --criteria "<c1>" --criteria "<c2>"
+   ```
+5. **Create the worktree**: `esm worktree create <task_id>`. Parse the JSON only from
+   UNTRUNCATED output; capture the `worktree` (absolute path) and `branch` fields VERBATIM
+   (dispatch hygiene 1/2/9). It writes `.esm/worker.md` with the criteria and the CLI recipe.
+6. **Transition to in_progress** with the literal branch string from step 5:
+   ```bash
+   esm task transition <task_id> in_progress --agent primary \
+     --attest branch_exists=true --attest acceptance_criteria_defined=true \
+     --attest working_branch=<branch>
+   ```
+7. **Release the lock** so the worker can transition later: `esm task unlock <task_id> --agent primary`.
+
+### 7b. Write the self-contained brief
+
+Write `<worktree_abs>/.esm/brief.md`, **at most 80 lines** (`docs/course-correction-2026-09.md`
+§3.1 item 7). It is what the worker works from; `.esm/worker.md` carries the ESM mechanics and
+the brief carries the engineering:
+
+- The task in two sentences, and the criteria restated with any measured figure RE-DERIVED at
+  HEAD (brief cites drift within a chain — dispatch hygiene 9).
+- The **change class** and its required ritual (the table in `memory/conventions.md`).
+- The files and functions to start from, with paths verified to exist at HEAD.
+- Pointers, not prose: the relevant `memory/gotchas-*.md` entries, the seed registry rows, the
+  plan or notes file to append to. Known-site lists are FLOORS — say so and ask for an
+  inverse-method census (dispatch hygiene 6).
+- What the worker must NOT do: no `git add -A`; stage by explicit path (dispatch hygiene 10);
+  no `sleep` polling under `run_in_background` (dispatch hygiene 13); bench scratch and target
+  dirs under the scratchpad and deleted before finishing (dispatch hygiene 11).
+
+The brief is untracked (`.esm/` is excluded from git), so copy anything durable into the task's
+notes file as well.
 
 ### 8. Launch the worker
 
@@ -39,18 +75,18 @@ remote control is unavailable.
 `esm worktree create`'s JSON response in step 5 — pass it verbatim.
 
 ```bash
-esm worker-tab {task_id} "{worktree_abs}" --prompt 'Read .esm/worker.md and follow its instructions. BEFORE you start implementing, use TaskCreate to build a visible task list derived from the acceptance criteria and any referenced plan file — one item per concrete step (enum add, each dispatch site, each card-def edit, each test, build/clippy/fmt checks, /review). Mark each item in_progress when you start it and completed as soon as it is done (do not batch completions at the end). The coordinator follows this task list to track progress. THEN delegate the heavy lifting to specialized project agents via the Agent tool rather than implementing everything inline: primitive batches (PB-*) use primitive-impl-runner for implementation and primitive-impl-reviewer for review; keyword abilities use ability-impl-runner + ability-impl-reviewer; card authoring uses bulk-card-author + card-batch-reviewer; LOW issue fix sessions use fix-session-runner; game scripts use game-script-generator. See the Agents table in CLAUDE.md. Only implement directly when no specialized agent fits the work. Satisfy all acceptance criteria, run /review (spawning the review agent if one fits), then follow the Completion Sequence.'
+esm worker-tab {task_id} "{worktree_abs}" --prompt 'Read .esm/worker.md, then .esm/brief.md, and follow both. BEFORE you start implementing, post a task list as an `esm task comment` on your task AND write it to memory/primitives/<batch>-task-list.md — one item per concrete step (each site, each card-def edit, each test, build/clippy/fmt, /review). This build exposes no TaskCreate to workers; the comment plus the file is the task list. Update it as you go: repost the comment with items checked off at every milestone, never one batch at the end. The brief names the CHANGE CLASS; do that class'"'"'s acceptance ritual (memory/conventions.md, change-class table) and no more. Delegate the heavy lifting to the specialized project agents via the Agent tool rather than implementing everything inline: primitive batches use primitive-impl-runner then primitive-impl-reviewer; card authoring uses bulk-card-author then card-batch-reviewer; game scripts use game-script-generator; CR coverage questions use cr-coverage-auditor. Only implement directly when no agent fits. Subagent briefs must forbid git outright (the stash stack is shared across worktrees). Never `git add -A`; stage by explicit path. Never wait with `sleep` under run_in_background — use the Monitor tool or one foreground until-loop. Keep bench scratch under your scratchpad and delete it before finishing. When done: satisfy every criterion with `esm task satisfy`, run /review (HIGH and MEDIUM findings fixed in-cycle, LOW logged to the notes file unless trivial), write the ≤10-line CHANGELOG.md entry and the notes file, then follow the Completion Sequence in .esm/worker.md.'
 ```
 
 The `--prompt` value above is this project's customized worker prompt (task-list
-discipline + the specialized-agent roster) — keep it in sync with the Agents table in
-CLAUDE.md, and do not drop it in favor of the stock prompt: `esm update` skips this
+discipline, the brief, the change-class ritual, the specialized-agent roster) — keep its agent
+roster in sync with the Agents table in CLAUDE.md, and do not drop it in favor of the stock prompt: `esm update` skips this
 skill precisely because of that customization (see `.esm/migration.json`), and
 `esm update --force` would clobber it.
 
 Check the command's JSON output: `cwd_verified` must be `true`. If the command reports
-kitty remote control unavailable, relay its manual launch instructions to the user as
-`/spawn` does.
+kitty remote control unavailable, relay its manual launch instructions to the user
+(`cd <worktree_abs> && claude "<prompt>"`) and verify `kitty @ ls` works before the next dispatch.
 
 ### 9. Report and begin monitoring
 
@@ -72,80 +108,49 @@ Watching for task to reach `in_review`. Will notify when ready to collect.
 Use `/status` to check progress, or `/collect {task_id}` to collect manually.
 ```
 
-### 10. Wait for completion
+### 10. Wait for completion — one persistent Monitor per worker, never a sleep loop
 
-After dispatching one or more workers, enter an autonomous monitoring loop.
-Do NOT ask the user to check manually — handle it yourself.
+After dispatching, watch each task with the **Monitor tool** (dispatch hygiene 3/5/13). Do NOT
+write a bash `while … sleep 30` loop: under the 10-minute Bash cap it dies within minutes, under
+`run_in_background` a `sleep` returns immediately and burns turns for zero wall-clock, and the
+restart ritual it forces is exactly what the Monitor tool exists to remove.
 
-**Run the polling loop in the background** using the Bash tool's `run_in_background: true`
-parameter and `timeout: 600000` (the 10-minute maximum). This keeps the coordinator free
-to handle user interactions while waiting.
+**Recipe** (dispatch hygiene 5/6/7/8/12):
 
-For each batch of dispatched tasks, run this bash polling loop:
+1. Put the parser in a **scratchpad FILE**, not an inline `python3 -c` — a `\"` inside an
+   f-string is a SyntaxError that surfaces only as an empty MONITOR ERROR (hygiene 8) — and feed
+   it the task JSON on **STDIN**, never by interpolating `$out` into the script (hygiene 6):
+   ```bash
+   cat > "$SCRATCHPAD/watch_{task_id}.py" <<'EOF'
+   import sys, json
+   d = json.load(sys.stdin)
+   t = d.get("task", {}); acs = d.get("acceptance_criteria", [])
+   sat = sum(1 for c in acs if c.get("satisfied"))
+   last = (d.get("comments") or [{}])[-1].get("content", "")[:200].replace("\n", " ")
+   print(t.get("current_status"), f"{sat}/{len(acs)} AC", "|", last)
+   EOF
+   ```
+2. Start ONE Monitor per worker with an `until` loop, IP-pinned because `tower` DNS blips
+   (hygiene 7), with a quiet threshold before emitting errors:
+   ```bash
+   ESM_URL=http://192.168.1.223:8765 esm task get {task_id} | python3 "$SCRATCHPAD/watch_{task_id}.py"
+   ```
+   Condition: the printed status is `in_review` or `done`. Emit a line only when the status,
+   the satisfied-AC count or the last comment CHANGES; after ~5 consecutive fetch failures emit
+   one error line, not five.
+3. **Stall check at 30 minutes of quiet** — BEFORE assuming a hang, check for a permission prompt
+   (hygiene 12: PB-DX56 lost 70 minutes to one):
+   ```bash
+   kitty @ get-text --match 'title:^worker: {task_id}' --extent screen | grep -n 'Do you want to proceed'
+   ```
+   Approve a throwaway-scratch prompt with `kitty @ send-text --match id:<win> '1\r'`. A quiet
+   worker with a running delegated agent is NOT a stall: check `git log main..HEAD` and dirty-file
+   mtimes in the worktree first (hygiene 9).
+4. When the Monitor reports `in_review`, `/collect {task_id}`. Do not dispatch the next task
+   without explicit owner approval (`feedback_queue_autonomous_chaining` is RETRACTED).
 
-```bash
-# Poll dispatched tasks until all reach in_review or done
-TASKS="{task_id_1} {task_id_2} {task_id_3}"  # space-separated dispatched task IDs
-STATE="/tmp/esm-dispatch-$$.ready"
-
-while true; do
-  ALL_READY=true
-  for tid in $TASKS; do
-    # Skip tasks already marked ready (survives timeout restarts)
-    grep -q "^$tid " "$STATE" 2>/dev/null && continue
-    status=$(esm task get $tid | python3 -c "import sys,json; t=json.loads(sys.stdin.read()); print(t.get('task',{}).get('current_status','unknown'))")
-    if [ "$status" = "in_review" ] || [ "$status" = "done" ]; then
-      echo "$tid $status" >> "$STATE"
-      echo "READY: $tid ($status)"
-    else
-      ALL_READY=false
-      echo "POLL: $tid ($status)"
-    fi
-  done
-  if $ALL_READY; then
-    echo "ALL TASKS READY"
-    rm -f "$STATE"
-    break
-  fi
-  sleep 30
-done
-```
-
-Notes on the polling loop:
-- **No `2>/dev/null`** — errors from `esm task get` must be visible, not swallowed.
-  If the API is down, the error output tells you why. Silent failures cause missed transitions.
-- **`POLL:` heartbeat lines** — printed every cycle so you can confirm the loop is alive.
-  If you see no output for >60s, the loop died.
-- **State file** (`/tmp/esm-dispatch-$$.ready`) — tracks which tasks already reached
-  `in_review`/`done`. Survives timeout restarts: the new loop skips already-completed tasks
-  without needing to parse previous stdout.
-
-#### Timeout handling — THIS IS CRITICAL
-
-The Bash tool has a **hard 10-minute maximum**. Workers routinely take 20-40 minutes.
-The loop WILL time out. **This is expected, not an error.**
-
-**You MUST restart the loop when it times out.** Do not ask the user. Do not move on to
-other work. Do not forget. The background process completion notification is your cue —
-when you receive it, IMMEDIATELY start a new polling loop for any tasks not yet collected.
-
-Before restarting, read the state file to see what's already done:
-```bash
-cat /tmp/esm-dispatch-*.ready 2>/dev/null
-```
-
-Then restart the loop with the SAME task IDs. The state file ensures already-completed
-tasks are skipped.
-
-**If you are tempted to do something else instead of restarting the loop, don't.**
-The user relies on you to monitor workers autonomously. A missed restart means the user
-has to notice and prompt you manually, which defeats the purpose of `/dispatch`.
-
-When the loop exits with "ALL TASKS READY", `/collect` each task that is in `in_review`,
-then proceed to dispatch the next wave.
-
-If a task stays in `in_progress` for over 30 minutes with no criteria progress,
-warn the user that the worker may be stuck — but don't stop the loop.
+The coordinator stays free for user interaction while the Monitors run; there is no timeout to
+restart and no state file to re-read.
 
 ## Collecting dispatched workers
 
