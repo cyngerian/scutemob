@@ -67,3 +67,57 @@ an acceptance criterion), so no benched path can move, and `tools/` is untouched
 ---
 
 *(Sections filled in as the batch proceeds.)*
+
+---
+
+## §1. `OOS-ADJ-2` — closed by PB-DX42b, VERIFIED HERE BY EXECUTION, not redone
+
+The v4 memo's row 21 carried `OOS-ADJ-2` as a member of this batch and then struck it:
+**✅ TAKEN AS A RIDER BY PB-DX42b (`scutemob-233`, 2026-09-05), both halves, both revert-proven.**
+The registry row agrees. This batch therefore does **not** redo the widening; the acceptance
+criterion asks only that the closure be *verified by execution*, and it is — **on both halves,
+because the widened `t7` carries two independent assertions and only one of them is what the
+criterion names.**
+
+**Verification 1 — the DECLARATION half (the assertion the criterion names).** A **ninth**
+layer-querying variant was planted into `Condition::required_characteristic_layer`'s fixed
+`=> Some(EffectLayer::TypeChange)` arm in `crates/card-types/src/cards/card_definition.rs`
+(`Condition::HaveTwoOrMoreOpponents`, moved out of the `None` arm so the plant compiles without an
+unreachable-pattern warning — under `-D warnings` an unreachable pattern is a build failure, and a
+build failure is a NON-verdict rather than a red, `OOS-DX39-8`). Result:
+
+```
+t7_non_target_filter_layer_querying_variants_absent_from_population ... FAILED
+  left:  {..., "OpponentControlsMoreLandsThanYou"}                       (8, the pinned list)
+  right: {..., "HaveTwoOrMoreOpponents", "OpponentControlsMoreLandsThanYou"}  (9, the declaration)
+```
+
+RED, **by NAME**, on the set-equality against the arm parsed out of source. The other nine tests in
+the file stayed green, which is the right shape: this half is about the gate's own coverage, not
+about the corpus.
+
+**Verification 2 — the POPULATION half, which is what the gate is FOR.** `rancor.rs`'s two
+`ContinuousEffectDef`s were given `condition: Some(Condition::ControlLegendaryCreature)` — a corpus
+def joining the population through one of the eight non-`TargetFilter` variants. Result: `t7` RED
+again, on its *other* assertion, naming the variant.
+
+**The green rows under verification 2 are the finding, not the omission.**
+`t6_two_axes_agree_on_the_conditioned_population` and `t5_layer_querying_set_is_pinned` both stayed
+**GREEN** with two new layer-querying members in the corpus. That is exactly the blindness
+`OOS-ADJ-2` was filed about and `t7` was widened to close: axis 2 recognises a member by finding a
+`TargetFilter` node in its subtree, and these eight variants **carry no `TargetFilter`**, so the
+structural axis cannot see them and the two axes agree *vacuously*. **`t7` is the only thing in the
+tree that reddens**, which is the strongest possible statement that the widening is load-bearing.
+
+**A methodological note recorded because it nearly published a false green.** The first attempt at
+verification 2 used a needle occurring **twice** in `rancor.rs`; the patch helper refused to apply
+it (fail-closed, printing `PATCH AMBIGUOUS`) — and `cargo test` then ran anyway and printed **10
+passed**. That run is a **NON-VERDICT**, not a pass. It is `OOS-DX39-8`'s shape one direction over,
+and PB-DX53's *"an earlier R1 patch that never applied printed seven greens that were the UNMODIFIED
+tree"* verbatim. Every plant in this batch is therefore checked for APPLICATION (re-read the bytes)
+before any test result is read.
+
+Both files restored and verified byte-identical by `cmp`.
+
+**Recorded disposition**: `OOS-ADJ-2` — **closed by PB-DX42b, verified by execution here (both
+halves), not redone.**
