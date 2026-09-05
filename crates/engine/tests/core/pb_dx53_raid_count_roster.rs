@@ -6,17 +6,36 @@
 //! (PB-DX8's rule: publish the figure, do not transcribe it), never asserted as
 //! an exact membership list except where the plan names a specific pin.
 //!
-//! **The declared axis uses `format!("{:#?}", def)` (Debug output), not a
-//! hand-written recursive `Effect` walker.** `#[derive(Debug)]` recurses through
-//! every field of every nested `Box`/`Vec`/struct/enum by construction, which is
-//! MORE exhaustive than a hand-picked match over specific `Effect` variants —
-//! PB-DX26's `RollDice` lesson (a recursive walker that enumerates variants by
-//! hand can miss a nesting site the author didn't think of) does not apply to a
-//! derived `Debug` impl, because there is no variant list to under-enumerate.
+//! **The declared axes use `decision_site_walk::def_contains_variant`, not
+//! `format!("{:#?}", def)`.** Both walk the whole def by construction, so both
+//! are immune to PB-DX26's `RollDice` lesson (a hand-written recursive walker
+//! that enumerates nesting sites by hand can miss one). They differ on the
+//! OTHER axis, and the first draft of this file was wrong on it: a `Debug`
+//! render includes PROSE — a `Completeness` note, an `oracle_text`, a card
+//! `name` — so a def that merely *names* a variant in a blocker note is
+//! indistinguishable from a def that DECLARES it.
+//!
+//! That is not hypothetical here. `scourge_of_the_throne`'s
+//! `Completeness::partial("... Effect::UntapAll{is_attacking},
+//! Effect::AdditionalCombatPhase. ...")` is a compiled string literal, so the
+//! Debug walk counted it and R3's population read **5**. The real declared
+//! population is **4**. And R1 is one blocker note away from the same false
+//! positive, which is not a remote risk for this batch in particular: the card
+//! it repaired, `minas_tirith`, carried a note naming a `Condition` variant by
+//! identifier — that is exactly what blocker notes do.
+//!
+//! `def_contains_variant` suppresses bare strings sitting under a `PROSE_FIELDS`
+//! key, and that list already carries `"Inert"` / `"Partial"` / `"KnownWrong"`
+//! (the `Completeness` variant keys) precisely for this. *A census walk has two
+//! axes — how exhaustively it reaches, and whether what it reaches is code or
+//! prose — and defending one of them says nothing about the other*
+//! (`OOS-DX36-8`, one axis over).
 
 use std::path::{Path, PathBuf};
 
 use mtg_engine::all_cards;
+
+use crate::decision_site_walk::def_contains_variant;
 
 fn workspace_root() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -50,18 +69,18 @@ fn r1_declared_axis_census() {
     let mut per_turn: Vec<String> = Vec::new();
 
     for def in &cards {
-        let text = format!("{def:#?}");
-        if text.contains("YouAttackedWithNOrMoreThisDeclaration") {
+        if def_contains_variant(def, "YouAttackedWithNOrMoreThisDeclaration") {
             per_declaration.push(def.name.clone());
         }
-        if text.contains("YouAttackedWithNOrMoreCreaturesThisTurn") {
+        if def_contains_variant(def, "YouAttackedWithNOrMoreCreaturesThisTurn") {
             per_turn.push(def.name.clone());
         }
         // Non-vacuity for the RENAME itself: nothing in the live corpus should
-        // still spell the OLD, retired variant name after this batch.
+        // still spell the OLD, retired variant name after this batch. Checked
+        // through the same prose-suppressed walk, so a blocker note quoting the
+        // historical name is correctly NOT a failure.
         assert!(
-            !text.contains("YouAttackedWithNOrMore(")
-                && !text.contains("YouAttackedWithNOrMore \n"),
+            !def_contains_variant(def, "YouAttackedWithNOrMore"),
             "PB-DX53 r1: {} still references the RETIRED `Condition::YouAttackedWithNOrMore` \
              (renamed to `YouAttackedWithNOrMoreThisDeclaration`) -- update the def",
             def.name
@@ -198,8 +217,7 @@ fn r3_extra_combat_axis_census() {
     let cards = all_cards();
     let mut declarers: Vec<(String, &'static str)> = Vec::new();
     for def in &cards {
-        let text = format!("{def:#?}");
-        if text.contains("AdditionalCombatPhase") {
+        if def_contains_variant(def, "AdditionalCombatPhase") {
             declarers.push((def.name.clone(), def.completeness.kind()));
         }
     }
@@ -211,10 +229,11 @@ fn r3_extra_combat_axis_census() {
 
     assert_eq!(
         declarers.len(),
-        5,
-        "PB-DX53 r3: expected exactly 5 AdditionalCombatPhase declarers (re-derived directly \
-         against all_cards(), correcting the plan's own §9.2 arithmetic -- see this test's \
-         doc), found {}: {declarers:?}",
+        4,
+        "PB-DX53 r3: expected exactly 4 AdditionalCombatPhase declarers (re-derived directly \
+         against all_cards() through the PROSE-SUPPRESSED walk -- see this test's doc for why \
+         a Debug render reads 5 and why that fifth is scourge_of_the_throne's completeness \
+         NOTE rather than a declaration), found {}: {declarers:?}",
         declarers.len()
     );
 
@@ -224,10 +243,17 @@ fn r3_extra_combat_axis_census() {
         "PB-DX53 r3: Aggravated Assault (the card driving the c1/c2 channel probes) must be \
          a member: {names:?}"
     );
+    // Every def that MENTIONS the variant without DECLARING it. The first three
+    // mention it in a `//` comment (invisible to any walk over the compiled def);
+    // `scourge_of_the_throne` mentions it inside its `Completeness::partial`
+    // note, which IS compiled in -- so it is the one that discriminates the
+    // prose-suppressed walk from a Debug render, and the reason it is listed
+    // here rather than left to the count.
     for absent in [
         "Windbrisk Heights",
         "Breath of Fury",
         "Moraug, Fury of Akoum",
+        "Scourge of the Throne",
     ] {
         assert!(
             !names.contains(&absent),
