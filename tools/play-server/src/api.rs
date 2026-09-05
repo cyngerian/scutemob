@@ -323,13 +323,26 @@ fn json_rejection(rejection: JsonRejection) -> ApiFailure {
 /// `attackers` lists, and duplicate declarations of the same creature. Both are
 /// decidable from the response alone.
 ///
-/// Left to the engine: everything that needs rules reasoning — menace (CR
-/// 702.110b) needing two blockers, evasion, requirements and restrictions (CR
-/// 509.1c/d), banding. Re-deriving any of those here would be the OOS-RS-2 drift
+/// Checked here by DELEGATION, never re-derived (PB-DX55): every per-pair block
+/// legality question, through `legal_blocks` (which is built from
+/// `combat::check_block_pair`), and the two SET-level ones — CR 702.111b menace and
+/// CR 702.39a provoke — through `queries::validate_block_declaration`, the exact
+/// function `handle_declare_blockers` runs.
+///
+/// **This paragraph used to say menace and evasion were "left to the engine", and it
+/// went half-stale the moment `legal_blocks` shipped**: evasion left that bucket and
+/// menace did not, so the sentence was true of one and false of the other. Rewritten
+/// rather than trimmed, because a scope doc that is right about half its list is worse
+/// than one that is wrong about all of it.
+///
+/// Still left to the engine: banding, and anything else needing rules reasoning that
+/// neither predicate covers. Re-deriving any of it here would be the OOS-RS-2 drift
 /// class the whole `queries.rs` delegation exists to avoid.
 fn validate_combat_params(
     action: &mtg_simulator::LegalAction,
     params: &crate::view::ActionParamsDto,
+    state: &mtg_engine::GameState,
+    deciding_seat: mtg_engine::PlayerId,
 ) -> Result<(), ApiFailure> {
     use mtg_simulator::LegalAction;
 
@@ -366,24 +379,38 @@ fn validate_combat_params(
         LegalAction::DeclareBlockers {
             eligible,
             attackers,
+            legal_blocks,
         } => {
             let mut seen = std::collections::BTreeSet::new();
             for (blocker, attacker) in &params.blockers {
-                if !eligible.contains(blocker) {
-                    return Err(bad(format!(
-                        "object {} is not an eligible blocker (CR 509.1a); this decision \
-                         offered {:?}",
-                        blocker.0,
-                        eligible.iter().map(|o| o.0).collect::<Vec<_>>()
-                    )));
-                }
-                if !attackers.contains(attacker) {
-                    return Err(bad(format!(
-                        "object {} is not an attacking creature in this combat (CR 509.1a); \
-                         this decision offered {:?}",
-                        attacker.0,
-                        attackers.iter().map(|o| o.0).collect::<Vec<_>>()
-                    )));
+                // CR 509.1a-c (PB-DX55, `OOS-SIM5-3`): validate the PAIR against
+                // `legal_blocks`, not membership in the two flat `eligible`/
+                // `attackers` lists separately -- that cross product is what let a
+                // human submit a pairing (e.g. a non-flying blocker against a flying
+                // attacker) the engine would refuse even though each half, checked
+                // alone, looked legal.
+                let blocker_entry = legal_blocks.iter().find(|(b, _)| b == blocker);
+                match blocker_entry {
+                    None => {
+                        return Err(bad(format!(
+                            "object {} is not an eligible blocker (CR 509.1a); this decision \
+                             offered {:?}",
+                            blocker.0,
+                            eligible.iter().map(|o| o.0).collect::<Vec<_>>()
+                        )));
+                    }
+                    Some((_, candidates)) if !candidates.contains(attacker) => {
+                        return Err(bad(format!(
+                            "object {} cannot legally block object {} (CR 509.1a-c); this \
+                             blocker's legal attackers are {:?} (all attackers this combat: \
+                             {:?})",
+                            blocker.0,
+                            attacker.0,
+                            candidates.iter().map(|o| o.0).collect::<Vec<_>>(),
+                            attackers.iter().map(|o| o.0).collect::<Vec<_>>()
+                        )));
+                    }
+                    Some(_) => {}
                 }
                 // CR 509.1a: a creature blocks one attacker unless something says
                 // otherwise. The exceptions ("can block an additional creature")
@@ -395,6 +422,32 @@ fn validate_combat_params(
                         blocker.0, attacker.0
                     )));
                 }
+            }
+            // CR 702.111b / CR 702.39a (PB-DX55 `/review`): the two SET-level guards
+            // no per-pair predicate can express -- menace needing two blockers, and a
+            // provoke requirement that must be obeyed. `legal_blocks` is per-pair by
+            // construction, so before this the browser could assemble a pairwise-legal
+            // declaration the engine then refused, and this function's own doc still
+            // said menace was "left to the engine" while EVERY evasion check had just
+            // moved out of that bucket.
+            //
+            // Delegated to `queries::validate_block_declaration` -- the exact function
+            // `handle_declare_blockers` runs -- rather than re-derived, which is the
+            // `OOS-RS-2` drift class this whole boundary exists to avoid, and which
+            // the same `/review` caught the BOT doing one layer over. The engine would
+            // still refuse this with a 422 carrying the same rules reason; answering
+            // at the 400 boundary means the client is told what it did wrong before a
+            // command is ever built.
+            if let Err(e) = mtg_engine::rules::queries::validate_block_declaration(
+                state,
+                deciding_seat,
+                &params.blockers,
+            ) {
+                return Err(bad(format!(
+                    "this block declaration is illegal as a WHOLE even though every \
+                     pair is legal on its own (CR 702.111b menace / CR 702.39a \
+                     provoke): {e:?}"
+                )));
             }
             Ok(())
         }
@@ -1829,7 +1882,17 @@ pub async fn post_action(
                 .as_ref()
                 .and_then(|pending| pending.actions.get(req.action_index))
             {
-                validate_combat_params(action, &req.params)?;
+                // PB-DX55 `/review`: the state and the deciding seat are threaded in
+                // for the same reason `validate_decision_params` needs them — the two
+                // SET-level block guards are questions about the game, not about the
+                // response. `pending.player`, never a request field (Architecture
+                // Invariant 7).
+                let combat_seat = play
+                    .pending
+                    .as_ref()
+                    .map(|pending| pending.player)
+                    .unwrap_or(mtg_engine::PlayerId(0));
+                validate_combat_params(action, &req.params, play.game.state(), combat_seat)?;
                 // UI-1 (CR 514.1 / CR 608.2d / CR 603.3d): same boundary, same
                 // reason — an answer naming something the response never offered
                 // is a 400, not an engine rejection.

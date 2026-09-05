@@ -436,22 +436,18 @@ pub fn handle_activate_ability(
     // no more auto-select-mode-0 fallback to account for here (unlike the Spell path in
     // casting.rs, which retains a fail-safe `vec![0]` arm for a different reason -- see
     // Change 2 there).
+    // CR 700.2c/700.2f (PB-DX55, `OOS-SIM5-5`): delegate to `casting::
+    // per_mode_target_requirements` -- the SAME slicer `handle_cast_spell`,
+    // `rules::queries::spell_target_requirements`,
+    // `rules::queries::ability_target_requirements` and PB-DX35's
+    // `trigger_modal_plan` all share -- rather than re-deriving the identical
+    // `flat_map`/`get`/`unwrap_or_default` shape a FIFTH time in this function. Byte-
+    // identical behaviour to the inline slice this replaces: `per_mode_target_
+    // requirements` IS that slice (including its own `debug_assert_eq!` on the
+    // CR 700.2c author invariant), extracted rather than rewritten.
     let mode_targets_active: Option<Vec<crate::cards::card_definition::TargetRequirement>> =
         ability_modes.as_ref().and_then(|ms| {
-            ms.mode_targets.as_ref().map(|mt| {
-                debug_assert_eq!(
-                    mt.len(),
-                    ms.modes.len(),
-                    "ModeSelection.mode_targets.len() ({}) must equal modes.len() ({}) \
-                     (CR 700.2c author invariant)",
-                    mt.len(),
-                    ms.modes.len()
-                );
-                validated_modes_chosen
-                    .iter()
-                    .flat_map(|&idx| mt.get(idx).cloned().unwrap_or_default())
-                    .collect::<Vec<crate::cards::card_definition::TargetRequirement>>()
-            })
+            crate::rules::casting::per_mode_target_requirements(ms, &validated_modes_chosen)
         });
     // CR 700.2c: Multiple modes chosen combined with per-mode targets is not a supported
     // combination (mirrors the Escalate+mode_targets hard-reject in casting.rs) -- a flat

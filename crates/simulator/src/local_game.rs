@@ -1018,9 +1018,34 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
     /// The auto-tapper, shared by the human `submit` path and `advance()`'s bot path
     /// (SIM-2 — they were two code paths with two different notions of the cost until
-    /// this batch). Only ever fires for a `Command::CastSpell`; returns `None` when the
-    /// command is something else, when the card has no mana cost, or when no plan
-    /// exists, in which case the caller applies the main command alone.
+    /// this batch). Returns `None` when `command` carries no mana component (see
+    /// `legal_actions::command_mana_cost`'s own exhaustive census of which `Command`
+    /// variants that is), when the card/ability/permanent involved has no mana cost,
+    /// or when no plan exists, in which case the caller applies the main command
+    /// alone.
+    ///
+    /// # PB-DX55 Half 1 (`OOS-SIM6-3`): no longer "only ever fires for a
+    /// `Command::CastSpell`"
+    ///
+    /// Before this batch the function opened with
+    /// `let Command::CastSpell(cast) = command else { return None; };`, so every
+    /// OTHER mana-charging command — `ActivateAbility`, `TapForMana`,
+    /// `DeclareAttackers`'s CR 508.1h attack tax, `TurnFaceUp`, `ActivateBloodrush`,
+    /// and a `pay: true` `PayEcho`/`PayCumulativeUpkeep`/`PayRecover` — was applied
+    /// with whatever was ALREADY floating, on both the human `submit` path and the
+    /// bot path in `advance()`. The offer gate (`legal_actions::can_afford`, pool +
+    /// untapped sources via the solver) and the engine's own charge (the pool alone,
+    /// no auto-tap) disagreed for every one of them: 18 `InsufficientMana` refusals
+    /// on the `sim5_bot_cast_discipline` A/B seeds, and a browser human activating a
+    /// mana-cost ability got a 422 unless floating mana happened to already cover
+    /// it. The function now collapses to `legal_actions::command_mana_cost` (an
+    /// EXHAUSTIVE match over `Command`, no wildcard arm — see its own doc for the
+    /// full census and its stated limitations) followed by the same
+    /// `solve_mana_payment_with_pool` call as before, so the CastSpell arm's whole
+    /// history below is preserved exactly (moved into `command_mana_cost`, not
+    /// rewritten) and every new arm is funded through the identical two-call shape
+    /// `legal_actions::can_afford` already uses — SR-38 by construction, not by two
+    /// functions that happen to agree.
     ///
     /// # The pool half of OOS-M11-2 is CLOSED here — as a residual, not a special case
     ///
@@ -1109,62 +1134,19 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// `x_count: 2` and costs 2X generic. The multiply is saturating so a hostile
     /// `x_value: u32::MAX` cannot overflow into a small cost that then looks payable.
     fn auto_tap_commands_for(&self, command: &Command, player: PlayerId) -> Option<Vec<Command>> {
-        let Command::CastSpell(cast) = command else {
-            return None;
-        };
-        // CR 903.8 / CR 601.2f (SIM-1): the PRINTED cost is not what the engine
-        // charges. The shared helper applies commander tax when the card is being
-        // cast from this player's command zone, so the offer gate
-        // (`legal_actions::can_afford`), this human auto-tap and the bot auto-tap in
-        // `advance()` cannot disagree about what has to be paid.
-        // CR 702.157 (UI-2): the SQUAD payment is a cost INCREASE folded in here too --
-        // `effective_cast_cost_with_additional` calls `effective_cast_cost` and adds
-        // `cast.additional_costs`'s `AdditionalCost::Squad` count on top, so this site,
-        // the offer gate and `advance()`'s bot auto-tap above cannot disagree about
-        // what a Squad-paying cast actually charges.
-        // CR 700.2h / 702.172a (PB-DX44, `OOS-DX29-14`): a Spree spell's per-mode cost
-        // rides on `modes_chosen`, not on `additional_costs` — passing `cast.modes_chosen`
-        // VERBATIM is the load-bearing link: it is the exact mode list the `CastSpell`
-        // command being funded is about to announce (already built by
-        // `action_to_command_with_params` for the human path, or by the bot's own
-        // `choose_action` for the bot path), never a re-derivation. Without this, this
-        // function priced only the base cost for `insatiable_avarice` and every other
-        // Spree spell, tapped for it, and watched the engine refuse the cast with
-        // `InsufficientMana` once the announced mode's cost was added — the SR-38 shape
-        // this whole call exists to prevent.
-        // PB-DX44 (`OOS-DX29-3`/`-9`): `cast.alt_cost` VERBATIM -- the exact flag
-        // this `Command::CastSpell` is about to announce, never a re-derivation.
-        // Without it, a Pitch cast is funded for the printed mana cost (which
-        // Pitch never pays -- CR 118.9a) and a right-half-only cast is funded for
-        // the LEFT half's cost, both wrong-shaped SR-38 failures.
-        let mut cost = legal_actions::effective_cast_cost_with_additional(
-            &self.state,
-            player,
-            cast.card,
-            &cast.additional_costs,
-            &cast.modes_chosen,
-            cast.alt_cost,
-        )?;
-        // CR 107.3 / 601.2b — see the doc block above (OOS-M11-8).
-        cost.generic = cost
-            .generic
-            .saturating_add(cast.x_value.saturating_mul(cost.x_count));
-        // SIM-2 (triage F3): solve for the RESIDUAL — the cost that survives the
-        // player's existing pool. `solve_mana_payment_with_pool` performs the
-        // subtraction in `ManaPool::can_spend`'s own order, which is what the
-        // `can_pay_cost` early return this replaces was checking: a pool that covers
-        // the whole cost now yields a zero residual and therefore an EMPTY plan, the
-        // same "tap nothing" outcome, reached by the general rule instead of a special
-        // case. The special case was the bug — everything short of full coverage fell
-        // through to a solve for the ENTIRE printed cost, so two floating mana and a
-        // `{3}` cast tapped three more sources and CR 500.4 destroyed the float at the
-        // step boundary.
-        //
-        // The flatten that used to be needed here (for `can_spend`'s debug-assert) has
-        // moved inside the solver: `PipTracker::from_cost` applies the identical
-        // all-default hybrid/Phyrexian plan that `action_to_command_with_params`'s
-        // CastSpell arm uses, so there is one flattening on this path, not two.
-        mana_solver::solve_mana_payment_with_pool(&self.state, player, &cost)
+        // PB-DX55 Half 1 (`OOS-SIM6-3`): ONE cost calculator, ONE solver, for every
+        // mana-charging `Command` — the same two calls `legal_actions::can_afford`
+        // makes, so the offer gate and this plan cannot disagree. The `CastSpell`
+        // arm inside `command_mana_cost` is the byte-identical body that used to
+        // live here (see this function's own doc for the full CR 903.8/702.157/
+        // 700.2h/118.9/107.3 history that moved with it).
+        let cost = legal_actions::command_mana_cost(&self.state, player, command)?;
+        // See `legal_actions::objects_excluded_from_funding`'s own doc: a
+        // permanent `command` is ALREADY going to tap as its own cost (Karn's
+        // Bastion tapping itself for its "{4}, {T}: Proliferate.") must not
+        // ALSO be offered to itself as a mana source.
+        let excluded = legal_actions::objects_excluded_from_funding(&self.state, command);
+        mana_solver::solve_mana_payment_with_pool_excluding(&self.state, player, &cost, &excluded)
     }
 
     /// Apply a sequence of commands ATOMICALLY: every command is run against a clone

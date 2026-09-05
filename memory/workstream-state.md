@@ -15,9 +15,102 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**SECOND five-task chain APPROVED by user 2026-09-05 (ranks 19-23: PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38, exactly five, sequential, collect-before-next); PB-DX55 dispatching**) (**PB-DX42b `scutemob-233` SHIPPED 2026-09-05 — task 5 of 5, the LAST of the FIRST approved chain; v4 ranks 1-18 ALL SHIPPED**neither headline seed had a registry row**: six of the adjudication §6's seven `OOS-ADJ-*` seeds were never registered**) (**PB-DX54 `scutemob-232` SHIPPED 2026-09-05 — task 4 of 5 of the approved chain**) (**PB-DX53 `scutemob-231` SHIPPED 2026-09-05 `5b54081d` — task 3 of 5 of the approved chain; next is PB-DX54, rank 17, dispatching; then PB-DX42b (rank 18) is the LAST**) (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX55 `scutemob-234` SHIPPED 2026-09-05 — task 1 of 5 of the SECOND approved chain (ranks 19-23: PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38, exactly five, sequential, collect-before-next); ALL THREE of its seeds — `OOS-SIM6-3`, `OOS-SIM5-3`, `OOS-SIM5-5` — were FILED (none had a registry row, the second batch running) and CLOSED, plus the rider `OOS-DX51-3`; the bot refusal surface goes 70 → 9 and the memo §2.6 table is refuted in three directions; next is PB-DX56, rank 20**) (**PB-DX42b `scutemob-233` SHIPPED 2026-09-05 — task 5 of 5, the LAST of the FIRST approved chain; v4 ranks 1-18 ALL SHIPPED**neither headline seed had a registry row**: six of the adjudication §6's seven `OOS-ADJ-*` seeds were never registered**) (**PB-DX54 `scutemob-232` SHIPPED 2026-09-05 — task 4 of 5 of the approved chain**) (**PB-DX53 `scutemob-231` SHIPPED 2026-09-05 `5b54081d` — task 3 of 5 of the approved chain; next is PB-DX54, rank 17, dispatching; then PB-DX42b (rank 18) is the LAST**) (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
 
-## Last Handoff (worker, 2026-09-05) — PB-DX42b / `scutemob-233`
+## Last Handoff (worker, 2026-09-05) — PB-DX55 / `scutemob-234`
+
+**v4 rank 19, task 1 of 5 of the SECOND user-approved chain.** `OOS-SIM6-3`, `OOS-SIM5-3` and
+`OOS-SIM5-5` all **FILED** (none had a registry row) and **CLOSED**, plus the rider
+`OOS-DX51-3`. Filed `OOS-DX55-1..10` (`-9` and `-10` by the `/review` fix cycle).
+
+### The one thing to read first
+
+**The bot refusal surface is 70 → 9, and the v4 memo §2.6 table — which is what ranked this
+task — does not reproduce in three directions at once.** Measured at HEAD by §2.6's own
+invocation before any edit: the total is **70, not 105**; `OOS-SIM6-3` is **18, not 76** (so it
+is not the largest class, and §2.6's *own correction* of the filed figure to "76 of 105 — larger
+in share and in count" is stale in the other direction); `OOS-SIM5-5` is **22, not 2** — grown
+11× and now the LARGEST class, because PB-DX35 made the per-mode requirement enforceable and left
+the query that satisfies it unchanged. **A share cell is neither a floor nor a ceiling**, and
+three of §2.6's four rows moved in different directions in three weeks.
+
+### What the next batch should carry forward
+
+1. **`OOS-DX55-1` is the whole remaining surface.** All nine survivors are one class,
+   `expected 1..=1 got 0`, three of them cast-side, and they are `OOS-SIM5-4`'s parked
+   offer-suppression filter — which §2.6 priced at 0 of 105 and which is now worth 9 of 9. Its
+   recorded blocker ("needs a new engine query") is doubly stale: `legal_targets_per_slot` and
+   `target_count_range` ARE the query and `plan_targets` already calls both.
+2. **`OOS-DX55-5` is the trap in this batch's own fix.** `command_mana_cost`'s exhaustive match
+   protects against a new `Command` VARIANT and not against a new OFFER: 14 arms are `None`
+   solely because no `LegalAction` emits them. The day someone adds `LegalAction::CycleCard`,
+   `OOS-SIM6-3` is back on that one command with no compile error anywhere. The cheap guard is a
+   roster gate equating the two sets, computed from source on both sides.
+3. **`OOS-DX55-3` — a similarity gate keyed on the RARE members of a set is blind to the PARTIAL
+   copy, and the partial copy is the likely one.** All nine of the block-legality gate's markers
+   were exotic; a five-guard hand-rolled predicate covering only the common guards scored 1 of 9
+   and left it green. Its own self-defeats could not see it because both plant a WHOLESALE
+   renamed copy, which carries all nine by construction (`OOS-DX54-6` verbatim). Closed here by a
+   second axis whose threshold was measured first — but the LESSON generalises to every
+   threshold gate in this tree.
+4. **`OOS-DX55-4` — check your revert harness before your revert rows.** Restoring with
+   `shutil.copy2` preserves mtimes, cargo does not rebuild, and every row after the first
+   measures the previous row's binary. `git status` says clean and `cmp` says byte-exact and both
+   are true. Always run a CONTROL row (no patch, must be green) and stamp `os.utime(dst, None)`
+   on both the patch and the restore.
+5. **`OOS-DX55-8` — a subagent's "delete your scratch files" instruction must be scoped to a
+   directory it created.** This batch's Half-2 worker deleted the coordinator's pre-edit baseline
+   log and the merge-base worktree out of the shared scratchpad. Recreating them then hit
+   dispatch hygiene 11's other half: `/tmp` is `usrquota`-mounted, the rebuild blew the quota,
+   and every shell command began failing **with no output at all** while `df` showed 11G free.
+   Keep A/B target directories outside `/tmp`.
+6. **`OOS-DX55-7`** — the frontend moved and `npm run build` could not run (`node_modules`
+   absent). The Svelte changes ship unbuilt. Any `/collect` with `node_modules` present should
+   run it.
+
+### The `/review`: 14 findings, all 14 taken — and THREE of the four new gates fell to it
+
+Read `pb-DX55-execution-notes.md` §9. The compressed version, because it is the part that
+generalises past this batch:
+
+* **A gate keyed on a SPELLING is a gate you have not written yet.** `r1` fell to a BINDING
+  wildcard (`other =>`, irrefutable, exhaustive, no `_ =>` anywhere) and to a 600-byte window on a
+  1,041-byte body. The block roster fell on BOTH axes to a single `use mtg_engine::KeywordAbility
+  as KA;`. The per-mode ratchet fell to `let ModeSelection { mode_targets, .. } = ms;` — **while
+  its own module doc claimed the gate asked a question "independent of HOW the new code touches
+  it"**. Each is now keyed on a mechanism (arm-head SET equality against the enum; `(prefix,
+  optional `ident::`, suffix)` shapes; struct-pattern bindings counted), and each defeat is
+  re-executed and RED.
+* **Every one of those gates shipped with a self-defeat test, and every one of those tests planted
+  the spelling its author already had in mind.** That is `OOS-DX54-6` landing on three gates at
+  once, one batch after it was filed. If you write a gate in this tree, have someone else plant
+  against it.
+* **The batch committed its own headline defect one layer up.** The two SET-level blocker guards
+  (CR 702.111b menace, CR 702.39a provoke) were HAND-COPIED into `random_bot.rs` while the exported
+  `queries::validate_block_declaration` had **zero consumers outside tests** — in the batch whose
+  whole subject is collapsing a second hand-rolled copy. Both the bot and the browser's 400
+  boundary consume it now, and SR-5's keyword registry fired to say the bot had stopped reading
+  Menace, which is the gate doing exactly its job.
+* **A third wrong CR cite, and this one the batch PROPAGATED rather than inherited quietly**:
+  menace is **CR 702.111b**; **CR 702.110 is Exploit**. It went into ~10 new lines before the
+  reviewer caught it. `/review` is where the batch's own "two cites corrected" headline became
+  three, in the other direction.
+
+### Numbers
+
+Tests **5,287 / 0 / 5** on **72** targets (+44 over a **5,243** baseline taken on the merge base
+in its own worktree, reproducing PB-DX42b's close pin exactly — the sixth consecutive batch with
+no correction owed). Byte-exact NAME set difference, regex NOT end-anchored (`OOS-DX42b-6`): 44
+additions / 0 leavers / 0 removals / 0 renames, RE-TAKEN after the fix cycle; duplicate-name scan
+EMPTY on both runs.
+**HASH 85 / PROTOCOL 44 both gate-executed and UNMOVED**, predicted per half before any
+production line, closure counts MEASURED at 132 / 98, and the counterfactual EXECUTED. Coverage
+**UNMOVED 1,140/1,803 = 63.2%**, 0 flips, 0 card-def edits. Fuzz gate config **1.843‰ → 0**,
+T6.3 reached rows **4 of 7 → 6 of 7**. Benches not measured, bounded by execution. Revert matrix
+13 rows, coordinator-executed, control row green. Full record:
+`memory/primitives/pb-DX55-execution-notes.md`.
+
+## Prior Handoff (worker, 2026-09-05) — PB-DX42b / `scutemob-233`
 
 **v4 rank 18 — the LAST of the user-approved five-task chain. `OOS-ADJ-1` ≡ `OOS-DX19-2` FILED
 *and* CLOSED as ONE defect**, plus **`OOS-DX19-1`**'s residue and **`OOS-DX19-4`** CLOSED BY

@@ -471,7 +471,7 @@ fn t5_engine_query_reports_slot_and_candidates_scoped_to_controller() {
     let (state, skullclamp_id, p1_creature_id, p2_creature_id, p1, _p2) =
         setup_skullclamp_scenario();
 
-    let reqs = ability_target_requirements(&state, skullclamp_id, 0);
+    let reqs = ability_target_requirements(&state, skullclamp_id, 0, &[]);
     assert_eq!(
         reqs.len(),
         1,
@@ -519,7 +519,7 @@ fn t6_non_vacuity_floors() {
     let (state, skullclamp_id, p1_creature_id, _p2_creature_id, p1, _p2) =
         setup_skullclamp_scenario();
 
-    let reqs = ability_target_requirements(&state, skullclamp_id, 0);
+    let reqs = ability_target_requirements(&state, skullclamp_id, 0, &[]);
     assert!(!reqs.is_empty(), "T5's requirement list must be non-empty");
     let candidates = legal_targets_per_slot(&state, p1, skullclamp_id, &reqs);
     assert!(

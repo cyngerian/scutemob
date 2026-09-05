@@ -159,6 +159,7 @@ fn target_query_source(action: &LegalAction) -> Option<ObjectId> {
 /// instead of the printed card's flat requirement list.
 pub fn action_target_requirements(
     state: &GameState,
+    player: PlayerId,
     action: &LegalAction,
 ) -> Vec<TargetRequirement> {
     match action {
@@ -173,11 +174,26 @@ pub fn action_target_requirements(
             *alt_cost,
             false,
         ),
+        // PB-DX55 (`OOS-SIM5-5`), CR 700.2a: this is the ActivateAbility twin of the
+        // CastSpell arm above and passes `legal_actions::ability_default_modes` for the
+        // SAME reason `spell_default_modes` is passed there -- a bot never announces
+        // modes itself (`params.rs`'s `ActivateAbility` arm falls back to exactly this
+        // default whenever `params.modes_chosen` is empty, which for a bot is always),
+        // so querying with `&[]` would return `vec![]` for all three corpus modal
+        // activated abilities (`queries::ability_target_requirements`'s own doc) and a
+        // bot would announce nothing for an activation whose Command *does* select a
+        // mode -- the same zero-target rejection this module exists to remove, one
+        // action later than the cast case SIM-5 originally fixed.
         LegalAction::ActivateAbility {
             source,
             ability_index,
             ..
-        } => mtg_engine::ability_target_requirements(state, *source, *ability_index),
+        } => mtg_engine::ability_target_requirements(
+            state,
+            *source,
+            *ability_index,
+            &legal_actions::ability_default_modes(state, player, *source, *ability_index),
+        ),
         // PB-DX29 (CR 606.3 / CR 601.2c). Deliberately NOT
         // `ability_target_requirements`: that function indexes
         // `Characteristics::activated_abilities`, while a loyalty `ability_index` is
@@ -237,7 +253,7 @@ pub fn plan_targets(state: &GameState, player: PlayerId, action: &LegalAction) -
     let Some(source) = target_query_source(action) else {
         return TargetPlan::NotTargeted;
     };
-    let requirements = action_target_requirements(state, action);
+    let requirements = action_target_requirements(state, player, action);
     if requirements.is_empty() {
         return TargetPlan::NotTargeted;
     }

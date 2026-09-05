@@ -254,10 +254,10 @@ fn test_602_2b_ability_target_requirements_reads_layer_resolved_list() {
 
     let source_id = find_object(&state, "Ability Source");
 
-    let reqs = ability_target_requirements(&state, source_id, 0);
+    let reqs = ability_target_requirements(&state, source_id, 0, &[]);
     assert_eq!(reqs, vec![TargetRequirement::TargetCreature]);
 
-    let out_of_range = ability_target_requirements(&state, source_id, 5);
+    let out_of_range = ability_target_requirements(&state, source_id, 5, &[]);
     assert!(
         out_of_range.is_empty(),
         "an out-of-range ability_index must yield vec![], never panic"
@@ -269,5 +269,5 @@ fn test_602_2b_ability_target_requirements_reads_layer_resolved_list() {
 fn test_ability_target_requirements_missing_object_is_empty() {
     let state = GameStateBuilder::four_player().build().unwrap();
     let bogus = ObjectId(999_999);
-    assert!(ability_target_requirements(&state, bogus, 0).is_empty());
+    assert!(ability_target_requirements(&state, bogus, 0, &[]).is_empty());
 }

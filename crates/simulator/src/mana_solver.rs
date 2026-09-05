@@ -386,10 +386,15 @@ pub(crate) fn tap_ability_is_activatable(
 /// --max-turns 40` reports **6.8 s before and 6.8 s after** on seeds 1 and 7 (two runs
 /// each), i.e. inside noise, which is why this function is not hoisted out of the solve
 /// and handed a pre-gathered list — a real complication for an unmeasurable saving.
-fn gather_sources(state: &GameState, player: PlayerId) -> Vec<ManaSource> {
+fn gather_sources(state: &GameState, player: PlayerId, excluded: &[ObjectId]) -> Vec<ManaSource> {
     let mut sources: Vec<ManaSource> = Vec::new();
     for obj in state.objects_in_zone(&ZoneId::Battlefield) {
-        if obj.controller != player || obj.status.tapped {
+        // PB-DX55 Half 1: a permanent `command` is ALSO going to tap as part of
+        // its own (non-mana) cost -- Karn's Bastion's "{T}: Add {C}" beside its
+        // OWN "{4}, {T}: Proliferate" -- cannot be tapped twice, so it must not
+        // be offered to itself as funding. See `legal_actions::
+        // objects_excluded_from_funding`, the only populator of this list.
+        if obj.controller != player || obj.status.tapped || excluded.contains(&obj.id) {
             continue;
         }
         let chars = mtg_engine::rules::layers::calculate_characteristics(state, obj.id)
@@ -514,7 +519,7 @@ pub fn solve_mana_payment(
     player: PlayerId,
     cost: &ManaCost,
 ) -> Option<Vec<Command>> {
-    let sources = gather_sources(state, player);
+    let sources = gather_sources(state, player, &[]);
     solve_tracker(&sources, player, PipTracker::from_cost(cost))
 }
 
@@ -534,11 +539,28 @@ pub fn solve_mana_payment_with_pool(
     player: PlayerId,
     cost: &ManaCost,
 ) -> Option<Vec<Command>> {
+    solve_mana_payment_with_pool_excluding(state, player, cost, &[])
+}
+
+/// The pool-aware solve above, PLUS a set of permanents that must not be tapped
+/// for funding even if they carry a mana ability -- PB-DX55 Half 1
+/// (`OOS-SIM6-3`): a command whose OWN (non-mana) cost taps one of its
+/// permanents cannot ALSO fund itself by tapping that same permanent for mana
+/// (Karn's Bastion is the corpus's own worked example: "{T}: Add {C}." beside
+/// "{4}, {T}: Proliferate."). `excluded` is `&[]` from `solve_mana_payment_with_pool`
+/// for every caller that has no such conflict -- the overwhelmingly common case,
+/// and why that name stays the one every pre-existing caller uses.
+pub fn solve_mana_payment_with_pool_excluding(
+    state: &GameState,
+    player: PlayerId,
+    cost: &ManaCost,
+    excluded: &[ObjectId],
+) -> Option<Vec<Command>> {
     let mut tracker = PipTracker::from_cost(cost);
     if let Ok(player_state) = state.player(player) {
         tracker.subtract_pool(&player_state.mana_pool);
     }
-    solve_tracker(&gather_sources(state, player), player, tracker)
+    solve_tracker(&gather_sources(state, player, excluded), player, tracker)
 }
 
 /// The solver proper. `remaining` is already flattened (CR 107.4e/107.4f) and already

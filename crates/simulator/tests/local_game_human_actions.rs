@@ -493,6 +493,7 @@ fn test_mr_m11_09_repeat_cap_resets_on_each_combat_phase() {
     let blocker_action = LegalAction::DeclareBlockers {
         eligible: vec![ObjectId(1)],
         attackers: vec![ObjectId(2)],
+        legal_blocks: vec![(ObjectId(1), vec![ObjectId(2)])],
     };
     let legal = vec![LegalAction::PassPriority, blocker_action];
 

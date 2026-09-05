@@ -162,6 +162,14 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
                 "crates/engine/src/rules/combat.rs",
                 "crates/engine/src/rules/layers.rs",
                 "crates/card-types/src/state/dungeon.rs",
+                // PB-DX55 added `crates/simulator/src/random_bot.rs` here and the
+                // `/review` fix cycle REMOVED it again, which is the interesting half:
+                // the bot's blocker prune used to read this keyword itself — a SECOND
+                // hand-rolled copy of CR 702.111b in the batch whose whole subject is
+                // collapsing the first one. It now prunes against
+                // `queries::validate_block_declaration`, the engine's own validator,
+                // so the keyword is read in exactly one place again and this gate is
+                // what said so.
             ],
         },
         K::ProtectionFrom(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/protection.rs"] },
@@ -174,7 +182,16 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
             ],
         },
         K::Trample => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
-        K::Vigilance => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
+        // PB-DX55 Half 1 (`OOS-SIM6-3`): `legal_actions::objects_excluded_from_funding`
+        // reads Vigilance to decide whether a declared attacker will be tapped by
+        // the declaration itself (CR 508.1f) and so must be excluded from funding
+        // its own declaration's CR 508.1h attack tax.
+        K::Vigilance => KeywordHandling::Handled {
+            sites: &[
+                "crates/engine/src/rules/combat.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
+        },
         K::Ward(..) => KeywordHandling::Handled {
             sites: &[
                 "crates/engine/src/rules/layers.rs",

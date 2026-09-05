@@ -911,14 +911,32 @@ pub struct AttackOptionsView {
     pub targets: Vec<AttackTargetOptionView>,
 }
 
-/// CR 509.1: what a `DeclareBlockers` option may declare.
+/// CR 509.1a-c: what a `DeclareBlockers` option may declare.
 #[derive(Debug, Serialize)]
 pub struct BlockOptionsView {
     /// Creatures that may be declared as blockers, from the provider's
-    /// `LegalAction::DeclareBlockers { eligible, .. }`.
+    /// `LegalAction::DeclareBlockers { eligible, .. }` -- the union of every
+    /// creature named in `legal_blocks`.
     pub eligible: Vec<CombatantOptionView>,
-    /// CR 509.1a: the attacking creatures a blocker may be assigned to, from the
-    /// same `LegalAction`'s `attackers`.
+    /// CR 509.1a: the attacking creatures SOME blocker may be assigned to, from the
+    /// same `LegalAction`'s `attackers` -- the union of every attacker named in
+    /// `legal_blocks`.
+    pub attackers: Vec<CombatantOptionView>,
+    /// CR 509.1a-c (PB-DX55, `OOS-SIM5-3`): per creature, exactly which of
+    /// `attackers` it may legally be assigned to block, from `rules::queries::
+    /// legal_blocks`. `eligible` x `attackers` above is a flat CROSS PRODUCT a
+    /// client must NOT read as "any blocker may block any attacker" -- the engine
+    /// applies 26 per-pair restrictions (flying, protection, evasion keywords,
+    /// landwalk, `CrossPlayerBlock`, ...), so most pairs in that cross product are
+    /// illegal. This is what a client should actually offer.
+    pub legal_blocks: Vec<BlockCandidateView>,
+}
+
+/// One creature's legal blocking assignments (PB-DX55, `OOS-SIM5-3`).
+#[derive(Debug, Serialize)]
+pub struct BlockCandidateView {
+    pub blocker: CombatantOptionView,
+    /// The declared attackers `blocker` may legally be assigned to block.
     pub attackers: Vec<CombatantOptionView>,
 }
 
@@ -1864,7 +1882,7 @@ fn action_target_requirements(action: &LegalAction, state: &GameState) -> Vec<Ta
             source,
             ability_index,
             ..
-        } => mtg_engine::ability_target_requirements(state, *source, *ability_index),
+        } => mtg_engine::ability_target_requirements(state, *source, *ability_index, &[]),
         // PB-DX29 (`OOS-M11-10(loyalty)`, CR 606.3 / CR 601.2c). Deliberately NOT
         // `ability_target_requirements` — a loyalty `ability_index` indexes the
         // registry def's `AbilityDefinition::LoyaltyAbility` entries, not the
@@ -1991,11 +2009,22 @@ fn combat_options(
         LegalAction::DeclareBlockers {
             eligible,
             attackers,
+            legal_blocks,
         } => (
             None,
             Some(BlockOptionsView {
                 eligible: combatants(eligible),
                 attackers: combatants(attackers),
+                legal_blocks: legal_blocks
+                    .iter()
+                    .map(|(blocker, candidates)| BlockCandidateView {
+                        blocker: CombatantOptionView {
+                            id: blocker.0,
+                            label: names.label(*blocker),
+                        },
+                        attackers: combatants(candidates),
+                    })
+                    .collect(),
             }),
         ),
         _ => (None, None),
@@ -3336,12 +3365,44 @@ fn action_option_view(
                 .iter()
                 .enumerate()
                 .map(|(i, effect)| {
-                    let reqs = ms
-                        .mode_targets
-                        .as_ref()
-                        .and_then(|mt| mt.get(i))
-                        .cloned()
-                        .unwrap_or_default();
+                    // PB-DX55 (`OOS-SIM5-5`), CR 700.2c/700.2f: read this mode's own
+                    // target requirements through the engine's query surface rather
+                    // than reaching into `ms.mode_targets` directly -- this file used
+                    // to be a SIXTH hand-rolled copy of the
+                    // `flat_map`/`get`/`unwrap_or_default` shape `handle_cast_spell`,
+                    // `rules::queries::spell_target_requirements`,
+                    // `rules::queries::ability_target_requirements`,
+                    // `casting::per_mode_target_requirements` (the shared slicer all
+                    // three delegate to) and PB-DX35's `trigger_modal_plan` already
+                    // share. For a `CastSpell` this is exactly
+                    // `spell_target_requirements` with `modes_chosen: &[i]`; for an
+                    // `ActivateAbility` it is the new
+                    // `ability_target_requirements` sibling. Every other
+                    // action kind renders no `ModeSelection` at all (`action_modes`'s
+                    // own match), so the `_ => Vec::new()` arm below is unreachable in
+                    // practice and defensive rather than a real third case.
+                    let reqs = match action {
+                        LegalAction::CastSpell { card, alt_cost, .. } => {
+                            mtg_engine::spell_target_requirements(
+                                state,
+                                *card,
+                                std::slice::from_ref(&i),
+                                *alt_cost,
+                                false,
+                            )
+                        }
+                        LegalAction::ActivateAbility {
+                            source,
+                            ability_index,
+                            ..
+                        } => mtg_engine::ability_target_requirements(
+                            state,
+                            *source,
+                            *ability_index,
+                            std::slice::from_ref(&i),
+                        ),
+                        _ => Vec::new(),
+                    };
                     let (mode_target_min, mode_target_max) = mtg_engine::target_count_range(&reqs);
                     ModeOptionView {
                         index: i,

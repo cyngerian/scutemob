@@ -1163,16 +1163,329 @@ pub(crate) fn remove_from_combat(state: &mut GameState, object_id: ObjectId) -> 
 // ---------------------------------------------------------------------------
 // Declare Blockers
 // ---------------------------------------------------------------------------
-/// Handle a DeclareBlockers command (CR 509.1).
+/// CR 509.1a-c: may `blocker` legally be declared blocking `attacker`, for the
+/// declaring `player`?
 ///
-/// Any defending player may declare blockers during the DeclareBlockers step.
-/// Priority is not required — this is a turn-based action for defending players.
-/// Multiple defending players each declare independently (CR 509.1a).
-pub fn handle_declare_blockers(
-    state: &mut GameState,
+/// PB-DX55 (`OOS-SIM5-3`): this is the ONE per-pair restriction predicate. Before this
+/// batch the engine held TWO hand-rolled copies inside `handle_declare_blockers` — the
+/// per-pair loop below and the CR 702.39a provoke requirement's `continue`-shaped
+/// satisfiability mirror — and the two were NOT identical: the provoke mirror omitted
+/// the phased-out check, `CrossPlayerBlock`, and the within-batch/committed duplicate
+/// check. Both callers now go through this one function, so a provoked creature's
+/// requirement is judged "impossible" by the SAME rule a real declaration is validated
+/// against, closing that divergence rather than merely re-describing it.
+///
+/// `already_blocking` names blocker ids already committed to a block within the SAME
+/// batch being validated (`validate_block_declaration`'s within-declaration duplicate
+/// check); an empty slice is correct for a standalone legality query (`queries::
+/// legal_blocks`) or for the provoke satisfiability check, both of which only care
+/// whether `blocker` is free to block `attacker` right now, independent of what else
+/// this same submission might assign it to. Either way, a blocker already committed in
+/// `state.combat.blockers` (a PRIOR player's declaration, or an already-accepted one of
+/// this player's own) is always consulted directly from state, regardless of what is
+/// passed here.
+pub fn check_block_pair(
+    state: &GameState,
     player: PlayerId,
-    blockers: Vec<(ObjectId, ObjectId)>,
-) -> Result<Vec<GameEvent>, GameStateError> {
+    blocker_id: ObjectId,
+    attacker_id: ObjectId,
+    already_blocking: &[ObjectId],
+) -> Result<(), GameStateError> {
+    let obj = state.object(blocker_id)?;
+    if obj.zone != ZoneId::Battlefield {
+        return Err(GameStateError::ObjectNotOnBattlefield(blocker_id));
+    }
+    // CR 702.26b: Phased-out permanents cannot block.
+    if obj.status.phased_out {
+        return Err(GameStateError::InvalidCommand(format!(
+            "Object {:?} is phased out and cannot block",
+            blocker_id
+        )));
+    }
+    if obj.controller != player {
+        return Err(GameStateError::NotController {
+            player,
+            object_id: blocker_id,
+        });
+    }
+    if obj.status.tapped {
+        return Err(GameStateError::PermanentAlreadyTapped(blocker_id));
+    }
+    // Must be a creature.
+    let blocker_chars = calculate_characteristics(state, blocker_id)
+        .ok_or(GameStateError::ObjectNotFound(blocker_id))?;
+    if !blocker_chars.card_types.contains(&CardType::Creature) {
+        return Err(GameStateError::InvalidCommand(format!(
+            "Object {:?} is not a creature",
+            blocker_id
+        )));
+    }
+    // CR 702.147a: A creature with decayed can't block.
+    if blocker_chars.keywords.contains(&KeywordAbility::Decayed) {
+        return Err(GameStateError::InvalidCommand(format!(
+            "Object {:?} has decayed and cannot block (CR 702.147a)",
+            blocker_id
+        )));
+    }
+    // CR 509.1b: A creature with CantBlock can't block.
+    if blocker_chars.keywords.contains(&KeywordAbility::CantBlock) {
+        return Err(GameStateError::InvalidCommand(format!(
+            "Object {:?} has CantBlock and cannot block (CR 509.1b)",
+            blocker_id
+        )));
+    }
+    // CR 701.60c: A suspected permanent has "This creature can't block."
+    // Checked on the raw GameObject (like Decayed) so the restriction persists
+    // even under ability-removal effects (Humility strips the Menace grant but
+    // the designation and can't-block restriction remain).
+    // TODO: Under true Humility, can't-block should also be removed; this is a
+    // known minor inaccuracy deferred to a future session.
+    if obj.designations.contains(Designations::SUSPECTED) {
+        return Err(GameStateError::InvalidCommand(format!(
+            "Object {:?} is suspected and cannot block (CR 701.60c)",
+            blocker_id
+        )));
+    }
+    // MR-M6-02: a creature can only block one attacker.
+    // Check both existing combat.blockers and within-this-declaration duplicates.
+    if already_blocking.contains(&blocker_id)
+        || state
+            .combat
+            .as_ref()
+            .map(|c| c.blockers.contains_key(&blocker_id))
+            .unwrap_or(false)
+    {
+        return Err(GameStateError::DuplicateBlocker(blocker_id));
+    }
+    // CR 509.1a: a defending player can only block attackers that are attacking them,
+    // a planeswalker they control, or a battle they protect. (Corrected cite: this used
+    // to say CR 509.1c, which is the requirements-maximization rule for provoke, not
+    // this restriction -- PB-DX55, `OOS-SIM5-3`.)
+    // Also validates that the attacker is a declared attacker.
+    let attacker_target = state
+        .combat
+        .as_ref()
+        .and_then(|c| c.attackers.get(&attacker_id).cloned());
+    match attacker_target {
+        None => {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} is not a declared attacker",
+                attacker_id
+            )));
+        }
+        Some(AttackTarget::Player(pid)) if pid == player => {
+            // Valid: this attacker is targeting the declaring player directly.
+        }
+        Some(AttackTarget::Planeswalker(pw_id)) => {
+            // Valid only if the planeswalker is controlled by the declaring player.
+            let pw_controller = state.objects.get(&pw_id).map(|o| o.controller);
+            if pw_controller != Some(player) {
+                return Err(GameStateError::CrossPlayerBlock {
+                    blocker: blocker_id,
+                    attacker: attacker_id,
+                });
+            }
+        }
+        Some(_) => {
+            return Err(GameStateError::CrossPlayerBlock {
+                blocker: blocker_id,
+                attacker: attacker_id,
+            });
+        }
+    }
+    // CR 509.1b / CR 702.9a: A creature without flying or reach cannot block
+    // a creature with flying.
+    let attacker_chars = calculate_characteristics(state, attacker_id)
+        .ok_or(GameStateError::ObjectNotFound(attacker_id))?;
+    let attacker_has_flying = attacker_chars.keywords.contains(&KeywordAbility::Flying);
+    let blocker_has_flying = blocker_chars.keywords.contains(&KeywordAbility::Flying);
+    let blocker_has_reach = blocker_chars.keywords.contains(&KeywordAbility::Reach);
+    if attacker_has_flying && !blocker_has_flying && !blocker_has_reach {
+        return Err(GameStateError::InvalidCommand(format!(
+            "Object {:?} cannot block {:?} (attacker has flying, blocker has neither flying nor reach)",
+            blocker_id, attacker_id
+        )));
+    }
+    // CR 509.1 / KeywordAbility::CantBeBlocked: a creature with this keyword
+    // cannot be blocked at all. Applied by Rogue's Passage activated ability.
+    if attacker_chars
+        .keywords
+        .contains(&KeywordAbility::CantBeBlocked)
+    {
+        return Err(GameStateError::InvalidCommand(format!(
+            "Object {:?} cannot be blocked (CantBeBlocked keyword)",
+            attacker_id
+        )));
+    }
+    // CR 509.1b: CantBeBlockedExceptBy — the attacker can only be blocked by creatures
+    // matching the exception filter. Each filter arm specifies what qualifies.
+    for kw in attacker_chars.keywords.iter() {
+        if let KeywordAbility::CantBeBlockedExceptBy(filter) = kw {
+            let blocker_matches = match filter {
+                BlockingExceptionFilter::HasKeyword(required_kw) => {
+                    blocker_chars.keywords.contains(required_kw.as_ref())
+                }
+                BlockingExceptionFilter::HasAnyKeyword(required_kws) => required_kws
+                    .iter()
+                    .any(|k| blocker_chars.keywords.contains(k)),
+            };
+            if !blocker_matches {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Object {:?} cannot block {:?} (attacker has CantBeBlockedExceptBy; \
+                     blocker does not match filter {:?})",
+                    blocker_id, attacker_id, filter
+                )));
+            }
+        }
+    }
+    // CR 702.13b: A creature with intimidate can't be blocked except by artifact creatures
+    // and/or creatures that share a color with it.
+    if attacker_chars
+        .keywords
+        .contains(&KeywordAbility::Intimidate)
+    {
+        let blocker_is_artifact_creature = blocker_chars.card_types.contains(&CardType::Artifact)
+            && blocker_chars.card_types.contains(&CardType::Creature);
+        let shares_a_color = attacker_chars
+            .colors
+            .iter()
+            .any(|c| blocker_chars.colors.contains(c));
+        if !blocker_is_artifact_creature && !shares_a_color {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} cannot block {:?} (attacker has intimidate; \
+                 blocker is neither an artifact creature nor shares a color)",
+                blocker_id, attacker_id
+            )));
+        }
+    }
+    // CR 702.36b: A creature with fear can't be blocked except by artifact creatures
+    // and/or black creatures.
+    if attacker_chars.keywords.contains(&KeywordAbility::Fear) {
+        let blocker_is_artifact_creature = blocker_chars.card_types.contains(&CardType::Artifact)
+            && blocker_chars.card_types.contains(&CardType::Creature);
+        let blocker_is_black = blocker_chars.colors.contains(&Color::Black);
+        if !blocker_is_artifact_creature && !blocker_is_black {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} cannot block {:?} (attacker has fear; \
+                 blocker is neither an artifact creature nor black)",
+                blocker_id, attacker_id
+            )));
+        }
+    }
+    // CR 702.28b: Shadow is a bidirectional evasion ability.
+    // A creature with shadow can't be blocked by creatures without shadow,
+    // and a creature without shadow can't be blocked by creatures with shadow.
+    let attacker_has_shadow = attacker_chars.keywords.contains(&KeywordAbility::Shadow);
+    let blocker_has_shadow = blocker_chars.keywords.contains(&KeywordAbility::Shadow);
+    if attacker_has_shadow != blocker_has_shadow {
+        return Err(GameStateError::InvalidCommand(format!(
+            "Object {:?} cannot block {:?} (shadow mismatch: attacker shadow={}, blocker shadow={})",
+            blocker_id, attacker_id, attacker_has_shadow, blocker_has_shadow
+        )));
+    }
+    // CR 702.31b: Horsemanship is a unidirectional evasion ability.
+    // A creature with horsemanship can't be blocked by creatures without horsemanship.
+    // Unlike Shadow, a creature with horsemanship CAN block creatures without horsemanship.
+    if attacker_chars
+        .keywords
+        .contains(&KeywordAbility::Horsemanship)
+        && !blocker_chars
+            .keywords
+            .contains(&KeywordAbility::Horsemanship)
+    {
+        return Err(GameStateError::InvalidCommand(format!(
+            "Object {:?} cannot block {:?} (attacker has horsemanship; \
+             blocker does not have horsemanship)",
+            blocker_id, attacker_id
+        )));
+    }
+    // CR 702.118b: Skulk -- a creature with skulk can't be blocked by creatures
+    // with greater power. Unlike Shadow, this is one-directional: it only restricts
+    // what can block the skulk creature, not what the skulk creature can block.
+    // Equal power IS allowed to block (strictly greater than, not greater-or-equal).
+    if attacker_chars.keywords.contains(&KeywordAbility::Skulk) {
+        let attacker_power = attacker_chars.power.unwrap_or(0);
+        let blocker_power = blocker_chars.power.unwrap_or(0);
+        if blocker_power > attacker_power {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} cannot block {:?} (attacker has skulk with power {}; \
+                 blocker has greater power {})",
+                blocker_id, attacker_id, attacker_power, blocker_power
+            )));
+        }
+    }
+    // CR 701.54c (ring level >= 1): Ring-bearer can't be blocked by creatures with
+    // greater power. Identical to Skulk's restriction, but triggered by the RING_BEARER
+    // designation rather than a keyword ability.
+    if let Some(attacker_obj) = state.expect_object(attacker_id) {
+        if attacker_obj
+            .designations
+            .contains(crate::state::game_object::Designations::RING_BEARER)
+        {
+            let controller = attacker_obj.controller;
+            if let Some(ps) = state.expect_player(controller) {
+                if ps.ring_level >= 1 {
+                    let attacker_power = attacker_chars.power.unwrap_or(0);
+                    let blocker_power = blocker_chars.power.unwrap_or(0);
+                    if blocker_power > attacker_power {
+                        return Err(GameStateError::InvalidCommand(format!(
+                            "Object {:?} cannot block ring-bearer {:?} \
+                             (blocker power {} > ring-bearer power {}, CR 701.54c)",
+                            blocker_id, attacker_id, blocker_power, attacker_power
+                        )));
+                    }
+                }
+            }
+        }
+    }
+    // CR 702.16f: protection from blocking. A creature with protection from a quality
+    // cannot be blocked by creatures that match that quality. The blocker is the source.
+    let blocker_controller = state.objects.get(&blocker_id).map(|o| o.controller);
+    if !super::protection::can_block(&attacker_chars.keywords, &blocker_chars, blocker_controller) {
+        return Err(GameStateError::InvalidCommand(format!(
+            "Object {:?} cannot block {:?} (attacker has protection from the blocker)",
+            blocker_id, attacker_id
+        )));
+    }
+    // CR 702.14c: A creature with landwalk can't be blocked as long as the defending
+    // player controls at least one land with the specified type. Uses
+    // `calculate_characteristics` to get post-layer subtypes (handles Blood Moon, etc.).
+    for kw in attacker_chars.keywords.iter() {
+        if let KeywordAbility::Landwalk(lw_type) = kw {
+            let defender_has_matching_land = state.objects.values().any(|obj| {
+                obj.zone == ZoneId::Battlefield && obj.controller == player && {
+                    let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                    chars.card_types.contains(&CardType::Land)
+                        && match lw_type {
+                            LandwalkType::BasicType(st) => chars.subtypes.contains(st),
+                            LandwalkType::Nonbasic => !chars.supertypes.contains(&SuperType::Basic),
+                        }
+                }
+            });
+            if defender_has_matching_land {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Object {:?} cannot block {:?} (attacker has {:?} landwalk; \
+                     defending player controls a matching land)",
+                    blocker_id, attacker_id, lw_type
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// CR 509.1a-c / CR 702.111b / CR 702.39a: the WHOLE declaration -- 4 preamble guards,
+/// [`check_block_pair`] over every pair, then the two batch guards (menace, provoke).
+///
+/// `handle_declare_blockers` calls this before mutating anything, so a rejected
+/// declaration touches no state. Advisory callers (`queries::legal_blocks`,
+/// `queries::check_block_pair`) can also call [`check_block_pair`] directly for a
+/// single pair without going through the preamble/batch guards here.
+pub fn validate_block_declaration(
+    state: &GameState,
+    player: PlayerId,
+    blockers: &[(ObjectId, ObjectId)],
+) -> Result<(), GameStateError> {
     // Must be in the DeclareBlockers step.
     if state.turn.step != Step::DeclareBlockers {
         return Err(GameStateError::InvalidCommand(
@@ -1198,297 +1511,12 @@ pub fn handle_declare_blockers(
     }
     // Track blocker IDs seen in this declaration to catch within-batch duplicates.
     let mut seen_blocker_ids: Vec<ObjectId> = Vec::with_capacity(blockers.len());
-    // Validate each blocker.
-    for (blocker_id, attacker_id) in &blockers {
-        let obj = state.object(*blocker_id)?;
-        if obj.zone != ZoneId::Battlefield {
-            return Err(GameStateError::ObjectNotOnBattlefield(*blocker_id));
-        }
-        // CR 702.26b: Phased-out permanents cannot block.
-        if obj.status.phased_out {
-            return Err(GameStateError::InvalidCommand(format!(
-                "Object {:?} is phased out and cannot block",
-                blocker_id
-            )));
-        }
-        if obj.controller != player {
-            return Err(GameStateError::NotController {
-                player,
-                object_id: *blocker_id,
-            });
-        }
-        if obj.status.tapped {
-            return Err(GameStateError::PermanentAlreadyTapped(*blocker_id));
-        }
-        // Must be a creature.
-        let blocker_chars = calculate_characteristics(state, *blocker_id)
-            .ok_or(GameStateError::ObjectNotFound(*blocker_id))?;
-        if !blocker_chars.card_types.contains(&CardType::Creature) {
-            return Err(GameStateError::InvalidCommand(format!(
-                "Object {:?} is not a creature",
-                blocker_id
-            )));
-        }
-        // CR 702.147a: A creature with decayed can't block.
-        if blocker_chars.keywords.contains(&KeywordAbility::Decayed) {
-            return Err(GameStateError::InvalidCommand(format!(
-                "Object {:?} has decayed and cannot block (CR 702.147a)",
-                blocker_id
-            )));
-        }
-        // CR 509.1b: A creature with CantBlock can't block.
-        if blocker_chars.keywords.contains(&KeywordAbility::CantBlock) {
-            return Err(GameStateError::InvalidCommand(format!(
-                "Object {:?} has CantBlock and cannot block (CR 509.1b)",
-                blocker_id
-            )));
-        }
-        // CR 701.60c: A suspected permanent has "This creature can't block."
-        // Checked on the raw GameObject (like Decayed) so the restriction persists
-        // even under ability-removal effects (Humility strips the Menace grant but
-        // the designation and can't-block restriction remain).
-        // TODO: Under true Humility, can't-block should also be removed; this is a
-        // known minor inaccuracy deferred to a future session.
-        if obj.designations.contains(Designations::SUSPECTED) {
-            return Err(GameStateError::InvalidCommand(format!(
-                "Object {:?} is suspected and cannot block (CR 701.60c)",
-                blocker_id
-            )));
-        }
-        // MR-M6-02: a creature can only block one attacker.
-        // Check both existing combat.blockers and within-this-declaration duplicates.
-        if seen_blocker_ids.contains(blocker_id)
-            || state
-                .combat
-                .as_ref()
-                .map(|c| c.blockers.contains_key(blocker_id))
-                .unwrap_or(false)
-        {
-            return Err(GameStateError::DuplicateBlocker(*blocker_id));
-        }
+    // Validate each blocker against the ONE per-pair predicate.
+    for (blocker_id, attacker_id) in blockers {
+        check_block_pair(state, player, *blocker_id, *attacker_id, &seen_blocker_ids)?;
         seen_blocker_ids.push(*blocker_id);
-        // MR-M6-09: a defending player can only block attackers that are attacking them
-        // (or their planeswalker). CR 509.1c.
-        // Also validates that the attacker is a declared attacker.
-        let attacker_target = state
-            .combat
-            .as_ref()
-            .and_then(|c| c.attackers.get(attacker_id).cloned());
-        match attacker_target {
-            None => {
-                return Err(GameStateError::InvalidCommand(format!(
-                    "Object {:?} is not a declared attacker",
-                    attacker_id
-                )));
-            }
-            Some(AttackTarget::Player(pid)) if pid == player => {
-                // Valid: this attacker is targeting the declaring player directly.
-            }
-            Some(AttackTarget::Planeswalker(pw_id)) => {
-                // Valid only if the planeswalker is controlled by the declaring player.
-                let pw_controller = state.objects.get(&pw_id).map(|o| o.controller);
-                if pw_controller != Some(player) {
-                    return Err(GameStateError::CrossPlayerBlock {
-                        blocker: *blocker_id,
-                        attacker: *attacker_id,
-                    });
-                }
-            }
-            Some(_) => {
-                return Err(GameStateError::CrossPlayerBlock {
-                    blocker: *blocker_id,
-                    attacker: *attacker_id,
-                });
-            }
-        }
-        // CR 509.1b / CR 702.9a: A creature without flying or reach cannot block
-        // a creature with flying.
-        let attacker_chars = calculate_characteristics(state, *attacker_id)
-            .ok_or(GameStateError::ObjectNotFound(*attacker_id))?;
-        let attacker_has_flying = attacker_chars.keywords.contains(&KeywordAbility::Flying);
-        let blocker_has_flying = blocker_chars.keywords.contains(&KeywordAbility::Flying);
-        let blocker_has_reach = blocker_chars.keywords.contains(&KeywordAbility::Reach);
-        if attacker_has_flying && !blocker_has_flying && !blocker_has_reach {
-            return Err(GameStateError::InvalidCommand(format!(
-                "Object {:?} cannot block {:?} (attacker has flying, blocker has neither flying nor reach)",
-                blocker_id, attacker_id
-            )));
-        }
-        // CR 509.1 / KeywordAbility::CantBeBlocked: a creature with this keyword
-        // cannot be blocked at all. Applied by Rogue's Passage activated ability.
-        if attacker_chars
-            .keywords
-            .contains(&KeywordAbility::CantBeBlocked)
-        {
-            return Err(GameStateError::InvalidCommand(format!(
-                "Object {:?} cannot be blocked (CantBeBlocked keyword)",
-                attacker_id
-            )));
-        }
-        // CR 509.1b: CantBeBlockedExceptBy — the attacker can only be blocked by creatures
-        // matching the exception filter. Each filter arm specifies what qualifies.
-        for kw in attacker_chars.keywords.iter() {
-            if let KeywordAbility::CantBeBlockedExceptBy(filter) = kw {
-                let blocker_matches = match filter {
-                    BlockingExceptionFilter::HasKeyword(required_kw) => {
-                        blocker_chars.keywords.contains(required_kw.as_ref())
-                    }
-                    BlockingExceptionFilter::HasAnyKeyword(required_kws) => required_kws
-                        .iter()
-                        .any(|k| blocker_chars.keywords.contains(k)),
-                };
-                if !blocker_matches {
-                    return Err(GameStateError::InvalidCommand(format!(
-                        "Object {:?} cannot block {:?} (attacker has CantBeBlockedExceptBy; \
-                         blocker does not match filter {:?})",
-                        blocker_id, attacker_id, filter
-                    )));
-                }
-            }
-        }
-        // CR 702.13b: A creature with intimidate can't be blocked except by artifact creatures
-        // and/or creatures that share a color with it.
-        if attacker_chars
-            .keywords
-            .contains(&KeywordAbility::Intimidate)
-        {
-            let blocker_is_artifact_creature =
-                blocker_chars.card_types.contains(&CardType::Artifact)
-                    && blocker_chars.card_types.contains(&CardType::Creature);
-            let shares_a_color = attacker_chars
-                .colors
-                .iter()
-                .any(|c| blocker_chars.colors.contains(c));
-            if !blocker_is_artifact_creature && !shares_a_color {
-                return Err(GameStateError::InvalidCommand(format!(
-                    "Object {:?} cannot block {:?} (attacker has intimidate; \
-                     blocker is neither an artifact creature nor shares a color)",
-                    blocker_id, attacker_id
-                )));
-            }
-        }
-        // CR 702.36b: A creature with fear can't be blocked except by artifact creatures
-        // and/or black creatures.
-        if attacker_chars.keywords.contains(&KeywordAbility::Fear) {
-            let blocker_is_artifact_creature =
-                blocker_chars.card_types.contains(&CardType::Artifact)
-                    && blocker_chars.card_types.contains(&CardType::Creature);
-            let blocker_is_black = blocker_chars.colors.contains(&Color::Black);
-            if !blocker_is_artifact_creature && !blocker_is_black {
-                return Err(GameStateError::InvalidCommand(format!(
-                    "Object {:?} cannot block {:?} (attacker has fear; \
-                     blocker is neither an artifact creature nor black)",
-                    blocker_id, attacker_id
-                )));
-            }
-        }
-        // CR 702.28b: Shadow is a bidirectional evasion ability.
-        // A creature with shadow can't be blocked by creatures without shadow,
-        // and a creature without shadow can't be blocked by creatures with shadow.
-        let attacker_has_shadow = attacker_chars.keywords.contains(&KeywordAbility::Shadow);
-        let blocker_has_shadow = blocker_chars.keywords.contains(&KeywordAbility::Shadow);
-        if attacker_has_shadow != blocker_has_shadow {
-            return Err(GameStateError::InvalidCommand(format!(
-                "Object {:?} cannot block {:?} (shadow mismatch: attacker shadow={}, blocker shadow={})",
-                blocker_id, attacker_id, attacker_has_shadow, blocker_has_shadow
-            )));
-        }
-        // CR 702.31b: Horsemanship is a unidirectional evasion ability.
-        // A creature with horsemanship can't be blocked by creatures without horsemanship.
-        // Unlike Shadow, a creature with horsemanship CAN block creatures without horsemanship.
-        if attacker_chars
-            .keywords
-            .contains(&KeywordAbility::Horsemanship)
-            && !blocker_chars
-                .keywords
-                .contains(&KeywordAbility::Horsemanship)
-        {
-            return Err(GameStateError::InvalidCommand(format!(
-                "Object {:?} cannot block {:?} (attacker has horsemanship; \
-                 blocker does not have horsemanship)",
-                blocker_id, attacker_id
-            )));
-        }
-        // CR 702.118b: Skulk -- a creature with skulk can't be blocked by creatures
-        // with greater power. Unlike Shadow, this is one-directional: it only restricts
-        // what can block the skulk creature, not what the skulk creature can block.
-        // Equal power IS allowed to block (strictly greater than, not greater-or-equal).
-        if attacker_chars.keywords.contains(&KeywordAbility::Skulk) {
-            let attacker_power = attacker_chars.power.unwrap_or(0);
-            let blocker_power = blocker_chars.power.unwrap_or(0);
-            if blocker_power > attacker_power {
-                return Err(GameStateError::InvalidCommand(format!(
-                    "Object {:?} cannot block {:?} (attacker has skulk with power {}; \
-                     blocker has greater power {})",
-                    blocker_id, attacker_id, attacker_power, blocker_power
-                )));
-            }
-        }
-        // CR 701.54c (ring level >= 1): Ring-bearer can't be blocked by creatures with
-        // greater power. Identical to Skulk's restriction, but triggered by the RING_BEARER
-        // designation rather than a keyword ability.
-        if let Some(attacker_obj) = state.expect_object(*attacker_id) {
-            if attacker_obj
-                .designations
-                .contains(crate::state::game_object::Designations::RING_BEARER)
-            {
-                let controller = attacker_obj.controller;
-                if let Some(ps) = state.expect_player(controller) {
-                    if ps.ring_level >= 1 {
-                        let attacker_power = attacker_chars.power.unwrap_or(0);
-                        let blocker_power = blocker_chars.power.unwrap_or(0);
-                        if blocker_power > attacker_power {
-                            return Err(GameStateError::InvalidCommand(format!(
-                                "Object {:?} cannot block ring-bearer {:?} \
-                                 (blocker power {} > ring-bearer power {}, CR 701.54c)",
-                                blocker_id, attacker_id, blocker_power, attacker_power
-                            )));
-                        }
-                    }
-                }
-            }
-        }
-        // CR 702.16f: protection from blocking. A creature with protection from a quality
-        // cannot be blocked by creatures that match that quality. The blocker is the source.
-        let blocker_controller = state.objects.get(blocker_id).map(|o| o.controller);
-        if !super::protection::can_block(
-            &attacker_chars.keywords,
-            &blocker_chars,
-            blocker_controller,
-        ) {
-            return Err(GameStateError::InvalidCommand(format!(
-                "Object {:?} cannot block {:?} (attacker has protection from the blocker)",
-                blocker_id, attacker_id
-            )));
-        }
-        // CR 702.14c: A creature with landwalk can't be blocked as long as the defending
-        // player controls at least one land with the specified type. Uses
-        // `calculate_characteristics` to get post-layer subtypes (handles Blood Moon, etc.).
-        for kw in attacker_chars.keywords.iter() {
-            if let KeywordAbility::Landwalk(lw_type) = kw {
-                let defender_has_matching_land = state.objects.values().any(|obj| {
-                    obj.zone == ZoneId::Battlefield && obj.controller == player && {
-                        let chars = crate::rules::layers::expect_characteristics(state, obj.id);
-                        chars.card_types.contains(&CardType::Land)
-                            && match lw_type {
-                                LandwalkType::BasicType(st) => chars.subtypes.contains(st),
-                                LandwalkType::Nonbasic => {
-                                    !chars.supertypes.contains(&SuperType::Basic)
-                                }
-                            }
-                    }
-                });
-                if defender_has_matching_land {
-                    return Err(GameStateError::InvalidCommand(format!(
-                        "Object {:?} cannot block {:?} (attacker has {:?} landwalk; \
-                         defending player controls a matching land)",
-                        blocker_id, attacker_id, lw_type
-                    )));
-                }
-            }
-        }
     }
-    // CR 702.110a: A creature with menace can't be blocked except by two or more creatures.
+    // CR 702.111b: A creature with menace can't be blocked except by two or more creatures.
     // Check that no attacker with menace is being blocked by only one creature.
     {
         // Count how many blockers each attacker in this declaration has (summing over all declarations so far + this one).
@@ -1506,7 +1534,7 @@ pub fn handle_declare_blockers(
             }
         }
         // New blockers being declared now.
-        for (_, attacker_id) in &blockers {
+        for (_, attacker_id) in blockers {
             *blocker_count_for_attacker.entry(*attacker_id).or_insert(0) += 1;
         }
         for (attacker_id, count) in &blocker_count_for_attacker {
@@ -1524,12 +1552,13 @@ pub fn handle_declare_blockers(
     }
     // CR 702.39a / CR 509.1c: Provoke forced-block requirements.
     //
-    // Each provoked creature must block its provoking attacker if able.
-    // "If able" means the creature is on the battlefield, untapped, is a creature,
-    // can legally block the attacker (no evasion restrictions prevent it), and is
-    // controlled by the declaring player. If ALL conditions are met and the creature
-    // is NOT in the blocker list blocking its provoking attacker, the declaration is
-    // illegal (CR 509.1c -- must maximize obeyed requirements without violating restrictions).
+    // Each provoked creature must block its provoking attacker if able. "If able" is
+    // now decided by [`check_block_pair`] itself (an empty `already_blocking`: whether
+    // this provoked creature is used elsewhere in THIS batch is a controller CHOICE,
+    // not an impossibility, and must not make the requirement vanish). If the pairing
+    // is legal and the creature is NOT in the blocker list blocking its provoking
+    // attacker, the declaration is illegal (CR 509.1c -- must maximize obeyed
+    // requirements without violating restrictions).
     {
         // Collect forced-block entries for this player (immutable borrow scope).
         let forced: Vec<(ObjectId, ObjectId)> = state
@@ -1538,186 +1567,12 @@ pub fn handle_declare_blockers(
             .map(|c| c.forced_blocks.iter().map(|(&k, &v)| (k, v)).collect())
             .unwrap_or_default();
         for (provoked_id, must_block_attacker) in forced {
-            // Only check if the provoked creature is controlled by this declaring player.
-            let provoked_obj = match state.objects.get(&provoked_id) {
-                Some(o) if o.controller == player && o.zone == ZoneId::Battlefield => o,
-                _ => continue, // Not this player's creature or not on battlefield
-            };
-            // Check if the creature is tapped (can't block if tapped).
-            if provoked_obj.status.tapped {
+            if check_block_pair(state, player, provoked_id, must_block_attacker, &[]).is_err() {
+                // Not this player's creature, not on the battlefield, tapped, no
+                // longer a declared attacker, or blocked by any per-pair restriction
+                // (evasion, protection, phased-out, ...) -- the requirement is
+                // impossible to satisfy, so it imposes no obligation (CR 509.1c).
                 continue;
-            }
-            // Check if the attacker is still a declared attacker.
-            let attacker_still_active = state
-                .combat
-                .as_ref()
-                .map(|c| c.attackers.contains_key(&must_block_attacker))
-                .unwrap_or(false);
-            if !attacker_still_active {
-                continue;
-            }
-            // Compute characteristics for both the provoked creature and the attacker.
-            // If either is missing characteristics (no longer a creature, etc.), skip.
-            let provoked_chars = match calculate_characteristics(state, provoked_id) {
-                Some(c) if c.card_types.contains(&CardType::Creature) => c,
-                _ => continue, // No longer a creature -- requirement impossible
-            };
-            let attacker_chars = match calculate_characteristics(state, must_block_attacker) {
-                Some(c) => c,
-                // CR 400.7: the provoking attacker may have changed zones since the
-                // forced-block was recorded; its old id names nothing, so the requirement
-                // can't apply (LKI fizzle -- not an engine bug).
-                None => continue, // Attacker gone -- skip
-            };
-            // CR 509.1b / CR 702.9a: Flying evasion check.
-            let attacker_has_flying = attacker_chars.keywords.contains(&KeywordAbility::Flying);
-            let blocker_has_flying = provoked_chars.keywords.contains(&KeywordAbility::Flying);
-            let blocker_has_reach = provoked_chars.keywords.contains(&KeywordAbility::Reach);
-            if attacker_has_flying && !blocker_has_flying && !blocker_has_reach {
-                continue; // Requirement impossible -- skip
-            }
-            // CR 702.147a: Decayed creatures can't block.
-            if provoked_chars.keywords.contains(&KeywordAbility::Decayed) {
-                continue; // Requirement impossible -- skip
-            }
-            // CR 509.1b: CantBlock creatures can't block.
-            if provoked_chars.keywords.contains(&KeywordAbility::CantBlock) {
-                continue; // Requirement impossible -- skip
-            }
-            // CR 701.60c: Suspected creatures can't block.
-            if provoked_obj.designations.contains(Designations::SUSPECTED) {
-                continue; // Requirement impossible -- skip
-            }
-            // CR 509.1: CantBeBlocked keyword -- creature can't be blocked at all.
-            if attacker_chars
-                .keywords
-                .contains(&KeywordAbility::CantBeBlocked)
-            {
-                continue; // Requirement impossible -- skip
-            }
-            // CR 509.1b: CantBeBlockedExceptBy -- provoked creature must match filter.
-            let mut cant_block_due_to_filter = false;
-            for kw in attacker_chars.keywords.iter() {
-                if let KeywordAbility::CantBeBlockedExceptBy(filter) = kw {
-                    let matches = match filter {
-                        BlockingExceptionFilter::HasKeyword(req) => {
-                            provoked_chars.keywords.contains(req.as_ref())
-                        }
-                        BlockingExceptionFilter::HasAnyKeyword(reqs) => {
-                            reqs.iter().any(|k| provoked_chars.keywords.contains(k))
-                        }
-                    };
-                    if !matches {
-                        cant_block_due_to_filter = true;
-                        break;
-                    }
-                }
-            }
-            if cant_block_due_to_filter {
-                continue; // Requirement impossible -- skip
-            }
-            // CR 702.13b: Intimidate -- can only be blocked by artifact creatures
-            // and/or creatures sharing a color.
-            if attacker_chars
-                .keywords
-                .contains(&KeywordAbility::Intimidate)
-            {
-                let blocker_is_artifact_creature =
-                    provoked_chars.card_types.contains(&CardType::Artifact)
-                        && provoked_chars.card_types.contains(&CardType::Creature);
-                let shares_a_color = attacker_chars
-                    .colors
-                    .iter()
-                    .any(|c| provoked_chars.colors.contains(c));
-                if !blocker_is_artifact_creature && !shares_a_color {
-                    continue; // Requirement impossible -- skip
-                }
-            }
-            // CR 702.36b: Fear -- can only be blocked by artifact creatures and/or black.
-            if attacker_chars.keywords.contains(&KeywordAbility::Fear) {
-                let blocker_is_artifact_creature =
-                    provoked_chars.card_types.contains(&CardType::Artifact)
-                        && provoked_chars.card_types.contains(&CardType::Creature);
-                let blocker_is_black = provoked_chars.colors.contains(&Color::Black);
-                if !blocker_is_artifact_creature && !blocker_is_black {
-                    continue; // Requirement impossible -- skip
-                }
-            }
-            // CR 702.28b: Shadow mismatch.
-            let attacker_has_shadow = attacker_chars.keywords.contains(&KeywordAbility::Shadow);
-            let blocker_has_shadow = provoked_chars.keywords.contains(&KeywordAbility::Shadow);
-            if attacker_has_shadow != blocker_has_shadow {
-                continue; // Requirement impossible -- skip
-            }
-            // CR 702.31b: Horsemanship.
-            if attacker_chars
-                .keywords
-                .contains(&KeywordAbility::Horsemanship)
-                && !provoked_chars
-                    .keywords
-                    .contains(&KeywordAbility::Horsemanship)
-            {
-                continue; // Requirement impossible -- skip
-            }
-            // CR 702.118b: Skulk -- can't be blocked by creatures with greater power.
-            if attacker_chars.keywords.contains(&KeywordAbility::Skulk) {
-                let attacker_power = attacker_chars.power.unwrap_or(0);
-                let blocker_power = provoked_chars.power.unwrap_or(0);
-                if blocker_power > attacker_power {
-                    continue; // Requirement impossible -- skip
-                }
-            }
-            // CR 701.54c: Ring-bearer blocking restriction (identical to Skulk).
-            if let Some(attacker_obj) = state.expect_object(must_block_attacker) {
-                if attacker_obj
-                    .designations
-                    .contains(crate::state::game_object::Designations::RING_BEARER)
-                {
-                    let controller = attacker_obj.controller;
-                    if let Some(ps) = state.expect_player(controller) {
-                        if ps.ring_level >= 1 {
-                            let attacker_power = attacker_chars.power.unwrap_or(0);
-                            let blocker_power = provoked_chars.power.unwrap_or(0);
-                            if blocker_power > attacker_power {
-                                continue; // Requirement impossible -- skip
-                            }
-                        }
-                    }
-                }
-            }
-            // CR 702.16f: Protection prevents blocking.
-            let provoked_controller = state.objects.get(&provoked_id).map(|o| o.controller);
-            if !super::protection::can_block(
-                &attacker_chars.keywords,
-                &provoked_chars,
-                provoked_controller,
-            ) {
-                continue; // Requirement impossible -- skip
-            }
-            // CR 702.14c: Landwalk -- can't be blocked if defender controls matching land.
-            let mut landwalk_blocks = false;
-            for kw in attacker_chars.keywords.iter() {
-                if let KeywordAbility::Landwalk(lw_type) = kw {
-                    let defender_has_matching_land = state.objects.values().any(|obj| {
-                        obj.zone == ZoneId::Battlefield && obj.controller == player && {
-                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
-                            chars.card_types.contains(&CardType::Land)
-                                && match lw_type {
-                                    LandwalkType::BasicType(st) => chars.subtypes.contains(st),
-                                    LandwalkType::Nonbasic => {
-                                        !chars.supertypes.contains(&SuperType::Basic)
-                                    }
-                                }
-                        }
-                    });
-                    if defender_has_matching_land {
-                        landwalk_blocks = true;
-                        break;
-                    }
-                }
-            }
-            if landwalk_blocks {
-                continue; // Requirement impossible -- skip
             }
             // The provoked creature CAN block the provoking attacker.
             // Check if it IS blocking it in this declaration.
@@ -1732,6 +1587,20 @@ pub fn handle_declare_blockers(
             }
         }
     }
+    Ok(())
+}
+
+/// Handle a DeclareBlockers command (CR 509.1).
+///
+/// Any defending player may declare blockers during the DeclareBlockers step.
+/// Priority is not required — this is a turn-based action for defending players.
+/// Multiple defending players each declare independently (CR 509.1a).
+pub fn handle_declare_blockers(
+    state: &mut GameState,
+    player: PlayerId,
+    blockers: Vec<(ObjectId, ObjectId)>,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    validate_block_declaration(state, player, &blockers)?;
     let mut events = Vec::new();
     // Record blockers in combat state.
     if let Some(combat) = state.combat.as_mut() {

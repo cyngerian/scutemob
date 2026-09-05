@@ -458,7 +458,7 @@ pub fn action_to_command_with_params(
                 },
                 // CR 602.2b/700.2a (PB-DP3): see the CastSpell arm above.
                 modes_chosen: if params.modes_chosen.is_empty() {
-                    legal_actions::ability_default_modes(state, *source, *ability_index)
+                    legal_actions::ability_default_modes(state, player, *source, *ability_index)
                 } else {
                     params.modes_chosen.clone()
                 },

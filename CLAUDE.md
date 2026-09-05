@@ -115,6 +115,10 @@
   **↻ 2026-09-05, later: SUPERSEDED on the no-further-dispatch point — the user approved a SECOND
   five-task chain, v4 ranks 19-23 (PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38), sequential,
   collect-before-next, exactly five. Next dispatch: PB-DX55 (rank 19).**
+  **↻ PB-DX55 SHIPPED** (`scutemob-234`, 2026-09-05; v4 rank 19, task 1 of 5 of the SECOND
+  chain — **OOS-SIM6-3**, **OOS-SIM5-3** and **OOS-SIM5-5** ALL FILED (none had a registry row)
+  *and* CLOSED, plus the rider **OOS-DX51-3** CLOSED; the bot refusal surface goes **70 → 9**
+  and every survivor is one unrelated class. **Next dispatch: PB-DX56 (rank 20).**)
   of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
   was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   the playtest-successor run 174–181
@@ -167,6 +171,14 @@
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
   `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,140/1,803 = 63.2%**
+  (**UNMOVED by PB-DX55, 2026-09-05 — 0 flips and 0 card-def edits of ANY kind**: `git diff
+  --numstat` over `crates/card-defs` and `crates/card-types/src/cards` is EMPTY, so the
+  empty-diff shortcut was available and the regeneration was run anyway, confirming every bucket
+  identical (clean 1,140 / todo 516 / empty 147). The reason 0 is the right number rather than a
+  lucky one: this batch authors no card text — it repairs the offer, query and funding layers
+  that sit BETWEEN a `Complete` def and a client, which is why it closes 61 bot refusals while
+  moving no marker.*)*
+  *(historical: **1,140/1,803 = 63.2%**
   (**UNMOVED by PB-DX42b, 2026-09-05 — 0 flips, predicted with the reason PER DEF before any
   code changed and confirmed in every bucket (clean 1,140 / todo 516 / empty 147 identical).
   **3 card-def edits, all comment-only** — `indomitable_archangel`'s wrong CR cite, the
@@ -307,6 +319,10 @@
   **↻ 2026-09-05, later: SUPERSEDED on the no-further-dispatch point — the user approved a SECOND
   five-task chain, v4 ranks 19-23 (PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38), sequential,
   collect-before-next, exactly five. Next dispatch: PB-DX55 (rank 19).**
+  **↻ PB-DX55 SHIPPED** (`scutemob-234`, 2026-09-05; v4 rank 19, task 1 of 5 of the SECOND
+  chain — **OOS-SIM6-3**, **OOS-SIM5-3** and **OOS-SIM5-5** ALL FILED (none had a registry row)
+  *and* CLOSED, plus the rider **OOS-DX51-3** CLOSED; the bot refusal surface goes **70 → 9**
+  and every survivor is one unrelated class. **Next dispatch: PB-DX56 (rank 20).**)
   of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
   was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
@@ -319,6 +335,121 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-05, PB-DX55 + `/review` fix cycle)**: **5,287 / 0 / 5** full-workspace on branch
+  `scutemob-234` (+44 over the **5,243** baseline, measured on the MERGE BASE in its own worktree
+  and **reproducing PB-DX42b's close pin exactly** — the sixth consecutive batch in which an
+  inherited pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file,
+  **72** result-producing targets (69 → 72: three new test binaries), residual list empty.
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs —
+  never `sort` + `comm` (`OOS-DX20b-5`), and with the extraction regex deliberately NOT
+  end-anchored (`OOS-DX42b-6`, so an `#[ignore = "reason"]` test whose line reads
+  `... ignored, <reason>` is still extracted), and **RE-TAKEN AFTER the `/review` fix cycle rather
+  than before it** (dispatch hygiene 8 — the cycle added `r6`, so the pre-cycle figure of 43 is
+  superseded by this line rather than left standing beside it): **44 additions, 0 leavers, 0
+  removals, 0 renames.** Count delta 44 == name-set delta 44, and the duplicate-name scan the byte-exact
+  method is structurally blind to (`OOS-DX35-8`) is **EMPTY on both runs** (5,248 lines / 5,248
+  distinct; 5,292 / 5,292).
+  **HASH 85 / PROTOCOL 44 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed
+  (`hash_schema` 36/36, `protocol_schema` 17/17) and **predicted in writing PER HALF before any
+  production line** (`6a03181a`). Closure type counts **MEASURED** at **132 / 98** by raising
+  each gate's `MIN_CLOSURE_TYPES` to 9999 and reading its own panic text. `git diff` over
+  `state/hash.rs` and `rules/protocol.rs` is **EMPTY**, so no sentinel re-pin, no survivor scan,
+  no history row and no frozen-prefix re-pin were owed.
+  **The counterfactual is VERIFIED BY EXECUTION, because "unmoved" only means something beside
+  what would have moved it**: planting `TargetRequirement`, `ModeSelection` and `AttackTarget` in
+  each gate's `CLOSURE_MUST_NOT_CONTAIN` **FAILS BOTH GATES** every time — i.e. every type this
+  batch's new query surfaces traffic in was **already on both wires**, which is exactly why
+  returning them adds nothing. `CombatState` fails HASH and **passes** PROTOCOL (reachable only
+  through `GameState`, which that list excludes), reproducing PB-DX51's finding. The load-bearing
+  fact for the modal half is that **`Command::ActivateAbility` already carried `modes_chosen`**
+  (`command.rs:124`), so no command field was added; `rules/queries.rs` is a read-only query
+  module and is off-wire.
+  Coverage **UNMOVED at 1,140/1,803 = 63.2%** by regeneration, **0 flips**, self-dating churn
+  reverted; **0 card-def edits of any kind**, so the shortcut was available and the regeneration
+  was run anyway.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
+  gate) — all against the FINAL tree, **and `clippy` FIRED there**, on `doc_lazy_continuation` in
+  a doc line opening `1.` — an ordered-list item that makes the next line its lazy continuation,
+  PB-DX39's own case one punctuation mark over; reworded with the reason recorded at the line.
+  **TWO standing gates also FIRED and both were answered rather than weakened**: SR-5's
+  `keyword_registry` site roster TWICE (`legal_actions.rs` reads Vigilance for the funding
+  exclusion, `random_bot.rs` reads Menace for the prune), and SR-25's `bare_lookup_ratchet`,
+  whose `combat.rs` ceiling genuinely FELL 16 → 14 from the extraction and was **lowered** rather
+  than left stale-high (PB-DX49's rule that a stale-high ceiling is slack a regression hides in).
+  **`npm run build` was NOT run, and unlike the last several batches that is a GAP rather than an
+  N/A**: the frontend DOES move here — `BlockerPicker.svelte` **+28 / −11** (each row's `<select>`
+  is now driven by that blocker's own `legalBlocks` slice instead of the flat cross product) and
+  `ActionBar.svelte` +1 — so the criterion is live, and `node_modules` is absent from this
+  worktree (`test -d` executed), so the build cannot run at all. The Svelte changes ship
+  **unbuilt**, covered only by the Rust-side gates and `api.rs`'s pair validation. Filed as
+  `OOS-DX55-7` rather than folded into the usual N/A sentence.
+  **Engine lines**: `crates/engine/src` **+548 / −514**, of which `rules/combat.rs` is
+  **+343 / −474** — a **NET REDUCTION of 131 lines**, which is the second hand-rolled copy
+  collapsing into the first; `crates/simulator/src` **+900 / −119**; `tools/` **+517 / −43**; and
+  **`crates/card-types`, `crates/card-defs` and `crates/view-model` are all EXACTLY 0**.
+  **Benches: NOT measured, and the reason is a mechanism bound checked by execution rather than
+  an estimate.** `crates/engine/benches/engine_perf.rs` contains **zero** occurrences of any
+  symbol this batch touched (`check_block_pair`, `legal_blocks`, `ability_target_requirements`,
+  `per_mode_target_requirements`, `command_mana_cost`, `auto_tap_commands_for`,
+  `handle_declare_blockers`), and its only mention of `DeclareBlockers` is a doc line whose very
+  next sentence is *"No attackers are declared."* — so the extracted predicate is never called on
+  any benched path. Everything else changed is in `crates/simulator` and `tools/`, which the
+  engine benches do not link.
+  **Fuzz: A/B'd against the merge base on the PB-DX32 gate config, and the headline is a ZERO.**
+  Merge base `70cd2487` built in its own worktree with its own `CARGO_TARGET_DIR`: T2.2's
+  rejection rate goes **5 / 2,713 = 1.843‰ → 0 / 2,717 = 0.000‰**, and T6.3's REACHED decision
+  rows go **4 of 7 → 6 of 7** (`look_at_top_then_place_optional` and `surveil` JOIN — before this
+  batch bots could not pay activation costs, so the resolution paths behind those rows were
+  starved — and Half 2's trajectory shift takes `may_pay_then_effect` back out; both attributed
+  by executed ablation, and `decision_site_walk`'s partition is untouched). **The zero forced
+  T2.2 to move its seeds** to `[6, 7, 10]`, because its own `total_rejections > 0` non-vacuity
+  floor cannot coexist with a measured zero and a gate whose floor is unsatisfiable has stopped
+  discriminating — **and moving the seeds is the right repair for T2.2 and the wrong place to
+  leave the result**, so the zero is pinned where it happened by a new
+  `test_dx55_the_historical_gate_seeds_now_produce_zero_bot_rejections` asserting `== 0` on
+  `[1, 2, 3]` under a `total_commands >= 2,150` floor (a bot that stopped acting also reports
+  zero). A ceiling of zero is the strongest ratchet that file can hold. Five further seeded pins
+  were re-observed and each attributed by an executed ablation rather than re-tuned
+  (`UI3_SPLIT_COMBAT_SEED` 26 → 47, `pb_dx22_fuzz_instrument`'s `SEED` 1 → 6, T2.1's seed 1 → 16,
+  T2.2's triple, T6.3's set) — `OOS-DX21-6`'s blast radius, which `OOS-DX51-3`'s row predicted
+  and which came due here.
+  **Revert matrix: 13 rows, EXECUTED BY THE COORDINATOR rather than accepted from the delegated
+  reports, every file restored byte-exactly (`cmp`), with a CONTROL row (R0, no patch, green).**
+  R1 and R2 are **precise complements** (the funding widening and the self-tap exclusion each
+  load-bearing). **R4's zero is the row worth reading and it is NOT a coverage gap**: removing
+  `legal_blocks`' attacking-player fast path reddens nothing, and that is structural — an
+  attacker always attacks somebody else, so `check_block_pair`'s `CrossPlayerBlock` arm already
+  refuses every pair the attacking player could name. Settled by a complementary pair rather than
+  argued: fast path AND that arm removed together (R4b) reddens 3, the arm alone (R5) reddens
+  exactly the cross-player probe. The row that actually carries `OOS-DX51-3` is **R6**, the offer
+  consuming the query instead of a raw battlefield scan.
+  **R9 IS A GATE DEFEAT THAT SUCCEEDED, and it is this batch's durable half.** The
+  block-legality gate decides *"exactly one per-pair predicate exists"* by a threshold of 5 of 9
+  markers, and **all nine are EXOTIC** — horsemanship, skulk, shadow, intimidate, fear, the
+  `CantBeBlockedExceptBy` internals, landwalk, protection. Planting a five-guard hand-rolled
+  predicate in `combat.rs` itself — controller, tapped, `CantBlock`, flying/reach, protection,
+  i.e. someone answering *"can this block that?"* for one local purpose — scored **1 of 9** and
+  left the gate **GREEN**. Its own `r2`/`r3` self-defeats could not see it because both plant a
+  WHOLESALE renamed copy of the real body, which carries all nine by construction: `OOS-DX54-6`
+  verbatim, *a self-test written by the same author from the same mental model exercises the
+  inputs that author already thought of*. **Nobody hand-rolls their way to horsemanship.** Closed
+  by a second axis on the COMMON guards whose threshold was MEASURED before the code was written
+  (real predicate 8 of 8, nearest other 2, nothing else above one), with the plant kept as a test
+  that ALSO asserts the exotic axis still misses it. `OOS-DX55-3`.
+  **AND THE REVERT HARNESS ITSELF WAS WRONG BEFORE ANY OF THAT.** It restored patched files with
+  `shutil.copy2`, **which preserves the source mtime**, so a restored file looked OLDER than the
+  artefact compiled from the patched version, `cargo` did not rebuild, and **every row after the
+  first measured the PREVIOUS row's binary**. Nothing said so: `git status` reported the tree
+  clean and `cmp` reported every file restored byte-exactly, and both were true. Found only
+  because a probe failed in isolation on a tree that had just passed the full suite and no source
+  difference could explain it. Measured cost: the first matrix reported R6 at **3** red and R7 at
+  **2**; after the fix they are **2** and **1**. The whole matrix was re-executed from the
+  control row. **`OOS-DX39-8`'s over-wide build detector turned a verdict into a NON-verdict,
+  which is loud; this turns a verdict into a DIFFERENT verdict, which is not** (`OOS-DX55-4`).
+  Filed **OOS-DX55-1..10** (`-9` and `-10` by the `/review` fix cycle — dispatch hygiene 8's
+  exact case for the seventh batch running, caught by re-checking this cell against the registry
+  AFTER the cycle rather than before it).
 - **Tests (delta 2026-09-05, PB-DX42b + `/review` fix cycle)**: **5,243 / 0 / 5** full-workspace
   on branch `scutemob-233` (+12 over the **5,231** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX54's close pin exactly** — the fifth consecutive batch in which an inherited
@@ -1746,7 +1877,92 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-05 — **PB-DX42b SHIPPED** (`scutemob-233`; v4 queue rank 18 —
+- **Last Updated**: 2026-09-05 — **PB-DX55 SHIPPED** (`scutemob-234`; v4 queue rank 19, task 1
+  of 5 of the SECOND user-approved chain — **OOS-SIM6-3**, **OOS-SIM5-3** and **OOS-SIM5-5** ALL
+  **FILED** *and* **CLOSED**, plus the rider **OOS-DX51-3** CLOSED. **None of the three had a
+  registry row**, for the second batch running: all three lived only inside `OOS-DX32-9`'s
+  ranked-defect-list cell, which is the v4 memo's own 61-of-208 blind spot instantiated on three
+  seeds at once.)
+  **THE WHOLE BOT REFUSAL SURFACE GOES 70 → 9, AND EVERY SURVIVOR IS ONE CLASS.**
+  **The memo's §2.6 table does not reproduce, in three directions at once**, measured before any
+  edit by its own invocation: the total is **70, not 105**; `OOS-SIM6-3` is **18, not 76** (its
+  share falls 72.4% → 25.7%, so it is not even the largest class, and §2.6's own correction of
+  the filed figure to *"76 of 105 — larger in share and in count"* is stale in the OTHER
+  direction); `OOS-SIM5-5` is **22, not 2** — **grown 11× and now the LARGEST class**, because
+  PB-DX35 made the per-mode requirement enforceable on the validation axis and left the query
+  that would let a caller satisfy it unchanged; and **"residue zero" is REFUTED**, along with
+  §2.6's separate claim that *"cast-side refusals are zero of any kind"* — the nine survivors are
+  all `expected 1..=1 target(s) but got 0` and **three are cast-side**. That residue is
+  `OOS-SIM5-4`'s parked offer-suppression class, priced by §2.6 at **0 of 105** and worth
+  **9 of 9** now that everything else is shut (`OOS-DX55-1`).
+  **EACH HALF IS ONE ARITHMETIC, NOT A SECOND COPY, AND THE COMPILER ENFORCES IT WHERE IT CAN.**
+  `legal_actions::command_mana_cost` is an **exhaustive `match` over all 45 `Command` variants
+  with NO wildcard arm**, so the mana-bearing census is a CEILING the compiler holds rather than a
+  document: 9 arms return a cost, **21** charge no mana, 14 charge mana but no `LegalAction` can
+  produce them, and `AnswerEffectChoice` is `None` for a stated reason rather than by omission.
+  `auto_tap_commands_for` collapses to that call plus `solve_mana_payment_with_pool` — **the same
+  two calls `can_afford` makes**, so SR-38 holds by construction instead of by two functions that
+  happen to agree.
+  **THE ENGINE ALREADY HELD TWO HAND-ROLLED BLOCK PREDICATES INSIDE ONE FUNCTION, AND THEY
+  DIFFERED IN THREE GUARDS.** `handle_declare_blockers`' per-pair loop and its CR 702.39a provoke
+  requirement's `continue`-shaped mirror are the same ~19 checks written twice; the mirror omitted
+  **phased-out**, **`CrossPlayerBlock`** and the **duplicate** check, so a phased-out or
+  cross-player-attacked provoked creature was REQUIRED to block a block it could not make — an
+  impossible requirement raised as a refusal instead of skipped, which is the opposite of what
+  CR 509.1c says. So *"never a second hand-rolled copy"* described HEAD rather than a future risk.
+  Both collapse into `check_block_pair`, consumed by the handler, by its own mirror and by the
+  offer through `queries::legal_blocks`, and **`combat.rs` is +342 / −473 — a NET REDUCTION of
+  131 lines.** The offer needed a shape change to consume it at all: `LegalAction::DeclareBlockers`
+  was a flat cross product that DISCARDED each attacker's `AttackTarget`, so no per-attacker
+  predicate was expressible in it.
+  **AND `handle_activate_ability` HELD A FIFTH INLINE COPY of `casting::per_mode_target_
+  requirements`' body** — same `debug_assert_eq!`, same `flat_map`/`get`/`unwrap_or_default` —
+  which PB-DX35 left behind when it unified the trigger side. Deleted; the query, the cast path,
+  `trigger_modal_plan` and the handler now share one slicer.
+  **THREE THINGS FOUND ONLY BY EXECUTION.** (1) Karn's Bastion carries `{T}: Add {C}` beside
+  `{4}, {T}: Proliferate`, so a naive auto-tapper taps the permanent to fund its OWN `{T}` cost
+  and the engine refuses `PermanentAlreadyTapped`; closed by an exclusion applied at BOTH the
+  offer layer and the funding layer, and it appears in no plan. (2) Umezawa's Jitte's modal
+  ability is at layer-resolved `ability_index` **0**, not the **1** the dispatch brief and the
+  plan both claimed — `enrich_spec_from_def` lowers in declaration order and the modal ability
+  precedes Equip. (3) The `pay: true` payment offers were gated on the **pool alone** and
+  therefore UNDER-offered, a dual nobody had named; the block comment saying *"the engine's
+  payment path reads only the pool (it never auto-taps)"* is what this batch makes false.
+  **TWO CR CITES CORRECTED AGAINST THE RULES SERVER BEFORE ANY CODE, ONE OF THEM THE PLAN'S
+  OWN.** **CR 700.2a** governs a modal *spell or **ACTIVATED** ability*; **CR 700.2b** governs a
+  modal **TRIGGERED** ability and adds *"if no mode is chosen, the ability is removed from the
+  stack"*. The plan's first draft cited PB-DX35's rule, and the distinction is load-bearing: an
+  activated ability is never on a stack to be removed from, so the consequence is an SR-38 OFFER
+  SUPPRESSION, not a removal. And **`combat.rs:1271` cited CR 509.1c** for *"the attacker must be
+  attacking the declaring player"*; CR 509.1c is the requirements-maximisation rule, correctly
+  cited three lines over for provoke, and the rule that says it is **CR 509.1a**, verbatim.
+  **THE BROWSER HALF IS PROVEN IN THE CHANNEL THE SEED WAS WRITTEN ABOUT.** `OOS-SIM6-3` says a
+  browser human gets a **422**; a 422 is an HTTP fact, so a real `POST /api/game/action` drive
+  answers it or nothing does. With an EMPTY pool, untapped lands and **no `TapForMana` ever
+  submitted** (asserted by counting the posted kinds, not merely omitted), the activation is
+  accepted and the verdict is the **CR 702.6a attachment**, not the status code. Under revert it
+  reproduces the seed's own sentence verbatim: `422 "player does not have enough mana to pay the
+  cost"`. **Its first draft failed correctly**, because an activated ability uses the stack and
+  acceptance is not resolution.
+  Tests **5,287 / 0 / 5** (+44 over a **5,243** baseline reproducing PB-DX42b's close pin
+  exactly, **72** targets, byte-exact NAME set difference with a non-end-anchored regex: 43
+  additions / 0 leavers / 0 removals / 0 renames, duplicate-name scan EMPTY on both runs; re-taken
+  AFTER the fix cycle).
+  **HASH 85 / PROTOCOL 44 BOTH UNMOVED — zero bumps**, predicted per half before any production
+  line, closure counts MEASURED at **132 / 98**, and **the counterfactual EXECUTED**: every type
+  the new query surfaces traffic in already fails both gates' `CLOSURE_MUST_NOT_CONTAIN`, which
+  is why nothing moved. Coverage **UNMOVED at 1,140/1,803 = 63.2%**, 0 flips, **0 card-def
+  edits**. **Fuzz: the gate config's rejection rate is 1.843‰ → 0**, and the zero is pinned where
+  it happened rather than lost to the seed move it forced. **Benches NOT measured**, bounded by
+  execution. **`npm run build` NOT run and it is a GAP this time, not an N/A** (`OOS-DX55-7`).
+  **Revert matrix 13 rows, coordinator-executed, with a CONTROL row** — R1/R2 precise
+  complements, R4's zero settled as structural redundancy by the R4b/R5 pair, **R9 a gate defeat
+  that SUCCEEDED** (`OOS-DX55-3`), **and the harness itself wrong first** (`shutil.copy2`
+  preserves mtimes, so cargo did not rebuild and every row after the first measured the previous
+  row's binary — `OOS-DX55-4`). Filed **OOS-DX55-1..10** (`-9` and `-10` by the `/review` fix cycle — dispatch hygiene 8's
+  exact case, caught by re-checking this cell against the registry AFTER the cycle). Full record:
+  `memory/primitives/pb-DX55-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-05 — **PB-DX42b SHIPPED** (`scutemob-233`; v4 queue rank 18 —
   **OOS-ADJ-1** ≡ **OOS-DX19-2** FILED *and* CLOSED as ONE defect, plus **OOS-DX19-1**'s residue
   and **OOS-DX19-4** CLOSED BY CONSTRUCTION, and the rank-21 rider **OOS-ADJ-2** taken in both
   halves). **Ranks 1-18 are ALL SHIPPED and no further dispatch is authorised.**

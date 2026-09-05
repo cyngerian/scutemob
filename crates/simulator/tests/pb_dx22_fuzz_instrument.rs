@@ -1039,9 +1039,39 @@ fn test_dx22_cr_903_10a_commander_damage_is_recorded_on_the_fuzz_build() {
 /// **A seeded fixture is not a measurement — it is a sample, and a corpus flip
 /// re-samples it.** Seeds 5, 7, 14, 15 and 17 also satisfy all nine, so the fixture is
 /// not balanced on a knife edge.
+///
+/// # Re-observed for PB-DX55 Half 2 (`OOS-SIM5-3`, 2026-09-05): 1 -> 6
+///
+/// **Not a `CORPUS_COMPLETE` re-deal this time** — `git diff --numstat -- crates/card-defs`
+/// is empty for this half, so `random_deck`'s pool is byte-identical and this is NOT
+/// `OOS-CARDS2-3`. What moved is `random_bot::action_to_command`'s `DeclareBlockers`
+/// arm: it used to draw one `random_bool` per creature in the flat `eligible` list
+/// against the whole combat's `attackers`, and now iterates the (possibly SHORTER,
+/// per-creature) `legal_blocks` map and draws its `random_range` against each
+/// creature's own legal-attacker slice, plus a menace prune that draws no RNG at all
+/// but can remove an already-chosen entry afterward. Any game reaching a
+/// `DeclareBlockers` decision for a defending bot re-indexes every RNG draw after it —
+/// the `OOS-DX21-6` trajectory-reindexing shape one instrument over, not a card-pool
+/// change. Seed 1 now plays out with `commander_casts_from_command_zone: **0**` again,
+/// vacuous in the same dimension for an unrelated reason.
+///
+/// Re-swept over seeds 0..=40 at this exact configuration, checked by running the real
+/// test (not a throwaway probe) in ascending order until one satisfies every
+/// assertion. **6 is the smallest.** Measured:
+///
+/// ```text
+/// MechanicsTally { spell_casts: 19, first_spell_cast_turn: Some(13),
+///   first_library_spell_cast_turn: Some(13), lands_played: 26,
+///   first_land_played_turn: Some(7), commander_casts_from_command_zone: 1,
+///   first_commander_cast_turn: Some(44), commander_returns_to_command_zone: 0,
+///   commander_zone_redirects: 0, seats_dealt_commander_damage: 1,
+///   max_commander_damage: 4 }
+/// ```
+///
+/// No assertion was weakened: the same nine gates run, against a different seed.
 #[test]
 fn test_dx22_the_fuzzers_mechanics_census_is_not_vacuous() {
-    const SEED: u64 = 1;
+    const SEED: u64 = 6;
     const MAX_TURNS: u32 = 60;
     let (cards, registry) = pool();
     let setup = built(SEED, &cards, &registry);

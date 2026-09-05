@@ -184,18 +184,84 @@ pub(crate) fn action_to_command(
                 .collect();
             params.attackers = attackers;
         }
-        // Random subset of blockers (moved verbatim from the pre-Session-3 body).
-        LegalAction::DeclareBlockers {
-            eligible,
-            attackers,
-        } => {
-            let mut blocks = Vec::new();
-            for &blocker in eligible {
-                if rng.random_bool(0.4) && !attackers.is_empty() {
-                    let attacker = attackers[rng.random_range(0..attackers.len())];
-                    blocks.push((blocker, attacker));
+        // CR 509.1a-c (PB-DX55, `OOS-SIM5-3`): each blocker now picks ONLY from its
+        // OWN legal attacker candidates (`legal_blocks`), which already excludes
+        // every pairing `check_block_pair` would refuse -- flying/reach, every other
+        // evasion keyword, protection, landwalk, `CrossPlayerBlock`. What a per-pair
+        // predicate cannot express are the two SET-level guards, CR 702.111b menace
+        // and CR 702.39a provoke, so those are handled by seeding provoke first and
+        // then a single deterministic menace prune -- **no repeat cap, no retry-on-
+        // refusal loop** (PB-DX21 deleted that shape).
+        LegalAction::DeclareBlockers { legal_blocks, .. } => {
+            let mut blocks: Vec<(ObjectId, ObjectId)> = Vec::new();
+            let mut committed: std::collections::BTreeSet<ObjectId> = Default::default();
+
+            // CR 702.39a: seed a satisfiable provoke requirement FIRST, unconditionally,
+            // so an unrelated random pick can never crowd out a legal forced block by
+            // assigning that same creature elsewhere before this loop reaches it.
+            let forced: Vec<(ObjectId, ObjectId)> = state
+                .combat()
+                .as_ref()
+                .map(|c| c.forced_blocks.iter().map(|(&k, &v)| (k, v)).collect())
+                .unwrap_or_default();
+            for (provoked, must_block) in forced {
+                if mtg_engine::rules::queries::check_block_pair(
+                    state,
+                    player,
+                    provoked,
+                    must_block,
+                    &[],
+                )
+                .is_ok()
+                {
+                    blocks.push((provoked, must_block));
+                    committed.insert(provoked);
                 }
             }
+
+            // Random subset of the REMAINING blockers, each choosing only among its
+            // own legal attackers (moved verbatim in spirit from the pre-PB-DX55
+            // body, which chose uniformly from the whole flat `attackers` list).
+            for (blocker, candidates) in legal_blocks {
+                if committed.contains(blocker) || candidates.is_empty() {
+                    continue;
+                }
+                if rng.random_bool(0.4) {
+                    let attacker = candidates[rng.random_range(0..candidates.len())];
+                    blocks.push((*blocker, attacker));
+                }
+            }
+
+            // ── The SET-level guards, decided by the ENGINE's own validator ─────
+            //
+            // CR 702.111b menace and CR 702.39a provoke are properties of the WHOLE
+            // declaration, which no per-pair predicate can see. The first draft
+            // re-implemented the menace blocker-count here by hand, and the `/review`
+            // was right that this is the batch's own defect one layer up: it is a
+            // SECOND hand-rolled copy of a rule the engine already states, in the
+            // batch whose entire subject is collapsing the first one. It also had a
+            // real (latent) divergence — a provoke pair seeded above could be dropped
+            // by the hand-rolled menace `retain`, yielding a declaration the engine
+            // then refuses with "must block … (provoke requirement)".
+            //
+            // So the verdict comes from `queries::validate_block_declaration` — the
+            // exact function `handle_declare_blockers` runs — and the bot prunes
+            // against IT. Pruning removes the LAST pair first, which is why the
+            // provoke seeds are pushed FIRST above: extras are given up before
+            // requirements are. Bounded by `blocks.len()`, so it terminates without a
+            // repeat cap or a retry-on-refusal loop (PB-DX21 deleted that shape).
+            while !blocks.is_empty()
+                && mtg_engine::rules::queries::validate_block_declaration(state, player, &blocks)
+                    .is_err()
+            {
+                blocks.pop();
+            }
+            // An empty declaration can still be illegal (a satisfiable provoke
+            // requirement makes "block nothing" refusable), and there is nothing left
+            // to prune. Submitting it anyway is correct: it is the engine's own
+            // verdict that decides, and the rejection is RECORDED (SIM-5's channel)
+            // rather than silently swallowed, which is what a successor needs in order
+            // to see the case at all.
             params.blockers = blocks;
         }
         _ => {}

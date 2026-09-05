@@ -188,7 +188,15 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // widening `accumulate_attack_tax_total`'s signature to also report X/taxed-
     // defender bookkeeping, which `queries::attack_tax_total` (a pure total, no new
     // public type) has no use for.
-    ("src/rules/combat.rs", 16),
+    // PB-DX55 (2026-09-05): 16 → 14. Extracting `check_block_pair` /
+    // `validate_block_declaration` (`OOS-SIM5-3`) collapsed the per-pair blocker loop
+    // and the provoke requirement's independent `continue`-shaped mirror of that same
+    // loop into ONE function -- the mirror's own bare `state.objects.get(&provoked_id)`
+    // (controller/zone match) and `state.objects.get(&pw_id)` (cross-player planeswalker
+    // check inside the per-pair loop, now shared) collapsed from two call sites into
+    // one apiece. Two bare lookups converted, so the ceiling comes down with them
+    // rather than leaving slack a future regression can hide in.
+    ("src/rules/combat.rs", 14),
     // PB-DX49 (2026-09-03): 7 → 6. `check_saga_sbas`'s chapter-still-on-stack guard used
     // to re-fetch the Saga with a bare `state.objects.get(&saga_id)` to read
     // `is_transformed` and `card_id`; it now asks `rules::saga::saga_view`, which resolves

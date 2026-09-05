@@ -19,8 +19,8 @@ use crate::rules::casting;
 use crate::rules::combat;
 use crate::rules::layers::calculate_characteristics;
 use crate::state::{
-    AltCostKind, AttackTarget, CardType, EnchantTarget, GameState, KeywordAbility, ManaCost,
-    ObjectId, PlayerId, SubType, Target, ZoneId,
+    AltCostKind, AttackTarget, CardType, EnchantTarget, GameState, GameStateError, KeywordAbility,
+    ManaCost, ObjectId, PlayerId, SubType, Target, ZoneId,
 };
 
 /// CR 601.2c — the target requirements a spell cast from `card` announces, honouring
@@ -205,34 +205,50 @@ pub fn spell_target_requirements(
     casting::aura_spell_target_requirements(&eff_chars, requirements)
 }
 
-/// CR 602.2b — the target requirements an activated ability announces.
+/// CR 602.2b/700.2c/700.2f (PB-DX55, `OOS-SIM5-5`) — the target requirements an
+/// activated ability announces, honouring per-mode target requirements
+/// (`ModeSelection.mode_targets`) for the chosen `modes_chosen`.
 ///
-/// Reads `calculate_characteristics(state, source)` — **never `card_registry.get()`** —
-/// because `ability_index` indexes the *layer-resolved* `activated_abilities` list
-/// (`abilities.rs:315-334`); a registry read would bypass Humility/Dress Down removing
-/// abilities and Layer-6 `AddActivatedAbility` grants adding them.
+/// All three of the corpus's modal activated abilities (`cankerbloom`,
+/// `goblin_cratermaker`, `umezawas_jitte`'s counter-removal ability) declare
+/// `targets: vec![]` and put every requirement in `mode_targets`, so
+/// [`ability_target_requirements`] (equivalently, this function called with
+/// `modes_chosen: &[]`) reported `vec![]` for all three on every board — the query this
+/// batch's `OOS-SIM5-5` traces back to.
 ///
-/// A modal activated ability's per-mode target slice (`abilities.rs:433-458`) is **out of
-/// scope here** — this function has no chosen-mode input, so it always returns the
-/// printed `ActivatedAbility.targets`. `abilities.rs:433-458` itself hard-rejects
-/// combining multiple chosen modes with `ModeSelection.mode_targets`, so the flat list is
-/// the correct answer for the single-mode case and an incomplete one (documented, not
-/// silently wrong) for the rare multi-mode + `mode_targets` case.
+/// Shares `casting::ability_mode_selection` + `casting::per_mode_target_requirements`
+/// with [`handle_activate_ability`](crate::rules::abilities::handle_activate_ability)'s
+/// own per-mode slice (previously a fifth hand-rolled copy of the same
+/// `flat_map`/`get`/`unwrap_or_default` shape — see that function's own doc), so the
+/// offer/query layer and the handler cannot drift on which targets a chosen mode
+/// requires.
 ///
-/// Missing object or an out-of-range `ability_index` yield `vec![]`.
+/// Same convention as `spell_target_requirements`'s divergence 1: an empty
+/// `modes_chosen` on an ability whose `ModeSelection.mode_targets` is `Some(_)` yields
+/// `vec![]`, not the flat list — advertising targets for a mode the caller has not
+/// chosen is worse than advertising none. Only when `mode_targets` is `None` (a
+/// non-modal ability, or a modal ability whose modes share one flat target list) does
+/// the flat `ActivatedAbility.targets` list apply, regardless of `modes_chosen`.
+///
+/// Missing object, an out-of-range `ability_index`, or an ability with no `modes` at
+/// all fall through to the flat list — this function never panics and never unwraps.
 pub fn ability_target_requirements(
     state: &GameState,
     source: ObjectId,
     ability_index: usize,
+    modes_chosen: &[usize],
 ) -> Vec<TargetRequirement> {
     let Some(chars) = calculate_characteristics(state, source) else {
         return vec![];
     };
-    chars
-        .activated_abilities
-        .get(ability_index)
-        .map(|ab| ab.targets.clone())
-        .unwrap_or_default()
+    let Some(ab) = chars.activated_abilities.get(ability_index) else {
+        return vec![];
+    };
+    let flat = ab.targets.clone();
+    match casting::ability_mode_selection(state, source, ability_index) {
+        Some(ms) => casting::per_mode_target_requirements(&ms, modes_chosen).unwrap_or(flat),
+        None => flat,
+    }
 }
 
 /// CR 606.3 / CR 601.2c — the target requirements a **loyalty** ability announces.
@@ -678,4 +694,106 @@ pub fn legal_mutate_hosts(state: &GameState, caster: PlayerId, card: ObjectId) -
             Target::StackObject(_) => None,
         })
         .collect()
+}
+
+/// CR 509.1a-c (PB-DX55, `OOS-SIM5-3`) — may `blocker` legally be declared blocking
+/// `attacker`, for the declaring `player`? Thin re-export of `combat::check_block_pair`
+/// (module header: this is the sanctioned query surface for UI/simulator callers, not
+/// `rules::combat` directly) -- `handle_declare_blockers`'s per-pair loop and its
+/// CR 702.39a provoke satisfiability check both call the SAME function in `combat.rs`,
+/// so an offer built from this and the engine's own validation cannot drift the way the
+/// old per-pair loop and the old provoke mirror had (they omitted phased-out,
+/// `CrossPlayerBlock` and the duplicate-blocker check between them).
+///
+/// `already_blocking` is for within-declaration duplicate detection when validating a
+/// full submitted declaration in order; pass `&[]` for a standalone single-pair query.
+///
+/// Advisory only (module header): a value returned here can still be rejected by
+/// `handle_declare_blockers`, which re-validates independently against LIVE state.
+pub fn check_block_pair(
+    state: &GameState,
+    player: PlayerId,
+    blocker: ObjectId,
+    attacker: ObjectId,
+    already_blocking: &[ObjectId],
+) -> Result<(), GameStateError> {
+    combat::check_block_pair(state, player, blocker, attacker, already_blocking)
+}
+
+/// CR 509.1a-c / CR 702.111b / CR 702.39a (PB-DX55, `OOS-SIM5-3`) — is the WHOLE
+/// declaration `blockers` legal for `player` right now? Thin re-export of
+/// `combat::validate_block_declaration`, the same function `handle_declare_blockers`
+/// calls before mutating anything.
+///
+/// Advisory only (module header): a value returned here can still be rejected by
+/// `handle_declare_blockers`, which re-validates independently against LIVE state.
+pub fn validate_block_declaration(
+    state: &GameState,
+    player: PlayerId,
+    blockers: &[(ObjectId, ObjectId)],
+) -> Result<(), GameStateError> {
+    combat::validate_block_declaration(state, player, blockers)
+}
+
+/// CR 509.1a-c (PB-DX55, `OOS-SIM5-3`) — per creature `player` controls, exactly which
+/// of the combat's declared attackers it may legally be assigned to block, using
+/// [`check_block_pair`] -- the SAME per-pair predicate `handle_declare_blockers`
+/// validates a real declaration against, so an offer built from this cannot drift from
+/// what the engine will accept.
+///
+/// **This exists because the pre-PB-DX55 offer mirrored only 5 of the engine's 4
+/// preamble + 26 per-pair + 2 batch guards, and approximated a sixth (is-a-creature)
+/// off RAW characteristics where the engine uses `calculate_characteristics`.**
+/// `LegalAction::DeclareBlockers { eligible, attackers }`'s flat cross product could not
+/// express CR 509.1a's attacking-player exclusion, `CrossPlayerBlock`, or any evasion
+/// keyword; this is what a bot or a browser client should actually offer from.
+///
+/// Only creatures with at least one legal attacker are included -- a creature that
+/// cannot legally block anything is simply absent from the returned list (the
+/// `attack_tax_total`/`None` idiom one level up: "not present" carries the same meaning
+/// as "empty" here, so there is exactly one way to spell it). Returns `vec![]` if
+/// `player` is the attacking player (CR 509.1a names the DEFENDING player;
+/// `OOS-DX51-3`) or if there is no active combat -- both cases where NO creature this
+/// player controls may ever legally be declared as a blocker.
+///
+/// Sorted by blocker `ObjectId`, then by attacker `ObjectId` within each entry, for
+/// determinism (the `dredge_options` idiom).
+///
+/// Advisory only (module header): a value returned here can still be rejected by
+/// `handle_declare_blockers`, which re-validates independently against LIVE state at
+/// the moment of the answer, not against whatever this function returned when the offer
+/// was computed.
+pub fn legal_blocks(state: &GameState, player: PlayerId) -> Vec<(ObjectId, Vec<ObjectId>)> {
+    let Some(combat) = state.combat().as_ref() else {
+        return Vec::new();
+    };
+    // CR 509.1a names the DEFENDING player; the attacking player may never declare
+    // blockers at all, so every creature they control has an empty legal-attacker
+    // list by construction rather than by iterating and finding each one illegal.
+    if player == combat.attacking_player {
+        return Vec::new();
+    }
+    let mut attacker_ids: Vec<ObjectId> = combat.attackers.keys().copied().collect();
+    attacker_ids.sort();
+    let mut result: Vec<(ObjectId, Vec<ObjectId>)> = state
+        .objects()
+        .values()
+        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == player)
+        .filter_map(|obj| {
+            let legal: Vec<ObjectId> = attacker_ids
+                .iter()
+                .copied()
+                .filter(|&attacker_id| {
+                    combat::check_block_pair(state, player, obj.id, attacker_id, &[]).is_ok()
+                })
+                .collect();
+            if legal.is_empty() {
+                None
+            } else {
+                Some((obj.id, legal))
+            }
+        })
+        .collect();
+    result.sort_by_key(|(id, _)| *id);
+    result
 }
