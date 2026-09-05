@@ -25,7 +25,7 @@ watches it with the Monitor tool.
    from main and cannot see untracked coordinator files). Land any `workstream-state.md` chore
    commit BEFORE the next step (dispatch hygiene 9).
 3. **Clarify the task**: propose acceptance criteria if none were given. Always include a testing
-   criterion. Name the **change class** (`memory/conventions.md`, change-class acceptance table)
+   criterion. Name the **change class** (`memory/conventions.md` → "## Change-class acceptance table")
    so the criteria ask for that class's ritual and no more.
 4. **Create the ESM task** — `--criteria` is REPEATABLE, one flag per criterion (dispatch hygiene 4;
    a pipe-joined string becomes one mega-criterion):
@@ -51,7 +51,9 @@ the brief carries the engineering:
 
 - The task in two sentences, and the criteria restated with any measured figure RE-DERIVED at
   HEAD (brief cites drift within a chain — dispatch hygiene 9).
-- The **change class** and its required ritual (the table in `memory/conventions.md`).
+- The **change class** and its required ritual — cite it by section:
+  `memory/conventions.md` → "## Change-class acceptance table" (row 1–4), so the worker reads
+  the table rather than a paraphrase of it.
 - The files and functions to start from, with paths verified to exist at HEAD.
 - Pointers, not prose: the relevant `memory/gotchas-*.md` entries, the seed registry rows, the
   plan or notes file to append to. Known-site lists are FLOORS — say so and ask for an
@@ -75,7 +77,7 @@ remote control is unavailable.
 `esm worktree create`'s JSON response in step 5 — pass it verbatim.
 
 ```bash
-esm worker-tab {task_id} "{worktree_abs}" --prompt 'Read .esm/worker.md, then .esm/brief.md, and follow both. BEFORE you start implementing, post a task list as an `esm task comment` on your task AND write it to memory/primitives/<batch>-task-list.md — one item per concrete step (each site, each card-def edit, each test, build/clippy/fmt, /review). This build exposes no TaskCreate to workers; the comment plus the file is the task list. Update it as you go: repost the comment with items checked off at every milestone, never one batch at the end. The brief names the CHANGE CLASS; do that class'"'"'s acceptance ritual (memory/conventions.md, change-class table) and no more. Delegate the heavy lifting to the specialized project agents via the Agent tool rather than implementing everything inline: primitive batches use primitive-impl-runner then primitive-impl-reviewer; card authoring uses bulk-card-author then card-batch-reviewer; game scripts use game-script-generator; CR coverage questions use cr-coverage-auditor. Only implement directly when no agent fits. Subagent briefs must forbid git outright (the stash stack is shared across worktrees). Never `git add -A`; stage by explicit path. Never wait with `sleep` under run_in_background — use the Monitor tool or one foreground until-loop. Keep bench scratch under your scratchpad and delete it before finishing. When done: satisfy every criterion with `esm task satisfy`, run /review (HIGH and MEDIUM findings fixed in-cycle, LOW logged to the notes file unless trivial), write the ≤10-line CHANGELOG.md entry and the notes file, then follow the Completion Sequence in .esm/worker.md.'
+esm worker-tab {task_id} "{worktree_abs}" --prompt 'Read .esm/worker.md, then .esm/brief.md, and follow both. BEFORE you start implementing, post a task list as an `esm task comment` on your task AND write it to memory/primitives/<batch>-task-list.md — one item per concrete step (each site, each card-def edit, each test, build/clippy/fmt, /review). This build exposes no TaskCreate to workers; the comment plus the file is the task list. Update it as you go: repost the comment with items checked off at every milestone, never one batch at the end. The brief names the CHANGE CLASS; do that class'"'"'s acceptance ritual (memory/conventions.md, section "Change-class acceptance table") and no more. Delegate the heavy lifting to the specialized project agents via the Agent tool rather than implementing everything inline: primitive batches use primitive-impl-runner then primitive-impl-reviewer; card authoring uses bulk-card-author then card-batch-reviewer; game scripts use game-script-generator; CR coverage questions use cr-coverage-auditor. Only implement directly when no agent fits. Subagent briefs must forbid git outright (the stash stack is shared across worktrees). Never `git add -A`; stage by explicit path. Never wait with `sleep` under run_in_background — use the Monitor tool or one foreground until-loop. Keep bench scratch under your scratchpad and delete it before finishing. When done: satisfy every criterion with `esm task satisfy`, run /review (HIGH and MEDIUM findings fixed in-cycle, LOW logged to the notes file unless trivial), write the ≤10-line CHANGELOG.md entry and the notes file, then follow the Completion Sequence in .esm/worker.md.'
 ```
 
 The `--prompt` value above is this project's customized worker prompt (task-list

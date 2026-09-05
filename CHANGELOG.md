@@ -6,6 +6,13 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-09-05 — CC-4 (`scutemob-240`) — change-class acceptance table recorded
+
+- `memory/conventions.md` gains "## Change-class acceptance table": the four rows verbatim from the course-correction doc
+  §3.1 item 6 (diff-verified), the hot-path file list spelled out, and the "suite / clippy / fmt" definitions.
+- `/dispatch` step 3 and the brief template cite the table by section; conventions' clippy line raised to the CI bar.
+- Markdown only; no Rust touched.
+
 ## 2026-09-05 — CC-3 (`scutemob-239`) — skills and agents tuning
 
 - `/collect`, `/eot`, `/implement-primitive`, `/implement-ability`, `/audit-cards` now write `CHANGELOG.md` + the batch

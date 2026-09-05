@@ -13,7 +13,7 @@
   `tools/play-server`). M10+ roadmap milestones are HISTORICAL pending CC-8.
 - **Status**: 5,330 tests passing / 0 failing / 6 ignored (after CC-2, 72 targets);
   208 approved golden scripts; CI green since 2026-07-10.
-- **Last Updated**: 2026-09-05 — CC-3 skills/agents tuning (`scutemob-239`).
+- **Last Updated**: 2026-09-05 — CC-4 change-class table (`scutemob-240`).
 - **Headline metric**: live card coverage **1,140 / 1,803 = 63.2%** (`docs/authoring-status.md`,
   regenerate with `tools/authoring-report.py`). Replaced by pod coverage (`docs/pod-coverage.md`)
   once CC-6 lands. Wire: PROTOCOL **44** / HASH **85**.

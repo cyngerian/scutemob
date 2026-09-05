@@ -4,7 +4,9 @@
 
 - **Edition**: 2021
 - **Formatting**: `rustfmt` default settings. Run `cargo fmt` before every commit.
-- **Linting**: `cargo clippy -- -D warnings`. No warnings allowed in CI.
+- **Linting**: `cargo clippy --workspace --all-targets -- -D warnings` (the CI bar; the
+  bare `cargo clippy` skips every test target and misses unused-import errors there). No
+  warnings allowed in CI.
 - **Error handling**: `thiserror` for library errors, `anyhow` in binaries/tools only.
   Engine crate uses typed errors — never `unwrap()` or `expect()` in engine logic. Tests
   may use `unwrap()`.
@@ -228,3 +230,32 @@ aspirationally correct (that's what CR 603.10a requires) but the code path calle
 `calculate_characteristics` instead, which re-runs layer filters against the graveyard
 object and drops battlefield-gated filters. The PB-N close commit replaced the comment
 with a `TODO(BASELINE-LKI-01)` pointing at the tracking LOW.
+
+## Change-class acceptance table
+
+Recorded verbatim from `docs/course-correction-2026-09.md` §3.1 item 6 (owner-approved
+2026-09-05; CC-4, `scutemob-240`). **Scale the acceptance ritual to the change class.** A brief
+names the class; the worker does that class's "Required" column and nothing in "Not required"
+unless a finding forces it — and then says so in the notes file.
+
+   | Change class | Required | Not required |
+   |---|---|---|
+   | Engine behaviour (`crates/engine/src`, `crates/card-types/src`) | suite, clippy, fmt, revert-proven probe per fix, wire prediction before code | bench A/B unless a hot-path file is touched (`layers.rs`, `sba.rs`, `priority.rs`, `combat.rs`) |
+   | Card defs only | suite, `check-defs-fmt.sh`, regenerate authoring status, batch review | revert matrix, wire prediction, bench |
+   | Tests / docs / tooling only | suite, clippy | everything else |
+   | New source gate added | one executed defeat of the gate, recorded in the test's own doc | bypass matrix over every other gate in the batch |
+
+Notes for applying it:
+
+- **Hot-path files** (the bench A/B trigger in row 1): `crates/engine/src/rules/layers.rs`,
+  `crates/engine/src/rules/sba.rs`, `crates/engine/src/rules/priority.rs`,
+  `crates/engine/src/rules/combat.rs`. Touching any of them means a matched-set A/B against the
+  merge base in an isolated worktree with the same-code band measured FIRST; nothing else does.
+- "suite" is `cargo test --workspace --no-fail-fast` to a file with the count delta itemised by
+  test NAME (byte-exact set difference, regex not end-anchored); "clippy" is the CI bar above;
+  "fmt" is `cargo fmt --check` **plus** `tools/check-defs-fmt.sh` (SR-35).
+- A batch can be in more than one class (an engine fix that also adds a source gate does rows 1
+  and 4). The classes add; they do not pick the cheapest.
+- Row 4 pairs with the pair-or-demote rule (CC-17): a new source gate standing in for a
+  behaviour ships with a behavioural probe that reddens under the same revert, or a one-line
+  reason plus seed ID.
