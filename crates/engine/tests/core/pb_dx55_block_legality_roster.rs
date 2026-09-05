@@ -300,6 +300,44 @@ const MARKERS: &[&str] = &[
     "protection::can_block(",
 ];
 
+/// **AXIS B — the COMMON-case markers, added by PB-DX55's own coordinator-run revert
+/// matrix after row R9 DEFEATED the exotic axis by execution.**
+///
+/// Every one of [`MARKERS`] is EXOTIC — horsemanship, skulk, shadow, intimidate, fear,
+/// the `CantBeBlockedExceptBy` filter internals, landwalk, protection. That is the
+/// right axis for catching a wholesale REWRITE of `check_block_pair`, which is what
+/// `r2`/`r3` plant. It is the wrong axis for catching the copy a human actually
+/// writes. R9 planted a 5-guard hand-rolled predicate — controller, tapped,
+/// `CantBlock`, flying/reach, protection — in `combat.rs` itself, i.e. someone
+/// answering "can this block that?" for one local purpose and covering only the cases
+/// they had in mind. It scored **1 of 9** and left `r1` GREEN.
+///
+/// **A similarity gate keyed entirely on the rare members of a set is blind to the
+/// partial copy, and the partial copy is the likely one** — a person writing a second
+/// predicate reaches for the common guards first and never gets to horsemanship. So a
+/// SECOND axis keys on those common guards. Measured across the workspace before the
+/// threshold was chosen (`src/` only, comments stripped): `check_block_pair` scores
+/// **8 of 8**, `handle_declare_attackers` scores **2** (it reads Flying/Reach for the
+/// ATTACKER-side evasion question, a different subject), and nothing else scores above
+/// one. A threshold of **3** therefore has five points of headroom below the real
+/// predicate and one point above its nearest neighbour. (Written "one" rather than
+/// "1" deliberately: a doc line opening with `1.` is an ordered-list item and makes
+/// the next line its lazy continuation — `clippy::doc_lazy_continuation`, which fired
+/// here on the first draft, PB-DX39's own case one punctuation mark over.)
+const COMMON_MARKERS: &[&str] = &[
+    ".contains(&KeywordAbility::Flying)",
+    ".contains(&KeywordAbility::Reach)",
+    ".contains(&KeywordAbility::CantBlock)",
+    ".contains(&KeywordAbility::Decayed)",
+    "Designations::SUSPECTED",
+    "GameStateError::CrossPlayerBlock",
+    "GameStateError::DuplicateBlocker",
+    "GameStateError::PermanentAlreadyTapped",
+];
+
+/// See [`COMMON_MARKERS`]. Measured headroom: real predicate 8, nearest other 2.
+const COMMON_THRESHOLD: usize = 3;
+
 /// A function qualifies as "a per-pair block-legality predicate" once it contains at
 /// least this many of the nine [`MARKERS`] — chosen with real headroom: the genuine
 /// predicate contains all nine, and no other function in the corpus at HEAD contains
@@ -310,6 +348,16 @@ const THRESHOLD: usize = 5;
 /// it, keyed by `(file label, function name)`. A marker occurring twice in one
 /// function counts once (co-occurrence, not volume, is the signal).
 fn functions_with_markers(files: &[(String, PathBuf)]) -> Vec<(String, String, Vec<&'static str>)> {
+    functions_with_marker_set(files, MARKERS)
+}
+
+/// The same walk, parameterised by marker list, so AXIS B reuses the identical
+/// comment-stripping and enclosing-function attribution rather than a second copy of
+/// it — which would be this file's own subject matter committed inside this file.
+fn functions_with_marker_set(
+    files: &[(String, PathBuf)],
+    markers: &[&'static str],
+) -> Vec<(String, String, Vec<&'static str>)> {
     use std::collections::BTreeMap;
     let mut hits: BTreeMap<(String, String), std::collections::BTreeSet<&'static str>> =
         BTreeMap::new();
@@ -318,7 +366,7 @@ fn functions_with_markers(files: &[(String, PathBuf)]) -> Vec<(String, String, V
             continue;
         };
         let src = strip_comments(&raw);
-        for marker in MARKERS {
+        for marker in markers {
             let mut from = 0usize;
             while let Some(rel) = src[from..].find(marker) {
                 let at = from + rel;
@@ -453,5 +501,132 @@ fn r3_defeat_a_second_copy_in_a_different_crate_reddens() {
         "PB-DX55 r3 DEFEAT CHECK FAILED: a second per-pair block predicate planted \
          under a DIFFERENT crate's src/ must still be detected -- a workspace-wide \
          walk must not be blind to sites outside crates/engine"
+    );
+}
+
+/// **r4 (AXIS B)** — exactly one function in the workspace qualifies on the COMMON
+/// block-legality guards ([`COMMON_THRESHOLD`] of [`COMMON_MARKERS`]), and it is
+/// `combat::check_block_pair`.
+///
+/// This axis exists because [`MARKERS`] is entirely EXOTIC and `r1` was DEFEATED by
+/// execution during PB-DX55's own coordinator-run revert matrix (row R9): a five-guard
+/// hand-rolled predicate covering controller, tapped, `CantBlock`, flying/reach and
+/// protection scored 1 of 9 and left `r1` green. See [`COMMON_MARKERS`]' doc.
+///
+/// `handle_declare_attackers` is the one function that scores above 1 (it reads
+/// Flying/Reach for the ATTACKER-side evasion question). It is named here rather than
+/// allowlisted, so the assertion below reddens if it ever starts answering the
+/// per-pair BLOCK question too.
+#[test]
+fn r4_axis_b_exactly_one_common_case_block_predicate_exists() {
+    let files = workspace_src_files_checked();
+    let hits = functions_with_marker_set(&files, COMMON_MARKERS);
+
+    // Non-vacuity: the walk must actually have found the real predicate at full score,
+    // or a zero-qualifier result below would be "the scan found nothing", not "the
+    // invariant holds".
+    let real = hits
+        .iter()
+        .find(|(f, n, _)| f.ends_with("rules/combat.rs") && n == "check_block_pair")
+        .unwrap_or_else(|| {
+            panic!("AXIS B non-vacuity: combat::check_block_pair was not found by the walk at all")
+        });
+    assert_eq!(
+        real.2.len(),
+        COMMON_MARKERS.len(),
+        "AXIS B non-vacuity: check_block_pair must carry every common marker (found {:?})",
+        real.2
+    );
+
+    let qualifying: Vec<_> = hits
+        .iter()
+        .filter(|(_, _, m)| m.len() >= COMMON_THRESHOLD)
+        .map(|(f, n, m)| (f.clone(), n.clone(), m.len()))
+        .collect();
+    assert_eq!(
+        qualifying.len(),
+        1,
+        "AXIS B: exactly one function may answer the per-pair block question on the \
+         COMMON guards; found {}: {:?}. A second one is the shape R9 planted — a \
+         partial hand-rolled copy covering the cases a person actually thinks of. \
+         Consume `combat::check_block_pair` (or `queries::legal_blocks`) instead.",
+        qualifying.len(),
+        qualifying
+    );
+    assert!(
+        qualifying[0].0.ends_with("rules/combat.rs") && qualifying[0].1 == "check_block_pair",
+        "AXIS B: the one qualifier must be combat::check_block_pair, got {:?}",
+        qualifying[0]
+    );
+}
+
+/// **r5 (AXIS B defeat, executed against a SYNTHETIC file)** — R9's own plant, verbatim
+/// in shape: a PARTIAL hand-rolled predicate covering only the common guards. It scored
+/// 1 of 9 on [`MARKERS`] and left `r1` green; it must score at or above
+/// [`COMMON_THRESHOLD`] here.
+///
+/// This is the defeat that produced AXIS B, kept as a test so the repair cannot be
+/// undone silently.
+#[test]
+fn r5_axis_b_defeat_a_partial_common_case_copy_reddens() {
+    let planted = r#"
+fn second_hand_rolled_block_predicate(
+    state: &GameState,
+    player: PlayerId,
+    blocker_id: ObjectId,
+    attacker_id: ObjectId,
+) -> bool {
+    let Ok(obj) = state.object(blocker_id) else { return false };
+    if obj.controller != player || obj.status.tapped {
+        return false;
+    }
+    let chars = calculate_characteristics(state, blocker_id).unwrap();
+    if chars.keywords.contains(&KeywordAbility::CantBlock) {
+        return false;
+    }
+    let atk = calculate_characteristics(state, attacker_id).unwrap();
+    if atk.keywords.contains(&KeywordAbility::Flying)
+        && !chars.keywords.contains(&KeywordAbility::Flying)
+        && !chars.keywords.contains(&KeywordAbility::Reach)
+    {
+        return false;
+    }
+    true
+}
+"#;
+    let planted_path = std::env::temp_dir().join("pb_dx55_r5_planted_partial_copy.rs");
+    std::fs::write(&planted_path, planted).expect("write synthetic file");
+    let files = vec![(
+        "crates/simulator/src/planted_partial.rs".to_string(),
+        planted_path.clone(),
+    )];
+
+    let exotic = functions_with_marker_set(&files, MARKERS);
+    let exotic_qualifying = exotic
+        .iter()
+        .filter(|(_, _, m)| m.len() >= THRESHOLD)
+        .count();
+    let common = functions_with_marker_set(&files, COMMON_MARKERS);
+    let common_qualifying = common
+        .iter()
+        .filter(|(_, _, m)| m.len() >= COMMON_THRESHOLD)
+        .count();
+
+    let _ = std::fs::remove_file(&planted_path);
+
+    // The historical record, asserted rather than described: the exotic axis really
+    // does miss this shape. If a later batch widens MARKERS so that it no longer does,
+    // this assertion reddens and the reader is sent to re-read why AXIS B exists.
+    assert_eq!(
+        exotic_qualifying, 0,
+        "the exotic axis is expected to MISS a partial common-case copy (that is why \
+         AXIS B exists); if it now catches it, MARKERS was widened and this note needs \
+         rewriting rather than the assertion flipping"
+    );
+    assert!(
+        common_qualifying >= 1,
+        "AXIS B DEFEAT CHECK FAILED: a partial hand-rolled block predicate covering \
+         only the common guards must be caught by AXIS B; it scored below \
+         COMMON_THRESHOLD={COMMON_THRESHOLD}: {common:?}"
     );
 }
