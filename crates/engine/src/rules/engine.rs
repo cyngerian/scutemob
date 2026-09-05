@@ -365,19 +365,15 @@ pub fn process_command(
     state: GameState,
     command: Command,
 ) -> Result<(GameState, Vec<GameEvent>), GameStateError> {
-    // OOS-DX19-4 / PB-DX19: the layer-walk depth counter must be balanced at every
-    // command boundary. `LayerWalkGuard` decrements on `Drop`, so this can only trip
-    // if someone `mem::forget`s a guard or enters one outside
-    // `calculate_characteristics` — and a LEAKED depth is silently catastrophic: it is
-    // sticky for the rest of the thread and downgrades every later condition
-    // evaluation to base characteristics, which is exactly the wrongness this batch
-    // spent its review budget removing. Nothing else would notice.
-    debug_assert!(
-        !crate::rules::layers::in_layer_walk(),
-        "layer-walk depth leaked across a command boundary: every condition evaluated \
-         from here on would silently read base characteristics (see \
-         rules::layers::characteristics_for_condition)"
-    );
+    // OOS-DX19-4 -- CLOSED BY CONSTRUCTION (PB-DX42b). The ambient thread-local
+    // depth counter this assert used to guard (`LayerWalkGuard` / `in_layer_walk`)
+    // is retired: `rules::layers::CharacteristicEvalContext` is call-stack state
+    // created fresh at the top of `calculate_characteristics_through` and passed
+    // down by `&mut` reference, so it CANNOT outlive that call -- the borrow
+    // checker enforces what this debug_assert used to police at runtime. There is
+    // no longer an ambient flag that can leak across a command boundary; see
+    // `docs/audits/mtg-characteristics-recursion-adjudication.md` §5.2 step 2 and
+    // the plan's §4 for the decision to retire rather than adapt this assert.
     let mut state = state;
     let mut all_events = Vec::new();
     // Validate: game not over

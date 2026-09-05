@@ -56,11 +56,13 @@
 //! permanent's characteristics.
 //!
 //! Axis 2 (structural, independent): a condition is layer-querying iff its own payload
-//! subtree contains a `TargetFilter`-shaped node -- `TargetFilter` has **exactly 32
-//! fields** (`card_definition.rs:3047-3250`, none carry `skip_serializing_if`, so the
-//! 32-key set is a reliable fingerprint), and `YouControlNOrMoreWithFilter { filter:
-//! TargetFilter, .. }` is the only one of the corpus's 9 conditioned variants that
-//! embeds one.
+//! subtree contains a `TargetFilter`-shaped node -- `TargetFilter` has **exactly 33
+//! fields** (`card_definition.rs:3187-3293`, PB-DX28's `owner` addition included; none
+//! carry `skip_serializing_if`, so the 33-key set is a reliable fingerprint -- **this
+//! line said 32 until PB-DX42b's `t9` widening caught the drift against the struct's
+//! own declaration; see `TARGET_FILTER_FIELDS`'s doc comment, which already had the
+//! correct count**), and `YouControlNOrMoreWithFilter { filter: TargetFilter, .. }` is
+//! the only one of the corpus's 9 conditioned variants that embeds one.
 //!
 //! **Known limit of axis 2, disclosed rather than papered over**: it is not a general
 //! proxy for "reaches `characteristics_for_condition`". `check_condition` has at least
@@ -608,27 +610,132 @@ fn t6_two_axes_agree_on_the_conditioned_population() {
     );
 }
 
-/// Pins the coincidence axis 2's module-doc caveat depends on: `ControlLandWithSubtypes`
-/// (which reaches `characteristics_for_condition` per `check_condition` without carrying
-/// a `TargetFilter`) does not currently appear anywhere in the conditioned
-/// `ContinuousEffectDef` population this gate walks. If it ever does, axis 2 would
-/// silently undercount relative to a hypothetical axis-1 update that added it -- this
-/// test's failure is the signal to re-derive axis 2 rather than trust the coincidence.
+/// Pins the coincidence axis 2's module-doc caveat depends on, **widened by
+/// `OOS-ADJ-2` (PB-DX42b rider) from the one `ControlLandWithSubtypes` case to ALL
+/// EIGHT non-`TargetFilter` layer-querying `Condition` variants**.
+///
+/// `Condition::required_characteristic_layer`'s own exhaustive match
+/// (`card_definition.rs`) fixes ELEVEN variants at `EffectLayer::TypeChange`:
+/// `YouControlNOrMoreWithFilter` (delegates to its filter) plus TEN others fixed
+/// directly. Of those ten, **`YouControlPermanent(TargetFilter)`** and
+/// **`OpponentControlsPermanent(TargetFilter)`** ALSO carry a `TargetFilter`
+/// payload (verified against the enum declaration, not assumed from the name), so
+/// they belong to axis 2 already and are excluded from this list. Eleven
+/// layer-querying variants minus the three that carry a `TargetFilter`
+/// (`YouControlNOrMoreWithFilter`, `YouControlPermanent`,
+/// `OpponentControlsPermanent`) leaves these EIGHT:
+///
+/// `ControlLandWithSubtypes`, `ControlAtMostNOtherLands`,
+/// `ControlBasicLandsAtLeast`, `ControlAtLeastNOtherLands`,
+/// `ControlAtLeastNOtherLandsWithSubtype`, `ControlLegendaryCreature`,
+/// `ControlCreatureWithSubtype`, `OpponentControlsMoreLandsThanYou`.
+///
+/// None of these eight reaches `rules::layers::characteristics_for_condition`
+/// WITHOUT carrying a `TargetFilter` from a `ContinuousEffectDef.condition` today
+/// (only `ControlLandWithSubtypes` reaches it at all, per `check_condition`'s ETB-
+/// replacement arm, and it does so from a `Command`-driven `unless_condition`,
+/// never a `ContinuousEffectDef.condition`). If ANY of the eight ever appears in
+/// this gate's conditioned population, axis 2's structural check (`t6`) would
+/// silently miss it as layer-querying -- this test's failure is the signal to
+/// re-derive axis 2 (or add a second structural signal) before trusting `t6`'s
+/// agreement again, and to check whether `t5`'s pinned set needs to grow.
 #[test]
-fn t7_control_land_with_subtypes_absent_from_population() {
+fn t7_non_target_filter_layer_querying_variants_absent_from_population() {
+    // Derived from `Condition::required_characteristic_layer`'s own match arm
+    // (card_definition.rs), not re-typed from memory -- see this test's doc for
+    // the derivation.
+    const NON_FILTER_LAYER_QUERYING: &[&str] = &[
+        "ControlLandWithSubtypes",
+        "ControlAtMostNOtherLands",
+        "ControlBasicLandsAtLeast",
+        "ControlAtLeastNOtherLands",
+        "ControlAtLeastNOtherLandsWithSubtype",
+        "ControlLegendaryCreature",
+        "ControlCreatureWithSubtype",
+        "OpponentControlsMoreLandsThanYou",
+    ];
+    // **This list is GATED AGAINST ITS SOURCE, not against its own length.** The first
+    // draft's only guard was `assert_eq!(NON_FILTER_LAYER_QUERYING.len(), 8)` — a check
+    // of the const against itself, which the PB-DX42b `/review` correctly called out: if
+    // an eleventh variant joined the fixed-`TypeChange` arm of
+    // `Condition::required_characteristic_layer`, the list and the assert would both stay
+    // at 8 and this gate would silently under-cover. `t9` already does the right thing
+    // for the two field fingerprints (it compares them to the struct DECLARATION), and
+    // this is the same treatment one file over: parse the arm out of
+    // `card_definition.rs` and require set equality.
+    let card_def_src = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(std::path::Path::parent)
+            .expect("engine manifest dir is <workspace>/crates/engine")
+            .join("crates/card-types/src/cards/card_definition.rs"),
+    )
+    .expect("card_definition.rs must be readable");
+    let arm_at = card_def_src
+        .find("=> Some(EffectLayer::TypeChange),")
+        .expect(
+            "Condition::required_characteristic_layer no longer has a fixed \
+             `=> Some(EffectLayer::TypeChange)` arm. Re-derive this list from wherever the \
+             filter-free layer-querying variants are now classified.",
+        );
+    // The arm's pattern list starts where the DELEGATING arm's body ends. Anchoring on
+    // that body rather than on the nearest `}` is load-bearing: two of the eight patterns
+    // are struct-like (`ControlAtLeastNOtherLandsWithSubtype { .. }`), so a bare
+    // `rfind('}')` lands INSIDE the pattern list and silently returns three of the eight.
+    // The first draft did exactly that and this assertion caught it.
+    let arm_start = card_def_src[..arm_at]
+        .rfind("filter.required_characteristic_layer()")
+        .expect(
+            "the delegating arm (the filter-carrying variants) must precede the fixed \
+             TypeChange arm -- anchor re-derivation needed",
+        );
+    let declared: BTreeSet<String> = card_def_src[arm_start..arm_at]
+        .split('|')
+        .filter_map(|frag| frag.split("Condition::").nth(1))
+        .map(|t| {
+            t.chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect::<String>()
+        })
+        .filter(|t| !t.is_empty())
+        .collect();
+    let pinned: BTreeSet<String> = NON_FILTER_LAYER_QUERYING
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    assert_eq!(
+        pinned, declared,
+        "NON_FILTER_LAYER_QUERYING has desynced from \
+         `Condition::required_characteristic_layer`'s fixed-TypeChange arm, which is its \
+         SOURCE. A variant added there and not here makes this gate under-cover in \
+         silence; a variant removed there and not here makes it assert about something \
+         that no longer exists. (This replaced a `len() == 8` self-check, which could not \
+         detect either.)"
+    );
+    assert!(
+        !declared.is_empty(),
+        "non-vacuity: the arm parse found no variants, so the set equality above would \
+         be comparing the pinned list against nothing"
+    );
+
     let roster = build_roster();
-    let present = roster
+    let present: Vec<&str> = roster
         .conditioned
         .iter()
-        .any(|(_, variant, _)| variant == "ControlLandWithSubtypes");
+        .map(|(_, variant, _)| variant.as_str())
+        .filter(|variant| NON_FILTER_LAYER_QUERYING.contains(variant))
+        .collect();
+
     assert!(
-        !present,
-        "Condition::ControlLandWithSubtypes now appears in the ContinuousEffectDef.condition \
-         population. This variant reaches rules::layers::characteristics_for_condition \
-         (effects/mod.rs::check_condition) WITHOUT carrying a TargetFilter payload, so \
-         axis 2's structural check (t6) would silently miss it as layer-querying. \
-         Re-derive axis 2 (or add a second structural signal) before trusting t6's \
-         agreement again, and check whether t5's pinned set needs to grow."
+        present.is_empty(),
+        "One or more of the eight non-TargetFilter layer-querying Condition \
+         variants now appears in the ContinuousEffectDef.condition population: \
+         {present:?}. Each of these reaches rules::layers::characteristics_for_\
+         condition (per effects::check_condition / check_static_condition) \
+         WITHOUT carrying a TargetFilter payload, so axis 2's structural check \
+         (t6) would silently miss it as layer-querying. Re-derive axis 2 (or add \
+         a second structural signal) before trusting t6's agreement again, and \
+         check whether t5's pinned set needs to grow."
     );
 }
 
@@ -735,5 +842,35 @@ fn t9_fingerprints_match_their_structs_and_cannot_collide() {
          structural walk matches nodes by EXACT field set, so a desynced fingerprint silently \
          matches NOTHING and every roster assertion in this file goes vacuous while staying \
          green. Update the fingerprint, then re-derive the non-vacuity floors."
+    );
+
+    // PB-DX42b (`OOS-ADJ-2`): this test asserted the CONTINUOUS_EFFECT_DEF_FIELDS
+    // half above and made NO equivalent assertion for TARGET_FILTER_FIELDS -- the
+    // OTHER fingerprint this file's `is_target_filter_node` matches nodes by. A
+    // desynced `TARGET_FILTER_FIELDS` is the SAME failure mode (axis 2's whole
+    // walk silently matches nothing), and nothing caught it before this line: the
+    // constant happened to already be correct (33 entries, PB-DX28's `owner`
+    // included), which is exactly the ONE circumstance under which an untested
+    // gate stays green.
+    //
+    // Verified by planting a 34th field on `TargetFilter` alone (never added to
+    // `TARGET_FILTER_FIELDS`): this NEW assertion reddens as expected, but it is
+    // NOT the only thing that does -- `t6_two_axes_agree_on_the_conditioned_
+    // population` reddens too, because `is_target_filter_node` now matches NO
+    // real node in the corpus at all (axis2 collapses to `{}`) and disagrees with
+    // axis 1's real `{Indomitable Archangel, The World Tree}`. That is the SAME
+    // desync shape this file's own `TARGET_FILTER_FIELDS` doc comment already
+    // records happening once for real (PB-DX28's `owner` field), reproduced here
+    // by direct experiment rather than trusted from the historical note.
+    let tf_declared = declared("TargetFilter");
+    let tf_pinned: BTreeSet<String> = tf.iter().map(|s| s.to_string()).collect();
+    assert_eq!(
+        tf_pinned, tf_declared,
+        "TARGET_FILTER_FIELDS has desynced from `pub struct TargetFilter`. Axis 2's \
+         entire structural walk (`is_target_filter_node` / \
+         `subtree_contains_target_filter`) matches nodes by EXACT field set, so a \
+         desynced fingerprint silently matches NOTHING and t6's cross-check goes \
+         vacuously green (both axes would agree on an empty set). Update the \
+         fingerprint, then re-derive the non-vacuity floors."
     );
 }

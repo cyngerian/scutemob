@@ -25,7 +25,7 @@ pub use rules::engine::{
     start_game_allowing_incomplete,
 };
 pub use rules::events::{CombatDamageAssignment, CombatDamageTarget};
-pub use rules::layers::{calculate_characteristics, characteristics_for_condition, in_layer_walk};
+pub use rules::layers::{calculate_characteristics, characteristics_for_condition};
 pub use rules::protocol::{
     decode, decode_replay_log, encode, encode_replay_log, Envelope, ProtocolEpoch, ProtocolError,
     ReplayLog, PROTOCOL_HISTORY, PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION,

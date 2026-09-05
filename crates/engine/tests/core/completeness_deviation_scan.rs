@@ -396,6 +396,28 @@ const MARKER_FRAGMENTS: &[&str] = &[
 /// See `docs/sr-remediation-plan.md` (SR-12) for the review record.
 const ALLOWLIST: &[(&str, &str)] = &[
     (
+        "indomitable_archangel",
+        "Matched on PB-DX42b's own CR-cite correction (`scutemob-233`, 2026-09-05). The prose \
+         this def gained narrates a **citation** defect and an **engine** deviation that is \
+         CLOSED — it does not describe this card deviating from its printed text in any way. \
+         The two facts it records are (i) the line cited **CR 702.45a**, which is **Bushido**, \
+         for Metalcraft, and Metalcraft has no CR 702.x entry at all because CR 207.2c makes it \
+         an ability word with \"no individual entries in the Comprehensive Rules\"; and (ii) the \
+         CR 613.1d layer-bounded query PB-DX42b shipped means this def's condition now reads \
+         layer-resolved card types, so an animated Blinkmoth Nexus feeds the count as the rule \
+         requires. **This entry is a CONTRACT WIDENING and is stated as one**, on the \
+         `bolt_bend` precedent directly above: the gate now tolerates a second def whose prose \
+         narrates a gap in the PAST tense. It is keyed to a def whose faithfulness is \
+         independently pinned BY EXECUTION rather than by this scan — \
+         `primitives::pb_dx42b_layer_bounded_conditions` and \
+         `simulator::pb_dx42b_metalcraft_channel` drive this exact card's Metalcraft through a \
+         real cast in BOTH directions and assert the resolution effect, so if it ever stops \
+         being faithful a behavioural test reddens rather than only this one. The alternative \
+         exit — rewording the comment to dodge the needle — was rejected for the same reason \
+         `bolt_bend`'s entry rejects it: the sentences are true and load-bearing, and a gate you \
+         edit prose to satisfy has stopped measuring.",
+    ),
+    (
         "bolt_bend",
         "Matched \"there is no\": \"now there is no gap to excuse\" (PB-DX52, `scutemob-229`) \
          — the sentence records that `OOS-DX25b-1` is CLOSED, i.e. that this def has no \

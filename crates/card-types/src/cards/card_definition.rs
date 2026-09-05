@@ -3420,6 +3420,117 @@ pub struct TargetFilter {
     #[serde(default)]
     pub owner: TargetOwner,
 }
+impl TargetFilter {
+    /// PB-DX42b (CR 613.1d): the highest layer this filter INSTANCE actually reads
+    /// a `Characteristics` field from, or `None` if it reads none at all.
+    ///
+    /// Computed **per instance**, never per type: a filter with only
+    /// `has_card_type` set needs `TypeChange`; a filter with `min_power` set needs
+    /// `PtSwitch` (Layer 7d, the last layer any P/T modification can apply in) --
+    /// the common case (a bare card-type check) is therefore the cheap one.
+    ///
+    /// Used by `rules::layers::calculate_characteristics_through` to decide how
+    /// far a NESTED characteristics query must resolve when this filter is tested
+    /// from inside a layer walk (`docs/audits/mtg-characteristics-recursion-
+    /// adjudication.md` §3.3, §5.2 step 3).
+    ///
+    /// **Written as an exhaustive destructure of every field**, so a field added
+    /// to `TargetFilter` later is a COMPILE ERROR here until it is classified --
+    /// the `OOS-DX28-1` / PB-DX43 lesson: a hand-rolled field list silently rots
+    /// the moment a field is added and nobody updates the list. `matches_filter`
+    /// (`effects/mod.rs`) is the ground truth for which fields it reads; every
+    /// field NOT read by `matches_filter` is a runtime `GameObject`/board property
+    /// (`controller`, `is_token`, `is_attacking`, `has_counter_type`,
+    /// `exclude_self`, `owner`, ...) and contributes no characteristic layer here.
+    ///
+    /// `max_cmc_amount` / `min_cmc_amount` are not read by `matches_filter` today
+    /// (they are resolved from `EffectContext` by callers that hold one), but they
+    /// name the same characteristic (mana value) as `max_cmc`/`min_cmc`, so they
+    /// are counted here too, deliberately over-collecting: over-collection can
+    /// only raise the required layer, which can only make the `debug_assert!` in
+    /// `is_effect_condition_satisfied` fire MORE readily, never less -- it fails
+    /// safe.
+    pub fn required_characteristic_layer(&self) -> Option<EffectLayer> {
+        let TargetFilter {
+            max_power,
+            min_power,
+            has_card_type,
+            has_keywords,
+            colors,
+            exclude_colors,
+            non_creature,
+            non_land,
+            basic,
+            nonbasic,
+            controller: _,
+            has_subtype,
+            has_subtypes,
+            has_name,
+            max_cmc,
+            max_cmc_amount,
+            min_cmc,
+            min_cmc_amount,
+            has_card_types,
+            legendary,
+            is_token: _,
+            is_nontoken: _,
+            max_toughness,
+            exclude_subtypes,
+            is_attacking: _,
+            is_blocking: _,
+            is_tapped: _,
+            is_untapped: _,
+            has_chosen_subtype,
+            exclude_chosen_subtype,
+            has_counter_type: _,
+            exclude_self: _,
+            owner: _,
+        } = self;
+
+        // CR 613.1a (copy can set the name) / CR 613.1c (text-changing effects can
+        // set mana cost): `name` and `mana_cost` are both resolved by Layer 3.
+        let needs_text = has_name.is_some()
+            || max_cmc.is_some()
+            || min_cmc.is_some()
+            || max_cmc_amount.is_some()
+            || min_cmc_amount.is_some();
+        // CR 613.1d: card type / supertype / subtype.
+        let needs_type_change = has_card_type.is_some()
+            || !has_card_types.is_empty()
+            || *non_creature
+            || *non_land
+            || has_subtype.is_some()
+            || !has_subtypes.is_empty()
+            || !exclude_subtypes.is_empty()
+            || *basic
+            || *nonbasic
+            || *legendary
+            || *has_chosen_subtype
+            || *exclude_chosen_subtype;
+        // CR 613.1e: color-changing effects.
+        let needs_color_change = colors.is_some() || exclude_colors.is_some();
+        // CR 613.1f: ability-adding effects can grant a keyword this filter checks for.
+        let needs_ability = !has_keywords.is_empty();
+        // CR 613.4a-d (Layer 7a-7d): P/T. PtSwitch (7d) is the last of the four
+        // P/T sublayers, so it is the correct "resolved through" bound for any of
+        // the three P/T fields regardless of which sublayer actually moves them.
+        let needs_pt = max_power.is_some() || min_power.is_some() || max_toughness.is_some();
+
+        if needs_pt {
+            Some(EffectLayer::PtSwitch)
+        } else if needs_ability {
+            Some(EffectLayer::Ability)
+        } else if needs_color_change {
+            Some(EffectLayer::ColorChange)
+        } else if needs_type_change {
+            Some(EffectLayer::TypeChange)
+        } else if needs_text {
+            Some(EffectLayer::Text)
+        } else {
+            None
+        }
+    }
+}
 /// PB-DX28: CR 108.3 — whose OWNERSHIP an object must be under. Distinct from
 /// [`TargetController`] (CR 109.4): the two diverge only under a
 /// control-change effect (a permanent's owner never changes; its controller
@@ -4223,6 +4334,113 @@ pub enum Condition {
     /// two. A stolen commander you do not control does not satisfy this; a
     /// commander you stole back does. PB-OS9.
     YouControlYourCommander,
+}
+impl Condition {
+    /// PB-DX42b (CR 613.1d): the highest layer this condition's evaluation can
+    /// read a `Characteristics` field through, or `None` if it never resolves
+    /// another object's characteristics at all.
+    ///
+    /// Consumed by `is_effect_condition_satisfied`'s `debug_assert!`: a
+    /// continuous effect's condition may only require characteristics resolved
+    /// through a layer STRICTLY EARLIER than the effect's own layer, or the
+    /// layer-bounded walk in `calculate_characteristics_through` cannot be shown
+    /// to terminate by construction (adjudication §3.2(iii), §5.2 step 3).
+    ///
+    /// **Exhaustive, no wildcard arm** (SR-5 / PB-DX43 shape) -- a 54th
+    /// `Condition` variant is a compile error here until it is classified.
+    ///
+    /// **All THREE variants that carry an arbitrary caller-supplied `TargetFilter`
+    /// delegate to [`TargetFilter::required_characteristic_layer`]**, because the
+    /// layer a filter needs is a property of the filter INSTANCE and nothing else
+    /// can know it. The remaining eight layer-querying variants carry no filter and
+    /// test card types, supertypes or subtypes only (`effects::check_condition`'s
+    /// land/legendary/subtype arms), so they are fixed at `TypeChange`.
+    ///
+    /// **The first draft fixed `YouControlPermanent` and `OpponentControlsPermanent`
+    /// at `TypeChange` too, and that was this batch's own defect one variant over.**
+    /// Both arms pass the WHOLE filter to `matches_filter` (`effects/mod.rs`), which
+    /// reads power, toughness, colors and keywords as well as types. Proven by
+    /// execution during the `/review`: a Layer-6 `AddKeyword(Flying)` conditioned on
+    /// `YouControlPermanent(TargetFilter { min_power: Some(4), .. })`, over a 2/2
+    /// pumped to 4/2 by a Layer-7c `ModifyPower(2)`, resolved the condition against
+    /// the PRE-Layer-7 power and wrongly did not grant — **the exact CR 613.1d defect
+    /// this batch exists to close** — while the `debug_assert!` in
+    /// `is_effect_condition_satisfied` stayed silent, because `TypeChange < Ability`
+    /// holds on the coarse value even though the real requirement (`PtSwitch`) is at
+    /// or AFTER the effect's own layer. *A summary that is coarser than the thing it
+    /// summarises does not merely lose precision — it defeats the assertion that was
+    /// supposed to catch the imprecision.* Zero corpus exposure (both layer-querying
+    /// corpus members are `YouControlNOrMoreWithFilter`), which is why no test caught
+    /// it and why the fix is one line rather than a batch.
+    pub fn required_characteristic_layer(&self) -> Option<EffectLayer> {
+        match self {
+            // The three filter-carrying variants: ask the filter, never guess.
+            Condition::YouControlNOrMoreWithFilter { filter, .. }
+            | Condition::YouControlPermanent(filter)
+            | Condition::OpponentControlsPermanent(filter) => {
+                filter.required_characteristic_layer()
+            }
+            Condition::ControlLandWithSubtypes(_)
+            | Condition::ControlAtMostNOtherLands(_)
+            | Condition::ControlBasicLandsAtLeast(_)
+            | Condition::ControlAtLeastNOtherLands(_)
+            | Condition::ControlAtLeastNOtherLandsWithSubtype { .. }
+            | Condition::ControlLegendaryCreature
+            | Condition::ControlCreatureWithSubtype(_)
+            | Condition::OpponentControlsMoreLandsThanYou => Some(EffectLayer::TypeChange),
+            Condition::Not(inner) => inner.required_characteristic_layer(),
+            Condition::Or(a, b) | Condition::And(a, b) => {
+                match (
+                    a.required_characteristic_layer(),
+                    b.required_characteristic_layer(),
+                ) {
+                    (Some(x), Some(y)) => Some(x.max(y)),
+                    (Some(x), None) => Some(x),
+                    (None, Some(y)) => Some(y),
+                    (None, None) => None,
+                }
+            }
+            Condition::ControllerLifeAtLeast(_)
+            | Condition::SourceOnBattlefield
+            | Condition::TargetIsLegal { .. }
+            | Condition::SourceHasCounters { .. }
+            | Condition::SourceHasNoCountersOfType { .. }
+            | Condition::Always
+            | Condition::WasKicked
+            | Condition::WasOverloaded
+            | Condition::WasBargained
+            | Condition::WasCleaved
+            | Condition::OpponentHasPoisonCounters(_)
+            | Condition::EvidenceWasCollected
+            | Condition::GiftWasGiven
+            | Condition::CompletedADungeon
+            | Condition::CompletedSpecificDungeon(_)
+            | Condition::RingHasTemptedYou(_)
+            | Condition::HaveTwoOrMoreOpponents
+            | Condition::CanRevealFromHandWithSubtype(_)
+            | Condition::HasCitysBlessing
+            | Condition::IsFirstCombatPhase
+            | Condition::CardTypesInGraveyardAtLeast(_)
+            | Condition::OpponentLifeAtMost(_)
+            | Condition::SourceIsUntapped
+            | Condition::IsYourTurn
+            | Condition::DevotionToColorsLessThan { .. }
+            | Condition::XValueAtLeast(_)
+            | Condition::WasCast
+            | Condition::SourceIsSolved
+            | Condition::TopCardIsCreatureOfChosenType
+            | Condition::ControllerGainedLifeThisTurn
+            | Condition::YouAttackedThisTurn
+            | Condition::CreatedATokenThisTurn
+            | Condition::OpponentCastNSpells(_)
+            | Condition::SpellMastery
+            | Condition::SacrificeFired
+            | Condition::TopCardIsInstantOrSorcery
+            | Condition::YouAttackedWithNOrMoreThisDeclaration(_)
+            | Condition::YouAttackedWithNOrMoreCreaturesThisTurn(_)
+            | Condition::YouControlYourCommander => None,
+        }
+    }
 }
 // ── Mode Selection ────────────────────────────────────────────────────────────
 /// Modal spells/abilities: choose N of M modes (CR 700.2).

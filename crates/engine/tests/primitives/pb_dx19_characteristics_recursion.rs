@@ -42,6 +42,25 @@
 //! `recursion_*` are the OOS-SIM2-6 probes. Each was **watched failing** against a
 //! reverted tree — the revert compiled, and the observed pre-fix output is quoted at
 //! the test — never reasoned to (the standing discipline this suite keeps losing).
+//!
+//! ## PB-DX42b addendum (2026-09-05) — the deviation this file pinned is CLOSED
+//!
+//! `OOS-DX19-2` / `OOS-ADJ-1`: the ambient `in_layer_walk()` depth counter this file's
+//! tests were written against is RETIRED. `rules::layers::CharacteristicEvalContext`
+//! replaces it with an explicit, per-`EffectId` context threaded through
+//! `check_condition_ctx` / `check_static_condition_ctx`, and
+//! `calculate_characteristics_through(state, id, through, eval)` bounds both the
+//! query AND the activity sweep by the SAME `through` layer -- see
+//! `docs/audits/mtg-characteristics-recursion-adjudication.md` §3.2(iii), §5.2 and
+//! `memory/primitives/pb-plan-DX42b.md`. Three tests below were updated as a direct
+//! consequence, each noted at the test itself: `deviation_animated_nexus_does_not_
+//! count_toward_metalcraft` is INVERTED (the deviation it pinned no longer holds --
+//! renamed rather than deleted, per this file's own standing instruction at line
+//! 585-586 of the pre-PB-DX42b tree); `the_deviation_is_scoped_to_the_layer_walk_only`
+//! is REWORDED (the ambient flag it read no longer exists); and
+//! `no_condition_evaluator_resolves_characteristics_directly` is RE-KEYED (the two
+//! `pub fn` wrappers it used to scan are now three-line delegations to `_ctx` bodies,
+//! so scanning only the wrappers would go VACUOUSLY green).
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -500,27 +519,37 @@ fn dynamic_arm_negation_saturates() {
     );
 }
 
-// ── The deviation, pinned ───────────────────────────────────────────────────────
+// ── The deviation, CLOSED by PB-DX42b ────────────────────────────────────────────
 
-/// **This test pins behaviour that is WRONG by CR, on purpose.** CR 613.1d.
+/// **PB-DX42b CLOSED this. The name says what now HOLDS, not what was wrong.**
+/// CR 613.1d.
 ///
-/// The base-characteristics fix that closes OOS-SIM2-6 costs exactly one thing: a
-/// type change granted by another continuous effect is invisible to this condition.
-/// That cost is live in the shipped corpus, not theoretical — `blinkmoth_nexus` and
-/// `inkmoth_nexus` animate themselves with a Layer-4
-/// `AddCardTypes([Artifact, Creature])`, neither declares a `completeness` field (so
-/// both are `Complete` by derive), and both are colourless lands, so they sit in the
-/// same deck pool as Indomitable Archangel.
+/// This test used to be named `deviation_animated_nexus_does_not_count_toward_
+/// metalcraft` and pinned behaviour that was WRONG by CR on purpose: the
+/// base-characteristics fix that closed OOS-SIM2-6 (PB-DX19) cost exactly one
+/// thing — a type change granted by another continuous effect was invisible to
+/// this condition, because the ambient `in_layer_walk()` depth counter suppressed
+/// layer resolution for the WHOLE layer system, not just the one self-referential
+/// effect. That cost was live in the shipped corpus, not theoretical —
+/// `blinkmoth_nexus` and `inkmoth_nexus` animate themselves with a Layer-4
+/// `AddCardTypes([Artifact, Creature])`, neither declares a `completeness` field
+/// (so both are `Complete` by derive), and both are colourless lands, so they sit
+/// in the same deck pool as Indomitable Archangel.
 ///
-/// By CR 613.1d an animated Nexus **is** an artifact and **must** count toward
-/// Metalcraft. It does not, and this test asserts that it does not.
+/// `rules::layers::CharacteristicEvalContext` (PB-DX42b,
+/// `docs/audits/mtg-characteristics-recursion-adjudication.md` §5.2) replaces the
+/// depth counter with an explicit, per-`EffectId` context: only the effect whose
+/// OWN condition is being evaluated is suppressed, so a nested query for a
+/// DIFFERENT object (the animated land, here) still resolves through the layer
+/// system. By CR 613.1d an animated Nexus **is** an artifact and **must** count
+/// toward Metalcraft, and now it does.
 ///
-/// It is written this way so the wrongness is discoverable rather than remembered:
-/// when the CR 613.8b dependency-aware fixpoint lands (OOS-DX19-2), this test fails,
-/// and the batch that makes it fail is the batch that should flip the assertion. A
-/// deviation with no failing test attached to it is just a comment nobody reads.
+/// Per this test's own former instruction (*"a deviation with no failing test
+/// attached to it is just a comment nobody reads"*): the fix that would make this
+/// assertion flip is exactly what happened, so the assertion is inverted here
+/// rather than the test deleted.
 #[test]
-fn deviation_animated_nexus_does_not_count_toward_metalcraft() {
+fn nexus_animated_by_a_continuous_effect_now_counts_toward_metalcraft() {
     // Two plain artifacts plus one land that another effect has turned into an
     // artifact: three artifacts by CR 613.1d, two by base characteristics.
     let defs = defs_map();
@@ -574,16 +603,18 @@ fn deviation_animated_nexus_does_not_count_toward_metalcraft() {
         land_chars.card_types
     );
 
-    // ...and Metalcraft still does not see it. THIS IS THE DEVIATION.
+    // ...and Metalcraft now sees it. THE DEVIATION IS CLOSED.
     let artifact = find_on_battlefield(&state, "P1 Artifact 0");
     let chars = calculate_characteristics(&state, artifact).expect("live on the battlefield");
     assert!(
-        !chars.keywords.contains(&KeywordAbility::Shroud),
-        "DEVIATION PIN (PB-DX19): by CR 613.1d the animated land is a third artifact \
-         and Metalcraft should be ON. The base-characteristics read that closes \
-         OOS-SIM2-6 cannot see it, so no shroud is granted. If this assertion has \
-         started failing, the CR 613.8b fixpoint (OOS-DX19-2) has landed and this \
-         test should be INVERTED, not deleted."
+        chars.keywords.contains(&KeywordAbility::Shroud),
+        "CR 613.1d, PB-DX42b: the animated land is a third artifact and Metalcraft \
+         must be ON. `CharacteristicEvalContext` suppresses only the ONE \
+         self-referential effect (the Archangel's own Shroud grant), so a nested \
+         query for the ANIMATED LAND's own characteristics still resolves through \
+         the layer system and sees the Layer-4 `AddCardTypes(Artifact)`. Got \
+         keywords {:?}.",
+        chars.keywords
     );
 }
 
@@ -708,23 +739,40 @@ fn non_layer_path_reads_layer_resolved_power() {
     );
 }
 
-/// The same call, made from *inside* the layer walk, is where the deviation lives —
-/// and this test states the boundary explicitly so nobody has to infer it.
+/// **PB-DX42b reworded this test.** It used to be named the same and probed the
+/// ambient `in_layer_walk()` ThreadLocal directly (asserting it was `false` before
+/// and after a `calculate_characteristics` call) -- that flag is retired, replaced
+/// by `rules::layers::CharacteristicEvalContext`, which is created fresh and
+/// dropped at the end of every top-level call rather than living for the rest of
+/// the thread, so there is no longer an ambient value for an external test to
+/// probe at all (the RAII shape makes the old "did it leak" question
+/// unrepresentable rather than merely well-answered -- see
+/// `rules::engine::process_command`'s retired `OOS-DX19-4` assert, which made the
+/// same point about the command boundary).
 ///
-/// `deviation_animated_nexus_does_not_count_toward_metalcraft` above already pins
-/// the wrong answer on the layer path. Together the two probes say: base
-/// characteristics inside the walk, layer-resolved everywhere else, and the
-/// difference is deliberate.
+/// The new boundary this test states: [`characteristics_for_condition`], the
+/// `pub` compat wrapper every non-condition-evaluator caller still reaches
+/// (`Effect::ChooseCreatureType` and the `EffectAmount` battlefield sweeps in
+/// `effects/mod.rs`), is documented to give FULL CR 613.1d resolution --
+/// `expect_characteristics`, not a layer-bounded one -- because it always builds
+/// a fresh, outside-the-walk `CharacteristicEvalContext`
+/// (`bound: None`) regardless of what it is called about. Proved here by
+/// comparing its answer against `calculate_characteristics`'s (the same full
+/// resolution, by a different route) for an object with a REAL Layer-6 keyword
+/// grant, so the two would visibly disagree if the wrapper were ever bounded.
+/// The complementary half -- a condition evaluated FROM INSIDE a layer walk gets
+/// a layer-BOUNDED resolution, not the same full one -- is `pub(crate)`
+/// (`characteristics_for_condition_ctx` / `calculate_characteristics_through`)
+/// and cannot be probed from this external test crate; it is covered by the
+/// dedicated PB-DX42b nesting probe (this file's sibling test additions) and by
+/// `deviation_animated_nexus_does_not_count_toward_metalcraft`'s successor above,
+/// which proves a NESTED query still resolves through the layer it needs rather
+/// than being suppressed wholesale.
 #[test]
-fn the_deviation_is_scoped_to_the_layer_walk_only() {
-    use mtg_engine::in_layer_walk;
+fn characteristics_for_condition_gives_full_resolution_outside_any_walk() {
+    use mtg_engine::characteristics_for_condition;
 
-    assert!(
-        !in_layer_walk(),
-        "a test body is not inside calculate_characteristics"
-    );
-
-    let state = GameStateBuilder::new()
+    let mut state = GameStateBuilder::new()
         .add_player(p1())
         .add_player(p2())
         .object(ObjectSpec::creature(p1(), "Bear", 2, 2))
@@ -732,14 +780,38 @@ fn the_deviation_is_scoped_to_the_layer_walk_only() {
         .unwrap();
     let bear = find_on_battlefield(&state, "Bear");
 
-    // The guard is re-entrant and restores itself on the way out (it decrements in
-    // Drop, so an early return inside calculate_characteristics cannot leak depth).
-    let _ = calculate_characteristics(&state, bear);
+    // A real Layer-6 keyword grant, so a bounded-below-Ability answer would
+    // visibly disagree with the full one.
+    state.continuous_effects_mut().push_back(ContinuousEffect {
+        id: EffectId(9_600),
+        source: Some(bear),
+        timestamp: 1,
+        layer: EffectLayer::Ability,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::SingleObject(bear),
+        modification: LayerModification::AddKeyword(KeywordAbility::Flying),
+        is_cda: false,
+        affected_set: None,
+        condition: None,
+    });
+
+    let full = calculate_characteristics(&state, bear).expect("live on the battlefield");
     assert!(
-        !in_layer_walk(),
-        "LayerWalkGuard must decrement on Drop -- a leaked depth would silently \
-         downgrade every later condition evaluation on this thread to base \
-         characteristics, which is the regression this guard exists to prevent"
+        full.keywords.contains(&KeywordAbility::Flying),
+        "precondition: the layer system grants Flying; got {:?}",
+        full.keywords
+    );
+
+    let bear_obj = state.objects().get(&bear).expect("live on the battlefield");
+    let via_wrapper = characteristics_for_condition(&state, bear_obj);
+    assert_eq!(
+        via_wrapper.keywords, full.keywords,
+        "CR 613.1d / PB-DX42b: `characteristics_for_condition` (the pub compat \
+         wrapper) must give the SAME full resolution as `calculate_characteristics` \
+         -- it is documented as `expect_characteristics` everywhere outside a layer \
+         walk, never a layer-bounded answer. A bounded answer here would silently \
+         drop the Flying grant for every one of the seven non-condition-evaluator \
+         call sites that still route through this wrapper."
     );
 }
 
@@ -887,23 +959,52 @@ fn non_layer_path_reads_layer_resolved_subtypes() {
 /// reproduced the original stack-overflow SIGABRT through one of them, on a tree
 /// that had already declared the class closed.
 ///
+/// **PB-DX42b re-keyed this gate, and the reason is written here because the
+/// prose it is now keyed on is a FUNCTION NAME, not a comment.** The refactor
+/// split each evaluator into a thin `pub fn` wrapper (`check_condition`,
+/// `check_static_condition` -- three lines each, always outside-the-walk) and a
+/// `pub(crate) fn ..._ctx` body carrying the real match arms
+/// (`check_condition_ctx`, `check_static_condition_ctx`). A gate that scanned
+/// only the two `pub fn` wrappers -- this test's own pre-PB-DX42b shape -- would
+/// go **VACUOUSLY GREEN** after the split: the wrappers are too short to contain
+/// an offending call, and the real arms it USED to see now live somewhere it does
+/// not look. *"A gate you edit prose to satisfy has stopped measuring"* (PB-DX52),
+/// here demonstrated by a refactor rather than an edited sentence. All FOUR
+/// bodies are scanned; the two wrappers stay in the scan as a second line of
+/// defense against logic being inlined back into them.
+///
 /// So the closure is enforced here rather than remembered. Any `expect_characteristics`
-/// or `calculate_characteristics` call inside `check_condition` or
-/// `check_static_condition` re-opens OOS-SIM2-6: both are reachable from
-/// `is_effect_active`, which runs inside `calculate_characteristics`, and neither
-/// consults `in_layer_walk()`.
+/// or `calculate_characteristics` (any spelling, including
+/// `calculate_characteristics_through`) call inside any of the four bodies
+/// re-opens OOS-SIM2-6: `is_effect_condition_satisfied` reaches
+/// `check_static_condition_ctx` from inside `calculate_characteristics_through`,
+/// and neither the depth-counter era's `in_layer_walk()` nor its replacement,
+/// `CharacteristicEvalContext`, is consulted by a call that bypasses
+/// `characteristics_for_condition_ctx` (the one permitted route -- its name
+/// contains neither forbidden substring, so no allowlist carve-out is needed for
+/// it).
 ///
 /// If this test fails, do not add an exception — route the new site through
-/// `crate::rules::layers::characteristics_for_condition`.
+/// `crate::rules::layers::characteristics_for_condition_ctx`.
 #[test]
 fn no_condition_evaluator_resolves_characteristics_directly() {
     let src = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/effects/mod.rs"))
         .expect("effects/mod.rs must be readable from the test binary");
 
-    // Extract the two evaluator bodies by brace matching from their `pub fn` headers.
+    // Extract all four evaluator bodies by brace matching from their headers.
+    // `min_body_lines` is the non-vacuity floor PB-DX42b added: measured at HEAD
+    // the two `_ctx` bodies are 497 and 125 lines and the two wrappers are 7 and 8
+    // -- the floors below are comfortably under each, so a body that shrinks
+    // toward the OTHER function's size (logic silently moving away from the
+    // scanned name) fails loudly instead of this test quietly measuring nothing.
     let mut offenders: Vec<(String, usize)> = Vec::new();
     let mut checked = 0usize;
-    for fname in ["pub fn check_condition(", "pub fn check_static_condition("] {
+    for (fname, min_body_lines) in [
+        ("pub fn check_condition(", 3usize),
+        ("pub(crate) fn check_condition_ctx(", 200usize),
+        ("pub fn check_static_condition(", 3usize),
+        ("pub(crate) fn check_static_condition_ctx(", 60usize),
+    ] {
         let start = src
             .find(fname)
             .unwrap_or_else(|| panic!("{} not found — did the evaluator get renamed?", fname));
@@ -929,6 +1030,20 @@ fn no_condition_evaluator_resolves_characteristics_directly() {
         assert!(end > open, "brace matching failed for {}", fname);
         let body = &src[open..end];
         checked += 1;
+
+        let body_lines = body.lines().count();
+        assert!(
+            body_lines >= min_body_lines,
+            "{} body has shrunk to {} lines (expected at least {}). Either the \
+             real match arms moved somewhere this gate does not scan -- re-derive \
+             which function actually holds them and add it here -- or this floor \
+             needs re-measuring against the current source; either way, do not \
+             lower it without checking why the body shrank.",
+            fname,
+            body_lines,
+            min_body_lines
+        );
+
         for (n, line) in body.lines().enumerate() {
             // Skip comments — the bodies discuss these functions by name on purpose.
             let code = line.split("//").next().unwrap_or("");
@@ -939,19 +1054,54 @@ fn no_condition_evaluator_resolves_characteristics_directly() {
         }
     }
 
-    // Non-vacuity: prove the extraction found real bodies, not empty strings. Both
-    // evaluators are large; a body that shrank to nothing would make this test pass
-    // for the wrong reason, which is the shape that rots silently.
-    assert_eq!(checked, 2, "both evaluators must have been located");
+    // ── The SECOND axis: an alias. ────────────────────────────────────────────
+    //
+    // **The PB-DX42b `/review` defeated the scan above with one line placed OUTSIDE
+    // every body it reads:**
+    //
+    //     use crate::rules::layers::expect_characteristics as resolve_chars_alias;
+    //
+    // plus `let chars = resolve_chars_alias(state, obj.id);` inside
+    // `check_static_condition_ctx`. All four bodies stayed clean of the literal
+    // needles and the gate went GREEN while the plant reproduced `OOS-SIM2-6`
+    // exactly — `recursion_metalcraft_on_grants_shroud_and_terminates` and
+    // `two_distinct_conditional_effects_nest_without_mutual_suppression` both
+    // aborted the whole binary with `fatal runtime error: stack overflow` (SIGABRT).
+    //
+    // So the consequence WAS caught, but by a process abort that names no test rather
+    // than by the gate written for it — and a misroute whose bound happens not to
+    // recurse would pass in total silence. This is PB-DX36's / PB-DX48's / PB-DX49's
+    // recorded `use`-alias defeat, **one batch old in `OOS-DX54-7` and not carried
+    // across**, which is why it is written into the gate rather than only into a seed.
+    for (n, line) in src.lines().enumerate() {
+        let code = line.split("//").next().unwrap_or("");
+        let trimmed = code.trim_start();
+        if !trimmed.starts_with("use ") {
+            continue;
+        }
+        if (code.contains("expect_characteristics") || code.contains("calculate_characteristics"))
+            && code.contains(" as ")
+        {
+            offenders.push((format!("ALIAS IMPORT: {}", code.trim()), n));
+        }
+    }
+
+    // Non-vacuity: prove the extraction found real bodies, not empty strings. All
+    // four functions must have been located, or the size floors above could not
+    // have been checked at all.
+    assert_eq!(
+        checked, 4,
+        "all four evaluator bodies must have been located"
+    );
 
     assert!(
         offenders.is_empty(),
         "OOS-SIM2-6 re-opened: {} condition-evaluator site(s) resolve characteristics \
          directly instead of going through \
-         `crate::rules::layers::characteristics_for_condition`. Each one is an \
+         `crate::rules::layers::characteristics_for_condition_ctx`. Each one is an \
          unbounded recursion when the condition is attached to a ContinuousEffectDef, \
-         because `is_effect_active` evaluates it from inside `calculate_characteristics`. \
-         Offenders: {:#?}",
+         because `is_effect_condition_satisfied` evaluates it from inside \
+         `calculate_characteristics_through`. Offenders: {:#?}",
         offenders.len(),
         offenders
     );
