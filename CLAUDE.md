@@ -33,7 +33,7 @@ Read the matching section before touching the subsystem a gate guards.
 
 | Gate | One line |
 |------|----------|
-| SR-2 | `CardDefinition.completeness` markers; `validate_deck` rejects non-`Complete` cards (Invariant 9) |
+| SR-2 / SR-39 | `CardDefinition.completeness` markers; `validate_deck` rejects non-`Complete` cards (Invariant 9). SR-39: every def NAMES the marker — defaulting to `Complete` is a gate failure |
 | SR-3 | `GameState` sealed `pub(crate)`; only `Command` → `process_command` mutates; `cargo build --workspace` is the seal gate |
 | SR-4 | Silent failures in `effects/mod.rs` + `rules/resolution.rs` classified LKI-fizzle vs engine-bug (`expect_*` vs `lki_*`) |
 | SR-5 | Every `KeywordAbility` variant classified in `state::keyword_registry::handling` (exhaustive) |

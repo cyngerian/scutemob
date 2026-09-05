@@ -336,3 +336,46 @@
   re-deals every seeded game, and the play-server's seed pins move — even when no completeness
   marker flips, which is exactly what CARDS-2 did. The guard those pins carried ("re-read when a
   batch flips a marker") is too narrow; treat them as a function of the whole corpus.
+
+- **Every card def NAMES its `completeness:` marker; it is no longer allowed to default (SR-39).**
+  Filed as "SR-38" in `scutemob-255`'s criteria; **SR-38 was already taken** by the simulator
+  channel-probe family (`crates/simulator/tests/cc15_raw_characteristics_ratchet.rs`), so the gate
+  ships as SR-39 and the criterion is satisfied by that number.
+  `CardDefinition::completeness` is `#[serde(default)]` over a `Completeness` whose `Complete`
+  variant is `#[default]`, so a def that never mentions the field is `Complete` — deck-legal, with
+  nobody having decided that. At `scutemob-255` **964 of the 1,140 `Complete` defs were `Complete`
+  by that default**: 53% of the corpus carried a deck-legality verdict no author wrote down. The
+  batch swept all 964 to an explicit `Completeness::Complete` (behaviour-preserving by
+  construction — it writes down the value the compiler was already choosing) and added the gate
+  that keeps it that way.
+  **This is not a tidiness gate.** `beast_within.rs` and `generous_gift.rs` were both in the 964:
+  deck-legal, and at a four-player table they hand the 3/3 to the caster instead of the destroyed
+  permanent's controller (`docs/mtg-engine-landscape-assessment.md` §2). Neither carried a `TODO`,
+  so `tools/authoring-report.py`'s TODO scan could not see them either — the corpus's marker
+  discipline is good *where a TODO exists*, and this is the class where one does not. CLAUDE.md
+  already calls a guessed marker "the single most prohibited pattern"; SR-39 is the machine half
+  of that sentence: `Completeness::Complete` written out is a claim an author made, an absent
+  marker is a claim nobody made, and the two stop being indistinguishable.
+  **Why a source scan.** There is nothing to check at runtime — an unmarked def and an explicitly
+  `Complete` one compile to the identical `CardDefinition`, same serialized bytes, same
+  `validate_deck` verdict. `card_defs_completeness_marker::deliberateness_is_invisible_at_runtime`
+  pins that rather than asserting it in prose (and carries the control showing a `partial` marker
+  *does* change the verdict). Under pair-or-demote that puts SR-39 in the exempt class with SR-5
+  and SR-36: its subject IS the source text, so there is no behaviour for a probe to observe.
+  **Keyed on the field assignment, not the substring.** The scanner requires `completeness:`
+  followed by `Completeness::<Variant>` — byte-for-byte `tools/authoring-report.py`'s `MARKER_RE`,
+  so the gate, the report and the campaign headline cannot disagree about what "has a marker"
+  means. A `text.contains("completeness:")` gate would pass `misdirection.rs`, whose line 36 reads
+  "*Neither ever affected this def's completeness: no card was …*" in a comment. Four spellings are
+  recognized (`Complete`, `inert`, `partial`, `known_wrong`); any other `Completeness::<X>` is a
+  hard failure, because the report buckets the same four and files anything else under CLEAN —
+  a `Completeness::Partial(…)` written as the capitalized variant would inflate the coverage
+  headline with a card that declares itself incomplete. A cross-check test compares the two
+  recognized sets in both directions so the copies cannot drift.
+  **Executed defeats (change-class row 4).** Four canaries run the shipped scanner over a
+  throwaway corpus — no marker (RED), marker in prose only (RED), marker named (GREEN),
+  unrecognized spelling (RED-as-unrecognized) — and the gate was additionally defeated once
+  against the LIVE corpus, because a canary proves the scanner works and only that proves the gate
+  is wired to the corpus people edit: deleting `sol_ring.rs`'s marker line made
+  `every_card_def_names_its_completeness_marker` fail naming `sol_ring.rs`, and restoring it went
+  green. The run is transcribed in the test's own doc comment.
