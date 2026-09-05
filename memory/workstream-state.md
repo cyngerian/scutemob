@@ -21,7 +21,7 @@
 
 **v4 rank 19, task 1 of 5 of the SECOND user-approved chain.** `OOS-SIM6-3`, `OOS-SIM5-3` and
 `OOS-SIM5-5` all **FILED** (none had a registry row) and **CLOSED**, plus the rider
-`OOS-DX51-3`. Filed `OOS-DX55-1..8`.
+`OOS-DX51-3`. Filed `OOS-DX55-1..10` (`-9` and `-10` by the `/review` fix cycle).
 
 ### The one thing to read first
 
@@ -68,12 +68,41 @@ three of §2.6's four rows moved in different directions in three weeks.
    absent). The Svelte changes ship unbuilt. Any `/collect` with `node_modules` present should
    run it.
 
+### The `/review`: 14 findings, all 14 taken — and THREE of the four new gates fell to it
+
+Read `pb-DX55-execution-notes.md` §9. The compressed version, because it is the part that
+generalises past this batch:
+
+* **A gate keyed on a SPELLING is a gate you have not written yet.** `r1` fell to a BINDING
+  wildcard (`other =>`, irrefutable, exhaustive, no `_ =>` anywhere) and to a 600-byte window on a
+  1,041-byte body. The block roster fell on BOTH axes to a single `use mtg_engine::KeywordAbility
+  as KA;`. The per-mode ratchet fell to `let ModeSelection { mode_targets, .. } = ms;` — **while
+  its own module doc claimed the gate asked a question "independent of HOW the new code touches
+  it"**. Each is now keyed on a mechanism (arm-head SET equality against the enum; `(prefix,
+  optional `ident::`, suffix)` shapes; struct-pattern bindings counted), and each defeat is
+  re-executed and RED.
+* **Every one of those gates shipped with a self-defeat test, and every one of those tests planted
+  the spelling its author already had in mind.** That is `OOS-DX54-6` landing on three gates at
+  once, one batch after it was filed. If you write a gate in this tree, have someone else plant
+  against it.
+* **The batch committed its own headline defect one layer up.** The two SET-level blocker guards
+  (CR 702.111b menace, CR 702.39a provoke) were HAND-COPIED into `random_bot.rs` while the exported
+  `queries::validate_block_declaration` had **zero consumers outside tests** — in the batch whose
+  whole subject is collapsing a second hand-rolled copy. Both the bot and the browser's 400
+  boundary consume it now, and SR-5's keyword registry fired to say the bot had stopped reading
+  Menace, which is the gate doing exactly its job.
+* **A third wrong CR cite, and this one the batch PROPAGATED rather than inherited quietly**:
+  menace is **CR 702.111b**; **CR 702.110 is Exploit**. It went into ~10 new lines before the
+  reviewer caught it. `/review` is where the batch's own "two cites corrected" headline became
+  three, in the other direction.
+
 ### Numbers
 
-Tests **5,286 / 0 / 5** on **72** targets (+43 over a **5,243** baseline taken on the merge base
+Tests **5,287 / 0 / 5** on **72** targets (+44 over a **5,243** baseline taken on the merge base
 in its own worktree, reproducing PB-DX42b's close pin exactly — the sixth consecutive batch with
-no correction owed). Byte-exact NAME set difference, regex NOT end-anchored (`OOS-DX42b-6`): 43
-additions / 0 leavers / 0 removals / 0 renames; duplicate-name scan EMPTY on both runs.
+no correction owed). Byte-exact NAME set difference, regex NOT end-anchored (`OOS-DX42b-6`): 44
+additions / 0 leavers / 0 removals / 0 renames, RE-TAKEN after the fix cycle; duplicate-name scan
+EMPTY on both runs.
 **HASH 85 / PROTOCOL 44 both gate-executed and UNMOVED**, predicted per half before any
 production line, closure counts MEASURED at 132 / 98, and the counterfactual EXECUTED. Coverage
 **UNMOVED 1,140/1,803 = 63.2%**, 0 flips, 0 card-def edits. Fuzz gate config **1.843‰ → 0**,

@@ -193,7 +193,7 @@ empty 147 — every bucket identical to the inherited figure. Self-dating churn 
 reason is that this batch authors no card text: it repairs the offer/query/funding layers that
 sit between a `Complete` def and a client.
 
-## §6 Tests — 5,286 / 0 / 5 on 72 targets
+## §6 Tests — 5,287 / 0 / 5 on 72 targets
 
 Baseline **5,243 / 0 / 5** on **69** targets, measured on the merge base in its own worktree, and
 **reproducing PB-DX42b's published close pin EXACTLY** — the sixth consecutive batch in which an
@@ -202,9 +202,9 @@ inherited pin reproduces with no correction owed.
 Delta itemised by test NAME by a **byte-exact Python set difference**, never `sort` + `comm`
 (`OOS-DX20b-5`), with the extraction regex **NOT end-anchored** (`OOS-DX42b-6`, so an
 `#[ignore = "reason"]` test whose line reads `... ignored, <reason>` is still extracted):
-**43 additions, 0 leavers, 0 removals, 0 renames.** Count delta 43 == name-set delta 43, and the
+**44 additions, 0 leavers, 0 removals, 0 renames** (RE-TAKEN after the `/review` fix cycle, which added `r6`; the pre-cycle figure of 43 is superseded rather than left standing). Count delta 44 == name-set delta 44, and the
 duplicate-name scan the byte-exact method is structurally blind to (`OOS-DX35-8`) is **EMPTY on
-both runs** (5,248 lines / 5,248 distinct; 5,291 / 5,291).
+both runs** (5,248 lines / 5,248 distinct; 5,292 / 5,292).
 
 `clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`,
 `tools/check-defs-fmt.sh` (1,803 defs) and `cargo build --workspace` (the SR-3 seal gate) all
@@ -226,9 +226,9 @@ was **lowered** rather than left stale-high — a stale-high ceiling is slack a 
 
 ## §7 Engine lines
 
-`crates/engine/src` **+544 / −513**, of which `rules/combat.rs` is **+342 / −473** — a **net
+`crates/engine/src` **+548 / −514**, of which `rules/combat.rs` is **+343 / −474** — a **net
 reduction of 131 lines**, which is the second hand-rolled copy collapsing into the first.
-`crates/simulator/src` **+857 / −119**; `tools/` **+464 / −29**; `crates/card-types`,
+`crates/simulator/src` **+900 / −119**; `tools/` **+517 / −43**; `crates/card-types`,
 `crates/card-defs` and `crates/view-model` are all **EXACTLY 0**.
 
 ## §8 Revert matrix — 13 rows, EXECUTED BY THE COORDINATOR, all files restored byte-exactly
@@ -318,3 +318,82 @@ A second instrument error in the same harness: a `str.replace(old, new, 1)` anch
 unique patched the SPELL query's signature instead of the ABILITY query's, twice, producing a
 build failure that read like a broken revert. Anchors are now the smallest string unique to the
 site.
+
+
+---
+
+## §9 The `/review` fix cycle — 14 findings, all 14 taken
+
+The reviewer had a shell and used it: it independently reproduced 5,286/0/5 on 72 targets, the
+nine-refusal one-class close table, all four toolchain gates, both wire gates unmoved with empty
+`hash.rs`/`protocol.rs` diffs, and the bench-exemption mechanism bound. **Then it defeated three
+of this batch's four new source gates by execution**, which is the half worth keeping.
+
+### The three gate defeats, each re-executed against the fix and now RED
+
+1. **`r1`'s wildcard check fell to a BINDING wildcard.** It tested for the literal
+   `"\n        _ =>"`; `other => { let _ = other; None }` is irrefutable, keeps the match
+   exhaustive, contains no `_ =>`, and swallows every unclassified and every future variant —
+   exactly what its own failure message says is impossible. Re-keyed on **set equality between the
+   match's `Command::` arm heads and the enum parsed from `rules/command.rs`**, which no spelling
+   of a wildcard can satisfy. *(Its first re-key had two bugs of its own, both caught by running
+   it: a `&src[i..]` slice panicking on a box-drawing char boundary, and a missed FIRST variant
+   because the enum's own opening brace was not treated as an item boundary — reported by the
+   gate's own set difference as `Named but not declared: ["PassPriority"]`, which is the gate
+   diagnosing its own parser.)*
+2. **`r1`'s body check used a 600-byte window on a 1,041-byte body.** A literal
+   `let Command::CastSpell(_) = command else …` planted at offset 945 left it green, and a
+   `matches!` narrowing of `TurnFaceUp`/`ActivateBloodrush` at the same offset left the **whole
+   simulator crate** green. Brace-matched now, and the assertion re-keyed from "no `let Command::`"
+   to **"no `Command::` at all"** — deciding what a command costs is `command_mana_cost`'s job, and
+   a function that never names a variant cannot narrow on one in any spelling. The second plant
+   also exposed `OOS-DX55-10`: six of the nine funded commands have no behavioural probe anywhere.
+3. **The block-legality roster fell on BOTH axes to one `use … as` alias**, and the per-mode slicer
+   ratchet fell to a `let ModeSelection { mode_targets, .. }` destructuring **while its own module
+   doc claimed the gate asked a question "independent of HOW the new code touches it"**. Markers
+   became `(prefix, optional `ident::` of any depth, suffix)` SHAPES — with the bare-name
+   alternative measured and REJECTED, because it scores 5-6 on `hash_into`, `format_keyword` and
+   `keyword_registry::handling`, exhaustive dispatchers that are not block predicates — and the
+   ratchet now counts struct-pattern bindings.
+
+**The common cause is one sentence, and it is `OOS-DX54-6` landing on three gates at once**: every
+one of these gates shipped with a self-defeat test, and every one of those tests planted the
+spelling its author already had in mind. New self-defeats `r6` (aliased copy) and the widened `r5`
+exist so the repairs cannot be undone silently. `OOS-DX55-9`.
+
+### The finding that changed production code
+
+**The two SET-level blocker guards were a second hand-rolled copy, in the bot** — CR 702.111b's
+blocker count and CR 702.39a's provoke seeding re-implemented in `random_bot.rs` instead of calling
+`queries::validate_block_declaration`, which the plan's own §Half-2 text prescribes and which had
+**zero consumers outside tests**. That is this batch's own defect one layer up, and it had a latent
+divergence: a provoke pair seeded first could be dropped by the hand-rolled menace `retain`,
+yielding a declaration the engine then refuses. Both the bot and — newly — `api.rs`'s 400 boundary
+now prune against the engine's own validator. **SR-5's keyword registry then fired**, correctly:
+`random_bot.rs` no longer reads Menace, so its site entry had to go, and the gate is what noticed.
+
+### The third CR cite correction, and it went the other way
+
+This batch's headline was *"two CR cites corrected against the rules server"*. The reviewer found a
+third that the batch **propagated**: menace is **CR 702.111b**; **CR 702.110 is Exploit** (verified —
+`702.110a` is *"Exploit is a triggered ability"*). The wrong cite was inherited from pre-existing
+`combat.rs` text and pushed into ~10 new lines. Swept in every file this batch touches; the
+pre-existing menace mis-cites elsewhere (`mechanics_e_l/keywords.rs`, `mechanics_m_z/suspect.rs`,
+`docs/mtg-engine-milestone-reviews.md`) are PB-DX38's, and are named here rather than swept.
+
+### Also taken
+
+Four in-source `OOS-DX55-*` cites named the wrong seeds (`-8` for the hybrid flatten, which is the
+process seed, and `-9` which did not exist — repointed to `-2` and `-6`; hit rate was 0 of 4);
+`api.rs`'s scope doc still said menace and evasion were *"left to the engine"* when evasion had
+just left that bucket and menace had not — a doc right about half its list, rewritten rather than
+trimmed; the census arithmetic published 9 + 23 + 14 + 1 = **47** against 45 arms (re-measured from
+source: 9 funded / 36 `None`, of which 21 charge no mana, 14 are unreachable and 1 is
+`AnswerEffectChoice` — so 23 → **21**); `objects_excluded_from_funding` kept a wildcard while its
+sibling is exhaustive, now paired by a new `r1` assertion that **every funded command must have an
+explicit exclusion arm — which went RED on six of them the first time it ran**, so each now states
+its reason instead of falling through; two published line figures did not reproduce and are
+re-taken against the FINAL tree (PB-DX28's MEDIUM); and one registry cell contradicted itself on
+Umezawa's Jitte's ability index. The one NIT declined is the double `calculate_characteristics`
+walk in `ability_target_requirements` — real, off every benched path, and fixing it means an
+overload whose only caller is one query, which is a worse trade than the walk.

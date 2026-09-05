@@ -335,18 +335,20 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-05, PB-DX55)**: **5,286 / 0 / 5** full-workspace on branch
-  `scutemob-234` (+43 over the **5,243** baseline, measured on the MERGE BASE in its own worktree
+- **Tests (delta 2026-09-05, PB-DX55 + `/review` fix cycle)**: **5,287 / 0 / 5** full-workspace on branch
+  `scutemob-234` (+44 over the **5,243** baseline, measured on the MERGE BASE in its own worktree
   and **reproducing PB-DX42b's close pin exactly** — the sixth consecutive batch in which an
   inherited pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file,
   **72** result-producing targets (69 → 72: three new test binaries), residual list empty.
   **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs —
   never `sort` + `comm` (`OOS-DX20b-5`), and with the extraction regex deliberately NOT
   end-anchored (`OOS-DX42b-6`, so an `#[ignore = "reason"]` test whose line reads
-  `... ignored, <reason>` is still extracted): **43 additions, 0 leavers, 0 removals, 0
-  renames.** Count delta 43 == name-set delta 43, and the duplicate-name scan the byte-exact
+  `... ignored, <reason>` is still extracted), and **RE-TAKEN AFTER the `/review` fix cycle rather
+  than before it** (dispatch hygiene 8 — the cycle added `r6`, so the pre-cycle figure of 43 is
+  superseded by this line rather than left standing beside it): **44 additions, 0 leavers, 0
+  removals, 0 renames.** Count delta 44 == name-set delta 44, and the duplicate-name scan the byte-exact
   method is structurally blind to (`OOS-DX35-8`) is **EMPTY on both runs** (5,248 lines / 5,248
-  distinct; 5,291 / 5,291).
+  distinct; 5,292 / 5,292).
   **HASH 85 / PROTOCOL 44 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed
   (`hash_schema` 36/36, `protocol_schema` 17/17) and **predicted in writing PER HALF before any
   production line** (`6a03181a`). Closure type counts **MEASURED** at **132 / 98** by raising
@@ -382,9 +384,9 @@
   worktree (`test -d` executed), so the build cannot run at all. The Svelte changes ship
   **unbuilt**, covered only by the Rust-side gates and `api.rs`'s pair validation. Filed as
   `OOS-DX55-7` rather than folded into the usual N/A sentence.
-  **Engine lines**: `crates/engine/src` **+544 / −513**, of which `rules/combat.rs` is
-  **+342 / −473** — a **NET REDUCTION of 131 lines**, which is the second hand-rolled copy
-  collapsing into the first; `crates/simulator/src` **+857 / −119**; `tools/` **+464 / −29**; and
+  **Engine lines**: `crates/engine/src` **+548 / −514**, of which `rules/combat.rs` is
+  **+343 / −474** — a **NET REDUCTION of 131 lines**, which is the second hand-rolled copy
+  collapsing into the first; `crates/simulator/src` **+900 / −119**; `tools/` **+517 / −43**; and
   **`crates/card-types`, `crates/card-defs` and `crates/view-model` are all EXACTLY 0**.
   **Benches: NOT measured, and the reason is a mechanism bound checked by execution rather than
   an estimate.** `crates/engine/benches/engine_perf.rs` contains **zero** occurrences of any
@@ -445,7 +447,9 @@
   **2**; after the fix they are **2** and **1**. The whole matrix was re-executed from the
   control row. **`OOS-DX39-8`'s over-wide build detector turned a verdict into a NON-verdict,
   which is loud; this turns a verdict into a DIFFERENT verdict, which is not** (`OOS-DX55-4`).
-  Filed **OOS-DX55-1..8**.
+  Filed **OOS-DX55-1..10** (`-9` and `-10` by the `/review` fix cycle — dispatch hygiene 8's
+  exact case for the seventh batch running, caught by re-checking this cell against the registry
+  AFTER the cycle rather than before it).
 - **Tests (delta 2026-09-05, PB-DX42b + `/review` fix cycle)**: **5,243 / 0 / 5** full-workspace
   on branch `scutemob-233` (+12 over the **5,231** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX54's close pin exactly** — the fifth consecutive batch in which an inherited
@@ -1940,9 +1944,10 @@
   reproduces the seed's own sentence verbatim: `422 "player does not have enough mana to pay the
   cost"`. **Its first draft failed correctly**, because an activated ability uses the stack and
   acceptance is not resolution.
-  Tests **5,286 / 0 / 5** (+43 over a **5,243** baseline reproducing PB-DX42b's close pin
+  Tests **5,287 / 0 / 5** (+44 over a **5,243** baseline reproducing PB-DX42b's close pin
   exactly, **72** targets, byte-exact NAME set difference with a non-end-anchored regex: 43
-  additions / 0 leavers / 0 removals / 0 renames, duplicate-name scan EMPTY on both runs).
+  additions / 0 leavers / 0 removals / 0 renames, duplicate-name scan EMPTY on both runs; re-taken
+  AFTER the fix cycle).
   **HASH 85 / PROTOCOL 44 BOTH UNMOVED — zero bumps**, predicted per half before any production
   line, closure counts MEASURED at **132 / 98**, and **the counterfactual EXECUTED**: every type
   the new query surfaces traffic in already fails both gates' `CLOSURE_MUST_NOT_CONTAIN`, which
@@ -1954,7 +1959,8 @@
   complements, R4's zero settled as structural redundancy by the R4b/R5 pair, **R9 a gate defeat
   that SUCCEEDED** (`OOS-DX55-3`), **and the harness itself wrong first** (`shutil.copy2`
   preserves mtimes, so cargo did not rebuild and every row after the first measured the previous
-  row's binary — `OOS-DX55-4`). Filed **OOS-DX55-1..8**. Full record:
+  row's binary — `OOS-DX55-4`). Filed **OOS-DX55-1..10** (`-9` and `-10` by the `/review` fix cycle — dispatch hygiene 8's
+  exact case, caught by re-checking this cell against the registry AFTER the cycle). Full record:
   `memory/primitives/pb-DX55-execution-notes.md`; handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-09-05 — **PB-DX42b SHIPPED** (`scutemob-233`; v4 queue rank 18 —
   **OOS-ADJ-1** ≡ **OOS-DX19-2** FILED *and* CLOSED as ONE defect, plus **OOS-DX19-1**'s residue
