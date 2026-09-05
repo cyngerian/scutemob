@@ -292,6 +292,19 @@ struct Vacuous {
 
 /// Expressions that read game state. An assertion mentioning a binding but reading nothing
 /// state-shaped is not an absence-of-mutation claim.
+///
+/// **A hand-typed list, therefore a FLOOR — in a batch whose sibling gate derives its
+/// vocabulary from a declaration.** The `/review` was right to call that out: the first draft
+/// held eleven needles and missed `state.pending_triggers(` (41 uses), `state.objects_in_zone(`
+/// (112), `state.pending_effect_choice(` (74) and `state.object(` (37), each of which makes
+/// `assert_eq!(state.pending_triggers().len(), 0)` after a rejection — the seed's exact shape —
+/// invisible. Widened here.
+///
+/// **Why it is not DERIVED from `GameState`'s `pub fn` accessors, stated rather than omitted**:
+/// an assertion can read state through a HELPER that names no accessor at all
+/// (`find_object_in_zone(&state, ..)` and `pool_amount(&state, ..)` are both real in this
+/// tree), so a derived list would be a different floor rather than a ceiling. Recorded as a
+/// bound of this gate, which is already labelled a ratchet and not a proof.
 const STATE_READS: &[&str] = &[
     "public_state_hash",
     ".objects()",
@@ -301,9 +314,19 @@ const STATE_READS: &[&str] = &[
     ".turn()",
     ".combat()",
     ".stack_objects()",
+    ".objects_in_zone(",
+    ".object(",
+    ".zones(",
+    ".pending_triggers(",
+    ".pending_effect_choice(",
+    ".pending_decision(",
+    ".continuous_effects(",
+    ".command_zone(",
     "life_total",
+    "mana_pool",
     ".status.",
     "command_count",
+    ".journal(",
 ];
 
 fn scan_file(path: &std::path::Path) -> Vec<Vacuous> {
@@ -339,12 +362,50 @@ fn scan_file(path: &std::path::Path) -> Vec<Vacuous> {
                 if arg.is_empty() {
                     continue;
                 }
-                if !after.trim_start()[arg.len()..]
-                    .trim_start()
-                    .starts_with(".clone()")
-                {
+                // The argument is either a COPY made at the call site (`X.clone()` /
+                // `X.to_owned()` — `GameState: Clone`, so the blanket `ToOwned` gives the second
+                // spelling for free and the first draft matched neither it nor the next case),
+                // or a copy HOISTED one statement earlier:
+                //     let cloned = state.clone();
+                //     let r = process_command(cloned, cmd);
+                //     assert_eq!(state.public_state_hash(), h);
+                // The `/review` defeated the first draft with the hoisted form, which needs no
+                // helper and no macro and reads more naturally than the inline one — so the
+                // gate caught only the awkward spelling of its own subject.
+                let rest_after = after.trim_start()[arg.len()..].trim_start().to_string();
+                let inline_copy =
+                    rest_after.starts_with(".clone()") || rest_after.starts_with(".to_owned()");
+                let hoisted_from: Option<String> = if inline_copy {
+                    None
+                } else {
+                    body[..at].split(';').rev().find_map(|stmt| {
+                        let li = stmt.rfind("let ")?;
+                        let bind: String = stmt[li + 4..]
+                            .trim_start()
+                            .trim_start_matches("mut ")
+                            .chars()
+                            .take_while(|c| is_ident_char(*c))
+                            .collect();
+                        if bind != arg {
+                            return None;
+                        }
+                        let (_, rhs) = stmt[li..].split_once('=')?;
+                        let src: String = rhs
+                            .trim_start()
+                            .chars()
+                            .take_while(|c| is_ident_char(*c))
+                            .collect();
+                        (!src.is_empty()
+                            && (rhs.contains(".clone()") || rhs.contains(".to_owned()")))
+                        .then_some(src)
+                    })
+                };
+                if !inline_copy && hoisted_from.is_none() {
                     continue;
                 }
+                // Whichever binding the ORIGINAL is, that is the one a later assertion must not
+                // be reading as evidence about the failing call.
+                let arg = hoisted_from.unwrap_or(arg);
                 let tail = &body[at..];
                 // **The Err must belong to THIS call.** The first draft asked only whether an
                 // Err token appeared anywhere later in the function, and that over-fired on a
@@ -395,9 +456,18 @@ fn scan_file(path: &std::path::Path) -> Vec<Vacuous> {
                 }
                 // Was `arg` handed to anything by `&mut` in this test? The exemption requires a
                 // BARE IDENTIFIER: `&mut arg.clone()` is a temporary and is NOT an exemption.
-                let exempt = has_token(&body, &format!("&mut {arg}"))
-                    && !body.contains(&format!("&mut {arg}."))
-                    && !body.contains(&format!("&mut {arg}.clone()"));
+                // **Scoped to the region AFTER the failing call, not to the whole function.**
+                // The first draft searched the whole body, so ONE unrelated
+                // `warm_up(&mut state);` anywhere in a test exempted every shape-A assertion in
+                // it — while this file's module doc says *"gating per FUNCTION is green on
+                // `pb_dp7`'s `&mut state.clone()`. So the key is per ASSERTION."* That is the
+                // file's own stated design key contradicted by its own code, found by the
+                // `/review`. Not hypothetical: the repair idiom this batch shipped IS
+                // `handle_x(&mut state, ..)`, so a PARTLY-repaired function was unpoliced by
+                // construction. A bare identifier only — `&mut X.clone()` is a temporary.
+                let region = &body[at + stmt_end..];
+                let exempt = has_token(region, &format!("&mut {arg}"))
+                    && !region.contains(&format!("&mut {arg}."));
                 if exempt {
                     continue;
                 }
@@ -412,11 +482,20 @@ fn scan_file(path: &std::path::Path) -> Vec<Vacuous> {
                 // the 216 functions the stage-0 sweep read in full rebind `state` from a later
                 // successful call*, which is why that sweep had to READ them.
                 for stmt in tail[stmt_end..].split(';') {
-                    let binds_arg = stmt.contains("let ")
-                        && stmt
-                            .split('=')
-                            .next()
-                            .is_some_and(|lhs| has_token(lhs, &arg));
+                    // The LHS is the text between `let ` and the NEXT `=` AFTER it — not
+                    // `split('=').next()`, which returns everything up to the first `=`
+                    // ANYWHERE in the fragment. Statements are split on `;`, so a fragment
+                    // routinely begins with the tail of a preceding `match` block, and a match
+                    // arm's `=>` contains an `=`: the first draft therefore took the LHS as the
+                    // text before that ARROW and never saw the `let` at all, so the rebind-stop
+                    // silently did not fire. Surfaced when the `/review`'s widened reader list
+                    // reached `pb_dp5_pending_draw_choice.rs`, whose rebind sits directly after
+                    // `match reject_result { … other => panic!(..) }`.
+                    let binds_arg = stmt.find("let ").is_some_and(|li| {
+                        stmt[li..]
+                            .split_once('=')
+                            .is_some_and(|(lhs, _)| has_token(lhs, &arg))
+                    });
                     if binds_arg {
                         break;
                     }
@@ -652,8 +731,11 @@ fn v2_the_scan_reaches_the_test_tree() {
     let mut files = Vec::new();
     rust_files_under(&tests_root(), &mut files);
     assert!(
-        files.len() >= 200,
-        "the walk found only {} .rs files under crates/engine/tests",
+        files.len() >= 460,
+        "the walk found only {} .rs files under the test tree (measured 468 on PB-DX57's final \
+         tree). A ratchet's SLACK is its blind spot (`OOS-DX47`): the first draft's floor of 200 \
+         let more than half the tree stop being scanned while this stayed green and v1 reported \
+         zero.",
         files.len()
     );
     let fns: usize = files
@@ -666,9 +748,10 @@ fn v2_the_scan_reaches_the_test_tree() {
         })
         .sum();
     assert!(
-        fns >= 2_000,
-        "the #[test] splitter found only {fns} functions across {} files — a splitter that \
-         finds nothing makes v1 vacuous",
+        fns >= 4_600,
+        "the #[test] splitter found only {fns} functions across {} files (measured 4,762). \
+         Same slack argument as the file floor above: a splitter that quietly finds half as \
+         many makes v1 vacuous while green.",
         files.len()
     );
     println!(
@@ -757,6 +840,40 @@ fn v3_the_detector_fires_on_each_shape_and_spares_the_sound_ones() {
         !scan_file(&g).is_empty(),
         "shape C (snapshot bound before a by-value move) not detected — this is the form the \
          adversarial pass used to defeat the first draft, and it is the MORE natural spelling"
+    );
+
+    // The HOISTED-clone form and `.to_owned()` — the `/review`'s two shape-A bypasses. Neither
+    // needs a helper or a macro, and the hoisted one is the more natural spelling.
+    let h = write(
+        "h.rs",
+        "#[test]\nfn t() {\n let hb = state.public_state_hash();\n \
+         let cloned = state.clone();\n let r = process_command(cloned, cmd);\n \
+         assert!(r.is_err());\n assert_eq!(state.public_state_hash(), hb);\n}\n",
+    );
+    assert!(
+        !scan_file(&h).is_empty(),
+        "the HOISTED-clone form was not detected"
+    );
+    let i = write(
+        "i.rs",
+        "#[test]\nfn t() {\n let hb = state.public_state_hash();\n \
+         let r = process_command(state.to_owned(), cmd);\n assert!(r.is_err());\n \
+         assert_eq!(state.public_state_hash(), hb);\n}\n",
+    );
+    assert!(!scan_file(&i).is_empty(), "`.to_owned()` was not detected");
+
+    // The `&mut` exemption must be scoped AFTER the call: an unrelated `&mut` BEFORE it must
+    // not exempt the assertion.
+    let j = write(
+        "j.rs",
+        "#[test]\nfn t() {\n warm_up(&mut state);\n let hb = state.public_state_hash();\n \
+         let r = process_command(state.clone(), cmd);\n assert!(r.is_err());\n \
+         assert_eq!(state.public_state_hash(), hb);\n}\n",
+    );
+    assert!(
+        !scan_file(&j).is_empty(),
+        "an unrelated `&mut` BEFORE the failing call exempted the assertion — the exemption is \
+         per-function again, which is the defect the module doc says this gate does not have"
     );
 
     // A REBIND after the rejection must NOT be detected: the assertion reads the ACCEPTED

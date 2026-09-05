@@ -71,6 +71,11 @@ use crate::pb_dx57_declared_source::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Non-vacuity floors for the declared dictionary. Measured **58 enums / 909 variants**.
+const MIN_DICT_ENUMS: usize = 50;
+/// See [`MIN_DICT_ENUMS`].
+const MIN_DICT_VARIANTS: usize = 800;
+
 /// The assertive frames. Each says *"this def's code does X"*, so the claim is checkable
 /// against the def's own stripped code.
 ///
@@ -335,6 +340,33 @@ fn declared_identifiers_in(
     out
 }
 
+/// Does `hay` contain `needle` as a WHOLE TOKEN?
+///
+/// **Load-bearing, and the first draft used `contains`.** The declared dictionary is full of
+/// prefix pairs — `AddMana` / `AddManaAnyColor` / `AddManaScaled`, `AddCounter` /
+/// `AddCounterAmount`, `Controller` / `ControllerOf`, `TargetCreature` /
+/// `TargetCreatureWithFilter` — so a substring match lets a def DISCHARGE a stale claim about
+/// `Effect::AddMana` with its own unrelated `Effect::AddManaAnyColor`. Proven by the `/review`:
+/// a def declaring `AddManaAnyColor` and commenting *"Effect::AddMana resolves from the mana
+/// ability at resolution"* went GREEN, while the control (`Effect::Manifest`, which has no
+/// superstring) fired correctly. `has_token` already existed in this batch's sibling gate, in
+/// the same commit.
+fn has_token(hay: &str, needle: &str) -> bool {
+    let is_ident = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    let mut from = 0usize;
+    while let Some(rel) = hay[from..].find(needle) {
+        let at = from + rel;
+        let before_ok = at == 0 || !hay[..at].chars().next_back().is_some_and(is_ident);
+        let after = at + needle.len();
+        let after_ok = after >= hay.len() || !hay[after..].chars().next().is_some_and(is_ident);
+        if before_ok && after_ok {
+            return true;
+        }
+        from = at + 1;
+    }
+    false
+}
+
 /// `(def file stem, the identifier, the sentence)` for every assertive mechanism claim whose
 /// named identifier does not occur in that def's own code.
 fn offenders() -> Vec<(String, String, String)> {
@@ -350,7 +382,7 @@ fn offenders() -> Vec<(String, String, String)> {
             }
             for id in declared_identifiers_in(&sentence, &dict) {
                 let (_, variant) = id.split_once("::").expect("built with ::");
-                if !code.contains(variant) {
+                if !has_token(&code, variant) {
                     out.push((name.clone(), id.clone(), sentence.clone()));
                 }
             }
@@ -430,6 +462,24 @@ const RECORDED_OFFENDERS: &[(&str, &str, &str)] = &[
          that a partial modal ability is worse than an absent one). There is no def source for \
          the identifier to appear in, which is the point of the note.",
     ),
+    // ── Shape 2 again, and it was HIDDEN by a substring match until the `/review` ──
+    // `olivias_wrath` declares `LayerModification::ModifyBothDynamic` and its note says
+    // *"ModifyBothDynamic is substituted into ModifyBoth(-X)"* -- naming the runtime shape the
+    // declared one becomes, exactly like `elenda_the_dusk_rose` above. It appeared only when
+    // the code-surface match was tightened from `contains` to a whole-token match: the def's
+    // own `ModifyBothDynamic` CONTAINS the string `ModifyBoth`, so the claim was discharging
+    // itself. **That is the prefix-pair blindness the `/review` found, caught on its first run
+    // after the fix**, and it is why this row exists rather than a quieter gate.
+    (
+        "olivias_wrath",
+        "LayerModification::ModifyBoth",
+        "CONFIRMED TRUE: the def declares ModifyBothDynamic (olivias_wrath.rs:28) and the note \
+         names the shape the engine substitutes it into. `rules/layers.rs:2696-2709` documents \
+         exactly that substitution and says the plain-ModifyBoth arm is reached only from it. \
+         Verified by reading the engine site, not inferred -- and this row was INVISIBLE while \
+         the code surface was matched by substring, because ModifyBothDynamic contains \
+         ModifyBoth.",
+    ),
     // ── Shape 3: PROSPECTIVE rationale (a claim about a rewire not yet made) ──
     (
         "fecundity",
@@ -493,10 +543,16 @@ fn m1_no_def_asserts_a_resolution_mechanism_its_own_code_does_not_contain() {
 fn m2_the_declared_dictionary_is_not_vacuous() {
     let dict = declared_dictionary();
     let variants: usize = dict.values().map(|v| v.len()).sum();
+    // The floors are INTERPOLATED into the message rather than restated in prose. The first
+    // draft asserted `>= 50 && >= 800` under a message reading *"(floor 60 / 700)"* — so a
+    // maintainer who corrected the code to match the message would have reddened the enum axis
+    // and LOOSENED the variant axis. A number written twice is a number that can disagree with
+    // itself, which is this batch's whole subject one scale down.
     assert!(
-        dict.len() >= 50 && variants >= 800,
-        "declared dictionary is {} enums / {variants} variants (floor 60 / 700). Raise-only: \
-         a shrinking dictionary silently narrows m1 to nothing.",
+        dict.len() >= MIN_DICT_ENUMS && variants >= MIN_DICT_VARIANTS,
+        "declared dictionary is {} enums / {variants} variants (floors {MIN_DICT_ENUMS} / \
+         {MIN_DICT_VARIANTS}, measured at 58 / 909 when PB-DX57 wrote them). Raise-only: a \
+         shrinking dictionary silently narrows m1 to nothing.",
         dict.len()
     );
     // Spot-check the two identifiers this seed's own history turns on.

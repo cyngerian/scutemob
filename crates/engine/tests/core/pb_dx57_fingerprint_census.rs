@@ -290,13 +290,16 @@ const ALREADY_PINNED_AT_CENSUS: &[Row] = &[
 ];
 
 /// Raise-only ratchet on the DERIVED population of slice-typed `const` declarations across the
-/// test tree. Measured at **229** across 52 files when PB-DX57 censused it.
+/// test tree. **Measured at 234 across 53 files on the FINAL tree** — the census figure of 229
+/// across 52 was taken at stage 0 and this batch then added five of its own, which is exactly
+/// the re-take PB-DX28's MEDIUM asks for and which the `/review` caught: a ceiling set from a
+/// pre-edit measurement leaves slack nobody intended.
 ///
 /// A ceiling rather than an equality, and a **floor on attention** rather than a proof: not
 /// every slice const is a member of the class (most are needle lists, allowlists or expected
 /// values, and the census names ~110 such rejections individually). What it buys is that a new
 /// one cannot join in silence — somebody has to look at it and decide.
-const SLICE_CONST_CEILING: usize = 240;
+const SLICE_CONST_CEILING: usize = 236;
 
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -435,10 +438,13 @@ fn c2_slice_const_population_is_ratcheted() {
          no `const` to count and four members of the census are exactly that.",
         files.len()
     );
+    // A tight FLOOR as well as a ceiling: `OOS-DX47`'s rule that *a ratchet's slack IS its
+    // blind spot*. 200 against a measured 234 left 15% of the population able to vanish while
+    // this stayed green, which is the same shape as the ceiling's slack one direction over.
     assert!(
-        total >= 200,
-        "the slice-const scan found only {total}; it found 229 at census. A scan that collapses \
-         makes this ratchet vacuous while green."
+        total >= 228,
+        "the slice-const scan found only {total}; it found 234 on PB-DX57's final tree. A scan \
+         that collapses makes this ratchet vacuous while green."
     );
 }
 

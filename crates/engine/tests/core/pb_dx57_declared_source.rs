@@ -424,6 +424,42 @@ pub fn declared_enums_in(rel: &str) -> std::collections::BTreeMap<String, BTreeS
     out
 }
 
+/// The `pub` field names in a struct (or struct-variant) BODY.
+///
+/// **Extracted so the regression gates can call it.** `p6` and `p7` originally pasted this
+/// body inline, so they tested a COPY: the `/review` proved that reverting
+/// `declared_struct_fields` to the line-based form it had before `7811ad36` left `p6` GREEN and
+/// the whole `core` target at 830 passed. That is PB-DX50's `r3` inverted — *a gate on a COPY
+/// of a predicate says nothing about the predicate* — inside the batch that closes that class.
+///
+/// Two properties it must have, both of which it did NOT have at some point in this batch and
+/// both of which are pinned by `p6`/`p7`:
+/// * **comma-chunked, not line-based** — `pub basic: bool, pub nonbasic: bool,` on one line is
+///   legal and contributed only its first field, with a failure message asserting the OPPOSITE
+///   of the truth;
+/// * **raw-identifier aware** — `pub r#type: bool` parsed to the empty string and the field was
+///   dropped in silence, leaving two whole test targets green under an adversarial plant.
+///
+/// It fails **CLOSED**: a `pub `-prefixed chunk that yields no acceptable name is a panic, not
+/// a skip, because a dropped field is invisible to every consumer at once.
+fn struct_fields_from_body(body: &str, what: &str) -> BTreeSet<String> {
+    let mut out: BTreeSet<String> = BTreeSet::new();
+    for chunk in top_level_chunks(body) {
+        let c = strip_leading_attributes(chunk.trim());
+        let Some(c) = c.strip_prefix("pub ").map(str::trim_start) else {
+            continue;
+        };
+        let ident = leading_rust_ident(c);
+        assert!(
+            !ident.is_empty() && c[ident.len()..].trim_start().starts_with(':'),
+            "{what}: could not parse a `pub` field from {c:?}. Refusing to return a set that \
+             silently omits it -- a dropped field is invisible to every consumer at once."
+        );
+        out.insert(ident);
+    }
+    out
+}
+
 /// Every `pub` field name declared by `pub struct <struct_name>` in the given file.
 pub fn declared_struct_fields(rel: &str, struct_name: &str) -> BTreeSet<String> {
     let src = read_workspace_file(rel);
@@ -448,22 +484,7 @@ pub fn declared_struct_fields(rel: &str, struct_name: &str) -> BTreeSet<String> 
     // dangerous polarity — a field the parser cannot see never appears in any comparison, so
     // every consumer agrees with every other consumer about a field none of them knows exists.
     // A `pub `-prefixed chunk that yields no acceptable name is therefore a PANIC, not a skip.
-    let mut out: BTreeSet<String> = BTreeSet::new();
-    for chunk in top_level_chunks(&body) {
-        let c = strip_leading_attributes(chunk.trim());
-        let Some(c) = c.strip_prefix("pub ").map(str::trim_start) else {
-            continue;
-        };
-        let ident = leading_rust_ident(c);
-        assert!(
-            !ident.is_empty() && c[ident.len()..].trim_start().starts_with(':'),
-            "declared_struct_fields({rel}, {struct_name}) could not parse a `pub` field from \
-             {c:?}. Refusing to return a set that silently omits it -- a dropped field is \
-             invisible to every consumer at once, which is how a raw identifier (`pub r#type: \
-             bool`) left two whole test targets green under an adversarial plant."
-        );
-        out.insert(ident);
-    }
+    let out = struct_fields_from_body(&body, &format!("{rel} :: {struct_name}"));
     assert!(
         !out.is_empty(),
         "declared_struct_fields({rel}, {struct_name}) parsed ZERO fields"
@@ -624,11 +645,17 @@ fn p5_no_declaration_lookup_uses_a_prefix_needle() {
                 continue;
             }
             scanned += 1;
-            let src = std::fs::read_to_string(&p).unwrap_or_default();
+            let raw = std::fs::read_to_string(&p).unwrap_or_default();
+            // **Use `strip_comments`, not `split("//")`.** The first draft split on `//`, which
+            // cannot tell a comment from a URL inside a string literal: the `/review` proved
+            // that `let url = "http://example.invalid"; let _ = s.find("pub struct X");` on one
+            // line went GREEN while the same `find` alone reddened. That is `OOS-DX32-6` inside
+            // the module that OWNS a stripper handling both comment kinds AND string literals
+            // (`p2` proves it), and not using it here was the whole defect. `strip_comments`
+            // preserves line structure, so enumerate() still reports real line numbers.
+            let src = strip_comments(&raw);
             for (i, line) in src.lines().enumerate() {
-                // Skip comments -- this test's own doc quotes the bad form (`OOS-DX32-6`: a
-                // scan that cannot tell code from a comment fires on its own documentation).
-                let code = line.split("//").next().unwrap_or("");
+                let code = line;
                 for kw in ["pub struct ", "pub enum "] {
                     // **The literal must be an argument to `find(`.** Without this the scan
                     // flags `.expect("pub enum EffectFilter not found")` -- a MESSAGE -- and
@@ -704,15 +731,7 @@ fn p6_struct_field_parsing_is_comma_chunked_not_line_based() {
     // helpers directly rather than through a file.
     let body = " pub basic: bool, pub nonbasic: bool,\n #[serde(default)] pub owner: u8,\n \
                  pub nested: Vec<(u32, u32)>,";
-    let fields: BTreeSet<String> = top_level_chunks(body)
-        .into_iter()
-        .filter_map(|chunk| {
-            let c = strip_leading_attributes(chunk.trim());
-            let c = c.strip_prefix("pub ")?.trim_start();
-            let ident = leading_rust_ident(c);
-            (!ident.is_empty() && c[ident.len()..].trim_start().starts_with(':')).then_some(ident)
-        })
-        .collect();
+    let fields = struct_fields_from_body(body, "p6 synthetic");
     let expected: BTreeSet<String> = ["basic", "nonbasic", "owner", "nested"]
         .iter()
         .map(|s| s.to_string())
@@ -750,15 +769,7 @@ fn p7_raw_identifier_fields_are_parsed() {
     );
 
     let body = " pub r#type: bool, pub ordinary: u8,";
-    let got: BTreeSet<String> = top_level_chunks(body)
-        .into_iter()
-        .filter_map(|chunk| {
-            let c = strip_leading_attributes(chunk.trim());
-            let c = c.strip_prefix("pub ")?.trim_start();
-            let ident = leading_rust_ident(c);
-            (!ident.is_empty() && c[ident.len()..].trim_start().starts_with(':')).then_some(ident)
-        })
-        .collect();
+    let got = struct_fields_from_body(body, "p7 synthetic");
     let want: BTreeSet<String> = ["r#type", "ordinary"]
         .iter()
         .map(|s| s.to_string())
