@@ -423,3 +423,62 @@ Two mechanical hazards worth carrying forward, both caught by the agent rather t
 - A backup of `layers.rs` taken at 20:02 was **stale within 7 minutes** because a sibling agent
   wrote the file at 20:09. Restoring from it would have silently reverted another agent's work.
   Detected by md5 before use. *In a multi-agent worktree a file backup has an expiry date.*
+
+---
+
+## §4 What shipped
+
+**`crates/engine/src/rules/layers.rs`**
+- `SourceView<'a>` — one borrowed view (`controller`, `attached_to`,
+  `chosen_creature_type: Option<&'a SubType>`, `chosen_color`). **Borrowed, not owned**, because
+  `effect_applies_to` is on the layer walk and `SubType` wraps a `String`; an owned view would
+  allocate per arm, per effect, per object.
+- `source_view_live` (CR 611.3a — a static ability's source is on the battlefield by
+  construction, **no fallback**) and `source_view_at_resolution` (CR 608.2h / CR 113.7a —
+  live-then-LKI, the ONLY LKI-consulting constructor, with exactly one caller).
+- `effect_applies_to` split into a thin live-path wrapper plus
+  `effect_applies_to_inner(.., source: Option<&SourceView<'_>>)`; **all 20 source-relative arms
+  consume the parameter and every other conjunct is byte-preserved** — the self-exclusions, the
+  zone guards, the `chars` type/subtype/colour/supertype tests, the combat-attacker tests and
+  `CreaturesOpponentsControl`'s inequality all unchanged.
+- `snapshot_affected_set` resolves the at-resolution view **once, outside** its candidate loop.
+  Previously each of the 20 arms did its own map lookup per candidate.
+- `is_effect_active`'s two reads left **live-only with an in-source reason each**.
+
+**`crates/engine/src/state/mod.rs`** — `is_source_of_a_pending_ability` (delegating to PB-DX52's
+exhaustive `stack_registry::source_of`, so a 26th `StackObjectKind` is a compile error rather
+than a silent `None`), one shared `store_lki_snapshot`, `capture_source_lki_for_pending_ability`,
+the widened disjunctive gate, and the SR-24 `COUPLING:` comment rewritten to state the
+three-reader contract truthfully.
+
+**`crates/engine/src/rules/abilities.rs`** — three capture calls with the ordering reason at each.
+
+### §4.1 A DEVIATION FROM THE BRIEF, DISCLOSED: the `discard_self` capture is a MEASURED NO-OP
+
+`capture_source_lki_for_pending_ability` is **battlefield-only**. `lki_objects` is reachable from
+the `pub fn lki_objects()` accessor and is folded into `public_state_hash`, so snapshotting a card
+leaving a player's **hand** (the CR 702.34 Channel case) would put hidden information into a public
+store — **Architecture Invariant 7**. The `discard_self` call therefore does nothing today; it is
+present so the three self-move blocks stay uniform and `r6b` can require a fourth if one appears.
+Filed as **`OOS-DX39-1`** with the population stated as UNMEASURED rather than assumed zero.
+
+### §4.2 GATES THAT FIRED ON THIS BATCH'S OWN WORK — three, all answered rather than weakened
+
+1. **SR-25's `bare_lookup_ratchet`** caught `layers.rs` dropping 54 → 36 bare lookups. The ceiling
+   was **LOWERED** with the derivation stated (20 per-arm reads replaced by 2 constructors =
+   exactly 18), per PB-DX49's rule that *a stale-high ceiling is slack a regression hides in*. It
+   also caught the first draft of `capture_source_lki_for_pending_ability` using a bare
+   `.objects.get(..)`; it now uses `expect_object`, because `handle_activate_ability` validates the
+   source before any cost is paid, so a `None` there is an engine bug.
+2. **PB-DX27's `live_identifier_mentions_are_ratcheted`** fired on this batch's own card-def note.
+   Answered the way its own message asks: the note was **reworded into R1's PRIMARY vocabulary**
+   (`has no`, `no variant`) so the primary gate can SEE it, then given a
+   `REVIEWED_CONTRAST_MENTIONS` row with a stated reason, ceiling 109 → 110. That is the same GOOD
+   direction PB-DX36's two moves took — *a def joins because the batch SHIPPED the repair its note
+   had been silent about*, not because a note went stale. **Rewording here makes the note MORE
+   visible to the gate, which is the opposite of editing prose to dodge a needle.**
+3. **`clippy --workspace --all-targets -- -D warnings` FIRED ON THE FINAL TREE**, and the cause was
+   one line above the three it reported: `doc_lazy_continuation` on lines 55-57 of the probe file,
+   because **line 54 opened with `+ \`LayerModification::…\``, which markdown reads as a list
+   bullet**. Line 54 was reworded rather than the three symptom lines indented. It slipped through
+   because the probe agent ran clippy on the simulator target only.
