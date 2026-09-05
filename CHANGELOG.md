@@ -6,6 +6,19 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-09-05 — LL-3 (`scutemob-257`) — landscape lessons turned into project text (doc-only, class 0)
+
+- NEW `memory/checklists/new-effect-variant.md`: every registration point for a new `Effect` / `AbilityDefinition` /
+  `KeywordAbility` / `StackObjectKind` variant (106/68/166/27) — path, symbol, COMPILE vs **SILENT**; symbols not
+  line numbers, embedded verifier, 31/31 at HEAD. `/implement-primitive` and `primitive-impl-runner` cite it.
+- Its census found two sites the brief missed: `state/stack_registry.rs` (3 wildcard-free fns + a deliberate
+  simulator twin) and `rules/mana.rs::is_mana_producing_effect`, where a new mana `Effect` silently loses CR 605.1b.
+- `memory/conventions.md` gains "## Landscape rules" — parameterize-don't-proliferate (sibling-cluster smell +
+  one-CR-section boundary), never write "unsupported" without naming the population searched, classify by payload
+  not concept name; a Why and a verified scutemob example each.
+- `CLAUDE.md` gains the most-prohibited-pattern line (a `completeness:` that is a guess), 249 lines; `/dispatch`
+  gains the exit-3 rule; §9 marked per adopted row. Zero source files; notes `ll-3-execution-notes.md`.
+
 ## 2026-09-05 — CC-14 (`scutemob-251`) — dormant agents and skills moved aside; retired skills deleted
 
 - Eight agents → `.claude/agents-dormant/` (milestone ×4, ability ×3, ability-coverage-auditor); five skills →

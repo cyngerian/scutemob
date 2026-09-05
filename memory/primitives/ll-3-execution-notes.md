@@ -76,6 +76,65 @@ diff is `.md` files plus two skill/agent `.md` files. Evidence recorded in place
 `test-data/`. Worth one line in the table on the next edit to say that a docs-only diff (no
 compiled input) is the case where the row's "suite, clippy" is vacuous.
 
-## LOW findings from `/review`
+### F4 — the census found two registration points the commissioning brief did not name
+
+Dispatch hygiene 6 says a brief's site list is a floor, and it was one again. The brief named ten
+sites; the census (delegated to a read-only Explore agent, its load-bearing claims re-verified by
+hand) added:
+
+1. **`crates/engine/src/state/stack_registry.rs`** — `card_in_stack_zone`, `source_of` and
+   `stack_index_for_announced_target` are all wildcard-free over `StackObjectKind`, plus the
+   **deliberately duplicated** `mtg_simulator::invariants::stack_card_of`, which must NOT delegate
+   to the engine (the check exists to catch the engine getting the classification wrong, so reading
+   the engine's own answer back would make it agree with the bug). The module's own doc records the
+   defect that created it: `Effect::CounterSpell` matched the literal `Spell` variant, fell through
+   `MutatingCreatureSpell`, and no-opped (PB-DX25, `OOS-SIM3-5`).
+2. **`crates/engine/src/rules/mana.rs::is_mana_producing_effect`** — the dangerous one. A
+   `matches!` over an allow-list of the ten `AddMana*` variants: a new mana-producing `Effect` not
+   added simply returns `false`, so the ability is not a triggered mana ability under CR 605.1b, it
+   uses the stack, and it can be responded to. Nothing reddens.
+3. **`crates/engine/src/state/ability_definition_registry.rs::handling`** — the `AbilityDefinition`
+   twin of SR-5's keyword registry. Its module doc says that without it "a newly added variant
+   compiles everywhere and is silently inert". `docs/engine-invariants.md` (SR-5) still says this
+   hazard on `AbilityDefinition` "is not yet gated (`scutemob-67`)" — **stale**; the registry exists
+   and is exhaustive. Not fixed here (out of this batch's file scope); worth a one-line correction.
+
+The census also **corrected the brief** on three points, all verified: `helpers.rs` needs no edit
+for a new *variant* (all four enums are already re-exported; only a brand-new payload *type* goes
+there); `tools/play-server/src/view.rs` defines no DTO mirroring any of the four enums (one safely
+wildcarded `AbilityDefinition::Spell` picker); and `tools/replay-viewer` references none of them.
+And `StackObjectKind` is **not** in the SR-8 protocol closure — no `Command` or `GameEvent` variant
+carries one (only doc-comment mentions), so it bumps `HASH_SCHEMA_VERSION` alone.
+
+## Acceptance — change class 0
+
+- **Zero source files.** `git diff --name-only main...HEAD` returns nine paths, every one a `.md`;
+  `grep -Ev '\.md$'` over that list is empty. No `.rs`, no `Cargo.toml`, no `test-data/`, so the
+  suite and clippy read nothing this branch changed (see F3).
+- **The checklist verifies itself.** `memory/checklists/new-effect-variant.md` carries a paste-able
+  verifier and passes it **31/31 rows, 0 stale** at `9677fa0c` — run both from scratchpad and
+  exactly as the file prints it.
+- **Counts re-derived independently.** `Effect` 106, `AbilityDefinition` 68, `KeywordAbility` 166,
+  `StackObjectKind` 27, by a brace-depth parse of the enum bodies — agreeing with the census, and
+  with `pb_rs1_roster_sweep.rs`'s "106-variant `Effect`" comment and SR-5's "166 variants".
+- **CLAUDE.md guards.** 249 lines (`/eot` fails at 250); four ESM-guarded headings present; three
+  `## Current State` keys present.
+- **CHANGELOG.** One entry, 10 body lines, newest first.
+
+## LOW findings
+
+- **L1** — `docs/engine-invariants.md` (SR-5) says the `AbilityDefinition` / `ZoneChangeAction`
+  hazard "is not yet gated (`scutemob-67`)". The `AbilityDefinition` half **is** gated, by
+  `crates/engine/src/state/ability_definition_registry.rs::handling` + its test. Out of this
+  batch's file scope; a one-line correction for whoever next touches that doc.
+- **L2** — `docs/cleanup-retention-policy.md`'s directory table has no row for `memory/checklists/`.
+  It falls under the generic `memory/` row today, but the new file is cited by a skill and an agent,
+  which is the property that makes `memory/primitives/` and `memory/abilities/` "untouchable
+  corpus". Worth a row the next time that policy is edited.
+- **L3** — `memory/conventions.md` line 52 said golden scripts live in `test-data/golden-games/`;
+  the directory is `test-data/generated-scripts/<group>/`. Fixed in this batch (it is in a file the
+  brief named, and a stale path in the conventions file is exactly what the new rules are about).
+
+## `/review`
 
 (filled in after the review pass)
