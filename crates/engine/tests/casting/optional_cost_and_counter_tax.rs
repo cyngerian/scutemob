@@ -1170,7 +1170,7 @@ fn test_counter_unless_pays_noncreature_filter() {
 /// `MayPayThenEffect` discriminant 88 and `CounterUnlessPays` discriminant 89).
 /// If you bumped again, update this test and the `state/hash.rs` history block.
 fn test_hash_schema_version_is_29() {
-    assert_eq!(HASH_SCHEMA_VERSION, 84u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 85u8);
 }
 
 #[test]

@@ -293,7 +293,8 @@ impl GameStateBuilder {
                 ring_bearer_id: None,
                 temporary_protection_qualities: vec![],
                 attacked_this_turn: false,
-                attackers_declared_this_turn: 0,
+                latest_attacker_declaration_size: 0,
+                creatures_declared_as_attackers_this_turn: imbl::OrdSet::new(),
                 created_token_this_turn: false,
                 spells_cast_this_game_turn: 0,
             };

@@ -540,16 +540,42 @@ pub struct PlayerState {
     /// attacked" (Bloodsoaked Champion ruling).
     #[serde(default)]
     pub attacked_this_turn: bool,
-    /// PB-OS6(b) / CR 508.1/508.4: the number of creatures this player declared as
-    /// attackers on their most recent `DeclareAttackers` action this turn. Set
-    /// alongside `attacked_this_turn` in `handle_declare_attackers`. Reset for ALL
-    /// players at each turn boundary in `reset_turn_state`. Used by
-    /// `Condition::YouAttackedWithNOrMore`. Only creatures actually declared as
-    /// attackers count -- creatures put onto the battlefield attacking (CR 508.4) do
-    /// NOT increment this. On a turn with multiple combats (Aggravated Assault etc.),
-    /// the count is overwritten by the most recent declaration, not accumulated.
+    /// PB-OS6(b) / PB-DX53 / CR 508.3d: the size of this player's MOST RECENT
+    /// `DeclareAttackers` declaration this turn -- not the turn's running total. Set
+    /// alongside `attacked_this_turn` in `handle_declare_attackers`; reset for ALL
+    /// players at each turn boundary in `reset_turn_state`. Used ONLY by
+    /// `Condition::YouAttackedWithNOrMoreThisDeclaration`, which is CR 508.3d's
+    /// per-declaration trigger gate -- verbatim: "An ability that reads 'Whenever
+    /// [a player] attacks, . . .' triggers if one or more creatures that player
+    /// controls are declared as attackers." (The first draft elided this into a
+    /// "Whenever ... if ..." shape the rule does not have.) E.g. `legions_landing`.
+    /// Only
+    /// creatures actually declared as attackers count -- creatures put onto the
+    /// battlefield attacking (CR 508.4) do NOT set this. On a turn with multiple
+    /// combats (CR 500.8, Aggravated Assault etc.) this field is OVERWRITTEN by each
+    /// new declaration, not accumulated -- that is correct for CR 508.3d, which asks
+    /// about ONE declaration. For a per-TURN, deduplicated count (ruling 2007-10-01,
+    /// e.g. `windbrisk_heights`), see the sibling field
+    /// `creatures_declared_as_attackers_this_turn` below and
+    /// `Condition::YouAttackedWithNOrMoreCreaturesThisTurn`.
     #[serde(default)]
-    pub attackers_declared_this_turn: u32,
+    pub latest_attacker_declaration_size: u32,
+    /// PB-DX53 / ruling 2007-10-01 (Windbrisk Heights): every creature this player has
+    /// been DECLARED as an attacker with this turn, accumulated across every combat
+    /// phase on a turn with an extra combat (CR 500.8). Deduplicated by `ObjectId`
+    /// (CR 400.7 object identity), which is exactly the ruling's "different
+    /// creatures" reading verbatim: "A creature declared as an attacker in two
+    /// different attack phases counts only once." Creatures put onto the battlefield
+    /// attacking (CR 508.4: "Such creatures are 'attacking' but ... they never
+    /// 'attacked.'") never enter this set -- the ruling's third sentence, "A creature
+    /// that entered attacking ... doesn't count because you never attacked with it."
+    /// Set alongside `latest_attacker_declaration_size` in `handle_declare_attackers`,
+    /// which reads the COMMAND's declared attacker list (never `combat.attackers`,
+    /// which also holds CR 508.4 entrants via `CombatState::add_attacker`). Reset for
+    /// ALL players at each turn boundary in `reset_turn_state`. Used ONLY by
+    /// `Condition::YouAttackedWithNOrMoreCreaturesThisTurn`.
+    #[serde(default)]
+    pub creatures_declared_as_attackers_this_turn: OrdSet<ObjectId>,
     /// PB-AC6 / CR 111.10: true once this player has created one or more tokens this
     /// turn. Set in `GameState::add_object` (single chokepoint for all token creation
     /// paths). Reset for ALL players at each turn boundary in `reset_turn_state`.

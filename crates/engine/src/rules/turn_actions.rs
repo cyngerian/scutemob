@@ -1674,9 +1674,14 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
             // turn for all players (Condition::YouAttackedThisTurn is scoped to the
             // current game turn for any player, not just the active player).
             p.attacked_this_turn = false;
-            // PB-OS6(b) / CR 508.1/508.4: per-turn declared-attacker count resets at the
-            // start of each turn for all players (Condition::YouAttackedWithNOrMore).
-            p.attackers_declared_this_turn = 0;
+            // PB-OS6(b) / PB-DX53 / CR 508.3d: the most-recent-declaration size
+            // resets at the start of each turn for all players
+            // (Condition::YouAttackedWithNOrMoreThisDeclaration).
+            p.latest_attacker_declaration_size = 0;
+            // PB-DX53 / ruling 2007-10-01: the per-turn declared-attacker SET resets
+            // at the start of each turn for all players
+            // (Condition::YouAttackedWithNOrMoreCreaturesThisTurn).
+            p.creatures_declared_as_attackers_this_turn = imbl::OrdSet::new();
             // PB-AC6 / CR 111.10: per-turn created-a-token flag resets at the start of
             // each turn for all players (Condition::CreatedATokenThisTurn).
             p.created_token_this_turn = false;

@@ -17,6 +17,79 @@
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | — | available (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5 of the approved chain; next is PB-DX53, rank 16**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
 
+## Last Handoff (worker, 2026-09-05) — PB-DX53 / `scutemob-231`
+
+**v4 rank 16. `OOS-DX21-1` CLOSED.** Next dispatch: **PB-DX54** (rank 17, `OOS-DX25c-6`).
+**`/review` run: 13 findings (2 HIGH / 5 MEDIUM / 4 LOW / 2 NIT), all thirteen taken** — both
+HIGHs were this batch's own thesis committed inside the gates that state it. Fix-cycle record:
+execution notes §9. Seeds filed **OOS-DX53-1..5**.
+Full record: `memory/primitives/pb-DX53-execution-notes.md`. Plan and the pre-committed
+predictions: `memory/primitives/pb-DX53-plan.md` (`a37f8239`, before any production line).
+
+### The one thing to read first
+
+**One DSL identifier carried two CR concepts, and the seed's own prescribed fix would have broken
+a card to fix a card.** `Condition::YouAttackedWithNOrMore` was read by `windbrisk_heights`
+(ruling 2007-10-01 — per TURN, deduplicated, CR 508.4 entrants excluded) and by `legions_landing`
+(CR 508.3d — per DECLARATION). The row says to make the field *"a per-turn accumulation with
+per-creature dedup … and the migration must leave Legion's Landing reading the per-declaration
+count"* — right about the two REQUIREMENTS, wrong about their being one field. **The DSL split**:
+two `PlayerState` fields, two `Condition` variants, both old names renamed because both were lies.
+
+### What the next batch should carry forward
+
+1. **A wire cell that names the field you expect to add says nothing about the IDENTIFIER you may
+   have to split.** The AC predicted PROTOCOL unmoved on a ground that is TRUE (`PlayerState` is in
+   `CLOSURE_MUST_NOT_CONTAIN`) and insufficient. `Condition` is on the wire via `Effect::Conditional`
+   — verified by execution at stage 0, and already written down in `rules/protocol.rs`'s v21 row by
+   the batch that created this very field.
+2. **A "N deck-legal `Complete`" yield cell is a floor whenever the class is defined by a PRINTED
+   phrase rather than a declared variant.** `minas_tirith` was invisible to the declared axis
+   because its ability was UNAUTHORED. Only the inverse ORACLE axis finds a card whose defect is
+   that it is missing — and its blocker note demanded an identifier that had shipped six weeks
+   earlier.
+3. **A census walk over a def has TWO axes** — how exhaustively it reaches, and whether what it
+   reaches is CODE or PROSE. This batch's own roster gate defended the first in its module doc and
+   was blind to the second: a `Debug` render counted a `Completeness` note as a declaration.
+   **Use `decision_site_walk::def_contains_variant`** — and the mechanism is that its string arm
+   matches a variant name **EXACTLY**, NOT the `PROSE_FIELDS` denylist, which is never consulted
+   on a sentence-shaped note. (The first draft of this bullet credited `PROSE_FIELDS`; the
+   `/review` refuted it. A later batch adding a key there to "harden" a census would do nothing —
+   `OOS-DX49`: a reason is the half the next batch reuses.) And **fixing R1/R3 while leaving R2 on
+   the old walk is the shape that shipped here**: R2 was the only test whose job is to find an
+   UNDECLARED member, so it was the one most exposed. (`OOS-DX53-2`.)
+
+3b. **A source gate that enumerates the MUTATING forms is unbounded and fails OPEN.** Enumerate the
+   READ forms instead — 8 method names — so an unknown method is an offender rather than a pass;
+   add a preceding-path `&mut` axis (`OOS-DX51-6`'s aliased binding); and make an allowlist entry
+   carry an EXACT COUNT, because a file-scoped presence check exempts the whole file rather than
+   the one mechanism that earned it (`OOS-DX48`'s duplicated-call defeat). This batch's gate was
+   defeated on **both** and is now RED on both. (`OOS-DX53-4`.)
+
+3c. **A probe whose FIXTURE cannot produce the state its assertion is about is vacuous, and "the
+   stack emptied" is not evidence that anything resolved.** `c1` asserted a hideaway card resolving
+   against an EMPTY exile zone, because the fixture placed the land on the battlefield and no ETB
+   ever fired. The tell is an assertion that cannot distinguish *"it worked"* from *"there was
+   nothing to work on"*. (`OOS-DX53-5`.)
+4. **Assert a revert PATCH APPLIED before reading any verdict**, and key the build-failure detector
+   on `^error\[E` / `could not compile` — not `^error:`, which cargo also prints for ordinary test
+   failures. This matrix got both wrong once each and caught both before publishing.
+5. **`GameState`'s size, not `PlayerState`'s, looks like PB-DX18's real bench driver.** This batch
+   grew `PlayerState` MORE (376 → 400, +6.4% vs PB-DX18's +4.4%) and left `GameState` unmoved at
+   3536 — and measured **no regression**. Offered as an inference with its evidence, not a finding.
+
+### State
+
+Tests **5,209 / 0 / 5**, 67 targets (+13, 0 leavers). **HASH 85 / PROTOCOL 44**, closure counts
+**98 / 132** unmoved. Coverage **1,140/1,803 = 63.2%**, one flip. All gates clean against the FINAL
+tree; `npm run build` N/A (`tools/` diff empty). Filed **OOS-DX53-1..3**.
+
+**Open and deliberately not taken**: `OOS-DX53-1` (Melee counts CR 508.4 entrants — 2 deck-legal
+`Complete`), `OOS-DX53-3` (`moraug_fury_of_akoum` needs a per-creature attack TALLY, the opposite
+structure from this batch's dedup'd set — filed so nobody mistakes one for the other).
+
+---
+
 ## Last Handoff (worker, 2026-09-05) — PB-DX39 / `scutemob-230`
 
 **Task**: `scutemob-230` — PB-DX39, v4 queue rank 15 (standing v3 rank 33). Branch
