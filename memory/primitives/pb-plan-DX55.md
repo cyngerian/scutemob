@@ -158,6 +158,18 @@ pub fn validate_block_declaration(state, player, blockers: &[(ObjectId, ObjectId
   structurally cannot. **No repeat cap and no retry loop** (PB-DX21 deleted that shape); the prune
   is a single deterministic pass over the chosen pairs.
 
+### A CR cite correction the extraction must carry
+
+`combat.rs:1271` justifies the "an attacker must be attacking the declaring player (or their
+planeswalker)" guard with **CR 509.1c**. That is the wrong rule. CR 509.1c is the *requirements*
+rule (*"…if the number of requirements that are being obeyed is fewer than the maximum possible
+number…"*), which is correctly cited three lines over at `:1525`/`:1532`/`:1729` for provoke.
+The rule that says an attacker must be attacking the blocking player is **CR 509.1a**, verbatim:
+*"the defending player chooses one creature for it to block that's attacking that player, a
+planeswalker they control, or a battle they protect."* Verified against the rules server.
+Corrected here and filed, because this is PB-DX38's class landing on the exact guard this half
+extracts.
+
 ### Probes
 
 Per predicate — attacking-player, `CrossPlayerBlock`, flying — a fixture on which **the offer is
@@ -217,8 +229,16 @@ population is 3 deck-legal cards and the class is 22 refusals, 31.4%.
 3. `handle_activate_ability`'s inline slice (`abilities.rs:439-455`) is **deleted** in favour of
    the shared helper. Behaviour byte-identical; the point is that there is one arithmetic.
 4. `legal_actions::ability_default_modes` becomes **legality-aware**, the way PB-DX35 made the
-   trigger side (CR 700.2b: *"if one of the modes would be illegal … that mode can't be chosen"*),
-   choosing the first mode whose slice has a candidate for every mandatory slot. It already has
+   trigger side — but under **CR 700.2a**, not CR 700.2b. Those are different rules and the
+   distinction is load-bearing: 700.2a governs *"a modal spell or **activated ability**"* and says
+   only *"if one of the modes would be illegal (due to an inability to choose legal targets, for
+   example), that mode can't be chosen"*; 700.2b governs a modal **triggered** ability and adds
+   *"if no mode is chosen, the ability is removed from the stack"*. An activated ability is never
+   removed from a stack it was never put on — if no mode is legal it simply cannot be activated
+   (CR 601.2b via CR 602.2b), which is why the consequence here is an OFFER SUPPRESSION and not
+   PB-DX35's `None`-means-remove. Verified against the rules server; **the plan's own first draft
+   cited 700.2b**, which is PB-DX35's rule, not this one.
+   The choice is the first mode whose slice has a candidate for every mandatory slot. It already has
    exactly two callers — `params.rs:459` and (after this batch) `targeting.rs` — so both sides
    agree by construction.
 5. `targeting.rs`'s ActivateAbility arm passes `ability_default_modes(..)` instead of nothing,
