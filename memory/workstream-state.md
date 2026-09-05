@@ -14,46 +14,44 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep COMPLETE 2026-05-16; 6 LOWs remain, deferred |
 | W4: M10 Networking | — | not-started | — | P3 of the course correction; after hot-seat |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6 |
-| W6: Primitive + Card Authoring | — | available | — | v4 queue CLOSED at rank 21 (PB-DX57 `scutemob-236` last). Course-correction coordinator batch: CC-1/2/3/4 DONE 2026-09-05; CC-17 → CC-15 → CC-14 remain, then CC-5 (owner). History: `CHANGELOG.md` |
+| W6: Primitive + Card Authoring | — | available | — | v4 queue CLOSED at rank 21. Course-correction coordinator batch COMPLETE 2026-09-05 (CC-1/2/3/4/14/15/17). Next: CC-5 decklists (owner), then CC-6/7/8; CC-9 hot-seat needs a dispatch with owner approval. History: `CHANGELOG.md` |
 
 ## Last Handoff (oversight session, 2026-09-05) — course correction; DX57 collected
-## Last Handoff (coordinator session, 2026-09-05) — CC-1..CC-4 shipped inline
+## Last Handoff (coordinator session, 2026-09-05) — coordinator batch COMPLETE, CC-1..4 + 17/15/14
 
-**Date**: 2026-09-05 (coordinator session, self-assigned tasks, no dispatch)
+**Date**: 2026-09-05 (coordinator session, all seven tasks self-assigned inline, no dispatch)
 **Workstream**: course correction (`docs/course-correction-2026-09.md` §9.2 coordinator batch)
-**Task**: `scutemob-237` (`4815467c`), `scutemob-238` (`1a4a9cb5`), `scutemob-239` (`8d59044e`),
-`scutemob-240` (`87ac78c7`) — all done and merged; entries in `CHANGELOG.md`.
+**Task**: `scutemob-237/238/239/240` (morning) and `scutemob-254` (`d2be14f9`), `-252` (`cdaffd6e`),
+`-251` (`294072ad`) — all done and merged; one `CHANGELOG.md` entry each.
 
-**Completed**:
-- CC-1: CLAUDE.md 5,281 → 244 lines; this file 8,438 → under 60; three verbatim archives
-  (diff-verified) under `memory/archive/*-2026-09-05.md`; `CHANGELOG.md` seeded.
-- CC-2: 53 version-literal assertions gone (33 tests deleted, 11 in place, 4 renamed); suite
-  5,363 → 5,330 / 0 / 6 with the name diff reconciled; SR-8 rule written; A5 gates untouched.
-- CC-3: skills/agents repointed to CHANGELOG + notes file; `/eot` 250-line guard enforced;
-  `/dispatch` inlined + brief step + Monitor recipe; reviewers have read-only Bash;
-  `/review` ranks; `/author-wave --cards` added for CC-13.
-- CC-4: change-class table verbatim in `memory/conventions.md`; brief cites it by section.
+**Completed** (this half; the CC-1..4 half is in the previous rotation of this handoff):
+- CC-17: pair-or-demote rule in `memory/conventions.md` (probe under the same revert or reason +
+  seed ID; no sweep; re-key-after-defeat is the moment), cross-referenced from engine-invariants.
+- CC-15: `crates/simulator/tests/cc15_raw_characteristics_ratchet.rs` — two-sided per-file pins
+  + directory walk; five executed defeats; paired with the SR-38 probes. **Finding**: the
+  addendum's grep-line "43" counted 3 comment mentions and missed 6 line-wrapped chains; the
+  whitespace-blind count is 47 (28 in `legal_actions.rs`). Suite 5,330 → 5,333 / 0 / 6, 73 targets.
+- CC-14: 8 agents → `.claude/agents-dormant/`, 5 skills → `.claude/skills-dormant/` (READMEs with
+  the restore recipe); `start-work`/`end`/`spawn` deleted; Agents table == disk == dispatch roster.
 
 **Not done / deferred**:
-- CC-17 (`scutemob-254`), CC-15 (`scutemob-252`), CC-14 (`scutemob-251`) — the rest of the
-  coordinator batch. CC-5 decklists still need the owner.
+- Nothing left in the coordinator batch. CC-5 (six pod decklists) needs the owner; everything
+  else in backlog is blocked on it or on a dispatch.
 
 **Next session candidates** (highest-yield first):
-1. CC-17 (doc-only, CC-15's module doc must cite it) → CC-15 (simulator ratchet, the one Rust
-   item) → CC-14 (move dormant agents/skills; `/dispatch` already no longer needs `/spawn`).
-2. CC-5 with the owner, which unblocks CC-6/7/8.
+1. CC-5 with the owner (`scutemob-241`) → unblocks CC-6/7/8 (`242/243/244`, dispatchable).
+2. CC-9 hot-seat (`scutemob-245`) — pod-facing, needs owner approval to dispatch.
 
 **Operator-delta line** (what can a player observe now that they could not at the last
-handoff?): nothing — four housekeeping batches, 0 engine lines. Second empty entry in a row:
-per doc §5.2 a pod-facing item (CC-9 hot-seat) goes to the front once the batch closes.
+handoff?): nothing — housekeeping only, 0 engine lines all day. THIRD empty entry in a row:
+doc §5.2 says a pod-facing item goes to the front, and CC-9 is it.
 
 **Hazards** (carrying forward):
-- The bare `cargo clippy -- -D warnings` skips test targets; CC-2's 38 unused-import errors
-  were invisible to it. Only the CI bar (`--workspace --all-targets`) counts.
-- ESM's merge guard requires four CLAUDE.md headings to survive any rewrite (Worker Detection,
-  Workflow Rules, Required Attestations, Project Info); the TUI parses three Current State keys.
-- `.claude/docs.yaml` triggers on `crates/engine/tests/**` fire for any test edit; CC-2's were
-  dismissed (sentinel deletion changes no corner-case or stress coverage).
+- `esm doctor` now reports `missing: end, spawn` at every `/start` — expected (deleted by
+  CC-14, both ESM-provisioned). Never `esm update` to clear it; it re-adds them.
+- The eight dormant agents stay listed as `subagent_type` values until a session restart.
+- `/implement-ability` depends on dormant agents (banner at its top); `/author-wave` has a new
+  `--cards` mode for CC-13; `/dispatch` now writes `.esm/brief.md` and watches via Monitor.
 - Every dispatch still needs owner approval; the v4 queue is closed.
 
 **Commit prefix used**: `scutemob-N:` / `merge:` / `chore:`

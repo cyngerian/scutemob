@@ -13,13 +13,14 @@
   `tools/play-server`). M10+ roadmap milestones are HISTORICAL pending CC-8.
 - **Status**: 5,333 tests passing / 0 failing / 6 ignored (after CC-15, 73 targets);
   208 approved golden scripts; CI green since 2026-07-10.
-- **Last Updated**: 2026-09-05 — CC-14 dormant agents/skills (`scutemob-251`).
+- **Last Updated**: 2026-09-05 — coordinator batch complete (CC-1/2/3/4/14/15/17).
 - **Headline metric**: live card coverage **1,140 / 1,803 = 63.2%** (`docs/authoring-status.md`,
   regenerate with `tools/authoring-report.py`). Replaced by pod coverage (`docs/pod-coverage.md`)
   once CC-6 lands. Wire: PROTOCOL **44** / HASH **85**.
 - **Next dispatch**: NONE from the v4 queue — the second chain is **CLOSED at rank 21** (do NOT
-  dispatch PB-DX9 / PB-DX38). Coordinator batch: CC-1/2/3/4 DONE 2026-09-05; CC-17 → CC-15 →
-  CC-14 remain (`scutemob-254`/`252`/`251`, doc §10); CC-5 (six pod decklists) needs the owner. Every dispatch needs
+  dispatch PB-DX9 / PB-DX38). Coordinator batch CC-1/2/3/4/14/15/17 COMPLETE 2026-09-05. Next:
+  CC-5 six pod decklists (`scutemob-241`, owner) → CC-6/7/8; CC-9 hot-seat (`scutemob-245`) is the
+  pod-facing item and needs a dispatch with owner approval. Every dispatch needs
   explicit owner approval (`feedback_queue_autonomous_chaining` RETRACTED 2026-08-01).
 - **Where the detail is**: `CHANGELOG.md` (one ≤10-line entry per batch, newest first);
   `memory/workstream-state.md` (claims + last handoff); `docs/audits/decision-point-audit.md`
