@@ -210,16 +210,16 @@ ENCLOSING FUNCTION — command-time or resolution-time. A `handle_*` function re
 
 | Consumer | When it runs | Verdict |
 |---|---|---|
-| `casting.rs:3542` sorcery-speed `StackNotEmpty`, `:1675` Plot (CR 702.170d), `:7636` Teferi (CR 101.2) | `handle_cast_spell`, whose **only** caller is `rules/engine.rs:472` (`Command::CastSpell`) | command-time. **A cast during resolution — cascade, CR 608.2g — does NOT go through `handle_cast_spell`**; `resolution.rs` builds the stack object directly and says so in its own comment at `:557-562`. Unaffected. |
-| `lands.rs:49`, `plot.rs:72`, `suspend.rs:107`, `commander.rs:1068`, `abilities.rs:259/2165/2556/2728/2909/11453/11858`, `engine.rs:2027/3794/4045` | all inside `handle_*` command handlers | command-time. Unaffected. |
-| `engine.rs:2535` `handle_all_passed` | decides whether to resolve at all, BEFORE `resolve_top_of_stack` | unaffected. |
-| `engine.rs:2898` `discharge_effect_choice_on_concede` | `Command::Concede` handler | command-time. Unaffected. |
-| `state/mod.rs:789` `maybe_clear_lki_objects` (SR-13) | THREE call sites — `finish_stack_resolution` (AFTER `resolve_top_of_stack` returns), `handle_all_passed`'s stack-empty branch, and `reset_turn_state` | all command-time. **Checked specifically because a stack that is non-empty during resolution would suppress the LKI clear**; it cannot be reached there. Unaffected. |
-| `loop_detection.rs:144` `compute_mandatory_state_hash` | reached only via `check_for_mandatory_loop`, whose three call sites are `engine.rs:2714/2761` (stack-empty branch) and `abilities.rs:10541` (`EnterStepPriority`/`EnterStepCleanup` only) | never computed during a resolution. **Checked specifically because the entry's id is fresh per iteration and would have defeated CR 726 loop detection had it been folded in.** Unaffected. |
-| `sba.rs:903` CR 714.4 Saga sacrifice, `sba.rs:1587` CR 309.6 dungeon removal | inside `check_and_apply_sbas`, called from resolution's own tails | **AFFECTED, and this is why the departure point is where it is.** See §1. |
-| `effects/mod.rs:3279` `Effect::CounterSpell`, `:8211` `Effect::CopySpellOnStack`, `:8254` `Effect::ChangeTargets` | resolution-time, through `stack_index_for_announced_target` | **AFFECTED, and this is the fix.** `ChangeTargets` is the seed; the other two now see the resolving entry too — see the "never double-seen / never resolved twice" analysis below. |
-| `effects/mod.rs:8353`, `:8385`, `:10719`, `casting.rs:6748`, `abilities.rs:1393`, `resolution.rs:8750` — the six `exists_on_stack` liveness reads (PB-DX52's `r1` population) | resolution-time and cast-time | affected only in the direction of ACCEPTING the resolving entry as live, which CR 608.2n makes correct. Unreachable in practice for the resolving object itself, because CR 601.2c self-exclusion refuses it at announcement (`t4`). |
-| `copy.rs:342/545/780`, `resolution.rs:5609/6340` — copy / cascade / storm / suspend pushes | resolution-time, all `push_back` | unaffected in ORDER: a push during resolution lands ABOVE the resolving entry, which is CR 608.2g verbatim (*"That spell becomes the topmost object on the stack, and the currently resolving spell or ability continues to resolve"*). Before this batch it also landed on top, because the entry had been popped — so the topmost-ness is identical and only the entry BELOW it differs. |
+| `casting.rs`'s three timing reads inside `handle_cast_spell` — sorcery speed (`StackNotEmpty`), Plot (CR 702.170d), Teferi (CR 101.2) | `handle_cast_spell`, whose **only** caller is `rules/engine.rs`'s `Command::CastSpell` arm | command-time. **A cast during resolution — cascade, CR 608.2g — does NOT go through `handle_cast_spell`**; `resolution.rs` builds the stack object directly and says so in its own comment (*"WITHOUT ever calling `handle_cast_spell`"*). Unaffected. |
+| `handle_play_land`, `handle_plot_card`, `handle_suspend_card`, `handle_bring_companion`, `handle_activate_ability`, `handle_unearth_card`, `handle_embalm_card`, `handle_eternalize_card`, `handle_encore_card`, `handle_saddle_mount`, `handle_scavenge_card`, `handle_activate_craft`, `handle_activate_loyalty_ability`, `handle_level_up_class` | all inside `handle_*` command handlers | command-time. Unaffected. |
+| `handle_all_passed` | decides whether to resolve at all, BEFORE `resolve_top_of_stack` | unaffected. |
+| `discharge_effect_choice_on_concede` | `Command::Concede` handler | command-time. Unaffected. |
+| `GameState::maybe_clear_lki_objects` (SR-13) | THREE call sites — `finish_stack_resolution` (AFTER `resolve_top_of_stack` returns), `handle_all_passed`'s stack-empty branch, and `reset_turn_state` | all command-time. **Checked specifically because a stack that is non-empty during resolution would suppress the LKI clear**; it cannot be reached there. Unaffected. |
+| `loop_detection::compute_mandatory_state_hash` | reached only via `check_for_mandatory_loop`, whose three call sites are two in `engine.rs`'s stack-EMPTY branch and one in `abilities.rs::run_flush_resume_obligations`, gated to `EnterStepPriority`/`EnterStepCleanup` | never computed during a resolution. **Checked specifically because the entry's id is fresh per iteration and would have defeated CR 726 loop detection had it been folded in.** Unaffected. |
+| `sba.rs`'s two stack reads — CR 714.4 Saga sacrifice, CR 309.6 dungeon removal | inside `check_and_apply_sbas`, called from resolution's own tails | **AFFECTED, and this is why the departure point is where it is.** See §1. |
+| `Effect::CounterSpell`, `Effect::CopySpellOnStack`, `Effect::ChangeTargets` | resolution-time, through `stack_index_for_announced_target` | **AFFECTED, and this is the fix.** `ChangeTargets` is the seed; the other two now see the resolving entry too — see the "never double-seen / never resolved twice" analysis below. |
+| the **six** `exists_on_stack` liveness reads (PB-DX52's `r1` population) — 3 in `effects/mod.rs`, 1 each in `casting.rs`, `abilities.rs` and `resolution.rs`, re-counted at HEAD rather than transcribed | resolution-time and cast-time | affected only in the direction of ACCEPTING the resolving entry as live, which CR 608.2n makes correct. Unreachable in practice for the resolving object itself, because CR 601.2c self-exclusion refuses it at announcement (`t4`). |
+| `copy.rs`'s three pushes and `resolution.rs`'s two — copy / cascade / storm / suspend | resolution-time, all `push_back` | unaffected in ORDER: a push during resolution lands ABOVE the resolving entry, which is CR 608.2g verbatim (*"That spell becomes the topmost object on the stack, and the currently resolving spell or ability continues to resolve"*). Before this batch it also landed on top, because the entry had been popped — so the topmost-ness is identical and only the entry BELOW it differs. |
 | `crates/simulator/src/invariants.rs` `check_stack_consistency`, `crates/view-model` `stack_kind_info`, `tools/tui/.../stack_view.rs`, `tools/play-server`, `tools/replay-viewer` | all read a state at a COMMAND BOUNDARY | the entry is gone by then. Unaffected — and this is what makes "never double-seen" true for every external observer by construction rather than by care. |
 
 **Never double-seen**: the entry is in `state.stack_objects` exactly once (it was never
@@ -338,7 +338,7 @@ only `TargetSpellWithSingleTarget` / `TargetSpellOrAbilityWithSingleTarget` cons
 `state.stack_objects` (through `stack_index_for_announced_target`, to count the candidate's
 targets and classify it as a spell). `TargetSpell`, `TargetSpellWithFilter` and
 `TargetSpellOrAbility` decide the object branch on `obj.zone == ZoneId::Stack` alone
-(`casting.rs:7022-7037`), and the resolving spell's CARD never left `ZoneId::Stack` — which is
+(`casting.rs`'s `TargetSpell | TargetSpellWithFilter | TargetSpellOrAbility` arm), and the resolving spell's CARD never left `ZoneId::Stack` — which is
 exactly why PB-DX25c's T7 could route around the defect with `TargetSpellWithFilter`.
 
 ### The INVERSE ORACLE axis found a sibling gap no document names
@@ -441,3 +441,20 @@ moved it** (§0.3, verified by execution at stage 0):
 survivor scan to run on either axis, no `OOS-DX18-3` over-replacement read to take, no history
 row to append and no `FROZEN_HISTORY_PREFIX_DIGEST` to re-pin. The two append-only gates were
 executed anyway, green, as the evidence that none was owed rather than as a claim that none was.
+
+---
+
+## §7 — What this batch did NOT do, stated rather than omitted
+
+* **`npm run build` was NOT run**, and it is N/A rather than skipped:
+  `git diff --numstat <merge-base>..HEAD -- tools/` is **EMPTY**, so no frontend or play-server
+  line moves, and `node_modules` is absent from this worktree. Unlike PB-DX52, no acceptance
+  criterion predicted otherwise.
+* **The fuzzer was not A/B'd**, and the reason is a reason rather than a measurement dressed as
+  one: no `Completeness` marker moved anywhere (the card-def diff is empty), so no seeded fixture
+  is re-dealt and `OOS-CARDS2-3`'s usual budget does not apply. What WOULD have justified one —
+  a change to the order or identity of stack entries a fuzz trajectory sees — is exactly what
+  the consumer audit in §2 shows does not happen at any command boundary.
+* **`OOS-DX25b-4` was declined**, with the reason and the measured cost in §3.
+* **The tracked zero-byte `{}` file on `main` was left in place** (`OOS-DX54-3`), because a
+  main-scope tidy inside a correctness batch is an unexplained diff at collect.
