@@ -60,6 +60,7 @@ pub fn card() -> CardDefinition {
         }],
         // "Exile Eldritch Evolution." -- self-exile on resolution.
         self_exile_on_resolution: true,
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

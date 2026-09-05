@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(2),
         toughness: Some(2),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

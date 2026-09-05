@@ -71,6 +71,7 @@ pub fn card() -> CardDefinition {
             // mana source that did not exist and this land produced nothing at all.
             // The printed ability is modelled explicitly above (see `forest.rs`).
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

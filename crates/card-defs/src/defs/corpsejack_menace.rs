@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             is_self: false,
             unless_condition: None,
         }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

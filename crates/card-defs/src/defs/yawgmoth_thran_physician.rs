@@ -92,6 +92,7 @@ pub fn card() -> CardDefinition {
         // Cost::Sacrifice's TargetFilter.exclude_self) is enforced in handle_activate_ability
         // (CR 109.1), so Yawgmoth cannot pay by sacrificing itself. Both activated abilities
         // and Protection from Humans are implemented. Complete.
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

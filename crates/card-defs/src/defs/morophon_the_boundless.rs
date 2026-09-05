@@ -67,6 +67,7 @@ pub fn card() -> CardDefinition {
                 ..Default::default()
             }),
         }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

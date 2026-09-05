@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Deathtouch),
             AbilityDefinition::Keyword(KeywordAbility::Toxic(1)),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

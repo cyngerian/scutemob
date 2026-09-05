@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::ChooseABackground),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

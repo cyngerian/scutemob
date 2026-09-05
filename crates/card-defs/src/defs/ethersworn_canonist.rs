@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![AbilityDefinition::StaticRestriction {
             restriction: GameRestriction::MaxNonartifactSpellsPerTurn { max: 1 },
         }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

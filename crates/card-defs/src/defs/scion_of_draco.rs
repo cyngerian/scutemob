@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
             color_keyword_grant(Color::Green, KeywordAbility::Trample),
         ],
         self_cost_reduction: Some(SelfCostReduction::BasicLandTypes { per: 2 }),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

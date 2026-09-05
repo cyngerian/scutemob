@@ -47,6 +47,7 @@ pub fn card() -> CardDefinition {
         ],
         // "Exile Temporal Mastery." — self-exile on successful resolution.
         self_exile_on_resolution: true,
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Infect),
             AbilityDefinition::Keyword(KeywordAbility::CantBeBlocked),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

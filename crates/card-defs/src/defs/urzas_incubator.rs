@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
                 unless_condition: None,
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

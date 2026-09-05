@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Hexproof),
             AbilityDefinition::Keyword(KeywordAbility::CantBeBlocked),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

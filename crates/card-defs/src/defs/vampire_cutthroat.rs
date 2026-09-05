@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Skulk),
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

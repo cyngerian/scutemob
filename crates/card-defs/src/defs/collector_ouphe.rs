@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![AbilityDefinition::StaticRestriction {
             restriction: GameRestriction::ArtifactAbilitiesCantBeActivated,
         }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

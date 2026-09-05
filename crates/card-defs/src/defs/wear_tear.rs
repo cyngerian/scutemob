@@ -52,6 +52,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetEnchantment],
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

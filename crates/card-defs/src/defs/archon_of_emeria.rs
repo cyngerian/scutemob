@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // this ability produces wrong game state (nonbasic lands opponents control don't
             // enter tapped). Defer to PB-2 or a dedicated replacement-framework fix session.
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

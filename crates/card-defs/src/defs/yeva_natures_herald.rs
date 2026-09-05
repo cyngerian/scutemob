@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                 filter: FlashGrantFilter::GreenCreatures,
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

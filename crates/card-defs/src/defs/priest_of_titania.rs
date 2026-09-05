@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             modes: None,
         }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

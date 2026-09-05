@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         power: Some(0),
         toughness: Some(3),
         abilities: vec![],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

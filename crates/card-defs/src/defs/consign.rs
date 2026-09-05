@@ -55,6 +55,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetPlayer],
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

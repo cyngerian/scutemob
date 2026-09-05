@@ -66,6 +66,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

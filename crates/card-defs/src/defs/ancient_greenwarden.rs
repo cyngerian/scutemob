@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
                 additional_triggers: 1,
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

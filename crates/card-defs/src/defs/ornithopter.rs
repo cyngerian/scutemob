@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
         power: Some(0),
         toughness: Some(2),
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Flying)],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

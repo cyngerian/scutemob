@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 restriction: GameRestriction::OpponentsCantCastOrActivateDuringYourTurn,
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

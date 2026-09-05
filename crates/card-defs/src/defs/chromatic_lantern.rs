@@ -53,6 +53,7 @@ pub fn card() -> CardDefinition {
         // self ability and the granted land ability) now resolve to a real chosen
         // colour (CR 111.10a/605.3b) via `Command::TapForMana.chosen_color`, not
         // ManaColor::Colorless (was SF-11 / SR-37).
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

@@ -88,6 +88,7 @@ Whenever a creature an opponent controls dies, you gain 1 life."
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

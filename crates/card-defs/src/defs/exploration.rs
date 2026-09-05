@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // CR 305.2: Static ability granting one additional land play per turn.
             AbilityDefinition::AdditionalLandPlays { count: 1 },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

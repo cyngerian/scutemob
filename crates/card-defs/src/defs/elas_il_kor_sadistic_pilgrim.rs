@@ -68,6 +68,7 @@ Whenever another creature you control dies, each opponent loses 1 life."
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![AbilityDefinition::StaticRestriction {
             restriction: GameRestriction::OpponentsCantCastFromNonHand,
         }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

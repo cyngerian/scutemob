@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Deathtouch),
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

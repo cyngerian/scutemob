@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Cipher,
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }
