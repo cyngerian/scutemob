@@ -5,14 +5,14 @@ substitute is this file plus an `esm task comment`). Status is updated as items 
 
 | # | Item | AC | Status |
 |---|------|----|--------|
-| 0.1 | Pre-edit full-workspace baseline to a file (must reproduce 5,316 / 0 / 5 on 72 targets or report the discrepancy) | 7410 | ⏳ |
+| 0.1 | Pre-edit full-workspace baseline to a file (must reproduce 5,316 / 0 / 5 on 72 targets or report the discrepancy) | 7410 | ✅ |
 | 0.2 | Read v4 memo §4 row 21 + all six registry rows at HEAD; re-derive every cite | — | ⏳ |
-| 0.3 | Wire prediction PER HALF in writing, committed, before any production/test line | 7409 | ⏳ |
+| 0.3 | Wire prediction PER HALF in writing, committed, before any production/test line | 7409 | ✅ |
 | 1.1 | **Census A** — every hand-maintained field-set / variant-list fingerprint in the test suite; grep is the FLOOR, each roster file read; PRINTED by a test | 7407 | ⏳ |
 | 1.2 | Pin each census-A member against its struct/enum declaration read from source, or convert it to a mechanism | 7407 | ⏳ |
 | 1.3 | Plant-one-extra-field/variant probe that reddens BY NAME | 7407 | ⏳ |
 | 1.4 | **OOS-DX28-5** — ONE shared "AbilityDefinition variants that declare targets" enumeration, pinned against the enum declaration, consumed by every such walk | 7407 | ⏳ |
-| 1.5 | **OOS-ADJ-2** — verify-only: plant a ninth layer-querying variant, watch the widened `t7` go RED; record "closed by PB-DX42b, verified by execution" | 7407 | ⏳ |
+| 1.5 | **OOS-ADJ-2** — verify-only: plant a ninth layer-querying variant, watch the widened `t7` go RED; record "closed by PB-DX42b, verified by execution" | 7407 | ✅ |
 | 2.1 | **OOS-DX26-3** — roster gate over `all_cards()` pinning per-def ORDER of `AbilityDefinition::Activated` by a stable descriptor; insert-not-append reddens by def NAME (proven by planting) | 7408 | ⏳ |
 | 2.2 | **OOS-DX21-7** — census of every test that calls `process_command`, expects `Err`, then reads the ORIGINAL state; PRINTED; each classified vacuous/sound with the reason | 7408 | ⏳ |
 | 2.3 | OOS-DX21-7 — rewrite every vacuous probe (direct-handler `&mut state`, or an observable the accepted path produces); each rewrite re-watched failing under the guard's removal | 7408 | ⏳ |

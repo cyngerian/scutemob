@@ -121,3 +121,102 @@ Both files restored and verified byte-identical by `cmp`.
 
 **Recorded disposition**: `OOS-ADJ-2` — **closed by PB-DX42b, verified by execution here (both
 halves), not redone.**
+
+---
+
+## §2. `OOS-DX28-5` — the shared target-declaring enumeration, and the seed's own instance had ALREADY REGROWN
+
+### §2.1 The ground truth, derived rather than typed
+
+`pub enum AbilityDefinition` carries **68** variants, of which **8** declare a `targets` field:
+
+```
+Activated, Aftermath, Fuse, LoyaltyAbility, SagaChapter, Spell, Splice, Triggered
+```
+
+`pb_dx28_chosen_object_roster::ability_target_shapes` walked **six**. It omitted **`Aftermath`**
+and **`Splice`**.
+
+### §2.2 The finding: the list went stale WITHIN ONE BATCH of being widened
+
+This is the seed measured rather than predicted, and the two omissions have different causes:
+
+* **`Aftermath.targets`** has existed since the variant did. It was in no draft of the list — a
+  straight omission.
+* **`Splice.targets` DID NOT EXIST when PB-DX28 wrote the six.** **PB-DX18** (`OOS-M11-5`,
+  `scutemob-225`) added it for CR 702.47a — *"copy this card's text box onto that spell"*, so a
+  spliced spell requires the spliced card's targets and CR 601.2c makes those a real announcement.
+  Nothing in the tree reddened.
+
+PB-DX28's own R3 doc said the two extra entries it added were *"included for completeness — the
+point of listing them is that the day one does, this row sees it."* The row did not see it, because
+a seventh target-declaring variant arrived through the ordinary act of authoring a rule and a
+hand-written list has no way to notice.
+
+**And both are LIVE, not latent.** Axis 2 (below) observes all **8** variants carrying `targets`
+keys in the real corpus — so `Aftermath` and `Splice` nodes with declared targets exist today and
+R3's walk could not see them.
+
+### §2.3 What shipped, and why a derivation rather than a longer list
+
+`crates/engine/tests/core/pb_dx57_ability_target_variants.rs` derives the set from `pub enum
+AbilityDefinition`'s own declaration. **A pinned literal checked against the declaration is the
+right repair when the list encodes a JUDGEMENT** — that is `t7`'s case one file over, where *"which
+variants query a characteristic layer"* is a semantic claim about eight names. **Here the list
+encodes no judgement**: *"declares a `targets` field"* is a syntactic property of the declaration,
+so a literal adds a second place to be wrong and buys nothing.
+
+A derivation can still break silently, so it is guarded on **two independent axes and a floor**,
+never on itself:
+
+* **`d1`** — the parse reached the whole enum (≥ 60 variants), every parsed name is a plausible Rust
+  identifier, and the `targets:` classifier produced a **non-degenerate split** (a classifier that
+  says *everything* declares targets passes a bare `>= 8` floor, and `d2`'s floor alone could not
+  tell the two apart).
+* **`d2`** — a raise-only floor of 8, PLUS a second-method re-check that each derived name really
+  carries the field in its own declaration window (the floor is blind to over-reporting by
+  construction).
+* **`d3`** — **axis 2**: serde-walk `all_cards()` and observe which variant nodes actually carry a
+  `"targets"` key. Axis 2 knows nothing about axis 1's regex, so the two can disagree; `d3` asserts
+  axis 2 ⊆ axis 1 and **PRINTS** the residual rather than asserting it empty (an unused variant is
+  not a defect, and asserting it empty would redden on the ordinary act of adding a variant before
+  authoring a card for it). Measured: axis 1 = 8, axis 2 = **8**, residual **0**.
+* **`d4`** — the historical six are a strict subset of the declared set, phrased as a subset
+  relation rather than as *"the missing two are Aftermath and Splice"*, so the record survives a
+  later variant arriving and does not re-create a hand-maintained list inside the module written to
+  remove one.
+
+A parser note worth carrying: the first draft split the enum body on `,` **before** stripping line
+comments, and the enum's doc comments are English prose. It yielded **204** "variants" including
+`the`, `it` and `CR` against a true 68 — `OOS-DX32-6`'s *a text scan cannot tell code from a
+comment* arriving inside a parser rather than inside a gate. `d1`'s identifier-shape assertion is
+what catches it and is kept for that reason.
+
+### §2.4 The consumer is load-bearing, PROVEN BY EXECUTION — and the blindness is UNDER-checking
+
+`ability_target_shapes` now calls `target_declaring_ability_variants()`.
+
+The naive plant does not demonstrate anything, and saying so is the point: R3 opens with
+`assert!(!chosen_object_nodes.is_empty(), "R1 found a ChosenObject but no node carries it")`, so a
+def whose *only* `ChosenObject` sits in an omitted variant reddens on that message — which is
+exactly how PB-DX28 discovered `Fuse`. **The residual blindness is a def with BOTH a visible
+target-declaring node AND an invisible one**: the `!is_empty()` check is satisfied by the visible
+one and the additive-migration violation on the invisible one is never examined.
+
+Planted exactly that. `frantic_search` (already a `CHOSEN_OBJECT_MEMBERS` entry) gained a second
+ability — an `AbilityDefinition::Splice` carrying **both** `targets: vec![TargetRequirement::
+TargetCreature]` **and** a `ChosenObject` in its effect, i.e. the double-counting additive migration
+R3 exists to refuse.
+
+| tree state | `r3` | note |
+|---|---|---|
+| historical six-item list, plant in | **GREEN** | and `r4` RED — by a DIFFERENT mechanism (oracle-slot subtraction), so the first attempt over-stated R3's blindness |
+| historical six, plant in, **one `"target"` added to the oracle text** | **GREEN — and so is EVERY OTHER ROW IN THE FILE (6/6 pass)** | R4 neutralised, so R3's blindness stands alone |
+| derived enumeration, same plant | **RED**, `left: 1, right: 0`, naming Frantic Search | |
+
+The middle row is the one worth reading: **the whole roster reports success while the defect it
+exists to refuse is sitting in the corpus.** That the first attempt tripped `r4` and had to be
+narrowed is recorded rather than discarded — *"all rows RED" is a true sentence the wrong assertion
+can produce* (PB-DX48), and its converse is that a red row can be evidence about a different gate.
+
+Every file restored, `cmp` byte-identical.

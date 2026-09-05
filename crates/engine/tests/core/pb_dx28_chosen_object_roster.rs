@@ -162,31 +162,35 @@ fn r2_chosen_object_filters_set_only_supported_axes() {
 /// `ChosenObject`. Returns `(has_chosen_object, targets_len)` per node.
 ///
 /// **The variant list is the whole correctness of this row**, and it has been
-/// wrong once already. `Activated` is here because
-/// `takenuma_abandoned_mire`'s Channel ability is one, not a Triggered or a
-/// Spell. `Fuse` is here because `Connive // Concoct`'s Concoct half is one —
-/// a split card's half declares its own `targets` and is neither a `Spell` nor
-/// an `Activated` node, so the three-variant version of this walk reported
-/// "R1 found a ChosenObject but no node carries it" and could not tell a
-/// migration it could not SEE from a migration that had not happened. That is
-/// the `seed-rerank-2026-08-02.md` §2.7 hazard (a flat/short match dropping a
-/// nesting site in silence) in a gate written by the batch that cites it.
+/// wrong twice. `Activated` is here because `takenuma_abandoned_mire`'s Channel
+/// ability is one, not a Triggered or a Spell. `Fuse` is here because
+/// `Connive // Concoct`'s Concoct half is one — a split card's half declares its
+/// own `targets` and is neither a `Spell` nor an `Activated` node, so the
+/// three-variant version of this walk reported "R1 found a ChosenObject but no
+/// node carries it" and could not tell a migration it could not SEE from a
+/// migration that had not happened. That is the `seed-rerank-2026-08-02.md` §2.7
+/// hazard (a flat/short match dropping a nesting site in silence) in a gate
+/// written by the batch that cites it.
 ///
-/// `LoyaltyAbility` and `SagaChapter` also declare `targets` and are included
-/// for completeness — no corpus member uses `ChosenObject` in one today, and
-/// the point of listing them is that the day one does, this row sees it.
+/// **And PB-DX28's widening to six was ITSELF short by two, which is why the
+/// list is gone.** `AbilityDefinition::Aftermath` declares `targets` and was
+/// never listed; `AbilityDefinition::Splice` GAINED a `targets` field one batch
+/// later (PB-DX18, `OOS-M11-5`, CR 702.47a) and nothing reddened. Both are
+/// corpus-observed, not theoretical — see
+/// `pb_dx57_ability_target_variants::d3`'s printed axis-2 set. So the six went
+/// stale within one batch of being widened, by the ordinary act of authoring a
+/// rule, and this row reported success for a fortnight while blind to two
+/// variants. That is `OOS-DX28-5` measured rather than predicted.
+///
+/// The hand-written list is therefore replaced by
+/// `pb_dx57_ability_target_variants::target_declaring_ability_variants()`, which
+/// DERIVES the set from `pub enum AbilityDefinition`'s own declaration. A walk
+/// that needs this question must call that, never re-type a list here.
 fn ability_target_shapes(def: &mtg_engine::CardDefinition) -> Vec<(bool, usize)> {
     let json = serde_json::to_value(def).expect("CardDefinition serializes");
     let mut out = Vec::new();
-    for variant in [
-        "Triggered",
-        "Spell",
-        "Activated",
-        "Fuse",
-        "LoyaltyAbility",
-        "SagaChapter",
-    ] {
-        for node in find_variant_nodes(&json, variant) {
+    for variant in crate::pb_dx57_ability_target_variants::target_declaring_ability_variants() {
+        for node in find_variant_nodes(&json, &variant) {
             let targets_len = node
                 .get("targets")
                 .and_then(|t| t.as_array())
