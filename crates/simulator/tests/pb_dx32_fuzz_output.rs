@@ -728,19 +728,29 @@ fn test_dx32_orphaned_tokens_are_transient_and_the_end_state_is_clean() {
          reports (measured 2026-09-05: 4 raw reports, one Treasure token in \
          Graveyard(PlayerId(1)) at turn 25)"
     );
+    // PB-DX56: this used to read "transient_violations() must contain ONLY
+    // no_orphaned_tokens", which was a CLASS fact when tokens were the only transient
+    // class and is now only a fact about THIS fixture -- the transient set grew to three
+    // (`invariants::is_transient_check`). Both halves are restated so neither message
+    // claims more than it checks: the fixture-local one says it is fixture-local, and the
+    // exhaustiveness one is generalised to the predicate rather than to one name.
     assert!(
         game.transient_violations()
             .iter()
             .all(|v| v.check == "no_orphaned_tokens"),
-        "transient_violations() must contain ONLY no_orphaned_tokens: {:?}",
+        "seed 162 at max_turns 25 produces only the TOKEN transient class -- this is a \
+         fact about this fixture, not about the class set, which is now three wide \
+         (invariants::is_transient_check). A new name here means this seed's trajectory \
+         moved, not that the split broke: {:?}",
         game.transient_violations()
     );
     assert!(
         game.violations()
             .iter()
-            .all(|v| v.check != "no_orphaned_tokens"),
-        "violations() (the hard bucket) must contain NO no_orphaned_tokens -- the split \
-         must be exhaustive in both directions: {:?}",
+            .all(|v| !mtg_simulator::invariants::is_transient_check(&v.check)),
+        "violations() (the hard bucket) must contain NO known-transient class at all -- \
+         the split must be exhaustive in both directions, for every member of the set and \
+         not merely for tokens: {:?}",
         game.violations()
     );
     let leaked = invariants::check_no_leaked_tokens(game.state());

@@ -48,7 +48,8 @@ pub const TRANSIENT_DEPARTED_ACTIVE_PLAYER: &str = "departed_active_player";
 
 /// The promotion of [`TRANSIENT_DEPARTED_ACTIVE_PLAYER`] that is NOT transient: the
 /// condition survived a turn boundary, which CR 800.4k forbids.
-pub const HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN: &str = "departed_active_player_crossed_a_turn";
+pub const HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN: &str =
+    "departed_active_player_crossed_a_turn";
 
 /// The `check` name of the CR 800.4a class (PB-DX56, `OOS-DX32-1`): `priority_holder`
 /// naming a player who has left the game. **Hard** — CR 800.4a's last sentence is
@@ -99,7 +100,9 @@ pub const HARD_DANGLING_ATTACHMENT_AT_REST: &str = "dangling_attachment_at_rest"
 pub fn is_transient_check(check: &str) -> bool {
     matches!(
         check,
-        TRANSIENT_ORPHANED_TOKENS | TRANSIENT_DEPARTED_ACTIVE_PLAYER | TRANSIENT_ATTACHMENT_VALIDITY
+        TRANSIENT_ORPHANED_TOKENS
+            | TRANSIENT_DEPARTED_ACTIVE_PLAYER
+            | TRANSIENT_ATTACHMENT_VALIDITY
     )
 }
 
@@ -1625,7 +1628,11 @@ mod tests {
             .iter()
             .filter(|v| v.check == TRANSIENT_DEPARTED_ACTIVE_PLAYER)
             .collect();
-        assert_eq!(departed.len(), 1, "exactly one departed-active report: {vs:?}");
+        assert_eq!(
+            departed.len(),
+            1,
+            "exactly one departed-active report: {vs:?}"
+        );
 
         let ev = &departed[0].evidence;
         let by_arm_key: Vec<_> = ev
@@ -1676,7 +1683,8 @@ mod tests {
         let names: Vec<&str> = vs
             .iter()
             .filter(|v| {
-                v.check == TRANSIENT_DEPARTED_ACTIVE_PLAYER || v.check == HARD_DEPARTED_PRIORITY_HOLDER
+                v.check == TRANSIENT_DEPARTED_ACTIVE_PLAYER
+                    || v.check == HARD_DEPARTED_PRIORITY_HOLDER
             })
             .map(|v| v.check.as_str())
             .collect();
@@ -1741,7 +1749,11 @@ mod tests {
         );
 
         // Healthy: a symmetric attachment must be silent.
-        state.objects_mut().get_mut(&jitte).expect("jitte").attached_to = Some(bearer);
+        state
+            .objects_mut()
+            .get_mut(&jitte)
+            .expect("jitte")
+            .attached_to = Some(bearer);
         state
             .objects_mut()
             .get_mut(&bearer)
@@ -1750,13 +1762,20 @@ mod tests {
             .push_back(jitte);
         let mut vs = Vec::new();
         check_attachment_symmetry(&state, &mut vs);
-        assert!(vs.is_empty(), "a symmetric attachment must be silent: {vs:?}");
+        assert!(
+            vs.is_empty(),
+            "a symmetric attachment must be silent: {vs:?}"
+        );
 
         // Asymmetry 1: the host lists an attacher that points somewhere ELSE. A dead id
         // cannot be planted through the public API without a zone move, so this direction
         // is planted directly; the dead-id direction is what F1 fixes and is covered
         // end-to-end by `crates/engine/tests/primitives/pb_dx56_departure_hygiene.rs`.
-        state.objects_mut().get_mut(&jitte).expect("jitte").attached_to = Some(other);
+        state
+            .objects_mut()
+            .get_mut(&jitte)
+            .expect("jitte")
+            .attached_to = Some(other);
         let mut vs = Vec::new();
         check_attachment_symmetry(&state, &mut vs);
         assert_eq!(
@@ -1820,5 +1839,4 @@ mod tests {
             vs[0].evidence
         );
     }
-
 }

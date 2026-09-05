@@ -544,7 +544,9 @@ impl<P: LegalActionProvider> LocalGame<P> {
         // both real terminal paths go through. A dangling `attached_to` at a CHECKPOINT is
         // the CR 704.3 / `OOS-M11-7` window; one still there when the game is OVER is a
         // permanent CR 704.5m/704.5n blind spot.
-        violations.extend(invariants::check_no_dangling_attachment_at_rest(&self.state));
+        violations.extend(invariants::check_no_dangling_attachment_at_rest(
+            &self.state,
+        ));
         GameResult {
             seed: self.seed,
             winner,
@@ -700,7 +702,9 @@ impl<P: LegalActionProvider> LocalGame<P> {
             return v;
         }
         let mut promoted = v;
-        promoted.evidence.push(format!("first_seen_on_turn={first}"));
+        promoted
+            .evidence
+            .push(format!("first_seen_on_turn={first}"));
         promoted.evidence.push(format!(
             "turns_crossed={}",
             promoted.turn_number.saturating_sub(first)

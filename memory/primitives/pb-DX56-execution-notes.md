@@ -429,3 +429,104 @@ first, so the reason for the odd key survives a later "tidy-up".
 violation, diagnosed"*; the evidence said *"your own key is wrong"*. Nothing in the
 pre-batch fuzzer — which printed two integers and an empty `command_history` — could have
 told the difference.
+
+---
+
+## §4 Fuzz A/B against the merge base, and the wire
+
+### 4.1 The A/B, in an isolated worktree with its own `CARGO_TARGET_DIR`
+
+Merge base `e0da3cc9` checked out under the scratchpad with its own target dir (both
+deleted afterwards — `/tmp` is quota'd, dispatch hygiene 11), same invocation
+(`--games 20 --seed 1 --max-turns 200 --threads 1`):
+
+**The merge-base run and this batch's own PRE-EDIT run differ in EXACTLY ONE LINE — the
+wall clock** (19.2s vs 19.0s). Every violation count, every distinct count, every per-check
+game list is identical. So the pre-edit figure in §0.2 is confirmed to be the merge base's,
+not a stale binary's.
+
+| | merge base | HEAD | attribution |
+|---|---|---|---|
+| HARD total | **291** / 17 distinct, 14/20 games | **0** / 0, 0/20 | the disposition |
+| `player_consistency` | 189 (11 games) | — | renamed |
+| `departed_active_player` | — | **189** (11 games, same list) | reclassified TRANSIENT |
+| `departed_priority_holder` | — | 0 | new hard class, silent |
+| `attachment_validity` | 102 (7 games) | **102** (7 games, same list) | reclassified TRANSIENT |
+| `attachment_symmetry` | — | 0 | new hard class, silent (10,290 under R-E) |
+| `dangling_attachment_at_rest` | — | 0 | new end-state class, silent |
+| `no_orphaned_tokens` | 553 (13 games) | **553** (13 games, same list) | unchanged |
+| TRANSIENT total | 553 | **844** | 553 + 189 + 102, exactly |
+| wins / draws / errors / avg turns | 20 / 0 / 0 / 122.0 | 20 / 0 / 0 / **122.0** | unchanged |
+
+**Every per-class RAW count and every per-class game list is IDENTICAL across the boundary,
+and 844 = 553 + 189 + 102 exactly.** So the whole `291 → 0` movement is the
+RECLASSIFICATION plus three new hard checks measuring zero — **and the three engine fixes
+are trajectory-neutral on these twenty seeds**, which is a measurement rather than a hope:
+identical wins, identical avg turns to one decimal, identical per-seed game lists. That is
+also why no seeded pin moved and none had to be re-tuned.
+
+### 4.2 The PB-DX32 gate config: ratchets ANSWERED, not loosened
+
+`cargo test -p mtg-simulator --test pb_dx32_fuzz_output` — **13 / 13 green**, including
+`test_dx32_sr38_bot_rejection_rate_is_ratcheted`,
+`test_dx32_random_bot_waste_ratio_is_bounded` and
+`test_dx55_the_historical_gate_seeds_now_produce_zero_bot_rejections` (PB-DX55's
+zero-ceiling pin, the strongest ratchet that file holds). **No ratchet constant was
+touched** — `git diff` over `report.rs` shows the only `const`-adjacent change is a doc
+cross-reference to the new command-history bound.
+
+**One assertion MESSAGE in that file was corrected rather than left standing**, because it
+became an overclaim the moment the transient set grew: *"transient_violations() must
+contain ONLY no_orphaned_tokens"* was a CLASS fact when tokens were the only transient
+class and is now a fact about seed 162 at 25 turns. Its sibling — the exhaustiveness half —
+was generalised from one literal name to `is_transient_check`, so it now checks the whole
+set instead of one member. A message that claims more than its assertion checks is the
+defect PB-DX47 was dispatched for.
+
+### 4.3 The wire: HASH 85 / PROTOCOL 44, BOTH UNMOVED — zero bumps, as predicted
+
+Gate-executed: `hash_schema` **36/36**, `protocol_schema` **17/17**.
+`git diff main..HEAD` over `state/hash.rs` and `rules/protocol.rs` is **EMPTY**, so no
+sentinel re-pin, no survivor scan, no history row and no frozen-prefix re-pin were owed.
+
+**The counterfactual is VERIFIED BY EXECUTION, and it reproduces PB-DX51's finding.**
+Planting `GameObject` and `TurnState` — the two types whose already-existing fields F1, F2
+and F3 write — in each gate's `CLOSURE_MUST_NOT_CONTAIN`:
+
+* **HASH FAILS** (*"GameObject entered the GameState serde closure"*), i.e. `attachments`,
+  `active_player`, `extra_turns` and `priority_holder` were **already on that wire**, which
+  is exactly why writing them at a different moment adds nothing;
+* **PROTOCOL stays GREEN**, because both are reachable only through `GameState`, which that
+  list already excludes — the same asymmetry PB-DX51 measured with `CombatState`.
+
+For **Half A** the counterfactual is not merely unmoved but **unexpressible**: `crates/engine`
+does not depend on `mtg-simulator`, so a simulator type cannot be named in either list and
+the plant would not compile (§0.4a).
+
+### 4.4 The rest of the standard gates, against the FINAL tree
+
+`clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --check` clean (it
+**FIRED** once on the final tree, on a `pub const` line one character over the width, and
+was fixed rather than swept — "clean against the FINAL tree" is only worth something if the
+final tree is the one checked); `tools/check-defs-fmt.sh` clean (1,803 defs);
+`cargo build --workspace` clean (the SR-3 seal gate).
+
+**Coverage UNMOVED at 1,140/1,803 = 63.2%** by regeneration, **0 flips**, predicted with
+the reason before any code: this batch authors no card text and repairs no card-def
+blocker. **0 card-def edits of any kind** — `git diff main..HEAD --numstat` over
+`crates/card-defs` and `crates/card-types/src/cards` is EMPTY, so the shortcut was
+available and the regeneration was run anyway; self-dating churn reverted.
+
+**`npm run build` was NOT run, and it is an N/A rather than a gap**:
+`git diff main..HEAD --numstat -- tools/play-server/frontend` is **EMPTY** (the only
+`tools/` change is one `..Default::default()` in `play-server/src/main.rs`'s `#[cfg(test)]`
+`GameResult` literal), and `node_modules` is absent from this worktree.
+
+**Benches: NOT measured, and the reason is a mechanism bound rather than an estimate.**
+`crates/engine/benches/engine_perf.rs` contains **zero** occurrences of any symbol this
+batch's engine half touches (`detach_from_host_on_departure`, `advance_turn`,
+`grant_priority_to_active_player`, `extra_turns`, `attachments`). F1 adds one `Option`
+test and, only when it is `Some`, one `retain` over a `Vector` that is empty for every
+unattached permanent — on the zone-move path, which no bench drives (the six benches are
+priority cycles, full turns, a board wipe and an SBA check). Everything else changed is in
+`crates/simulator` and `bin/`, which the engine benches do not link.
