@@ -112,6 +112,9 @@
   **OOS-DX19-4** closed BY CONSTRUCTION, and the rank-21 rider **OOS-ADJ-2** taken in both
   halves; NEITHER of the two headline seeds had a registry row until this batch wrote one).
   **RANKS 1-18 ARE ALL SHIPPED AND NO FURTHER DISPATCH IS AUTHORISED** — rank 18 was the LAST
+  **↻ 2026-09-05, later: SUPERSEDED on the no-further-dispatch point — the user approved a SECOND
+  five-task chain, v4 ranks 19-23 (PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38), sequential,
+  collect-before-next, exactly five. Next dispatch: PB-DX55 (rank 19).**
   of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
   was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   the playtest-successor run 174–181
@@ -301,6 +304,9 @@
   **OOS-DX19-4** closed BY CONSTRUCTION, and the rank-21 rider **OOS-ADJ-2** taken in both
   halves; NEITHER of the two headline seeds had a registry row until this batch wrote one).
   **RANKS 1-18 ARE ALL SHIPPED AND NO FURTHER DISPATCH IS AUTHORISED** — rank 18 was the LAST
+  **↻ 2026-09-05, later: SUPERSEDED on the no-further-dispatch point — the user approved a SECOND
+  five-task chain, v4 ranks 19-23 (PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38), sequential,
+  collect-before-next, exactly five. Next dispatch: PB-DX55 (rank 19).**
   of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
   was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this

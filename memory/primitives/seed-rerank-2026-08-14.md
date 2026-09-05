@@ -935,8 +935,13 @@ leave the set is `discard_cards` (13 → 12), closed by ENG-1.
 > the N4 re-dispatch hazard, and silently re-pointing a PB number at different work *is* that
 > hazard.
 >
+> **↻ 2026-09-05 (later the same night): the user approved a SECOND five-task chain — ranks 19-23
+> (PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38), sequential, collect-before-next, exactly five.
+> The next dispatch is `PB-DX55` (rank 19). The banner below it is superseded on the 'NO FURTHER
+> DISPATCH' point only.**
+>
 > **↻ 2026-09-05: `PB-DX42b` SHIPPED (`scutemob-233`). Ranks 1-18 are ALL SHIPPED, and
-> NO FURTHER DISPATCH IS AUTHORISED.** Rank 18 was the **last** task of the five-task chain the
+> ~~NO FURTHER DISPATCH IS AUTHORISED~~ (superseded above).** Rank 18 was the **last** task of the five-task chain the
 > user approved on 2026-09-04 (ranks 14-18: PB-DX52, PB-DX39, PB-DX53, PB-DX54, PB-DX42b — all
 > five shipped). The next row in rank order is **rank 19, `PB-DX55`** (the bot/human refusal
 > surface — `OOS-SIM6-3` + `OOS-SIM5-3` + `OOS-SIM5-5`), and it must **not** be dispatched
