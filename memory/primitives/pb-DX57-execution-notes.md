@@ -499,3 +499,121 @@ have said anything: not the compiler (every construction site uses `..Default::d
 closures), and not the walk that depended on the list (a hand-written literal). *Three independent
 mechanisms that each look like they would catch it, and all three are structurally blind to the same
 edit.*
+
+---
+
+## §6. `OOS-DX28-1` — the class, enumerated and pinned
+
+### §6.1 The census: 35 members
+
+From ~150 classified candidates and ~110 individually named rejected near-misses (needle lists for
+source-text gates, file/function allowlists, expected-value pins, ratchet ceilings, card-name lists
+— none of which mirrors a declaration). **22 UNPINNED, 13 ALREADY-PINNED.** Printed by
+`core::pb_dx57_fingerprint_census::c3` rather than left in a memo, because a memo cannot notice when
+one of its rows stops being true; `c1` re-checks every row's needle still exists (`OOS-DX52-1`), and
+`c2` ratchets the derived slice-const population (229 across 52 files) so a new candidate cannot
+join in silence.
+
+**The `const` axis is a CEILING; the INLINE axis is a FLOOR.** Four members are an inline
+`for x in [..]` with no keyword to anchor a grep on — including the seed's own instance.
+
+**Two methodology findings, both this class happening to the instrument that measures it:**
+
+* a `static` grep returned **0** while `pub static ROWS` existed, because it anchored on a bare
+  `static` — `OOS-DX20b-5` reproduced inside a census whose subject is exactly that, and caught by
+  re-running with a second spelling rather than by reading;
+* **a `const` whose TYPE is a struct slice hides its string literals from every `&[&str]` grep**
+  (`&[Row]`, `&[UnreadField]`, `&[NamingSiteRow]`, `&[ReachRow]`) — four members are that shape and
+  all four were found only by reading the file.
+
+### §6.2 Three members were ALREADY STALE, and a fourth was found by the repairs
+
+1. **`pb_dx28`'s inline `AbilityDefinition` list** — 6 of 8 (`OOS-DX28-5`, §2).
+2. **`SIMPLE_TARGET_VARIANTS` + `FILTER_TARGET_VARIANTS` + the inline `"UpToN"`** covered **21 of
+   22** `TargetRequirement` variants. `TargetSpellOrAbility` was in none of them — and because R4
+   is a **SUBTRACTION** (`slots > words`), the gap does not merely under-report: **a real
+   over-declaration on the same def CANCELS against it**. Live on one deck-legal `Complete` def
+   (`deflecting_swat`), measured after the repair at 1 slot / 1 word, so the cancellation happened
+   not to be load-bearing on today's corpus — stated that way rather than rounded either up or down.
+3. **`LAND_TYPE_CONFERRING_VARIANTS`** covered 3 of the 4 `LayerModification` variants carrying a
+   `SubType`, missing `SetCreatureTypes` while listing `SetCardTypes`, which cannot name a subtype
+   at all. Corpus exposure measured at **ZERO**, so the gap was in the census's REACH, not yet in
+   its answer.
+4. **Found by the repairs, not the census: `NEW_TRIGGER_EVENTS` is a gate's NEEDLE SET** and was
+   short by `EquippedCreatureDealsCombatDamageToPlayer` — so that gate was not scanning the
+   dispatcher's eighth event for a second dispatcher at all.
+
+### §6.3 One shared parser, and its own cross-check caught it twice
+
+`core::pb_dx57_declared_source` replaces what would have been a **nineteenth** hand-written
+declaration parser; the tree already held five, each with its own anchoring rules and its own bugs.
+It was wrong three times and each was caught by execution, never by review:
+
+* **3 of 8** on its first run — five `AbilityDefinition` variants carry `#[serde(default)]` above
+  the `targets` field and the naive extractor read `#` as the field's first character. Caught by
+  `p4`'s by-value cross-check against the sibling derivation, which reaches the same answer by a
+  different code path.
+* **LINE-based field extraction** — `pub basic: bool, pub nonbasic: bool,` on one line contributed
+  only its first field, and the resulting failure message said *"the declaration no longer has
+  `nonbasic`"*, **the opposite of the truth**. Found by another agent's plant against a COPY.
+  Comma-chunked; `p6` pins it; verified on a real declaration (8 vs 7).
+* **RAW IDENTIFIERS** — `pub r#type: bool` parsed to the empty string and the field was dropped
+  **in silence**. `p1`–`p6` were all green under the plant. Fixed, made **fail-CLOSED** (a `pub`
+  chunk that yields no name is now a panic, because a dropped field is invisible to every consumer
+  at once), and `p7` pins it. Both cross-target copies fixed the same way.
+
+### §6.4 Two members deliberately NOT closed
+
+Both live in `#[cfg(test)]` modules under `tools/`, which **this batch's own 0-engine-lines
+criterion requires to be an EMPTY diff**. The two acceptance criteria are in tension and the
+explicit diff constraint wins; the gap is filed as `OOS-DX57-3` with both exact repairs, and
+`c4_the_two_unfixed_members_are_named_and_still_present` records it **inside the census test**, so a
+reader of the census sees it rather than only a reader of a memo.
+
+---
+
+## §7. The adversarial pass — TEN defeats across two rounds, all re-keyed and re-executed RED
+
+Every gate this batch wrote or re-keyed was handed to a **second agent, briefed with the gate's doc
+sentence and explicitly not its implementation**, to attack by execution. This is the queue's
+recurring lesson made procedural: *a revert-proof written by the same author from the same mental
+model exercises the inputs that author already thought of* (`OOS-DX54-6`).
+
+**Round 1 defeated 5 of 5. Round 2 defeated 5 more, three of them completely (whole test target
+green).** Not one gate survived its first adversary.
+
+| # | gate | the defeat | the re-key |
+|---|---|---|---|
+| 1 | face-down maker derivation | keyed on the assigned `FaceDownKind`, so a third genuine site assigning an EXISTING kind **deduped away** and a floor of 2 was satisfied by a set of 2 | re-keyed onto the enclosing `Effect::` arm — **and that was STILL GREEN**, because the roster only moves when a corpus DEF uses the channel; closed with an exact-set pin |
+| 2 | vacuous-rejection gate | the **snapshot-before-move** form: no `.clone()` argument, no helper, no macro — *the more natural way to write the test* | shape C added, with a synthetic control |
+| 3 | mechanism-note ratchet | eight plain-English assertive verbs, sharpest being **`snapshots` — the verb in the gate's own recorded offender** | frames 11 → 19 (monotone, which is why the polarity is fail-closed) |
+| 4 | shared target-declaring enumeration | **nothing enforced "every walk calls it"** — a second walk with its own six-element list left everything green | `d5`, a consumer gate |
+| 5 | shared declaration parser | reported as prefix-vulnerable — **RE-ATTRIBUTED**, see below | four OTHER parsers repaired; `p5` forbids the form |
+| 6 | `t12` / `unread_init_fields` / the canonical parser | a **raw identifier** (`pub r#type`) is dropped in silence; two whole test targets stayed green | `r#`-aware and **fail-closed**, in all three copies; `p7` |
+| 7 | `decision_gate::every_effect_variant_is_classified` | **laundering**: move a variant between two lists carrying OPPOSITE claims and the partition is invariant; whole `core` target green | the candidate set pinned BY NAME in the dangerous direction only |
+| 8 | `pb_dx39::r3b` | same shape — misfiling `ExileSelf` keeps the partition valid; whole `core` target green | source-moving side pinned BY NAME |
+| 9 | `pb_dx45::r2b` | the derivation is **syntactic** (`=> false`), so a semantically-false body passes | **not closable at source level** — stated as a residual, with the measurement that seven behavioural probes DO redden |
+| 10 | `cards2::r7b` | two consistent lists can shrink **together** | stated residual; `r7`'s aggregate floor is what holds |
+
+### §7.1 The re-attribution, recorded because accepting it would have been easier
+
+Round 1 reported the shared parser prefix-vulnerable. **It is not** — its needle carries the trailing
+` {` — and re-executing the decoy plant against it returns the real 17 fields. What the adversary
+actually found is better: **four OTHER declaration lookups in the tree use a bare prefix needle**,
+so which declaration they read depends on declaration ORDER. Proven by execution: a decoy carrying
+the same field names left the **whole `core` target green with every field-set pin checking the
+decoy**. Not contrived — `PendingTriggerTargets` already exists in that file, and `pub enum Effect`
+is a prefix of `EffectTarget`, `EffectAmount`, `EffectFilter`, `EffectLayer` and `EffectDuration`.
+**And the load-bearing part is about the DEFENCE**: this module's doc leans on *"panics on an empty
+parse, so a caller can never accidentally compare against nothing"* — and a prefix-shadowed parse is
+**non-empty and wrong**, the one failure mode that promise cannot see. All four repaired; `p5`
+forbids the form; `OOS-DX57-5`.
+
+### §7.2 Two of this batch's own gates over-fired, and were narrowed by ADJUDICATING hits
+
+The same discipline pointed inward. The rejection gate attributed **any** later `Err` in a function
+to the flagged call (three false positives, all a `.clone()` handed to a call that SUCCEEDS) and had
+no **rebinding** awareness (an assertion after `let (state, _) = process_command(state, good)` reads
+the ACCEPTED path — *dozens* of the 216 swept functions do exactly that). `p5`'s first draft reported
+**five** offenders, all `.expect(..)` MESSAGES and **zero** real. Every one was found by opening a
+flagged line rather than reading the count.
