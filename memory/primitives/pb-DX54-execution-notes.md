@@ -590,3 +590,52 @@ times by the machine running out of memory — `ps` shows **three sibling `claud
 worker processes** on this host besides this one. What IS measured for R3 is the whole
 `--test core` target (770 tests, only `r2` red). The wider sweep is reported as **not measured**
 rather than as a pass.
+
+---
+
+## §10 — Benches: MEASURED, six runs, verdict **NO REGRESSION** — and the apparent +3% is refuted by mechanism, not by averaging
+
+Matched-set A/B against the merge base in its own `git worktree` with its own
+`CARGO_TARGET_DIR`. **The same-code band was measured FIRST**, across THREE merge-base runs,
+before any HEAD run was compared.
+
+| bench | base range (3 runs, µs) | **same-code band** | HEAD range (2 runs, µs) | mean Δ | intervals overlap? |
+|---|---|---|---|---|---|
+| `priority_cycle_4p` | 23.93 – 24.34 | 1.73% | 24.71 – 25.27 | **+3.46%** | no |
+| `priority_cycle_6p` | 37.92 – 38.79 | 2.29% | 39.18 – 39.88 | **+3.18%** | no |
+| `sba_check` | 14.71 – 15.56 | **5.73%** | 15.20 – 15.43 | +0.52% | yes |
+| `full_turn_4p` | 214.88 – 216.80 | 0.89% | 217.05 – 220.16 | +1.22% | no |
+| `full_turn_6p` | 341.63 – 360.79 | **5.61%** | 349.99 – 350.73 | +0.55% | yes |
+| `board_wipe_4p` | 120.94 – 123.63 | 2.22% | 121.71 – 121.88 | −0.46% | yes |
+
+**Same-code band: up to 5.73% on IDENTICAL code.** Every base-vs-HEAD difference in the table is
+smaller than that. The machine was **not quiet and that is reported rather than hidden**: `ps`
+shows **three sibling `claude --model opus` worker processes** on this host besides this session,
+and three separate attempts to run a full-workspace revert sweep were killed by the kernel for
+memory. A 5.7% same-code band is what that looks like.
+
+### The three non-overlapping rows are refuted by MECHANISM, measured by reading the bench file
+
+`crates/engine/benches/engine_perf.rs` issues **exactly one `process_command` in the entire
+file** — `Command::PassPriority`, inside `pass_until_advance`. No bench casts a spell or
+activates an ability. `resolve_top_of_stack` is reached only from `handle_all_passed`'s
+stack-NON-empty branch, so:
+
+* `priority_cycle_4p` / `priority_cycle_6p` — the bench's own doc says *"a single complete
+  priority round … (empty stack)"*. `handle_all_passed` takes its stack-EMPTY branch every time
+  and **`resolve_top_of_stack` is never called**. These two moved the MOST (+3.46%, +3.18%), and
+  they are the two this change is structurally incapable of touching.
+* `sba_check` and `board_wipe_4p` call `check_and_apply_sbas` **directly**, bypassing resolution
+  entirely.
+* `full_turn_4p` / `full_turn_6p` drive a whole turn with no attackers and no spells cast.
+
+So the change is off every benched path, and the +3% on the two priority cycles is a
+two-compilation/contended-machine artefact — the same tell PB-DX51, PB-DX52 and PB-DX53 each
+recorded from the other direction, where an apparent *improvement* on a control was refused.
+
+**The verdict claimed is exactly "no regression demonstrated", and no improvement is claimed
+either.** What the change actually costs at runtime, stated so a future reader can price it
+without re-benching: per resolution, one `.back().cloned()` in place of a `pop_back()` (the clone
+existed before — `pop_back()` also yields an owned `StackObject`), plus up to two extra O(n)
+scans of `state.stack_objects`, where n is the stack depth, typically 1-3. Nothing on the
+priority loop, nothing on the SBA loop.
