@@ -1,12 +1,24 @@
 //! Invariant checks run after every state transition during fuzzing.
 //!
-//! **Ten checks exist; nine of them fire from [`check_all`]**, plus one deliberate
-//! no-op: zone integrity, ID uniqueness, stack consistency, player consistency, turn
-//! order, object-zone agreement, attachment validity, game progression, orphaned
-//! tokens — and `check_mana_non_negative`, which cannot fail because `ManaPool` is
-//! `u32`. The tenth, [`check_no_leaked_tokens`] (PB-DX32 Stage 4), is an END-OF-GAME
-//! check and is deliberately NOT in [`check_all`] — it runs once per game, at both
-//! real `LocalGame` terminal paths, not per command.
+//! **Twelve checks exist; ten of them fire from [`check_all`]**, one of those ten being a
+//! deliberate no-op, and two are END-OF-GAME checks that run once per game instead.
+//!
+//! From [`check_all`]: zone integrity, ID uniqueness, stack consistency, player
+//! consistency, turn order, object-zone agreement, attachment validity, **attachment
+//! symmetry** (PB-DX56), game progression, orphaned tokens — plus
+//! `check_mana_non_negative`, which cannot fail because `ManaPool` is `u32`.
+//!
+//! Not from [`check_all`], deliberately: [`check_no_leaked_tokens`] (PB-DX32 Stage 4) and
+//! [`check_no_dangling_attachment_at_rest`] (PB-DX56). Both are END-OF-GAME checks — they
+//! run at `LocalGame::result_snapshot`, the one site both real terminal paths go through,
+//! and each is the strictly stronger property that keeps one transient split honest.
+//! `t_every_end_state_check_is_called_from_result_snapshot` is what stops either call from
+//! being deleted in silence, which it could be until PB-DX56 (`OOS-DX56-5`).
+//!
+//! **This header said "Ten checks exist; nine of them fire from `check_all`" until
+//! PB-DX56, and PB-DX56's own first draft left it saying so** — a count in a module doc
+//! is a claim like any other and it rots the moment a check is added. `check_all`'s call
+//! count is the ground truth; count it there before trusting this paragraph.
 //!
 //! This header used to say "12 checks", and `docs/mtg-engine-simulator.md` still
 //! lists twelve. Two of those twelve (legal-action soundness, SBA idempotency)

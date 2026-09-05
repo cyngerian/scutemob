@@ -220,6 +220,16 @@ mtg-fuzzer [OPTIONS]
 
 ### Invariant Checks (run after every state transition)
 
+> **↻ PB-DX56 (`scutemob-235`, 2026-09-05) moved this count and SPLIT one entry.** The list
+> below is now **fourteen**, of which **ten** fire from `check_all` (one of those ten being
+> the no-op at #3) and **two** are END-OF-GAME checks run once per game at
+> `LocalGame::result_snapshot`. Entry **#5 is two entries**, because PB-DX56 measured 189 of
+> 189 reports on one of its arms and zero on the other and then found the CR gives them
+> OPPOSITE dispositions — see #5a/#5b. New: **#12 attachment symmetry** (per-command, hard),
+> **#13 no leaked tokens** and **#14 no dangling attachment at rest** (both end-of-game).
+>
+> **The paragraph below is preserved as written because its last sentence is the point.**
+>
 > **Nine of these twelve can fire from `check_all`.** Re-derived from
 > `invariants::check_all` by SIM-3 (`scutemob-177`, 2026-08-02) rather than trusted:
 > #3 is an explicit no-op in the source, and **#10 and #11 are not `check_all`
@@ -245,10 +255,26 @@ mtg-fuzzer [OPTIONS]
    `Spell` and `MutatingCreatureSpell` own a Stack-zone card — and
    `invariants::check_stack_consistency` asserts the four properties documented on it.
    See its doc comment for the measured before/after.
-5. **Player consistency**: Active player and priority holder are alive
+5. **Player consistency**: Active player and priority holder are alive — **↻ SPLIT INTO TWO
+   CLASSES by PB-DX56**, because CR 800.4j and CR 800.4a give them opposite dispositions:
+   - **5a. `departed_active_player`** — TRANSIENT. CR 800.4j: *"If a player leaves the game
+     during their turn, that turn continues to its completion **without an active player**."*
+     `TurnState::active_player` is a bare `PlayerId` with ONE production write site, so that
+     state is inexpressible and the engine encodes it by leaving the departed id there.
+     Answered by the strictly stronger **CR 800.4k turn-boundary** promotion in
+     `LocalGame::record_violations`, deliberately not by an end-state check.
+   - **5b. `departed_priority_holder`** — HARD. CR 800.4a's last sentence is unconditional:
+     *"If the player who left the game had priority at the time they left, priority passes to
+     the next player in turn order who's still in the game."* Measured at ZERO, which is the
+     evidence that keeping it hard costs nothing.
 6. **Turn order**: All players in turn_order, active player present
 7. **Object-zone agreement**: Object's zone field matches containing zone
-8. **Attachment validity**: attached_to references existing battlefield objects
+8. **Attachment validity**: attached_to references existing battlefield objects — **↻
+   RECLASSIFIED TRANSIENT by PB-DX56**. This watches the direction of the relation that
+   HEALS: a host leaves, its attachers dangle, and CR 704.5m / CR 704.5n clear it. It
+   survives a checkpoint only because the engine sweeps SBAs at nine sites and
+   `rules/{abilities,casting,combat,mana,turn_actions}.rs` contain zero — `OOS-M11-7`'s
+   shape one field over. Answered by **#14**.
 9. **Game progression**: Turn number never decreases
 10. **Legal action soundness**: Actions from provider don't get rejected by `process_command()`
     — **NOT a `check_all` function** (OOS-SIM3-2, PARTIALLY closed by PB-DX32). Nothing in
@@ -260,18 +286,48 @@ mtg-fuzzer [OPTIONS]
     fails that test) — that channel did not go away, PB-DX32 added a second one.
 11. **SBA idempotency**: After SBAs, running again produces no events — **NOT IMPLEMENTED**
     (OOS-SIM3-2).
-12. **No orphaned tokens**: No tokens in non-battlefield zones after SBAs
+12. **No orphaned tokens**: No tokens in non-battlefield zones after SBAs — TRANSIENT
+    (PB-DX32 Stage 4, `OOS-M11-7`), answered by **#13**.
+13. **No leaked tokens** (END-OF-GAME, hard) — a token still outside the battlefield when the
+    game is OVER survived every SBA check the engine ever ran. Run at
+    `LocalGame::result_snapshot`, not from `check_all`. Added by PB-DX32 Stage 4.
+14. **Attachment symmetry** (per-command, HARD) and **no dangling attachment at rest**
+    (END-OF-GAME, hard) — added by PB-DX56 (`OOS-DX22-8`). #8 watches the direction of the
+    attachment relation that heals; **these watch the one that does not.** When an
+    *attacher* leaves the battlefield by any route other than the six that clean up, its
+    host keeps the dead `ObjectId` in `attachments` **for the rest of the game** — a field
+    that is hashed (so it perturbs `public_state_hash` and CR 104.4b loop detection), read
+    by the CR 510.3a equipped-creature trigger family, walked by CR 702.26g/h phasing
+    through an `expect_object_mut` that fires a `debug_assert`, and rendered to the browser.
+    Measured with the engine fix reverted: **10,290 raw / 7 distinct across 5 of 20 games**,
+    against #8's 102 / ~13 — ~1,470 checkpoints per condition versus ~8, which is what
+    distinguishes "at rest" from "transient" by arithmetic rather than by argument.
 
 ### Crash Reports
 
 ```rust
 pub struct CrashReport {
     pub seed: u64,
-    pub violation: InvariantViolation,
-    pub command_history: Vec<Command>,   // full replay
-    pub state_before: GameState,
+    pub player_count: usize,
+    pub violation: InvariantViolation,           // carries `evidence` since PB-DX56
+    pub command_history: Vec<Command>,           // PB-DX56: really populated now
     pub turn_number: u32,
+    pub total_commands: usize,
+    pub commands_dropped_from_history: usize,    // PB-DX56: truncation is VISIBLE
+    pub max_turns: u32,                          // PB-DX56: the artefact must be able to
+    pub bot: String,                             // reconstruct its own command line
 }
+
+// PB-DX56 (`OOS-FB1-1`): this block used to show a `state_before: GameState` field that
+// has never existed, and a `command_history` that was `Vec::new()` at the only site that
+// built one. Both are corrected above. There is also a SECOND artefact now:
+//
+//   pub struct InFlightGame { seed, player_count, max_turns, bot, note }
+//
+// written to `crash-reports/inflight_<seed>.json` BEFORE a game starts and deleted on
+// clean completion. A SIGABRT is not unwindable and `catch_unwind` cannot contain it
+// (`pb_dx19_characteristics_recursion.rs`), so write-before/delete-after is the only
+// mechanism that survives one. Leftovers are reported at the end of a run.
 ```
 
 Serialized as JSON — loadable in the replay viewer for debugging.
