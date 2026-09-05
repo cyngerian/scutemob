@@ -268,6 +268,35 @@ unnecessary.
 PROTOCOL history rows, both `FROZEN_HISTORY_PREFIX_DIGEST` pins, the declaration and stream
 fingerprint gates, `[profile.fuzz]` with the HARD-equals-zero ratchet, and the SR-3 seal gate.
 
+## Split on touch (engine shape, and the simulator offer layer)
+
+Adopted 2026-09-05 (`docs/course-correction-2026-09.md` §5.3; extended to the simulator by
+addendum A1 as amended in §9.1 — CC-15, `scutemob-252`). **No big-bang refactor.**
+
+1. **Engine**: a batch that edits an arm of any of the four giant functions named in the
+   course-correction doc §1.3 (`execute_effect_inner` first among them) first moves that arm
+   into its own module — a mechanical, behaviour-neutral, suite-protected move — and only then
+   makes its change. One dedicated mechanical pass on `execute_effect_inner` (with the 23-copy
+   replacement block) is scheduled after P1 (CC-12); nothing else sweeps.
+2. **Simulator offer layer** — `crates/simulator/src/legal_actions.rs` and
+   `crates/simulator/src/targeting.rs` are under the same rule. A batch that touches an offer
+   routes its legality through **`crates/engine/src/rules/queries.rs`** (the engine's read-only
+   query module: `spell_target_requirements`, `legal_blocks`, `dredge_options`, …), **adding a
+   query there if none fits, and never through a raw `obj.characteristics.<field>` read** on a
+   battlefield object. Offer and validation must be one arithmetic; two copies drift, and every
+   SR-38 defect on record (clean offer, guaranteed refusal) is that drift.
+3. **Battlefield qualifier**: a raw `.characteristics.` read on an object in HAND or LIBRARY
+   ("is this a land I can play", a castable cost on a card in hand) is **correct** — no
+   continuous effect applies off the battlefield, so printed equals layer-resolved there. Such
+   reads stay; say so in a comment at the site. On the battlefield, only `calculate_characteristics`
+   or a query is correct.
+4. **The ratchet**: `crates/simulator/tests/cc15_raw_characteristics_ratchet.rs` pins a per-file
+   ceiling on raw reads in `crates/simulator/src` (47 at HEAD by a whitespace-blind, comment-stripped
+   count — the addendum's grep-line 43 missed six line-wrapped chains; 28 in `legal_actions.rs`) and walks the directory so an unrostered file must count zero. Ceilings
+   are lowered on touch, never raised. It is a source gate PAIRED (pair-or-demote rule above)
+   with the SR-38 channel probes in `crates/simulator/tests/`, which remain the verdict on
+   whether an offer is honest. 43 sites is a ceiling to walk down, not a task.
+
 ## Change-class acceptance table
 
 Recorded verbatim from `docs/course-correction-2026-09.md` §3.1 item 6 (owner-approved
