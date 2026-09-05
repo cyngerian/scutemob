@@ -72,13 +72,50 @@ fn variant_key(v: &Value) -> Option<(&str, &Value)> {
 
 // ── R1: the payload-derived conferring population ───────────────────────────────────────────
 
-/// The four `LayerModification` variants that can, structurally, name a land subtype:
-/// `AddSubtypes`, `SetLandTypes`, `SetTypeLine` (all carry `SubType` payloads) and
-/// `SetCardTypes` (carries only `CardType` -- listed per the plan for completeness, but its
-/// payload can never itself name a `SubType`, so `payload_names_basic_land_type` always returns
-/// `false` for it; see the `SetCardTypes` arm below).
-const LAND_TYPE_CONFERRING_VARIANTS: [&str; 4] =
-    ["AddSubtypes", "SetLandTypes", "SetTypeLine", "SetCardTypes"];
+/// The `LayerModification` variants that can, structurally, name a land subtype.
+///
+/// **The criterion in force is STRUCTURAL PAYLOAD SHAPE: does the variant's payload
+/// carry a `SubType`?** Stated explicitly because PB-DX57 (`OOS-DX28-1`) found this
+/// list short and had to decide which of two readings it was short against —
+/// see [`r1b_land_type_conferring_variants_are_derived_from_the_payload_shape`],
+/// whose doc records the choice and its reasoning.
+///
+/// * `AddSubtypes(OrdSet<SubType>)`, `SetLandTypes(OrdSet<SubType>)`,
+///   `SetCreatureTypes(OrdSet<SubType>)` and `SetTypeLine { subtypes: OrdSet<SubType>, .. }`
+///   satisfy it — those are ALL FOUR of the `SubType`-carrying variants of the 33,
+///   derived from the declaration rather than listed by hand.
+/// * `SetCardTypes(OrdSet<CardType>)` does NOT: its payload can never name a
+///   `SubType`, so `payload_names_basic_land_type` always returns `false` for it (see
+///   the `SetCardTypes` arm below). It is kept on the list "for completeness" per
+///   PB-DX43's plan and is therefore INERT — [`LISTED_BUT_STRUCTURALLY_INERT`] states
+///   that in code rather than only in this comment.
+///
+/// **`SetCreatureTypes` was missing, and PB-DX57 added it.** Nothing in the DSL stops
+/// a def writing `SetCreatureTypes([SubType("Forest")])` — `SubType` is a newtype over
+/// `String` (`state/types.rs:54`) and CR 205.3 makes land types subtypes exactly as
+/// creature types are — so the payload really can name one and R1's census really was
+/// blind to it. **Corpus exposure at HEAD is ZERO**, measured rather than assumed: the
+/// five defs naming the variant set `Insect`, `Skeleton`, `Elk`, `Weird` and (in a
+/// blocker note) nothing at all, so R1's pinned population is unchanged by the repair.
+/// The gap was in the CENSUS's reach, not yet in its answer.
+const LAND_TYPE_CONFERRING_VARIANTS: [&str; 5] = [
+    "AddSubtypes",
+    "SetLandTypes",
+    "SetTypeLine",
+    "SetCardTypes",
+    // PB-DX57 (`OOS-DX28-1`): missing since this list was written. See above.
+    "SetCreatureTypes",
+];
+
+/// Members of [`LAND_TYPE_CONFERRING_VARIANTS`] that carry NO `SubType` payload and
+/// are therefore inert in [`payload_names_basic_land_type`] — listed for completeness
+/// rather than because they can confer anything.
+///
+/// A named const rather than a sentence, so
+/// [`r1b_land_type_conferring_variants_are_derived_from_the_payload_shape`] can require
+/// the difference between the list and the derivation to be EXACTLY this set. Without
+/// it, "the list may contain extras" is unbounded and the derivation stops being a pin.
+const LISTED_BUT_STRUCTURALLY_INERT: [&str; 1] = ["SetCardTypes"];
 
 fn str_array_names_basic_land_type(payload: &Value) -> bool {
     match payload {
@@ -91,7 +128,14 @@ fn str_array_names_basic_land_type(payload: &Value) -> bool {
 
 fn payload_names_basic_land_type(variant: &str, payload: &Value) -> bool {
     match variant {
-        "AddSubtypes" | "SetLandTypes" => str_array_names_basic_land_type(payload),
+        // All three carry a bare `OrdSet<SubType>`, which serializes to an array of
+        // subtype strings. `SetCreatureTypes` is here for the structural reason, not a
+        // semantic one: its payload is the same `OrdSet<SubType>` and nothing in the DSL
+        // stops it naming a basic land type (PB-DX57, `OOS-DX28-1`). No corpus def does
+        // today, so this arm changes no pinned population -- it closes the census's reach.
+        "AddSubtypes" | "SetLandTypes" | "SetCreatureTypes" => {
+            str_array_names_basic_land_type(payload)
+        }
         "SetTypeLine" => payload
             .get("subtypes")
             .map(str_array_names_basic_land_type)
@@ -568,5 +612,188 @@ fn token_spec_field_list_matches_the_struct_declaration() {
          nodes by EXACT field set, so a desynced fingerprint matches NOTHING and R2/R4/R5 go \
          vacuous while staying green (OOS-DX28-1's class). Update the constant to the declared \
          set, then re-derive R2's expected membership."
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PB-DX57 (`OOS-DX28-1`) — R1's variant list, pinned against the declaration
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// **Census row 10.** [`LAND_TYPE_CONFERRING_VARIANTS`] gates R1's whole
+/// payload-derived population (`collect_land_type_conferring`'s
+/// `LAND_TYPE_CONFERRING_VARIANTS.contains(&k)` conjunct). A `LayerModification`
+/// variant that can name a land subtype and is not on that list simply does not
+/// exist as far as R1 is concerned — R1 reports a clean census and stays green.
+/// Nothing compared the list to `pub enum LayerModification`, which is 33 variants
+/// and grows.
+///
+/// # The judgement this row had to make, and why it went the way it did
+///
+/// The list was short on ONE reading and long on the other, so the two readings had
+/// to be separated before anything could be pinned:
+///
+/// * **"can SEMANTICALLY confer a land type"** — then `SetCreatureTypes` is
+///   correctly absent (creature types are not land types, CR 205.3m) and the DOC is
+///   what is wrong, because it also lists `SetCardTypes`, which cannot name a
+///   subtype of any kind.
+/// * **"carries a `SubType`-shaped payload"** — then the LIST is what is wrong,
+///   because `SetCreatureTypes(OrdSet<SubType>)` satisfies it and is absent.
+///
+/// **The structural reading is the one in force, on three grounds.** (1) It is what
+/// [`payload_names_basic_land_type`] actually implements for every real member: the
+/// three `OrdSet<SubType>` arms scan the serialized array for a basic land type
+/// string, which is a test on the payload's CONTENTS, not on the variant's intent.
+/// (2) It is derivable from the declaration, which is the entire point of this
+/// repair; *"can this variant semantically confer a land type"* is a human
+/// judgement per variant and cannot be pinned against anything — it would be one
+/// more hand-maintained list, i.e. the defect. (3) It fails in the safe direction:
+/// including a variant whose payload happens never to name a basic land type adds
+/// no census member, because the `contains` conjunct is ANDed with
+/// `payload_names_basic_land_type`. Under the semantic reading, by contrast, a def
+/// writing `SetCreatureTypes([SubType("Forest")])` — which the DSL permits, `SubType`
+/// being a newtype over `String` — is invisible to R1 forever.
+///
+/// So the pin is: **every `SubType`-carrying variant must be listed**, and any
+/// listed variant that carries no `SubType` must be named in
+/// [`LISTED_BUT_STRUCTURALLY_INERT`] with its reason. That is set equality on both
+/// sides of the difference, not a subset in either direction.
+///
+/// # Stated residuals
+///
+/// * `CopyOf` is a second, INDIRECT channel — a copy effect can reproduce a land's
+///   type line without any `SubType` in its own payload. It is deliberately outside
+///   this derivation, because the derivation is about payload shape and `CopyOf`
+///   carries none; R2's inverse `TokenSpec` axis is what covers the other indirect
+///   channel. Recorded so its absence reads as a decision.
+/// * The derivation matches the token `SubType` in a variant's declared payload
+///   text. A future payload that reaches a subtype through a type alias, or through
+///   a struct declared elsewhere, would not match — the same bound
+///   [`token_spec_field_list_matches_the_struct_declaration`] carries.
+///
+/// **Revert to watch red**: delete `"SetCreatureTypes"` from the list (leg 1), or
+/// delete `"SetCardTypes"` from [`LISTED_BUT_STRUCTURALLY_INERT`] while leaving it
+/// on the list (leg 2).
+#[test]
+fn r1b_land_type_conferring_variants_are_derived_from_the_payload_shape() {
+    use crate::pb_dx57_declared_source::{
+        declared_enum_variant_fields, declared_enum_variants, read_workspace_file,
+        CONTINUOUS_EFFECT_RS,
+    };
+    use std::collections::BTreeSet;
+
+    let declared = declared_enum_variants(CONTINUOUS_EFFECT_RS, "LayerModification");
+    assert_eq!(
+        declared.len(),
+        33,
+        "LayerModification's variant count moved; core::pb_dx49_saga_blanking_roster::r8 \
+         and core::pb_dx57_declared_source::p1 both pin 33 by independent parsers and must \
+         move in the same commit"
+    );
+
+    // The `SubType`-carrying variants, derived from the declaration. Two axes, because
+    // a `SubType` can arrive either as a struct-like variant's FIELD TYPE
+    // (`SetTypeLine { subtypes: OrdSet<SubType>, .. }`) or as a tuple variant's payload
+    // (`AddSubtypes(OrdSet<SubType>)`), and the shared field parser only sees the first.
+    let src = read_workspace_file(CONTINUOUS_EFFECT_RS);
+    let fields = declared_enum_variant_fields(CONTINUOUS_EFFECT_RS, "LayerModification");
+    let mut derived: BTreeSet<String> = BTreeSet::new();
+    for name in &declared {
+        // Axis 1: struct-like variants with a field named `subtypes`.
+        if fields
+            .get(name)
+            .is_some_and(|f| f.iter().any(|x| x == "subtypes"))
+        {
+            derived.insert(name.clone());
+            continue;
+        }
+        // Axis 2: the variant's declared payload text names the `SubType` type.
+        let head = format!("\n    {name}(");
+        if let Some(at) = src.find(&head) {
+            let open = at + head.len() - 1;
+            let mut depth = 0usize;
+            let mut end = open;
+            for (off, ch) in src[open..].char_indices() {
+                match ch {
+                    '(' => depth += 1,
+                    ')' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            end = open + off;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let payload = &src[open..=end];
+            if payload.contains("SubType") {
+                derived.insert(name.clone());
+            }
+        }
+    }
+
+    println!(
+        "PB-DX57 row 10: {} declared LayerModification variants, {} of them carry a \
+         SubType payload: {derived:?}",
+        declared.len(),
+        derived.len()
+    );
+
+    // Non-vacuity, on BOTH axes: an empty derivation would make leg 1 trivially true,
+    // and a derivation that found only tuple variants would silently drop SetTypeLine
+    // (whose `SubType` is a struct FIELD, not a tuple payload) -- which is precisely
+    // the shape a one-axis walk gets wrong.
+    assert!(
+        derived.len() >= 4,
+        "non-vacuity: the SubType-payload derivation found {derived:?}; measured 4 at HEAD \
+         (AddSubtypes, SetCreatureTypes, SetLandTypes, SetTypeLine)"
+    );
+    assert!(
+        derived.contains("SetTypeLine"),
+        "the derivation missed `SetTypeLine`, whose SubType arrives as a struct FIELD \
+         rather than a tuple payload -- axis 1 has broken and the walk is now blind to \
+         every struct-like variant"
+    );
+    assert!(
+        derived.contains("AddSubtypes"),
+        "the derivation missed `AddSubtypes`, a bare tuple payload -- axis 2 has broken"
+    );
+
+    let listed: BTreeSet<String> = LAND_TYPE_CONFERRING_VARIANTS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    let inert: BTreeSet<String> = LISTED_BUT_STRUCTURALLY_INERT
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+
+    // Leg 1: nothing SubType-carrying is missing from the list.
+    let unlisted: Vec<&String> = derived.difference(&listed).collect();
+    assert!(
+        unlisted.is_empty(),
+        "`pub enum LayerModification` declares {unlisted:?} with a `SubType` payload, and \
+         LAND_TYPE_CONFERRING_VARIANTS does not name them. R1's whole population is gated \
+         on that list, so a def conferring a basic land type through one of these is \
+         invisible to the census and R1 reports a clean, short answer. (That is exactly \
+         how `SetCreatureTypes` sat outside the list from the day PB-DX43 wrote it.)"
+    );
+
+    // Leg 2: every listed variant that carries no SubType is a NAMED, reasoned entry.
+    let extras: BTreeSet<String> = listed.difference(&derived).cloned().collect();
+    assert_eq!(
+        extras, inert,
+        "the members of LAND_TYPE_CONFERRING_VARIANTS that carry no `SubType` payload must \
+         be exactly LISTED_BUT_STRUCTURALLY_INERT, so that \"listed for completeness\" is a \
+         checked claim rather than a comment. Without this leg the list may contain anything \
+         at all and the derivation above stops being a pin."
+    );
+
+    assert!(
+        listed.is_subset(&declared),
+        "LAND_TYPE_CONFERRING_VARIANTS names {:?}, which `pub enum LayerModification` does \
+         not declare -- a rename would also make `variant_key`'s JSON match find nothing \
+         and take R1 vacuous",
+        listed.difference(&declared).collect::<Vec<_>>()
     );
 }

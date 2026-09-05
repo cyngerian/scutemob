@@ -169,6 +169,18 @@ fn test_dp7_cleanup_discard_blocks_step_advance() {
 
 /// CR 514.3: no player has priority in cleanup, so `PassPriority` is rejected
 /// while a cleanup discard blocks the game.
+///
+/// **`OOS-DX21-7` repair (PB-DX57).** This test used to capture `hash_before`, call
+/// `process_command(state.clone(), ..)`, and then compare `hash_before` against the
+/// ORIGINAL `state` — which the failing call never received. That assertion was
+/// **doubly** vacuous: `process_command`'s `Err` arm carries no `GameState`, *and* this
+/// particular rejection is the `blocking_decision` ADMISSION GATE
+/// (`rules/engine.rs`), which returns before the `match command` runs at all, so no
+/// handler executes and nothing could mutate under any implementation. There is no
+/// handler to drive directly either — `handle_pass_priority` is a private `fn` in
+/// `rules/engine.rs`, invisible to an integration test. So the tautology is deleted and
+/// replaced with the thing that actually discriminates: the gate is a FILTER, and the
+/// ALLOWED command from the named player is admitted and does move the hash.
 #[test]
 fn test_dp7_pass_priority_rejected_while_blocked() {
     let state = build_oversized_hand(9, false);
@@ -180,10 +192,25 @@ fn test_dp7_pass_priority_rejected_while_blocked() {
         result,
         Err(GameStateError::BlockedByPendingDecision { .. })
     ));
-    assert_eq!(
-        state.public_state_hash(),
+
+    // The positive control: the gate refuses `PassPriority` and admits the answering
+    // `DiscardToHandSize` from the blocked player. Without this, an admission gate that
+    // rejected EVERYTHING would satisfy the assertion above.
+    let mut hand = state.zone(&ZoneId::Hand(p(1))).unwrap().object_ids();
+    hand.sort();
+    let (accepted, _) = process_command(
+        state.clone(),
+        Command::DiscardToHandSize {
+            player: p(1),
+            cards: hand[..2].to_vec(),
+        },
+    )
+    .expect("the answering command from the named player must be ADMITTED");
+    assert_ne!(
+        accepted.public_state_hash(),
         hash_before,
-        "state must be untouched"
+        "and the admitted command does move the state — otherwise the rejection above \
+         would be indistinguishable from a gate that refuses everything"
     );
 }
 
@@ -226,10 +253,31 @@ fn test_dp7_unrelated_command_rejected_while_blocked() {
         Err(GameStateError::BlockedByPendingDecision { .. })
     ));
 
-    assert_eq!(
-        state.public_state_hash(),
+    // OOS-DX21-7 (PB-DX57): the assertion that used to close this test compared
+    // `hash_before` against the ORIGINAL `state`, which both `process_command(
+    // state.clone(), ..)` calls above left untouched by construction — and which the
+    // ADMISSION GATE could not have touched anyway, since it returns before the `match
+    // command`. Replaced with the positive control the gate's FILTERING claim actually
+    // needs: the one command it must admit is admitted, and moves the state.
+    let mut hand = state.zone(&ZoneId::Hand(p(1))).unwrap().object_ids();
+    hand.sort();
+    let (accepted, _) = process_command(
+        state.clone(),
+        Command::DiscardToHandSize {
+            player: p(1),
+            cards: hand[..2].to_vec(),
+        },
+    )
+    .expect("the answering command from the named player must be ADMITTED");
+    assert_ne!(
+        accepted.public_state_hash(),
         hash_before,
-        "state must be byte-identical after both rejections"
+        "the gate is a filter, not a wall: the answering command is admitted and moves \
+         the state"
+    );
+    assert!(
+        accepted.pending_cleanup_discard().is_none(),
+        "and answering clears the block"
     );
 }
 
@@ -253,8 +301,13 @@ fn test_dp7_discard_rejected_outside_cleanup_step() {
     state.turn_mut().step = Step::End;
     let hash_before = state.public_state_hash();
 
+    // OOS-DX21-7 (PB-DX57): this call used to pass `&mut state.clone()` — a `&mut`
+    // borrow of a TEMPORARY, dropped at the end of the statement — so the assertion
+    // below read a `state` the handler never saw. That is the sound idiom's exact
+    // shape with none of its meaning, and it is why a gate keyed on "the test calls a
+    // handler with `&mut`" cannot catch this class. The receiver is now `&mut state`.
     let handler_result = mtg_engine::rules::turn_actions::handle_discard_to_hand_size(
-        &mut state.clone(),
+        &mut state,
         p(1),
         hand[..2].to_vec(),
     );
@@ -266,7 +319,15 @@ fn test_dp7_discard_rejected_outside_cleanup_step() {
     assert_eq!(
         state.public_state_hash(),
         hash_before,
-        "a rejected discard must leave the state untouched"
+        "CR 514.1 / CR 703.4n: the step check must run BEFORE any card moves — this reads \
+         the very state the handler was handed by `&mut`, so it fails if the check is \
+         removed and the two cards are discarded"
+    );
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p(1))).unwrap().object_ids().len(),
+        hand.len(),
+        "non-vacuity: the hand is the thing a successful discard would shrink, and it \
+         is unchanged"
     );
 }
 
@@ -777,10 +838,67 @@ fn test_dp7_answer_validation() {
         handler_result
     );
 
+    // OOS-DX21-7 (PB-DX57). The assertion that used to close this test compared
+    // `hash_before` against the ORIGINAL `state`. Every attempt above either passed a
+    // CLONE into `process_command` (cases 1-7) or mutated a DIFFERENT clone (case 7b's
+    // `handler_state`), so nothing in this function could ever have written `state`:
+    // the claim "the original state must never have been mutated" was true by
+    // construction and held under any engine behaviour whatsoever. It is replaced by
+    // three assertions about states a handler really did receive.
+    //
+    // (a) Case 7b's own receiver. `handler_state` WAS handed to the handler by `&mut`,
+    //     so this is a real observation of the SR-29 sender check's ordering.
     assert_eq!(
-        state.public_state_hash(),
+        handler_state.public_state_hash(),
         hash_before,
-        "the original state must never have been mutated by any of these attempts"
+        "SR-29: the handler's own sender check must run BEFORE any card moves"
+    );
+
+    // (b) The handler-level validation classes cases 1-3 and 6 drive through
+    //     `process_command`, re-driven against ONE `&mut probe` so that "a rejected
+    //     answer mutates nothing" is asserted of the state the handler actually held.
+    let mut probe = state.clone();
+    for (label, cards) in [
+        ("under-supply", vec![id_a]),
+        ("over-supply", vec![id_a, id_b, id_c]),
+        ("duplicate id", vec![id_a, id_a]),
+        ("unknown ObjectId", vec![id_a, ObjectId(999_999_999)]),
+    ] {
+        let err = mtg_engine::rules::turn_actions::handle_discard_to_hand_size(
+            &mut probe,
+            p(1),
+            cards.clone(),
+        )
+        .expect_err(label);
+        assert!(
+            matches!(
+                err,
+                GameStateError::InvalidCommand(_) | GameStateError::ObjectNotFound(_)
+            ),
+            "{label}: expected a validation rejection, got {err:?}"
+        );
+        assert_eq!(
+            probe.public_state_hash(),
+            hash_before,
+            "{label}: CR 514.1 -- `handle_discard_to_hand_size` must validate before it \
+             moves a card; this reads the `&mut probe` it was handed ({cards:?})"
+        );
+    }
+
+    // (c) The control: an ACCEPTED answer on the same fixture DOES move the hash, so
+    //     (a) and (b) cannot be passing because nothing ever moves.
+    let mut accepted = state.clone();
+    mtg_engine::rules::turn_actions::handle_discard_to_hand_size(
+        &mut accepted,
+        p(1),
+        vec![id_a, id_b],
+    )
+    .expect("the legal two-card answer must be accepted");
+    assert_ne!(
+        accepted.public_state_hash(),
+        hash_before,
+        "an accepted answer must change the state -- otherwise the pins above would pass \
+         for the wrong reason"
     );
 }
 

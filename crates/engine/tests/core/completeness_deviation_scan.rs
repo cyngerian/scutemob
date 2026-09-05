@@ -242,7 +242,7 @@ const DEVIATION_NEEDLES: &[&str] = &[
 /// (uses `str::find`/`char_indices`, never raw byte-to-char casts, so a
 /// multi-byte character in a note, e.g. an em dash, cannot corrupt a later
 /// slice).
-fn completeness_note_bodies(src: &str) -> Vec<String> {
+pub(crate) fn completeness_note_bodies(src: &str) -> Vec<String> {
     const CTORS: &[&str] = &[
         "Completeness::partial(",
         "Completeness::known_wrong(",
@@ -337,7 +337,7 @@ fn author_prose(src: &str) -> String {
 /// comment, which this function's own `//`-stripping pass has already consumed).
 /// Nested block comments are not tracked either; Rust allows them, the corpus has
 /// none, and the outer span still yields the inner text.
-fn block_comment_bodies(src: &str) -> Vec<String> {
+pub(crate) fn block_comment_bodies(src: &str) -> Vec<String> {
     let mut out = Vec::new();
     let bytes = src.as_bytes();
     let mut i = 0usize;
@@ -948,7 +948,7 @@ const RECORDED_BASELINE: &[(&str, &str)] = &[
 const RECORDED_BASELINE_POPULATION: usize = 46;
 
 /// Read every `*.rs` file directly under `defs/`. Returns `(file_stem, source)`.
-fn read_def_sources() -> Vec<(String, String)> {
+pub(crate) fn read_def_sources() -> Vec<(String, String)> {
     let dir = defs_dir();
     let mut out = Vec::new();
     for entry in fs::read_dir(&dir).expect("card-defs/src/defs must be readable") {

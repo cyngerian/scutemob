@@ -1041,6 +1041,437 @@ const KNOWN_DIVERGENT_ORACLE_TEXT: &[(&str, &str)] = &[
     // shape, not def defects, and repairing a def cannot clear them.
 ];
 
+// ── R7b: the keyword list is a stated bound, not a hidden floor (`OOS-DX28-1`) ─
+
+/// The `AbilityDefinition` variants R7 actually compares — i.e. the ones `def_ability_cost`
+/// has a match arm for.
+///
+/// `Equip` and `Fortify` are deliberately NOT here: they are not `AbilityDefinition` variants
+/// at all (CR 702.6b / 702.67b make both plain activated abilities, so their cost lives in
+/// `Activated { cost: Cost::Mana(..) }`), which is why `def_ability_cost` matches them
+/// structurally rather than by variant. `r7b` asserts that separation instead of leaving it
+/// to a reader to notice.
+const SCANNED_MANACOST_VARIANTS: &[&str] = &["Bestow", "Craft", "Disguise", "Megamorph", "Morph"];
+
+/// The printed keyword words in [`ABILITY_COST_KEYWORDS`] that are NOT `AbilityDefinition`
+/// variant names, with the reason. See [`SCANNED_MANACOST_VARIANTS`].
+const SCANNED_NON_VARIANT_KEYWORDS: &[(&str, &str)] = &[
+    (
+        "Equip",
+        "CR 702.6b -- a plain activated ability. `def_ability_cost` matches \
+         `Activated { cost: Cost::Mana(m), effect: Effect::AttachEquipment { .. }, .. }`, \
+         not a variant name.",
+    ),
+    (
+        "Fortify",
+        "CR 702.67b -- as `Equip`, matched through `Effect::AttachFortification`.",
+    ),
+];
+
+/// Every `AbilityDefinition` variant that declares a `cost: ManaCost` field and is NOT
+/// compared by R7, each with the reason.
+///
+/// **This list is the deliverable, and its length is the point.** The stage-0 census for
+/// `OOS-DX28-1` records `ABILITY_COST_KEYWORDS` as *"a wide floor, not a census"*: R7's own
+/// doc says *"four found by eye in one batch is a class, so it gets a rule"*, and the rule
+/// covered seven of the class while the DSL declares **40** `cost: ManaCost` variants. The
+/// other 35 are printed costs SR-37 does not fidelity-check, and until `r7b` nothing in the
+/// tree said so — the floor read like a census, which is exactly the shape the seed is about.
+///
+/// Two kinds of entry, each labelled:
+///
+/// * **UNSCANNED GAP** — R7's scanner shape WOULD work (the card prints
+///   `<Keyword> {cost}`), and no entry exists. Widening `ABILITY_COST_KEYWORDS` and adding a
+///   `def_ability_cost` arm is the fix, one keyword at a time, each with its own measured
+///   comparison floor the way `Equip`'s was added.
+/// * **STRUCTURAL** — the cost is not printed as a keyword-plus-cost clause at all, so
+///   widening the keyword list cannot reach it and a different scanner is needed.
+const UNSCANNED_MANACOST_VARIANTS: &[(&str, &str)] = &[
+    (
+        "Aftermath",
+        "STRUCTURAL -- CR 702.127a: the second half is cast from the graveyard for ITS OWN printed mana cost, which sits in that face's cost box and is compared by `r2_mana_costs_match_printed`, not by a keyword clause.",
+    ),
+    (
+        "AltCastAbility",
+        "STRUCTURAL -- a generic DSL variant for a card-specific alternative cast cost. There is no printed keyword WORD for `printed_ability_cost` to anchor on, so widening `ABILITY_COST_KEYWORDS` cannot reach it; it needs a different scanner.",
+    ),
+    (
+        "Bloodrush",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Bloodrush {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Buyback",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Buyback {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "ClassLevel",
+        "STRUCTURAL -- CR 716.2 prints `Level N {cost}` with no keyword word to anchor on. Reaching it needs a different scanner, not another `ABILITY_COST_KEYWORDS` entry.",
+    ),
+    (
+        "Cleave",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Cleave {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "CommanderNinjutsu",
+        "UNSCANNED GAP, with the same naming trap as `MutateCost`: the printed clause is *\"Commander ninjutsu {cost}\"* -- two words, lower-case second word -- so a scanner entry for it is not simply the variant name.",
+    ),
+    (
+        "Cycling",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Cycling {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Disturb",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Disturb {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Echo",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Echo {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Emerge",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Emerge {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Entwine",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Entwine {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Escalate",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Escalate {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Evoke",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Evoke {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Forecast",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Forecast {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Foretell",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Foretell {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Fuse",
+        "STRUCTURAL -- CR 702.102a's printed Fuse line carries no cost at all (*\"You may cast one or both halves of this card from your hand\"*); each half is paid at its own face's `mana_cost`, which R2 compares.",
+    ),
+    (
+        "Impending",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Impending {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Kicker",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Kicker {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Madness",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Madness {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Miracle",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Miracle {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "MutateCost",
+        "UNSCANNED GAP, and a naming trap worth stating: the PRINTED word is *Mutate* (CR 702.140a) while the VARIANT is `MutateCost`. `ABILITY_COST_KEYWORDS` holds printed words and this list holds variant names, so the two are deliberately not name-identical.",
+    ),
+    (
+        "Ninjutsu",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Ninjutsu {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Offspring",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Offspring {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Outlast",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Outlast {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Overload",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Overload {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Reconfigure",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Reconfigure {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Recover",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Recover {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Replicate",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Replicate {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Scavenge",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Scavenge {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Spectacle",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Spectacle {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Splice",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Splice {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Squad",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Squad {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Surge",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Surge {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+    (
+        "Suspend",
+        "UNSCANNED GAP -- `ABILITY_COST_KEYWORDS` has no entry for it and `def_ability_cost` has no arm, so a def charging the wrong number for its printed `Suspend {cost}` clause is compared against nothing. R7's scope is a FLOOR, not a census.",
+    ),
+];
+
+#[test]
+/// `OOS-DX28-1` — **R7's keyword list is classified against `pub enum AbilityDefinition`'s
+/// own declaration, so its coverage is a stated bound rather than an unstated floor.**
+///
+/// ## What this row does and does not claim
+///
+/// It does NOT claim the 35 unscanned variants are fine. It claims the opposite, in writing,
+/// per variant: each is a printed mana cost that R7 compares against nothing, and each is
+/// named so that closing one is a deliberate act and ADDING a 41st `cost: ManaCost` variant
+/// is a red test rather than a silent widening of the gap.
+///
+/// ## Why the seed applies here
+///
+/// `ABILITY_COST_KEYWORDS` is a hand-maintained fingerprint over a declaration that grows.
+/// Nothing compared the two, so the class it covers could shrink in relative terms with every
+/// DSL addition while every test stayed green — the same end state as `TARGET_FILTER_FIELDS`,
+/// reached by growth of the SUBJECT rather than of the fingerprint.
+///
+/// **"In silence" is precise, not rhetorical.** Planting a 41st `cost: ManaCost` variant was
+/// EXECUTED: it reddens `ability_definition_registry::all_ability_definitions_covers_every_variant`
+/// (the variant exists and is unclassified there) and the two wire gates. Neither of those
+/// says anything about R7 — `r7_ability_embedded_costs_match_printed` itself stayed **GREEN**
+/// under the plant, comparing the same five keywords it always did. What was silent is the
+/// widening of R7's blind spot, and that is what this row measures.
+///
+/// ## The exposure figures are PRINTED, not transcribed
+///
+/// PB-DX8's rule. The per-variant corpus exposure below (how many defs declare the variant,
+/// and how many of those also print a brace-delimited cost on the keyword's own line, i.e.
+/// how many R7 could compare today if the keyword were added) is measured at run time and
+/// printed. Reading it off a comment written months ago is how a census becomes a claim.
+fn r7b_every_manacost_bearing_ability_variant_is_scanned_or_excluded() {
+    // **STATED RESIDUAL — two consistent lists can shrink TOGETHER.** The adversarial pass
+    // removed a keyword from the scanned list AND from the classification in one edit; the
+    // partition still holds and this gate stays green. What actually holds the line is `r7`'s
+    // aggregate floor (exactly 46, zero slack) plus the per-keyword floors, which exist only
+    // for `Equip` and `Fortify`. So this gate proves the classification is TOTAL over the
+    // declaration; it does not prove any particular keyword is still SCANNED. A per-keyword
+    // floor for the other three scanned keywords would close it and is not taken here.
+    let variant_fields = crate::pb_dx57_declared_source::declared_enum_variant_fields(
+        crate::pb_dx57_declared_source::CARD_DEFINITION_RS,
+        "AbilityDefinition",
+    );
+    assert!(
+        variant_fields.len() >= 50,
+        "the `pub enum AbilityDefinition` parse returned only {} variants — the parser is \
+         broken and every assertion below is vacuous",
+        variant_fields.len()
+    );
+
+    // The declaration side: every variant whose payload declares a `cost` field typed
+    // `ManaCost`. `Activated` (`Cost`), `CumulativeUpkeep` (`CumulativeUpkeepCost`) and
+    // `LoyaltyAbility` (`LoyaltyCost`) declare a `cost` of a DIFFERENT type and are therefore
+    // outside this row by construction, not by omission — the parser keeps each variant's
+    // field TYPE, so this is decided rather than assumed.
+    let src = crate::pb_dx57_declared_source::read_workspace_file(
+        crate::pb_dx57_declared_source::CARD_DEFINITION_RS,
+    );
+    let declared: BTreeSet<String> = variant_fields
+        .iter()
+        .filter(|(name, fields)| fields.contains("cost") && variant_declares_mana_cost(&src, name))
+        .map(|(name, _)| name.clone())
+        .collect();
+    assert!(
+        declared.len() >= 30,
+        "only {} AbilityDefinition variant(s) were found to declare `cost: ManaCost` — the \
+         type match is broken and this row's population has collapsed",
+        declared.len()
+    );
+
+    let scanned: BTreeSet<String> = SCANNED_MANACOST_VARIANTS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    let unscanned: BTreeSet<String> = UNSCANNED_MANACOST_VARIANTS
+        .iter()
+        .map(|(n, _)| (*n).to_string())
+        .collect();
+
+    let both: Vec<&String> = scanned.intersection(&unscanned).collect();
+    assert!(
+        both.is_empty(),
+        "variant(s) classified as both scanned and unscanned: {both:?}"
+    );
+
+    let classified: BTreeSet<String> = scanned.union(&unscanned).cloned().collect();
+    assert_eq!(
+        classified,
+        declared,
+        "`OOS-DX28-1`: the `cost: ManaCost`-bearing `AbilityDefinition` variants are no \
+         longer exactly the classified set.\n  DECLARED but unclassified: {:?}\n    → this is \
+         a NEW printed mana cost that SR-37 does not check. Either add it to \
+         `ABILITY_COST_KEYWORDS` with a `def_ability_cost` arm and put it in \
+         SCANNED_MANACOST_VARIANTS, or add it to UNSCANNED_MANACOST_VARIANTS with the reason. \
+         Do not delete this assertion: before it existed, a 41st variant widened R7's blind \
+         spot in silence.\n  CLASSIFIED but undeclared: {:?}\n    → a rename or a removal; if \
+         it is in SCANNED_MANACOST_VARIANTS then `def_ability_cost`'s arm for it no longer \
+         compiles against anything real.",
+        declared.difference(&classified).collect::<Vec<_>>(),
+        classified.difference(&declared).collect::<Vec<_>>()
+    );
+
+    // Every scanned variant really has an `ABILITY_COST_KEYWORDS` entry, and every keyword
+    // that is NOT a variant is accounted for. This is the half that keeps the two lists from
+    // drifting in the other direction: a keyword removed from ABILITY_COST_KEYWORDS while
+    // SCANNED_MANACOST_VARIANTS still names it would silently stop comparing that keyword.
+    let keywords: BTreeSet<&str> = ABILITY_COST_KEYWORDS.iter().copied().collect();
+    let non_variant_keywords: BTreeSet<&str> = SCANNED_NON_VARIANT_KEYWORDS
+        .iter()
+        .map(|(k, _)| *k)
+        .collect();
+    let expected_keywords: BTreeSet<&str> = SCANNED_MANACOST_VARIANTS
+        .iter()
+        .copied()
+        .chain(non_variant_keywords.iter().copied())
+        .collect();
+    assert_eq!(
+        keywords,
+        expected_keywords,
+        "ABILITY_COST_KEYWORDS and the r7b classification have drifted. In the keyword list \
+         only: {:?}; in the classification only: {:?}",
+        keywords.difference(&expected_keywords).collect::<Vec<_>>(),
+        expected_keywords.difference(&keywords).collect::<Vec<_>>()
+    );
+    // ...and the non-variant keywords really are not variants, which is the whole reason they
+    // are matched structurally instead.
+    for (kw, _) in SCANNED_NON_VARIANT_KEYWORDS {
+        assert!(
+            !variant_fields.contains_key(*kw),
+            "`{kw}` is now a declared `AbilityDefinition` variant, so `def_ability_cost`'s \
+             structural `Activated {{ .. }}` arm for it may no longer be the right shape — \
+             move it to SCANNED_MANACOST_VARIANTS and give it a variant arm"
+        );
+    }
+
+    for (name, why) in UNSCANNED_MANACOST_VARIANTS
+        .iter()
+        .chain(SCANNED_NON_VARIANT_KEYWORDS)
+    {
+        assert!(
+            why.len() > 40,
+            "the r7b classification entry for `{name}` carries no real reason: {why:?}"
+        );
+    }
+
+    // ── The exposure measurement, PRINTED rather than transcribed (PB-DX8's rule).
+    let printed = fixture();
+    let defs = corpus();
+    let mut declaring: BTreeMap<&str, usize> = BTreeMap::new();
+    let mut comparable: BTreeMap<&str, usize> = BTreeMap::new();
+    for def in &defs {
+        let json = serde_json::to_value(def).expect("CardDefinition serializes");
+        for (name, _) in UNSCANNED_MANACOST_VARIANTS {
+            if !count_variant_key(&json, name) {
+                continue;
+            }
+            *declaring.entry(*name).or_insert(0) += 1;
+            if let Some(p) = printed.get(&def.name) {
+                if p.oracle_text != "-" && printed_ability_cost(&p.oracle_text, name).is_some() {
+                    *comparable.entry(*name).or_insert(0) += 1;
+                }
+            }
+        }
+    }
+    println!(
+        "r7b: {} AbilityDefinition variants declare `cost: ManaCost`; R7 compares {} of them \
+         (plus the {} non-variant keywords Equip/Fortify). Corpus exposure of the {} \
+         UNSCANNED variants — `declaring` = defs carrying the variant, `comparable` = defs \
+         whose printed text ALSO yields a cost for a scan keyed on the variant name, i.e. \
+         what a naive widening would compare today:",
+        declared.len(),
+        scanned.len(),
+        non_variant_keywords.len(),
+        unscanned.len()
+    );
+    for (name, _) in UNSCANNED_MANACOST_VARIANTS {
+        println!(
+            "  {name:<20} declaring={:<4} comparable={}",
+            declaring.get(name).copied().unwrap_or(0),
+            comparable.get(name).copied().unwrap_or(0)
+        );
+    }
+    let total_declaring: usize = declaring.values().sum();
+    assert!(
+        total_declaring > 0,
+        "no corpus def declares ANY of the 35 unscanned `cost: ManaCost` variants. That is \
+         not a clean bill of health — it means `count_variant_key`'s walk stopped finding \
+         variants, and the exposure table above is measuring nothing."
+    );
+}
+
+/// Does `pub enum AbilityDefinition`'s declaration of `variant` type its `cost` field as
+/// `ManaCost`?
+///
+/// Kept separate from the parsed field map because that map keeps NAMES, and `Activated`
+/// (`Cost`), `CumulativeUpkeep` (`CumulativeUpkeepCost`) and `LoyaltyAbility` (`LoyaltyCost`)
+/// all declare a field called `cost` of a different type. Deciding by name alone would put
+/// three variants in this row's population that do not belong there.
+fn variant_declares_mana_cost(src: &str, variant: &str) -> bool {
+    // Anchor on the variant header, then look for `cost: ManaCost` before the next variant
+    // header at the same nesting depth. The variant bodies here are small and flat, so a
+    // brace-matched window from the header is enough.
+    let Some(at) = src.find(&format!("\n    {variant} {{")) else {
+        return false;
+    };
+    let body_start = src[at..].find('{').map(|i| at + i + 1).unwrap_or(at);
+    let mut depth = 1usize;
+    let mut end = body_start;
+    for (i, ch) in src[body_start..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = body_start + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let body = &src[body_start..end];
+    body.lines()
+        .map(str::trim)
+        .any(|l| l.starts_with("cost:") && l.contains("ManaCost"))
+}
+
+/// Does this serialized `CardDefinition` carry `key` as an object key anywhere?
+///
+/// A local recursive walk rather than `decision_site_walk::def_contains_variant`, because
+/// this one must NOT match a bare unit-variant string: every name it is asked about is a
+/// struct variant, and the prose suppression `def_contains_variant` needs for unit variants
+/// is irrelevant here.
+fn count_variant_key(v: &serde_json::Value, key: &str) -> bool {
+    match v {
+        serde_json::Value::Object(map) => map
+            .iter()
+            .any(|(k, child)| k == key || count_variant_key(child, key)),
+        serde_json::Value::Array(items) => items.iter().any(|i| count_variant_key(i, key)),
+        _ => false,
+    }
+}
+
 #[test]
 /// R8 — a definition's `oracle_text` must describe the card it names.
 ///

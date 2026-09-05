@@ -695,21 +695,32 @@ fn non_mana_ability_insufficient_life_is_rejected() {
     let demon_id = find_by_name(&state, "Doom Whisperer");
     let ability_index =
         find_activated_ability_index(&state, demon_id, |e| matches!(e, Effect::Surveil { .. }));
-    let probe_state = state.clone();
-    let result = process_command(
-        state,
-        Command::ActivateAbility {
-            player: p(1),
-            source: demon_id,
-            ability_index,
-            targets: vec![],
-            discard_card: None,
-            sacrifice_target: None,
-            x_value: None,
-            modes_chosen: vec![],
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        },
+    assert_eq!(
+        state.player(p(1)).unwrap().life_total,
+        1,
+        "non-vacuity floor: the fixture starts at 1 life, so the post-rejection read \
+         below is a real observation"
+    );
+    // OOS-DX21-7 (PB-DX57): the previous form cloned a `probe_state`, MOVED `state` into
+    // `process_command`, and then asserted `probe_state...life_total == 1` — a state the
+    // failing call never held, and one whose only prior write was the fixture's own
+    // `.player_life(p(1), 1)`. `process_command`'s `Err` arm returns no `GameState`, so
+    // that assertion was true whatever the handler did. The property is at risk INSIDE
+    // `handle_activate_ability`, which takes `&mut GameState` and deducts the life cost
+    // AFTER the CR 119.4 check with nothing to roll it back, so the test drives the
+    // handler against one `&mut state` and reads THAT state.
+    let result = mtg_engine::rules::abilities::handle_activate_ability(
+        &mut state,
+        p(1),
+        demon_id,
+        ability_index,
+        vec![],
+        None,
+        None,
+        None,
+        vec![],
+        vec![],
+        vec![],
     );
 
     assert!(
@@ -724,9 +735,51 @@ fn non_mana_ability_insufficient_life_is_rejected() {
         "a player at 1 life cannot pay 2 life: {result:?}"
     );
     assert_eq!(
-        probe_state.player(p(1)).unwrap().life_total,
+        state.player(p(1)).unwrap().life_total,
         1,
-        "the caller's pre-command state must be untouched"
+        "CR 119.4 / CR 601.2h: the life check must run BEFORE the deduction — this reads \
+         the state the handler was handed by `&mut`, so it fails if the order flips"
+    );
+    assert!(
+        state.stack_objects().is_empty(),
+        "and the rejected activation put nothing on the stack"
+    );
+
+    // Control: the same handler at a payable life total DOES deduct, so the pin above
+    // cannot be passing because nothing ever deducts.
+    let funded_registry = CardRegistry::new(all_cards());
+    let funded_demon = make_spec(p(1), "Doom Whisperer", ZoneId::Battlefield, &defs);
+    let mut funded = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(funded_registry)
+        .object(funded_demon)
+        .player_life(p(1), 10)
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .expect("state should build");
+    funded.turn_mut().priority_holder = Some(p(1));
+    let funded_id = find_by_name(&funded, "Doom Whisperer");
+    mtg_engine::rules::abilities::handle_activate_ability(
+        &mut funded,
+        p(1),
+        funded_id,
+        ability_index,
+        vec![],
+        None,
+        None,
+        None,
+        vec![],
+        vec![],
+        vec![],
+    )
+    .expect("a player at 10 life can pay 2 life");
+    assert_eq!(
+        funded.player(p(1)).unwrap().life_total,
+        8,
+        "an ACCEPTED activation DOES deduct the 2 life — otherwise the pin above would \
+         pass for the wrong reason"
     );
 }
 

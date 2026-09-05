@@ -278,7 +278,7 @@ fn declared_fields() -> BTreeSet<String> {
     let src = include_str!("../../../card-types/src/state/stubs.rs");
     let clean = strip_comments_and_strings(src);
     let decl = clean
-        .find("pub struct PendingTrigger")
+        .find("pub struct PendingTrigger {")
         .expect("PendingTrigger is declared in card-types/src/state/stubs.rs");
     let open = clean[decl..].find('{').expect("struct body") + decl;
     let close = matching_brace(clean.as_bytes(), open);

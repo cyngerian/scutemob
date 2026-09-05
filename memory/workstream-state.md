@@ -15,7 +15,128 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**PB-DX56 `scutemob-235` SHIPPED 2026-09-05 — task 2 of 5 of the SECOND approved chain (ranks 19-23). **OOS-FB1-1** (the prerequisite), **OOS-DX32-1** and **OOS-DX22-8** ALL CLOSED, plus the rider **OOS-DP9-19(b)**. The fuzzer's HARD bucket goes **291 → 0** on the standard invocation, so `--stop-on-error` no longer halts. BOTH filed figures were re-measured FIRST and neither reproduces, both UP (189 across 11 of 20, and 102 across 7). `player_consistency` is TWO ARMS the CR gives OPPOSITE dispositions and every document in the chain treated them as one; `attachment_validity` watched the direction that HEALS while the direction that never does had no check at all. The adversarial bypass pass defeated SEVEN of eight shipped gates, and the `/review` then found THREE MORE — **eleven in all, all now RED**. Next is **PB-DX57, rank 21****) (**PB-DX55 `scutemob-234` SHIPPED 2026-09-05 — task 1 of 5 of the SECOND approved chain (ranks 19-23: PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38, exactly five, sequential, collect-before-next); ALL THREE of its seeds — `OOS-SIM6-3`, `OOS-SIM5-3`, `OOS-SIM5-5` — were FILED (none had a registry row, the second batch running) and CLOSED, plus the rider `OOS-DX51-3`; the bot refusal surface goes 70 → 9 and the memo §2.6 table is refuted in three directions; next is PB-DX56, rank 20**) (**PB-DX42b `scutemob-233` SHIPPED 2026-09-05 — task 5 of 5, the LAST of the FIRST approved chain; v4 ranks 1-18 ALL SHIPPED**neither headline seed had a registry row**: six of the adjudication §6's seven `OOS-ADJ-*` seeds were never registered**) (**PB-DX54 `scutemob-232` SHIPPED 2026-09-05 — task 4 of 5 of the approved chain**) (**PB-DX53 `scutemob-231` SHIPPED 2026-09-05 `5b54081d` — task 3 of 5 of the approved chain; next is PB-DX54, rank 17, dispatching; then PB-DX42b (rank 18) is the LAST**) (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
+| W6: Primitive + Card Authoring | — | available | — | (**PB-DX57 `scutemob-236` SHIPPED 2026-09-05 — task 3 of 5 of the SECOND approved chain (ranks 19-23). **OOS-DX28-1** and **OOS-DX28-6** CLOSED **as CLASSES**, **OOS-DX28-5**, **OOS-DX26-3** and **OOS-DX21-7** CLOSED, and **OOS-ADJ-2** — already taken by PB-DX42b — VERIFIED BY EXECUTION on both halves rather than redone. The fingerprint class is **35 members**, PRINTED by a test; **three were already stale** when censused and a fourth was found by the repairs. **The DX28-5 instance had ALREADY REGROWN**: PB-DX28 widened the list to six and `Splice.targets` arrived one batch later via PB-DX18, with the compiler, both wire gates and the walk all structurally blind to it. `OOS-DX21-7`'s sweep read 216 candidate functions in full, repaired 17 sites with 19 guard-removal proofs all RED, and the new gate then found an **18th the sweep missed**. **EVERY gate this batch wrote was DEFEATED** — five of five in adversarial round 1, five more in round 2 (three of them completely, whole test target green), and FOUR more by the `/review`: **fourteen in all**, every one re-keyed and re-executed RED. One defeat was **re-attributed with evidence** and turned out to be about four OTHER parsers in the tree whose declaration lookups are ORDER-DEPENDENT; the `/review`'s sharpest was that two of this batch's own regression gates were pinning a **COPY** of the parser they claim to check, so reverting the exact bug this batch had just fixed left them GREEN. Wire NONE as predicted, both gates executed unmoved, **0 engine lines**. Filed `OOS-DX57-1..5`. Next is **PB-DX9, rank 22****) (**PB-DX56 `scutemob-235` SHIPPED 2026-09-05 — task 2 of 5 of the SECOND approved chain (ranks 19-23). **OOS-FB1-1** (the prerequisite), **OOS-DX32-1** and **OOS-DX22-8** ALL CLOSED, plus the rider **OOS-DP9-19(b)**. The fuzzer's HARD bucket goes **291 → 0** on the standard invocation, so `--stop-on-error` no longer halts. BOTH filed figures were re-measured FIRST and neither reproduces, both UP (189 across 11 of 20, and 102 across 7). `player_consistency` is TWO ARMS the CR gives OPPOSITE dispositions and every document in the chain treated them as one; `attachment_validity` watched the direction that HEALS while the direction that never does had no check at all. The adversarial bypass pass defeated SEVEN of eight shipped gates, and the `/review` then found THREE MORE — **eleven in all, all now RED**. Next is **PB-DX57, rank 21****) (**PB-DX55 `scutemob-234` SHIPPED 2026-09-05 — task 1 of 5 of the SECOND approved chain (ranks 19-23: PB-DX55 → PB-DX56 → PB-DX57 → PB-DX9 → PB-DX38, exactly five, sequential, collect-before-next); ALL THREE of its seeds — `OOS-SIM6-3`, `OOS-SIM5-3`, `OOS-SIM5-5` — were FILED (none had a registry row, the second batch running) and CLOSED, plus the rider `OOS-DX51-3`; the bot refusal surface goes 70 → 9 and the memo §2.6 table is refuted in three directions; next is PB-DX56, rank 20**) (**PB-DX42b `scutemob-233` SHIPPED 2026-09-05 — task 5 of 5, the LAST of the FIRST approved chain; v4 ranks 1-18 ALL SHIPPED**neither headline seed had a registry row**: six of the adjudication §6's seven `OOS-ADJ-*` seeds were never registered**) (**PB-DX54 `scutemob-232` SHIPPED 2026-09-05 — task 4 of 5 of the approved chain**) (**PB-DX53 `scutemob-231` SHIPPED 2026-09-05 `5b54081d` — task 3 of 5 of the approved chain; next is PB-DX54, rank 17, dispatching; then PB-DX42b (rank 18) is the LAST**) (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**) |
+
+## Last Handoff (worker, 2026-09-05) — PB-DX57 / `scutemob-236`
+
+**v4 queue rank 21, task 3 of 5 of the SECOND approved chain. `OOS-DX28-1` and `OOS-DX28-6` CLOSED
+as CLASSES; `OOS-DX28-5`, `OOS-DX26-3` and `OOS-DX21-7` CLOSED; `OOS-ADJ-2` verified by execution,
+not redone. 0 engine lines. Next: PB-DX9, rank 22.**
+
+### The one thing to read first
+
+**Three independent mechanisms can each look like they would catch an edit and all three be
+structurally blind to it, and this batch measured a case where they were.** When PB-DX18 added
+`AbilityDefinition::Splice.targets`, the hand-written variant list in `pb_dx28_chosen_object_roster`
+went stale — one batch after PB-DX28 had widened it and written *"the point of listing them is that
+the day one does, this row sees it."* Nothing reddened, because:
+
+* the **compiler** cannot see it — every construction site uses `..Default::default()` and
+  `#[serde(default)]` covers deserialization (`OOS-DX20b-2`);
+* **both wire gates** cannot — planting `AbilityDefinition` in each
+  `CLOSURE_MUST_NOT_CONTAIN` leaves BOTH green, because it is reachable only through
+  `CardDefinition`, which both lists exclude (executed here; PB-DX18 recorded the same fact);
+* the **walk** could not, being a literal.
+
+That is the class `OOS-DX28-1` names, and it is why the repair is a DERIVATION rather than a longer
+list. **A pinned literal is the right repair when a list encodes a JUDGEMENT** (`t7`'s case: *"which
+variants query a characteristic layer"* is a semantic claim about eight names). **Here it encodes a
+syntactic property, so a literal is only a second place to be wrong.**
+
+### What the next batch should carry forward
+
+1. **Enumerate before repairing, and expect the enumeration to find live defects.** The
+   fingerprint census produced **35 members** from ~150 classified candidates, and **three were
+   already stale when censused** — `TargetSpellOrAbility` missing from lists covering 21 of 22
+   `TargetRequirement` variants (and because that gate is a SUBTRACTION, the gap does not merely
+   under-report: a real over-declaration on the same def CANCELS against it); `SetCreatureTypes`
+   missing from 3-of-4 `LayerModification` variants carrying a `SubType`; and the DX28-5 instance.
+   **A fourth was found by the repairs themselves** — `NEW_TRIGGER_EVENTS` is a gate's NEEDLE SET
+   and was short by one, so that gate was not scanning the dispatcher's eighth event at all.
+2. **The `const` axis is a CEILING and the INLINE axis is a FLOOR.** Four members are an inline
+   `for x in [..]` with no keyword to anchor a grep on, including the seed's own instance. And **a
+   `const` whose TYPE is a struct slice hides its string literals from every `&[&str]` grep** —
+   four more members are that shape, all found by reading rather than by grep.
+3. **A gate on a predicate's DEFINITION says nothing about its CONSUMER, and this batch committed
+   it inside a batch that cites the lesson in three other files.** `d1`–`d4` pinned the shared
+   enumeration; nothing enforced *"every walk calls it"*, and a second walk with its own
+   six-element list left everything green. `d5` is the consumer gate.
+4. **`process_command`'s `Err` arm carries no `GameState`, and the sweep for that shape found 17
+   hand-written instances in 9 files — with `pb_dp7`/`pb_dp8`/`pb_dp9` holding 9 of them.**
+   `pb_dp8` had EXACTLY ONE of its tests repaired, with a doc comment stating the whole argument,
+   while its own siblings were left: *the lesson was learned once and not carried across the file.*
+   Three of the 17 DOCUMENT the mechanism in their own comments and assert anyway.
+5. **A stale note that MISSPELLS its identifier is invisible to every needle-based sweep in this
+   tree** — and getting the spelling wrong correlates with being wrong about the claim.
+   `well_of_lost_dreams` survived PB-DX27's sweep, PB-DX8's scan and this batch's own qualified-token
+   axis on `WhenYouGainLife` vs `WheneverYouGainLife`. `OOS-DX57-2`.
+
+### Hazards for the next worker
+
+* **`AbilityDefinition::LoyaltyAbility` is a THIRD positional index space** with `OOS-DX26-3`'s
+  identical failure mode, and the new roster does not cover it (`OOS-DX57-4`).
+* **Two fingerprint members remain unpinned, in `tools/` `#[cfg(test)]` modules**, because this
+  batch's own 0-engine-lines criterion forbids touching them. `OOS-DX57-3` carries both repairs;
+  `pb_dx57_fingerprint_census::c4` fails if either is silently moved.
+* **Adding a `#[test]` to a `mod`-declared HELPER module reddens
+  `pb_dx18_trust_boundary_roster::r4`**, which pins the set of test-free helpers. It is not a bug;
+  it means the module changed category. Expect it, and update the pin or move the test.
+* **A declaration lookup without a trailing brace is order-dependent** (`OOS-DX57-5`, closed).
+  `pb_dx57_declared_source::p5` now forbids the form; if you add a parser, use the shared one.
+
+### A malformed table row, repaired rather than propagated
+
+The **W6 row of the Active Claims table above had THREE cells against the header's FIVE**, and had
+had since before this batch — the `available (...)` blob had swallowed the `Claimed` and `Notes`
+columns, so a markdown parser reading that table got a row of the wrong arity. Repaired here to
+`| W6: … | — | available | — | <notes> |`, with the notes checked for raw `|` first.
+
+Recorded rather than silently fixed because it is `OOS-DX50-11`'s shape one file over: **this file
+is machine-read** (`/start` and `/start-work` parse it), and PB-DX50 destroyed a registry cell by
+appending to a row whose arity it had not checked. The rule that follows is cheap: **before
+appending to a row in any of these tables, count its cells against the header.**
+
+### The adversarial discipline, and what it cost
+
+Every gate this batch wrote or re-keyed was handed to a SECOND agent, briefed with the gate's **doc
+sentence and not its implementation**, to attack by execution. **TWO independent rounds, ten
+defeats, and then the `/review` found four more — fourteen in all, and not one gate survived its
+first adversary.** Round 1's five, each a real, fixable narrowness:
+
+* the face-down derivation deduped by KIND, so a third genuine site was invisible — **and re-keying
+  it onto the enclosing arm was STILL green**, found by re-executing the defeat against my own fix
+  rather than assuming it landed; closed with an exact-set pin;
+* the vacuous-rejection gate saw only the awkward spelling of its defect and was blind to the
+  **more natural** one (snapshot-before-move);
+* the mechanism-note ratchet's frame list was **narrower than its own recorded evidence** — the
+  verb `snapshots` appears in one of its own adjudicated rows;
+* nothing enforced the shared enumeration's consumers;
+* and one defeat was **RE-ATTRIBUTED**: the report said the shared parser was prefix-vulnerable; it
+  is not (its needle carries the brace), and re-executing the plant returned the real field set.
+  What the adversary actually found was better — **four OTHER parsers in the tree ARE**, proven by
+  a decoy that left the whole `core` target green with every field-set pin checking the decoy.
+
+**Round 2 defeated five more, three of them COMPLETELY (whole test target green)**, and the sharpest
+is worth the next batch's attention on its own: **a raw identifier — `pub r#type: bool`, which is how
+a field named after a keyword MUST be written — parsed to the empty string and the field was dropped
+IN SILENCE**, by the canonical parser and by both cross-target copies. Two whole test targets stayed
+green with the field present. The others: **laundering** a member across a partition inverts the
+claim while every consistency check stays valid (that defeated two list-vs-list gates completely,
+with the whole `core` target green); a derivation that is **syntactic rather than semantic**
+(`=> false` vs a semantically-false body); and two consistent lists that can shrink **together**. The
+last two are not closable at the source level and ship as stated residuals with the measurement of
+what DOES cover them.
+
+**The `/review` then defeated four more**, including `p6`/`p7` gating a **COPY** of the parser they
+claim to pin — so reverting the exact bug this batch's own commit fixed left them green — and `v1`'s
+`&mut` exemption being computed **per function** while its own module doc says the key is per
+assertion. Full account in `memory/primitives/pb-DX57-execution-notes.md` §7-§8, including
+**which gates were never attacked**, which is a gap and is named as one.
+
+**Two of this batch's own gates over-fired and were narrowed by ADJUDICATING hits rather than
+reading a count**, which is the same discipline pointed inward: the rejection gate attributed any
+later `Err` in a function to the flagged call, and had no rebinding awareness; `p5`'s first draft
+reported five offenders, all `.expect(..)` MESSAGES and zero real.
 
 ## Last Handoff (worker, 2026-09-05) — PB-DX56 / `scutemob-235`
 

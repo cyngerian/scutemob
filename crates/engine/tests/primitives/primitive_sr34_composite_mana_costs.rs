@@ -265,26 +265,37 @@ fn signet_tap_for_mana_does_not_use_the_stack() {
 }
 
 /// CR 118.3 / CR 601.2h: an unaffordable Signet activation is rejected and touches
-/// nothing — `process_command` takes `GameState` by value, so a rejected command's
-/// mutations (if any had happened) are unobservable; here none should happen at all.
+/// nothing.
+///
+/// **`OOS-DX21-7` repair (PB-DX57).** This test used to bind `probe_state =
+/// pre_command_state.clone()`, MOVE `pre_command_state` into `process_command`, and then
+/// assert `!probe_state...tapped` — a state the failing call never held. `process_command`
+/// takes `GameState` by value and its `Err` arm returns no state, so that assertion was
+/// true whatever the handler did, and its own doc comment said so while asserting anyway.
+/// The property is only at risk INSIDE `handle_tap_for_mana`, which takes
+/// `&mut GameState` and taps the source at step 6 — AFTER the step-5b affordability check
+/// but with nothing to roll it back. So the test now drives the handler against one
+/// `&mut state` and reads THAT state, with an affordable control proving the pin is not
+/// satisfiable by an engine that never taps anything.
 #[test]
 fn signet_with_empty_pool_is_insufficient_mana() {
     let defs = defs_map();
-    let pre_command_state = build_with_permanent("Boros Signet", &defs);
-    let signet = find_by_name(&pre_command_state, "Boros Signet");
-    let probe_state = pre_command_state.clone();
+    let mut state = build_with_permanent("Boros Signet", &defs);
+    let signet = find_by_name(&state, "Boros Signet");
+    assert!(
+        !state.objects()[&signet].status.tapped,
+        "non-vacuity floor: the Signet starts untapped, so the post-rejection read below \
+         is a real observation rather than a restatement of the fixture"
+    );
 
-    let result = process_command(
-        pre_command_state,
-        Command::TapForMana {
-            player: p(1),
-            source: signet,
-            ability_index: 0,
-
-            chosen_color: None,
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        },
+    let result = mtg_engine::rules::mana::handle_tap_for_mana(
+        &mut state,
+        p(1),
+        signet,
+        0,
+        None,
+        vec![],
+        vec![],
     );
 
     assert!(
@@ -292,8 +303,48 @@ fn signet_with_empty_pool_is_insufficient_mana() {
         "an empty pool cannot pay Boros Signet's {{1}} (CR 118.3, 601.2h): {result:?}"
     );
     assert!(
-        !probe_state.objects()[&signet].status.tapped,
-        "the source must still be untapped in the caller's pre-command state"
+        !state.objects()[&signet].status.tapped,
+        "CR 601.2h: `handle_tap_for_mana` must validate the {{1}} BEFORE it taps — this \
+         reads the very state the handler was handed by `&mut`, so it fails if the \
+         affordability check moves below the tap at step 6"
+    );
+
+    // The control: with the {1} available the SAME handler on the SAME kind of state
+    // does tap, so the pin above cannot be passing because nothing ever taps.
+    let funded_registry = CardRegistry::new(all_cards());
+    let funded_spec = make_spec(p(1), "Boros Signet", ZoneId::Battlefield, &defs);
+    let mut funded = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(funded_registry)
+        .object(funded_spec)
+        .player_mana(
+            p(1),
+            mtg_engine::ManaPool {
+                colorless: 1,
+                ..Default::default()
+            },
+        )
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .expect("state should build");
+    funded.turn_mut().priority_holder = Some(p(1));
+    let funded_signet = find_by_name(&funded, "Boros Signet");
+    mtg_engine::rules::mana::handle_tap_for_mana(
+        &mut funded,
+        p(1),
+        funded_signet,
+        0,
+        None,
+        vec![],
+        vec![],
+    )
+    .expect("a funded Signet activation must be accepted");
+    assert!(
+        funded.objects()[&funded_signet].status.tapped,
+        "an ACCEPTED activation DOES tap the source — otherwise the rejection pin above \
+         would pass for the wrong reason"
     );
 }
 
@@ -373,18 +424,21 @@ fn horizon_land_at_zero_life_cannot_pay() {
     state.turn_mut().priority_holder = Some(p(1));
 
     let land = find_by_name(&state, "Fiery Islet");
-    let probe_state = state.clone();
-    let result = process_command(
-        state,
-        Command::TapForMana {
-            player: p(1),
-            source: land,
-            ability_index: 0,
-
-            chosen_color: None,
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        },
+    assert!(
+        !state.objects()[&land].status.tapped,
+        "non-vacuity floor: the land starts untapped"
+    );
+    // OOS-DX21-7 (PB-DX57): drive the handler with `&mut state` and read THAT state.
+    // The previous form cloned a `probe_state`, moved `state` into `process_command`,
+    // and asserted on the clone — which the failing call never received.
+    let result = mtg_engine::rules::mana::handle_tap_for_mana(
+        &mut state,
+        p(1),
+        land,
+        0,
+        None,
+        vec![],
+        vec![],
     );
 
     assert!(
@@ -399,8 +453,45 @@ fn horizon_land_at_zero_life_cannot_pay() {
         "a player at 0 life cannot pay 1 life: {result:?}"
     );
     assert!(
-        !probe_state.objects()[&land].status.tapped,
-        "the land must still be untapped"
+        !state.objects()[&land].status.tapped,
+        "CR 119.4 / CR 601.2h: the life check must run BEFORE the {{T}} tap at step 6 — \
+         this reads the state the handler mutated in place, so it fails if the order flips"
+    );
+    assert_eq!(
+        state.player(p(1)).unwrap().life_total,
+        0,
+        "and no life was deducted either"
+    );
+
+    // Control: the same handler on a state that CAN pay does tap the land.
+    let registry2 = CardRegistry::new(all_cards());
+    let spec2 = make_spec(p(1), "Fiery Islet", ZoneId::Battlefield, &defs);
+    let mut funded = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(registry2)
+        .object(spec2)
+        .player_life(p(1), 5)
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .expect("state should build");
+    funded.turn_mut().priority_holder = Some(p(1));
+    let funded_land = find_by_name(&funded, "Fiery Islet");
+    mtg_engine::rules::mana::handle_tap_for_mana(
+        &mut funded,
+        p(1),
+        funded_land,
+        0,
+        None,
+        vec![],
+        vec![],
+    )
+    .expect("a player at 5 life can pay 1 life");
+    assert!(
+        funded.objects()[&funded_land].status.tapped,
+        "an ACCEPTED activation DOES tap the land — otherwise the pin above would pass \
+         for the wrong reason"
     );
 }
 

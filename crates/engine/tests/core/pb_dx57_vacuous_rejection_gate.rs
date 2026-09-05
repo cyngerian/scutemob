@@ -1,0 +1,1026 @@
+//! PB-DX57 (`OOS-DX21-7`): the ratchet against "the rejected command mutated nothing" asserted
+//! through `process_command`.
+//!
+//! # The seed
+//!
+//! > **`process_command`'s `Err` arm carries no `GameState`, so ANY test asserting "the
+//! > rejected command mutated nothing" through `process_command` is structurally vacuous.** The
+//! > signature is `Result<(GameState, Vec<GameEvent>), GameStateError>`; on `Err`, Rust's
+//! > ownership model discards every mutation the callee made, regardless of where in the callee
+//! > it happened. A probe that calls `process_command(state.clone(), cmd)`, expects an `Err`,
+//! > and then reads the *original* `state` is reading a state the failing call never touched —
+//! > **it passes identically whether the guard is at the top of the function or absent
+//! > entirely.** The only sound idioms are the direct-handler call with `&mut state`, or
+//! > asserting on an observable the *accepted* path produced.
+//!
+//! # What the stage-0 sweep measured
+//!
+//! Search space 387 files / 3,115 call sites → 369 test files → 191 with an error expectation →
+//! **534** test functions whose `Err` came from a `process_command` result → **216** with a
+//! trailing assertion, all read in full → **17 VACUOUS assertion sites in 15 functions across 9
+//! files**, zero AMBIGUOUS. **No shared helper wraps the shape**, so it was 17 hand-written
+//! instances rather than one helper multiplied — there was nothing to fix once and everything
+//! to fix once each. All 17 are repaired by this batch.
+//!
+//! **The concentration is the tell.** `pb_dp7` / `pb_dp8` / `pb_dp9` are three batches written
+//! to one template and held 9 of the 17; `pb_dp8` had **exactly one** of its tests repaired,
+//! with a doc comment stating the whole argument, while its own siblings and the whole of
+//! `pb_dp7`/`pb_dp9` were left. The lesson was learned once and not carried across the file.
+//!
+//! # THIS GATE IS A RATCHET, NOT A PROOF, and the distinction is measured rather than modest
+//!
+//! The sweep's own adversarial section enumerated seven ways to defeat any source-level gate
+//! for this shape. Two of them are **not closable at the source level at all**:
+//!
+//! * **A helper wrapper.** `fn reject(s: &GameState, c: Command) -> GameStateError {
+//!   process_command(s.clone(), c).unwrap_err() }`, then `let e = reject(&state, cmd);
+//!   assert_eq!(state.public_state_hash(), h);`. The test function now contains **no
+//!   `process_command`, no `.clone()`, and no `Err` token**. A per-function scanner is
+//!   structurally blind, and this is exactly what a well-meaning later batch does when it
+//!   notices 17 sites repeating.
+//! * **A macro.** `assert_untouched!(state, hash_before)` expands to the shape; a source-text
+//!   gate cannot see through expansion.
+//!
+//! So this file **does not claim to enforce the property**. It holds the measured population at
+//! its floor and makes a new hand-written instance loud. Saying so here rather than letting the
+//! name imply more is the point of `OOS-DX49-6` (*a comment asserting a property the code does
+//! not enforce*), and this batch closes that seed's sibling.
+//!
+//! **The bypass-proof repair exists and is deliberately NOT taken here**: split
+//! `process_command` into a `pub process_command_mut(&mut GameState, Command)` — its body is
+//! already `let mut state = state;` followed by `&mut`-dispatch — plus the by-value wrapper.
+//! That makes the property falsifiable for all 45 command variants at once, **including the 10
+//! whose handlers are private `fn` in `rules/engine.rs` and for which no such test can be
+//! written today**. It is an engine change and PB-DX57 is a 0-engine-lines batch, so it is
+//! FILED, not made.
+//!
+//! # The three lessons this gate is built to survive
+//!
+//! * **`OOS-DX32-6`** — a `contains`-based source gate cannot tell code from a comment, and a
+//!   commented-out call satisfies it. So the gate is phrased as a **PROHIBITION** on the vacuous
+//!   shape, never as a requirement that the sound shape be present (a `// handle_x(&mut state)`
+//!   satisfies the latter, and this tree's doc comments name handlers three times), and it
+//!   strips comments AND string literals before analysis.
+//! * **PB-DX50's `r3`** — a gate on a predicate's DEFINITION says nothing about its CONSUMER.
+//!   Instantiated three ways here, all real: gating that `handle_*` exists and takes
+//!   `&mut GameState` would be green today with all 17 sites in place (all 34 `pub` handlers
+//!   already do); gating **per FILE** is green on the three files holding 9 of the 17; gating
+//!   **per FUNCTION** is green on `pb_dp7`'s `&mut state.clone()`. So the key is **per
+//!   ASSERTION**.
+//! * **`&mut expr.clone()`** — live in the tree before this batch. A `&mut` of a temporary is
+//!   dropped at the end of the statement, so it LOOKS like the sound idiom and is not. The
+//!   `&mut` exemption below therefore requires a bare IDENTIFIER, never an expression.
+
+use std::collections::BTreeSet;
+use std::path::PathBuf;
+
+/// Files whose vacuous shape is RECORDED rather than forbidden, each with the reason.
+///
+/// **It holds TWO rows, and neither is an exception granted to a defect.** An earlier draft of
+/// this doc said *"Empty is the goal and empty is the state"* — written when the list WAS empty
+/// and left standing when two rows were added, so a reader auditing *"were any vacuous probes
+/// allowlisted?"* was told **no** while two were listed directly below. Corrected: all 17
+/// measured sites (plus the 18th this gate found) were REPAIRED rather than allowlisted, and
+/// the two rows here are DISCLOSED POSITIVE CONTROLS whose verdict is an `expect_err` variant
+/// match — sound by the second of the seed's own two idioms.
+const RECORDED_VACUOUS: &[(&str, &str, &str)] = &[
+    // PB-DX21's two second-declaration probes. The read after the rejection is on a `state`
+    // that a PREVIOUS, ACCEPTED `process_command` produced, and each assertion's own message
+    // labels itself a positive control -- *"positive control: the raid count from the first,
+    // accepted declaration survives"*. That is the second sound idiom (assert on an observable
+    // the ACCEPTED path produced); the verdict in both tests is the `expect_err` variant match.
+    //
+    // Recorded rather than rewritten, and recorded rather than filtered. Not rewritten because
+    // there is nothing wrong with them. Not filtered because the mechanical distinction the
+    // gate would need -- *"is this assertion comparing to a pre-call snapshot, or to a value
+    // the accepted path established"* -- is a claim about INTENT, and the gate deliberately
+    // strips comments, so it cannot read the disclosure that makes these sound. Encoding the
+    // judgement here, once, with the reason, is honest; teaching the scanner to guess at it
+    // would make it fail OPEN on the real shape.
+    (
+        "primitives/pb_dx21_declare_attackers_once_per_combat.rs",
+        "test_dx21_second_declaration_rejected_raid_count_not_clobbered",
+        "DISCLOSED POSITIVE CONTROL: `state` is the product of the FIRST, ACCEPTED declaration \
+         (`let (state, _events) = process_command(..)`), so the post-rejection read asserts what \
+         the accepted path established -- the second sound idiom. The verdict is the expect_err \
+         variant match, and the assertion message says 'positive control' in so many words.",
+    ),
+    (
+        "primitives/pb_dx21_declare_attackers_once_per_combat.rs",
+        "test_dx21_second_declaration_rejected_target_not_overwritten",
+        "DISCLOSED POSITIVE CONTROL, same shape and same file as the row above: the attack \
+         target read after the rejection was set by the first, ACCEPTED declaration. PB-DX21's \
+         own review (M4/M5) is what filed OOS-DX21-7, and step (4) of its sibling test carries \
+         the direct-handler repair that IS the verdict for the mutation half.",
+    ),
+];
+
+/// Every directory the scan walks.
+///
+/// **A WORKSPACE walk, not a one-crate walk.** The first draft walked
+/// `CARGO_MANIFEST_DIR/tests` alone, while the stage-0 sweep this file cites is a WORKSPACE
+/// figure (387 files / 3,115 call sites) — so **55 files containing `process_command` were
+/// outside the scan**, including ~20 `crates/simulator/tests` channel probes, and the
+/// `/review` proved it by planting the seed VERBATIM at
+/// `crates/simulator/tests/zz_adversary_probe.rs` and watching all four gates stay green.
+/// That is PB-DX48's `SITE_SRCS` defeat and PB-DX49's workspace-walk repair, **one batch old
+/// and not carried across** — and the module doc's *"three lessons this gate is built to
+/// survive"* did not list it.
+///
+/// Latent rather than live when found: the reviewer ran the scanner verbatim over
+/// `crates/simulator`, `crates/engine/src`, `tools/` and `crates/view-model` and measured
+/// **0 sites in each**. Widened anyway, because the reason it was clean is that nobody had
+/// written one there yet.
+fn scan_roots() -> Vec<PathBuf> {
+    let ws = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("engine manifest dir is <workspace>/crates/engine")
+        .to_path_buf();
+    let mut out = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(ws.join("crates")) {
+        for e in rd.flatten() {
+            for sub in ["tests", "src"] {
+                let d = e.path().join(sub);
+                if d.is_dir() {
+                    out.push(d);
+                }
+            }
+        }
+    }
+    let tools = ws.join("tools");
+    if tools.is_dir() {
+        out.push(tools);
+    }
+    assert!(
+        out.len() >= 10,
+        "scan_roots found only {} directories — the walk has collapsed and every gate in this \
+         file would report zero",
+        out.len()
+    );
+    out
+}
+
+fn tests_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests")
+}
+
+/// Strip `//` and `/* */` comments and string/char literals, preserving byte length so line
+/// numbers survive. A gate whose subject is *"what does this code do"* must not be able to read
+/// a comment or a message string as code.
+fn strip_noncode(src: &str) -> String {
+    let b: Vec<char> = src.chars().collect();
+    let mut out = String::with_capacity(src.len());
+    let mut i = 0usize;
+    while i < b.len() {
+        if b[i] == '/' && i + 1 < b.len() && b[i + 1] == '/' {
+            while i < b.len() && b[i] != '\n' {
+                out.push(' ');
+                i += 1;
+            }
+            continue;
+        }
+        if b[i] == '/' && i + 1 < b.len() && b[i + 1] == '*' {
+            let mut depth = 1usize;
+            out.push_str("  ");
+            i += 2;
+            while i < b.len() && depth > 0 {
+                if b[i] == '/' && i + 1 < b.len() && b[i + 1] == '*' {
+                    depth += 1;
+                    out.push_str("  ");
+                    i += 2;
+                } else if b[i] == '*' && i + 1 < b.len() && b[i + 1] == '/' {
+                    depth -= 1;
+                    out.push_str("  ");
+                    i += 2;
+                } else {
+                    out.push(if b[i] == '\n' { '\n' } else { ' ' });
+                    i += 1;
+                }
+            }
+            continue;
+        }
+        if b[i] == '"' {
+            out.push(' ');
+            i += 1;
+            while i < b.len() && b[i] != '"' {
+                if b[i] == '\\' {
+                    out.push(' ');
+                    i += 1;
+                }
+                if i < b.len() {
+                    out.push(if b[i] == '\n' { '\n' } else { ' ' });
+                    i += 1;
+                }
+            }
+            if i < b.len() {
+                out.push(' ');
+                i += 1;
+            }
+            continue;
+        }
+        out.push(b[i]);
+        i += 1;
+    }
+    out
+}
+
+fn rust_files_under(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for e in rd.flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            rust_files_under(&p, out);
+        } else if p.extension().is_some_and(|x| x == "rs") {
+            out.push(p);
+        }
+    }
+}
+
+/// The names `process_command` is reachable under in this file: the bare name, plus any
+/// `use ... as ALIAS` rename.
+///
+/// Bypass 1 from the sweep's own list: `use mtg_engine::process_command as pc;`. A bare-token
+/// scan dies on it, and `replacement_effects.rs` already calls it fully qualified, so the tree
+/// really does use more than one spelling. This is PB-DX36's bidirectional `use`-alias scan.
+/// **Residual, stated**: a re-export chain through a third module still defeats it.
+fn entry_point_names(code: &str) -> BTreeSet<String> {
+    let mut names: BTreeSet<String> = BTreeSet::new();
+    names.insert("process_command".to_string());
+    for line in code.lines() {
+        let l = line.trim();
+        if !l.starts_with("use ") || !l.contains("process_command") {
+            continue;
+        }
+        if let Some(at) = l.find("process_command as ") {
+            let alias: String = l[at + "process_command as ".len()..]
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !alias.is_empty() {
+                names.insert(alias);
+            }
+        }
+    }
+    names
+}
+
+fn is_ident_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '_'
+}
+
+/// Does `hay` contain `needle` as a whole token?
+fn has_token(hay: &str, needle: &str) -> bool {
+    let mut from = 0usize;
+    while let Some(rel) = hay[from..].find(needle) {
+        let at = from + rel;
+        let before_ok = at == 0 || !hay[..at].chars().next_back().is_some_and(is_ident_char);
+        let after = at + needle.len();
+        let after_ok =
+            after >= hay.len() || !hay[after..].chars().next().is_some_and(is_ident_char);
+        if before_ok && after_ok {
+            return true;
+        }
+        from = at + 1;
+    }
+    false
+}
+
+/// Split a file into `(fn_name, body)` for every `#[test]` function, brace-matched.
+///
+/// Brace-matched rather than windowed: bypass 3 is *"put the `.expect_err(` 40 lines below the
+/// call"*, which every window heuristic loses — **and the sweep's own scanner lost exactly that,
+/// at `pb_ef8_exile_self_from_hand.rs`, before it was widened.** A whole-function body has no
+/// distance limit.
+fn test_functions(code: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut from = 0usize;
+    while let Some(rel) = code[from..].find("#[test]") {
+        let at = from + rel;
+        from = at + 1;
+        let Some(fnrel) = code[at..].find("fn ") else {
+            continue;
+        };
+        let fnat = at + fnrel + 3;
+        let name: String = code[fnat..]
+            .chars()
+            .take_while(|c| is_ident_char(*c))
+            .collect();
+        let Some(brel) = code[fnat..].find('{') else {
+            continue;
+        };
+        let bstart = fnat + brel + 1;
+        let mut depth = 1usize;
+        let mut end = bstart;
+        for (i, ch) in code[bstart..].char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = bstart + i;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        out.push((name, code[bstart..end].to_string()));
+    }
+    out
+}
+
+/// One flagged site.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct Vacuous {
+    file: String,
+    test: String,
+    shape: &'static str,
+    detail: String,
+}
+
+/// Expressions that read game state. An assertion mentioning a binding but reading nothing
+/// state-shaped is not an absence-of-mutation claim.
+///
+/// **A hand-typed list, therefore a FLOOR — in a batch whose sibling gate derives its
+/// vocabulary from a declaration.** The `/review` was right to call that out: the first draft
+/// held eleven needles and missed `state.pending_triggers(` (41 uses), `state.objects_in_zone(`
+/// (112), `state.pending_effect_choice(` (74) and `state.object(` (37), each of which makes
+/// `assert_eq!(state.pending_triggers().len(), 0)` after a rejection — the seed's exact shape —
+/// invisible. Widened here.
+///
+/// **Why it is not DERIVED from `GameState`'s `pub fn` accessors, stated rather than omitted**:
+/// an assertion can read state through a HELPER that names no accessor at all
+/// (`find_object_in_zone(&state, ..)` and `pool_amount(&state, ..)` are both real in this
+/// tree), so a derived list would be a different floor rather than a ceiling. Recorded as a
+/// bound of this gate, which is already labelled a ratchet and not a proof.
+const STATE_READS: &[&str] = &[
+    "public_state_hash",
+    ".objects()",
+    ".players()",
+    ".player(",
+    ".zone(",
+    ".turn()",
+    ".combat()",
+    ".stack_objects()",
+    ".objects_in_zone(",
+    ".object(",
+    ".zones(",
+    ".pending_triggers(",
+    ".pending_effect_choice(",
+    ".pending_decision(",
+    ".continuous_effects(",
+    ".command_zone(",
+    "life_total",
+    "mana_pool",
+    ".status.",
+    "command_count",
+    ".journal(",
+];
+
+fn scan_file(path: &std::path::Path) -> Vec<Vacuous> {
+    let raw = std::fs::read_to_string(path).unwrap_or_default();
+    let code = strip_noncode(&raw);
+    let entries = entry_point_names(&code);
+    let file = path
+        .strip_prefix(tests_root())
+        .unwrap_or(path)
+        .display()
+        .to_string();
+    let mut out = Vec::new();
+
+    for (test, body) in test_functions(&code) {
+        // ── Shape A: `X.clone()` handed to the entry point, then an assertion reading `X`.
+        for entry in &entries {
+            let needle = format!("{entry}(");
+            let mut from = 0usize;
+            while let Some(rel) = body[from..].find(&needle) {
+                let at = from + rel;
+                from = at + 1;
+                let before_ok =
+                    at == 0 || !body[..at].chars().next_back().is_some_and(is_ident_char);
+                if !before_ok {
+                    continue;
+                }
+                let after = &body[at + needle.len()..];
+                let arg: String = after
+                    .trim_start()
+                    .chars()
+                    .take_while(|c| is_ident_char(*c))
+                    .collect();
+                if arg.is_empty() {
+                    continue;
+                }
+                // The argument is either a COPY made at the call site (`X.clone()` /
+                // `X.to_owned()` — `GameState: Clone`, so the blanket `ToOwned` gives the second
+                // spelling for free and the first draft matched neither it nor the next case),
+                // or a copy HOISTED one statement earlier:
+                //     let cloned = state.clone();
+                //     let r = process_command(cloned, cmd);
+                //     assert_eq!(state.public_state_hash(), h);
+                // The `/review` defeated the first draft with the hoisted form, which needs no
+                // helper and no macro and reads more naturally than the inline one — so the
+                // gate caught only the awkward spelling of its own subject.
+                let rest_after = after.trim_start()[arg.len()..].trim_start().to_string();
+                let inline_copy =
+                    rest_after.starts_with(".clone()") || rest_after.starts_with(".to_owned()");
+                let hoisted_from: Option<String> = if inline_copy {
+                    None
+                } else {
+                    body[..at].split(';').rev().find_map(|stmt| {
+                        let li = stmt.rfind("let ")?;
+                        let bind: String = stmt[li + 4..]
+                            .trim_start()
+                            .trim_start_matches("mut ")
+                            .chars()
+                            .take_while(|c| is_ident_char(*c))
+                            .collect();
+                        if bind != arg {
+                            return None;
+                        }
+                        let (_, rhs) = stmt[li..].split_once('=')?;
+                        let src: String = rhs
+                            .trim_start()
+                            .chars()
+                            .take_while(|c| is_ident_char(*c))
+                            .collect();
+                        (!src.is_empty()
+                            && (rhs.contains(".clone()") || rhs.contains(".to_owned()")))
+                        .then_some(src)
+                    })
+                };
+                if !inline_copy && hoisted_from.is_none() {
+                    continue;
+                }
+                // Whichever binding the ORIGINAL is, that is the one a later assertion must not
+                // be reading as evidence about the failing call.
+                let arg = hoisted_from.unwrap_or(arg);
+                let tail = &body[at..];
+                // **The Err must belong to THIS call.** The first draft asked only whether an
+                // Err token appeared anywhere later in the function, and that over-fired on a
+                // real and common shape: `rules::commander`'s mulligan tests hand a `.clone()`
+                // to a call that SUCCEEDS (`.unwrap()`), read the original `state` afterwards as
+                // a legitimate branch continuation, and separately expect an `Err` from a
+                // DIFFERENT, correctly by-value call later on. Nothing about those is vacuous.
+                // Found by adjudicating a hit rather than by reading the count -- three of the
+                // eleven the first draft reported were this shape.
+                // The statement runs from the previous `;`/`{` to the next `;`. Anchoring the
+                // START backwards is load-bearing and the first draft got it wrong: it began the
+                // statement at the CALL, so `let r = process_command(..)` never showed its own
+                // `let` and the binding-then-check arm below was dead. `v3`'s synthetic shape-A
+                // case is what caught it.
+                let stmt_start = body[..at].rfind([';', '{']).map(|i| i + 1).unwrap_or(0);
+                let stmt_end = tail.find(';').map(|e| e + 1).unwrap_or(tail.len());
+                let stmt = &body[stmt_start..at + stmt_end];
+                let err_is_this_calls = if stmt.contains("unwrap_err")
+                    || stmt.contains("expect_err")
+                    || stmt.contains("is_err")
+                {
+                    true
+                } else if stmt.contains(".unwrap()") || stmt.contains(".expect(") {
+                    // An explicitly-unwrapped success. Whatever Err appears later belongs to
+                    // another call.
+                    false
+                } else if let Some(li) = stmt.find("let ") {
+                    // `let r = <call>;` -- the Err check may be on `r`, later.
+                    let bind: String = stmt[li + 4..]
+                        .trim_start()
+                        .trim_start_matches("mut ")
+                        .chars()
+                        .take_while(|c| is_ident_char(*c))
+                        .collect();
+                    !bind.is_empty()
+                        && tail[stmt_end..].split(';').any(|later| {
+                            has_token(later, &bind)
+                                && (later.contains("is_err")
+                                    || later.contains("unwrap_err")
+                                    || later.contains("expect_err")
+                                    || later.contains("Err("))
+                        })
+                } else {
+                    false
+                };
+                if !err_is_this_calls {
+                    continue;
+                }
+                // Was `arg` handed to anything by `&mut` in this test? The exemption requires a
+                // BARE IDENTIFIER: `&mut arg.clone()` is a temporary and is NOT an exemption.
+                // **Scoped to the region AFTER the failing call, not to the whole function.**
+                // The first draft searched the whole body, so ONE unrelated
+                // `warm_up(&mut state);` anywhere in a test exempted every shape-A assertion in
+                // it — while this file's module doc says *"gating per FUNCTION is green on
+                // `pb_dp7`'s `&mut state.clone()`. So the key is per ASSERTION."* That is the
+                // file's own stated design key contradicted by its own code, found by the
+                // `/review`. Not hypothetical: the repair idiom this batch shipped IS
+                // `handle_x(&mut state, ..)`, so a PARTLY-repaired function was unpoliced by
+                // construction. A bare identifier only — `&mut X.clone()` is a temporary.
+                let region = &body[at + stmt_end..];
+                let exempt = has_token(region, &format!("&mut {arg}"))
+                    && !region.contains(&format!("&mut {arg}."));
+                if exempt {
+                    continue;
+                }
+                // Walk forward statement by statement and STOP at a REBIND of `arg`.
+                //
+                // Without this the gate reports a false positive on a real and common shape:
+                // `rules::commander`'s `test_mulligan_three_times_escalating_bottom_count`
+                // rejects a `KeepHand` on a clone and then does
+                // `let (state, _) = process_command(state, ..).unwrap();` -- so every assertion
+                // after that reads the ACCEPTED path's state, which is sound. A scanner without
+                // rebinding awareness cannot tell that from the vacuous shape, and *dozens of
+                // the 216 functions the stage-0 sweep read in full rebind `state` from a later
+                // successful call*, which is why that sweep had to READ them.
+                for stmt in tail[stmt_end..].split(';') {
+                    // The LHS is the text between `let ` and the NEXT `=` AFTER it — not
+                    // `split('=').next()`, which returns everything up to the first `=`
+                    // ANYWHERE in the fragment. Statements are split on `;`, so a fragment
+                    // routinely begins with the tail of a preceding `match` block, and a match
+                    // arm's `=>` contains an `=`: the first draft therefore took the LHS as the
+                    // text before that ARROW and never saw the `let` at all, so the rebind-stop
+                    // silently did not fire. Surfaced when the `/review`'s widened reader list
+                    // reached `pb_dp5_pending_draw_choice.rs`, whose rebind sits directly after
+                    // `match reject_result { … other => panic!(..) }`.
+                    let binds_arg = stmt.find("let ").is_some_and(|li| {
+                        stmt[li..]
+                            .split_once('=')
+                            .is_some_and(|(lhs, _)| has_token(lhs, &arg))
+                    });
+                    if binds_arg {
+                        break;
+                    }
+                    if !stmt.contains("assert") {
+                        continue;
+                    }
+                    if has_token(stmt, &arg) && STATE_READS.iter().any(|r| stmt.contains(r)) {
+                        out.push(Vacuous {
+                            file: file.clone(),
+                            test: test.clone(),
+                            shape: "A: entry point took `X.clone()`, assertion reads `X`",
+                            detail: format!("binding `{arg}`"),
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+
+        // ── Shape C: the SNAPSHOT-BEFORE-MOVE form. `let snap = state.clone();` (or a
+        // value snapshot such as `let h = state.public_state_hash();`) taken BEFORE the call,
+        // the real `state` MOVED into the by-value entry point, and then an assertion reading
+        // the snapshot.
+        //
+        // **Found by the adversarial pass, and it is the more NATURAL way to write the test** —
+        // it needs no `.clone()` argument, no helper and no macro, and the first draft of this
+        // gate (shape A only) was blind to it. That matters more than the exotic bypasses: a
+        // gate that catches only the awkward spelling of a defect will be green on the common
+        // one. `OOS-DX54-6` verbatim — *a revert-proof written by the same author from the same
+        // mental model exercises the inputs that author already thought of*.
+        for entry in &entries {
+            let needle = format!("{entry}(");
+            let mut from = 0usize;
+            while let Some(rel) = body[from..].find(&needle) {
+                let at = from + rel;
+                from = at + 1;
+                if at > 0 && body[..at].chars().next_back().is_some_and(is_ident_char) {
+                    continue;
+                }
+                let tail = &body[at..];
+                let stmt_end = tail.find(';').map(|e| e + 1).unwrap_or(tail.len());
+                // Same Err-attribution rule as shape A: the Err must belong to THIS call,
+                // either in its own statement or via a `let` binding checked later.
+                let stmt_start = body[..at].rfind([';', '{']).map(|i| i + 1).unwrap_or(0);
+                let stmt = &body[stmt_start..at + stmt_end];
+                let err_is_this_calls = if stmt.contains("unwrap_err")
+                    || stmt.contains("expect_err")
+                    || stmt.contains("is_err")
+                {
+                    true
+                } else if stmt.contains(".unwrap()") || stmt.contains(".expect(") {
+                    false
+                } else if let Some(li) = stmt.find("let ") {
+                    let bind: String = stmt[li + 4..]
+                        .trim_start()
+                        .trim_start_matches("mut ")
+                        .chars()
+                        .take_while(|c| is_ident_char(*c))
+                        .collect();
+                    !bind.is_empty()
+                        && tail[stmt_end..].split(';').any(|later| {
+                            has_token(later, &bind)
+                                && (later.contains("is_err")
+                                    || later.contains("unwrap_err")
+                                    || later.contains("expect_err")
+                                    || later.contains("Err("))
+                        })
+                } else {
+                    false
+                };
+                if !err_is_this_calls {
+                    continue;
+                }
+                // Snapshot bindings declared BEFORE the call whose initialiser reads state.
+                let mut snaps: Vec<String> = Vec::new();
+                for stmt in body[..at].split(';') {
+                    let Some(li) = stmt.rfind("let ") else {
+                        continue;
+                    };
+                    let bind: String = stmt[li + 4..]
+                        .trim_start()
+                        .trim_start_matches("mut ")
+                        .chars()
+                        .take_while(|c| is_ident_char(*c))
+                        .collect();
+                    if bind.is_empty() {
+                        continue;
+                    }
+                    let Some(rhs) = stmt.split_once('=').map(|(_, r)| r) else {
+                        continue;
+                    };
+                    if !(STATE_READS.iter().any(|r| rhs.contains(r)) || rhs.contains(".clone()")) {
+                        continue;
+                    }
+                    // A binding whose initialiser is itself an entry-point call is a RESULT,
+                    // not a snapshot: `let result = process_command(..)` from an EARLIER
+                    // rejection, named in that rejection's own error-variant assertion, was
+                    // being read as a pre-call snapshot of a LATER one. Four such hits on the
+                    // real tree, all NOT-A-MEMBER.
+                    if entries.iter().any(|e| has_token(rhs, e)) {
+                        continue;
+                    }
+                    // **A binding passed INTO the failing call is an input, not a snapshot.**
+                    // Without this, shape C fires on every `let attacker_id = state...;` that
+                    // is handed to the command and then named in the error-VARIANT assertion —
+                    // six such hits on the real tree, all NOT-A-MEMBER (they assert which
+                    // error, never absence of mutation). An id resolved out of the state is a
+                    // handle; the thing this shape is about is a VALUE captured to compare
+                    // against later.
+                    if has_token(&body[at..at + stmt_end], &bind) {
+                        continue;
+                    }
+                    snaps.push(bind);
+                }
+                if snaps.is_empty() {
+                    continue;
+                }
+                // The `&mut` exemption, same rule as shape A: a BARE identifier only.
+                for stmt in tail[stmt_end..].split(';') {
+                    if stmt.contains("let ") {
+                        break;
+                    }
+                    if !stmt.contains("assert") {
+                        continue;
+                    }
+                    if let Some(sn) = snaps.iter().find(|s| has_token(stmt, s)) {
+                        if has_token(&body, &format!("&mut {sn}"))
+                            && !body.contains(&format!("&mut {sn}."))
+                        {
+                            continue;
+                        }
+                        out.push(Vacuous {
+                            file: file.clone(),
+                            test: test.clone(),
+                            shape:
+                                "C: snapshot bound BEFORE the call, assertion reads the snapshot",
+                            detail: format!("snapshot `{sn}`"),
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+
+        // ── Shape B: `&mut X.clone()` — looks like the sound direct-handler idiom, is a
+        // temporary dropped at the end of the statement. Live in the tree before this batch,
+        // at `pb_dp7_cleanup_discard.rs`, and a gate keyed on "calls a handler with `&mut`"
+        // passes it.
+        if body.contains("&mut ") {
+            for stmt in body.split(';') {
+                if let Some(at) = stmt.find("&mut ") {
+                    let rest = &stmt[at + 5..];
+                    let ident: String = rest.chars().take_while(|c| is_ident_char(*c)).collect();
+                    if ident.is_empty() {
+                        continue;
+                    }
+                    if rest[ident.len()..].trim_start().starts_with(".clone()")
+                        && (body.contains("is_err")
+                            || body.contains("unwrap_err")
+                            || body.contains("expect_err"))
+                    {
+                        out.push(Vacuous {
+                            file: file.clone(),
+                            test: test.clone(),
+                            shape: "B: `&mut X.clone()` — a temporary, not the sound idiom",
+                            detail: format!("binding `{ident}`"),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn scan_all() -> Vec<Vacuous> {
+    let mut files = Vec::new();
+    for root in scan_roots() {
+        rust_files_under(&root, &mut files);
+    }
+    files.sort();
+    files.dedup();
+    let mut out: Vec<Vacuous> = files.iter().flat_map(|p| scan_file(p)).collect();
+    out.sort();
+    out
+}
+
+// ── The gate ─────────────────────────────────────────────────────────────────
+
+#[test]
+fn v1_no_test_asserts_absence_of_mutation_through_a_by_value_entry_point() {
+    let live = scan_all();
+    let recorded: BTreeSet<(String, String)> = RECORDED_VACUOUS
+        .iter()
+        .map(|(f, t, _)| (f.to_string(), t.to_string()))
+        .collect();
+    let new: Vec<&Vacuous> = live
+        .iter()
+        .filter(|v| !recorded.contains(&(v.file.clone(), v.test.clone())))
+        .collect();
+    assert!(
+        new.is_empty(),
+        "OOS-DX21-7: {} test(s) assert that a REJECTED command left state untouched, through an \
+         entry point that takes `GameState` BY VALUE:\n{new:#?}\n\
+         On `Err`, Rust's ownership model discards every mutation the callee made, so the \
+         assertion reads a state the failing call never held. It passes identically whether the \
+         guard is at the top of the function or absent entirely.\n\
+         The two sound idioms: call the handler directly with `&mut state` and read THAT state \
+         (`rules::combat::handle_declare_attackers(&mut state, ..)`, and note that `&mut \
+         state.clone()` is a TEMPORARY and is not the sound idiom), or assert on an observable \
+         the ACCEPTED path produced.\n\
+         This gate is a RATCHET, not a proof — a helper wrapper or a macro defeats any \
+         source-level check of this shape. Do not satisfy it by hiding the call.",
+        new.len()
+    );
+    let live_keys: BTreeSet<(String, String)> = live
+        .iter()
+        .map(|v| (v.file.clone(), v.test.clone()))
+        .collect();
+    let gone: Vec<&(String, String)> = recorded.difference(&live_keys).collect();
+    assert!(
+        gone.is_empty(),
+        "recorded exception(s) {gone:?} no longer fire. If repaired, delete the row and say so; \
+         if not, the SCANNER narrowed and the ratchet is blind — indistinguishable from the \
+         count alone, which is why this assertion exists."
+    );
+}
+
+// ── Non-vacuity: each of these executes ──────────────────────────────────────
+
+/// The scan reaches the test tree at all. A walker that found no files would report zero
+/// offenders forever.
+#[test]
+fn v2_the_scan_reaches_the_test_tree() {
+    let mut files = Vec::new();
+    for root in scan_roots() {
+        rust_files_under(&root, &mut files);
+    }
+    files.sort();
+    files.dedup();
+    assert!(
+        files.len() >= 2_400,
+        "the walk found only {} .rs files under the workspace scan roots (measured 2,492 on PB-DX57's final \
+         tree, workspace-wide: 2,492). A ratchet's SLACK is its blind spot (`OOS-DX47`): the \
+         first draft's floor of 200 let more than half the tree stop being scanned while this \
+         stayed green and v1 reported zero.",
+        files.len()
+    );
+    let fns: usize = files
+        .iter()
+        .map(|p| {
+            test_functions(&strip_noncode(
+                &std::fs::read_to_string(p).unwrap_or_default(),
+            ))
+            .len()
+        })
+        .sum();
+    assert!(
+        fns >= 5_100,
+        "the #[test] splitter found only {fns} functions across {} files (measured 4,762). \
+         Same slack argument as the file floor above: a splitter that quietly finds half as \
+         many makes v1 vacuous while green. Measured 5,284 workspace-wide.",
+        files.len()
+    );
+    println!(
+        "PB-DX57 / OOS-DX21-7 — scanned {} files, {fns} #[test] fns, {} live site(s)",
+        files.len(),
+        scan_all().len()
+    );
+}
+
+/// The detector fires on each shape, on SYNTHETIC input.
+///
+/// Synthetic rather than corpus-driven deliberately: after this batch the corpus contains zero
+/// instances, so a corpus-driven proof would be unfalsifiable — *a self-test written by the
+/// same author from the same mental model exercises the inputs that author already thought of*
+/// (`OOS-DX54-6`), and a detector whose only evidence is that it currently finds nothing is
+/// `OOS-DX32-6`'s shape.
+#[test]
+fn v3_the_detector_fires_on_each_shape_and_spares_the_sound_ones() {
+    let dir = std::env::temp_dir().join("pb_dx57_v3");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("scratch dir");
+
+    let write = |name: &str, body: &str| {
+        let p = dir.join(name);
+        std::fs::write(&p, body).expect("write");
+        p
+    };
+
+    // Shape A — the seed verbatim.
+    let a = write(
+        "a.rs",
+        "#[test]\nfn t() {\n let hash_before = state.public_state_hash();\n \
+         let r = process_command(state.clone(), cmd);\n assert!(r.is_err());\n \
+         assert_eq!(state.public_state_hash(), hash_before);\n}\n",
+    );
+    assert!(!scan_file(&a).is_empty(), "shape A not detected");
+
+    // Shape A under an alias — bypass 1.
+    let b = write(
+        "b.rs",
+        "use mtg_engine::process_command as pc;\n#[test]\nfn t() {\n \
+         let h = state.public_state_hash();\n let r = pc(state.clone(), cmd);\n \
+         assert!(r.is_err());\n assert_eq!(state.public_state_hash(), h);\n}\n",
+    );
+    assert!(
+        !scan_file(&b).is_empty(),
+        "aliased entry point not detected"
+    );
+
+    // Shape B — `&mut X.clone()`, the one that looks sound.
+    let c = write(
+        "c.rs",
+        "#[test]\nfn t() {\n let h = state.public_state_hash();\n \
+         let r = handle_x(&mut state.clone(), p);\n assert!(r.is_err());\n \
+         assert_eq!(state.public_state_hash(), h);\n}\n",
+    );
+    assert!(
+        !scan_file(&c).is_empty(),
+        "shape B (&mut temporary) not detected"
+    );
+
+    // A COMMENTED-OUT vacuous test must NOT be detected (OOS-DX32-6, the other direction:
+    // a gate that reads comments as code fires on prose).
+    let d = write(
+        "d.rs",
+        "#[test]\nfn t() {\n // let r = process_command(state.clone(), cmd);\n \
+         // assert_eq!(state.public_state_hash(), hash_before);\n \
+         let (state, _) = process_command(state, cmd).unwrap();\n \
+         assert_eq!(state.turn().turn_number, 1);\n}\n",
+    );
+    assert!(
+        scan_file(&d).is_empty(),
+        "the detector read a COMMENTED-OUT call as code: {:?}",
+        scan_file(&d)
+    );
+
+    // Shape C — the SNAPSHOT-BEFORE-MOVE form the adversarial pass defeated the first draft
+    // with. No `.clone()` argument, no helper, no macro: the natural way to write the test.
+    let g = write(
+        "g.rs",
+        "#[test]\nfn t() {\n let snap = state.public_state_hash();\n \
+         let r = process_command(state, cmd);\n assert!(r.is_err());\n \
+         assert_eq!(snap, 3);\n}\n",
+    );
+    assert!(
+        !scan_file(&g).is_empty(),
+        "shape C (snapshot bound before a by-value move) not detected — this is the form the \
+         adversarial pass used to defeat the first draft, and it is the MORE natural spelling"
+    );
+
+    // The HOISTED-clone form and `.to_owned()` — the `/review`'s two shape-A bypasses. Neither
+    // needs a helper or a macro, and the hoisted one is the more natural spelling.
+    let h = write(
+        "h.rs",
+        "#[test]\nfn t() {\n let hb = state.public_state_hash();\n \
+         let cloned = state.clone();\n let r = process_command(cloned, cmd);\n \
+         assert!(r.is_err());\n assert_eq!(state.public_state_hash(), hb);\n}\n",
+    );
+    assert!(
+        !scan_file(&h).is_empty(),
+        "the HOISTED-clone form was not detected"
+    );
+    let i = write(
+        "i.rs",
+        "#[test]\nfn t() {\n let hb = state.public_state_hash();\n \
+         let r = process_command(state.to_owned(), cmd);\n assert!(r.is_err());\n \
+         assert_eq!(state.public_state_hash(), hb);\n}\n",
+    );
+    assert!(!scan_file(&i).is_empty(), "`.to_owned()` was not detected");
+
+    // The `&mut` exemption must be scoped AFTER the call: an unrelated `&mut` BEFORE it must
+    // not exempt the assertion.
+    let j = write(
+        "j.rs",
+        "#[test]\nfn t() {\n warm_up(&mut state);\n let hb = state.public_state_hash();\n \
+         let r = process_command(state.clone(), cmd);\n assert!(r.is_err());\n \
+         assert_eq!(state.public_state_hash(), hb);\n}\n",
+    );
+    assert!(
+        !scan_file(&j).is_empty(),
+        "an unrelated `&mut` BEFORE the failing call exempted the assertion — the exemption is \
+         per-function again, which is the defect the module doc says this gate does not have"
+    );
+
+    // A REBIND after the rejection must NOT be detected: the assertion reads the ACCEPTED
+    // path's state. This is `rules::commander::test_mulligan_three_times_escalating_bottom_count`
+    // in miniature, and the first draft of this gate flagged it.
+    let f = write(
+        "f.rs",
+        "#[test]\nfn t() {\n let e = process_command(state.clone(), bad).unwrap_err();\n \
+         assert!(matches!(e, X));\n let (state, _) = process_command(state, good).unwrap();\n \
+         assert_eq!(state.public_state_hash(), h);\n}\n",
+    );
+    assert!(
+        scan_file(&f).is_empty(),
+        "a REBOUND state read after the rejection was flagged: {:?}",
+        scan_file(&f)
+    );
+
+    // The SOUND direct-handler idiom must NOT be detected.
+    let e = write(
+        "e.rs",
+        "#[test]\nfn t() {\n let h = state.public_state_hash();\n \
+         let r = handle_declare_attackers(&mut state, p);\n assert!(r.is_err());\n \
+         assert_eq!(state.public_state_hash(), h);\n}\n",
+    );
+    assert!(
+        scan_file(&e).is_empty(),
+        "the sound direct-handler idiom was flagged: {:?}",
+        scan_file(&e)
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Every recorded exception is still live on its own terms (`OOS-DX52-1`: an allowlist whose
+/// reason is not checked is a comment). Vacuous while the list is empty, and says so.
+#[test]
+fn v4_recorded_exceptions_carry_a_reason() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests");
+    for (f, t, why) in RECORDED_VACUOUS {
+        assert!(
+            why.len() > 40,
+            "recorded exception ({f}, {t}) has a {}-char reason; an entry whose adjudication is \
+             not written down is an allowlist entry",
+            why.len()
+        );
+        // **The quoted EVIDENCE is re-checked in the named test, not just the reason's
+        // length.** `OOS-DX52-1` is precisely *"an allowlist whose quoted fragment has rotted
+        // keeps passing"*, and the `/review` proved this row was vulnerable to it: deleting the
+        // words `positive control` from the assertion message the reason quotes left `v4`
+        // green. A length check is a check that the author typed something, not that what they
+        // typed is still true.
+        let src = std::fs::read_to_string(root.join(f))
+            .unwrap_or_else(|e| panic!("recorded exception names {f}, which is unreadable: {e}"));
+        assert!(
+            src.contains(t),
+            "recorded exception names test `{t}` in {f}, which no longer contains it — the \
+             entry cannot be re-adjudicated and reads as coverage. Delete it or re-point it."
+        );
+        if why.contains("POSITIVE CONTROL") {
+            // **Scoped to the NAMED TEST's own body, not to the file.** A file-level
+            // `contains` is satisfied by any sibling test carrying the same label — and this
+            // file has two, so the first draft of this check stayed GREEN when the label was
+            // deleted from one of them. That is the `OOS-DX52-1` shape reproduced inside the
+            // check written to close it, caught by re-executing the `/review`'s own defeat
+            // against the fix rather than assuming it landed.
+            // The RAW body, not the stripped one: the label lives in an assertion MESSAGE,
+            // i.e. a string literal, and `strip_noncode` removes those by design. The first
+            // draft chained both and took whichever matched first, which was the stripped one —
+            // so it failed on the CLEAN tree, for the opposite reason to the one it exists for.
+            let body = test_functions(&src)
+                .into_iter()
+                .find(|(n, _)| n == t)
+                .map(|(_, b)| b)
+                .unwrap_or_else(|| panic!("recorded exception names test `{t}`, not found in {f}"));
+            assert!(
+                body.contains("positive control"),
+                "the reason for ({f}, {t}) rests on THAT TEST labelling its own read a \
+                 'positive control', and the label is no longer in its body. Either the test \
+                 stopped disclosing why it is sound -- in which case it is no longer sound by \
+                 THIS argument -- or the exception is stale."
+            );
+        }
+    }
+    println!(
+        "PB-DX57 / OOS-DX21-7 — RECORDED_VACUOUS holds {} entries. All 17 sites the stage-0 \
+         sweep measured were REPAIRED rather than allowlisted, plus one the sweep missed; the \
+         entries here are DISCLOSED POSITIVE CONTROLS, not exceptions granted to defects, and \
+         each one's quoted evidence is re-checked in the named test above.",
+        RECORDED_VACUOUS.len()
+    );
+}

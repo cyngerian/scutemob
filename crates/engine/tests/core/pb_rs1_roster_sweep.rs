@@ -125,3 +125,130 @@ fn pb_rs1_roster_sweep_reports_affected_cards() {
         );
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PB-DX57 (`OOS-DX28-1`) — [`EFFECTS`] pinned against `pub enum Effect`
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// `Effect` variants in this file's vocabulary neighbourhood that PB-RS1's roster
+/// deliberately does NOT sweep, with a reason each.
+///
+/// A named const rather than a sentence, so
+/// [`effects_list_is_a_checked_subset_of_pub_enum_effect`] can require the
+/// classification of the neighbourhood to be TOTAL. Without it, "the other library
+/// effects are out of scope" is unbounded and a fifth in-scope variant joins in
+/// silence — which is the whole of `OOS-DX28-1`.
+///
+/// * `MillCards` — CR 701.13a moves cards from the top of a library to a graveyard
+///   without looking at them or re-ordering them. PB-RS1 reconciled the
+///   look-at-top-then-*place* read/write pair with `draw_card` (CR 121.1); milling
+///   has no such pair.
+/// * `PutOnLibrary` — the WRITE end alone. It puts an object onto a library from
+///   somewhere else; it never reads the top N, so there is nothing to reconcile.
+/// * `SearchLibrary` — CR 701.23 searches the WHOLE library, with its own shuffle
+///   and reveal rules; it is a different primitive, not a wider version of this one.
+const LIBRARY_ADJACENT_EXCLUSIONS: [&str; 3] = ["MillCards", "PutOnLibrary", "SearchLibrary"];
+
+/// **Census row 13 (`OOS-DX28-1`).** [`EFFECTS`] is a hand-written 4-name subset of a
+/// **106-variant** `pub enum Effect`, and nothing compared it to that declaration.
+/// Two things went wrong silently:
+///
+/// * a **rename** (or a `#[serde(rename)]`) on any of the four makes
+///   `json_contains_variant` match nothing for it. The `>= 30` floor below is a floor
+///   on the UNION of all four, so losing one of the smaller three — `Surveil` (9
+///   defs), `LookAtTopThenPlace` (3) — leaves the union above 30 and this sweep
+///   reports a clean, short roster. The file's own doc makes exactly this distinction
+///   for the WALK and does not make it for the LIST.
+/// * a **fifth** look-at-top-shaped `Effect` variant is outside the sweep entirely.
+///
+/// Two legs, and the second is what makes the first more than a spell-check:
+/// `EFFECTS ⊆ declared`, and `EFFECTS ∪ LIBRARY_ADJACENT_EXCLUSIONS` must be exactly
+/// the declared variants whose names carry this file's library vocabulary. So a new
+/// `Effect::LookAtTopThenExile` is a red row rather than a silent omission, and adding
+/// a fifth member becomes a deliberate act.
+///
+/// **Stated residual.** Leg 2's family is keyed on the variant NAME, which is a
+/// convention rather than a declaration: a library-reading variant named with none of
+/// these tokens escapes it. Leg 1 does not depend on the convention. This is a bound
+/// on the class, not a proof that the class is closed — the honest reading the module
+/// doc already applies to the `>= 30` floor.
+///
+/// **Revert to watch red**: remove `"Surveil"` from [`EFFECTS`] (leg 1 stays green —
+/// a subset check cannot see a SHRINKING list — and leg 2 catches it, which is why
+/// the neighbourhood classification has to be total rather than a subset).
+#[test]
+fn effects_list_is_a_checked_subset_of_pub_enum_effect() {
+    use crate::pb_dx57_declared_source::{declared_enum_variants, CARD_DEFINITION_RS};
+    use std::collections::BTreeSet;
+
+    let declared = declared_enum_variants(CARD_DEFINITION_RS, "Effect");
+    assert!(
+        declared.len() >= 100,
+        "non-vacuity: `pub enum Effect` parsed as only {} variant(s) (measured 106 at \
+         HEAD); the declaration parser has broken and both legs below would be trivially \
+         satisfiable",
+        declared.len()
+    );
+
+    let swept: BTreeSet<String> = EFFECTS.iter().map(|s| (*s).to_string()).collect();
+    let excluded: BTreeSet<String> = LIBRARY_ADJACENT_EXCLUSIONS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+
+    // ── leg 1: nothing swept is undeclared ───────────────────────────────────
+    let unknown: Vec<&String> = swept.difference(&declared).collect();
+    assert!(
+        unknown.is_empty(),
+        "EFFECTS names {unknown:?}, which `pub enum Effect` does not declare. \
+         `json_contains_variant` matches on the serialized variant NAME, so that needle \
+         matches nothing at all: the sweep silently stops counting that effect's defs \
+         while the >= 30 union floor keeps this test green."
+    );
+    let unknown_ex: Vec<&String> = excluded.difference(&declared).collect();
+    assert!(
+        unknown_ex.is_empty(),
+        "LIBRARY_ADJACENT_EXCLUSIONS names {unknown_ex:?}, which `pub enum Effect` does \
+         not declare -- the exclusion's reason has rotted"
+    );
+
+    // ── leg 2: the library-vocabulary neighbourhood is TOTALLY classified ────
+    const VOCABULARY: [&str; 8] = [
+        "Top", "Library", "Reveal", "Scry", "Surveil", "Mill", "Look", "Route",
+    ];
+    let neighbourhood: BTreeSet<String> = declared
+        .iter()
+        .filter(|n| VOCABULARY.iter().any(|v| n.contains(v)))
+        .cloned()
+        .collect();
+
+    eprintln!(
+        "PB-DX57 row 13: {} declared Effect variants; library-vocabulary neighbourhood \
+         {neighbourhood:?}; swept {swept:?}; excluded {excluded:?}",
+        declared.len()
+    );
+
+    assert!(
+        neighbourhood.len() >= 7,
+        "non-vacuity: the library-vocabulary filter matched only {neighbourhood:?} \
+         (measured 7 at HEAD); the naming convention leg 2 rests on has changed"
+    );
+    assert!(
+        swept.is_disjoint(&excluded),
+        "{:?} is both swept and excluded",
+        swept.intersection(&excluded).collect::<Vec<_>>()
+    );
+    let classified: BTreeSet<String> = swept.union(&excluded).cloned().collect();
+    assert_eq!(
+        classified,
+        neighbourhood,
+        "the library-vocabulary `Effect` variants are no longer totally classified. An \
+         UNCLASSIFIED one is outside PB-RS1's roster sweep entirely, and a name that has \
+         LEFT `EFFECTS` shrinks the sweep without moving the >= 30 union floor. Add it to \
+         EFFECTS if the read/write reconciliation applies to it, or to \
+         LIBRARY_ADJACENT_EXCLUSIONS with the reason it does not. \
+         in-neighbourhood-but-unclassified = {:?}, classified-but-not-in-neighbourhood = {:?}",
+        neighbourhood.difference(&classified).collect::<Vec<_>>(),
+        classified.difference(&neighbourhood).collect::<Vec<_>>()
+    );
+}

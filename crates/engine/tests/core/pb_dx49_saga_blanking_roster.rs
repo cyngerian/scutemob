@@ -1250,18 +1250,151 @@ fn contains_face_down_effect(json: &Value, key: &str) -> bool {
     nodes.iter().any(|n| n.get("player").is_some())
 }
 
+/// The `Effect` variants that put a face-down permanent onto the battlefield.
+///
+/// **Derived, not typed** (PB-DX57, `OOS-DX28-1`). This was an inline
+/// `for key in ["Manifest", "Cloak"]`, and a THIRD face-down-making `Effect` variant would
+/// have been silently outside `face_down_makers()` — `FACE_DOWN_MAKERS` would stay a 3-row
+/// pin, `r5`'s *"reachable from these defs and no others"* claim would quietly become false,
+/// and the whole CR 708.2a half of this file's census would under-cover while green. That is
+/// `OOS-DX28-1`'s class: a hand-maintained list is a gate that reports success while checking
+/// less than it claims, the moment its subject grows.
+///
+/// The derivation reads `crates/engine/src/effects/mod.rs` for the sites that actually create
+/// a face-down permanent — `obj.status.face_down = true` followed by the `FaceDownKind` the
+/// site assigns — and takes the assigned kind's NAME. That is the mechanism rather than a
+/// spelling: a new face-down-making effect arm has to set that field and name its kind, and
+/// the moment it does it joins this list automatically.
+///
+/// **The bound this does NOT cover, stated rather than implied.** `status.face_down = true`
+/// occurs at **six** sites in `crates/engine/src`, and the other four are deliberately out of
+/// scope for a reason, not by omission: `casting.rs:4874` is the CR 702.37 morph/disguise CAST
+/// path (a face-down SPELL, not an `Effect`), `resolution.rs:974` is that spell resolving,
+/// and `foretell.rs:109` / `resolution.rs:6554` put a card face-down in EXILE, which is not
+/// the battlefield and so is not CR 708.2a's subject at all. This list answers *"which
+/// `Effect` variants"*, which is the question `face_down_makers` asks of the corpus.
+fn face_down_making_effect_variants() -> BTreeSet<String> {
+    let src = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(std::path::Path::parent)
+            .expect("engine manifest dir is <workspace>/crates/engine")
+            .join("crates/engine/src/effects/mod.rs"),
+    )
+    .expect("effects/mod.rs must be readable");
+
+    let mut out = BTreeSet::new();
+    let mut sites = 0usize;
+    let mut from = 0usize;
+    while let Some(rel) = src[from..].find("status.face_down = true") {
+        let at = from + rel;
+        sites += 1;
+        // **Keyed on the enclosing `Effect::` ARM, not on the `FaceDownKind` the site
+        // assigns.** The first draft read the kind, and the adversarial pass defeated it by
+        // execution: because two different sites can assign the SAME kind, a THIRD genuine
+        // face-down arm -- byte-identical in shape to the two real ones, no indirection, both
+        // real sites left intact -- produced a set that still had two elements and left all 25
+        // tests in this file green. The floor of 2 was satisfied *because the kind name
+        // deduped*. Proven by a complementary pair: the same plant spelled
+        // `FaceDownKind::Manifest` yields a 1-element set and `FaceDownKind::Cloak` yields 2.
+        //
+        // The arm name is what `face_down_makers` actually walks the corpus for, so keying on
+        // it removes the gap between what the derivation measures and what its consumer uses.
+        let before = &src[at.saturating_sub(3000)..at];
+        if let Some(k) = before.rfind("Effect::") {
+            let name: String = before[k + "Effect::".len()..]
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !name.is_empty() {
+                out.insert(name);
+            }
+        }
+        from = at + 1;
+    }
+    assert!(
+        sites >= 2 && sites == out.len(),
+        "found {sites} face-down creation site(s) in effects/mod.rs but only {} distinct \
+         enclosing `Effect::` arm(s). Either two sites share an arm (say so and relax this) or \
+         the backward arm search is reaching past its own arm into the previous one -- and a \
+         derivation that collapses two sites into one name is exactly how a THIRD face-down \
+         channel joins the corpus in silence.",
+        out.len()
+    );
+    assert!(
+        !out.is_empty(),
+        "no face-down-making Effect arm was found in effects/mod.rs. Either the creation \
+         site was reworded (re-derive this) or the scan is broken -- and a scan that returns \
+         the empty set makes `face_down_makers` walk NOTHING, so every CR 708.2a assertion in \
+         this file would go vacuously green. That is exactly OOS-DX28-1's failure mode."
+    );
+    out
+}
+
 fn face_down_makers() -> Vec<(String, String)> {
     let mut out = Vec::new();
+    let variants = face_down_making_effect_variants();
     for def in all_cards().iter() {
         let json = serde_json::to_value(def).expect("CardDefinition serializes");
-        for key in ["Manifest", "Cloak"] {
+        for key in &variants {
             if contains_face_down_effect(&json, key) {
-                out.push((def.name.clone(), key.to_string()));
+                out.push((def.name.clone(), key.clone()));
             }
         }
     }
     out.sort();
     out
+}
+
+/// PB-DX57 (`OOS-DX28-1`): the derived face-down-maker set must be real `Effect` variants,
+/// and it must be what `FACE_DOWN_MAKERS` was pinned against.
+///
+/// Two axes, because one is not a check. Axis 1 catches a RENAME of the `Effect` variant (the
+/// failure mode that makes `contains_face_down_effect` match nothing corpus-wide while every
+/// row here stays green); axis 2 catches the derivation NARROWING, which is the direction a
+/// window-based scan fails in.
+#[test]
+fn r5d_face_down_effect_variants_are_derived_and_are_real_effect_variants() {
+    let derived = face_down_making_effect_variants();
+    let declared = crate::pb_dx57_declared_source::declared_enum_variants(
+        crate::pb_dx57_declared_source::CARD_DEFINITION_RS,
+        "Effect",
+    );
+    let not_effects: BTreeSet<&String> = derived.difference(&declared).collect();
+    assert!(
+        not_effects.is_empty(),
+        "the face-down creation sites in effects/mod.rs name {not_effects:?}, which is not a \
+         declared `Effect` variant. Either the variant was renamed (and \
+         `contains_face_down_effect` now matches NOTHING in the corpus, so FACE_DOWN_MAKERS \
+         and r5 are vacuous) or the derivation is picking up a `FaceDownKind` from a site \
+         that is not an Effect arm -- `FaceDownKind` also has Morph/Megamorph/Disguise \
+         variants used by the CAST path."
+    );
+    // **An EXACT SET, not a floor.** A floor was the first draft and the adversarial pass
+    // defeated it by execution: a THIRD genuine face-down site planted in a real `Effect` arm
+    // -- both existing sites intact, no indirection -- left all 25 tests in this file GREEN,
+    // because a floor of 2 is satisfied by a set of 3. Re-keying the derivation from the
+    // assigned `FaceDownKind` onto the enclosing `Effect::` arm (which removed a separate
+    // deduplication blindness) did NOT close it either: the roster `r5` only moves when a
+    // CORPUS DEF uses the new channel, and a new engine channel with no card using it yet is
+    // exactly the state in which nobody notices.
+    //
+    // So the set is pinned. A third channel is now a RED test that says what to do about it,
+    // which is the whole point: `FACE_DOWN_MAKERS` and `r5`'s "reachable from these defs and no
+    // others" claim are only as wide as this set.
+    let pinned: BTreeSet<String> = ["Cloak", "Manifest"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    assert_eq!(
+        derived, pinned,
+        "the set of `Effect` arms that create a face-down permanent has MOVED.\n\
+         If an arm was ADDED: the CR 708.2a blanking channel has a new entry point. Add it \
+         here, then re-derive FACE_DOWN_MAKERS (r5) -- until you do, `r5`'s claim that the \
+         channel is 'reachable from these defs and no others' is false, and it will stay green \
+         while it is false because no corpus def uses the new arm YET.\n\
+         If an arm was REMOVED: say which and why in the same commit."
+    );
 }
 
 /// The CR 708.2a channel's corpus reach.
@@ -2285,7 +2418,7 @@ fn layer_modification_enum_span() -> (usize, usize) {
     let raw = std::fs::read_to_string(&path).expect("continuous_effect.rs is readable");
     let src = strip_comments(&raw);
     let decl = src
-        .find("pub enum LayerModification")
+        .find("pub enum LayerModification {")
         .expect("`pub enum LayerModification` is declared in continuous_effect.rs");
     let open = src[decl..]
         .find('{')

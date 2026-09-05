@@ -124,6 +124,11 @@
   plus the rider **OOS-DP9-19(b)** CLOSED; the fuzzer's HARD bucket goes **291 → 0** on the
   standard invocation, so `--stop-on-error` no longer halts on an undiagnosed class.
   **Next dispatch: PB-DX57 (rank 21).**)
+  **↻ PB-DX57 SHIPPED** (`scutemob-236`, 2026-09-05; v4 rank 21, task 3 of 5 of the SECOND
+  chain — **OOS-DX28-1** and **OOS-DX28-6** CLOSED **as CLASSES**, plus **OOS-DX28-5**,
+  **OOS-DX26-3** and **OOS-DX21-7** CLOSED, and **OOS-ADJ-2** — already taken by PB-DX42b —
+  VERIFIED BY EXECUTION on both halves rather than redone. **0 engine lines.**
+  **Next dispatch: PB-DX9 (rank 22).**)
   of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
   was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   the playtest-successor run 174–181
@@ -176,6 +181,15 @@
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
   `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,140/1,803 = 63.2%**
+  (**UNMOVED by PB-DX57, 2026-09-05 — 0 flips, and STRUCTURALLY so rather than inferred from an
+  unchanged total**: the batch makes exactly ONE card-def edit, a comment repair on an `inert` def
+  (`well_of_lost_dreams.rs`), and `git diff` over the `Completeness::` marker lines is **EMPTY** —
+  so no marker KIND moved anywhere, the `CORPUS_COMPLETE` SET is unmoved as well as its count, and
+  `OOS-CARDS2-3`'s re-deal budget was checked and found not owed. The regeneration was run anyway
+  and every bucket is identical (clean 1,140 / todo 516 / empty 147). The reason 0 is the right
+  number rather than a lucky one: this batch authors no card text — it is a 0-engine-lines gate
+  batch, and its only corpus contact is repairing a note that told a future author a lie.*)*
+  *(historical: **1,140/1,803 = 63.2%**
   (**UNMOVED by PB-DX55, 2026-09-05 — 0 flips and 0 card-def edits of ANY kind**: `git diff
   --numstat` over `crates/card-defs` and `crates/card-types/src/cards` is EMPTY, so the
   empty-diff shortcut was available and the regeneration was run anyway, confirming every bucket
@@ -333,6 +347,11 @@
   plus the rider **OOS-DP9-19(b)** CLOSED; the fuzzer's HARD bucket goes **291 → 0** on the
   standard invocation, so `--stop-on-error` no longer halts on an undiagnosed class.
   **Next dispatch: PB-DX57 (rank 21).**)
+  **↻ PB-DX57 SHIPPED** (`scutemob-236`, 2026-09-05; v4 rank 21, task 3 of 5 of the SECOND
+  chain — **OOS-DX28-1** and **OOS-DX28-6** CLOSED **as CLASSES**, plus **OOS-DX28-5**,
+  **OOS-DX26-3** and **OOS-DX21-7** CLOSED, and **OOS-ADJ-2** — already taken by PB-DX42b —
+  VERIFIED BY EXECUTION on both halves rather than redone. **0 engine lines.**
+  **Next dispatch: PB-DX9 (rank 22).**)
   of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
   was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
@@ -345,6 +364,75 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-05, PB-DX57)**: **5,363 / 0 / 6** full-workspace on branch
+  `scutemob-236` (+47 over the **5,316** baseline, measured on this branch BEFORE any edit and
+  **reproducing PB-DX56's close pin exactly** — the **ninth** consecutive batch in which an
+  inherited pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file,
+  **72** result-producing targets (unmoved), residual list empty.
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs** —
+  never `sort` + `comm` (`OOS-DX20b-5`), regex deliberately NOT end-anchored (`OOS-DX42b-6`):
+  **48 additions, 0 leavers, 0 removals, 0 renames.** Count delta 48 == name-set delta 48,
+  duplicate-name scan **EMPTY on both runs** (5,321 / 5,321 distinct; 5,369 / 5,369).
+  **IGNORED MOVED 5 → 6 and that is disclosed rather than absorbed**: the sixth is
+  `pb_dx57_activated_index_roster::r2_regenerate_pin`, the golden pin's documented regeneration
+  helper, `#[ignore]`d precisely so a bare `--include-ignored` sweep cannot mistake it for a
+  passing check.
+  **"0 leavers" must NOT be read as "nothing was touched"** — **SIX** existing tests were edited
+  IN PLACE with their names unchanged, so the name-set delta is structurally blind to all six:
+  `pb_dx28::r2` and `::declared_slot_count` (inline lists lifted to pinned consts),
+  `pb_dx43::payload_names_basic_land_type` (a third `OrdSet<SubType>` arm),
+  `pb_dx20b_enchant_line_roster::r3` (gained the declaration equality — its assertion COUNT and
+  its CLAIM both moved), `pb_eng2::every_announcement_site_is_classified` (its fn-body `const`
+  lifted to module scope so it could be pinned), and `pb_dx27_stale_blocker_notes`' ceiling.
+  **HASH 85 / PROTOCOL 44 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed
+  (`hash_schema` 36/36, `protocol_schema` 17/17, `history_is_append_only` and
+  `frozen_prefix_is_pinned` green on both) and **predicted PER HALF in writing before any test
+  line** (`fb8e53c0`), with a stated stop-condition. `git diff` over `state/hash.rs` and
+  `rules/protocol.rs` is **EMPTY**, so no sentinel re-pin, no survivor scan, no history row and no
+  frozen-prefix re-pin were owed.
+  **The counterfactual is VERIFIED BY EXECUTION, and its third row is a finding rather than a
+  control**: planting `TargetFilter` in both gates' `CLOSURE_MUST_NOT_CONTAIN` **FAILS BOTH**, and
+  so does `Condition` — those are the types the fingerprint work is ABOUT, so a repair that STORED
+  the pinned information on either instead of deriving it would have cost **+1 HASH and +1
+  PROTOCOL** plus a ~49-file re-pin. **`AbilityDefinition` passes BOTH**, because it is reachable
+  only through `CardDefinition`, which both lists exclude — **and that is exactly why
+  `OOS-DX28-5`'s hand-written list could rot silently** when PB-DX18 added `Splice.targets`: the
+  compiler could not see it (`..Default::default()` everywhere plus `#[serde(default)]`,
+  `OOS-DX20b-2`), the wire gates could not (off both closures), and the walk could not (a literal).
+  **Three mechanisms that each look like they would catch that edit, all three structurally blind
+  to it.**
+  Coverage **UNMOVED at 1,140/1,803 = 63.2%** by regeneration, **0 flips**, every bucket identical
+  (clean 1,140 / todo 516 / empty 147), self-dating churn reverted. **0 flips is STRUCTURAL here
+  rather than inferred from an unchanged total**: `git diff` over the `Completeness::` marker lines
+  is **EMPTY**, so no marker KIND moved anywhere, the `CORPUS_COMPLETE` SET is unmoved as well as
+  its count, and `OOS-CARDS2-3`'s re-deal budget was checked and found not owed.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
+  gate) — all against the FINAL tree, **and `tools/check-defs-fmt.sh` FIRED there** on this batch's
+  own comment repair (`cargo fmt` passes it and always will — SR-35), answered with `--fix`.
+  **`npm run build` NOT run — N/A with the reason**: `git diff --numstat -- tools/` is **EMPTY** and
+  `node_modules` is absent. **Benches NOT measured — N/A with the reason, and it is a mechanism
+  bound rather than an estimate**: 0 engine lines is an acceptance criterion of this batch and is
+  verified, so no benched path can have moved.
+  **Engine lines: EXACTLY 0.** `git diff --numstat` over `crates/engine/src`,
+  `crates/card-types/src`, `crates/simulator/src`, `crates/view-model` and `tools/` is **EMPTY**.
+  The only non-test change in the whole batch is **one card-def comment repair**
+  (`well_of_lost_dreams.rs`, `+21 / −10`), verified PER LINE by a python classifier — 21
+  line-comment lines and 10 prose-string lines, **0 code** — never by `grep -E '^[+-]//'`, which
+  false-positives on indented comments (PB-DX7).
+  **PB-DX27's own live-identifier ratchet FIRED on that repair and was ANSWERED**, not weakened: a
+  `REVIEWED_CONTRAST_MENTIONS` row with the reason, ceiling **110 → 111** — and it rose for a note
+  that got BETTER, since repairing the misspelling is what made the def visible to that gate for
+  the first time.
+  **PLANT / REVERT MATRIX: every new gate proven RED by an executed plant** — 6 rows for the
+  activated-index roster (including two CONTROLS that must stay GREEN: a comment edit and a legal
+  tail append), 10 rows for group F's pins, 7 for group G's, and **TEN adversarial defeats across
+  two independent rounds, all re-keyed and all re-executed RED**. Every patched file restored
+  `cmp`-byte-identically, restores written with an explicit mtime bump rather than `shutil.copy2`
+  (`OOS-DX55-4`). **Several plants were NON-VERDICTS and are reported rather than counted** — a
+  patch that failed to apply and then printed greens from the UNMODIFIED tree (PB-DX53's shape,
+  three times), and plants that failed to BUILD under `-D warnings` (`OOS-DX39-8`).
+  Filed **OOS-DX57-1..5**.
 - **Tests (delta 2026-09-05, PB-DX56 + `/review` fix cycle)**: **5,316 / 0 / 5** full-workspace on
   branch `scutemob-235` (+29 over the **5,287** baseline, measured on this branch BEFORE any edit
   and **reproducing PB-DX55's close pin exactly** — the **eighth** consecutive batch in which an
@@ -1959,7 +2047,119 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-05 — **PB-DX56 SHIPPED** (`scutemob-235`; v4 queue rank 20, task 2
+- **Last Updated**: 2026-09-05 — **PB-DX57 SHIPPED** (`scutemob-236`; v4 queue rank 21, task 3
+  of 5 of the SECOND chain — **OOS-DX28-1** and **OOS-DX28-6** CLOSED **as CLASSES**, plus
+  **OOS-DX28-5**, **OOS-DX26-3** and **OOS-DX21-7** CLOSED, and **OOS-ADJ-2** — already taken by
+  PB-DX42b — **VERIFIED BY EXECUTION** on both halves rather than redone).
+  **THE HEADLINE IS A MEASUREMENT ABOUT WHY NOTHING CAUGHT A REAL EDIT.** When PB-DX18 added
+  `AbilityDefinition::Splice.targets` for CR 702.47a, the hand-written variant list in
+  `pb_dx28_chosen_object_roster` went stale — **one batch after PB-DX28 had widened it** and
+  written that the extras were *"included for completeness — the point of listing them is that the
+  day one does, this row sees it."* It did not. Three independent mechanisms each look like they
+  would have caught that edit and **all three are structurally blind to it**: the **compiler**
+  cannot (every construction site uses `..Default::default()` and `#[serde(default)]` covers
+  deserialization, `OOS-DX20b-2`); **both wire gates** cannot — verified by execution here,
+  planting `AbilityDefinition` in each `CLOSURE_MUST_NOT_CONTAIN` leaves BOTH green, because it is
+  reachable only through `CardDefinition`, which both lists exclude; and the **walk** could not,
+  being a literal.
+  **THE CLASS IS 35 MEMBERS, PRINTED BY A TEST**, from ~150 classified candidates and ~110
+  individually named rejected near-misses. 22 were unpinned; **20 are now pinned** against the
+  declaration they mirror, each proven by a plant that reddens BY NAME. **THREE WERE ALREADY
+  STALE**, not hypothetically — and one of them is worse than an under-count: `TargetSpellOrAbility`
+  was missing from lists covering **21 of 22** `TargetRequirement` variants, and because that gate
+  is a **SUBTRACTION**, the gap does not merely under-report, **a real over-declaration on the same
+  def CANCELS against it**. A fourth was found by the repairs themselves: `NEW_TRIGGER_EVENTS` is a
+  gate's NEEDLE SET and was short by one, so that gate was not scanning the dispatcher's eighth
+  event at all. **The `const` axis is a CEILING and the INLINE axis is a FLOOR** — four members
+  have no keyword to anchor a grep on, including the seed's own instance — and **a `const` whose
+  TYPE is a struct slice hides its string literals from every `&[&str]` grep**, which is how four
+  more were found only by reading.
+  **THE TWO MEMBERS NOT CLOSED ARE NAMED RATHER THAN ROUNDED AWAY**: both live in `#[cfg(test)]`
+  modules under `tools/`, which this batch's OWN 0-engine-lines criterion requires to be an empty
+  diff. The two criteria are in tension, the explicit diff constraint wins, and the gap is filed as
+  `OOS-DX57-3` with both exact repairs **and recorded inside the census test itself**, so a reader
+  of the census sees it rather than only a reader of a memo.
+  **`OOS-DX21-7`: 216 candidate functions read in full, 17 vacuous sites in 9 files, all repaired
+  with 19 guard-removal experiments, 19 RED, and ZERO `#[test]` added, renamed or deleted.** No
+  shared helper wrapped the shape, so it was 17 hand-written instances — *nothing to fix once and
+  everything to fix once each*. **The concentration is the tell**: `pb_dp7`/`pb_dp8`/`pb_dp9` held
+  **9 of the 17**, and `pb_dp8` had EXACTLY ONE of its tests repaired, with a doc comment stating
+  the whole argument, while its own siblings were left — *the lesson was learned once and not
+  carried across the file*. Three of the 17 **document the mechanism in their own comments and
+  assert anyway**. Class A (5) are admission-gate rows where `process_command` returns before the
+  `match` on `command` runs at all, so there is no handler to call and the property is true by
+  construction: tautology DELETED, replaced by the positive control that the ALLOWED command IS
+  admitted. Class C is one row whose handler is a **private `fn`** — 10 of 44 are — so the direct
+  rewrite does not compile from an integration test; rewritten to an observable with the residual
+  in the test's own doc, and the handler NOT made `pub`, because that is an engine line
+  (`OOS-DX57-1`).
+  **AN 18TH SITE THE SWEEP MISSED**, found by the new gate: `rules/commander.rs::test_companion_
+  rejected_when_not_in_command_zone`, whose comment reads *"The action failed atomically: the state
+  the caller keeps is unchanged"* and then asserts on the original state. **Settled by a
+  COMPLEMENTARY PAIR**: with MR-M9-13's command-zone lookup moved below the mana payment, the
+  repaired form is **RED** and the old form is **GREEN** — the defect is in the tree and the old
+  test says nothing.
+  **`OOS-DX28-6`'s answer is a ZERO, stated as a result rather than a clean bill of health.** 34
+  hits across 33 files by a mechanical derivation over 15,394 comments and 663 `Completeness` notes
+  (**593 of them multi-line**, which a naive extractor truncates — the extractor was reconciled
+  against a raw grep and WAS wrong once); 22 real mechanism claims, **every one CONFIRMED TRUE**,
+  zero stale, zero live defects. The measured recall bound: **33.7% of resolution-verb sentences
+  name no identifier at all**. **The known-positive replay carries the load-bearing detail** — the
+  seed's own pre-repair sentence contains **no `::` at all**, so a qualified-token derivation (the
+  obvious first draft) would have MISSED the seed's own instance; that first draft was written here
+  and refuted by execution before it was written down. One comment-only repair, on a note that had
+  survived three sweeps **because it MISSPELLED the identifier it was wrong about** — and
+  misspelling correlates with being wrong (`OOS-DX57-2`).
+  **EVERY GATE THIS BATCH WROTE WAS DEFEATED — TEN DEFEATS ACROSS TWO INDEPENDENT ADVERSARIAL
+  ROUNDS AND FOUR MORE FROM THE `/review`, FOURTEEN IN ALL, EVERY ONE RE-KEYED AND RE-EXECUTED
+  RED.** Not one survived its first adversary.
+  The sharpest: a **raw identifier** (`pub r#type`) was dropped in silence by the canonical parser
+  and both cross-target copies, leaving **two whole test targets green**; **laundering** a member
+  across a partition inverts the claim while every consistency check stays valid, which defeated
+  two list-vs-list gates completely; the mechanism ratchet's frame list was **narrower than its own
+  recorded evidence**; nothing enforced *"every walk calls the shared enumeration"* — **PB-DX50's
+  `r3` committed inside a batch citing `r3` in three other files**; and re-keying the face-down
+  derivation onto the enclosing arm **was still green**, found only by re-executing the defeat
+  against the fix rather than assuming it landed. **One defeat was RE-ATTRIBUTED with evidence
+  rather than accepted**: the report said the shared parser was prefix-vulnerable; it is not, and
+  what the adversary actually found — that **four OTHER parsers in the tree are**, so which
+  declaration they read depends on declaration ORDER — is the better finding (`OOS-DX57-5`, closed).
+  **And two of this batch's own gates over-fired and were narrowed by ADJUDICATING hits rather than
+  reading a count.**
+  **THE `/review` FOUND 16 AND ALL 16 WERE TAKEN, AND FOUR OF THEM WERE GATES AGAIN.** `p6`/`p7`
+  gated a **COPY** of the parser they claim to pin, so reverting the exact line-based bug this
+  batch's own commit `7811ad36` fixed left them GREEN and the whole `core` target at 830 passed —
+  PB-DX50's `r3` *inverted*, inside the batch that closes that class. `v1`'s `&mut` exemption was
+  computed over the **whole function body** while its own module doc says *"the key is per
+  ASSERTION"*, so one unrelated `warm_up(&mut state)` exempted every assertion in a test — and the
+  repair idiom this batch shipped IS `handle_x(&mut state, ..)`, so a **partly-repaired function was
+  unpoliced by construction**; three more natural bypasses came with it, including the hoisted clone,
+  which needs no helper and no macro. The mechanism ratchet **discharged a stale claim on a
+  SUBSTRING** in the commit that ships `has_token` for exactly that — and the fix surfaced a sixth
+  real row on its first run, `olivias_wrath`, whose own `ModifyBothDynamic` contains `ModifyBoth`.
+  And `r2`'s pin **coverage was frozen and unenforced**: 262 of 530 rows pin an EMPTY activated list,
+  which is a prefix of anything, so a def absent from the pin could gain two activated abilities and
+  have them SWAPPED with all 30 roster tests green.
+  **THREE PUBLISHED FIGURES DID NOT REPRODUCE, and one was a bound the next batch is told to
+  reuse** — §3.5's *"56 … 23 … and the gap IS the gate's recall bound"* was taken before the
+  adversarial widening and reads **91 / 35** at HEAD; the slice-const ceiling was set from a STAGE-0
+  measurement and this batch then added five of its own; and `m2` asserted `>= 50 / >= 800` under a
+  message saying *"(floor 60 / 700)"*, so a maintainer correcting the code to match the message
+  would have reddened one axis and loosened the other. **PB-DX28's re-take MEDIUM, committed inside
+  the paragraph whose whole purpose is handing a measured bound to the next reader.**
+  **AND TWO SCOPE FINDINGS THAT ARE ONE BATCH OLD IN THIS REPOSITORY**: `v1` and `p5` each walked
+  ONE CRATE while the sweep they cite is a workspace figure — 55 files containing `process_command`
+  were outside the scan, and the seed planted verbatim in `crates/simulator/tests` left every gate
+  green. That is PB-DX48's `SITE_SRCS` defeat and PB-DX49's workspace-walk repair, **not carried
+  across**. Both now walk `crates/*/{tests,src}` plus `tools/`: 468 files → **2,492**.
+  Tests **5,363 / 0 / 6** (+47, 72 targets, byte-exact NAME set difference, 0 leavers, duplicate
+  scan EMPTY; ignored 5 → 6 disclosed, and SIX in-place edits disclosed because a name-set delta is
+  blind to them). **HASH 85 / PROTOCOL 44 both UNMOVED — zero bumps**, predicted per half before
+  any test line, counterfactual executed. Coverage **UNMOVED at 1,140/1,803 = 63.2%**, 0 flips,
+  **0 engine lines** — one card-def comment repair, verified per line. Filed **OOS-DX57-1..5**.
+  Full record: `memory/primitives/pb-DX57-execution-notes.md`; task list:
+  `memory/primitives/pb-DX57-task-list.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-05 — **PB-DX56 SHIPPED** (`scutemob-235`; v4 queue rank 20, task 2
   of 5 of the SECOND chain — **OOS-FB1-1** *(the stated prerequisite)*, **OOS-DX32-1** and
   **OOS-DX22-8** ALL CLOSED, plus the rider **OOS-DP9-19(b)**).
   **THE FUZZER'S HARD BUCKET GOES 291 → 0 ON THE STANDARD INVOCATION**, so `--stop-on-error` no

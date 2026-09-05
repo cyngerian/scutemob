@@ -1212,6 +1212,250 @@ const T10_FIELDS: &[&str] = &[
     "nonbasic",
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// t12 — `T10_FIELDS` is pinned to `EnchantFilter`'s own declaration (`OOS-DX28-1`)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Every `pub` field name declared by `pub struct <struct_name>` in a workspace-relative
+/// source file.
+///
+/// # This is a COPY, and the canonical version is named
+///
+/// The canonical implementation is
+/// `crates/engine/tests/core/pb_dx57_declared_source.rs::declared_struct_fields`, which is
+/// the ONE declaration parser the field-set fingerprints in the `core` test target are pinned
+/// against. It cannot be shared with this file: `crates/engine/tests/*/main.rs` compiles one
+/// binary per GROUP, `core` and `primitives` are different binaries, and
+/// `tests/no_stray_test_binaries.rs::group_main_rs_declares_modules_and_nothing_else` allows
+/// a group's `main.rs` to contain bare `mod x;` lines and nothing else — so a `#[path]`
+/// re-export is not available either. The tree's established answer to exactly this situation
+/// is `primitives/pb_dp9_effect_choice.rs:2641`: keep the copy, say it is a copy, name the
+/// canonical version, and cross-check BY VALUE rather than by text. `t12` does that
+/// cross-check (see its doc).
+///
+/// # Bounds, stated rather than left to be discovered
+///
+/// This copy strips `//` line comments only, and then ASSERTS that the file carries no
+/// `/* */` block comment — PB-DX8's `OOS-DX32-6` defeat (the byte-identical sentence reddened
+/// as a line comment and left every test green as a block comment) applies here as much as
+/// anywhere, and an assertion is cheaper than a second stripper. It panics on an empty parse,
+/// because a parser that returns `{}` makes every `assert_eq!` against it trivially true —
+/// which is `OOS-DX28-1`'s own failure mode re-entering through its fix.
+fn declared_struct_fields(rel: &str, struct_name: &str) -> std::collections::BTreeSet<String> {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("engine manifest dir is <workspace>/crates/engine")
+        .to_path_buf();
+    let path = root.join(rel);
+    let raw = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("{} must be readable: {e}", path.display()));
+    assert!(
+        !raw.contains("/*"),
+        "{} grew a `/* */` block comment. This parser strips `//` only, so a block comment can \
+         hide or fake a field declaration (`OOS-DX32-6`). Widen the stripper, or use the \
+         canonical `core::pb_dx57_declared_source::declared_struct_fields`, which handles \
+         both.",
+        path.display()
+    );
+    // Length-preserving line-comment strip, so a doc comment mentioning the header cannot
+    // mis-anchor the search below.
+    let clean: String = raw
+        .lines()
+        .map(|l| match l.find("//") {
+            Some(i) => format!("{}{}", &l[..i], " ".repeat(l.len() - i)),
+            None => l.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let header = format!("pub struct {struct_name} {{");
+    let at = clean.find(&header).unwrap_or_else(|| {
+        panic!(
+            "`{header}` not found in {}. The declaration was renamed, moved, or its visibility \
+             changed. Re-point this pin — do NOT delete it and keep the hand-written \
+             T10_FIELDS, which is the defect `OOS-DX28-1` names.",
+            path.display()
+        )
+    });
+    let body_start = clean[at..].find('{').expect("declaration has a body") + at + 1;
+    let mut depth = 1usize;
+    let mut end = None;
+    for (i, ch) in clean[body_start..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(body_start + i);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let end = end.expect("the struct body is never closed \u{2014} the brace walk ran off the end");
+    // Split the body on TOP-LEVEL commas rather than on lines. A line-based split takes only
+    // the FIRST `pub X:` per line, so two fields written on one line
+    // (`pub basic: bool, pub nonbasic: bool,` -- legal Rust that `cargo fmt` normally
+    // splits, and therefore a shape a formatted tree hides) makes the parse SHORT and the
+    // failure message say *"the declaration no longer has `nonbasic`"* when the declaration
+    // still has it. Found by a live, unrelated plant during PB-DX57 rather than by reasoning:
+    // a WRONG diagnosis from a red gate is only one step better than a green one.
+    let mut fields: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut depth = 0i32;
+    let mut cur = String::new();
+    let mut prev = ' ';
+    let push = |chunk: &str, out: &mut std::collections::BTreeSet<String>| {
+        let mut s = chunk.trim();
+        // Drop any leading `#[...]` attributes, possibly several.
+        while s.starts_with("#[") {
+            let mut d = 0usize;
+            let mut e = None;
+            for (i, ch) in s.char_indices() {
+                match ch {
+                    '[' => d += 1,
+                    ']' => {
+                        d -= 1;
+                        if d == 0 {
+                            e = Some(i + 1);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            match e {
+                Some(i) => s = s[i..].trim_start(),
+                None => break,
+            }
+        }
+        let Some(rest) = s.strip_prefix("pub ") else {
+            return;
+        };
+        // PB-DX57 adversarial pass: `pub r#type: bool` is a legal field declaration (a field
+        // named after a keyword MUST be written that way), and an identifier scan that takes
+        // only `[A-Za-z0-9_]` reads it as the EMPTY string and drops the field in silence. That
+        // defeated this pin completely — the whole test target stayed green with the field
+        // present. Handle the `r#` prefix, and FAIL CLOSED on a `pub ` chunk that still yields
+        // nothing: a dropped field is invisible to every consumer at once, which is why the
+        // by-value cross-check could not see it either.
+        let rest = rest.trim_start();
+        let (raw_prefix, rest) = match rest.strip_prefix("r#") {
+            Some(r) => ("r#", r),
+            None => ("", rest),
+        };
+        let body: String = rest
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect();
+        assert!(
+            !body.is_empty() && rest[body.len()..].trim_start().starts_with(':'),
+            "could not parse a `pub` field declaration from {rest:?} -- refusing to return a \
+             field set that silently omits it (PB-DX57 adversarial pass)"
+        );
+        out.insert(format!("{raw_prefix}{body}"));
+    };
+    for ch in clean[body_start..end].chars() {
+        match ch {
+            '{' | '(' | '[' => {
+                depth += 1;
+                cur.push(ch);
+            }
+            '}' | ')' | ']' => {
+                depth -= 1;
+                cur.push(ch);
+            }
+            '<' if prev.is_ascii_alphanumeric() || prev == '_' => {
+                depth += 1;
+                cur.push(ch);
+            }
+            '>' if depth > 0 && prev != '-' && prev != '=' => {
+                depth -= 1;
+                cur.push(ch);
+            }
+            ',' if depth == 0 => {
+                let chunk = std::mem::take(&mut cur);
+                push(&chunk, &mut fields);
+            }
+            _ => cur.push(ch),
+        }
+        prev = ch;
+    }
+    push(&cur, &mut fields);
+    let out = fields;
+    assert!(
+        !out.is_empty(),
+        "parsed ZERO fields out of `{header}` in {} — every assert_eq! against this set would \
+         be trivially satisfiable",
+        path.display()
+    );
+    out
+}
+
+#[test]
+/// `OOS-DX28-1` — **`T10_FIELDS` is a hand-maintained field-set fingerprint, and until this
+/// row nothing in this test target compared it to `EnchantFilter`'s own declaration.**
+///
+/// The seed is the class: `TARGET_FILTER_FIELDS` recognised a serialized node by comparing
+/// its key set to a 32-entry `&[&str]`; adding the 33rd field stopped it matching **anything**,
+/// with no compile error and a failure message that pointed nowhere near the cause.
+///
+/// ## What `T10_FIELDS`'s own doc got half-right, and why that half matters
+///
+/// It says the duplication is safe because *"if an eighth field is added, `r5` reddens on the
+/// declaration and this floor reddens on the coverage"*. The first clause is true —
+/// `core::pb_dx20b_enchant_line_roster::r5` does key its list to the declaration. The second
+/// is **not**, and it is the load-bearing one: `t10`'s `covered` and `expected` are BOTH
+/// hand-maintained (`covered` comes from `map_rows()`, `expected` from `T10_FIELDS`), so an
+/// eighth field that is lowered but given no `MapRow` leaves both sides unchanged and `t10`
+/// passes while its per-field mapping matrix is one row short. Executed: planting an eighth
+/// `EnchantFilter` field reddens `r5` (a different test binary) and **not** `t10` — and `t10`
+/// is the only row in the tree that catches a mis-WIRING, which is a class `r5` is
+/// structurally blind to (it decides by field NAME, and a swap reads both names).
+///
+/// So the pin is DUPLICATED here rather than delegated. Two test binaries cannot share a
+/// constant; they can each hold the same assertion.
+///
+/// ## The by-value cross-check
+///
+/// `declared_struct_fields` above is a copy of
+/// `core::pb_dx57_declared_source::declared_struct_fields`. Two parsers that agree only with
+/// themselves are worth nothing, so this row asserts the same VALUE the canonical side
+/// asserts: `core::pb_dx57_declared_source::p1_the_parser_agrees_with_the_independent_parsers_already_in_the_tree`
+/// contains `assert_eq!(declared_struct_fields(STATE_TYPES_RS, "EnchantFilter").len(), 7)`.
+/// If the two parsers ever disagree about this struct, one of the two numbers moves and the
+/// other does not.
+fn t12_t10_fields_is_pinned_to_the_enchant_filter_declaration() {
+    let declared = declared_struct_fields("crates/card-types/src/state/types.rs", "EnchantFilter");
+    let pinned: std::collections::BTreeSet<String> =
+        T10_FIELDS.iter().map(|s| (*s).to_string()).collect();
+
+    assert_eq!(
+        declared,
+        pinned,
+        "`OOS-DX28-1`: T10_FIELDS no longer matches `pub struct EnchantFilter`'s declaration \
+         in crates/card-types/src/state/types.rs. declared only: {:?}; pinned only: {:?}. A new \
+         field needs BOTH a `T10_FIELDS` entry AND a `MapRow` in `map_rows()` — `t10`'s two \
+         sides are both hand-maintained, so adding neither leaves `t10` green while its mapping \
+         matrix is short.",
+        declared.difference(&pinned).collect::<Vec<_>>(),
+        pinned.difference(&declared).collect::<Vec<_>>()
+    );
+
+    // By-value cross-check against the canonical parser in the `core` binary. See the doc.
+    assert_eq!(
+        declared.len(),
+        7,
+        "the local declaration parser reads {} EnchantFilter fields; \
+         core::pb_dx57_declared_source::p1 asserts the canonical parser reads 7. If the struct \
+         really grew, BOTH numbers move in the same commit; if only one moved, one of the two \
+         parsers is wrong and reconciling by editing whichever is easier to change is how the \
+         seed's class returns.",
+        declared.len()
+    );
+}
+
 #[test]
 /// CR 702.5a — **the per-field MAPPING matrix.** Each `EnchantFilter` field must land in its
 /// OWN `TargetFilter` slot, and in no other.

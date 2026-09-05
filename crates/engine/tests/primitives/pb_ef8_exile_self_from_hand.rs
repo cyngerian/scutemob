@@ -228,27 +228,36 @@ fn from_hand_mana_ability_does_not_reset_priority_or_players_passed() {
 
 /// Decoy A: the same card on the BATTLEFIELD cannot use its from-hand mana ability.
 /// Non-vacuity: deleting the `if obj.zone != ZoneId::Hand(player)` check in the
-/// `exile_self_from_hand` branch of `handle_tap_for_mana` makes this test pass (the
-/// ability would proceed to exile a battlefield permanent and add {R}) — this
-/// assertion pins exactly that check.
+/// `exile_self_from_hand` branch of `handle_tap_for_mana` lets the ability proceed to
+/// exile a battlefield permanent and add {R} — the assertions below pin exactly that
+/// check, and both of them fail under that deletion.
+///
+/// **`OOS-DX21-7` repair (PB-DX57).** This test used to clone a `probe_state`, MOVE
+/// `state` into `process_command`, and then read `probe_state` — a state the failing
+/// call never held. `process_command` takes `GameState` by value and its `Err` arm
+/// returns none, so those two reads could not fail whatever the handler did. They now
+/// read the very `&mut state` `handle_tap_for_mana` was handed.
 #[test]
 fn decoy_a_same_card_on_battlefield_cannot_use_from_hand_ability() {
     let defs = defs_map();
-    let state = build_with_object_in_zone("Simian Spirit Guide", ZoneId::Battlefield, &defs);
+    let mut state = build_with_object_in_zone("Simian Spirit Guide", ZoneId::Battlefield, &defs);
     let source = find_by_name(&state, "Simian Spirit Guide");
-    let probe_state = state.clone();
+    assert!(
+        matches!(
+            state.objects().get(&source).map(|o| o.zone),
+            Some(ZoneId::Battlefield)
+        ),
+        "non-vacuity floor: the fixture really does put the Guide on the battlefield"
+    );
 
-    let result = process_command(
-        state,
-        Command::TapForMana {
-            player: p(1),
-            source,
-            ability_index: 0,
-
-            chosen_color: None,
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        },
+    let result = mtg_engine::rules::mana::handle_tap_for_mana(
+        &mut state,
+        p(1),
+        source,
+        0,
+        None,
+        vec![],
+        vec![],
     );
 
     assert!(
@@ -256,13 +265,18 @@ fn decoy_a_same_card_on_battlefield_cannot_use_from_hand_ability() {
         "a battlefield Simian Spirit Guide must be rejected by the from-hand zone check: {result:?}"
     );
     assert!(
-        matches!(probe_state.objects()[&source].zone, ZoneId::Battlefield),
-        "the source must still be on the battlefield in the caller's pre-command state"
+        matches!(
+            state.objects().get(&source).map(|o| o.zone),
+            Some(ZoneId::Battlefield)
+        ),
+        "CR 400.7: the zone check must run BEFORE the exile-self cost payment — this \
+         reads the handler's own `&mut` state, so it fails (the id is retired into exile) \
+         if the check is removed"
     );
     assert_eq!(
-        pool_amount(&probe_state, p(1), ManaColor::Red),
+        pool_amount(&state, p(1), ManaColor::Red),
         0,
-        "no mana should have been produced"
+        "and no mana reached the pool of the state the handler actually mutated"
     );
 }
 
@@ -270,24 +284,28 @@ fn decoy_a_same_card_on_battlefield_cannot_use_from_hand_ability() {
 /// `exile_self_from_hand: false`) cannot be activated while sitting in hand.
 /// Non-vacuity: deleting the `else`-branch `if obj.zone != ZoneId::Battlefield` check
 /// would let a hand-zone Forest produce mana; this pins that check.
+///
+/// **`OOS-DX21-7` repair (PB-DX57).** As with decoy A, the post-rejection reads used to
+/// be taken from a `probe_state` clone the failing `process_command` call never received;
+/// they now read the `&mut state` the handler was handed.
 #[test]
 fn decoy_b_battlefield_only_mana_ability_cannot_be_activated_from_hand() {
     let defs = defs_map();
-    let state = build_with_object_in_zone("Forest", ZoneId::Hand(p(1)), &defs);
+    let mut state = build_with_object_in_zone("Forest", ZoneId::Hand(p(1)), &defs);
     let source = find_by_name(&state, "Forest");
-    let probe_state = state.clone();
+    assert!(
+        !state.objects()[&source].status.tapped,
+        "non-vacuity floor: the Forest starts untapped"
+    );
 
-    let result = process_command(
-        state,
-        Command::TapForMana {
-            player: p(1),
-            source,
-            ability_index: 0,
-
-            chosen_color: None,
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        },
+    let result = mtg_engine::rules::mana::handle_tap_for_mana(
+        &mut state,
+        p(1),
+        source,
+        0,
+        None,
+        vec![],
+        vec![],
     );
 
     assert!(
@@ -295,13 +313,22 @@ fn decoy_b_battlefield_only_mana_ability_cannot_be_activated_from_hand() {
         "a hand-zone Forest must be rejected by the battlefield check: {result:?}"
     );
     assert!(
-        matches!(probe_state.objects()[&source].zone, ZoneId::Hand(pid) if pid == p(1)),
-        "the Forest must still be in hand in the caller's pre-command state"
+        !state.objects()[&source].status.tapped,
+        "CR 602.2c: the battlefield check must run BEFORE the {{T}} tap at step 6 — this \
+         reads the handler's own `&mut` state, so it fails if the check is removed"
     );
     assert_eq!(
-        pool_amount(&probe_state, p(1), ManaColor::Green),
+        pool_amount(&state, p(1), ManaColor::Green),
         0,
-        "no mana should have been produced"
+        "and no mana reached the pool of the state the handler actually mutated"
+    );
+    // A stated CONTROL, not a discriminator: the zone is unchanged under BOTH the fixed
+    // and the check-deleted engine (nothing on the battlefield-only path moves a hand
+    // card), so this pins that a correct fix does not relocate the card rather than
+    // pinning the check itself. The tap and the pool above are the discriminators.
+    assert!(
+        matches!(state.objects()[&source].zone, ZoneId::Hand(pid) if pid == p(1)),
+        "the Forest must still be in hand"
     );
 }
 

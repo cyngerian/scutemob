@@ -256,26 +256,66 @@ fn test_l01_loyalty_ability_zero_targets_legal() {
 
 // ── Test 4: Loyalty NOT paid on rejected activation ───────────────────────────
 
-/// CR 606.4 — The loyalty cost is paid when the loyalty ability is activated successfully.
-/// An activation rejected due to an illegal target must leave loyalty counters unchanged
-/// and must NOT mark loyalty_ability_activated_this_turn.
+/// CR 606.4 / CR 606.3 — the loyalty cost is paid when the ability is activated
+/// SUCCESSFULLY, exactly once per turn, and an illegal target is refused instead.
+///
+/// **`OOS-DX21-7` repair (PB-DX57), and the residual it could not close — read this
+/// before "strengthening" the test.**
+///
+/// This test used to snapshot `initial_loyalty` and `initially_activated` from the
+/// fixture, MOVE `state` into `process_command`, and then assert `initial_loyalty == 6`
+/// and `!initially_activated` — two `let` bindings compared against the literals they
+/// had just been read from, with nothing between the snapshot and the assertion able to
+/// write either. Its own comment ("we cannot inspect the state after a failed command")
+/// stated the mechanism and asserted anyway.
+///
+/// **The direct-handler repair is UNBUILDABLE here, and no engine line was taken to
+/// make it buildable.** `Command::ActivateLoyaltyAbility` dispatches to
+/// `fn handle_activate_loyalty_ability` in `crates/engine/src/rules/engine.rs` — a
+/// PRIVATE `fn`, re-exported nowhere — and an integration test can only name `pub`
+/// items. Nine other command variants are in the same position (`handle_pass_priority`,
+/// `handle_concede`, `handle_transform`, `handle_turn_face_up`, `handle_level_up_class`,
+/// `handle_activate_craft`, `handle_pay_echo`, `handle_pay_recover`,
+/// `handle_pay_cumulative_upkeep`).
+///
+/// **STATED RESIDUAL.** What this test now establishes is what the ACCEPTED path
+/// produces — that an illegal target is refused, that a legal activation pays exactly
+/// the printed cost and sets the once-per-turn marker, and that a second activation is
+/// then refused. What it does NOT and CANNOT establish from an integration test is the
+/// property the old assertions pretended to check: that
+/// `handle_activate_loyalty_ability` performs **no mutation before it validates**. That
+/// remains unbuildable for this command and for the nine listed above until either the
+/// handler becomes `pub` or `process_command` grows a `&mut GameState` sibling
+/// (`process_command_mut`), which is the only repair that makes the property falsifiable
+/// for all 45 `Command` variants at once. Do not re-add a snapshot-versus-literal
+/// assertion in its place: it reads as coverage and measures nothing.
 #[test]
 fn test_l01_loyalty_cost_not_paid_on_rejected_activation() {
-    let (state, sorin_id, _creature_id, land_id, p1) = build_state_with_targets();
+    let (state, sorin_id, creature_id, land_id, p1) = build_state_with_targets();
 
-    let initial_loyalty = state
-        .objects()
-        .get(&sorin_id)
-        .and_then(|o| o.counters.get(&CounterType::Loyalty).copied())
-        .unwrap_or(0);
-    let initially_activated = state
-        .objects()
-        .get(&sorin_id)
-        .map(|o| o.loyalty_ability_activated_this_turn)
-        .unwrap_or(false);
+    // Non-vacuity floor: the fixture really is the pre-activation state the assertions
+    // below are differences FROM.
+    assert_eq!(
+        state
+            .objects()
+            .get(&sorin_id)
+            .and_then(|o| o.counters.get(&CounterType::Loyalty).copied())
+            .unwrap_or(0),
+        6,
+        "the fixture starts Sorin at 6 loyalty"
+    );
+    assert!(
+        !state
+            .objects()
+            .get(&sorin_id)
+            .map(|o| o.loyalty_ability_activated_this_turn)
+            .unwrap_or(true),
+        "and with the CR 606.3 once-per-turn marker clear"
+    );
 
-    let result = process_command(
-        state,
+    // (1) The illegal target is refused (CR 601.2c).
+    let err = process_command(
+        state.clone(),
         Command::ActivateLoyaltyAbility {
             player: p1,
             source: sorin_id,
@@ -283,30 +323,63 @@ fn test_l01_loyalty_cost_not_paid_on_rejected_activation() {
             targets: vec![Target::Object(land_id)], // Land — illegal
             x_value: None,
         },
-    );
-
-    // The activation must fail.
+    )
+    .expect_err("illegal target must cause activation failure");
     assert!(
-        result.is_err(),
-        "illegal target must cause activation failure"
+        matches!(
+            err,
+            GameStateError::InvalidTarget(_) | GameStateError::InvalidCommand(_)
+        ),
+        "expected InvalidTarget or InvalidCommand, got {err:?}"
     );
 
-    // We cannot inspect the state after a failed command (ownership was consumed).
-    // However, the test above guarantees the initial state had loyalty = 6 and
-    // loyalty_ability_activated_this_turn = false, and the rejection error propagated,
-    // so the caller's copy of state is unmodified.
+    // (2) The observable the ACCEPTED path produces: exactly -2, and the marker set.
+    // This is what CR 606.4 says, read off a state the engine really returned.
+    let (after, _) = process_command(
+        state,
+        Command::ActivateLoyaltyAbility {
+            player: p1,
+            source: sorin_id,
+            ability_index: 1,
+            targets: vec![Target::Object(creature_id)],
+            x_value: None,
+        },
+    )
+    .expect("a legal target must be accepted");
+    let sorin = after
+        .objects()
+        .get(&sorin_id)
+        .expect("Sorin is still there");
     assert_eq!(
-        initial_loyalty, 6,
-        "CR 606.4: loyalty was 6 before failed activation"
+        sorin
+            .counters
+            .get(&CounterType::Loyalty)
+            .copied()
+            .unwrap_or(0),
+        4,
+        "CR 606.4: an accepted -2 pays exactly 2 loyalty, 6 -> 4"
     );
     assert!(
-        !initially_activated,
-        "loyalty_ability_activated_this_turn was false before failed activation"
+        sorin.loyalty_ability_activated_this_turn,
+        "CR 606.3: and sets the once-per-turn marker"
     );
-    // Note: process_command takes ownership; we cannot verify state after Err.
-    // The key invariant — no mutation on Err — is enforced by the Rust type system
-    // (GameState is moved in, not returned on Err). The ordering test (validate before pay)
-    // is the structural guarantee: if pay happened before validate, we'd need a rollback.
+
+    // (3) And that marker bites: a second activation on THAT returned state is refused.
+    let err2 = process_command(
+        after,
+        Command::ActivateLoyaltyAbility {
+            player: p1,
+            source: sorin_id,
+            ability_index: 0, // +1: no target, so only CR 606.3 can refuse it
+            targets: vec![],
+            x_value: None,
+        },
+    )
+    .expect_err("CR 606.3: only one loyalty ability per turn");
+    assert!(
+        matches!(err2, GameStateError::InvalidCommand(_)),
+        "expected the CR 606.3 once-per-turn refusal, got {err2:?}"
+    );
 }
 
 // ── Test 5: No-target ability is unaffected by L01 ───────────────────────────

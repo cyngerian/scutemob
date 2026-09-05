@@ -485,3 +485,361 @@ fn t_census_report() {
     }
     println!("=== END ===");
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PB-DX57 (`OOS-DX28-1`) — the shared MATCH-ARM parser, and R2's declaration pin
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// **Why a match-arm parser lives here.**
+///
+/// `core::pb_dx57_declared_source` is the one parser for *type declarations*
+/// (`pub enum X { .. }`, `pub struct X { .. }`), and its module doc states, as a
+/// deliberate omission, that it holds no helper for a FUNCTION's match arms —
+/// arms have guards, `|` alternatives and nested matches, and a half-right
+/// shared one would be worse than the specific ones.
+///
+/// Two `OOS-DX28-1` members need exactly that, though, and they need the *same*
+/// shape: `DECIDABLE_COST_TAGS` below must be derived from
+/// `effects::can_pay_optional_cost`'s arms, and
+/// `pb_dx28_chosen_object_roster::SUPPORTED_ARMS` from
+/// `effects::resolve_pending_object_choices`'s. Writing it twice would be this
+/// seed's own mistake at a smaller scale, so it is written once, here, and
+/// `pb_dx28_chosen_object_roster` calls it.
+///
+/// **Scope, stated rather than implied.** This handles the ONE arm shape both
+/// subjects use: heads at a fixed indentation naming `Enum::Variant`, possibly
+/// `|`-alternated across lines, with the body running to the next head. It does
+/// not model guards (`if`), nested matches or `@` bindings, and it does not try
+/// to. `pb_dx36_deals_damage_roster::extract_function_body` and
+/// `pb_dx39_source_relative_roster::effect_applies_to_arms` keep their own
+/// hand-written extractors: rewiring two working, differently-shaped derivations
+/// is not this row's scope, and is recorded here so the next reader knows the
+/// duplication is a decision rather than an oversight.
+pub(crate) const EFFECTS_MOD_RS: &str = "crates/engine/src/effects/mod.rs";
+
+/// One `match` arm: every enum variant its pattern names (more than one for a
+/// `|`-alternation) and the text of its body.
+pub(crate) struct MatchArm {
+    pub(crate) names: Vec<String>,
+    pub(crate) body: String,
+}
+
+/// Strip `//` line comments and `/* */` block comments, preserving byte length
+/// (comment bytes become spaces, newlines survive) so line-indentation parsing
+/// still works on the result.
+///
+/// BOTH kinds, not just `//`: PB-DX8's `/* */` defeat is on record — the
+/// byte-identical sentence reddened as a line comment and left every test green
+/// as a block comment. String literals are respected so a `//` inside one is not
+/// deleted as if it were code.
+pub(crate) fn strip_comments_preserving_length(src: &str) -> String {
+    let b = src.as_bytes();
+    let mut out = String::with_capacity(src.len());
+    let mut i = 0usize;
+    let mut in_str = false;
+    while i < b.len() {
+        let c = b[i] as char;
+        if in_str {
+            out.push(c);
+            if c == '\\' && i + 1 < b.len() {
+                out.push(b[i + 1] as char);
+                i += 2;
+                continue;
+            }
+            if c == '"' {
+                in_str = false;
+            }
+            i += 1;
+            continue;
+        }
+        if c == '"' {
+            in_str = true;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        if c == '/' && b.get(i + 1) == Some(&b'/') {
+            while i < b.len() && b[i] != b'\n' {
+                out.push(' ');
+                i += 1;
+            }
+            continue;
+        }
+        if c == '/' && b.get(i + 1) == Some(&b'*') {
+            let mut depth = 1usize;
+            out.push_str("  ");
+            i += 2;
+            while i < b.len() && depth > 0 {
+                if b[i] == b'/' && b.get(i + 1) == Some(&b'*') {
+                    depth += 1;
+                    out.push_str("  ");
+                    i += 2;
+                } else if b[i] == b'*' && b.get(i + 1) == Some(&b'/') {
+                    depth -= 1;
+                    out.push_str("  ");
+                    i += 2;
+                } else {
+                    out.push(if b[i] == b'\n' { '\n' } else { ' ' });
+                    i += 1;
+                }
+            }
+            continue;
+        }
+        out.push(c);
+        i += 1;
+    }
+    out
+}
+
+/// The brace-matched body of `{` at `open`, INCLUDING both braces.
+fn brace_body(src: &str, open: usize) -> &str {
+    assert_eq!(
+        src.as_bytes().get(open),
+        Some(&b'{'),
+        "brace_body must be given the offset of a `{{`"
+    );
+    let mut depth = 0usize;
+    for (off, ch) in src[open..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return &src[open..open + off + 1];
+                }
+            }
+            _ => {}
+        }
+    }
+    panic!("unbalanced braces — the body starting at {open} is never closed");
+}
+
+/// The comment-stripped body of `fn <fn_name>(` in the workspace-relative file
+/// `rel`, braces included.
+pub(crate) fn function_body(rel: &str, fn_name: &str) -> String {
+    let raw = crate::pb_dx57_declared_source::read_workspace_file(rel);
+    let src = strip_comments_preserving_length(&raw);
+    let marker = format!("fn {fn_name}(");
+    let at = src.find(&marker).unwrap_or_else(|| {
+        panic!(
+            "`fn {fn_name}(` not found in {rel}. The function was renamed or moved — \
+             re-point this pin at wherever it now lives, and do NOT delete the pin and \
+             keep the hand-written list, which is the defect OOS-DX28-1 names."
+        )
+    });
+    let open = src[at..]
+        .find('{')
+        .map(|i| i + at)
+        .unwrap_or_else(|| panic!("`fn {fn_name}` in {rel} has no body"));
+    brace_body(&src, open).to_string()
+}
+
+/// The arms of `<match_header>` inside `fn <fn_name>(` in `rel`, keyed on head
+/// lines that name `<enum_prefix>::Variant` at exactly `indent` spaces.
+///
+/// Panics on an empty parse: an arm list that comes back `[]` makes every
+/// `assert_eq!` against it trivially satisfiable, which is `OOS-DX28-1`'s own
+/// failure mode re-entering through its fix.
+pub(crate) fn match_arms(
+    rel: &str,
+    fn_name: &str,
+    match_header: &str,
+    enum_prefix: &str,
+    indent: usize,
+) -> Vec<MatchArm> {
+    let fn_body = function_body(rel, fn_name);
+    let head_at = fn_body.find(match_header).unwrap_or_else(|| {
+        panic!(
+            "`{match_header}` not found inside `fn {fn_name}` in {rel} — the match was \
+                rewritten, and this pin is measuring nothing until it is re-pointed"
+        )
+    });
+    let open = fn_body[head_at..]
+        .find('{')
+        .map(|i| i + head_at)
+        .expect("a match header ends in `{`");
+    // The INNER text, without the match's own `{`/`}`: leaving the closing brace in
+    // would append `\n    }` to the final arm's body, and every "is this body an
+    // unconditional `false`" test would then be false for the last arm — measured,
+    // not guessed: the first draft of this parser classified all 14 `Cost` variants
+    // as decidable for exactly that reason.
+    let whole = brace_body(&fn_body, open);
+    let body = &whole[1..whole.len() - 1];
+
+    let head_prefix = format!("{enum_prefix}::");
+    let alt_prefix = format!("| {enum_prefix}::");
+
+    let mut arms: Vec<MatchArm> = Vec::new();
+    let mut pending: Vec<String> = Vec::new();
+    let mut cur_body: Option<String> = None;
+    for line in body.lines() {
+        let trimmed = line.trim_start();
+        let ind = line.len() - trimmed.len();
+        let is_head = ind == indent
+            && (trimmed.starts_with(&head_prefix) || trimmed.starts_with(&alt_prefix));
+        if !is_head {
+            if let Some(b) = cur_body.as_mut() {
+                b.push('\n');
+                b.push_str(line);
+            }
+            continue;
+        }
+        if let Some(b) = cur_body.take() {
+            arms.push(MatchArm {
+                names: std::mem::take(&mut pending),
+                body: b,
+            });
+        }
+        let mut from = 0usize;
+        while let Some(i) = trimmed[from..].find(&head_prefix) {
+            let at = from + i + head_prefix.len();
+            let name: String = trimmed[at..]
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !name.is_empty() {
+                pending.push(name);
+            }
+            from = at;
+        }
+        if let Some(a) = trimmed.find("=>") {
+            cur_body = Some(trimmed[a + 2..].to_string());
+        }
+    }
+    if let Some(b) = cur_body.take() {
+        arms.push(MatchArm {
+            names: pending,
+            body: b,
+        });
+    }
+
+    assert!(
+        !arms.is_empty(),
+        "match_arms({rel}, {fn_name}, {match_header:?}, {enum_prefix}, indent {indent}) parsed \
+         ZERO arms. Every assert_eq! against this set would be trivially true — the \
+         arm-head indentation convention changed, and this pin is measuring nothing."
+    );
+    arms
+}
+
+/// Does this arm body return an unconditional `false` — i.e. is the variant one
+/// the function declines to decide?
+fn body_is_unconditional_false(body: &str) -> bool {
+    body.trim().trim_end_matches(',').trim() == "false"
+}
+
+/// **`DECIDABLE_COST_TAGS` is now DERIVED from `can_pay_optional_cost` itself,
+/// and the two halves catch opposite failures.**
+///
+/// `OOS-DX28-1` census row 11. The census's own account of the danger, which
+/// `r2` above cannot see:
+///
+/// > Correct at HEAD (5 + 9 = 14 ✓). The dangerous direction is **shrinkage, not
+/// > growth**: if `can_pay_optional_cost` stops handling e.g. `Sacrifice`, the
+/// > const still lists it, `r2` stays green, and every `MayPayThenEffect`
+/// > carrying that cost becomes a silent never-payable no-op — which is
+/// > precisely the defect `r2`'s docstring says it exists to catch.
+///
+/// So this row asserts **two** things, and only the two together bound the class:
+///
+/// 1. `DECIDABLE_COST_TAGS == { arms of can_pay_optional_cost whose body is not
+///    an unconditional `false` }`. A variant moving from a deciding arm into the
+///    `false` alternation reddens HERE and nowhere else — `r2` keeps comparing
+///    the corpus against a list that still names it.
+/// 2. `decidable ∪ undecidable == pub enum Cost`'s declared variants, and the
+///    two are disjoint. Rust's exhaustiveness already forces the union when the
+///    match has no wildcard; this assertion is what notices the day someone adds
+///    `_ => false` and a new `Cost` variant silently becomes undecidable without
+///    anyone writing its name down. That is the only edit of this shape that
+///    COMPILES, and it is therefore the only one worth a test.
+///
+/// **Revert to watch red**: move `Cost::Sacrifice` into the trailing `false`
+/// alternation (leg 1), or replace that whole alternation with `_ => false`
+/// (leg 2).
+#[test]
+fn r2b_decidable_cost_tags_are_derived_from_can_pay_optional_cost() {
+    // **STATED RESIDUAL — this derivation is SYNTACTIC, not semantic, and the adversarial pass
+    // defeated it on exactly that.** It decides "decidable" by whether the arm's body is the
+    // literal `false`; planting `Cost::PayLife(n) => *n > u32::MAX` leaves this gate GREEN while
+    // `PayLife` refuses every payment it is ever asked about. No source-level derivation can
+    // close that — deciding whether an arm's body is semantically constant is the halting
+    // problem in miniature — so it is recorded rather than papered over.
+    //
+    // **What DOES cover it, measured**: the same plant reddens SEVEN probes in
+    // `primitives::pb_dx45_optional_cost` plus `bare_lookup_ratchet`. So the behaviour is well
+    // covered by behavioural tests and this gate's job is narrower than its name suggests — it
+    // holds the LIST against the FUNCTION's arm structure, which is what stops a variant
+    // silently leaving the decidable set by deletion. Saying which half is covered by what is
+    // the point (`OOS-DX49-6`: a comment asserting a property the code does not enforce).
+    let arms = match_arms(
+        EFFECTS_MOD_RS,
+        "can_pay_optional_cost",
+        "match cost {",
+        "Cost",
+        8,
+    );
+
+    let mut decidable: BTreeSet<String> = BTreeSet::new();
+    let mut undecidable: BTreeSet<String> = BTreeSet::new();
+    for arm in &arms {
+        let bucket = if body_is_unconditional_false(&arm.body) {
+            &mut undecidable
+        } else {
+            &mut decidable
+        };
+        for n in &arm.names {
+            bucket.insert(n.clone());
+        }
+    }
+
+    println!(
+        "PB-DX57 row 11: can_pay_optional_cost has {} arm group(s); decides {:?}; \
+         declines {:?}",
+        arms.len(),
+        decidable,
+        undecidable
+    );
+
+    let pinned: BTreeSet<String> = DECIDABLE_COST_TAGS
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    assert_eq!(
+        decidable, pinned,
+        "DECIDABLE_COST_TAGS no longer matches the arms of \
+         `effects::can_pay_optional_cost` that actually decide a cost. A variant that \
+         LEAVES the decidable set while staying on this list makes every corpus \
+         MayPayThenEffect carrying it a silent never-payable no-op, with r2 above still \
+         green — that is OOS-DX28-1's failure mode on this constant. Re-derive the census \
+         before re-pinning the list."
+    );
+
+    let declared = crate::pb_dx57_declared_source::declared_enum_variants(
+        crate::pb_dx57_declared_source::CARD_DEFINITION_RS,
+        "Cost",
+    );
+    assert!(
+        decidable.is_disjoint(&undecidable),
+        "a Cost variant is classified BOTH decidable and undecidable: {:?}",
+        decidable.intersection(&undecidable).collect::<Vec<_>>()
+    );
+    let union: BTreeSet<String> = decidable.union(&undecidable).cloned().collect();
+    assert_eq!(
+        union,
+        declared,
+        "`can_pay_optional_cost` no longer names every declared `Cost` variant. Either a \
+         wildcard arm was added (so a new variant is silently undecidable and nobody wrote \
+         its name down), or this parser's arm-head convention broke. declared-but-unclassified \
+         = {:?}, classified-but-undeclared = {:?}",
+        declared.difference(&union).collect::<Vec<_>>(),
+        union.difference(&declared).collect::<Vec<_>>()
+    );
+    // Non-vacuity: the `false` tail is the half r2 cannot see, so it must be
+    // non-empty for this row to be measuring the interesting direction at all.
+    assert!(
+        undecidable.len() >= 5,
+        "non-vacuity: only {} Cost variant(s) parsed as undecidable (measured 9 at HEAD); \
+         the arm walk has stopped seeing the `|`-alternated tail: {undecidable:?}",
+        undecidable.len()
+    );
+}

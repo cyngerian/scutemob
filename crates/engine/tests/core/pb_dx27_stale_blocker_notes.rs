@@ -277,7 +277,19 @@ const OUT_OF_SET_GAP_NEEDLES: &[&str] = &[
 // primary vocabulary (`has no`, `no variant`) is the exit R3's own failure message asks
 // for, so the def MOVED from R3's population into R1's, exactly as `niv_mizzet_visionary`
 // did one batch ago.
-const LIVE_IDENTIFIER_MENTION_CEILING: usize = 110;
+// ↻ PB-DX57 (2026-09-05, `OOS-DX28-6`): 110 -> 111. ONE def joins, by exit (b), with a
+// REVIEWED_CONTRAST_MENTIONS row stating the reason — and it joins for the GOOD reason again,
+// though by a different route from PB-DX36's and PB-DX39's. `well_of_lost_dreams`'s note did
+// not become newly stale; it had been stale for months and this ratchet **could not see it**,
+// because the note MISSPELLED the identifier it was wrong about (`TriggerCondition::
+// WhenYouGainLife` for `WheneverYouGainLife`). A misspelled name is in no declared dictionary,
+// so R1's derivation — and PB-DX27's original sweep, and PB-DX8's `completeness_deviation_scan`
+// — all passed straight over it. Repairing the note to name the identifier CORRECTLY is what
+// makes the def visible to this gate for the first time, so the ceiling rises for a note that
+// got BETTER. **The durable half is the blind spot, not the def**: a needle set keyed on
+// identifiers cannot see a claim that gets the identifier's spelling wrong, and getting the
+// spelling wrong is CORRELATED with being wrong about the claim. Filed as a seed.
+const LIVE_IDENTIFIER_MENTION_CEILING: usize = 111;
 
 /// Defs whose stale blocker note PB-DX27 refuted and REPAIRED.
 ///
@@ -355,6 +367,20 @@ const REPAIRED_BY_PB_DX27: &[(&str, &str)] = &[
 /// while asserting a missing FIELD on it, which no identifier-level check can
 /// distinguish and which is why the ceiling above is a count rather than a verdict.
 const REVIEWED_CONTRAST_MENTIONS: &[(&str, &str)] = &[
+    (
+        "well_of_lost_dreams.rs",
+        "PB-DX57. Names Effect::MayPayThenEffect and TriggerCondition::WheneverYouGainLife, both \
+         live, while asserting what is STILL absent: no EffectAmount carries the life gained by \
+         the triggering event, and there is no Cost::PayUpToX(cap). Both re-verified at HEAD. \
+         The def stays `inert`. This row exists because the note was repaired INTO this gate's \
+         vocabulary: it previously said `TriggerCondition::WhenYouGainLife` does not exist — \
+         false in the claim AND in the spelling — and the misspelling is why no needle-based \
+         sweep in this tree had ever seen it. Clause (c) of the completeness note was also \
+         NARROWED rather than deleted: PB-DX45 shipped the CR 118.12 optional-cost channel \
+         (EffectChoiceQuestion::PayOptionalCost, stubs.rs:1030), so 'you may pay has no \
+         interactive expression' stopped being the blocker three days before this batch; what \
+         remains is that PayOptionalCost carries a FIXED Cost rather than a cap.",
+    ),
     (
         "mardu_ascendancy.rs",
         "PB-DX39. Names TriggerCondition::WheneverCreatureYouControlAttacks and TargetFilter, \
