@@ -21,7 +21,7 @@
 
 **v4 queue rank 21, task 3 of 5 of the SECOND approved chain. `OOS-DX28-1` and `OOS-DX28-6` CLOSED
 as CLASSES; `OOS-DX28-5`, `OOS-DX26-3` and `OOS-DX21-7` CLOSED; `OOS-ADJ-2` verified by execution,
-not redone. 0 engine lines. Next: PB-DX9, rank 22.**
+not redone. 0 engine lines. Next: NOT PB-DX9. CHAIN CLOSED at rank 21 by owner decision 2026-09-05 — do NOT dispatch PB-DX9 (rank 22) or PB-DX38 (rank 23). Next work: the course-correction coordinator batch CC-1/2/3/4/14/15/17 (`scutemob-237..254`), see `docs/course-correction-2026-09.md` §10.**
 
 ### The one thing to read first
 

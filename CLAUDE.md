@@ -128,7 +128,7 @@
   chain — **OOS-DX28-1** and **OOS-DX28-6** CLOSED **as CLASSES**, plus **OOS-DX28-5**,
   **OOS-DX26-3** and **OOS-DX21-7** CLOSED, and **OOS-ADJ-2** — already taken by PB-DX42b —
   VERIFIED BY EXECUTION on both halves rather than redone. **0 engine lines.**
-  **Next dispatch: PB-DX9 (rank 22).**)
+  **CHAIN CLOSED at rank 21 by owner decision 2026-09-05 — do NOT dispatch PB-DX9 (rank 22) or PB-DX38 (rank 23). Next work: the course-correction coordinator batch CC-1/2/3/4/14/15/17 (`scutemob-237..254`), see `docs/course-correction-2026-09.md` §10.**)
   of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
   was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   the playtest-successor run 174–181
@@ -351,7 +351,7 @@
   chain — **OOS-DX28-1** and **OOS-DX28-6** CLOSED **as CLASSES**, plus **OOS-DX28-5**,
   **OOS-DX26-3** and **OOS-DX21-7** CLOSED, and **OOS-ADJ-2** — already taken by PB-DX42b —
   VERIFIED BY EXECUTION on both halves rather than redone. **0 engine lines.**
-  **Next dispatch: PB-DX9 (rank 22).**)
+  **CHAIN CLOSED at rank 21 by owner decision 2026-09-05 — do NOT dispatch PB-DX9 (rank 22) or PB-DX38 (rank 23). Next work: the course-correction coordinator batch CC-1/2/3/4/14/15/17 (`scutemob-237..254`), see `docs/course-correction-2026-09.md` §10.**)
   of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
   was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this

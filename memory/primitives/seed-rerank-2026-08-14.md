@@ -950,7 +950,7 @@ leave the set is `discard_cards` (13 → 12), closed by ENG-1.
 > enumerated and PRINTED by a test, 20 of 22 unpinned ones pinned; 34 mechanism-note hits
 > adjudicated, 0 stale and 0 live defects), `OOS-DX28-5`, `OOS-DX26-3` and `OOS-DX21-7` CLOSED,
 > and `OOS-ADJ-2` — already taken by PB-DX42b — VERIFIED BY EXECUTION on both halves rather than
-> redone. Filed `OOS-DX57-1..5`. **The next dispatch is `PB-DX9` (rank 22), task 4 of 5.**
+> redone. Filed `OOS-DX57-1..5`. ~~The next dispatch is `PB-DX9` (rank 22), task 4 of 5.~~ **CHAIN CLOSED at rank 21 by owner decision 2026-09-05 — do NOT dispatch PB-DX9 (rank 22) or PB-DX38 (rank 23). Next work: the course-correction coordinator batch CC-1/2/3/4/14/15/17 (`scutemob-237..254`), see `docs/course-correction-2026-09.md` §10.**
 >
 > **↻ 2026-09-05: `PB-DX42b` SHIPPED (`scutemob-233`). Ranks 1-18 are ALL SHIPPED, and
 > ~~NO FURTHER DISPATCH IS AUTHORISED~~ (superseded above).** Rank 18 was the **last** task of the five-task chain the
