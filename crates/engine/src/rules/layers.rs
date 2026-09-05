@@ -331,7 +331,18 @@ pub(crate) fn calculate_characteristics_through(
     }
     // Process layers in order (CR 613.1), up to and including `through`.
     // Layer 7 is split into sublayers 7a–7d.
-    let layers_in_order: Vec<EffectLayer> = [
+    //
+    // This is a fixed-size ARRAY and the bound is applied by a `continue` in the loop
+    // below, deliberately, rather than by `.filter(..).collect::<Vec<_>>()`. The
+    // collecting form was measured and it is a REAL regression: a heap allocation on
+    // every `calculate_characteristics` call, which is the hottest path in the engine
+    // (`sba_check` +6.8% with non-overlapping criterion intervals against a same-code
+    // band of 0.32% on that bench). `calculate_characteristics` is called once per
+    // battlefield permanent per SBA check, so an allocation here is an allocation per
+    // permanent per check. `EffectLayer` is `Ord`, so the array is already in layer
+    // order and the bound is a comparison, not a filter that needs somewhere to put
+    // its result.
+    let layers_in_order = [
         EffectLayer::Copy,
         EffectLayer::Control,
         EffectLayer::Text,
@@ -342,10 +353,7 @@ pub(crate) fn calculate_characteristics_through(
         EffectLayer::PtSet,
         EffectLayer::PtModify,
         EffectLayer::PtSwitch,
-    ]
-    .into_iter()
-    .filter(|&l| l <= through)
-    .collect();
+    ];
     // CR 701.60c: A suspected permanent has menace and "This creature can't block"
     // for as long as it's suspected. Menace is inserted into base keywords BEFORE the
     // layer loop so that Layer 6 ability-removal effects (e.g., Humility) can correctly
@@ -535,6 +543,11 @@ pub(crate) fn calculate_characteristics_through(
         chars = obj.merged_components[0].characteristics.clone();
     }
     for &layer in &layers_in_order {
+        // CR 613.1: the layer bound, applied here so the list above stays a
+        // stack array -- see its comment.
+        if layer > through {
+            break;
+        }
         // CR 702.73a + CR 613.3: Changeling is a characteristic-defining ability that adds
         // all creature subtypes in Layer 4 (TypeChange), before any non-CDA Layer 4 effects.
         // CDAs apply first within each layer (CR 613.3), so this runs before gathering
@@ -2343,14 +2356,26 @@ pub fn abilities_are_blanked(state: &GameState, id: ObjectId) -> bool {
     // Channel 2 — the continuous-effect scan.
     let obj_zone = obj.zone;
     let chars = obj.characteristics.clone();
-    state
-        .continuous_effects
-        .iter()
-        .filter(|e| is_effect_active(state, e))
-        .any(|e| {
-            modification_blanks_abilities(&e.modification, &chars)
-                && effect_applies_to_object(state, e, id, obj_zone, &chars)
-        })
+    // ONE evaluation context for the whole sweep rather than one per effect. This is
+    // correct rather than merely cheaper: `InFlightGuard` removes each `EffectId` on
+    // drop, so a context reused across effects is observationally identical to a fresh
+    // one per effect -- and this loop runs once per battlefield permanent per SBA
+    // check, so the construction is O(permanents x effects) if it sits inside.
+    let mut eval = CharacteristicEvalContext::outside_layer_walk();
+    for e in state.continuous_effects.iter() {
+        if !is_effect_duration_active(state, e) {
+            continue;
+        }
+        if !is_effect_condition_satisfied(state, e, &mut eval) {
+            continue;
+        }
+        if modification_blanks_abilities(&e.modification, &chars)
+            && effect_applies_to_object(state, e, id, obj_zone, &chars)
+        {
+            return true;
+        }
+    }
+    false
 }
 
 /// Apply a single layer modification to the given characteristics.
