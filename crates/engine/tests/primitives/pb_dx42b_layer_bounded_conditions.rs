@@ -571,3 +571,169 @@ fn a_dead_id_early_return_does_not_corrupt_a_later_nested_walk() {
         chars.keywords
     );
 }
+
+// ── Two rows the coordinator's revert matrix found UNCOVERED, added because a
+//    revert that reddens only a source gate is telling you the behaviour has no
+//    probe (`OOS-DX52-2`), not that the row is uninteresting ──────────────────
+
+/// **`OOS-DX42b-1`, pinned behaviourally.** A condition that reads NO characteristic
+/// at all is not a condition that needs Layer 1, and collapsing the two is a live
+/// debug-build panic.
+///
+/// `is_effect_condition_satisfied` gates its CR 613.1d `debug_assert!` on
+/// `Condition::required_characteristic_layer()` returning `Some`. The first draft
+/// wrote `.unwrap_or(EffectLayer::Copy)` instead — and `Copy` is the FIRST layer, so
+/// `required < effect.layer` is false for every `EffectLayer::Copy` effect. A Layer-1
+/// effect carrying `Condition::IsYourTurn` (which reads the turn structure and nothing
+/// else) therefore panicked the debug build with a message asserting that its condition
+/// "requires characteristics resolved through layer Copy" — characteristics it does not
+/// require at any layer.
+///
+/// **Zero corpus exposure today and that is not the reason this test exists**:
+/// `rules/copy.rs` records the measured fact that `crates/card-defs/src/defs` contains
+/// zero occurrences of `EffectLayer::Copy`, so no shipped card reaches this. A
+/// debug-build panic on a legitimate configuration is a defect whether or not a card
+/// reaches it, and the revert matrix found that reverting the fix reddened **only**
+/// `core::pb_dx39_source_view_gates::r4` — a VOCABULARY gate that catches it
+/// incidentally, because the identifiers `unwrap_or` / `EffectLayer` / `Copy` come
+/// back. A vocabulary gate proves a body is spelled a certain way; it cannot prove the
+/// body does the right thing, and a later batch that respells the fix while keeping the
+/// bug satisfies it completely.
+///
+/// CR 613.1a (Layer 1, copy effects) / CR 604.2 (conditional static abilities).
+#[test]
+fn a_layer_one_effect_with_a_characteristic_free_condition_does_not_trip_the_assert() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p1())
+        .add_player(p2())
+        .object(ObjectSpec::creature(p1(), "Bear", 2, 2))
+        .build()
+        .unwrap();
+    let bear = find_on_battlefield(&state, "Bear");
+
+    // Non-vacuity: the condition really must require NO characteristic layer, or this
+    // test would be exercising a different arm than the one it names.
+    assert_eq!(
+        Condition::IsYourTurn.required_characteristic_layer(),
+        None,
+        "precondition: Condition::IsYourTurn reads the turn structure and no \
+         characteristic at any layer, so required_characteristic_layer must be None. \
+         If this has changed, this test is no longer about the None case."
+    );
+
+    state.continuous_effects_mut().push_back(ContinuousEffect {
+        id: EffectId(9_777),
+        source: Some(bear),
+        timestamp: 1,
+        layer: EffectLayer::Copy,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::SingleObject(bear),
+        modification: LayerModification::AddKeyword(KeywordAbility::Flying),
+        condition: Some(Condition::IsYourTurn),
+        is_cda: false,
+        affected_set: None,
+    });
+
+    // Under the reverted `unwrap_or(EffectLayer::Copy)` this call ABORTS the debug
+    // test binary on the CR 613.1d assert. It must simply answer.
+    let chars = calculate_characteristics(&state, bear)
+        .expect("the Bear is live on the battlefield and the walk must not panic");
+
+    // And it must answer CORRECTLY: p1 is the active player in this fixture, so the
+    // condition holds and the Layer-1 grant applies. Asserting the OUTCOME rather than
+    // merely "it did not panic" keeps this from passing on an engine that answers
+    // nothing at all.
+    assert!(
+        chars.keywords.contains(&KeywordAbility::Flying),
+        "the condition (IsYourTurn, and p1 is active) is satisfied, so the effect is \
+         active and its grant applies; got keywords {:?}",
+        chars.keywords
+    );
+}
+
+/// **The activity sweep's layer bound is load-bearing for TERMINATION and invisible to
+/// every behavioural test in this workspace — so it is gated on its source, with the
+/// executed evidence written into the failure message.**
+///
+/// `calculate_characteristics_through` filters its activity sweep by `e.layer <= through`,
+/// the SAME bound the query uses. The adjudication (§3.2(iii)) calls that the
+/// load-bearing precondition and states it *"here because it is stated nowhere else"*: a
+/// bounded query over a GLOBAL activity sweep is the original recursion with an extra
+/// parameter.
+///
+/// **Why this is a source gate and not a probe.** Deleting the conjunct on its own
+/// reddens NOTHING in the workspace, and that is not a missing test — it is structural.
+/// An effect in a later layer cannot change an earlier layer's output, which is the very
+/// fact that makes bounding the sweep semantically free; and with the `in_flight`
+/// backstop present, the backstop absorbs the extra recursion. So no assertion on
+/// characteristics can separate the two designs. What separates them is TERMINATION, and
+/// the coordinator measured it with a complementary pair of reverts rather than arguing
+/// it:
+///
+/// | revert | sweep bound | `in_flight` backstop | result |
+/// |---|---|---|---|
+/// | R3  | removed | present | **green** — the backstop absorbs it, nothing observes the difference |
+/// | R3c | present | removed | **green, 23/23** — termination really is by construction |
+/// | R3b | removed | removed | **`fatal runtime error: stack overflow, aborting` (SIGABRT)** |
+///
+/// R3b is `OOS-SIM2-6`'s original crash, reproduced. So the conjunct below is what makes
+/// the recursion finite, and the labelled `in_flight` deviation is genuinely unreachable
+/// rather than merely unused — which is the claim §3.2(iii) makes and which nobody had
+/// executed until now.
+#[test]
+fn the_activity_sweep_is_bounded_by_the_same_layer_as_the_query() {
+    let src = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/rules/layers.rs"))
+        .expect("layers.rs must be readable from the test binary");
+
+    let at = src
+        .find("pub(crate) fn calculate_characteristics_through(")
+        .expect("calculate_characteristics_through not found — did it get renamed?");
+    let open = src[at..].find('{').expect("header must have a body") + at;
+    let mut depth = 0usize;
+    let mut end = open;
+    for (i, c) in src[open..].char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = open + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let body = &src[open..end];
+
+    // Non-vacuity: a body that shrank to nothing would make this gate pass forever.
+    assert!(
+        body.lines().count() > 100,
+        "calculate_characteristics_through's body is only {} lines — the brace match \
+         found the wrong thing, or the layer walk moved somewhere this gate does not \
+         scan. Re-derive before trusting a green here.",
+        body.lines().count()
+    );
+
+    // Strip comments so the doc paragraph above the filter cannot satisfy this gate.
+    let code: String = body
+        .lines()
+        .map(|l| l.split("//").next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(
+        code.contains("e.layer <= through"),
+        "the activity sweep in `calculate_characteristics_through` no longer bounds \
+         itself by `through`. This is NOT a style preference and it will not be caught \
+         by any behavioural test in this workspace -- deleting this conjunct alone was \
+         measured GREEN across the entire suite, because a later-layer effect cannot \
+         change an earlier layer's output and the `in_flight` backstop absorbs the extra \
+         recursion. What it destroys is TERMINATION BY CONSTRUCTION: with the conjunct \
+         removed AND the backstop removed, `pb_dx19_characteristics_recursion::\
+         recursion_metalcraft_on_grants_shroud_and_terminates` aborts with `fatal \
+         runtime error: stack overflow` (SIGABRT) -- OOS-SIM2-6's original crash -- \
+         while with the conjunct present and the backstop removed it terminates 23/23. \
+         See adjudication section 3.2(iii) and this test's doc comment before changing it."
+    );
+}
