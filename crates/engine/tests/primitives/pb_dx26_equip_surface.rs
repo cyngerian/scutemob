@@ -214,7 +214,7 @@ fn slot_candidates(
     ability_index: usize,
     caster: PlayerId,
 ) -> Vec<Vec<Target>> {
-    let reqs = ability_target_requirements(state, source, ability_index);
+    let reqs = ability_target_requirements(state, source, ability_index, &[]);
     legal_targets_per_slot(state, caster, source, &reqs)
 }
 
@@ -244,7 +244,7 @@ fn t1_bone_saw_equip_ability_exists_and_offers_exactly_its_own_controllers_creat
         )
     });
 
-    let reqs = ability_target_requirements(&state, saw_id, idx);
+    let reqs = ability_target_requirements(&state, saw_id, idx, &[]);
     assert_eq!(
         reqs.len(),
         1,
@@ -552,7 +552,7 @@ fn t7_darksteel_garrison_fortify_offers_only_a_land_its_controller_owns() {
 
     let fortify_idx = fortify_ability_index(&state, garrison_id)
         .expect("Darksteel Garrison must have an activated Fortify ability");
-    let reqs = ability_target_requirements(&state, garrison_id, fortify_idx);
+    let reqs = ability_target_requirements(&state, garrison_id, fortify_idx, &[]);
     assert_eq!(
         reqs.len(),
         1,

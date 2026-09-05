@@ -2018,7 +2018,7 @@ mod tests {
                 ability_index,
                 ..
             } => (
-                mtg_engine::ability_target_requirements(game_state, *source, *ability_index),
+                mtg_engine::ability_target_requirements(game_state, *source, *ability_index, &[]),
                 *source,
             ),
             other => panic!("fixture drift: expected a targeting action, got {other:?}"),

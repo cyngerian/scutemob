@@ -298,7 +298,7 @@ fn drive_to_aura_cast(game: &mut LocalGame<StubProvider>) -> (PendingDecision, u
 /// This is the exact pair `view.rs::action_option_view` (browser) and
 /// `targeting::plan_targets` (bots) call, in that order — not a re-derivation.
 fn offered_candidate_names(state: &GameState, action: &LegalAction) -> Vec<String> {
-    let requirements = action_target_requirements(state, action);
+    let requirements = action_target_requirements(state, p(1), action);
     assert_eq!(
         requirements.len(),
         1,
@@ -385,7 +385,7 @@ fn c2_every_offered_target_is_accepted_by_the_engine() {
         let mut game = start_human_game();
         let (decision, index, _aura) = drive_to_aura_cast(&mut game);
         let action = decision.actions[index].clone();
-        let requirements = action_target_requirements(game.state(), &action);
+        let requirements = action_target_requirements(game.state(), p(1), &action);
         let source = match &action {
             LegalAction::CastSpell { card, .. } => *card,
             other => panic!("expected a CastSpell action, got {other:?}"),

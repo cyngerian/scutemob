@@ -205,34 +205,50 @@ pub fn spell_target_requirements(
     casting::aura_spell_target_requirements(&eff_chars, requirements)
 }
 
-/// CR 602.2b — the target requirements an activated ability announces.
+/// CR 602.2b/700.2c/700.2f (PB-DX55, `OOS-SIM5-5`) — the target requirements an
+/// activated ability announces, honouring per-mode target requirements
+/// (`ModeSelection.mode_targets`) for the chosen `modes_chosen`.
 ///
-/// Reads `calculate_characteristics(state, source)` — **never `card_registry.get()`** —
-/// because `ability_index` indexes the *layer-resolved* `activated_abilities` list
-/// (`abilities.rs:315-334`); a registry read would bypass Humility/Dress Down removing
-/// abilities and Layer-6 `AddActivatedAbility` grants adding them.
+/// All three of the corpus's modal activated abilities (`cankerbloom`,
+/// `goblin_cratermaker`, `umezawas_jitte`'s counter-removal ability) declare
+/// `targets: vec![]` and put every requirement in `mode_targets`, so
+/// [`ability_target_requirements`] (equivalently, this function called with
+/// `modes_chosen: &[]`) reported `vec![]` for all three on every board — the query this
+/// batch's `OOS-SIM5-5` traces back to.
 ///
-/// A modal activated ability's per-mode target slice (`abilities.rs:433-458`) is **out of
-/// scope here** — this function has no chosen-mode input, so it always returns the
-/// printed `ActivatedAbility.targets`. `abilities.rs:433-458` itself hard-rejects
-/// combining multiple chosen modes with `ModeSelection.mode_targets`, so the flat list is
-/// the correct answer for the single-mode case and an incomplete one (documented, not
-/// silently wrong) for the rare multi-mode + `mode_targets` case.
+/// Shares `casting::ability_mode_selection` + `casting::per_mode_target_requirements`
+/// with [`handle_activate_ability`](crate::rules::abilities::handle_activate_ability)'s
+/// own per-mode slice (previously a fifth hand-rolled copy of the same
+/// `flat_map`/`get`/`unwrap_or_default` shape — see that function's own doc), so the
+/// offer/query layer and the handler cannot drift on which targets a chosen mode
+/// requires.
 ///
-/// Missing object or an out-of-range `ability_index` yield `vec![]`.
+/// Same convention as `spell_target_requirements`'s divergence 1: an empty
+/// `modes_chosen` on an ability whose `ModeSelection.mode_targets` is `Some(_)` yields
+/// `vec![]`, not the flat list — advertising targets for a mode the caller has not
+/// chosen is worse than advertising none. Only when `mode_targets` is `None` (a
+/// non-modal ability, or a modal ability whose modes share one flat target list) does
+/// the flat `ActivatedAbility.targets` list apply, regardless of `modes_chosen`.
+///
+/// Missing object, an out-of-range `ability_index`, or an ability with no `modes` at
+/// all fall through to the flat list — this function never panics and never unwraps.
 pub fn ability_target_requirements(
     state: &GameState,
     source: ObjectId,
     ability_index: usize,
+    modes_chosen: &[usize],
 ) -> Vec<TargetRequirement> {
     let Some(chars) = calculate_characteristics(state, source) else {
         return vec![];
     };
-    chars
-        .activated_abilities
-        .get(ability_index)
-        .map(|ab| ab.targets.clone())
-        .unwrap_or_default()
+    let Some(ab) = chars.activated_abilities.get(ability_index) else {
+        return vec![];
+    };
+    let flat = ab.targets.clone();
+    match casting::ability_mode_selection(state, source, ability_index) {
+        Some(ms) => casting::per_mode_target_requirements(&ms, modes_chosen).unwrap_or(flat),
+        None => flat,
+    }
 }
 
 /// CR 606.3 / CR 601.2c — the target requirements a **loyalty** ability announces.

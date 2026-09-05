@@ -1483,6 +1483,26 @@ impl LegalActionProvider for StubProvider {
                 else {
                     continue;
                 };
+                // CR 700.2a (PB-DX55 Half 3, `OOS-SIM5-5`, SR-38): a modal ability with
+                // per-mode target requirements and NO legal mode cannot legally be
+                // activated at all -- `handle_activate_ability` has no
+                // auto-select-a-different-mode fallback, so offering it here is a clean
+                // offer the engine is guaranteed to refuse with a CR 700.2c target-count
+                // error. Recomputes the legality scan (rather than comparing
+                // `ability_default_modes`'s return value to `default_modes_chosen(ms)`)
+                // because the two are NOT the same predicate when `min_modes == 0`: an
+                // empty return there is the CORRECT "choose up to none" answer (CR
+                // 700.2a), not evidence that nothing is legal.
+                if let Some(ms) = &ability.modes {
+                    if ms.min_modes >= 1
+                        && ms.mode_targets.is_some()
+                        && !(0..ms.modes.len()).any(|mode_idx| {
+                            ability_mode_target_is_legal(state, player, obj.id, idx, mode_idx)
+                        })
+                    {
+                        continue;
+                    }
+                }
                 actions.push(LegalAction::ActivateAbility {
                     source: obj.id,
                     ability_index: idx,
@@ -4464,8 +4484,42 @@ pub fn spell_default_modes(state: &GameState, card: ObjectId) -> Vec<usize> {
 /// Mirrors `abilities.rs:313-331` — indexes the LAYER-RESOLVED `activated_abilities` list
 /// (CR 613.1f), not `def.abilities`. Getting this wrong is an index-namespace bug of
 /// exactly the class PB-RS4 spent a session closing.
+///
+/// # CR 700.2a (PB-DX55, `OOS-SIM5-5`): legality-aware, for the per-mode-target case
+///
+/// Before this batch this always returned `(0..min_modes)` — the first `min_modes`
+/// modes in DECLARED order, with no regard for whether that mode has a legal target.
+/// That was harmless for every corpus member with `mode_targets: None` (a flat target
+/// list applies to every mode identically, so no mode is more or less legal than any
+/// other on that axis) and silently wrong for the three corpus members with
+/// `mode_targets: Some(_)` — `cankerbloom`, `goblin_cratermaker`, `umezawas_jitte`'s
+/// counter-removal ability — where mode 0's own target requirement might have no legal
+/// candidate while a later mode's does. `handle_activate_ability` has no
+/// auto-select-a-different-mode fallback (mirrors the Spell path's post-PB-DP3 removal
+/// of its own mode-0 fallback), so a caller that announced mode 0 anyway got a CR
+/// 700.2c target-count refusal instead of a legal activation.
+///
+/// # CR 700.2a, not CR 700.2b — the two rules differ and the difference is load-bearing
+///
+/// CR 700.2a: *"The controller of a modal spell or activated ability chooses the
+/// mode(s) as part of casting that spell or activating that ability. If one of the
+/// modes would be illegal (due to an inability to choose legal targets, for example),
+/// that mode can't be chosen."* This governs BOTH a modal spell and a modal activated
+/// ability.
+///
+/// CR 700.2b governs a modal **triggered** ability specifically, and adds a sentence
+/// CR 700.2a does not have: *"If no mode is chosen, the ability is removed from the
+/// stack."* An activated ability is never PUT on a stack to be removed from it — CR
+/// 601.2b (via CR 602.2b) simply forbids activating it at all when no mode has a legal
+/// target. That is why the "no legal mode" case here is an OFFER SUPPRESSION
+/// (`legal_actions.rs`'s own offer loop, `ability_mode_target_is_legal`'s second call
+/// site below) rather than PB-DX35's `trigger_modal_plan`, whose "no legal mode"
+/// case returns a `None` sentinel meaning "remove this trigger". Verified against the
+/// rules server; this function's own first draft cited CR 700.2b, which is
+/// `trigger_modal_plan`'s rule, not this one.
 pub fn ability_default_modes(
     state: &GameState,
+    player: PlayerId,
     source: ObjectId,
     ability_index: usize,
 ) -> Vec<usize> {
@@ -4476,12 +4530,80 @@ pub fn ability_default_modes(
             None => return vec![],
         },
     };
-    chars
+    let Some(ms) = chars
         .activated_abilities
         .get(ability_index)
         .and_then(|ab| ab.modes.as_ref())
-        .map(default_modes_chosen)
-        .unwrap_or_default()
+    else {
+        return vec![];
+    };
+    if ms.mode_targets.is_none() {
+        // A flat list applies to every mode identically, so mode legality cannot
+        // differ by mode target -- today's behaviour exactly (mirrors
+        // `trigger_modal_plan`'s identical short-circuit on the triggered side).
+        return default_modes_chosen(ms);
+    }
+    // CR 700.2c: `handle_activate_ability` hard-rejects combining more than one
+    // chosen mode with `mode_targets: Some(_)` UNCONDITIONALLY, regardless of
+    // whether the individually-chosen modes are each legal -- mirrors the
+    // `debug_assert!` `trigger_modal_plan` carries for the identical triggered-side
+    // shape. Zero corpus members combine `max_modes > 1` with `mode_targets: Some`
+    // (roster gate `pb_dx55_modal_activated_targets::r_roster`), so this documents
+    // the constraint rather than expanding this function's scope to cover it.
+    debug_assert!(
+        ms.max_modes <= 1,
+        "PB-DX55: max_modes > 1 combined with ModeSelection.mode_targets on an \
+         activated ability is unsupported (CR 700.2c/700.2a) -- handle_activate_ability \
+         hard-rejects choosing more than one such mode regardless of per-mode legality. \
+         Zero corpus members today."
+    );
+    match (0..ms.modes.len())
+        .find(|&idx| ability_mode_target_is_legal(state, player, source, ability_index, idx))
+    {
+        Some(idx) => vec![idx],
+        // CR 700.2a: "choose up to one" (min_modes: 0) legally activates having chosen
+        // zero modes when none is legal -- the activation still happens, it just does
+        // nothing (mirrors `handle_activate_ability`'s own `min_modes == 0` arm).
+        None if ms.min_modes == 0 => vec![],
+        // No legal mode and `min_modes >= 1`: there is no legal default to return.
+        // Falls back to the pre-PB-DX55 answer rather than an empty `Vec` -- either
+        // way `handle_activate_ability` will refuse the resulting Command, and the
+        // OFFER LAYER (not this function) is what must not have offered the
+        // activation in the first place (SR-38, `ability_mode_target_is_legal`'s
+        // second call site).
+        None => default_modes_chosen(ms),
+    }
+}
+
+/// CR 700.2a (PB-DX55, `OOS-SIM5-5`): does mode `mode_idx` of the ability at
+/// `ability_index` on `source` have a legal candidate for every one of its mandatory
+/// (non-`UpToN`) target slots?
+///
+/// Uses the SAME two engine queries `targeting::plan_targets` uses for the general
+/// (non-modal) legality question -- `legal_targets_per_slot` for the candidate sets,
+/// `target_count_range` for each slot's mandatory count -- rather than re-deriving
+/// target legality a second way outside the engine (the drift class `OOS-RS-2` was).
+fn ability_mode_target_is_legal(
+    state: &GameState,
+    player: PlayerId,
+    source: ObjectId,
+    ability_index: usize,
+    mode_idx: usize,
+) -> bool {
+    let reqs = mtg_engine::ability_target_requirements(
+        state,
+        source,
+        ability_index,
+        std::slice::from_ref(&mode_idx),
+    );
+    if reqs.is_empty() {
+        return true;
+    }
+    let per_slot = mtg_engine::legal_targets_per_slot(state, player, source, &reqs);
+    per_slot.iter().zip(reqs.iter()).all(|(candidates, req)| {
+        let (min, _max) = mtg_engine::target_count_range(std::slice::from_ref(req));
+        candidates.len() >= min
+    })
 }
 
 #[cfg(test)]
@@ -4987,9 +5109,12 @@ mod tests {
         let source = id_of(&state, "Umezawa's Jitte");
         const JITTE_MODAL_ABILITY_INDEX: usize = 0;
         assert_eq!(
-            ability_default_modes(&state, source, JITTE_MODAL_ABILITY_INDEX),
+            ability_default_modes(&state, p1, source, JITTE_MODAL_ABILITY_INDEX),
             vec![0],
-            "min_modes: 1 must default to mode 0, read via calculate_characteristics"
+            "min_modes: 1 must default to mode 0, read via calculate_characteristics -- \
+             mode 0 (equipped creature +2/+2) has no target requirement at all, so it \
+             is legal regardless of board state and PB-DX55's legality scan agrees with \
+             the pre-PB-DX55 declared-order default here"
         );
     }
 

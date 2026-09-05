@@ -924,7 +924,7 @@ fn activate_attach(
 fn test_dx20_t5_1_reconfigure_attach_requirement_is_the_real_cr_702_151a_shape() {
     let (state, _p1, _p2, blades_id) = build_board_with_lizard_blades();
 
-    let reqs = mtg_engine::ability_target_requirements(&state, blades_id, 0);
+    let reqs = mtg_engine::ability_target_requirements(&state, blades_id, 0, &[]);
     assert_eq!(
         mtg_engine::target_count_range(&reqs),
         (1, 1),
@@ -1065,7 +1065,7 @@ fn test_dx20_t5_6_unattach_ability_still_takes_no_targets() {
     let own_creature_id = find_object(&state, "Own Creature");
 
     // Unattach's own requirement list is untouched by this batch.
-    let unattach_reqs = mtg_engine::ability_target_requirements(&state, blades_id, 1);
+    let unattach_reqs = mtg_engine::ability_target_requirements(&state, blades_id, 1, &[]);
     assert_eq!(
         unattach_reqs,
         Vec::<TargetRequirement>::new(),

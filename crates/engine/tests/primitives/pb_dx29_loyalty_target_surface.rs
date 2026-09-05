@@ -455,7 +455,7 @@ fn test_dx29_t3_loyalty_index_space_is_not_the_activated_ability_index_space() {
         "precondition: Elspeth carries three loyalty abilities"
     );
 
-    let activated = ability_target_requirements(&state, elspeth, 2);
+    let activated = ability_target_requirements(&state, elspeth, 2, &[]);
     let loyalty = loyalty_ability_target_requirements(&state, elspeth, 2);
     assert_ne!(
         activated, loyalty,

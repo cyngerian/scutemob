@@ -5843,6 +5843,39 @@ pub(crate) fn spell_mode_selection(
         })
     })
 }
+/// CR 602.2b/700.2a (PB-DX55, `OOS-SIM5-5`): the `ModeSelection` a modal ACTIVATED
+/// ability at `source`'s layer-resolved `ability_index` carries, if any.
+///
+/// The peer of [`spell_mode_selection`] above, for the activated-ability side — but the
+/// two read from DIFFERENT places, because the two lists are indexed differently.
+/// `spell_mode_selection` reads a `ModeSelection` straight off the card-definition
+/// REGISTRY (`AbilityDefinition::Spell { modes, .. }`), because a spell's target
+/// requirements are already re-derived from the registry at the cast/query sites that
+/// call it. An activated ability's `ability_index` instead indexes the LAYER-RESOLVED
+/// `Characteristics::activated_abilities` list — the same list `handle_activate_ability`
+/// indexes (`abilities.rs`'s `resolved.activated_abilities.get(ability_index)`) — so a
+/// registry read here would silently disagree with the handler the moment a continuous
+/// effect adds or removes an activated ability (CR 613.1f: Humility, Dress Down,
+/// `LayerModification::AddActivatedAbility`). Reading the same list the handler reads
+/// is what keeps this and `handle_activate_ability` unable to drift, mirroring the same
+/// "read what the handler reads" rule `rules::queries::ability_target_requirements`
+/// already states for the flat-list case.
+///
+/// Missing object or an out-of-range `ability_index` yield `None` — this function never
+/// panics and never unwraps (mirrors `rules::queries`' whole-module contract, since its
+/// only caller is a query).
+pub(crate) fn ability_mode_selection(
+    state: &GameState,
+    source: crate::state::ObjectId,
+    ability_index: usize,
+) -> Option<crate::cards::card_definition::ModeSelection> {
+    crate::rules::layers::calculate_characteristics(state, source).and_then(|chars| {
+        chars
+            .activated_abilities
+            .get(ability_index)
+            .and_then(|ab| ab.modes.clone())
+    })
+}
 /// CR 700.2c/700.2f: Slice `ms.mode_targets` down to the requirements for the chosen
 /// `indices`, in the order given (ascending chosen-mode order at the `handle_cast_spell`
 /// call site). Returns `None` when the spell has no per-mode target requirements

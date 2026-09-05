@@ -1864,7 +1864,7 @@ fn action_target_requirements(action: &LegalAction, state: &GameState) -> Vec<Ta
             source,
             ability_index,
             ..
-        } => mtg_engine::ability_target_requirements(state, *source, *ability_index),
+        } => mtg_engine::ability_target_requirements(state, *source, *ability_index, &[]),
         // PB-DX29 (`OOS-M11-10(loyalty)`, CR 606.3 / CR 601.2c). Deliberately NOT
         // `ability_target_requirements` — a loyalty `ability_index` indexes the
         // registry def's `AbilityDefinition::LoyaltyAbility` entries, not the
@@ -3336,12 +3336,44 @@ fn action_option_view(
                 .iter()
                 .enumerate()
                 .map(|(i, effect)| {
-                    let reqs = ms
-                        .mode_targets
-                        .as_ref()
-                        .and_then(|mt| mt.get(i))
-                        .cloned()
-                        .unwrap_or_default();
+                    // PB-DX55 (`OOS-SIM5-5`), CR 700.2c/700.2f: read this mode's own
+                    // target requirements through the engine's query surface rather
+                    // than reaching into `ms.mode_targets` directly -- this file used
+                    // to be a SIXTH hand-rolled copy of the
+                    // `flat_map`/`get`/`unwrap_or_default` shape `handle_cast_spell`,
+                    // `rules::queries::spell_target_requirements`,
+                    // `rules::queries::ability_target_requirements`,
+                    // `casting::per_mode_target_requirements` (the shared slicer all
+                    // three delegate to) and PB-DX35's `trigger_modal_plan` already
+                    // share. For a `CastSpell` this is exactly
+                    // `spell_target_requirements` with `modes_chosen: &[i]`; for an
+                    // `ActivateAbility` it is the new
+                    // `ability_target_requirements` sibling. Every other
+                    // action kind renders no `ModeSelection` at all (`action_modes`'s
+                    // own match), so the `_ => Vec::new()` arm below is unreachable in
+                    // practice and defensive rather than a real third case.
+                    let reqs = match action {
+                        LegalAction::CastSpell { card, alt_cost, .. } => {
+                            mtg_engine::spell_target_requirements(
+                                state,
+                                *card,
+                                std::slice::from_ref(&i),
+                                *alt_cost,
+                                false,
+                            )
+                        }
+                        LegalAction::ActivateAbility {
+                            source,
+                            ability_index,
+                            ..
+                        } => mtg_engine::ability_target_requirements(
+                            state,
+                            *source,
+                            *ability_index,
+                            std::slice::from_ref(&i),
+                        ),
+                        _ => Vec::new(),
+                    };
                     let (mode_target_min, mode_target_max) = mtg_engine::target_count_range(&reqs);
                     ModeOptionView {
                         index: i,
