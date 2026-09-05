@@ -29,9 +29,9 @@ this file plus an `esm task comment` is the substitute. Updated as items land.
 | 6.2 | clippy / fmt / check-defs-fmt / build --workspace against the FINAL tree | 7382 | pending |
 | 6.3 | `npm run build` or N/A with the reason | 7382 | pending |
 | 6.4 | Benches: merge-base A/B, same-code band FIRST, published honestly | 7382 | pending |
-| 6.5 | Coverage regenerated, churn reverted | 7382 | pending |
+| 6.5 | Coverage regenerated, churn reverted | 7382 | **done** — UNMOVED at 1,140/1,803 = 63.2%, 0 flips, churn reverted |
 | 7.1 | Revert matrix executed by the coordinator; UNDISCRIMINATED rows disclosed in the test itself | 7382 | pending |
-| 7.2 | Registry rows closed (pipes escaped); `OOS-DX54-N` filed (grep first) | 7382 | pending |
+| 7.2 | Registry rows closed (pipes escaped); `OOS-DX54-N` filed (grep first) | 7382 | **done** — OOS-DX25c-6 + OOS-DX25-4 CLOSED, OOS-DX25b-4 updated, OOS-DX54-1..3 filed, all rows split to 6 cells |
 | 7.3 | v4 memo §4 row 17 struck, banner repointed to rank 18 (PB-DX42b) | 7382 | pending |
 | 7.4 | CLAUDE.md Current State + workstream-state handoff + its W6 row | 7382 | pending |
 | 8.1 | `/review` run; every finding taken or declined with a reason | 7382 | pending |

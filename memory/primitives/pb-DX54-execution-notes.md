@@ -407,3 +407,37 @@ PB-DX53's flip is what they are measuring against); all three generated files re
 
 The empty card-def diff made the shortcut available and it was **not taken** — the regeneration
 was run anyway, which is the standing rule in this queue.
+
+---
+
+## §6 — Wire: **HASH 85 / PROTOCOL 44, BOTH UNMOVED — ZERO bumps for the whole PB**
+
+Gate-executed, not assumed: `cargo test -p mtg-engine --test core -- hash_schema
+protocol_schema` is **53 passed / 0 failed**, which includes `declaration_fingerprint_is_pinned`,
+`stream_fingerprint_is_pinned`, `protocol_schema_fingerprint_is_pinned`,
+`history_is_append_only` and `frozen_prefix_is_pinned` on both sides.
+
+**Closure type counts, MEASURED by raising each gate's `MIN_CLOSURE_TYPES` to 9999 and reading
+the gate's own panic text** (never transcribed from the previous batch — PB-DX8's rule):
+
+* PROTOCOL: *"protocol closure is only **98** types"*
+* HASH: *"GameState serde closure is only **132** types"*
+
+Both **unchanged**, exactly as §0.3 predicted. Both floors restored; `git diff` over
+`crates/engine/tests/core/` is empty.
+
+**The counterfactual, stated because "unmoved" is only informative beside what would have
+moved it** (§0.3, verified by execution at stage 0):
+
+* the rejected **shadow-entry** design — `GameState.resolving_stack_object: Option<StackObject>`
+  — would have been **HASH +1 / PROTOCOL unmoved**. `StackObject` planted into `hash_schema.rs`'s
+  `CLOSURE_MUST_NOT_CONTAIN` fails that gate; `protocol_schema.rs` already lists `StackObject`
+  *and* `GameState` and is green at HEAD.
+* the declined rider **`OOS-DX25b-4`** would have been **+1 on BOTH**: `EffectChoiceQuestion`
+  planted into both lists fails both.
+
+**Nothing was owed and nothing was done**: `git diff` over `crates/engine/src/state/hash.rs` and
+`crates/engine/src/rules/protocol.rs` is **EMPTY**, so there was no sentinel to re-pin, no
+survivor scan to run on either axis, no `OOS-DX18-3` over-replacement read to take, no history
+row to append and no `FROZEN_HISTORY_PREFIX_DIGEST` to re-pin. The two append-only gates were
+executed anyway, green, as the evidence that none was owed rather than as a claim that none was.
