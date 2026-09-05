@@ -19,7 +19,7 @@
 //! GameState-only, so that field is HASH-only.
 //!
 //! Patterns mirrored: `tests/primitives/pb_os5_relative_attacker_count.rs` (attack-count
-//! and sentinel layout), `tests/mechanics_a_d/chosen_creature_type.rs` (top-of-library
+//! layout), `tests/mechanics_a_d/chosen_creature_type.rs` (top-of-library
 //! condition), `tests/mechanics_m_z/regenerate.rs` (combat-removal assertions),
 //! `tests/mechanics_m_z/pb_ef5_transform_self.rs` (DFC end-step transform harness),
 //! `tests/primitives/pb_ac6_card_integration.rs` (upkeep-trigger step-crossing harness).
@@ -29,7 +29,7 @@ use mtg_engine::{
     all_cards, calculate_characteristics, check_and_apply_sbas, enrich_spec_from_def,
     process_command, AttackTarget, CardDefinition, CardEffectTarget, CardRegistry, CardType,
     CombatState, Command, Effect, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec,
-    PlayerId, Step, Target, ZoneId, HASH_SCHEMA_VERSION, PROTOCOL_VERSION,
+    PlayerId, Step, Target, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -862,24 +862,5 @@ fn test_os6_cards_registered() {
     assert!(
         thaumatic.completeness.is_complete(),
         "thaumatic_compass should be Complete after PB-OS6(g)"
-    );
-}
-
-// ── Wire sentinels ───────────────────────────────────────────────────────────────
-
-/// PB-OS6 bumped PROTOCOL_VERSION 20 -> 21 and HASH_SCHEMA_VERSION 57 -> 58 (four
-/// closure-shape moves: Condition gained TopCardIsInstantOrSorcery /
-/// YouAttackedWithNOrMore, Effect gained RemoveFromCombat, GameEvent gained
-/// RemovedFromCombat). See crates/engine/src/rules/protocol.rs and
-/// crates/engine/src/state/hash.rs for the authoritative bump.
-#[test]
-fn test_os6_version_sentinels() {
-    assert_eq!(
-        PROTOCOL_VERSION, 44,
-        "PROTOCOL_VERSION should be 21 after PB-OS6"
-    );
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION should be 58 after PB-OS6"
     );
 }

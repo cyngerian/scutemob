@@ -18,7 +18,7 @@ use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     CounterType, Effect, EffectAmount, GameStateBuilder, GameStateError, LoyaltyCost, ManaCost,
     ObjectSpec, PlayerId, PlayerTarget, Step, Target, TargetFilter, TargetRequirement, TypeLine,
-    ZoneId, HASH_SCHEMA_VERSION,
+    ZoneId,
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -415,17 +415,5 @@ fn test_l01_no_target_ability_unaffected() {
             .unwrap_or(0),
         7, // 6 + 1
         "CR 606.4: +1 loyalty ability should increase loyalty from 6 to 7"
-    );
-}
-
-// ── HASH_SCHEMA_VERSION sentinel ──────────────────────────────────────────────
-
-/// BASELINE-LKI-01 bump: HASH_SCHEMA_VERSION = 27 (GameEvent::CreatureDied.pre_death_characteristics,
-/// CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers).
-#[test]
-fn test_pb_ls6_hash_schema_version_is_26() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }

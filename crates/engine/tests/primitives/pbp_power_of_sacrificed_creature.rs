@@ -19,7 +19,7 @@ use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, CardId, CardRegistry, Command, ContinuousEffect, EffectAmount, EffectDuration,
     EffectFilter, EffectId, EffectLayer, GameEvent, GameState, GameStateBuilder, LayerModification,
-    ObjectId, ObjectSpec, PlayerId, Step, ZoneId, HASH_SCHEMA_VERSION,
+    ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -799,26 +799,18 @@ fn test_sacrifice_no_capture_returns_zero_defensive() {
     );
 }
 
-// ── Test M7: Hash parity — EffectAmount variants hash distinctly + sentinel 14 ──
+// ── Test M7: Hash parity — EffectAmount variants hash distinctly ──────────────
 
 /// PB-P M7: Hash parity test — PowerOfSacrificedCreature and four neighboring EffectAmount
-/// variants all produce distinct hashes. Also asserts HASH_SCHEMA_VERSION == 14.
+/// variants all produce distinct hashes.
 ///
 /// CR: N/A (hash infrastructure).
 ///
-/// Discriminator: forces the sentinel assertion to fail if the bump is not made.
 /// Discriminates the new variant from the existing neighbors.
 #[test]
 fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
-
-    // Assert hash sentinel is exactly 15 (PB-LKI-CC bump from PB-TS's 14 for
-    // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 
     // Hash five EffectAmount variants; all must be distinct.
     let hash_amount = |amount: &EffectAmount| -> [u8; 32] {

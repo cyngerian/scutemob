@@ -23,7 +23,7 @@ use mtg_engine::{
     CardEffectTarget as EffectTarget, CardRegistry, CardType, Command, CounterType, Effect,
     EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility, ObjectId, ObjectSpec,
     PlayerId, PlayerTarget, Step, TargetController, TargetFilter, TriggerCondition,
-    TriggeredAbilityDef, ZoneId, HASH_SCHEMA_VERSION,
+    TriggeredAbilityDef, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -78,22 +78,6 @@ fn ctx_with_target(controller: PlayerId, source: ObjectId, target: ObjectId) -> 
             zone_at_cast: Some(ZoneId::Battlefield),
         }],
     )
-}
-
-// ── A: Hash schema sentinel ───────────────────────────────────────────────────
-
-/// PB-AC1 A-1: HASH_SCHEMA_VERSION sentinel.
-/// PB-AC1 bumped 27→28: Effect::UntapAll (disc 87), TriggerCondition::
-/// WheneverPermanentUntaps (disc 42) / WhenCounterPlaced (disc 43), runtime
-/// TriggerEvent::AnyPermanentUntaps (disc 45) / CounterPlaced (disc 46),
-/// KeywordAbility::DoesNotUntap (disc 162), plus new fields (once_per_turn,
-/// counter_filter, counter_on_self, triggered_abilities_fired_this_turn).
-#[test]
-fn test_pb_ac1_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "PB-AC1 bumped HASH_SCHEMA_VERSION 27->28. If you bumped again, update this test."
-    );
 }
 
 // ── B: Effect::UntapAll (CR 701.26b) ────────────────────────────────────────────

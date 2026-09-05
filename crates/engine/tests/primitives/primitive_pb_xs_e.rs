@@ -18,7 +18,7 @@
 //! - CR 400.7 — zone-change identity for the graveyard-side dispatch path.
 //!
 //! Schema/serde:
-//! - HASH_SCHEMA_VERSION sentinel: 19 → 20.
+//! - PB-XS-E bumped HASH_SCHEMA_VERSION 19 → 20 (pinned by `core hash_schema`, not here).
 //! - `#[serde(default)]` keeps pre-PB-XS-E serialized states round-tripping with
 //!   `exclude_self = false`.
 
@@ -29,7 +29,7 @@ use mtg_engine::{
     enrich_spec_from_def, process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry,
     CardType, Color, Command, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
     ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step, SubType,
-    TargetController, TargetFilter, TriggerCondition, TypeLine, ZoneId, HASH_SCHEMA_VERSION,
+    TargetController, TargetFilter, TriggerCondition, TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -153,18 +153,6 @@ fn triggers_for(state: &GameState, source: ObjectId) -> usize {
         })
         .count();
     pending + on_stack
-}
-
-// ── A: Hash schema sentinel ───────────────────────────────────────────────────
-
-/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
-/// without this test being updated. See the `state/hash.rs` history block.
-#[test]
-fn test_pbxse_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 }
 
 // ── B: PartialEq / serde-default round-trip ───────────────────────────────────

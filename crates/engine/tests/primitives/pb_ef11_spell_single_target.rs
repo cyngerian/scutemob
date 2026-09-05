@@ -59,7 +59,6 @@ use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Effect, GameEvent, GameState, GameStateBuilder, GameStateError, ManaCost, ManaPool, ObjectId,
     ObjectSpec, PlayerId, SpellTarget, Step, Target, TargetRequirement, TypeLine, ZoneId,
-    HASH_SCHEMA_VERSION,
 };
 
 use mtg_engine::effects::{execute_effect, EffectContext};
@@ -403,22 +402,15 @@ fn test_spell_single_target_self_prevention() {
     );
 }
 
-// ── Test 5: hash discriminant + live schema sentinel ───────────────────────────
+// ── Test 5: hash discriminant ──────────────────────────────────────────────────
 
-/// HASH_SCHEMA_VERSION live sentinel (54 -> 55) and hash-discriminant pin:
+/// Hash-discriminant pin (PB-EF11 bumped HASH_SCHEMA_VERSION 54 -> 55):
 /// `TargetSpellWithSingleTarget` (discriminant 19) must hash distinctly from its
 /// sibling `TargetSpellOrAbilityWithSingleTarget` (discriminant 16).
 #[test]
 fn test_spell_single_target_hash_discriminant() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
-
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this \
-         assertion and the state/hash.rs history block together; the authoritative check \
-         is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
         let mut hasher = Hasher::new();

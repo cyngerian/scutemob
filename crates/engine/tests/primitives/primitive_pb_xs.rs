@@ -33,7 +33,7 @@ use mtg_engine::state::game_object::ManaCost;
 use mtg_engine::state::{
     CardId, CardType, GameStateBuilder, ObjectSpec, PlayerId, SubType, Target, ZoneId,
 };
-use mtg_engine::{enrich_spec_from_def, CardRegistry, GameState, ObjectId, HASH_SCHEMA_VERSION};
+use mtg_engine::{enrich_spec_from_def, CardRegistry, GameState, ObjectId};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -56,19 +56,6 @@ fn single_def(def: CardDefinition) -> (HashMap<String, CardDefinition>, Arc<Card
         std::iter::once((def.name.clone(), def.clone())).collect();
     let registry = CardRegistry::new(vec![def]);
     (defs, registry)
-}
-
-// ── A: Hash schema sentinel ───────────────────────────────────────────────────
-
-/// PB-XS sentinel (re-pointed by PB-XS-E): asserts the live HASH_SCHEMA_VERSION,
-/// not the version PB-XS itself bumped to. The test name is generic so future
-/// PBs do not need to rename it again.
-#[test]
-fn test_pbxs_hash_schema_version_matches_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 }
 
 // ── B: TargetFilter equality / hash discriminator ─────────────────────────────

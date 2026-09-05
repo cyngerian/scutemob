@@ -22,7 +22,7 @@ use mtg_engine::{
     enrich_spec_from_def, process_command, AbilityDefinition, CardDefinition, CardEffectTarget,
     CardId, CardRegistry, CardType, Command, Effect, GameEvent, GameState, GameStateBuilder,
     GameStateError, ManaCost, ManaPool, ObjectId, ObjectSpec, PlayerId, SpellTarget, Step, SubType,
-    Target, TargetRequirement, TypeLine, ZoneId, HASH_SCHEMA_VERSION,
+    Target, TargetRequirement, TypeLine, ZoneId,
 };
 
 use mtg_engine::effects::{execute_effect, EffectContext};
@@ -266,22 +266,15 @@ fn test_target_opponent_decoy_self_must_be_rejected() {
     );
 }
 
-// ── Test 3: hash distinctness + live schema sentinel ───────────────────────────
+// ── Test 3: hash distinctness ──────────────────────────────────────────────────
 
-/// HASH_SCHEMA_VERSION live sentinel (48 -> 49) — see `state/hash.rs` history
-/// block. `TargetRequirement::TargetOpponent` (discriminant 18) must hash
+/// PB-EF6 bumped HASH_SCHEMA_VERSION 48 -> 49 (see the `state/hash.rs` history
+/// block). `TargetRequirement::TargetOpponent` (discriminant 18) must hash
 /// distinctly from `TargetPlayer` (discriminant 1) and `UpToN` (discriminant 17).
 #[test]
 fn test_target_opponent_hashes_distinctly() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
-
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this \
-         assertion and the state/hash.rs history block together; the authoritative \
-         check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
         let mut hasher = Hasher::new();

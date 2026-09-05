@@ -21,7 +21,7 @@ use mtg_engine::{
     enrich_spec_from_def, process_command, ActivatedAbility, ActivationCost, CardDefinition,
     CardRegistry, Color, Command, CounterType, Effect, EffectAmount, GameEvent, GameState,
     GameStateBuilder, GameStateError, ManaColor, ModeSelection, ObjectId, ObjectSpec, PlayerId,
-    PlayerTarget, Step, Target, TargetRequirement, ZoneId, HASH_SCHEMA_VERSION, PROTOCOL_VERSION,
+    PlayerTarget, Step, Target, TargetRequirement, ZoneId,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -225,26 +225,6 @@ fn build_synthetic_modal_state(modes: ModeSelection) -> (GameState, PlayerId, Ob
     state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "EF7 Synthetic Modal Artifact");
     (state, p1, source_id)
-}
-
-// ── Version sentinels ─────────────────────────────────────────────────────────
-
-/// CR 700.2a: PB-EF7 bumped both wire versions. Authoritative machine gates are
-/// `tests/core/hash_schema.rs` / `tests/core/protocol_schema.rs`; this sentinel just
-/// forces a deliberate edit here (and to `state/hash.rs` / `rules/protocol.rs`) on
-/// any future bump, mirroring the convention on every other PB test module.
-#[test]
-fn test_ef7_hash_and_protocol_versions() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "PB-EF7 added AbilityDefinition::Activated::modes / ActivatedAbility::modes \
-         (HASH 49->50). Update this sentinel and the state/hash.rs history block together."
-    );
-    assert_eq!(
-        PROTOCOL_VERSION, 44,
-        "PB-EF7 added Command::ActivateAbility.modes_chosen (PROTOCOL 11->12). Update this \
-         sentinel and the rules/protocol.rs history block together."
-    );
 }
 
 // ── Generic modal-activated mechanism (CR 602.2b/700.2a) ─────────────────────

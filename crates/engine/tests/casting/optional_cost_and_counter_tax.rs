@@ -31,7 +31,7 @@ use mtg_engine::{
     Cost, Effect, EffectAmount, EffectChoiceAnswer, EffectChoiceQuestion, GameEvent, GameState,
     GameStateBuilder, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget,
     SpellTarget, StackObject, StackObjectKind, Step, Target, TargetFilter, TargetRequirement,
-    TypeLine, ZoneId, HASH_SCHEMA_VERSION,
+    TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1161,16 +1161,6 @@ fn test_counter_unless_pays_noncreature_filter() {
         "CR 601.2c: a creature spell is NOT a legal target for \
          TargetSpellWithFilter{{non_creature: true}}"
     );
-}
-
-// ── Hash schema ──────────────────────────────────────────────────────────────────
-
-#[test]
-/// PB-AC2 bumped `HASH_SCHEMA_VERSION` 28 -> 29 (new `Effect` variants
-/// `MayPayThenEffect` discriminant 88 and `CounterUnlessPays` discriminant 89).
-/// If you bumped again, update this test and the `state/hash.rs` history block.
-fn test_hash_schema_version_is_29() {
-    assert_eq!(HASH_SCHEMA_VERSION, 85u8);
 }
 
 #[test]

@@ -34,7 +34,6 @@ use mtg_engine::PlayerTarget;
 use mtg_engine::{
     enrich_spec_from_def, AttackTarget, CardId, CardRegistry, CardType, CombatState, GameState,
     GameStateBuilder, ObjectId, ObjectSpec, PlayerId, StackObjectKind, Step, Target, ZoneId,
-    HASH_SCHEMA_VERSION,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -107,18 +106,6 @@ fn combat_with_blocker(blocker_id: ObjectId, attacker_id: ObjectId) -> CombatSta
         blocked_attackers: imbl::OrdSet::new(),
         exerted_attackers: imbl::OrdSet::new(),
     }
-}
-
-// ── A: Hash schema sentinel ───────────────────────────────────────────────────
-
-/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
-/// without this test being updated. See the `state/hash.rs` history block.
-#[test]
-fn test_pb_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 }
 
 /// PB-XA2 A-2: Pre-PB-XA2 JSON snapshot missing the three new fields deserializes

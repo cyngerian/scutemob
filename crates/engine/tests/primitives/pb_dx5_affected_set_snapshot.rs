@@ -71,7 +71,6 @@ use mtg_engine::{
     Effect, EffectAmount, EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent,
     GameState, GameStateBuilder, KeywordAbility, LayerModification, ManaColor, ManaCost, ObjectId,
     ObjectSpec, PlayerId, PlayerTarget, Step, TargetFilter, TypeLine, ZoneId, ZoneTarget,
-    HASH_SCHEMA_VERSION,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1195,19 +1194,5 @@ fn test_611_2c_snapshot_uses_full_resolution_a_layer_le4_mass_filter_reaches_a_l
          from FULLY layer-resolved characteristics, so the animated Nexus is seen as a \
          creature at determination time and is locked into the affected set -- it then keeps \
          every creature type AddAllCreatureTypes grants for the rest of the duration"
-    );
-}
-
-// ── T14 — wire-version sentinel ─────────────────────────────────────────────────
-
-#[test]
-/// PB-DX5: `ContinuousEffect.affected_set` (CR 611.2c) bumps HASH_SCHEMA_VERSION
-/// 69 -> 70. `PROTOCOL_VERSION` is unmoved (confirmed by
-/// `cargo test -p mtg-engine --test core protocol_schema`, not assumed --
-/// `ContinuousEffect` is not in the SR-8 wire closure).
-fn test_dx5_hash_schema_version_is_70() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION live sentinel -- PB-DX5, CR 611.2c"
     );
 }

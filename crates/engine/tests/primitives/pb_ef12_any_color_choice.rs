@@ -20,7 +20,7 @@ use mtg_engine::{
     all_cards, calculate_characteristics, enrich_spec_from_def, process_command, CardRegistry,
     Command, ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent,
     GameState, GameStateBuilder, GameStateError, LayerModification, ManaAbility, ManaColor,
-    ObjectId, ObjectSpec, PlayerId, Step, PROTOCOL_VERSION,
+    ObjectId, ObjectSpec, PlayerId, Step,
 };
 use std::collections::HashMap;
 
@@ -361,18 +361,5 @@ fn test_ef12_decoy_fixed_color_source_rejects_a_choice() {
     assert!(
         matches!(result.err().unwrap(), GameStateError::InvalidCommand(_)),
         "the rejection must be InvalidCommand"
-    );
-}
-
-// ── Version sentinels ───────────────────────────────────────────────────────────
-
-/// PB-EF12 wire bump: `Command::TapForMana` gained `chosen_color`, a wire-frame shape
-/// change (SR-8 closure). This sentinel forces deliberate review of any further bump.
-#[test]
-fn test_ef12_protocol_version_sentinel() {
-    assert_eq!(
-        PROTOCOL_VERSION, 44,
-        "PROTOCOL_VERSION changed. Update this sentinel and the History list in \
-         rules/protocol.rs."
     );
 }

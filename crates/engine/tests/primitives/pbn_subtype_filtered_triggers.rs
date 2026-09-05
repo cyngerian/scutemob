@@ -5,7 +5,6 @@
 //! - `WheneverCreatureDies` with `triggering_creature_filter`
 //! - Pre-death LKI semantics for the color filter (CR 603.10a)
 //! - Hash parity for `TriggeredAbilityDef.triggering_creature_filter`
-//! - Hash sentinel bump verification (sentinel 3 → 4)
 //! - `combat_damage_filter` tightened to damage events only (regression test)
 //! - Kolaghan, the Storm's Fury end-to-end
 //!
@@ -23,7 +22,6 @@ use mtg_engine::{
     ContinuousEffect, DeathTriggerFilter, Effect, EffectAmount, EffectDuration, EffectFilter,
     EffectId, EffectLayer, GameStateBuilder, LayerModification, ObjectSpec, PlayerId, PlayerTarget,
     StackObjectKind, Step, SubType, TargetFilter, TriggerEvent, TriggeredAbilityDef, ZoneId,
-    HASH_SCHEMA_VERSION,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -479,11 +477,10 @@ fn test_pbn_death_filter_pre_death_lki_color() {
     );
 }
 
-// ── Test 7: MANDATORY — hash parity for new field + sentinel bump ─────────────
+// ── Test 7: MANDATORY — hash parity for new field ─────────────────────────────
 
 /// PB-N — hash parity test: two states differing only in `triggering_creature_filter`
 /// must hash to different values. Verifies the new field participates in the hash.
-/// Also verifies hash sentinel is non-trivial (sentinel 4 is included).
 /// Closes PB-Q H1 retro lesson: every new dispatch field needs hash coverage.
 #[test]
 fn test_pbn_hash_parity_triggering_creature_filter() {
@@ -552,29 +549,6 @@ fn test_pbn_hash_parity_triggering_creature_filter() {
     assert_ne!(
         hash_no_filter, hash_with_filter,
         "Hash must differ when triggering_creature_filter differs (PB-N field hash parity)"
-    );
-
-    // F5 fix: Verify the schema version sentinel is exactly 4 (not just non-zero).
-    // A rollback from sentinel 4 to sentinel 3 would change the hash fingerprint for
-    // states that participate in PB-N wire format — this assertion catches that.
-    // Uses the exported HASH_SCHEMA_VERSION constant from state::hash (not a magic literal)
-    // so the test must be updated when the sentinel is bumped.
-    // PB-P bumped the sentinel from 5 → 6 (EffectAmount::PowerOfSacrificedCreature + AdditionalCost::Sacrifice struct + StackObject field).
-    // PB-L bumped the sentinel from 6 → 7 (ETBTriggerFilter.card_type_filter for Landfall dispatch).
-    // PB-T bumped the sentinel from 7 → 8 (TargetRequirement::UpToN added, CR 601.2c / 115.1b).
-    // PB-SFT bumped the sentinel from 8 → 9 (Effect::SacrificePermanents.filter + TargetFilter.is_nontoken).
-    // PB-CC-B bumped the sentinel from 9 → 10 (TargetFilter.has_counter_type, CR 122.1).
-    // PB-CC-C bumped the sentinel from 10 → 11 (LayerModification::ModifyPowerDynamic +
-    //   ModifyToughnessDynamic, CR 613.4c single-axis dynamic P/T modification).
-    // PB-CC-C-followup bumped the sentinel from 12 → 13 (AbilityDefinition::CdaModifyPowerToughness
-    //   disc 76, CR 611.3a continuous re-evaluation for Layer-7c dynamic CDA modifications).
-    // PB-TS bumped the sentinel from 13 → 14 (TokenSpec.count: u32 → EffectAmount, CR 111.1 / 608.2h).
-    // PB-LKI-CC bumped the sentinel from 14 → 15 (EffectAmount::CounterCountAtLastKnownInformation,
-    //   CR 603.10a / 113.7a, LKI counter snapshot for WhenDies/WhenLeavesBattlefield triggers).
-    // This assertion is updated to reflect the current sentinel value.
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }
 

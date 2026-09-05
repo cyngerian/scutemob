@@ -45,7 +45,7 @@ use mtg_engine::rules::turn_actions::cleanup_actions;
 use mtg_engine::{
     CardType, Color, ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer,
     GameEvent, GameState, GameStateBuilder, KeywordAbility, LayerModification, ObjectId,
-    ObjectSpec, PlayerId, SubType, ZoneId, HASH_SCHEMA_VERSION,
+    ObjectSpec, PlayerId, SubType, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -115,20 +115,6 @@ fn setup_hand_and_library(hand_n: usize, library_n: usize) -> GameState {
         );
     }
     builder.build().unwrap()
-}
-
-// ── HASH_SCHEMA_VERSION sentinel ──────────────────────────────────────────────
-
-/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts without
-/// this test being updated. PB-AC9 bumped 35 -> 36.
-#[test]
-fn test_pb_ac9_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "PB-AC9 bumped HASH_SCHEMA_VERSION 35->36 (Effect::WheelHand disc 91, \
-         Effect::SetNoMaximumHandSize disc 92, PlayerState.no_max_hand_size_permanent). \
-         If you bumped again, update this test."
-    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

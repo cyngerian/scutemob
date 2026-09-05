@@ -11,7 +11,7 @@
 //! entering object's own characteristics at ETB time).
 //!
 //! Tests:
-//!   (A) Hash schema sentinel: `HASH_SCHEMA_VERSION == 21` (PB-EAT bump).
+//!   (A) (deleted by CC-2, 2026-09-05: the version sentinel — `core hash_schema` is the one pin.)
 //!   (B) PartialEq discriminator: two `EntersAsAdditionalType` values that
 //!       differ only in subtype are not equal.
 //!   (C) Serde forward-compat: pre-PB-EAT-serialized ReplacementModification
@@ -32,7 +32,7 @@ use mtg_engine::state::zone::ZoneId;
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition,
     CardRegistry, Command, GameEvent, GameState, GameStateBuilder, ManaColor, ObjectId, ObjectSpec,
-    PlayerId, ReplacementModification, Step, HASH_SCHEMA_VERSION,
+    PlayerId, ReplacementModification, Step,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -128,18 +128,6 @@ fn cast_creature(
         })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
-}
-
-// ── Test A: Hash schema sentinel ──────────────────────────────────────────────
-
-/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
-/// without this test being updated. See the `state/hash.rs` history block.
-#[test]
-fn test_pb_eat_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 }
 
 // ── Test B: PartialEq discriminator ───────────────────────────────────────────

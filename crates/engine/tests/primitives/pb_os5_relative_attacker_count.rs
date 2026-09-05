@@ -33,7 +33,7 @@ use mtg_engine::{
     CardContinuousEffectDef, CardDefinition, CardEffectTarget, CardRegistry, CombatState, Command,
     EffectAmount, EffectDuration, EffectFilter, EffectLayer, GameEvent, GameState,
     GameStateBuilder, KeywordAbility, LayerModification, ObjectId, ObjectSpec, PlayerId, Step,
-    SubType, HASH_SCHEMA_VERSION, PROTOCOL_VERSION,
+    SubType,
 };
 use std::collections::HashMap;
 
@@ -704,23 +704,4 @@ fn test_os5_muxus_registers_and_pumps_zero_floor() {
         "Muxus alone attacking, no other Goblins you control: stays at base 4/4"
     );
     assert_eq!(toughness(&state, muxus_id), Some(4));
-}
-
-// ── Test 8: wire sentinels ───────────────────────────────────────────────────────
-
-/// PB-OS5 bumped PROTOCOL_VERSION 19 -> 20 and HASH_SCHEMA_VERSION 56 -> 57 (a single
-/// new `EffectAmount` variant, discriminant 24). See
-/// crates/engine/src/rules/protocol.rs and crates/engine/src/state/hash.rs for the
-/// authoritative bump.
-#[test]
-fn test_os5_version_sentinels() {
-    assert_eq!(
-        PROTOCOL_VERSION, 44,
-        "PROTOCOL_VERSION should be 20 after PB-OS5 (EffectAmount gained \
-         OtherAttackersSharingCreatureType)"
-    );
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION should be 57 after PB-OS5"
-    );
 }
