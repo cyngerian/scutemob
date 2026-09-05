@@ -2110,8 +2110,9 @@
   and refuted by execution before it was written down. One comment-only repair, on a note that had
   survived three sweeps **because it MISSPELLED the identifier it was wrong about** — and
   misspelling correlates with being wrong (`OOS-DX57-2`).
-  **EVERY GATE THIS BATCH WROTE WAS DEFEATED BY AN ADVERSARIAL PASS — TEN DEFEATS ACROSS TWO
-  INDEPENDENT ROUNDS, ALL RE-KEYED AND ALL RE-EXECUTED RED.** Not one survived its first adversary.
+  **EVERY GATE THIS BATCH WROTE WAS DEFEATED — TEN DEFEATS ACROSS TWO INDEPENDENT ADVERSARIAL
+  ROUNDS AND FOUR MORE FROM THE `/review`, FOURTEEN IN ALL, EVERY ONE RE-KEYED AND RE-EXECUTED
+  RED.** Not one survived its first adversary.
   The sharpest: a **raw identifier** (`pub r#type`) was dropped in silence by the canonical parser
   and both cross-target copies, leaving **two whole test targets green**; **laundering** a member
   across a partition inverts the claim while every consistency check stays valid, which defeated
@@ -2125,6 +2126,32 @@
   declaration they read depends on declaration ORDER — is the better finding (`OOS-DX57-5`, closed).
   **And two of this batch's own gates over-fired and were narrowed by ADJUDICATING hits rather than
   reading a count.**
+  **THE `/review` FOUND 16 AND ALL 16 WERE TAKEN, AND FOUR OF THEM WERE GATES AGAIN.** `p6`/`p7`
+  gated a **COPY** of the parser they claim to pin, so reverting the exact line-based bug this
+  batch's own commit `7811ad36` fixed left them GREEN and the whole `core` target at 830 passed —
+  PB-DX50's `r3` *inverted*, inside the batch that closes that class. `v1`'s `&mut` exemption was
+  computed over the **whole function body** while its own module doc says *"the key is per
+  ASSERTION"*, so one unrelated `warm_up(&mut state)` exempted every assertion in a test — and the
+  repair idiom this batch shipped IS `handle_x(&mut state, ..)`, so a **partly-repaired function was
+  unpoliced by construction**; three more natural bypasses came with it, including the hoisted clone,
+  which needs no helper and no macro. The mechanism ratchet **discharged a stale claim on a
+  SUBSTRING** in the commit that ships `has_token` for exactly that — and the fix surfaced a sixth
+  real row on its first run, `olivias_wrath`, whose own `ModifyBothDynamic` contains `ModifyBoth`.
+  And `r2`'s pin **coverage was frozen and unenforced**: 262 of 530 rows pin an EMPTY activated list,
+  which is a prefix of anything, so a def absent from the pin could gain two activated abilities and
+  have them SWAPPED with all 30 roster tests green.
+  **THREE PUBLISHED FIGURES DID NOT REPRODUCE, and one was a bound the next batch is told to
+  reuse** — §3.5's *"56 … 23 … and the gap IS the gate's recall bound"* was taken before the
+  adversarial widening and reads **91 / 35** at HEAD; the slice-const ceiling was set from a STAGE-0
+  measurement and this batch then added five of its own; and `m2` asserted `>= 50 / >= 800` under a
+  message saying *"(floor 60 / 700)"*, so a maintainer correcting the code to match the message
+  would have reddened one axis and loosened the other. **PB-DX28's re-take MEDIUM, committed inside
+  the paragraph whose whole purpose is handing a measured bound to the next reader.**
+  **AND TWO SCOPE FINDINGS THAT ARE ONE BATCH OLD IN THIS REPOSITORY**: `v1` and `p5` each walked
+  ONE CRATE while the sweep they cite is a workspace figure — 55 files containing `process_command`
+  were outside the scan, and the seed planted verbatim in `crates/simulator/tests` left every gate
+  green. That is PB-DX48's `SITE_SRCS` defeat and PB-DX49's workspace-walk repair, **not carried
+  across**. Both now walk `crates/*/{tests,src}` plus `tools/`: 468 files → **2,492**.
   Tests **5,363 / 0 / 6** (+47, 72 targets, byte-exact NAME set difference, 0 leavers, duplicate
   scan EMPTY; ignored 5 → 6 disclosed, and SIX in-place edits disclosed because a name-set delta is
   blind to them). **HASH 85 / PROTOCOL 44 both UNMOVED — zero bumps**, predicted per half before

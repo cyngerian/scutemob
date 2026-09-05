@@ -99,8 +99,9 @@ appending to a row in any of these tables, count its cells against the header.**
 ### The adversarial discipline, and what it cost
 
 Every gate this batch wrote or re-keyed was handed to a SECOND agent, briefed with the gate's **doc
-sentence and not its implementation**, to attack by execution. **All five in the first round were
-defeated**, and every defeat was a real, fixable narrowness:
+sentence and not its implementation**, to attack by execution. **TWO independent rounds, ten
+defeats, and then the `/review` found four more — fourteen in all, and not one gate survived its
+first adversary.** Round 1's five, each a real, fixable narrowness:
 
 * the face-down derivation deduped by KIND, so a third genuine site was invisible — **and re-keying
   it onto the enclosing arm was STILL green**, found by re-executing the defeat against my own fix
@@ -114,6 +115,23 @@ defeated**, and every defeat was a real, fixable narrowness:
   is not (its needle carries the brace), and re-executing the plant returned the real field set.
   What the adversary actually found was better — **four OTHER parsers in the tree ARE**, proven by
   a decoy that left the whole `core` target green with every field-set pin checking the decoy.
+
+**Round 2 defeated five more, three of them COMPLETELY (whole test target green)**, and the sharpest
+is worth the next batch's attention on its own: **a raw identifier — `pub r#type: bool`, which is how
+a field named after a keyword MUST be written — parsed to the empty string and the field was dropped
+IN SILENCE**, by the canonical parser and by both cross-target copies. Two whole test targets stayed
+green with the field present. The others: **laundering** a member across a partition inverts the
+claim while every consistency check stays valid (that defeated two list-vs-list gates completely,
+with the whole `core` target green); a derivation that is **syntactic rather than semantic**
+(`=> false` vs a semantically-false body); and two consistent lists that can shrink **together**. The
+last two are not closable at the source level and ship as stated residuals with the measurement of
+what DOES cover them.
+
+**The `/review` then defeated four more**, including `p6`/`p7` gating a **COPY** of the parser they
+claim to pin — so reverting the exact bug this batch's own commit fixed left them green — and `v1`'s
+`&mut` exemption being computed **per function** while its own module doc says the key is per
+assertion. Full account in `memory/primitives/pb-DX57-execution-notes.md` §7-§8, including
+**which gates were never attacked**, which is a gap and is named as one.
 
 **Two of this batch's own gates over-fired and were narrowed by ADJUDICATING hits rather than
 reading a count**, which is the same discipline pointed inward: the rejection gate attributed any

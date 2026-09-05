@@ -58,6 +58,15 @@
 //!   is discharged by its first ability using the same variant for an unrelated purpose. This
 //!   is PB-DX8's `/review` finding 3 one axis over, where its measured exposure was 24 defs.
 //!   Closing it needs a clause-to-ability alignment nothing in the tree has.
+//! * **A claim split across two sentences is invisible.** `sentences()` splits on `.`, `;` and
+//!   newlines, and a hit needs the assertive frame AND the identifier in the SAME fragment, so
+//!   `// Effect::Manifest is the mechanism here. It resolves from the declared target.` is
+//!   green while the identical claim as one sentence fires. Found by the `/review`; a fifth
+//!   bound, and it was not in this list.
+//! * **`ASSERTIVE_FRAMES` is hand-typed and therefore a floor**, which is the correct polarity
+//!   (enumerating what may fire fails CLOSED) but is still a bound: `dispatch`, `calls` and
+//!   `gets applied by` are ordinary assertive verbs and none is listed. Stated in the const's
+//!   own doc and now here, because a bound a reader has to go looking for is not disclosed.
 //! * The corpus contains **zero** `/* */` comments, so the block-comment arm of every extractor
 //!   here — and of the three that already existed — has never run against real input. Stated
 //!   because *a scanner whose only evidence of correctness is that it has never had to run* is
@@ -367,6 +376,34 @@ fn has_token(hay: &str, needle: &str) -> bool {
     false
 }
 
+/// The predicate `offenders()` applies to ONE (prose, code) pair.
+///
+/// **Extracted so `m3` and `m4` call it instead of re-implementing it.** `m4` is the
+/// known-positive replay for the seed's own sentence, and the `/review` pointed out that it had
+/// hand-inlined the four-step pipeline: repair `offenders()` (as Issue 4 did, from `contains`
+/// to `has_token`) and `m4` keeps passing on the OLD rule, so the seed replay silently stops
+/// testing what ships. That is the batch's own "a gate on a COPY" finding, one file over.
+fn mechanism_claim_offenders(
+    prose: &str,
+    code: &str,
+    dict: &BTreeMap<String, BTreeSet<String>>,
+) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for sentence in sentences(prose) {
+        let lower = sentence.to_lowercase();
+        if !ASSERTIVE_FRAMES.iter().any(|f| lower.contains(f)) {
+            continue;
+        }
+        for id in declared_identifiers_in(&sentence, dict) {
+            let (_, variant) = id.split_once("::").expect("built with ::");
+            if !has_token(code, variant) {
+                out.push((id.clone(), sentence.clone()));
+            }
+        }
+    }
+    out
+}
+
 /// `(def file stem, the identifier, the sentence)` for every assertive mechanism claim whose
 /// named identifier does not occur in that def's own code.
 fn offenders() -> Vec<(String, String, String)> {
@@ -375,17 +412,8 @@ fn offenders() -> Vec<(String, String, String)> {
     for (name, src) in read_def_sources() {
         let prose = author_prose_cased(&src);
         let code = code_surface(&src);
-        for sentence in sentences(&prose) {
-            let lower = sentence.to_lowercase();
-            if !ASSERTIVE_FRAMES.iter().any(|f| lower.contains(f)) {
-                continue;
-            }
-            for id in declared_identifiers_in(&sentence, &dict) {
-                let (_, variant) = id.split_once("::").expect("built with ::");
-                if !has_token(&code, variant) {
-                    out.push((name.clone(), id.clone(), sentence.clone()));
-                }
-            }
+        for (id, sentence) in mechanism_claim_offenders(&prose, &code, &dict) {
+            out.push((name.clone(), id, sentence));
         }
     }
     out.sort();
@@ -620,13 +648,7 @@ fn m4_the_gate_fires_on_the_seeds_own_pre_repair_sentence() {
                  pub fn card() { targets: vec![TargetRequirement::TargetPlayer] }";
     let prose = author_prose_cased(stale);
     let code = code_surface(stale);
-    let hit = sentences(&prose).into_iter().any(|s| {
-        let lower = s.to_lowercase();
-        ASSERTIVE_FRAMES.iter().any(|f| lower.contains(f))
-            && declared_identifiers_in(&s, &dict)
-                .iter()
-                .any(|id| !code.contains(id.split_once("::").unwrap().1))
-    });
+    let hit = !mechanism_claim_offenders(&prose, &code, &dict).is_empty();
     assert!(
         hit,
         "the gate does not fire on the seed's own pre-repair sentence, so it would not have \
@@ -639,13 +661,7 @@ fn m4_the_gate_fires_on_the_seeds_own_pre_repair_sentence() {
                     pub fn card() { target: PlayerTarget::DamagedPlayer }";
     let rprose = author_prose_cased(repaired);
     let rcode = code_surface(repaired);
-    let rhit = sentences(&rprose).into_iter().any(|s| {
-        let lower = s.to_lowercase();
-        ASSERTIVE_FRAMES.iter().any(|f| lower.contains(f))
-            && declared_identifiers_in(&s, &dict)
-                .iter()
-                .any(|id| !rcode.contains(id.split_once("::").unwrap().1))
-    });
+    let rhit = !mechanism_claim_offenders(&rprose, &rcode, &dict).is_empty();
     assert!(
         !rhit,
         "the gate fires on the REPAIRED shape too, so it is not discriminating the claim from \

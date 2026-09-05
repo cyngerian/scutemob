@@ -394,6 +394,41 @@ fn r2_lowered_ability_order_is_append_only() {
          abilities, so the pin has stopped constraining any ORDER"
     );
 
+    // ── COVERAGE: every face with >= 2 activated abilities must be PINNED ──────
+    //
+    // **The loop below iterates `PINNED_ORDER` and never walks `current`, so a def ABSENT from
+    // the pin is unconstrained — and 262 of the 530 pinned rows pin an EMPTY activated list,
+    // which is a prefix of anything.** The `/review` proved both halves by execution: giving
+    // two `Activated` abilities to a def absent from the pin, and then SWAPPING them, left all
+    // 30 roster tests green (`r1` merely PRINTED the def); and doing the same to a def pinned
+    // with an empty activated list gave `30 passed; 0 failed`.
+    //
+    // Today's population is complete — every face with >= 2 activated abilities is pinned, and
+    // the assertion below is what says so — but the pin is only regenerated when it FAILS, so
+    // without this the covered fraction shrinks monotonically as cards are authored. That is
+    // precisely the activity `OOS-DX26-3` exists to police: *"a card-def-only, 0 engine lines
+    // batch is NOT automatically an index-neutral one."*
+    let pinned_keys: BTreeSet<(String, &str)> = PINNED_ORDER
+        .iter()
+        .map(|(n, f, _, _)| (n.to_string(), *f))
+        .collect();
+    let unpinned_ge2: Vec<String> = current
+        .iter()
+        .filter(|((_, _), (_, act))| act.len() >= 2)
+        .filter(|((n, f), _)| !pinned_keys.contains(&(n.clone(), *f)))
+        .map(|((n, f), (_, act))| format!("{n} [{f}] x{}", act.len()))
+        .collect();
+    assert!(
+        unpinned_ge2.is_empty(),
+        "PB-DX57 r2 COVERAGE: {} face(s) now carry >= 2 lowered activated abilities and are \
+         NOT in PINNED_ORDER, so their ORDER is unconstrained and an insert-not-append into \
+         any of them would go unnoticed:\n{unpinned_ge2:#?}\n\
+         Regenerate the pin (`PB_DX57_REGEN=1 cargo test -p mtg-engine --test core \
+         pb_dx57_activated_index_roster::r2_regenerate_pin -- --ignored --nocapture`) and \
+         commit the new table. Do NOT satisfy this by deleting a row.",
+        unpinned_ge2.len()
+    );
+
     let mut failures: Vec<String> = Vec::new();
 
     for (name, face, pin_mana, pin_act) in PINNED_ORDER {
@@ -585,7 +620,10 @@ fn r4_activated_cost_reduction_keys_are_in_range() {
         "PB-DX57 r4: {} activated-ability cost-reduction key(s) are out of range for their \
          def's lowered activated list:\n   - {}\n\nThis is the same positional index \
          `Command::ActivateAbility` uses. A key that points past the end is silently \
-         inert; a key that points at the WRONG ability discounts the wrong cost.",
+         inert; a key OUT OF RANGE names no ability at all. (This row checks the RANGE only; \
+         it cannot tell a key that points at the WRONG in-range ability, which is what `r2`'s \
+         order pin is for -- and `r2`'s COVERAGE assertion is what keeps these six carriers \
+         pinned so that composition holds).",
         bad.len(),
         bad.join("\n   - ")
     );

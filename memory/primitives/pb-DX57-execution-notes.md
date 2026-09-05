@@ -617,3 +617,109 @@ no **rebinding** awareness (an assertion after `let (state, _) = process_command
 the ACCEPTED path — *dozens* of the 216 swept functions do exactly that). `p5`'s first draft reported
 **five** offenders, all `.expect(..)` MESSAGES and **zero** real. Every one was found by opening a
 flagged line rather than reading the count.
+
+---
+
+## §8. The `/review` — 16 findings, all 16 taken, and FOUR of them were this batch's own gates
+
+The reviewer had a shell, reproduced every headline number independently (5,363 / 0 / 6 across 72
+result lines; an empty engine diff; HASH 85 / PROTOCOL 44; 63.2% coverage; every touched registry row
+splitting at exactly 4 cells) — and then **defeated four more of this batch's gates by execution**,
+which is the class the batch exists to close, arriving for the third time.
+
+### §8.1 The four gate defeats
+
+* **`p6`/`p7` gated a COPY.** Both pasted `declared_struct_fields`' body inline instead of calling
+  it, so **reverting the function to the line-based form this batch's own commit `7811ad36` fixed
+  left `p6` GREEN and the whole `core` target at 830 passed.** That is PB-DX50's `r3` *inverted* — a
+  gate on a copy of a predicate says nothing about the predicate — inside the batch that closes that
+  class. Body extracted as `struct_fields_from_body`; both plants now redden.
+* **`v1` had FIVE natural bypasses**, one of which contradicted the module doc's own stated key: the
+  `&mut` exemption was computed over the **whole function body**, so one unrelated
+  `warm_up(&mut state)` exempted every assertion in a test — while the doc four screens up says
+  *"gating per FUNCTION is green … So the key is per ASSERTION."* And the repair idiom this batch
+  shipped IS `handle_x(&mut state, ..)`, so a **partly-repaired function was unpoliced by
+  construction**. Also: the hoisted clone (`let cloned = state.clone(); process_command(cloned, ..)`
+  — no helper, no macro, and the more natural spelling), `.to_owned()` through the blanket impl, and
+  a hand-typed `STATE_READS` missing `pending_triggers` (41 uses), `objects_in_zone` (112),
+  `pending_effect_choice` (74) and `object` (37). All closed, each with a synthetic control.
+* **The mechanism ratchet discharged a stale claim on a SUBSTRING**, in the commit that ships
+  `has_token` for exactly this. The dictionary is full of prefix pairs, and a def declaring
+  `AddManaAnyColor` discharged a false claim about `AddMana`. Fixed — **and the fix immediately
+  surfaced a sixth real row on its first run**, `olivias_wrath`, whose own `ModifyBothDynamic`
+  contains `ModifyBoth` and had been discharging its (true) note against itself.
+* **`r2`'s pin coverage was frozen and unenforced**: the loop iterates `PINNED_ORDER` and never
+  walks the live set, and **262 of the 530 pinned rows pin an EMPTY activated list, which is a
+  prefix of anything**. A def ABSENT from the pin could gain two activated abilities and have them
+  SWAPPED with all 30 roster tests green. Today's population is complete, so this was decay rather
+  than a live miss — but the pin is only regenerated when it fails, so covered fraction would shrink
+  monotonically as cards are authored, which is the exact activity `OOS-DX26-3` polices. Closed by a
+  COVERAGE assertion, RED under the replanted defeat and naming the def.
+
+### §8.2 Three published figures did not reproduce, and one was a bound the next batch is told to reuse
+
+* §3.5's *"56 assertive-frame sentences … 23 naming a declared identifier … 4 live offenders — and
+  the gap between 56 and 23 IS the gate's recall bound"* was taken **before** the adversarial
+  widening and never re-taken. At HEAD `m3` prints **91 / 35**, and the recorded set holds **6**.
+  Corrected. **PB-DX28's re-take MEDIUM, committed by this batch inside a paragraph whose whole
+  purpose is to hand a measured bound to the next reader.**
+* `SLICE_CONST_CEILING` was set from a **stage-0** measurement (229/52) and the final tree reads
+  **234/53** — this batch added five of its own — so the ceiling left 6 headroom under a doc saying
+  *"a new one cannot join in silence"*. Re-measured, ceiling 240 → 236, and the FLOOR tightened
+  200 → 228 on the same `OOS-DX47` argument (*a ratchet's slack IS its blind spot*).
+* `m2` asserted `>= 50 && >= 800` under a message reading *"(floor 60 / 700)"*, so a maintainer
+  correcting the code to match the message would have **reddened the enum axis and loosened the
+  variant axis**. The floors are now interpolated into their own message: a number written twice is
+  a number that can disagree with itself.
+
+### §8.3 Two scope findings that are one batch old in this repository
+
+`v1` walked **one crate** while the sweep it cites is a workspace figure — **55 files containing
+`process_command` were outside it**, and the reviewer planted the seed verbatim in
+`crates/simulator/tests` and watched every gate stay green. `p5` had the same one-crate scope while
+its heading says *"the test tree"*, and `crates/simulator/tests/pb_dx55_activation_auto_tap.rs:818`
+already does `.find("pub enum Command {")`, compliant only by its author's care. **This is PB-DX48's
+`SITE_SRCS` defeat and PB-DX49's workspace-walk repair, one batch old and not carried across** — and
+the module doc's *"three lessons this gate is built to survive"* did not list it. Both now walk
+`crates/*/{tests,src}` plus `tools/`: 468 files → **2,492**. Both defeats re-executed RED.
+
+Latent rather than live when found, and said so: the reviewer ran the scanner verbatim over the
+other roots and measured **0 sites in each**.
+
+### §8.4 The allowlist finding, and the fix that had to be fixed twice
+
+Three allowlists said their reasons were checked; all three checked only `reason.len()`. Proven for
+`v4`: deleting the words *"positive control"* from the assertion message its reason QUOTES left the
+gate green. The repair re-checks the quoted evidence **in the named test's body** — and its own
+first draft was file-scoped, which stayed green because the file holds two such labels, and its
+second draft searched the COMMENT-STRIPPED body, which fails on the clean tree because the label
+lives in a string literal. **Both were found by re-executing the reviewer's defeat against the fix
+rather than assuming it landed**, which is the same discipline that caught the face-down re-key in
+round 1.
+
+### §8.5 Everything else taken
+
+`RECORDED_VACUOUS`'s doc said *"empty is the state"* while holding two rows (a reader auditing
+*"were any allowlisted?"* was told no); the mechanism ratchet's **fifth** recall bound
+(sentence-scoping: a claim split across two sentences is invisible) was undisclosed; `m4`, the
+known-positive replay, re-implemented the pipeline instead of calling it, so repairing `offenders()`
+would have left the seed replay testing the old rule; `r4`'s failure message claimed a
+wrong-ability check it does not perform (it checks RANGE); and the card-def note cited
+`stubs.rs:1030` without its crate.
+
+### §8.6 What the adversarial record does and does not cover — stated because the criterion asks
+
+Criterion 7409 asks for at least three bypass attempts per gate. **Two independent adversarial
+rounds plus the `/review` attacked eleven gates and defeated ten; the remaining ~20 gates this batch
+wrote or re-keyed were NOT individually attacked**, and that is a gap rather than a pass. The ones
+attacked were chosen by the adversaries themselves as most likely to fall, which is the right
+selection rule and not the same as coverage. Named so the next reader knows which claims rest on
+execution and which rest on care: **attacked and defeated** — `r5d`, `v1`, `m1`, `d1`–`d4`, `p1`–`p4`,
+`t12`, `unread_init_fields`, `decision_gate::every_effect_variant_is_classified`, `r3b`, `r2b`,
+`r7b`, `p6`, `p7`, `r2`; **attacked and survived** — `r2d`, `pb_eng2::stack_push_variants…`,
+`declared_enum_variants` (survived 2 attempts each, reported as *"survived N attempts"* and never as
+"cannot be bypassed"); **not attacked** — `c1`–`c4`, `v2`–`v4`, `m2`, `m3`, `m5`, `m6`, `p5`, `r1`,
+`r3`, `r4`, and the re-keyed pins in `pb_dx20b_enchant_line_roster`, `pb_dx36_deals_damage_roster`,
+`pb_dx43_land_type_roster`, `pb_dx48_announcement_site_roster`, `pb_dx49_saga_blanking_roster`,
+`pb_rs1_roster_sweep`. Each of those has an executed plant proving it discriminates; none has an
+adversary's attempt to evade it.

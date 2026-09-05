@@ -37,10 +37,10 @@ pub fn card() -> CardDefinition {
              event, (b) no Cost::PayUpToX(cap) variant, (c) the printed 'you may pay {X}' needs a \
              VARIABLE cap. Clause (c) is NARROWED as of PB-DX57: the CR 118.12 optional-cost \
              channel itself exists since PB-DX45 (EffectChoiceQuestion::PayOptionalCost, \
-             stubs.rs:1030, asked by Effect::MayPayThenEffect), so 'you may pay has no \
-             interactive expression' is no longer the blocker — the blocker is that \
-             PayOptionalCost carries a FIXED Cost, not a cap. The WheneverYouGainLife trigger \
-             DOES exist and is fully wired — that half of the old note was false.",
+             crates/card-types/src/state/stubs.rs:1030, asked by Effect::MayPayThenEffect), so \
+             'you may pay has no interactive expression' is no longer the blocker — the blocker \
+             is that PayOptionalCost carries a FIXED Cost, not a cap. The WheneverYouGainLife \
+             trigger DOES exist and is fully wired — that half of the old note was false.",
         ),
         ..Default::default()
     }

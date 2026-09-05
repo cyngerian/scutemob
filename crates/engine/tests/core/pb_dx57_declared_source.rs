@@ -627,10 +627,41 @@ fn p4_variant_payload_fields_are_scoped_to_their_own_variant() {
 /// subject was the tree's four OTHER hand-written parsers.
 #[test]
 fn p5_no_declaration_lookup_uses_a_prefix_needle() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests");
+    // **WORKSPACE scope, matching this test's own heading.** The first draft walked
+    // `CARGO_MANIFEST_DIR/tests` while its doc said *"no declaration lookup in THE TEST TREE"* —
+    // and the `/review` proved the gap by execution: a byte-identical probe reddens inside
+    // `tests/core` and passes inside `crates/simulator/tests`, where
+    // `pb_dx55_activation_auto_tap.rs:818` already does `.find("pub enum Command {")` and is
+    // compliant only by its author's care. PB-DX48's `SITE_SRCS` defeat, again.
+    let ws = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("engine manifest dir is <workspace>/crates/engine")
+        .to_path_buf();
+    let mut roots: Vec<PathBuf> = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(ws.join("crates")) {
+        for e in rd.flatten() {
+            for sub in ["tests", "src"] {
+                let d = e.path().join(sub);
+                if d.is_dir() {
+                    roots.push(d);
+                }
+            }
+        }
+    }
+    if ws.join("tools").is_dir() {
+        roots.push(ws.join("tools"));
+    }
+    assert!(
+        roots.len() >= 10,
+        "p5 found only {} scan roots",
+        roots.len()
+    );
+    let root = roots.remove(0);
     let mut offenders: Vec<String> = Vec::new();
     let mut scanned = 0usize;
     let mut stack = vec![root];
+    stack.extend(roots);
     while let Some(d) = stack.pop() {
         let Ok(rd) = std::fs::read_dir(&d) else {
             continue;
@@ -702,7 +733,7 @@ fn p5_no_declaration_lookup_uses_a_prefix_needle() {
         }
     }
     assert!(
-        scanned >= 200,
+        scanned >= 2_400,
         "p5 scanned only {scanned} files — a walk that reaches nothing reports zero offenders"
     );
     assert!(

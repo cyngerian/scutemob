@@ -76,8 +76,13 @@ use std::path::PathBuf;
 
 /// Files whose vacuous shape is RECORDED rather than forbidden, each with the reason.
 ///
-/// Empty is the goal and empty is the state: all 17 measured sites were repaired rather than
-/// allowlisted. The list exists so that a future disclosed exception is a written act.
+/// **It holds TWO rows, and neither is an exception granted to a defect.** An earlier draft of
+/// this doc said *"Empty is the goal and empty is the state"* — written when the list WAS empty
+/// and left standing when two rows were added, so a reader auditing *"were any vacuous probes
+/// allowlisted?"* was told **no** while two were listed directly below. Corrected: all 17
+/// measured sites (plus the 18th this gate found) were REPAIRED rather than allowlisted, and
+/// the two rows here are DISCLOSED POSITIVE CONTROLS whose verdict is an `expect_err` variant
+/// match — sound by the second of the seed's own two idioms.
 const RECORDED_VACUOUS: &[(&str, &str, &str)] = &[
     // PB-DX21's two second-declaration probes. The read after the rejection is on a `state`
     // that a PREVIOUS, ACCEPTED `process_command` produced, and each assertion's own message
@@ -109,6 +114,52 @@ const RECORDED_VACUOUS: &[(&str, &str, &str)] = &[
          the direct-handler repair that IS the verdict for the mutation half.",
     ),
 ];
+
+/// Every directory the scan walks.
+///
+/// **A WORKSPACE walk, not a one-crate walk.** The first draft walked
+/// `CARGO_MANIFEST_DIR/tests` alone, while the stage-0 sweep this file cites is a WORKSPACE
+/// figure (387 files / 3,115 call sites) — so **55 files containing `process_command` were
+/// outside the scan**, including ~20 `crates/simulator/tests` channel probes, and the
+/// `/review` proved it by planting the seed VERBATIM at
+/// `crates/simulator/tests/zz_adversary_probe.rs` and watching all four gates stay green.
+/// That is PB-DX48's `SITE_SRCS` defeat and PB-DX49's workspace-walk repair, **one batch old
+/// and not carried across** — and the module doc's *"three lessons this gate is built to
+/// survive"* did not list it.
+///
+/// Latent rather than live when found: the reviewer ran the scanner verbatim over
+/// `crates/simulator`, `crates/engine/src`, `tools/` and `crates/view-model` and measured
+/// **0 sites in each**. Widened anyway, because the reason it was clean is that nobody had
+/// written one there yet.
+fn scan_roots() -> Vec<PathBuf> {
+    let ws = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("engine manifest dir is <workspace>/crates/engine")
+        .to_path_buf();
+    let mut out = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(ws.join("crates")) {
+        for e in rd.flatten() {
+            for sub in ["tests", "src"] {
+                let d = e.path().join(sub);
+                if d.is_dir() {
+                    out.push(d);
+                }
+            }
+        }
+    }
+    let tools = ws.join("tools");
+    if tools.is_dir() {
+        out.push(tools);
+    }
+    assert!(
+        out.len() >= 10,
+        "scan_roots found only {} directories — the walk has collapsed and every gate in this \
+         file would report zero",
+        out.len()
+    );
+    out
+}
 
 fn tests_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests")
@@ -675,7 +726,11 @@ fn scan_file(path: &std::path::Path) -> Vec<Vacuous> {
 
 fn scan_all() -> Vec<Vacuous> {
     let mut files = Vec::new();
-    rust_files_under(&tests_root(), &mut files);
+    for root in scan_roots() {
+        rust_files_under(&root, &mut files);
+    }
+    files.sort();
+    files.dedup();
     let mut out: Vec<Vacuous> = files.iter().flat_map(|p| scan_file(p)).collect();
     out.sort();
     out
@@ -729,13 +784,17 @@ fn v1_no_test_asserts_absence_of_mutation_through_a_by_value_entry_point() {
 #[test]
 fn v2_the_scan_reaches_the_test_tree() {
     let mut files = Vec::new();
-    rust_files_under(&tests_root(), &mut files);
+    for root in scan_roots() {
+        rust_files_under(&root, &mut files);
+    }
+    files.sort();
+    files.dedup();
     assert!(
-        files.len() >= 460,
-        "the walk found only {} .rs files under the test tree (measured 468 on PB-DX57's final \
-         tree). A ratchet's SLACK is its blind spot (`OOS-DX47`): the first draft's floor of 200 \
-         let more than half the tree stop being scanned while this stayed green and v1 reported \
-         zero.",
+        files.len() >= 2_400,
+        "the walk found only {} .rs files under the workspace scan roots (measured 2,492 on PB-DX57's final \
+         tree, workspace-wide: 2,492). A ratchet's SLACK is its blind spot (`OOS-DX47`): the \
+         first draft's floor of 200 let more than half the tree stop being scanned while this \
+         stayed green and v1 reported zero.",
         files.len()
     );
     let fns: usize = files
@@ -748,10 +807,10 @@ fn v2_the_scan_reaches_the_test_tree() {
         })
         .sum();
     assert!(
-        fns >= 4_600,
+        fns >= 5_100,
         "the #[test] splitter found only {fns} functions across {} files (measured 4,762). \
          Same slack argument as the file floor above: a splitter that quietly finds half as \
-         many makes v1 vacuous while green.",
+         many makes v1 vacuous while green. Measured 5,284 workspace-wide.",
         files.len()
     );
     println!(
@@ -911,6 +970,7 @@ fn v3_the_detector_fires_on_each_shape_and_spares_the_sound_ones() {
 /// reason is not checked is a comment). Vacuous while the list is empty, and says so.
 #[test]
 fn v4_recorded_exceptions_carry_a_reason() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests");
     for (f, t, why) in RECORDED_VACUOUS {
         assert!(
             why.len() > 40,
@@ -918,11 +978,49 @@ fn v4_recorded_exceptions_carry_a_reason() {
              not written down is an allowlist entry",
             why.len()
         );
+        // **The quoted EVIDENCE is re-checked in the named test, not just the reason's
+        // length.** `OOS-DX52-1` is precisely *"an allowlist whose quoted fragment has rotted
+        // keeps passing"*, and the `/review` proved this row was vulnerable to it: deleting the
+        // words `positive control` from the assertion message the reason quotes left `v4`
+        // green. A length check is a check that the author typed something, not that what they
+        // typed is still true.
+        let src = std::fs::read_to_string(root.join(f))
+            .unwrap_or_else(|e| panic!("recorded exception names {f}, which is unreadable: {e}"));
+        assert!(
+            src.contains(t),
+            "recorded exception names test `{t}` in {f}, which no longer contains it — the \
+             entry cannot be re-adjudicated and reads as coverage. Delete it or re-point it."
+        );
+        if why.contains("POSITIVE CONTROL") {
+            // **Scoped to the NAMED TEST's own body, not to the file.** A file-level
+            // `contains` is satisfied by any sibling test carrying the same label — and this
+            // file has two, so the first draft of this check stayed GREEN when the label was
+            // deleted from one of them. That is the `OOS-DX52-1` shape reproduced inside the
+            // check written to close it, caught by re-executing the `/review`'s own defeat
+            // against the fix rather than assuming it landed.
+            // The RAW body, not the stripped one: the label lives in an assertion MESSAGE,
+            // i.e. a string literal, and `strip_noncode` removes those by design. The first
+            // draft chained both and took whichever matched first, which was the stripped one —
+            // so it failed on the CLEAN tree, for the opposite reason to the one it exists for.
+            let body = test_functions(&src)
+                .into_iter()
+                .find(|(n, _)| n == t)
+                .map(|(_, b)| b)
+                .unwrap_or_else(|| panic!("recorded exception names test `{t}`, not found in {f}"));
+            assert!(
+                body.contains("positive control"),
+                "the reason for ({f}, {t}) rests on THAT TEST labelling its own read a \
+                 'positive control', and the label is no longer in its body. Either the test \
+                 stopped disclosing why it is sound -- in which case it is no longer sound by \
+                 THIS argument -- or the exception is stale."
+            );
+        }
     }
     println!(
         "PB-DX57 / OOS-DX21-7 — RECORDED_VACUOUS holds {} entries. All 17 sites the stage-0 \
          sweep measured were REPAIRED rather than allowlisted, plus one the sweep missed; the \
-         entries here are DISCLOSED POSITIVE CONTROLS, not exceptions granted to defects.",
+         entries here are DISCLOSED POSITIVE CONTROLS, not exceptions granted to defects, and \
+         each one's quoted evidence is re-checked in the named test above.",
         RECORDED_VACUOUS.len()
     );
 }
