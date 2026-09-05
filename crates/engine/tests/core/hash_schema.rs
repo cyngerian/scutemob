@@ -215,8 +215,10 @@ const BASELINE_STREAM_FINGERPRINT: &str =
 // one commit the current value was attributed to PB-DX50's 78→79 re-pin. That
 // is what this log exists to prevent, and every prior re-pinning batch had
 // extended it.
+// PB-DX53 (2026-09-05): re-pinned on the 84→85 bump — version 84 became a
+// superseded row and joined the frozen prefix.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
-    "9cfe6ede1915e42c3bfd41a516434e0965db6e6e2bcd42990594b650e962e0d7";
+    "11f45cef26c7e458ddc13ac3de4425b7710e0fd9a7fc71a0c0e46c45a9e46c9d";
 
 /// The workspace root: `crates/engine/` is two levels down from it.
 fn workspace_root() -> PathBuf {
@@ -1264,7 +1266,7 @@ fn frozen_prefix_is_pinned() {
 #[test]
 fn hash_schema_version_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 84,
+        HASH_SCHEMA_VERSION, 85,
         "HASH_SCHEMA_VERSION changed. Update this sentinel, append a HASH_SCHEMA_HISTORY row with \
          the new fingerprints, and add a `- N:` History line in state/hash.rs."
     );

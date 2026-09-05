@@ -11026,14 +11026,34 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
             .get(&ctx.controller)
             .map(|p| p.attacked_this_turn)
             .unwrap_or(false),
-        // PB-OS6(b) / CR 508.1/508.4: "if you attacked with N or more creatures."
-        // Reads the captured attackers_declared_this_turn count (not a live combat
-        // scan), so it stays true even if attackers later leave combat (Legion's
-        // Landing ruling 2017-09-29).
-        Condition::YouAttackedWithNOrMore(n) => state
+        // PB-OS6(b) / PB-DX53 / CR 508.3d: "whenever you attack, if you attacked
+        // with N or more creatures" -- PER-DECLARATION scope. Reads
+        // `latest_attacker_declaration_size`, the MOST RECENT declaration's size
+        // (not a live combat scan), so it stays true even if attackers later leave
+        // combat (Legion's Landing ruling 2017-09-29). On every reachable path
+        // today this is also the declaration that fired the trigger: a CR 508.3d
+        // attack trigger is put on the stack and resolves inside the same
+        // declare-attackers step, before any LATER combat's declaration in the same
+        // turn can happen -- a reachability argument, not an engine-enforced
+        // guarantee. For the printed "this turn" (per-turn, deduplicated) scope
+        // Windbrisk Heights needs instead, see
+        // `Condition::YouAttackedWithNOrMoreCreaturesThisTurn` below.
+        Condition::YouAttackedWithNOrMoreThisDeclaration(n) => state
             .players
             .get(&ctx.controller)
-            .map(|p| p.attackers_declared_this_turn >= *n)
+            .map(|p| p.latest_attacker_declaration_size >= *n)
+            .unwrap_or(false),
+        // PB-DX53 / ruling 2007-10-01 (Windbrisk Heights): "if you attacked with
+        // three or more creatures this turn" -- PER-TURN, deduplicated scope.
+        // Reads the size of the accumulated, per-creature-deduplicated set (CR
+        // 400.7 identity), which is exactly the ruling's own words: "A creature
+        // declared as an attacker in two different attack phases counts only
+        // once." CR 508.4 entrants are excluded by construction (see
+        // `handle_declare_attackers`), never by a filter here.
+        Condition::YouAttackedWithNOrMoreCreaturesThisTurn(n) => state
+            .players
+            .get(&ctx.controller)
+            .map(|p| p.creatures_declared_as_attackers_this_turn.len() as u32 >= *n)
             .unwrap_or(false),
         // PB-AC6 / CR 111.10: "if you created a token this turn."
         Condition::CreatedATokenThisTurn => state
@@ -11202,7 +11222,8 @@ pub fn condition_is_queue_time_evaluable(cond: &Condition) -> bool {
         | Condition::SpellMastery
         | Condition::OpponentControlsMoreLandsThanYou
         | Condition::TopCardIsInstantOrSorcery
-        | Condition::YouAttackedWithNOrMore(_)
+        | Condition::YouAttackedWithNOrMoreThisDeclaration(_)
+        | Condition::YouAttackedWithNOrMoreCreaturesThisTurn(_)
         | Condition::YouControlYourCommander => true,
     }
 }

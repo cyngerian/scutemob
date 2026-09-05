@@ -1067,7 +1067,26 @@
 ///   target and no non-default `TargetRequirement`, so none of this batch's new bytes can
 ///   reach the stream. The stream moves solely because `HASH_SCHEMA_VERSION` is its own
 ///   first byte. Measured, not inferred.
-pub const HASH_SCHEMA_VERSION: u8 = 84;
+/// - 85: **PB-DX53** (`scutemob-231`, 2026-09-05, `OOS-DX21-1`): the extra-combat raid-count
+///   split. Two causes, one bump. (a) `PlayerState` gains a new hashed field,
+///   `creatures_declared_as_attackers_this_turn: OrdSet<ObjectId>` (CR 400.7-deduplicated,
+///   accumulated across every combat phase this turn — ruling 2007-10-01), hashed right
+///   after the renamed `latest_attacker_declaration_size` (formerly
+///   `attackers_declared_this_turn`, see the `- 58:` History line above — same field, same
+///   semantics, renamed only). (b) `Condition` renames `YouAttackedWithNOrMore(u32)` to
+///   `YouAttackedWithNOrMoreThisDeclaration(u32)` (discriminant 50, unchanged) and gains
+///   `YouAttackedWithNOrMoreCreaturesThisTurn(u32)` (discriminant 52 — 51 is
+///   `YouControlYourCommander`, already assigned).
+///
+///   **Closure type count UNCHANGED at 132** — measured at the merge base by temporarily
+///   raising `MIN_CLOSURE_TYPES`, predicted in writing before any code changed
+///   (`memory/primitives/pb-DX53-plan.md` §5.3) and confirmed by the failing gate's own
+///   output: `OrdSet<ObjectId>` is already a closure member (`dungeons_completed_set`), and
+///   `Condition` gains a variant of an already-member type, not a new type.
+///
+///   `decl_fingerprint` MOVES (a new struct field plus an enum's declared shape changed —
+///   a rename AND a new variant both count as the shape changing).
+pub const HASH_SCHEMA_VERSION: u8 = 85;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1637,6 +1656,18 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // stream digest was GREEN.
         decl_fingerprint: "9dffdc2ffbdfec51a6ddaaaaed3524fb67fc712a7b48d0dcc814edc815d25087",
         stream_fingerprint: "8d860e86373e9f80b755853a7d8ad86ecdbb4a62e80526ecccbb39c292cdec26",
+    },
+    HashSchemaEpoch {
+        version: 85,
+        // PB-DX53 (2026-09-05, `OOS-DX21-1`): `PlayerState` gains
+        // `creatures_declared_as_attackers_this_turn: OrdSet<ObjectId>`; `Condition` renames
+        // `YouAttackedWithNOrMore` to `YouAttackedWithNOrMoreThisDeclaration` (discriminant
+        // 50, unchanged) and gains `YouAttackedWithNOrMoreCreaturesThisTurn` (discriminant
+        // 52) (see the `- 85:` History line above). Closure type count UNCHANGED at 132.
+        // decl_fingerprint MOVES (genuine struct/enum-shape changes); stream_fingerprint
+        // moves per the v40 mechanism (`HASH_SCHEMA_VERSION` is its own first byte).
+        decl_fingerprint: "a2a14edabd289fe3bb8d869a1a8e7d68c75bf8c848dd5b023c163a22049520d2",
+        stream_fingerprint: "dad935720ca2a9a90b66f26bc94e017eee8d0b047a309c6da999db93a35402c8",
     },
 ];
 
@@ -2846,9 +2877,17 @@ impl HashInto for PlayerState {
         self.ring_bearer_id.hash_into(hasher);
         // PB-AC6 / CR 508.1 (Raid): whether this player attacked this turn.
         self.attacked_this_turn.hash_into(hasher);
-        // PB-OS6(b) / CR 508.1/508.4: how many creatures this player declared as
-        // attackers this turn (captured count for Condition::YouAttackedWithNOrMore).
-        self.attackers_declared_this_turn.hash_into(hasher);
+        // PB-OS6(b) / PB-DX53 / CR 508.3d: the size of this player's most recent
+        // attacker declaration this turn (for
+        // Condition::YouAttackedWithNOrMoreThisDeclaration).
+        self.latest_attacker_declaration_size.hash_into(hasher);
+        // PB-DX53 / ruling 2007-10-01: every creature this player has been declared
+        // as an attacker with this turn, deduplicated by ObjectId (for
+        // Condition::YouAttackedWithNOrMoreCreaturesThisTurn). Same iteration idiom
+        // as `dungeons_completed_set` above.
+        for attacker_id in &self.creatures_declared_as_attackers_this_turn {
+            attacker_id.hash_into(hasher);
+        }
         // PB-AC6 / CR 111.10: whether this player created a token this turn.
         self.created_token_this_turn.hash_into(hasher);
         // PB-AC6: spells cast this turn, reset for ALL players (unlike spells_cast_this_turn).
@@ -7235,13 +7274,22 @@ impl HashInto for Condition {
             Condition::SacrificeFired => 48u8.hash_into(hasher),
             // PB-OS6(a) / CR 400.2/614.1c: top card is instant/sorcery (discriminant 49)
             Condition::TopCardIsInstantOrSorcery => 49u8.hash_into(hasher),
-            // PB-OS6(b) / CR 508.1/508.4: "you attacked with N or more creatures" (discriminant 50)
-            Condition::YouAttackedWithNOrMore(n) => {
+            // PB-OS6(b) / PB-DX53 / CR 508.3d: "whenever you attack, if you attacked
+            // with N or more creatures" -- per-DECLARATION scope (discriminant 50,
+            // renamed from `YouAttackedWithNOrMore`; discriminant unchanged)
+            Condition::YouAttackedWithNOrMoreThisDeclaration(n) => {
                 50u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
             // PB-OS9 / CR 903.3d (discriminant 51)
             Condition::YouControlYourCommander => 51u8.hash_into(hasher),
+            // PB-DX53 / ruling 2007-10-01 (Windbrisk Heights): "you attacked with N
+            // or more creatures this turn" -- per-TURN, deduplicated scope
+            // (discriminant 52)
+            Condition::YouAttackedWithNOrMoreCreaturesThisTurn(n) => {
+                52u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }

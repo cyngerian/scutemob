@@ -808,19 +808,36 @@ pub fn handle_declare_attackers(
     if !attackers.is_empty() {
         if let Some(ps) = state.expect_player_mut(player) {
             ps.attacked_this_turn = true;
-            // PB-OS6(b) / CR 508.1/508.4: capture the declared-attacker count for
-            // Condition::YouAttackedWithNOrMore. Only declared attackers count;
-            // overwritten (not accumulated) on MULTI-COMBAT turns (CR 500.8/506.5)
-            // -- e.g. `aurelia_the_warleader`'s extra combat phase. This line can no
-            // longer be reached twice for the SAME combat: PB-DX21 (`OOS-M11-9`)
-            // makes a second `DeclareAttackers` in one combat phase an error
+            // PB-OS6(b) / PB-DX53 / CR 508.3d: capture the size of THIS declaration
+            // for Condition::YouAttackedWithNOrMoreThisDeclaration. Only declared
+            // attackers count; OVERWRITTEN (not accumulated) on MULTI-COMBAT turns
+            // (CR 500.8/506.5, e.g. `aurelia_the_warleader`'s extra combat phase) --
+            // which is CORRECT for CR 508.3d, a per-declaration trigger gate
+            // (Legion's Landing). PB-DX21 (`OOS-M11-9`) makes a second
+            // `DeclareAttackers` in one combat phase an error
             // (`GameStateError::AlreadyDeclaredAttackers`, guarded earlier in this
-            // function), so the only surviving overwrite is across a
+            // function), so the only place this overwrites is across a
             // `BeginningOfCombat`-to-`BeginningOfCombat` boundary, which installs a
-            // fresh `CombatState` and clears `attackers_declared`. That surviving
-            // half is filed as `OOS-DX21-1` (`windbrisk_heights.rs`,
-            // `legions_landing.rs`).
-            ps.attackers_declared_this_turn = attackers.len() as u32;
+            // fresh `CombatState` -- exactly the boundary CR 508.3d's own trigger
+            // re-fires at.
+            ps.latest_attacker_declaration_size = attackers.len() as u32;
+            // PB-DX53 / ruling 2007-10-01 (Windbrisk Heights): accumulate every
+            // DECLARED attacker's ObjectId into the per-TURN set for
+            // Condition::YouAttackedWithNOrMoreCreaturesThisTurn. Reads `attackers`
+            // -- this function's own COMMAND parameter, the declared list -- and
+            // NEVER `combat.attackers`, which also holds CR 508.4 entrants (PB-DX51
+            // made `CombatState::add_attacker` the only production path into that
+            // map, called above for token/Myriad/Ninjutsu entrants too). That is
+            // what makes the CR 508.4 exclusion structural: an entrant is never a
+            // parameter to THIS function, so it can never reach this insert.
+            // `OrdSet::insert` on an ObjectId already present is a no-op, which is
+            // the ruling's "counts only once" for a creature declared in two
+            // different attack phases (CR 400.7 identity: a creature that left and
+            // returned is a NEW object and is correctly counted again).
+            for (attacker_id, _) in &attackers {
+                ps.creatures_declared_as_attackers_this_turn
+                    .insert(*attacker_id);
+            }
         }
     }
     // CR 702.154a: Store enlist pairings for trigger collection in abilities.rs.

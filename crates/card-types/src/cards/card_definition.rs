@@ -4175,14 +4175,44 @@ pub enum Condition {
     ///
     /// Used by Delver of Secrets' upkeep flip trigger (PB-OS6(a)).
     TopCardIsInstantOrSorcery,
-    /// CR 508.1/508.4: "if you attacked with N or more creatures." True when the
-    /// effect controller's `PlayerState::attackers_declared_this_turn >= n`. Only
-    /// creatures actually declared as attackers count (tokens/permanents put onto
-    /// the battlefield attacking do not, CR 508.4).
+    /// CR 508.3d: "Whenever [a player] attacks, . . ." -- the PER-DECLARATION
+    /// attack-count gate. True when the effect controller's
+    /// `PlayerState::latest_attacker_declaration_size >= n`, the size of that
+    /// player's MOST RECENT `DeclareAttackers` declaration this turn -- NOT a
+    /// running per-turn total. Only creatures actually declared as attackers
+    /// count (tokens/permanents put onto the battlefield attacking do not,
+    /// CR 508.4).
     ///
     /// The captured count does not decrease if attackers later leave combat
     /// (Legion's Landing ruling 2017-09-29). Used by Legion's Landing (PB-OS6(b)).
-    YouAttackedWithNOrMore(u32),
+    /// **Renamed from `YouAttackedWithNOrMore` by PB-DX53** -- that name stated
+    /// neither scope while a SECOND card (Windbrisk Heights) needed the opposite,
+    /// per-TURN, deduplicated scope. Do not reach for this variant for a printed
+    /// "this turn" total; see the sibling `YouAttackedWithNOrMoreCreaturesThisTurn`
+    /// immediately below.
+    YouAttackedWithNOrMoreThisDeclaration(u32),
+    /// Ruling 2007-10-01 (Windbrisk Heights): "if you attacked with three or more
+    /// creatures this turn" -- the PER-TURN, deduplicated attack-count gate. True
+    /// when the effect controller's
+    /// `PlayerState::creatures_declared_as_attackers_this_turn.len() >= n`, a SET
+    /// of every creature that player has been DECLARED as an attacker with this
+    /// turn, accumulated across every combat phase on a turn with an extra combat
+    /// (CR 500.8) and deduplicated by `ObjectId` (CR 400.7 identity) -- the
+    /// ruling's own words: "A creature declared as an attacker in two different
+    /// attack phases counts only once." Creatures put onto the battlefield
+    /// attacking (CR 508.4) never enter the set: "A creature that entered
+    /// attacking . . . doesn't count because you never attacked with it."
+    ///
+    /// **Do NOT use this for a CR 508.3d "whenever you attack" trigger gate** --
+    /// see the sibling `YouAttackedWithNOrMoreThisDeclaration` immediately above,
+    /// which is per-DECLARATION and reads a different field. The two scopes are
+    /// genuinely different CR concepts and pairing a card with the wrong one is
+    /// silently wrong: attacking with 2 creatures in each of two combat phases on
+    /// one turn satisfies this variant at n=3 (2+2 deduplicated -- actually 4
+    /// distinct creatures, so n=3 is met) but must NOT satisfy
+    /// `YouAttackedWithNOrMoreThisDeclaration(3)`, whose per-declaration count
+    /// never exceeds 2 on that turn. PB-DX53 / OOS-DX21-1.
+    YouAttackedWithNOrMoreCreaturesThisTurn(u32),
     /// Lieutenant (ability word) / CR 903.3d: "if/as long as you control your
     /// commander." True iff the effect controller currently controls, on the
     /// battlefield (phased-in), at least one commander card **they own**

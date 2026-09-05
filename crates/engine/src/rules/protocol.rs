@@ -512,7 +512,26 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   `else` that the compiler cannot flag — in exchange for nothing, since a stack-entry
 ///   id resolves through the same `stack_registry::stack_index_for_announced_target` a
 ///   card id does.
-pub const PROTOCOL_VERSION: u32 = 43;
+/// - 44: **PB-DX53** (`scutemob-231`, 2026-09-05, `OOS-DX21-1`): the extra-combat raid-count
+///   split. `Condition` (already in this closure via `Effect::Conditional`) renames
+///   `YouAttackedWithNOrMore(u32)` to `YouAttackedWithNOrMoreThisDeclaration(u32)` (CR
+///   508.3d, per-declaration scope, same field read) and gains
+///   `YouAttackedWithNOrMoreCreaturesThisTurn(u32)` (ruling 2007-10-01, per-turn
+///   deduplicated scope — Windbrisk Heights). **AC 7369's prediction of PROTOCOL UNMOVED is
+///   REFUTED**: it assumed the fix was a `PlayerState` field alone, but one identifier
+///   cannot carry both cards' CR concepts (§3 of the plan), so the DSL had to split, and
+///   `Condition` is on the wire. Verified by execution at stage 0 (planting `Condition` in
+///   `CLOSURE_MUST_NOT_CONTAIN` fails this gate) before any production line changed
+///   (`memory/primitives/pb-DX53-plan.md` §5.2).
+///
+///   `PlayerState.creatures_declared_as_attackers_this_turn` (an `OrdSet<ObjectId>`) is
+///   inside `GameState`, which `CLOSURE_MUST_NOT_CONTAIN` excludes — HASH-only, exactly
+///   this same field's own v21 precedent (`attackers_declared_this_turn`, PB-OS6).
+///
+///   **Closure type count is 98 -> 98, unchanged** — `Condition` gains a variant of an
+///   already-member type, not a new type. Predicted in writing before any code changed and
+///   taken from the failing gate's own output.
+pub const PROTOCOL_VERSION: u32 = 44;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -530,7 +549,7 @@ pub const PROTOCOL_VERSION: u32 = 43;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "e872d2393bb6b30a9ad28aecbd63a3616671f1efcfc77c58474a294173fd30c3";
+    "9129b8b689468b38728e392befe5b8a9e351b999e00e68b7db95ccd8b708b9c9";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -866,6 +885,15 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // Swat. Both reachable from `Command`/`GameEvent` (see the `- 43:` History line
         // above). Closure type count unchanged (98).
         fingerprint: "e872d2393bb6b30a9ad28aecbd63a3616671f1efcfc77c58474a294173fd30c3",
+    },
+    ProtocolEpoch {
+        version: 44,
+        // PB-DX53 (2026-09-05, `OOS-DX21-1`): `Condition` renames
+        // `YouAttackedWithNOrMore(u32)` to `YouAttackedWithNOrMoreThisDeclaration(u32)`
+        // and gains `YouAttackedWithNOrMoreCreaturesThisTurn(u32)` (see the `- 44:`
+        // History line above). `Condition` is reachable via `Effect::Conditional`.
+        // Closure type count unchanged (98).
+        fingerprint: "9129b8b689468b38728e392befe5b8a9e351b999e00e68b7db95ccd8b708b9c9",
     },
 ];
 

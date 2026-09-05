@@ -4,16 +4,16 @@ Substitute for TaskCreate (this harness exposes none). Mirrored as an `esm task 
 Status legend: `[ ]` pending · `[~]` in progress · `[x]` done.
 
 ## Stage 0 — orientation, measurement, prediction (no production line yet)
-- [ ] 0.1 Pre-edit full-workspace baseline to a file; reconcile against PB-DX39's published pin
-- [ ] 0.2 MCP rules research: windbrisk ruling 2007-10-01, CR 508.1/508.3d/508.4/508.6, CR 400.7, legions_landing 2017-09-29
-- [ ] 0.3 Census by `all_cards()`: every `Condition::YouAttackedWithNOrMore` reader (AC 7370)
-- [ ] 0.4 Inverse oracle axis census ("attacked with", "attacked this turn", …), classified per-declaration vs per-turn
-- [ ] 0.5 Census: every `Effect::AdditionalCombatPhase` declarer + its `Completeness` marker
-- [ ] 0.6 Wire probe by EXECUTION: PlayerState / Condition / TriggerCondition / TriggerData / PendingTrigger in the PROTOCOL and HASH closures (extend CLOSURE_MUST_NOT_CONTAIN, run the walk)
-- [ ] 0.7 `size_of::<PlayerState>()` at the merge base
-- [ ] 0.8 Design decision written down with the rejected alternatives costed
-- [ ] 0.9 Wire prediction COMMITTED in writing before any production line (HASH / PROTOCOL, per half, closure type counts)
-- [ ] 0.10 Coverage-flip prediction written per def before any code
+- [x] 0.1 Pre-edit full-workspace baseline to a file — **5,196 / 0 / 5 on 66 targets**; reproduces CLAUDE.md:273's PB-DX39 close-out exactly, AC 7371's 5,194 does not
+- [x] 0.2 MCP rules research: windbrisk ruling 2007-10-01, CR 508.1/508.3d/508.4/508.6, CR 400.7, legions_landing 2017-09-29
+- [~] 0.3 Census by `all_cards()`: every `Condition::YouAttackedWithNOrMore` reader (AC 7370)
+- [~] 0.4 Inverse oracle axis census ("attacked with", "attacked this turn", …), classified per-declaration vs per-turn
+- [x] 0.5 Census: every `Effect::AdditionalCombatPhase` declarer + its `Completeness` marker
+- [x] 0.6 Wire probe by EXECUTION — `Condition` in BOTH closures, `TriggerCondition` in NEITHER, counts **98 / 132**: PlayerState / Condition / TriggerCondition / TriggerData / PendingTrigger in the PROTOCOL and HASH closures (extend CLOSURE_MUST_NOT_CONTAIN, run the walk)
+- [x] 0.7 `size_of::<PlayerState>()` at the merge base — **376** (GameState 3536, `OrdSet<ObjectId>` 24, `Condition` 304)
+- [x] 0.8 Design decision written down with the rejected alternatives costed
+- [x] 0.9 Wire prediction COMMITTED in writing before any production line (HASH / PROTOCOL, per half, closure type counts)
+- [x] 0.10 Coverage-flip prediction written per def before any code
 
 ## Stage 1 — engine implementation
 - [ ] 1.1 PlayerState gains the per-turn dedup'd attacker set (hashed)

@@ -596,15 +596,26 @@ fn test_dx32_random_bot_waste_ratio_is_bounded() {
 /// twice in one day: **one completeness flip anywhere in 1,803 defs re-deals every seeded
 /// fixture in the workspace.** A batch that flips markers should expect to re-observe these
 /// pins after its review, not only after its implement phase.
+///
+/// # Re-observed for PB-DX53 (`scutemob-231`, 2026-09-05, `OOS-DX21-1`)
+///
+/// `CORPUS_COMPLETE` moved **1139 -> 1140** (`minas_tirith` `partial` -> `Complete`) and
+/// seed 18 now produces **0** transient reports -- confirmed by an EXECUTED ablation
+/// (reverting only `minas_tirith`'s marker, engine change otherwise in the tree,
+/// restores seed 18's original shape). Re-swept 0..=399 at the unchanged configuration
+/// (4 players, 25 turns): hits include seed 162 (raw 4 / distinct 1, one Treasure token
+/// in `Graveyard(PlayerId(1))` at turn 25), 186 (4/1), 335 (4/1), 349 (5/1). **162 is
+/// the smallest** and reproduces the original raw-4/distinct-1 shape exactly; re-pinned
+/// here rather than 18. Shared with T4.3 deliberately, as 18 was.
 #[test]
 fn test_dx32_orphaned_tokens_are_transient_and_the_end_state_is_clean() {
-    let game = play_fuzz_shaped(18, 4, 25);
+    let game = play_fuzz_shaped(162, 4, 25);
 
     assert!(
         !game.transient_violations().is_empty(),
-        "seed 18 at max_turns 25 is known to produce no_orphaned_tokens transient \
-         reports (measured 2026-08-13: 4 raw reports, one Treasure token in \
-         Graveyard(PlayerId(2)) at turn 22)"
+        "seed 162 at max_turns 25 is known to produce no_orphaned_tokens transient \
+         reports (measured 2026-09-05: 4 raw reports, one Treasure token in \
+         Graveyard(PlayerId(1)) at turn 25)"
     );
     assert!(
         game.transient_violations()
@@ -684,6 +695,17 @@ fn test_dx32_leaked_token_at_game_end_is_a_hard_violation() {
 /// 0..=339 sweep at this turn budget that repeats a violation at all; the turn budget
 /// itself is unchanged at 25 and the strict `<` comparison is unchanged. Shared with
 /// T4.1 deliberately, as seed 2 was.
+///
+/// # Re-observed for PB-DX53 (`scutemob-231`, 2026-09-05, `OOS-DX21-1`)
+///
+/// `CORPUS_COMPLETE` moved **1139 -> 1140** and seed 18 (used by the earlier note
+/// above, itself a re-pin over the original seed 2) now yields **raw 0 / distinct 0**
+/// again -- confirmed by an EXECUTED ablation (`minas_tirith`'s marker alone reverted
+/// restores the original shape). Re-swept 0..=399: seed 162 measured raw 4 -> distinct
+/// 1 (four checkpoint reports of one Treasure token, `ObjectId(461)`, in
+/// `Graveyard(PlayerId(1))`, all turn 25) -- the smallest seed in this sweep that
+/// repeats a violation at all. Shared with T4.1 deliberately, matching that test's own
+/// re-pin.
 #[test]
 fn test_dx32_distinct_collapses_checkpoint_weighting() {
     let hand_built = vec![
@@ -710,18 +732,18 @@ fn test_dx32_distinct_collapses_checkpoint_weighting() {
         "the FIRST occurrence must be preserved, not the last"
     );
 
-    let game = play_fuzz_shaped(18, 4, 25);
+    let game = play_fuzz_shaped(162, 4, 25);
     let raw = game.transient_violations();
     let distinct = invariants::distinct(raw);
     assert!(
         !distinct.is_empty(),
         "non-vacuity: an empty raw set collapses to an empty distinct set and would make \
-         the comparison below unfalsifiable in the wrong direction — seed 118 must still \
-         produce violations at all (measured 2026-08-13: raw 4, distinct 1)"
+         the comparison below unfalsifiable in the wrong direction — seed 162 must still \
+         produce violations at all (measured 2026-09-05: raw 4, distinct 1)"
     );
     assert!(
         distinct.len() < raw.len(),
-        "seed 18 at max_turns 25 is known to repeat a violation (Stage 0's own 94 -> 20 \
+        "seed 162 at max_turns 25 is known to repeat a violation (Stage 0's own 94 -> 20 \
          collapse at full scale, §0.3): raw {} distinct {}",
         raw.len(),
         distinct.len()
@@ -788,7 +810,18 @@ const CORPUS_DEFS: usize = 1803;
 // (1,138/1,803 = 63.1% -> 1,139/1,803 = 63.2%). COMMANDER_POOL re-measured by
 // executing this gate -- `Exalted Angel` is a Creature but not `SuperType::Legendary`,
 // so it was never a candidate; measured, not reasoned (PB-DX26's lesson).
-const CORPUS_COMPLETE: usize = 1139;
+// PB-DX53 (2026-09-05, `OOS-DX21-1`): 1139 -> **1140** (+1). One promotion,
+// `minas_tirith` `partial` -> `Complete`: its printed third ability ("Draw a card.
+// Activate only if you attacked with two or more creatures this turn") is now
+// authorable on the new `Condition::YouAttackedWithNOrMoreCreaturesThisTurn`, closing
+// a blocker note that was false at HEAD. CONFIRMED by regenerating
+// `tools/authoring-report.py` (1,139/1,803 = 63.2% -> 1,140/1,803 = 63.2%, same
+// rounded percentage). COMMANDER_POOL re-measured by EXECUTING this gate and
+// UNCHANGED at 90 -- `minas_tirith` IS `SuperType::Legendary` (it is checked, not
+// assumed, precisely because of that), but it is a Land, not a `CardType::Creature`,
+// so the commander-pool filter excludes it regardless; measured, not reasoned
+// (PB-DX26's lesson).
+const CORPUS_COMPLETE: usize = 1140;
 const COMMANDER_POOL: usize = 90;
 
 /// Mirrors `crates/simulator/src/deck.rs:40-47`'s three-clause commander filter
@@ -1148,22 +1181,34 @@ fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     // this budget any more. Nothing about the engine's willingness to SERVE the row
     // changed -- `decision_site_walk`'s partition is untouched and `surveil` stays a
     // served row.
+    // PB-DX53 (2026-09-05, `OOS-DX21-1`): `look_at_top_then_place_optional` LEAVES the
+    // reached set, 5 -> 4, and this gate's own instruction is obeyed -- reported as a
+    // finding, not silently re-tuned by widening the seed range. **Attributed by an
+    // EXECUTED ablation, not argued.** With the entire engine change in the tree and
+    // ONLY `minas_tirith`'s `Completeness` marker forced back to `partial` (so the deck
+    // pool returns to `CORPUS_COMPLETE` 1139), this row is reached again and this test
+    // -- along with T4.1 and T4.3 above -- passes at their PRE-PB-DX53 seed pins. So
+    // the engine half of PB-DX53 is **fuzz-neutral by measurement**, and every bit of
+    // this movement is `OOS-CARDS2-3`'s re-deal: one marker flip anywhere in 1,803
+    // defs deals every seeded game a different opening, and this row's only reachable
+    // source simply is not drawn at this budget any more. Nothing about the engine's
+    // willingness to SERVE the row changed -- `decision_site_walk`'s partition is
+    // untouched.
     let expected_reached: BTreeSet<&str> = [
         "triggered_targets",
         "search_library",
         "scry",
         "discard_cards",
-        "look_at_top_then_place_optional",
     ]
     .into_iter()
     .collect();
     assert_eq!(
         reached, expected_reached,
         "the reached/never-reached partition of a 10-seed x 60-turn fuzz-shaped run \
-         changed from the measured baseline (6 of 7 served rows: triggered_targets, \
-         search_library, scry, discard_cards, surveil, look_at_top_then_place_optional; \
-         may_pay_then_effect never reached at this budget — re-observed by PB-DX35 after \
-         the look_at_top_or_route row split). \
+         changed from the measured baseline (5 of 7 served rows: triggered_targets, \
+         search_library, scry, discard_cards, look_at_top_then_place_optional; \
+         may_pay_then_effect and surveil never reached at this budget — re-observed by \
+         PB-DX53 after the CORPUS_COMPLETE 1139 -> 1140 re-deal). \
          Report this as a finding (does the engine now serve fewer/more decisions, or \
          did an unrelated change move which cards get drawn/cast) rather than \
          silently re-tuning the seed range to make it pass: reached {reached:?}, \

@@ -6,11 +6,16 @@
 // Back:  Adanto, the First Fort — {T}: Add {W}.
 //        {1}{W}, {T}: Create a 1/1 white Vampire creature token with lifelink.
 //
-// PB-OS6(b): the attack-count gate uses Condition::YouAttackedWithNOrMore(3) inside
-// Effect::Conditional, not intervening_if -- build_face_ability_vectors hardcodes
-// intervening_if: None for WheneverYouAttack lowering (see pb-plan-OS6.md), so any
-// DSL intervening_if on this trigger would silently be dropped. Self-gating inside
-// the effect is the proven pattern (mirrors delver_of_secrets.rs / heralds_horn.rs).
+// PB-OS6(b) / PB-DX53: the attack-count gate uses
+// Condition::YouAttackedWithNOrMoreThisDeclaration(3) inside Effect::Conditional,
+// not intervening_if -- build_face_ability_vectors hardcodes intervening_if: None
+// for WheneverYouAttack lowering (see pb-plan-OS6.md), so any DSL intervening_if
+// on this trigger would silently be dropped. Self-gating inside the effect is the
+// proven pattern (mirrors delver_of_secrets.rs / heralds_horn.rs). PB-DX53 renamed
+// the Condition variant (it did not state its own scope while a second card,
+// Windbrisk Heights, needed the opposite one) -- this card's behaviour is
+// byte-identical, since it reads the same PlayerState field
+// (`latest_attacker_declaration_size`) the old name read.
 use crate::cards::helpers::*;
 
 fn white_vampire_lifelink_token() -> TokenSpec {
@@ -63,40 +68,42 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // CR 508.1/508.4 (PB-OS6(b)): "Whenever you attack with three or more
-            // creatures, transform Legion's Landing." Fires unconditionally on any
-            // attack; the count gate self-evaluates inside the effect via
-            // Condition::YouAttackedWithNOrMore(3), reading the captured
-            // PlayerState.attackers_declared_this_turn. Transforms even if some of
-            // those creatures later leave combat (ruling 2017-09-29).
+            // CR 508.1/508.3d/508.4 (PB-OS6(b) / PB-DX53): "Whenever you attack with
+            // three or more creatures, transform Legion's Landing." Fires
+            // unconditionally on any attack; the count gate self-evaluates inside
+            // the effect via Condition::YouAttackedWithNOrMoreThisDeclaration(3),
+            // reading the captured PlayerState.latest_attacker_declaration_size --
+            // the size of THIS declaration, per CR 508.3d ("Whenever [a player]
+            // attacks ... if one or more creatures ... are declared as
+            // attackers"). Transforms even if some of those creatures later leave
+            // combat (ruling 2017-09-29).
             //
-            // PB-DX21 review (finding M3): this card is NOT a member of
-            // `OOS-DX21-1` (the windbrisk_heights.rs residual) -- do not migrate
-            // it there. This is a CR 508.3d "Whenever [a player] attacks" trigger:
-            // it fires PER DECLARATION and its count reads the SAME declaration
-            // that fired it (ruling 2017-09-29: "The last ability of Legion's
-            // Landing only counts creatures that you declare as attacking
-            // creatures" -- a per-declaration, not per-turn, statement; the
-            // second ruling's "once you've attacked with three or more creatures"
-            // is about creatures leaving combat AFTER that one declaration, not
-            // about accumulating count across separate declarations). CR 508.6
-            // ("has attacked [a player]") is a boolean per-player predicate with
-            // no count or turn-scope content and does not apply to this trigger's
-            // gate at all -- an earlier draft of this comment cited it in error.
+            // This card is NOT a member of the Windbrisk Heights turn-scoped class
+            // (ruling 2007-10-01) -- do not read it off the same field as that
+            // card. This is a CR 508.3d "Whenever [a player] attacks" trigger: it
+            // fires PER DECLARATION and its count reads the SAME declaration that
+            // fired it (ruling 2017-09-29: "The last ability of Legion's Landing
+            // only counts creatures that you declare as attacking creatures" -- a
+            // per-declaration, not per-turn, statement; the second ruling's "once
+            // you've attacked with three or more creatures" is about creatures
+            // leaving combat AFTER that one declaration, not about accumulating
+            // count across separate declarations). CR 508.6 ("has attacked [a
+            // player]") is a boolean per-player predicate with no count or
+            // turn-scope content and does not apply to this trigger's gate at all.
             // So attacking with 3 in combat 1 (transforms) and then 1 in combat 2
             // (does not re-transform, already transformed; a hypothetical second
             // copy would correctly evaluate false on 1 < 3) is the ENGINE'S
-            // CORRECT behaviour for this card's own trigger, not a residual to
-            // close. Windbrisk Heights' activation condition, by contrast, is
-            // genuinely turn-scoped ("if you attacked with three or more
-            // creatures this turn", ruling 2007-10-01, "at any point in the
-            // turn") -- that is the sole member of `OOS-DX21-1`. Comment only; no
-            // completeness change.
+            // CORRECT behaviour for this card's own trigger. PB-DX53 closed the
+            // sibling per-turn defect on `windbrisk_heights.rs` by giving it its
+            // OWN Condition variant (`YouAttackedWithNOrMoreCreaturesThisTurn`)
+            // and its OWN PlayerState field, rather than changing this one --
+            // this card's behaviour is byte-identical, by construction, across
+            // that fix.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouAttack { filter: None },
                 effect: Effect::Conditional {
-                    condition: Condition::YouAttackedWithNOrMore(3),
+                    condition: Condition::YouAttackedWithNOrMoreThisDeclaration(3),
                     if_true: Box::new(Effect::TransformSelf),
                     if_false: Box::new(Effect::Nothing),
                 },

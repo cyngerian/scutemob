@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-09-04 12:53 UTC  
-**Git:** `650a6cfb` on `feat/pb-dx36-a-general-whendealsdamage-trigger-damage-dealt-effec`  
+**Generated:** 2026-09-05 02:13 UTC  
+**Git:** `6b12c513` on `feat/pb-dx53-cr-5086-raid-gate-clobbered-by-re-declaration-across`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,17 +25,17 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.2% | 1,139 | · |
-| With TODO markers | 517 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.2% | 1,140 | +1 |
+| With TODO markers | 516 | -1 |
 | Empty `abilities: vec![]` placeholders | 147 | · |
-| Total TODO lines across all defs | 916 | · |
+| Total TODO lines across all defs | 915 | -1 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 26 |
-| last 30 days | 0 | 156 |
+| last 7 days | 0 | 31 |
+| last 30 days | 0 | 158 |
 | last 90 days | 57 | 2,947 |
 | last 1 year | 1,830 | 3,370 |
 
@@ -69,7 +69,7 @@ are blocked on engine primitives.
 | `combat-keyword` | 187 / 187 | 100% | 88 | 84 | 15 |
 | `draw` | 164 / 169 | 97% | 79 | 69 | 16 |
 | `token-create` | 148 / 155 | 95% | 87 | 46 | 15 |
-| `land-etb-tapped` | 138 / 138 | 100% | 115 | 23 | 0 |
+| `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
 | `other` | 108 / 131 | 82% | 71 | 30 | 7 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 65 | 26 | 1 |
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 565 | · |
+| OTHER (unclassified) | 564 | -1 |
 | DSL gap (unspecified) | 116 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -201,7 +201,7 @@ _…and 26 more buckets totaling 44 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 565 
+Showing 12 of 564 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -214,11 +214,11 @@ everflowing_chalice: // TODO: "This artifact enters with a charge counter on it 
 glimmer_lens: // TODO: the attack trigger only — "For Mirrodin!" is expressible and unauthored
 jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
 marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
-pact_of_negation: // TODO: Counter target spell + delayed upkeep trigger "pay {3}{U}{U} or lose the game."
-sarkhan_fireblood: // TODO: "Any combination of colors" + Dragon-only restriction not in DSL.
-sorin_imperious_bloodlord: // TODO: Interactive hand selection by creature subtype ("Vampire creature card from
-teferis_protection: // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
-tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
+parapet_thrasher: // TODO: "Whenever one or more Dragons you control deal combat damage to an opponent,
+sarkhan_unbroken: // TODO: "Add one mana of any color" — player choice not in DSL.
+sorin_lord_of_innistrad: // TODO: Emblem with static P/T modification (all creatures +1/+0) — the emblem
+teferis_protection: // TODO: "Exile Teferi's Protection" — self-exile on resolution.
+tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with MV filter.
 ```
 
 ## ⚠ Completeness-marker drift
@@ -245,6 +245,12 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+389725eb scutemob-230: PB-DX39 /review fix cycle — all 10 findings taken, five defeated gates re-keyed, six wrong CR cites corrected
+2590246a scutemob-230: PB-DX39 — source-relative filters resolve through LKI on the locked path
+bf999079 scutemob-230: PB-DX39 — mardu_ascendancy's marker now names BOTH blockers
+1b248ed9 scutemob-229: PB-DX52 /review fix cycle — all 12 findings taken, none declined
+096b2114 scutemob-229: PB-DX52 wire — PROTOCOL 42->43 / HASH 83->84, one bump each as predicted
+90b0459f scutemob-228: PB-DX36 /review fix cycle — MEDIUM 3-6 and LOW 7/8/10/11 (the doc half)
 1ab2bef8 scutemob-228: PB-DX36 — a sentinel my own sweep missed, and four ratchets the step-8 tests surfaced
 d5fa56ba scutemob-228: PB-DX36 census follow-through — two blocker notes this batch FALSIFIES, narrowed in place
 2aa5e08f scutemob-228: PB-DX36 coverage — 1,138 -> 1,139 / 1,803 = 63.2%, the ONE flip named before regeneration (exalted_angel)
@@ -264,12 +270,6 @@ e524f676 scutemob-217: PB-DX45 /review fix cycle -- all 7 findings taken
 4c2a0afd scutemob-216: PB-DX15a /review fix cycle -- the HIGH is a regression I introduced, and two of my own claims did not survive
 7c435919 scutemob-213: PB-DX43 S1-S4 -- CR 305.6/305.7 intrinsic land mana abilities
 2ca6a741 scutemob-211: PB-DX29 /review H2 — the renumbering orphaned 30 in-source cites and the note asserted the opposite
-753afb9c scutemob-211: PB-DX29 part B1 — the provider learns the seven remaining cast-side cost kinds
-de75b78d scutemob-211: PB-DX29 — marker/cost roster gate for all eight keyword-carried costs, three card-def repairs, OOS-M11-10 collision resolved
-9f3e41c0 scutemob-210: PB-DX28 AC4 — retire the allowlist entries, prove the scan still reddens
-1de151c7 scutemob-210: PB-DX28 — migrate the 18th member (Connive // Concoct), found by the batch's own gate
-1babe026 scutemob-210: PB-DX28 part 2 — the untargeted-choice channel (OOS-DX4-6)
-6aeb2008 scutemob-210: PB-DX28 part 1 — the owner axis (OOS-DX4-1) + EffectTarget::DamagedPlayer
 ```
 
 ## Missing card-defs sidecar

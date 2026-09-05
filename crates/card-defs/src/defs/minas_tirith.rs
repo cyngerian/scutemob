@@ -34,15 +34,39 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 modes: None,
             },
-            // ENGINE-BLOCKED: "{1}{W}, {T}: Draw a card. Activate only if you attacked with two
-            // or more creatures this turn." Needs a count-based attacked condition
-            // (Condition::AttackedWithNCreatures(2)). PB-AC6's Condition::YouAttackedThisTurn is
-            // a bool and is insufficient — it cannot distinguish one attacker from two.
+            // CR 508.1/CR 508.4, ruling 2007-10-01 (PB-DX53): "{1}{W}, {T}: Draw a card.
+            // Activate only if you attacked with two or more creatures this turn." Per-turn,
+            // deduplicated attack-count gate -- Condition::YouAttackedWithNOrMoreCreaturesThisTurn
+            // reads PlayerState.creatures_declared_as_attackers_this_turn (an OrdSet<ObjectId>,
+            // deduplicated by CR 400.7 identity, CR 508.4 entrants excluded by construction).
+            // An earlier version of this file carried a comment asserting that no engine
+            // primitive could express a count-based attack condition and citing a Condition
+            // variant that never existed under that name. That claim was already false at the
+            // time this file was authored: an attack-count Condition variant has existed since
+            // PB-OS6 (2026-07-19). PB-DX53 gives the per-turn scope its own correctly-named
+            // variant, which is what this ability now reads.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        white: 1,
+                        ..Default::default()
+                    }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: Some(Condition::YouAttackedWithNOrMoreCreaturesThisTurn(2)),
+                activation_zone: None,
+                once_per_turn: false,
+                modes: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "'{1}{W}, {T}: Draw a card. Activate only if you attacked with two or more creatures \
-             this turn.' Needs a count-based...",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

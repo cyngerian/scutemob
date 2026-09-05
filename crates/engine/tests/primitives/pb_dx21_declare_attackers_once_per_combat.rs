@@ -463,20 +463,20 @@ fn test_dx21_second_declaration_rejected_while_suspended_on_trigger_target_choic
     );
 }
 
-// ── T3 — (c) attackers_declared_this_turn raid-count clobber (plan §4 T3) ──
+// ── T3 — (c) latest_attacker_declaration_size raid-count clobber (plan §4 T3) ──
 
 #[test]
 /// CR 508.1 / PB-AC6 (PB-DX21, OOS-M11-9): a rejected re-declaration must not
-/// clobber `PlayerState.attackers_declared_this_turn` (`combat.rs` sets it,
-/// does not accumulate it) -- and the consequence that makes this a card
-/// probe, not just a field probe: Windbrisk Heights' `Condition::
-/// YouAttackedWithNOrMore(3)` must still hold, exercised through the real
-/// activation path.
+/// clobber `PlayerState.latest_attacker_declaration_size` (`combat.rs` sets it,
+/// does not accumulate it -- renamed by PB-DX53 from `attackers_declared_this_turn`)
+/// -- and the consequence that makes this a card probe, not just a field probe:
+/// Windbrisk Heights' `Condition::YouAttackedWithNOrMoreCreaturesThisTurn(3)`
+/// must still hold, exercised through the real activation path.
 ///
 /// **Review finding M4**: the rejected second declaration is issued as
 /// `process_command(state.clone(), ..)`, whose `Err` arm carries no `GameState`
 /// -- so what a pre-fix (accepted) second declaration would have done to
-/// `attackers_declared_this_turn` is unobservable through assertions (3)/(4)
+/// `latest_attacker_declaration_size` is unobservable through assertions (3)/(4)
 /// below, which read the pristine ORIGINAL `state`. Those two are POSITIVE
 /// CONTROLS confirming the raid count and Windbrisk Heights' activatability
 /// survive the FIRST, accepted declaration alone; the discriminator between
@@ -525,7 +525,7 @@ fn test_dx21_second_declaration_rejected_raid_count_not_clobbered() {
     )
     .expect("first declaration of three attackers must succeed");
     assert_eq!(
-        state.player(p1).unwrap().attackers_declared_this_turn,
+        state.player(p1).unwrap().latest_attacker_declaration_size,
         3,
         "CR 508.1/PB-AC6: three attackers declared this turn"
     );
@@ -542,7 +542,7 @@ fn test_dx21_second_declaration_rejected_raid_count_not_clobbered() {
         "expected AlreadyDeclaredAttackers(p1), got: {err:?}"
     );
     assert_eq!(
-        state.player(p1).unwrap().attackers_declared_this_turn,
+        state.player(p1).unwrap().latest_attacker_declaration_size,
         3,
         "positive control: the raid count from the first, accepted declaration survives \
          (the real discriminator is the expect_err above)"
@@ -551,9 +551,10 @@ fn test_dx21_second_declaration_rejected_raid_count_not_clobbered() {
     // (4) Windbrisk Heights' {W},{T} ability (activated_abilities[0] -- its
     // {T}: Add {W} mana ability is filtered out of that index, per the standing
     // ability-index gotcha) is still activatable: its
-    // Condition::YouAttackedWithNOrMore(3) still holds. Exercised through the
-    // REAL activation path -- a rejection here would carry the literal message
-    // "activation condition not met" (abilities.rs's CR 602.5b check).
+    // Condition::YouAttackedWithNOrMoreCreaturesThisTurn(3) still holds.
+    // Exercised through the REAL activation path -- a rejection here would carry
+    // the literal message "activation condition not met" (abilities.rs's CR
+    // 602.5b check).
     let mut state = state;
     if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.mana_pool.white = 1;

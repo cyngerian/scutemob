@@ -101,7 +101,13 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // delegates to `rules::retarget::plan_target_change` in a separate file.
     // The ratchet only ever moves DOWN -- this lowers the ceiling to keep the
     // gain rather than leaving slack a future regression could hide in.
-    ("src/effects/mod.rs", 108),
+    // PB-DX53 (2026-09, `OOS-DX21-1`): 108 -> 109. One new NONSWALLOW predicate
+    // read: `Condition::YouAttackedWithNOrMoreCreaturesThisTurn(n)`'s
+    // `state.players.get(&ctx.controller).map(..).unwrap_or(false)` -- an exact
+    // copy of the pre-existing sibling `YouAttackedWithNOrMoreThisDeclaration`
+    // arm's idiom immediately above it (a missing controller legitimately
+    // answers the predicate `false`, not an engine bug).
+    ("src/effects/mod.rs", 109),
     // PB-DX25c fix cycle (2026-08-06, review Finding E8): the two lookups
     // above did not disappear, they RELOCATED into this new file -- and
     // without this entry the ratchet's denominator would have silently

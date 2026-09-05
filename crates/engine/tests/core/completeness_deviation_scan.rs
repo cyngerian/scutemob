@@ -888,13 +888,6 @@ const RECORDED_BASELINE: &[(&str, &str)] = &[
          boost keyed on opponents' poison counters is unimplemented.",
     ),
     (
-        "windbrisk_heights",
-        "Matched \"needs\": \"It is also still not deduplicated by creature. Filed as \
-         `OOS-DX21-1`; closing it needs the field to become a per-turn accumulation with \
-         per-creature dedup\" — a stated, filed, live residual (the extra-combat half of the \
-         raid-count tracking gap PB-DX21 only partially closed).",
-    ),
-    (
         "xenagos_the_reveler",
         "Matched \"in dsl\", \"todo\": \"+1: TODO — count-based mana production (X = creatures \
          you control) not in DSL\" — the +1 loyalty ability's variable mana production is \
@@ -922,7 +915,15 @@ const RECORDED_BASELINE: &[(&str, &str)] = &[
 /// while retaining (or gaining) prose the needle scan matches -- `retreat_to_kazandu`'s
 /// new mode-scoping comments ("needs no target") and `shambling_ghast`'s pre-existing
 /// PB-DX4 historical narrative ("three oracle deviations"). Two new entries above.
-const RECORDED_BASELINE_POPULATION: usize = 47;
+///
+/// **PB-DX53 (2026-09-05, `OOS-DX21-1`): lowered 47 -> 46.** `windbrisk_heights`'s
+/// entry is REMOVED, not just re-worded: PB-DX53 closed the residual its matched
+/// fragment described (the extra-combat, non-deduplicated raid count), and the
+/// rewritten card-def comment no longer contains any `DEVIATION_NEEDLES` member at
+/// all -- checked directly, not assumed. A live entry names a live residual; once
+/// the residual closes and the language describing it is gone, the entry is dead
+/// weight the gate itself asks to be removed.
+const RECORDED_BASELINE_POPULATION: usize = 46;
 
 /// Read every `*.rs` file directly under `defs/`. Returns `(file_stem, source)`.
 fn read_def_sources() -> Vec<(String, String)> {
@@ -1356,9 +1357,14 @@ fn the_marker_detector_is_not_vacuous() {
     // net -1. This batch's other four edited defs (`curiosity`, `ophidian_eye`,
     // `goblin_lackey`, `warren_instigator`) stay `partial` with rewritten notes, so
     // MARKER_FRAGMENTS still matches all four files -- only exalted_angel's file drops out.
+    // PB-DX53 (2026-09-05, `OOS-DX21-1`): threshold 664 -> **663**. `minas_tirith`
+    // `partial` -> `Complete` (its third ability's blocker note was false at HEAD --
+    // `Condition::YouAttackedWithNOrMore(u32)` has existed since PB-OS6 -- and PB-DX53's
+    // per-turn split gives it a correctly-scoped variant to read), net -1. RE-MEASURED
+    // DIRECTLY: `all_cards()` reports 1,140 Complete / 663 non-Complete of 1,803.
     assert!(
-        marked >= 664,
-        "marker detector matched {marked} files; expected >= 664. This assertion has NO \
+        marked >= 663,
+        "marker detector matched {marked} files; expected >= 663. This assertion has NO \
          margin (see the comment above) and can fail for two different reasons: (1) \
          MARKER_FRAGMENTS stopped matching (a detector bug -- the gate would then spuriously \
          flag marked defs) or, far more likely on an ordinary day, (2) a ROUTINE Complete \
