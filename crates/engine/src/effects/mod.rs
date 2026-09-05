@@ -25,6 +25,7 @@ use crate::cards::card_definition::{
     WheelDisposal, WheelDraw, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageTarget, GameEvent};
+use crate::state::continuous_effect::EffectLayer;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{
     Characteristics, Designations, GameObject, HybridMana, ObjectId, ObjectStatus, PhyrexianMana,
@@ -10648,7 +10649,36 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
     true
 }
 // ── Condition checking ────────────────────────────────────────────────────────
+/// [`check_condition_ctx`] for the four safe caller classes -- `activation_condition`,
+/// `intervening_if`, `Effect::Conditional`, `unless_condition` -- that never run from
+/// inside a layer walk (PB-DX42b). Full CR 613.1d resolution, always.
 pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext) -> bool {
+    check_condition_ctx(
+        state,
+        condition,
+        ctx,
+        &mut crate::rules::layers::CharacteristicEvalContext::outside_layer_walk(),
+    )
+}
+/// The real evaluator body. `eval` is `Some(_)`-bound only when this is reached from
+/// [`crate::rules::layers::is_effect_condition_satisfied`] (a `ContinuousEffectDef.condition`
+/// evaluated from inside `calculate_characteristics_through`) -- every other caller passes
+/// a fresh, outside-the-walk context via [`check_condition`], the `pub` wrapper above.
+pub(crate) fn check_condition_ctx(
+    state: &GameState,
+    condition: &Condition,
+    ctx: &EffectContext,
+    eval: &mut crate::rules::layers::CharacteristicEvalContext,
+) -> bool {
+    // PB-DX42b: the layer this SPECIFIC condition needs resolved, computed once
+    // for the whole match rather than per arm -- `Condition::required_characteristic_layer`
+    // is itself a match on `condition`, so it names the right answer regardless of
+    // which arm below actually runs. Only consulted by
+    // `characteristics_for_condition_ctx` when `eval.bound` is `Some(_)`; outside a
+    // layer walk (every caller of the `pub fn check_condition` wrapper) it is inert.
+    let required = condition
+        .required_characteristic_layer()
+        .unwrap_or(EffectLayer::Copy);
     match condition {
         Condition::Always => true,
         Condition::ControllerLifeAtLeast(n) => state
@@ -10668,7 +10698,9 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::characteristics_for_condition(state, obj);
+                    let chars = crate::rules::layers::characteristics_for_condition_ctx(
+                        state, obj, required, eval,
+                    );
                     matches_filter(&chars, filter)
                         // CR 122.1: counter check must be against GameObject (not Characteristics).
                         && check_has_counter_type(obj, filter)
@@ -10679,7 +10711,9 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller != ctx.controller
                 && {
-                    let chars = crate::rules::layers::characteristics_for_condition(state, obj);
+                    let chars = crate::rules::layers::characteristics_for_condition_ctx(
+                        state, obj, required, eval,
+                    );
                     matches_filter(&chars, filter)
                         // CR 122.1: counter check must be against GameObject (not Characteristics).
                         && check_has_counter_type(obj, filter)
@@ -10763,7 +10797,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
             .unwrap_or(false),
         // Logical negation of any condition (CR 603.4: intervening-if can express "haven't").
         // Used by Acererak's ETB: "if you haven't completed Tomb of Annihilation".
-        Condition::Not(inner) => !check_condition(state, inner, ctx),
+        Condition::Not(inner) => !check_condition_ctx(state, inner, ctx, eval),
         // CR 701.54c: "if the Ring has tempted you N or more times" — true when ring_level >= n.
         // Used for cards that check the ring level (e.g., Frodo, Sauron's Bane at level 4).
         Condition::RingHasTemptedYou(n) => state
@@ -10772,7 +10806,9 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
             .map(|ps| ps.ring_level >= *n)
             .unwrap_or(false),
         // Logical disjunction: true if either condition holds.
-        Condition::Or(a, b) => check_condition(state, a, ctx) || check_condition(state, b, ctx),
+        Condition::Or(a, b) => {
+            check_condition_ctx(state, a, ctx, eval) || check_condition_ctx(state, b, ctx, eval)
+        }
         // ── ETB condition variants (PB-2) ────────────────────────────────────
         //
         // CR 614.1c: "enters tapped unless [condition]" — these are evaluated
@@ -10786,7 +10822,9 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::characteristics_for_condition(state, obj);
+                    let chars = crate::rules::layers::characteristics_for_condition_ctx(
+                        state, obj, required, eval,
+                    );
                     chars.card_types.contains(&CardType::Land)
                         && subtypes.iter().any(|st| chars.subtypes.contains(st))
                 }
@@ -10802,9 +10840,11 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::characteristics_for_condition(state, obj)
-                            .card_types
-                            .contains(&CardType::Land)
+                        && crate::rules::layers::characteristics_for_condition_ctx(
+                            state, obj, required, eval,
+                        )
+                        .card_types
+                        .contains(&CardType::Land)
                 })
                 .count();
             other_land_count <= *n as usize
@@ -10841,8 +10881,9 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
                         && {
-                            let chars =
-                                crate::rules::layers::characteristics_for_condition(state, obj);
+                            let chars = crate::rules::layers::characteristics_for_condition_ctx(
+                                state, obj, required, eval,
+                            );
                             chars.card_types.contains(&CardType::Land)
                                 && chars
                                     .supertypes
@@ -10863,9 +10904,11 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::characteristics_for_condition(state, obj)
-                            .card_types
-                            .contains(&CardType::Land)
+                        && crate::rules::layers::characteristics_for_condition_ctx(
+                            state, obj, required, eval,
+                        )
+                        .card_types
+                        .contains(&CardType::Land)
                 })
                 .count();
             other_land_count >= *n as usize
@@ -10881,9 +10924,11 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::characteristics_for_condition(state, obj)
-                            .subtypes
-                            .contains(subtype)
+                        && crate::rules::layers::characteristics_for_condition_ctx(
+                            state, obj, required, eval,
+                        )
+                        .subtypes
+                        .contains(subtype)
                 })
                 .count();
             matching_count >= *count as usize
@@ -10894,7 +10939,9 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::characteristics_for_condition(state, obj);
+                    let chars = crate::rules::layers::characteristics_for_condition_ctx(
+                        state, obj, required, eval,
+                    );
                     chars.card_types.contains(&CardType::Creature)
                         && chars.supertypes.contains(&SuperType::Legendary)
                 }
@@ -10905,7 +10952,9 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::characteristics_for_condition(state, obj);
+                    let chars = crate::rules::layers::characteristics_for_condition_ctx(
+                        state, obj, required, eval,
+                    );
                     chars.card_types.contains(&CardType::Creature)
                         && chars.subtypes.contains(subtype)
                 }
@@ -10934,19 +10983,19 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
         // ── PB-24: Conditional static variants ──────────────────────────────
         // These delegate to check_static_condition using the EffectContext's source and controller.
         Condition::OpponentLifeAtMost(_) => {
-            check_static_condition(state, condition, ctx.source, ctx.controller)
+            check_static_condition_ctx(state, condition, ctx.source, ctx.controller, eval)
         }
         Condition::SourceIsUntapped => {
-            check_static_condition(state, condition, ctx.source, ctx.controller)
+            check_static_condition_ctx(state, condition, ctx.source, ctx.controller, eval)
         }
         Condition::IsYourTurn => {
-            check_static_condition(state, condition, ctx.source, ctx.controller)
+            check_static_condition_ctx(state, condition, ctx.source, ctx.controller, eval)
         }
         Condition::YouControlNOrMoreWithFilter { .. } => {
-            check_static_condition(state, condition, ctx.source, ctx.controller)
+            check_static_condition_ctx(state, condition, ctx.source, ctx.controller, eval)
         }
         Condition::DevotionToColorsLessThan { .. } => {
-            check_static_condition(state, condition, ctx.source, ctx.controller)
+            check_static_condition_ctx(state, condition, ctx.source, ctx.controller, eval)
         }
         // CR 107.3m: "if X is N or more" — true when ctx.x_value >= n.
         Condition::XValueAtLeast(n) => ctx.x_value >= *n,
@@ -10965,7 +11014,9 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
             .map(|obj| obj.designations.contains(Designations::SOLVED))
             .unwrap_or(false),
         // Logical conjunction: true only when both arms are true.
-        Condition::And(a, b) => check_condition(state, a, ctx) && check_condition(state, b, ctx),
+        Condition::And(a, b) => {
+            check_condition_ctx(state, a, ctx, eval) && check_condition_ctx(state, b, ctx, eval)
+        }
         // PB-B: "if you gained life this turn" — Oathsworn Vampire (Ruling 2018-01-19).
         // True when the controller's life_gained_this_turn > 0. Net life change irrelevant.
         Condition::ControllerGainedLifeThisTurn => state
@@ -11085,7 +11136,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
         // counts use layer-resolved types (CR 613.1d) and exclude phased-out
         // permanents (CR 702.26b) — W3-LC layer discipline.
         Condition::OpponentControlsMoreLandsThanYou => {
-            let count_lands = |pid: crate::state::player::PlayerId| -> usize {
+            let mut count_lands = |pid: crate::state::player::PlayerId| -> usize {
                 state
                     .objects
                     .values()
@@ -11093,7 +11144,9 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         o.zone == ZoneId::Battlefield && o.is_phased_in() && o.controller == pid
                     })
                     .filter(|o| {
-                        let chars = crate::rules::layers::characteristics_for_condition(state, o);
+                        let chars = crate::rules::layers::characteristics_for_condition_ctx(
+                            state, o, required, eval,
+                        );
                         chars.card_types.contains(&CardType::Land)
                     })
                     .count()
@@ -11224,17 +11277,44 @@ pub fn condition_is_queue_time_evaluable(cond: &Condition) -> bool {
 }
 /// Evaluate a condition in a static ability context (no EffectContext available).
 ///
-/// CR 604.2: Called at layer-application time for conditional continuous effects.
-/// Constructs a minimal EffectContext from the source and controller, then delegates
-/// to check_condition for most variants. Cast-time conditions (WasKicked, WasOverloaded,
-/// etc.) always return false in a static context since they have no spell resolution to
-/// reference. New PB-24 variants are handled directly.
+/// [`check_static_condition_ctx`] for the four safe caller classes that never run
+/// from inside a layer walk (PB-DX42b) -- full CR 613.1d resolution, always.
 pub fn check_static_condition(
     state: &GameState,
     condition: &Condition,
     source: ObjectId,
     controller: PlayerId,
 ) -> bool {
+    check_static_condition_ctx(
+        state,
+        condition,
+        source,
+        controller,
+        &mut crate::rules::layers::CharacteristicEvalContext::outside_layer_walk(),
+    )
+}
+/// The real evaluator body. `eval` is `Some(_)`-bound only when reached from
+/// [`crate::rules::layers::is_effect_condition_satisfied`]; every other caller passes
+/// a fresh, outside-the-walk context via [`check_static_condition`], the `pub` wrapper
+/// above.
+///
+/// CR 604.2: Called at layer-application time for conditional continuous effects.
+/// Constructs a minimal EffectContext from the source and controller, then delegates
+/// to check_condition_ctx for most variants. Cast-time conditions (WasKicked, WasOverloaded,
+/// etc.) always return false in a static context since they have no spell resolution to
+/// reference. New PB-24 variants are handled directly.
+pub(crate) fn check_static_condition_ctx(
+    state: &GameState,
+    condition: &Condition,
+    source: ObjectId,
+    controller: PlayerId,
+    eval: &mut crate::rules::layers::CharacteristicEvalContext,
+) -> bool {
+    // PB-DX42b: see `check_condition_ctx`'s identical line -- the layer this
+    // specific condition needs resolved, computed once for the whole match.
+    let required = condition
+        .required_characteristic_layer()
+        .unwrap_or(EffectLayer::Copy);
     match condition {
         // CR 604.2: "as long as an opponent has N or less life" (Bloodghast).
         // True when ANY living opponent of the controller has life total <= N.
@@ -11291,8 +11371,9 @@ pub fn check_static_condition(
                             // whatever object it was asked about and whatever zone that object
                             // is in. Recursing on a different object, or on one in the
                             // graveyard, re-enters this arm just the same.
-                            let chars =
-                                crate::rules::layers::characteristics_for_condition(state, obj);
+                            let chars = crate::rules::layers::characteristics_for_condition_ctx(
+                                state, obj, required, eval,
+                            );
                             matches_filter(&chars, filter)
                                 // CR 122.1: counter check must be against GameObject (not Characteristics).
                                 && check_has_counter_type(obj, filter)
@@ -11350,7 +11431,7 @@ pub fn check_static_condition(
                 effect_choice_gate_closed: false,
                 chosen_objects: Vec::new(),
             };
-            check_condition(state, condition, &ctx)
+            check_condition_ctx(state, condition, &ctx, eval)
         }
     }
 }

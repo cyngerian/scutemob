@@ -11,7 +11,7 @@
 use crate::cards::card_definition::{EffectAmount, EffectTarget, PlayerTarget, ZoneTarget};
 use crate::state::{
     continuous_effect::{
-        ContinuousEffect, EffectDuration, EffectFilter, EffectLayer, LayerModification,
+        ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
     },
     game_object::{Characteristics, Designations, GameObject, ManaAbility, ObjectId},
     player::PlayerId,
@@ -21,142 +21,317 @@ use crate::state::{
 };
 use imbl::OrdSet;
 use std::collections::VecDeque;
-// ── Layer-walk re-entrancy guard (OOS-SIM2-6 / PB-DX19) ─────────────────────────
-
-thread_local! {
-    /// Depth of the currently-executing [`calculate_characteristics`] walk on this
-    /// thread. Zero means "not inside the layer system".
-    ///
-    /// This is a scratch flag describing the *call stack*, not game state. It is not
-    /// serialized, not hashed, never read by a rule, and cannot differ between two
-    /// runs of the same command — so it does not weaken Architecture Invariant 2
-    /// (immutable `GameState`) or Invariant 3 (all mutation through a `Command`).
-    /// `GameState` remains untouched; what this records is where in the engine's own
-    /// execution we are, which no `&GameState` parameter can express.
-    static LAYER_WALK_DEPTH: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+// ── The layer-bounded characteristics evaluation context ────────────────────────
+//
+// OOS-SIM2-6 (PB-DX19) fixed a stack-overflowing recursion with an ambient
+// thread-local depth counter: [`characteristics_for_condition`] returned
+// **base** characteristics for ANY condition evaluated anywhere inside a
+// [`calculate_characteristics`] walk, whichever effect or object the walk was
+// for. That closed the crash but suppressed the ENTIRE layer system for the
+// whole walk rather than the one self-referential effect — a CR 613.1d
+// deviation on every OTHER continuous effect that happened to be resolving at
+// the same time (OOS-DX19-2 / OOS-ADJ-1; measured at seven deck-legal
+// `Complete` pairs plus the unbounded CR 708.2a face-down class,
+// `docs/audits/mtg-characteristics-recursion-adjudication.md` §2.5).
+//
+// `CharacteristicEvalContext` replaces the depth counter with the engine's
+// existing logical effect identity, `EffectId`, so suppression is scoped to
+// the ONE effect whose condition is being evaluated rather than to "inside
+// the layer system at all". It also carries the layer a nested query is
+// bounded through, which is what makes [`calculate_characteristics_through`]
+// terminate WITHOUT any cycle-breaker on this corpus — see that function's
+// doc comment and the adjudication's §3.2(iii).
+pub(crate) struct CharacteristicEvalContext {
+    /// `EffectId`s whose CONDITION is currently being evaluated higher in
+    /// this call stack. A continuous effect whose condition asks about its
+    /// own outcome (directly or through a filter that ends up re-querying the
+    /// same effect) is suppressed rather than recursed into — see the
+    /// labelled deviation on [`is_effect_condition_satisfied`].
+    in_flight: std::collections::BTreeSet<EffectId>,
+    /// `Some(l)` — we are inside a [`calculate_characteristics_through`] walk
+    /// bounded through layer `l`; a condition evaluated from here may resolve
+    /// another object's characteristics only through `l` or earlier.
+    /// `None` — we are outside any layer walk, and a condition evaluated from
+    /// here gets CR 613.1d in full (`expect_characteristics`).
+    bound: Option<EffectLayer>,
 }
 
-/// RAII marker for the dynamic extent of a [`calculate_characteristics`] call.
-///
-/// Decrements on `Drop`, so the depth is restored on an early `return` (this
-/// function has several) and on unwind.
-pub(crate) struct LayerWalkGuard;
-
-impl LayerWalkGuard {
-    pub(crate) fn enter() -> Self {
-        LAYER_WALK_DEPTH.with(|d| d.set(d.get().saturating_add(1)));
-        LayerWalkGuard
+impl CharacteristicEvalContext {
+    /// The context for every caller that is not itself inside a layer walk:
+    /// `activation_condition`, `intervening_if`, `Effect::Conditional`,
+    /// `unless_condition`, and the two public `check_condition` /
+    /// `check_static_condition` wrappers below. None of these four safe
+    /// caller classes closes a cycle (PB-DX19's own review finding), so each
+    /// gets a fresh, empty context and full layer resolution.
+    pub(crate) fn outside_layer_walk() -> Self {
+        CharacteristicEvalContext {
+            in_flight: std::collections::BTreeSet::new(),
+            bound: None,
+        }
     }
 }
 
-impl Drop for LayerWalkGuard {
+/// RAII guard for [`CharacteristicEvalContext::bound`] — enters a nested,
+/// layer-bounded query for its dynamic extent and restores the previous bound
+/// on `Drop`. [`calculate_characteristics_through`] has several early
+/// returns (a missing object, an empty `?`); a guard restored on `Drop`
+/// rather than at each return site cannot leak a stale bound the way a
+/// hand-rolled decrement could, and it survives an unwind — the same
+/// reentrancy shape the retired `LayerWalkGuard` used (OOS-DX19-4), now
+/// scoped to a value instead of a depth count.
+struct BoundGuard<'a> {
+    eval: &'a mut CharacteristicEvalContext,
+    previous: Option<EffectLayer>,
+}
+
+impl<'a> BoundGuard<'a> {
+    fn enter(eval: &'a mut CharacteristicEvalContext, through: EffectLayer) -> Self {
+        let previous = eval.bound.replace(through);
+        BoundGuard { eval, previous }
+    }
+}
+
+// `enter` takes ownership of the `&mut CharacteristicEvalContext` it is given, so
+// the standard way to keep using the context for the rest of the guard's scope is
+// to shadow the original binding with the guard itself
+// (`let mut eval = BoundGuard::enter(eval, through);`) and reach the context
+// through `Deref`/`DerefMut`, exactly like `std::sync::MutexGuard`.
+impl std::ops::Deref for BoundGuard<'_> {
+    type Target = CharacteristicEvalContext;
+    fn deref(&self) -> &CharacteristicEvalContext {
+        self.eval
+    }
+}
+
+impl std::ops::DerefMut for BoundGuard<'_> {
+    fn deref_mut(&mut self) -> &mut CharacteristicEvalContext {
+        self.eval
+    }
+}
+
+impl Drop for BoundGuard<'_> {
     fn drop(&mut self) {
-        LAYER_WALK_DEPTH.with(|d| d.set(d.get().saturating_sub(1)));
+        self.eval.bound = self.previous;
     }
 }
 
-/// Is the current thread inside a [`calculate_characteristics`] walk?
-pub fn in_layer_walk() -> bool {
-    LAYER_WALK_DEPTH.with(|d| d.get()) > 0
+/// RAII guard for [`CharacteristicEvalContext::in_flight`] — marks one
+/// `EffectId`'s condition as "currently being evaluated" for the dynamic
+/// extent of that evaluation, so a self-referential condition is detected
+/// (and suppressed, per the labelled deviation on
+/// [`is_effect_condition_satisfied`]) instead of recursing forever. Removes
+/// on `Drop`, so it survives every early return inside `check_condition_ctx`
+/// / `check_static_condition_ctx` and any unwind.
+struct InFlightGuard<'a> {
+    eval: &'a mut CharacteristicEvalContext,
+    id: EffectId,
+}
+
+impl<'a> InFlightGuard<'a> {
+    fn enter(eval: &'a mut CharacteristicEvalContext, id: EffectId) -> Self {
+        eval.in_flight.insert(id);
+        InFlightGuard { eval, id }
+    }
+}
+
+// See `BoundGuard`'s identical pair of impls for why these exist: `enter` takes
+// ownership of the `&mut CharacteristicEvalContext` it is given, so the caller
+// shadows the original binding with the guard and reaches the context through
+// `Deref`/`DerefMut`.
+impl std::ops::Deref for InFlightGuard<'_> {
+    type Target = CharacteristicEvalContext;
+    fn deref(&self) -> &CharacteristicEvalContext {
+        self.eval
+    }
+}
+
+impl std::ops::DerefMut for InFlightGuard<'_> {
+    fn deref_mut(&mut self) -> &mut CharacteristicEvalContext {
+        self.eval
+    }
+}
+
+impl Drop for InFlightGuard<'_> {
+    fn drop(&mut self) {
+        self.eval.in_flight.remove(&self.id);
+    }
 }
 
 /// The characteristics a **condition's filter test** may read for `obj`
-/// (CR 604.2 / CR 613.1d) — the single decision point for OOS-SIM2-6.
+/// (CR 604.2 / CR 613.1d) — the single decision point for OOS-SIM2-6, now
+/// bounded per-effect rather than suppressed for the whole layer system.
 ///
 /// # Why this exists
 ///
-/// `check_static_condition` and `check_condition` are **shared evaluators**. They
-/// are reached from five different places, and only one of them is dangerous:
+/// `check_static_condition_ctx` and `check_condition_ctx` are **shared
+/// evaluators**. They are reached from five different places, and only one of
+/// them is dangerous:
 ///
 /// | caller | dangerous? |
 /// |---|---|
-/// | `is_effect_active`, inside `calculate_characteristics` | **YES** — closes a cycle |
+/// | `is_effect_condition_satisfied`, inside `calculate_characteristics_through` | **YES** — can close a cycle through the effect being evaluated |
 /// | `activation_condition` (`rules/abilities.rs`, `rules/mana.rs`) | no |
 /// | `intervening_if` (`rules/abilities.rs`) | no |
 /// | `Effect::Conditional` | no |
 /// | `unless_condition` (ETB replacement) | no |
 ///
-/// On the first, resolving another object's characteristics calls back into
-/// `calculate_characteristics`, which re-enters `is_effect_active` for **every**
-/// registered effect — whatever object it was asked about, and whatever zone that
-/// object is in. The recursion runs through the *effect*, not the object, so it is
-/// unconditional and it overflows the stack (SIGABRT; `indomitable_archangel` made
-/// it reachable from a legal deck).
+/// On the first, resolving another object's characteristics can call back
+/// into `calculate_characteristics_through` for the SAME effect's condition —
+/// closing a cycle through the *effect*, not the object, exactly as
+/// OOS-SIM2-6 found. `eval.in_flight` breaks that cycle (§3 of the PB-DX42b
+/// plan: an undocumented deviation, labelled as one, because the CR is silent
+/// on condition-evaluation cycles — CR 613.8b governs only same-layer
+/// dependency loops, CR 613.8a(a)). `eval.bound` is what makes the recursion
+/// terminate WITHOUT reaching that cycle-breaker on this corpus at all: a
+/// nested query, bounded at `required < effect.layer` (asserted by
+/// [`is_effect_condition_satisfied`]), can only ever sweep effects at layers
+/// `<= required`, strictly fewer than the layers the outer walk already
+/// covers.
 ///
-/// On the other four there is no cycle, and CR 613.1d demands the **layer-resolved**
-/// answer: a 2/2 with two `+1/+1` counters really does have power 4 for
-/// `garruks_uprising`'s intervening-if, and a changeling really is a Vampire for
-/// `bloodline_keeper`'s activation cost.
+/// On the other four there is no cycle, and CR 613.1d demands the
+/// **layer-resolved** answer: a 2/2 with two `+1/+1` counters really does
+/// have power 4 for `garruks_uprising`'s intervening-if, and a changeling
+/// really is a Vampire for `bloodline_keeper`'s activation cost.
 ///
-/// **PB-DX19's first attempt read base characteristics unconditionally and so broke
-/// all four of the safe paths to fix the one unsafe one.** That regression is the
-/// reason this function exists rather than a bare `obj.characteristics`.
+/// **PB-DX19's first attempt read base characteristics unconditionally and so
+/// broke all four of the safe paths to fix the one unsafe one.** That
+/// regression is the reason this function exists rather than a bare
+/// `obj.characteristics`.
 ///
-/// # The deviation, and its exact scope
+/// # `required`
 ///
-/// Inside the layer walk this returns **printed** characteristics, which is wrong by
-/// CR 613.1d whenever another continuous effect has changed the object's types,
-/// subtypes or P/T. The instance that is **pinned by a test** is
-/// `blinkmoth_nexus` / `inkmoth_nexus` animating into artifacts, so they do not feed
-/// Metalcraft — see `deviation_animated_nexus_does_not_count_toward_metalcraft` in
-/// `tests/primitives/pb_dx19_characteristics_recursion.rs`. Others are known and
-/// **not** pinned: CR 712.8d/e (DFC), 712.8g (meld), 729.2a (merge), 702.73a
-/// (changeling), and — in the opposite direction — CR 708.2a face-down permanents,
-/// where the printed types are still the *hidden* card's, so an in-walk count can be
-/// too HIGH rather than too low. All are catalogued on `OOS-DX19-2`, whose CR 613.8b
-/// dependency-aware fixpoint is the honest repair and a batch of its own.
+/// The layer THIS PARTICULAR call needs resolved — e.g. `TypeChange` for a
+/// card-type check, `PtSwitch` for a power/toughness check
+/// ([`crate::cards::card_definition::TargetFilter::required_characteristic_layer`]).
+/// Consulted only when `eval.bound` is `Some(_)`; outside any walk the answer
+/// is `expect_characteristics` regardless, so `required` is inert there.
 ///
-/// The deviation applies **only** inside the layer walk. Everywhere else this is
-/// exactly `expect_characteristics`.
-pub fn characteristics_for_condition(state: &GameState, obj: &GameObject) -> Characteristics {
-    if in_layer_walk() {
-        obj.characteristics.clone()
-    } else {
-        expect_characteristics(state, obj.id)
+/// Returns `Characteristics::default()` if the nested walk finds no such
+/// object — this can only happen for a stale id inside a battlefield sweep,
+/// which does not occur in practice, but defaulting rather than propagating a
+/// panic keeps a bad id a wrong-but-total answer instead of an engine crash.
+pub(crate) fn characteristics_for_condition_ctx(
+    state: &GameState,
+    obj: &GameObject,
+    required: EffectLayer,
+    eval: &mut CharacteristicEvalContext,
+) -> Characteristics {
+    match eval.bound {
+        // Outside any walk: CR 613.1d in full. Unchanged for the four safe callers.
+        None => expect_characteristics(state, obj.id),
+        // Inside a walk: resolve THROUGH the layer this filter actually needs,
+        // not through the layer the OUTER walk happens to be bounded at.
+        Some(_) => {
+            calculate_characteristics_through(state, obj.id, required, eval).unwrap_or_default()
+        }
     }
 }
 
-/// Calculate the effective characteristics of an object after applying all active
-/// continuous effects through the layer system (CR 613).
+/// [`characteristics_for_condition_ctx`] for the four safe caller classes
+/// (`activation_condition`, `intervening_if`, `Effect::Conditional`,
+/// `unless_condition`) that never run from inside a layer walk and so always
+/// want full CR 613.1d resolution. Kept because those call sites resolve
+/// characteristics for many different filters via `Effect::ForEach`-style
+/// battlefield sweeps that do not carry a `CharacteristicEvalContext` of
+/// their own — see `pb-plan-DX42b.md` §1 step 2.
+pub fn characteristics_for_condition(state: &GameState, obj: &GameObject) -> Characteristics {
+    characteristics_for_condition_ctx(
+        state,
+        obj,
+        EffectLayer::PtSwitch,
+        &mut CharacteristicEvalContext::outside_layer_walk(),
+    )
+}
+
+/// [`calculate_characteristics_through`] resolved all the way to Layer 7d —
+/// the ordinary, unbounded CR 613.1d answer any caller outside the layer
+/// system wants.
 ///
-/// Starts with the object's base (printed) characteristics and applies all active
-/// continuous effects in layer order (1 → 7d), with timestamp and dependency ordering
-/// within each layer.
-///
-/// Returns `None` if — and only if — the object does not exist in the game state.
-/// That is the function's sole failure mode: every other step is total. A caller
-/// holding an id it knows to be live should therefore use
+/// Returns `None` if — and only if — the object does not exist in the game
+/// state. That is the function's sole failure mode: every other step is
+/// total. A caller holding an id it knows to be live should therefore use
 /// [`expect_characteristics`] rather than papering over the `None`.
-///
-/// # Re-entrancy (OOS-SIM2-6 / PB-DX19)
-///
-/// This function is **re-entrant by design**: evaluating a conditional continuous
-/// effect's `condition` (CR 604.2) can require inspecting other permanents. Left
-/// unguarded that is an unbounded recursion, because the cycle runs through the
-/// *effect*, not the object — see [`characteristics_for_condition`]. The whole
-/// dynamic extent of this call is therefore marked by a [`LayerWalkGuard`], and
-/// condition evaluation consults [`in_layer_walk`] to decide which characteristics
-/// it is allowed to read.
 pub fn calculate_characteristics(
     state: &GameState,
     object_id: ObjectId,
 ) -> Option<Characteristics> {
-    // OOS-SIM2-6 / PB-DX19: mark the layer walk for its whole dynamic extent. See
-    // [`characteristics_for_condition`] — a condition evaluated from *inside* here
-    // must not resolve another object's characteristics, and a condition evaluated
-    // from anywhere else must.
-    let _layer_walk = LayerWalkGuard::enter();
+    calculate_characteristics_through(
+        state,
+        object_id,
+        EffectLayer::PtSwitch,
+        &mut CharacteristicEvalContext::outside_layer_walk(),
+    )
+}
+
+/// Calculate the effective characteristics of an object after applying every
+/// active continuous effect through layer `through` (CR 613), inclusive.
+///
+/// Starts with the object's base (printed) characteristics and applies every
+/// active continuous effect whose layer is `<= through`, in layer order
+/// (1 → `through`), with timestamp and dependency ordering within each layer.
+/// [`calculate_characteristics`] is exactly this function called with
+/// `through = EffectLayer::PtSwitch` (the last layer) and a fresh,
+/// outside-the-walk `eval` — the ordinary case every non-condition caller
+/// wants.
+///
+/// Returns `None` if — and only if — the object does not exist in the game
+/// state; see [`calculate_characteristics`]'s doc for the same contract.
+///
+/// # Termination (OOS-SIM2-6 / PB-DX19 / OOS-DX19-2 / OOS-ADJ-1)
+///
+/// Evaluating a conditional continuous effect's `condition` (CR 604.2) can
+/// require resolving OTHER permanents' characteristics — see
+/// [`characteristics_for_condition_ctx`]. `eval.bound` marks the dynamic
+/// extent of this call at `through`, and the activity sweep below is bounded
+/// by the SAME `through` — **both halves are load-bearing together**.
+/// Bounding only the outer query and leaving the inner activity sweep global
+/// would still evaluate a later-layer effect's condition, which could
+/// re-enter this same bounded query: the original unbounded recursion with an
+/// extra parameter (adjudication §3.2(iii)). With both halves bounded, a
+/// nested query for a condition that requires layer `R` (checked by the
+/// `debug_assert!` in [`is_effect_condition_satisfied`]: `R` must be strictly
+/// less than the conditioned effect's own layer) can only ever sweep effects
+/// at layers `<= R`, strictly fewer than this call's own `through` — the
+/// bound strictly decreases at every nesting level, and `EffectLayer` is
+/// finite and totally ordered, so the recursion is finite WITHOUT any
+/// cycle-breaker on this corpus. `eval.in_flight` (see
+/// [`characteristics_for_condition_ctx`]) exists only as a release-build
+/// backstop for a case the `debug_assert!` would otherwise catch — see
+/// `is_effect_condition_satisfied`'s doc for why it must ship labelled as an
+/// undocumented deviation rather than as rules text.
+pub(crate) fn calculate_characteristics_through(
+    state: &GameState,
+    object_id: ObjectId,
+    through: EffectLayer,
+    eval: &mut CharacteristicEvalContext,
+) -> Option<Characteristics> {
+    // `eval` is shadowed by the guard rather than kept alongside it: `enter`
+    // takes ownership of the `&mut CharacteristicEvalContext` it is given, so
+    // the context is reached from here on through the guard's `DerefMut`
+    // (see `BoundGuard`'s doc).
+    let mut eval = BoundGuard::enter(eval, through);
     let obj = state.objects.get(&object_id)?;
     let obj_zone = obj.zone;
     let mut chars = obj.characteristics.clone();
     // Collect all active continuous effects once (avoids repeated filtering).
-    let active_effects: Vec<&ContinuousEffect> = state
-        .continuous_effects
-        .iter()
-        .filter(|e| is_effect_active(state, e))
-        .collect();
-    // Process layers in order (CR 613.1). Layer 7 is split into sublayers 7a–7d.
-    let layers_in_order = [
+    //
+    // OOS-ADJ-1 / §3.2(iii): the activity sweep is bounded by `through`, the
+    // SAME bound the outer query uses, deliberately. A bounded query over a
+    // GLOBAL activity sweep is the original recursion with an extra
+    // parameter, because the sweep would still evaluate a later-layer
+    // effect's condition, which would re-enter this same bounded query.
+    let mut active_effects: Vec<&ContinuousEffect> = Vec::new();
+    for e in state.continuous_effects.iter() {
+        if e.layer <= through
+            && is_effect_duration_active(state, e)
+            && is_effect_condition_satisfied(state, e, &mut eval)
+        {
+            active_effects.push(e);
+        }
+    }
+    // Process layers in order (CR 613.1), up to and including `through`.
+    // Layer 7 is split into sublayers 7a–7d.
+    let layers_in_order: Vec<EffectLayer> = [
         EffectLayer::Copy,
         EffectLayer::Control,
         EffectLayer::Text,
@@ -167,7 +342,10 @@ pub fn calculate_characteristics(
         EffectLayer::PtSet,
         EffectLayer::PtModify,
         EffectLayer::PtSwitch,
-    ];
+    ]
+    .into_iter()
+    .filter(|&l| l <= through)
+    .collect();
     // CR 701.60c: A suspected permanent has menace and "This creature can't block"
     // for as long as it's suspected. Menace is inserted into base keywords BEFORE the
     // layer loop so that Layer 6 ability-removal effects (e.g., Humility) can correctly
@@ -645,21 +823,25 @@ pub fn expect_characteristics(state: &GameState, object_id: ObjectId) -> Charact
         .unwrap_or_default()
 }
 
-/// Returns true if a continuous effect is currently active.
+/// Returns true if a continuous effect's DURATION condition is currently met
+/// (CR 611.2a/b, CR 611.3b) — the half of "is this effect active" that is
+/// **verified free of any characteristics query**, which is what makes
+/// [`is_effect_condition_satisfied`]'s layer-bounded recursion non-circular
+/// (`pb-plan-DX42b.md` §1 step 1): a `CharacteristicEvalContext`'s `bound`
+/// only needs to guard the CONDITION half.
 ///
-/// An effect is active when its duration condition is met:
 /// - `WhileSourceOnBattlefield`: source object exists and is on the battlefield
 /// - `UntilEndOfTurn`: always active (removed explicitly by `expire_end_of_turn_effects`)
 /// - `Indefinite`: always active
 ///
 /// Deliberately does NOT consult `effect.affected_set` (CR 611.2c/PB-DX5): this
-/// function answers "is this effect running at all?" (duration, CR 611.2a/b, and
-/// `condition`, CR 604.2) and takes no `object_id`, so a per-object locked set is
-/// not expressible here. An effect whose locked set happens to be empty is still
-/// active (CR 611.2b's "does nothing" describes an outcome, not non-existence) --
-/// see `effect_applies_to` for the per-object question `affected_set` answers.
-pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
-    let duration_active = match effect.duration {
+/// function answers "is this effect running at all?" (CR 611.2a/b) and takes no
+/// `object_id`, so a per-object locked set is not expressible here. An effect
+/// whose locked set happens to be empty is still active (CR 611.2b's "does
+/// nothing" describes an outcome, not non-existence) -- see `effect_applies_to`
+/// for the per-object question `affected_set` answers.
+pub fn is_effect_duration_active(state: &GameState, effect: &ContinuousEffect) -> bool {
+    match effect.duration {
         // PB-DX39: this read is LIVE-ONLY ON PURPOSE and must never be routed through
         // `source_view_at_resolution` / `lki_object_snapshot`. The question it answers is
         // "is the source still on the battlefield" (CR 611.3b: "the effect applies at all
@@ -711,37 +893,124 @@ pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
                 .unwrap_or(false);
             a_ok && b_ok
         }
+    }
+}
+
+/// Returns true if a continuous effect's CR 604.2 `condition` is currently
+/// satisfied (an effect with no `condition` is trivially satisfied). This is
+/// the half of "is this effect active" that CAN resolve another object's
+/// characteristics, and is therefore the half `eval` guards.
+///
+/// # The labelled deviation (adjudication §3.2(ii) / §5.3)
+///
+/// If `effect.id` is already in `eval.in_flight` -- i.e. we are already in the
+/// middle of evaluating THIS SAME effect's own condition, higher in the call
+/// stack -- the effect is treated as **inactive** rather than recursed into.
+/// The CR is silent on condition-evaluation cycles (it has no such query at
+/// all; CR 611.3a's model is "applies at any given moment to whatever its
+/// text indicates"), and CR 613.8b -- which DOES pick a rule for a
+/// self-referential case, a timestamp-ordered total order rather than
+/// suppression -- does not govern here: CR 613.8a(a) confines a "dependency"
+/// to effects in the SAME layer, and this recursion is strictly cross-layer
+/// by construction (see `calculate_characteristics_through`'s termination
+/// argument). So this suppression is an **undocumented deviation**, shipped
+/// labelled as one exactly like the CR 700.5a devotion note, and it is a
+/// release-build BACKSTOP: on this corpus the `debug_assert!` below never
+/// lets a same-or-later-layer condition reach here in a debug build at all.
+///
+/// # The `debug_assert!`
+///
+/// CR 613.1 fixes a total layer order; a continuous effect's condition may
+/// only ask about characteristics resolved through an EARLIER layer than the
+/// effect's own, or `calculate_characteristics_through`'s bound cannot
+/// strictly decrease at each nesting level and the termination argument in
+/// its doc comment does not hold. That class is empty in the corpus today
+/// (the one deck-legal conditioned continuous effect needs `TypeChange` and
+/// sits on an `Ability` effect) -- the assert is how it stays visible rather
+/// than silently degrading into the deviation above.
+pub(crate) fn is_effect_condition_satisfied(
+    state: &GameState,
+    effect: &ContinuousEffect,
+    eval: &mut CharacteristicEvalContext,
+) -> bool {
+    let Some(ref condition) = effect.condition else {
+        return true;
     };
-    if !duration_active {
+    if eval.in_flight.contains(&effect.id) {
         return false;
     }
-    // CR 604.2: Conditional static abilities — check the condition if present.
-    // Conditions are evaluated against the current game state at layer-application time.
-    if let Some(ref condition) = effect.condition {
-        if let Some(source_id) = effect.source {
-            // PB-DX39: LIVE-ONLY ON PURPOSE, like the duration read above. This supplies
-            // the controller for a CR 604.2 *static* ability's condition, whose source is
-            // on the battlefield by construction (CR 604.2: "static abilities ... function
-            // ... while the permanent is on the battlefield"). CR 608.2h's last-known-
-            // information rule is scoped to an ability that "exists on the stack
-            // independently of its source" (CR 113.7a), which a static ability never does,
-            // so an LKI fallback here would be CR-wrong as well as unnecessary. Pinned by
-            // `core::pb_dx39_source_view_gates::r4`.
-            let controller = state
-                .objects
-                .get(&source_id)
-                .map(|obj| obj.controller)
-                .unwrap_or_else(|| crate::state::player::PlayerId(0));
-            if !crate::effects::check_static_condition(state, condition, source_id, controller) {
-                return false;
-            }
-        } else {
-            // A conditional effect without a source object has no controller to evaluate
-            // the condition against — treat it as inactive.
-            return false;
-        }
+    let Some(source_id) = effect.source else {
+        // A conditional effect without a source object has no controller to evaluate
+        // the condition against — treat it as inactive.
+        return false;
+    };
+    // PB-DX39: LIVE-ONLY ON PURPOSE, like the duration read in
+    // `is_effect_duration_active`. This supplies the controller for a CR 604.2
+    // *static* ability's condition, whose source is on the battlefield by
+    // construction (CR 604.2: "static abilities ... function ... while the
+    // permanent is on the battlefield"). CR 608.2h's last-known-information
+    // rule is scoped to an ability that "exists on the stack independently of
+    // its source" (CR 113.7a), which a static ability never does, so an LKI
+    // fallback here would be CR-wrong as well as unnecessary. Pinned by
+    // `core::pb_dx39_source_view_gates::r4`.
+    let controller = state
+        .objects
+        .get(&source_id)
+        .map(|obj| obj.controller)
+        .unwrap_or_else(|| crate::state::player::PlayerId(0));
+    // The assert below is gated on `Some`, and that `if let` is load-bearing rather
+    // than defensive. `required_characteristic_layer()` returns `None` for a condition
+    // that reads NO characteristic at all (`IsYourTurn`, `ControllerLifeAtLeast`,
+    // `SourceHasCounters`, ...), and `None` is not the same claim as
+    // `Some(EffectLayer::Copy)`: collapsing the two with `unwrap_or(Copy)` makes
+    // `required < effect.layer` false for every Layer-1 effect, so a `EffectLayer::Copy`
+    // effect carrying `Condition::IsYourTurn` panics the debug build with a message
+    // saying its condition "requires characteristics resolved through layer Copy" when
+    // it requires none. That was shipped and reproduced by execution before this
+    // comment was written (`OOS-DX42b-1`); zero corpus exposure today, because
+    // `rules/copy.rs` measures zero `EffectLayer::Copy` occurrences in the card defs,
+    // but a debug-build panic on a legitimate configuration is a defect whether or not
+    // a card reaches it. *A condition that asks for nothing is not a condition that
+    // asks for Layer 1.*
+    if let Some(required) = condition.required_characteristic_layer() {
+        debug_assert!(
+            required < effect.layer,
+            "CR 613.1d: {:?}'s condition requires characteristics resolved through \
+             layer {:?}, which is at or after its own layer {:?}. A continuous \
+             effect's condition may only ask about EARLIER layers than the effect \
+             itself -- otherwise the layer-bounded walk in \
+             `calculate_characteristics_through` cannot be shown to terminate by \
+             construction, and this effect will fall back to the labelled \
+             same-effect suppression deviation instead of a CR-correct answer.",
+            effect.id,
+            required,
+            effect.layer
+        );
     }
-    true
+    // Shadow `eval` with the guard -- see `BoundGuard`'s doc for why.
+    let mut eval = InFlightGuard::enter(eval, effect.id);
+    crate::effects::check_static_condition_ctx(state, condition, source_id, controller, &mut eval)
+}
+
+/// Returns true if a continuous effect is currently active — the composition
+/// of [`is_effect_duration_active`] (CR 611.2a/b, CR 611.3b) and
+/// [`is_effect_condition_satisfied`] (CR 604.2). Every caller of this
+/// function is OUTSIDE any [`calculate_characteristics_through`] walk
+/// (`rules/copy.rs`, `abilities_are_blanked`, `recompute_object_controller`
+/// below) and so gets a fresh, empty [`CharacteristicEvalContext`] — full
+/// CR 613.1d resolution, never the layer-bounded or same-effect-suppressed
+/// answer. `calculate_characteristics_through`'s own activity sweep calls the
+/// two halves directly with its own bounded `eval`, deliberately NOT through
+/// this function — see that function's doc comment.
+pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
+    if !is_effect_duration_active(state, effect) {
+        return false;
+    }
+    is_effect_condition_satisfied(
+        state,
+        effect,
+        &mut CharacteristicEvalContext::outside_layer_walk(),
+    )
 }
 /// Returns true if a continuous effect applies to the given object.
 ///
