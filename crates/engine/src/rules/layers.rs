@@ -660,6 +660,15 @@ pub fn expect_characteristics(state: &GameState, object_id: ObjectId) -> Charact
 /// see `effect_applies_to` for the per-object question `affected_set` answers.
 pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
     let duration_active = match effect.duration {
+        // PB-DX39: this read is LIVE-ONLY ON PURPOSE and must never be routed through
+        // `source_view_at_resolution` / `lki_object_snapshot`. The question it answers is
+        // "is the source still on the battlefield" (CR 611.3b: "the effect applies at all
+        // times that the permanent generating it is on the battlefield" -- NOT CR 611.2b,
+        // which is the "for as long as" duration of a RESOLUTION-generated effect), and an
+        // LKI
+        // fallback would answer "yes, as it last was" forever -- a departed permanent's
+        // static ability would run for the rest of the game. Pinned by
+        // `core::pb_dx39_source_view_gates::r4`.
         EffectDuration::WhileSourceOnBattlefield => match effect.source {
             Some(source_id) => state
                 .objects
@@ -710,6 +719,14 @@ pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
     // Conditions are evaluated against the current game state at layer-application time.
     if let Some(ref condition) = effect.condition {
         if let Some(source_id) = effect.source {
+            // PB-DX39: LIVE-ONLY ON PURPOSE, like the duration read above. This supplies
+            // the controller for a CR 604.2 *static* ability's condition, whose source is
+            // on the battlefield by construction (CR 604.2: "static abilities ... function
+            // ... while the permanent is on the battlefield"). CR 608.2h's last-known-
+            // information rule is scoped to an ability that "exists on the stack
+            // independently of its source" (CR 113.7a), which a static ability never does,
+            // so an LKI fallback here would be CR-wrong as well as unnecessary. Pinned by
+            // `core::pb_dx39_source_view_gates::r4`.
             let controller = state
                 .objects
                 .get(&source_id)
@@ -742,6 +759,111 @@ pub(crate) fn effect_applies_to_object(
 ) -> bool {
     effect_applies_to(state, effect, object_id, obj_zone, chars)
 }
+/// Everything an `EffectFilter` arm of [`effect_applies_to_inner`] needs to know about
+/// the continuous effect's **source**, answered once instead of once per arm.
+///
+/// PB-DX39 (`OOS-DX5-3`, `OOS-DX5-7`): before this existed, twenty of the thirty-seven
+/// filter arms each re-read `state.objects.get(&source_id)` for themselves, so twenty
+/// places had to be right about CR 608.2h and none of them was. There is now exactly one
+/// read, in the two constructors below, and the arms consume the answer.
+///
+/// # The moment this represents
+///
+/// *The SET is determined at RESOLUTION (CR 611.2c: "the set of objects it affects is
+/// determined when that continuous effect begins. After that point, the set won't
+/// change"), from the source AS IT MOST RECENTLY EXISTED (CR 608.2h).* Those are two
+/// different moments and conflating them is the whole defect. This type answers the
+/// second; [`snapshot_affected_set`] owns the first and this batch does not move it.
+///
+/// # Why a LIVE source always beats a snapshot
+///
+/// Umezawa's Jitte, ruling 2005-02-01 **#3**: *"If the Jitte is moved after the '+2/+2'
+/// mode is announced but before it resolves, the bonus is given to the creature that is
+/// equipped when the ability resolves."* So a view captured at ACTIVATION time would be
+/// CR-wrong, not merely more expensive: it would name the creature equipped when the
+/// ability went on the stack. Both constructors read the live object first for exactly
+/// that reason; only when the id is retired (CR 400.7) does the resolution constructor
+/// fall back.
+///
+/// **#3 alone reads as an argument AGAINST the fallback, and #5 is what settles it** — it
+/// is quoted here rather than paraphrased, because a reader who has only #3 in front of
+/// them will conclude that a departed Jitte gives its bonus to nobody. Ruling 2005-02-01
+/// **#5**, verbatim: *"If the Jitte leaves the battlefield after the '+2/+2' mode is
+/// announced but before it resolves, the bonus is given to the creature that was most
+/// recently equipped once the ability resolves."* #3 governs a source that is still there
+/// (live read); #5 governs a source that is not (LKI). They are the two halves of
+/// CR 608.2h's own ordering, which is why one constructor implements both in that order.
+///
+/// Fields are borrowed, never cloned: `chosen_creature_type` wraps a `String` and
+/// [`effect_applies_to_inner`] is on the layer walk (`calculate_characteristics`), so an
+/// owned view would allocate per arm per effect per object.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct SourceView<'a> {
+    /// CR 109.4 / CR 604.2: the source's controller, for the "you control" filters.
+    pub controller: PlayerId,
+    /// CR 301.5 / CR 702.6a / CR 702.67a: what the source Equipment / Fortification /
+    /// Aura is attached to.
+    pub attached_to: Option<ObjectId>,
+    /// CR 205.3m: the creature type chosen for the source (Morophon, Patchwork Banner).
+    pub chosen_creature_type: Option<&'a SubType>,
+    /// CR 105.1 / CR 614.12: the color chosen for the source.
+    pub chosen_color: Option<crate::state::types::Color>,
+}
+impl<'a> SourceView<'a> {
+    fn of(obj: &'a GameObject) -> Self {
+        SourceView {
+            controller: obj.controller,
+            attached_to: obj.attached_to,
+            chosen_creature_type: obj.chosen_creature_type.as_ref(),
+            chosen_color: obj.chosen_color,
+        }
+    }
+}
+/// CR 611.3a: the source view for an effect generated by a **static ability** --
+/// live read only, and **deliberately no last-known-information fallback**.
+///
+/// CR 611.3a: such an effect "isn't 'locked in'; it applies at any given moment to
+/// whatever its text indicates". The effect exists only while the ability does, and the
+/// ability leaves with the object -- so once the source is gone there is nothing to
+/// apply, and answering from LKI would make a departed permanent's static ability run
+/// forever. CR 608.2h and CR 113.7a are both scoped to an ability that "exists on the
+/// stack independently of its source" (CR 113.7a), which a static ability never does.
+///
+/// `is_effect_active`'s `EffectDuration::WhileSourceOnBattlefield` arm already refuses
+/// the common case, but it does not cover every duration a static registration can
+/// carry (`rules/replacement.rs` and the `ClassLevelAbility` arm of `rules/resolution.rs`
+/// both forward a card def's own duration verbatim, and `Effect::CreateEmblem`'s static
+/// loop uses `Indefinite`), so the scoping lives here rather than resting on that arm.
+fn source_view_live(state: &GameState, source_id: ObjectId) -> Option<SourceView<'_>> {
+    state.objects.get(&source_id).map(SourceView::of)
+}
+/// CR 608.2h / CR 113.7a: the source view for an effect generated by the **resolution**
+/// of a spell or ability -- live first, last known information second.
+///
+/// CR 608.2h: *"If the effect requires information from a specific object, including the
+/// source of the ability itself, the effect uses the current information of that object
+/// if it's in the public zone it was expected to be in; if it's no longer in that zone,
+/// or if the effect has moved it from a public zone to a hidden zone, the effect uses the
+/// object's last known information."* CR 113.7a says the same for the ability itself:
+/// *"Once activated or triggered, an ability exists on the stack independently of its
+/// source. Destruction or removal of the source after that time won't affect the
+/// ability."*
+///
+/// The order is the rule: **live first, LKI second.** See [`SourceView`] for why.
+///
+/// The LKI store is only populated for a departing permanent that some pending ability
+/// can still read -- see `GameState::capture_lki_snapshot` and
+/// `GameState::capture_source_lki_for_pending_ability`.
+///
+/// This is the **only** LKI-consulting constructor, and `snapshot_affected_set` is its
+/// only caller. Pinned by `core::pb_dx39_source_view_gates::r5`.
+fn source_view_at_resolution(state: &GameState, source_id: ObjectId) -> Option<SourceView<'_>> {
+    state
+        .objects
+        .get(&source_id)
+        .or_else(|| state.lki_object_snapshot(source_id))
+        .map(SourceView::of)
+}
 /// Returns true if a continuous effect applies to the given object.
 ///
 /// The filter is evaluated against `chars`, which reflects all modifications applied
@@ -770,6 +892,99 @@ fn effect_applies_to(
     object_id: ObjectId,
     obj_zone: ZoneId,
     chars: &Characteristics,
+) -> bool {
+    // CR 611.3a (PB-DX39): the LIVE path. A static ability's effect is not locked in and
+    // its source's information is read live, with NO last-known-information fallback --
+    // see `source_view_live` for the CR argument. `snapshot_affected_set` is the one
+    // caller that passes a resolution-time view instead.
+    //
+    // LAZY ON PURPOSE (PB-DX39 `/review`). The first draft resolved the view here
+    // unconditionally, above both of `effect_applies_to_inner`'s short-circuits, which
+    // added one `OrdMap::get` per (effect, object) on the layer walk for two populations
+    // that never consult it: every LOCKED effect (`affected_set.is_some()` returns by
+    // membership alone, CR 611.2c -- the common resolution case) and the seventeen
+    // non-source-relative filter arms. Pre-PB-DX39 those paths did no source lookup at
+    // all, so publishing the batch as "twenty reads became one" while adding an
+    // unconditional one here would have been half the story.
+    //
+    // `filter_is_source_relative` is exhaustive with no `_` arm, so a new `EffectFilter`
+    // variant is a compile error until it is classified, and
+    // `core::pb_dx39_source_view_gates::r2c` asserts its `true` set is exactly the set of
+    // arms that consume `source` -- a mis-classification here would silently hand an arm
+    // `None`, which is why it is pinned rather than trusted.
+    let needs_source = effect.affected_set.is_none() && filter_is_source_relative(&effect.filter);
+    let source = if needs_source {
+        effect.source.and_then(|sid| source_view_live(state, sid))
+    } else {
+        None
+    };
+    effect_applies_to_inner(state, effect, object_id, obj_zone, chars, source.as_ref())
+}
+/// Does this `EffectFilter`'s arm in [`effect_applies_to_inner`] consume the caller's
+/// [`SourceView`]?
+///
+/// Exhaustive, **no `_` arm**, mirroring the SR-5 keyword-catchall discipline and
+/// [`candidate_ids_for_filter`] directly above: a new variant cannot join silently on the
+/// `false` side, which is the side that would make a source-relative arm receive `None` and
+/// quietly match nothing.
+fn filter_is_source_relative(filter: &EffectFilter) -> bool {
+    match filter {
+        // CR 301.5 / CR 301.6 / CR 303.4: reads the source's `attached_to`.
+        EffectFilter::AttachedCreature
+        | EffectFilter::AttachedLand
+        | EffectFilter::AttachedPermanent
+        // CR 604.2 / CR 109.4: reads the source's `controller`.
+        | EffectFilter::CreaturesYouControl
+        | EffectFilter::OtherCreaturesYouControl
+        | EffectFilter::OtherCreaturesYouControlWithSubtype(_)
+        | EffectFilter::CreaturesOpponentsControl
+        | EffectFilter::CreaturesYouControlWithSubtype(_)
+        | EffectFilter::AttackingCreaturesYouControl
+        | EffectFilter::ArtifactsYouControl
+        | EffectFilter::CreaturesYouControlWithSupertype(_)
+        | EffectFilter::CreaturesYouControlWithColor(_)
+        | EffectFilter::OtherCreaturesYouControlExcludingSubtype(_)
+        | EffectFilter::CreaturesYouControlExcludingSubtype(_)
+        | EffectFilter::AttackingCreaturesYouControlWithSubtype(_)
+        | EffectFilter::OtherCreaturesYouControlWithSubtypes(_)
+        | EffectFilter::LandsYouControl
+        // CR 205.3m / CR 105.1: reads `chosen_creature_type` / `chosen_color` as well.
+        | EffectFilter::CreaturesYouControlOfChosenType
+        | EffectFilter::CreaturesYouControlOfChosenColor
+        | EffectFilter::OtherCreaturesYouControlOfChosenType => true,
+        EffectFilter::SingleObject(_)
+        | EffectFilter::AllCreatures
+        | EffectFilter::AllLands
+        | EffectFilter::AllNonbasicLands
+        | EffectFilter::AllEnchantments
+        | EffectFilter::AllNonAuraEnchantments
+        | EffectFilter::AllPermanents
+        | EffectFilter::AllCardsInGraveyards
+        | EffectFilter::ControlledBy(_)
+        | EffectFilter::CreaturesControlledBy(_)
+        | EffectFilter::DeclaredTarget { .. }
+        | EffectFilter::Source
+        | EffectFilter::TriggeringCreature
+        | EffectFilter::CreaturesControlledByDefendingPlayer
+        | EffectFilter::AllCreaturesWithSubtype(_)
+        | EffectFilter::AllCreaturesExcludingSubtype(_)
+        | EffectFilter::AllCreaturesExcludingChosenSubtype => false,
+    }
+}
+/// The body of [`effect_applies_to`], with the source's information supplied by the
+/// caller rather than re-read per arm.
+///
+/// `source` is `None` when the effect has no source at all, or when the source could not
+/// be resolved on the path the caller chose (live-only for CR 611.3a static abilities;
+/// live-then-LKI for CR 608.2h resolution effects). Every source-relative arm answers
+/// `false` in that case, which is the pre-PB-DX39 behaviour for a missing source.
+fn effect_applies_to_inner(
+    state: &GameState,
+    effect: &ContinuousEffect,
+    object_id: ObjectId,
+    obj_zone: ZoneId,
+    chars: &Characteristics,
+    source: Option<&SourceView<'_>>,
 ) -> bool {
     // CR 702.26e: Phased-out permanents are excluded from continuous effect sets.
     // Check phased_out status for all battlefield-scope effects (except SingleObject,
@@ -879,16 +1094,13 @@ fn effect_applies_to(
             // Find the source of this effect and check if it is attached to object_id.
             // `effect.source` must be `Some(source_id)` for AttachedCreature to work
             // (true for WhileSourceOnBattlefield static abilities on Equipment).
-            if let Some(source_id) = effect.source {
-                state
-                    .objects
-                    .get(&source_id)
-                    .and_then(|src| src.attached_to)
-                    .map(|attached| attached == object_id)
-                    .unwrap_or(false)
-            } else {
-                false
-            }
+            // CR 608.2h / CR 113.7a: `source` carries the attachment as the source last
+            // had it -- the Umezawa's Jitte ruling's "most recently equipped" creature
+            // (OOS-DX5-3) when the resolution path supplied it.
+            let Some(src) = source else {
+                return false;
+            };
+            src.attached_to == Some(object_id)
         }
         // CR 301.6 / CR 702.67a: Fortification static ability applies only to the
         // fortified land. The source object's `attached_to` field identifies that land.
@@ -898,32 +1110,26 @@ fn effect_applies_to(
             if obj_zone != ZoneId::Battlefield {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                state
-                    .objects
-                    .get(&source_id)
-                    .and_then(|src| src.attached_to)
-                    .map(|attached| attached == object_id)
-                    .unwrap_or(false)
-            } else {
-                false
-            }
+            // CR 608.2h / CR 113.7a: `source` carries the attachment as the source last
+            // had it -- the Umezawa's Jitte ruling's "most recently equipped" creature
+            // (OOS-DX5-3) when the resolution path supplied it.
+            let Some(src) = source else {
+                return false;
+            };
+            src.attached_to == Some(object_id)
         }
         // Applies to any permanent the source Aura/Equipment/Fortification is attached to.
         EffectFilter::AttachedPermanent => {
             if obj_zone != ZoneId::Battlefield {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                state
-                    .objects
-                    .get(&source_id)
-                    .and_then(|src| src.attached_to)
-                    .map(|attached| attached == object_id)
-                    .unwrap_or(false)
-            } else {
-                false
-            }
+            // CR 608.2h / CR 113.7a: `source` carries the attachment as the source last
+            // had it -- the Umezawa's Jitte ruling's "most recently equipped" creature
+            // (OOS-DX5-3) when the resolution path supplied it.
+            let Some(src) = source else {
+                return false;
+            };
+            src.attached_to == Some(object_id)
         }
         // CR 604.2: Static ability "Creatures you control have [keyword]."
         // Resolves the source's controller dynamically at layer-application time.
@@ -931,13 +1137,10 @@ fn effect_applies_to(
             if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 604.2: Static ability "Other creatures you control have [keyword]."
         // Same as CreaturesYouControl but excludes the source object itself.
@@ -945,16 +1148,13 @@ fn effect_applies_to(
             if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                if source_id == object_id {
-                    return false;
-                }
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
+            if effect.source == Some(object_id) {
+                return false;
             }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 604.2: Static ability "Other [Subtype] creatures you control get [bonus]."
         // Filters by subtype and excludes the source object.
@@ -965,16 +1165,13 @@ fn effect_applies_to(
             if !chars.subtypes.contains(subtype) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                if source_id == object_id {
-                    return false;
-                }
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
+            if effect.source == Some(object_id) {
+                return false;
             }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 604.2: "Creatures your opponents control get -2/-2."
         // Applies to all creatures NOT controlled by the source's controller.
@@ -982,15 +1179,11 @@ fn effect_applies_to(
             if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some()
-                    && obj_controller.is_some()
-                    && source_controller != obj_controller
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
+            obj_controller.is_some() && obj_controller != Some(src.controller)
         }
         // CR 604.2: "[Subtype] creatures you control get +N/+N" (includes source).
         // Used for activated abilities like Ezuri where the source Elf benefits too.
@@ -1001,13 +1194,10 @@ fn effect_applies_to(
             if !chars.subtypes.contains(subtype) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 611.3a: "Attacking creatures you control have [keyword]."
         // Dynamic — checks state.combat.attackers at layer-application time.
@@ -1023,26 +1213,20 @@ fn effect_applies_to(
             {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 604.2: "Artifacts you control have [keyword]." (Indomitable Archangel).
         EffectFilter::ArtifactsYouControl => {
             if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Artifact) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 604.2: "Legendary creatures you control get +1/+0." (Rising of the Day).
         // Checks supertypes — already layer-resolved at this point (Layers 4-5 before 6/7).
@@ -1053,13 +1237,10 @@ fn effect_applies_to(
             if !chars.supertypes.contains(supertype) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 604.2: "Red creatures you control have first strike." (Bloodmark Mentor).
         // Uses layer-resolved colors (colors resolved before Layer 6 ability grants).
@@ -1070,13 +1251,10 @@ fn effect_applies_to(
             if !chars.colors.contains(color) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 604.2: "Other non-[Subtype] creatures you control get +1/+1 and have undying."
         // (Mikaeus, the Unhallowed). Excludes source AND any creatures with the subtype.
@@ -1087,16 +1265,13 @@ fn effect_applies_to(
             if chars.subtypes.contains(subtype) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                if source_id == object_id {
-                    return false;
-                }
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
+            if effect.source == Some(object_id) {
+                return false;
             }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 604.2: "Non-[Subtype] creatures you control get +3/+3 until end of turn."
         // (Return of the Wildspeaker). Includes source — used for spell/ability effects.
@@ -1107,13 +1282,10 @@ fn effect_applies_to(
             if chars.subtypes.contains(subtype) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 611.3a: "Attacking [Subtype] creatures you control have [keyword]."
         // (Crossway Troublemakers, Elderfang Venom). Dynamic — checks combat state.
@@ -1131,13 +1303,10 @@ fn effect_applies_to(
             {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 604.2: "[Subtype] creatures get +1/+1 until end of turn" (Bladewing the Risen).
         // No controller restriction — affects ALL players' creatures of the given type.
@@ -1156,16 +1325,13 @@ fn effect_applies_to(
             if !subtypes.iter().any(|st| chars.subtypes.contains(st)) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                if source_id == object_id {
-                    return false;
-                }
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
+            if effect.source == Some(object_id) {
+                return false;
             }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 305.7: "Lands you control are every basic land type in addition to their other types."
         // Matches all land permanents controlled by the same player as the effect's source.
@@ -1176,13 +1342,10 @@ fn effect_applies_to(
             if !chars.card_types.contains(&CardType::Land) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source_controller = state.objects.get(&source_id).map(|src| src.controller);
-                let obj_controller = state.objects.get(&object_id).map(|obj| obj.controller);
-                source_controller.is_some() && source_controller == obj_controller
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            state.objects.get(&object_id).map(|obj| obj.controller) == Some(src.controller)
         }
         // CR 205.3m: Creatures you control of the chosen type (INCLUDING source).
         // Reads chosen_creature_type from source permanent dynamically at layer time.
@@ -1190,19 +1353,15 @@ fn effect_applies_to(
             if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source = state.objects.get(&source_id);
-                let source_controller = source.map(|s| s.controller);
-                let chosen_type = source.and_then(|s| s.chosen_creature_type.as_ref());
-                let obj_controller = state.objects.get(&object_id).map(|o| o.controller);
-                source_controller.is_some()
-                    && source_controller == obj_controller
-                    && chosen_type
-                        .map(|ct| chars.subtypes.contains(ct))
-                        .unwrap_or(false)
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            let obj_controller = state.objects.get(&object_id).map(|o| o.controller);
+            obj_controller == Some(src.controller)
+                && src
+                    .chosen_creature_type
+                    .map(|ct| chars.subtypes.contains(ct))
+                    .unwrap_or(false)
         }
         // CR 205.3m: Other creatures you control of the chosen type (EXCLUDING source).
         // Used for Morophon's "+1/+1 to other creatures of the chosen type".
@@ -1229,40 +1388,32 @@ fn effect_applies_to(
             if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                let source = state.objects.get(&source_id);
-                let source_controller = source.map(|s| s.controller);
-                let chosen_color = source.and_then(|s| s.chosen_color);
-                let obj_controller = state.objects.get(&object_id).map(|o| o.controller);
-                source_controller.is_some()
-                    && source_controller == obj_controller
-                    && chosen_color
-                        .map(|c| chars.colors.contains(&c))
-                        .unwrap_or(false)
-            } else {
-                false
-            }
+            let Some(src) = source else {
+                return false;
+            };
+            let obj_controller = state.objects.get(&object_id).map(|o| o.controller);
+            obj_controller == Some(src.controller)
+                && src
+                    .chosen_color
+                    .map(|c| chars.colors.contains(&c))
+                    .unwrap_or(false)
         }
         EffectFilter::OtherCreaturesYouControlOfChosenType => {
             if obj_zone != ZoneId::Battlefield || !chars.card_types.contains(&CardType::Creature) {
                 return false;
             }
-            if let Some(source_id) = effect.source {
-                if source_id == object_id {
-                    return false;
-                }
-                let source = state.objects.get(&source_id);
-                let source_controller = source.map(|s| s.controller);
-                let chosen_type = source.and_then(|s| s.chosen_creature_type.as_ref());
-                let obj_controller = state.objects.get(&object_id).map(|o| o.controller);
-                source_controller.is_some()
-                    && source_controller == obj_controller
-                    && chosen_type
-                        .map(|ct| chars.subtypes.contains(ct))
-                        .unwrap_or(false)
-            } else {
-                false
+            if effect.source == Some(object_id) {
+                return false;
             }
+            let Some(src) = source else {
+                return false;
+            };
+            let obj_controller = state.objects.get(&object_id).map(|o| o.controller);
+            obj_controller == Some(src.controller)
+                && src
+                    .chosen_creature_type
+                    .map(|ct| chars.subtypes.contains(ct))
+                    .unwrap_or(false)
         }
     }
 }
@@ -1336,6 +1487,20 @@ pub(crate) fn snapshot_affected_set(
     if let EffectFilter::SingleObject(id) = &effect.filter {
         return OrdSet::unit(*id);
     }
+    // CR 608.2h / CR 113.7a (PB-DX39, `OOS-DX5-3` / `OOS-DX5-7`): this is a
+    // resolution-generated effect, so its source's controller / attachment / chosen
+    // type / chosen colour come from the live object if the source is still in its
+    // expected zone and from its LAST KNOWN INFORMATION if it is not. Umezawa's Jitte
+    // destroyed in response to its own ability, and Mardu Ascendancy sacrificed as that
+    // ability's cost, are both this case -- and before this the answer was "no source,
+    // so the locked set is empty and the effect does nothing".
+    //
+    // Resolved ONCE, outside the candidate loop, and the same borrow is handed to every
+    // candidate: the answer cannot vary between candidates (it is a property of the
+    // source alone), and `effect_applies_to_inner` is on the layer walk.
+    let source = effect
+        .source
+        .and_then(|sid| source_view_at_resolution(state, sid));
     let mut affected = OrdSet::new();
     for object_id in candidate_ids_for_filter(state, &effect.filter) {
         // SR-25: `expect_object`, not a bare `.objects.get(..)` -- `object_id`
@@ -1349,7 +1514,7 @@ pub(crate) fn snapshot_affected_set(
         };
         let obj_zone = obj.zone;
         let chars = expect_characteristics(state, object_id);
-        if effect_applies_to(state, effect, object_id, obj_zone, &chars) {
+        if effect_applies_to_inner(state, effect, object_id, obj_zone, &chars, source.as_ref()) {
             affected.insert(object_id);
         }
     }
@@ -3349,5 +3514,191 @@ mod dependency_cycle_guard_tests {
             "toposort must emit every effect (acyclic); a shortfall means a cycle \
              was hit and the 613.8b fallback branch was taken"
         );
+    }
+}
+
+/// PB-DX39 (`OOS-DX5-3`, `OOS-DX5-7`): the CR 608.2h / CR 611.3a split, exercised where
+/// it can be exercised.
+///
+/// `snapshot_affected_set`, `effect_applies_to` and both `source_view_*` constructors are
+/// `pub(crate)` or private, so none of this is reachable from the `crates/engine/tests/`
+/// integration crate -- hence an in-source unit module, mirroring the
+/// `pb_dx5_snapshot_tests` precedent a few hundred lines above. End-to-end drives of the
+/// two subject cards live in the integration suite; what is pinned here is the predicate
+/// itself, in both directions.
+#[cfg(test)]
+mod pb_dx39_source_view_tests {
+    use super::*;
+    use crate::state::continuous_effect::EffectId;
+    use crate::state::{GameStateBuilder, ObjectSpec, PlayerId, ZoneId};
+
+    fn find(state: &GameState, name: &str) -> ObjectId {
+        state
+            .objects
+            .iter()
+            .find(|(_, o)| o.characteristics.name == name)
+            .map(|(id, _)| *id)
+            .unwrap_or_else(|| panic!("'{name}' not found"))
+    }
+    /// A resolution-generated effect (`affected_set` is populated by
+    /// `snapshot_affected_set`, CR 611.2c) with the given source and filter.
+    fn eff(source: Option<ObjectId>, filter: EffectFilter) -> ContinuousEffect {
+        ContinuousEffect {
+            id: EffectId(1),
+            source,
+            timestamp: 1,
+            layer: EffectLayer::PtModify,
+            duration: EffectDuration::UntilEndOfTurn,
+            filter,
+            modification: LayerModification::ModifyBoth(1),
+            is_cda: false,
+            affected_set: None,
+            condition: None,
+        }
+    }
+    /// P1 controls "Bearer" and "Other"; P2 controls "Enemy"; the Equipment "Jitte" is
+    /// attached to Bearer.
+    fn board() -> GameState {
+        let mut state = GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .object(ObjectSpec::creature(PlayerId(1), "Bearer", 2, 2))
+            .object(ObjectSpec::creature(PlayerId(1), "Other", 3, 3))
+            .object(ObjectSpec::creature(PlayerId(2), "Enemy", 1, 1))
+            .object(ObjectSpec::artifact(PlayerId(1), "Jitte"))
+            .build()
+            .expect("fixture builds");
+        let jitte = find(&state, "Jitte");
+        let bearer = find(&state, "Bearer");
+        if let Some(o) = state.expect_object_mut(jitte) {
+            o.attached_to = Some(bearer);
+        }
+        state
+    }
+
+    /// CR 608.2h: *"the effect uses the current information of that object if it's in the
+    /// public zone it was expected to be in; if it's no longer in that zone ... the effect
+    /// uses the object's last known information."* Umezawa's Jitte ruling 2005-02-01: the
+    /// bonus goes to *"the creature that was most recently equipped"*.
+    ///
+    /// RED before PB-DX39, and red again under a revert that drops the
+    /// `lki_object_snapshot` fallback from `source_view_at_resolution` (executed).
+    #[test]
+    fn attached_creature_survives_the_sources_departure() {
+        let mut state = board();
+        let jitte = find(&state, "Jitte");
+        let bearer = find(&state, "Bearer");
+        let e = eff(Some(jitte), EffectFilter::AttachedCreature);
+
+        // Non-vacuity floor: the live source really does lock the bearer, so a later
+        // failure cannot be "the fixture never matched anything".
+        assert_eq!(
+            snapshot_affected_set(&state, &e),
+            OrdSet::unit(bearer),
+            "precondition: a live attached source locks its bearer"
+        );
+
+        state.capture_source_lki_for_pending_ability(jitte);
+        state
+            .move_object_to_zone(jitte, ZoneId::Graveyard(PlayerId(1)))
+            .expect("battlefield -> graveyard is legal");
+        assert!(
+            state.lki_object_snapshot(jitte).is_some(),
+            "PB-DX39 clause B stored the source's last known information"
+        );
+        assert_eq!(
+            snapshot_affected_set(&state, &e),
+            OrdSet::unit(bearer),
+            "CR 608.2h: the locked set is the most recently equipped creature"
+        );
+    }
+
+    /// CR 611.3a: a static ability's effect *"isn't 'locked in'"* and exists only while
+    /// the ability does. The LIVE path must therefore NOT consult last known information,
+    /// even when a snapshot exists -- otherwise a departed permanent's static ability
+    /// would run for the rest of the game.
+    #[test]
+    fn the_live_static_path_never_consults_last_known_information() {
+        let mut state = board();
+        let jitte = find(&state, "Jitte");
+        let bearer = find(&state, "Bearer");
+        let e = eff(Some(jitte), EffectFilter::AttachedCreature);
+        state.capture_source_lki_for_pending_ability(jitte);
+        state
+            .move_object_to_zone(jitte, ZoneId::Graveyard(PlayerId(1)))
+            .expect("battlefield -> graveyard is legal");
+        // Non-vacuity floor: a snapshot really is available, so "false" below is a
+        // decision and not an absence.
+        assert!(state.lki_object_snapshot(jitte).is_some());
+        let chars = expect_characteristics(&state, bearer);
+        assert!(
+            !effect_applies_to(&state, &e, bearer, ZoneId::Battlefield, &chars),
+            "CR 611.3a: the live path is live-only"
+        );
+    }
+
+    /// Umezawa's Jitte, same ruling block: *"Choosing the '+2/+2' mode does nothing if the
+    /// Jitte isn't equipped to a creature when the ability resolves."* Losing the bonus is
+    /// sometimes LEGAL, and the fix must not degenerate into "match something if the set
+    /// came out empty".
+    #[test]
+    fn a_live_but_unattached_source_still_matches_nothing() {
+        let mut state = board();
+        let jitte = find(&state, "Jitte");
+        if let Some(o) = state.expect_object_mut(jitte) {
+            o.attached_to = None;
+        }
+        let e = eff(Some(jitte), EffectFilter::AttachedCreature);
+        assert!(
+            snapshot_affected_set(&state, &e).is_empty(),
+            "unattached at resolution legally does nothing"
+        );
+    }
+
+    /// `OOS-DX5-7`: Mardu Ascendancy's `Cost::SacrificeSelf` means the source is ALWAYS
+    /// gone at resolution, so `EffectFilter::CreaturesYouControl` applied to nobody in
+    /// every game. Also pins the controller axis wrong-way-round: the opponent's creature
+    /// must NOT join the set.
+    #[test]
+    fn creatures_you_control_survives_a_sacrifice_self_cost() {
+        let mut state = board();
+        let source = find(&state, "Jitte");
+        let bearer = find(&state, "Bearer");
+        let other = find(&state, "Other");
+        let enemy = find(&state, "Enemy");
+        let e = eff(Some(source), EffectFilter::CreaturesYouControl);
+        state.capture_source_lki_for_pending_ability(source);
+        state
+            .move_object_to_zone(source, ZoneId::Graveyard(PlayerId(1)))
+            .expect("battlefield -> graveyard is legal");
+        let set = snapshot_affected_set(&state, &e);
+        assert!(
+            set.contains(&bearer) && set.contains(&other),
+            "both of P1's creatures"
+        );
+        assert!(!set.contains(&enemy), "P2's creature is not 'you control'");
+
+        // The inequality axis, from the same departed source.
+        let opp = eff(Some(source), EffectFilter::CreaturesOpponentsControl);
+        assert_eq!(snapshot_affected_set(&state, &opp), OrdSet::unit(enemy));
+    }
+
+    /// SR-24 is intact: a departing permanent with none of the four damage keywords AND
+    /// nothing of its own pending stores no snapshot, so the board-wipe optimisation still
+    /// holds and the locked set is still empty. This is the control that proves PB-DX39's
+    /// capture widening is a disjunct and not a blanket.
+    #[test]
+    fn no_pending_ability_and_no_keyword_means_no_snapshot_and_no_set() {
+        let mut state = board();
+        let jitte = find(&state, "Jitte");
+        let e = eff(Some(jitte), EffectFilter::AttachedCreature);
+        state
+            .move_object_to_zone(jitte, ZoneId::Graveyard(PlayerId(1)))
+            .expect("battlefield -> graveyard is legal");
+        assert!(
+            state.lki_object_snapshot(jitte).is_none(),
+            "SR-24: keyword-less, nothing pending -> not captured"
+        );
+        assert!(snapshot_affected_set(&state, &e).is_empty());
     }
 }

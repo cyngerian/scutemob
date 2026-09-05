@@ -239,7 +239,12 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // `state.objects.get_mut(&object_id)` controller write (same fizzle: nothing to
     // write to if the object is gone). All three are one-shot expiry-pass reads with
     // no downstream engine invariant depending on the object being live.
-    ("src/rules/layers.rs", 54),
+    // PB-DX39 lowered this 54 -> 36 rather than leaving the slack (PB-DX49's rule: a
+    // stale-high ceiling is where a regression hides). The 18 that went were the
+    // per-arm `state.objects.get(&source_id)` reads in `effect_applies_to`'s twenty
+    // source-relative filter arms, now served by the two `source_view_*` constructors --
+    // which is 20 reads replaced by 2, hence exactly 18.
+    ("src/rules/layers.rs", 36),
     ("src/rules/commander.rs", 6),
     ("src/rules/miracle.rs", 2),
     ("src/rules/foretell.rs", 0),

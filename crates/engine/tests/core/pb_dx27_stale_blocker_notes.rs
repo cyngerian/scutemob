@@ -266,7 +266,18 @@ const OUT_OF_SET_GAP_NEEDLES: &[&str] = &[
 // name what is still absent. `niv_mizzet_visionary` also MOVED here from R3's out-of-set
 // population, because its note was reworded into R1's primary vocabulary, which is the
 // exit R3's own message asks for.
-const LIVE_IDENTIFIER_MENTION_CEILING: usize = 109;
+// ↻ PB-DX39 (2026-09-04, `OOS-DX5-7`): 109 -> 110. ONE def joins, by exit (b), with a
+// REVIEWED_CONTRAST_MENTIONS row stating the reason — and it joins for the same GOOD
+// reason PB-DX36's two did: this batch SHIPPED the repair its note had been silent about.
+// `mardu_ascendancy`'s marker previously named NO identifier at all (it read only
+// "Nontoken filter not yet in DSL for attack triggers"), so it was invisible to R1 and sat
+// in R3's out-of-set population. AC 7361 required it to name BOTH blockers, which means
+// naming `Cost::SacrificeSelf` and `EffectFilter::CreaturesYouControl` — two live
+// primitives — in order to record the blocker PB-DX39 CLOSED. Rewording it into R1's
+// primary vocabulary (`has no`, `no variant`) is the exit R3's own failure message asks
+// for, so the def MOVED from R3's population into R1's, exactly as `niv_mizzet_visionary`
+// did one batch ago.
+const LIVE_IDENTIFIER_MENTION_CEILING: usize = 110;
 
 /// Defs whose stale blocker note PB-DX27 refuted and REPAIRED.
 ///
@@ -344,6 +355,19 @@ const REPAIRED_BY_PB_DX27: &[(&str, &str)] = &[
 /// while asserting a missing FIELD on it, which no identifier-level check can
 /// distinguish and which is why the ceiling above is a count rather than a verdict.
 const REVIEWED_CONTRAST_MENTIONS: &[(&str, &str)] = &[
+    (
+        "mardu_ascendancy.rs",
+        "PB-DX39. Names TriggerCondition::WheneverCreatureYouControlAttacks and TargetFilter, \
+         which exist, while asserting neither carries a nontoken predicate for an attack \
+         trigger to read — true (that condition's only field is `filter: Option<TargetFilter>` \
+         and TargetFilter has no is_nontoken member), so CR 508.1m's 'nontoken' stays \
+         inexpressible here and this def stays partial. It also names Cost::SacrificeSelf and \
+         EffectFilter::CreaturesYouControl, both live, to record the SECOND blocker this note \
+         was silent about for four months and which PB-DX39 CLOSED: the source sacrificed \
+         itself as the cost, so it was gone at resolution and the filter matched nobody. A \
+         CLOSED blocker named in a note is the one shape this ratchet cannot distinguish from \
+         a stale one, which is why this row exists.",
+    ),
     (
         "the_world_tree.rs",
         "names Effect::SearchLibrary, which exists, while asserting it has no COUNT FIELD — \

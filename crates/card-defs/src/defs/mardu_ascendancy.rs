@@ -20,8 +20,11 @@ pub fn card() -> CardDefinition {
                       Creatures you control get +0/+3 until end of turn."
             .to_string(),
         abilities: vec![
-            // CR 508.1m: "Whenever a nontoken creature you control attacks, create a 1/1 red
-            // Goblin token tapped and attacking."
+            // CR 508.1m ("Any abilities that trigger on attackers being declared trigger")
+            // covers the TRIGGER half only. Printed text: "Whenever a nontoken creature you
+            // control attacks, create a 1/1 red Goblin token tapped and attacking." The
+            // `nontoken` qualifier is this card's own text, not a rule -- no CR rule says
+            // anything about it here, so it is not cited below as though one did.
             // PB-23: WheneverCreatureYouControlAttacks.
             // TODO: Nontoken filter not yet in DSL for attack triggers — over-triggers on token
             // attackers (including Goblin tokens created by this ability itself).
@@ -71,8 +74,23 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::partial(
-            "Nontoken filter not yet in DSL for attack triggers — over-triggers on token \
-             attackers (including Goblin tokens created...",
+            "SURVIVING blocker: `TriggerCondition::WheneverCreatureYouControlAttacks` HAS NO \
+             nontoken predicate — its only field is `filter: Option<TargetFilter>`, and \
+             `TargetFilter` has no `is_nontoken` member for an attack trigger to read, so no \
+             variant expresses `nontoken` here and this over-triggers on token attackers, \
+             including the Goblin tokens this very ability creates. NO CR RULE IS CITED FOR THAT \
+             BLOCKER, because none applies: `nontoken` is this card's printed text. CR 508.1m -- \
+             which this note cited until the PB-DX39 `/review` -- says only that abilities which \
+             trigger on attackers being declared trigger, which is the half the engine already \
+             gets right. CLOSED blocker, recorded because this note named only the first one for \
+             four months while the second was live in every game (PB-DX39, OOS-DX5-7 residual): \
+             the `Cost::SacrificeSelf` ability below sacrifices its own source to pay for itself, \
+             so the source was ALWAYS gone by the time the effect resolved, and \
+             `EffectFilter::CreaturesYouControl` answered `false` for every creature — the +0/+3 \
+             applied to NOBODY, always. CR 611.2c determines the set at resolution and CR \
+             608.2h/113.7a say it must use the source's last known information; it now does. This \
+             def stays `partial` on the nontoken filter ALONE and must not be promoted until that \
+             is closed.",
         ),
         ..Default::default()
     }

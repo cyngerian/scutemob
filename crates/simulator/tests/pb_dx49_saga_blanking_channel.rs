@@ -90,13 +90,27 @@
 //! - **Chapter II is the resolution-effect verdict, and the other two chapters were each
 //!   tried first and each failed for a reason worth recording rather than hiding:**
 //!   - **Chapter III** (*"Creatures you control gain deathtouch until end of turn"*) is
-//!     unobservable after the fact. Its grant is an `EffectFilter::CreaturesYouControl`
-//!     continuous effect, and that filter resolves its controller through
-//!     `state.objects.get(&source_id)` at layer-application time
-//!     (`rules/layers.rs:930-941`). Chapter III is the final chapter, so CR 714.4
-//!     sacrifices the Saga in the same window it resolves in, the source id is gone, and
-//!     the filter matches nothing. A draft of this file used it and failed on exactly that
-//!     — a fact about `EffectFilter` and a departed source, not about CR 714.
+//!     unobservable after the fact. **↻ CORRECTED 2026-09-05 by PB-DX39 (`scutemob-230`):
+//!     the SYMPTOM below reproduces and the stated CAUSE does not.** This paragraph said
+//!     the grant is lost because `EffectFilter::CreaturesYouControl` resolves its
+//!     controller through `state.objects.get(&source_id)` and CR 714.4 has already
+//!     sacrificed the Saga. PB-DX39 repaired exactly that filter (it now resolves the
+//!     source through last known information on the locked path, CR 608.2h / CR 113.7a)
+//!     and **chapter III is still unobservable**, because the filter is never reached at
+//!     all: measured on a real `LocalGame` drive, the Saga IS sacrificed and its LKI IS
+//!     captured, and then `state.continuous_effects()` comes back **EMPTY** — no
+//!     `ApplyContinuousEffect` ever ran. The real blocker is one link upstream, in
+//!     `rules/resolution.rs`'s card-registry fallback for a `PendingTriggerKind::Normal`
+//!     trigger, which opens with `state.fizzle_object(source_object)` — a documented
+//!     LIVE-ONLY lookup that returns no LKI — so a departed source falls through to
+//!     `(None, None)` and the whole ability resolves as a no-op. That is CR 113.7a-wrong
+//!     (*"an ability exists on the stack independently of its source"*) for **every**
+//!     registry-fallback triggered ability whose source has left, not only Sagas, and it
+//!     is filed as **`OOS-DX39-3`**. Pinned wrong-way-round by
+//!     `pb_dx39_source_relative_channel::dx39_c4_binding_chapter_iii_grant_is_still_unreachable_and_the_blocker_is_downstream`,
+//!     whose own failure message says how to invert it. A draft of this file used chapter
+//!     III and failed — a true observation with a wrong diagnosis attached, which is
+//!     PB-DX27's rule (*a blocker note is a claim*) applied to a test-file note.
 //!   - **Chapter I** (*"Destroy target nonland permanent an opponent controls"*) destroys
 //!     nothing, even with exactly one legal target on the board and the trigger measurably
 //!     on the stack. `fire_saga_chapter_triggers` queues a `PendingTriggerKind::Normal`

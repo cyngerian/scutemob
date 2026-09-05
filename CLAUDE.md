@@ -96,8 +96,12 @@
   **↻ PB-DX52 SHIPPED** (`scutemob-229`, 2026-09-04; v4 rank 14 — **OOS-DX25b-1** and
   **OOS-DX25b-5** CLOSED, plus **OOS-DX25c-3** CLOSED as a third that this batch would
   otherwise have turned into a live CR 702.16b defect).
-  **Next dispatch: PB-DX39** (v4 rank 15 — source-relative filters through LKI,
-  `OOS-DX5-3` + `OOS-DX5-7`'s residual); ranks 1-14 all shipped.
+  **↻ PB-DX39 SHIPPED** (`scutemob-230`, 2026-09-05; v4 rank 15 — **OOS-DX5-3** and
+  **OOS-DX5-7**'s residual CLOSED, each row corrected against three and four of its own
+  claims; the class is 15× the two seeds and one deck-legal member is still broken
+  one link upstream, stated rather than rounded up).
+  **Next dispatch: PB-DX53** (v4 rank 16 — CR 508.6 raid gate clobbered by re-declaration,
+  `OOS-DX21-1`); ranks 1-15 all shipped.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -250,8 +254,12 @@
   **↻ PB-DX52 SHIPPED** (`scutemob-229`, 2026-09-04; v4 rank 14 — **OOS-DX25b-1** and
   **OOS-DX25b-5** CLOSED, plus **OOS-DX25c-3** CLOSED as a third that this batch would
   otherwise have turned into a live CR 702.16b defect).
-  **Next dispatch: PB-DX39** (v4 rank 15 — source-relative filters through LKI,
-  `OOS-DX5-3` + `OOS-DX5-7`'s residual); ranks 1-14 all shipped.
+  **↻ PB-DX39 SHIPPED** (`scutemob-230`, 2026-09-05; v4 rank 15 — **OOS-DX5-3** and
+  **OOS-DX5-7**'s residual CLOSED, each row corrected against three and four of its own
+  claims; the class is 15× the two seeds and one deck-legal member is still broken
+  one link upstream, stated rather than rounded up).
+  **Next dispatch: PB-DX53** (v4 rank 16 — CR 508.6 raid gate clobbered by re-declaration,
+  `OOS-DX21-1`); ranks 1-15 all shipped.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -262,6 +270,77 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-05, PB-DX39)**: **5,196 / 0 / 5** full-workspace on branch
+  `scutemob-230` (+40 over the **5,156** baseline, measured on this branch BEFORE any edit and
+  **reproducing PB-DX52's close pin exactly** — the second consecutive batch in which an inherited
+  pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file, **66**
+  result-producing targets (65 → 66: one new simulator test binary), residual list empty.
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
+  `sort` + `comm` (`OOS-DX20b-5`): 40 additions, 0 leavers, 0 removals, 0 renames.**
+  **RE-TAKEN AFTER the `/review` fix cycle, not before it** (dispatch hygiene 8): the cycle added
+  `r1c` and `r2c`, so the pre-cycle figure of 38 is superseded by this line rather than left
+  standing beside it. Count delta 40 == name-set delta 40, and the duplicate-name scan the byte-exact method is
+  structurally blind to (`OOS-DX35-8`) is **EMPTY on both runs** (5,156 lines / 5,156 distinct;
+  5,196 / 5,196).
+  **HASH 84 / PROTOCOL 43 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed
+  (`hash_schema` 36/36, `protocol_schema` 17/17) and **predicted PER OPTION in writing before any
+  production line** (`60975661`), with the counterfactual costed rather than waved away: option
+  (b), a source snapshot stored on the `StackObject`, was priced at HASH +1 / PROTOCOL unmoved plus
+  a 48-site sentinel re-pin — and **rejected on CR grounds rather than cost**, because a snapshot
+  taken at activation answers *"the creature equipped when the ability was ACTIVATED"* while the
+  Jitte's 2005-02-01 ruling says **"most recently equipped"**. No sentinel re-pin, no survivor scan,
+  no history row and no frozen-prefix re-pin were OWED; `history_is_append_only` and
+  `frozen_prefix_is_pinned` executed green on both gates as the evidence.
+  Coverage **UNMOVED at 1,139/1,803 = 63.2%** by regeneration, **0 flips** predicted before any
+  code (clean 1,139 / todo 517 / empty 147 identical), self-dating churn reverted; **1 card-def
+  edit, note-only** (`mardu_ascendancy`'s marker, rewritten to name BOTH blockers), with **no
+  `Completeness` marker KIND moved anywhere** — checked by `git diff` over the marker rather than
+  inferred from the unchanged total (PB-DX26's lesson that a stable COUNT is not a stable SET), so
+  `OOS-CARDS2-3`'s re-deal budget was checked and found **not owed**.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
+  gate) — all against the FINAL tree, **and `clippy` FIRED there**, on `doc_lazy_continuation` in a
+  probe file whose line 54 opened with `+ ` and so read as a markdown list bullet, making the three
+  lines it actually reported that bullet's lazy continuation; the CAUSE line was reworded rather
+  than the three symptom lines indented. **`npm run build` was NOT run and that is stated rather
+  than omitted**: N/A, because `git diff main..HEAD --numstat -- tools/` is **EMPTY** and
+  `node_modules` is absent — and unlike PB-DX52 no acceptance criterion predicted otherwise.
+  **Engine lines** (`git diff --numstat main..HEAD`, re-taken against the FINAL tree rather than
+  transcribed from a mid-batch figure — PB-DX28's re-take MEDIUM): `crates/engine/src`
+  **+609 / −194** across `rules/layers.rs`, `state/mod.rs` and `rules/abilities.rs`;
+  `crates/card-defs` **+13 / −2** (the one note-only marker rewrite); and **`crates/card-types`,
+  `crates/view-model`, `crates/simulator/src` and `tools/` are all EXACTLY 0** — every consumer of
+  a source-relative filter lives in the engine, measured before the design was chosen rather than
+  asserted after.
+  **Benches: MEASURED, SIX runs, verdict NO REGRESSION — and the apparent 1-1.5% improvement is
+  deliberately NOT claimed.** `effect_applies_to` is on the layer walk, so the A/B is owed rather
+  than optional. Same-code band measured FIRST across **three** merge-base runs taken before any
+  HEAD run was compiled: **0.46-3.80%**. Base-vs-HEAD deltas −1.49% to +0.89%; four of six overlap
+  outright. The two non-overlapping ones are `full_turn_6p` (−1.06%) and **`priority_cycle_4p`
+  (−1.49%), which is the CONTROL** — it executes no line this batch touched and moves the same
+  order, which is a build/layout artefact of two compilations, not an effect. **The mechanism is
+  bounded by execution rather than argued**: the one real saving (`snapshot_affected_set` resolving
+  the source view ONCE instead of per candidate) is on a mass-filter RESOLUTION, and none of the
+  six benches resolves one.
+  **Fuzz: the change is FUZZ-NEUTRAL BY MEASUREMENT, and the output is BYTE-IDENTICAL.** Matched
+  A/B (`--games 20 --seed 1 --max-turns 200`) between merge base `604b7242` and HEAD, each in its
+  own worktree with its own `CARGO_TARGET_DIR`: the fuzzer's entire program output is
+  **byte-for-byte identical** (14,703 bytes each) — 20 games completed, HARD **103 / distinct 4**,
+  TRANSIENT **362 / distinct 74**, rejections **2,847 / 102,803 = 27.694‰**, every per-seed band
+  and every histogram row the same. Stated precisely: no observable divergence in this invocation,
+  which is not the same as proving no `public_state_hash` anywhere moved.
+  **Revert matrix: 6 rows, EXECUTED BY THE COORDINATOR rather than accepted from the four delegated
+  reports, 6 discriminating, 0 UNDISCRIMINATED**, all three engine files verified restored
+  byte-exactly — and **RE-RUN, because the first harness omitted a whole test target**
+  (`cargo test -p mtg-engine --lib`, where five of this batch's most direct probes live), so every
+  published red set was a FLOOR: R1 is **11** not 9, R5 is **10** not 8, and R4 is **3** not 2 with
+  its third row **behavioural** — which demolished this batch's own "R4 reddens only source gates"
+  finding as an artefact of its own instrument (`OOS-DX39-6`, rewritten in place). **R2 and R3 are precise complements** — R2 (the stack-capture clause) reddens the
+  Jitte probes and leaves Mardu green, R3 (the activation-cost clause) does the exact opposite —
+  which is the proof BOTH capture clauses are load-bearing, and the reason a batch that built only
+  one would have passed every probe it thought to write for its own half. Filed **OOS-DX39-1..10** — and the first draft of this line said `-1..8`, which is dispatch
+  hygiene 8's exact case for the third batch running, caught by re-checking this cell against the
+  registry AFTER the `/review` fix cycle rather than before it.
 - **Tests (delta 2026-09-04, PB-DX52)**: **5,156 / 0 / 5** full-workspace on branch
   `scutemob-229` (+39 over the **5,117** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX36's close pin exactly** — the first time in five batches an inherited pin
