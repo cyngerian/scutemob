@@ -46,3 +46,24 @@ Status legend: `[ ]` pending · `[~]` in progress · `[x]` done.
 - [x] 3.10 `/review` run; all findings taken or declined with reasons
 - [x] 3.11 Headline surfaces re-checked against the registry AFTER the fix cycle (dispatch hygiene 8)
 - [ ] 3.12 Scratchpad bench target dirs deleted (dispatch hygiene 11)
+
+---
+
+## `/review` fix cycle (2026-09-05, `ffeeab85`) — COMPLETE
+
+- [x] Run `/review` (Opus reviewer, shell, instructed to attack 8 named claims by execution)
+- [x] HIGH 1 — mechanism gate defeated two ways; re-keyed on the READ side + `&mut` axis + exact
+      per-file counts; both defeats re-executed and RED; classifier non-vacuity test added
+- [x] HIGH 2 — R2 re-keyed onto `def_contains_variant`; blocker-note defeat re-executed and RED
+- [x] MEDIUM — AC 7368's vacuous exiled-card conjunct closed by driving the real Hideaway ETB;
+      revert-proven
+- [x] MEDIUM — R3 doc 5 → 4; `minas_tirith` comment corrected (the note was TRUE when written);
+      `PROSE_FIELDS` reason corrected in 4 places; fuzz-gate message corrected
+- [x] LOW/NIT — 4 CR cites corrected (702.121a, 602.5, 602.5d+307.5, 506.1); CR 508.3d quoted
+      verbatim; c2's control shape disclosed; r1's tautology stated honestly
+- [x] Re-take every measured figure AFTER the cycle (dispatch hygiene 8): tests 5,210/0/5 on 67
+      targets, +14, byte-exact delta, duplicate scan empty; all gates clean on the FINAL tree;
+      coverage unmoved at 63.2%
+- [x] File `OOS-DX53-4` and `-5`; correct `OOS-DX53-2`'s row; re-check headline surfaces
+      (CLAUDE.md bullet + narrative, handoff header) against the registry
+- [x] Clean scratchpad bench targets and prune the bench worktree (dispatch hygiene 11)
