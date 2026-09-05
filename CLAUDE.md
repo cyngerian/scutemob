@@ -4737,6 +4737,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Feedback Engineering | `docs/mtg-engine-feedback-engineering.md` | Alpha feedback-loop strategy: channel inventory, 8 ranked buildout proposals, alpha-pipeline ownership (2026-08-03, dispatch-ready) |
 | Type Consolidation Plan | `docs/mtg-engine-type-consolidation.md` | Pre-M10 refactoring: CastSpell, SOK triggers, AbilityDef, Designations — 8 sessions |
 | Cleanup Retention Policy | `docs/cleanup-retention-policy.md` | Two-tier ladder, year-month archive convention, /cleanup skill protocol |
+| **Course Correction (2026-09)** | `docs/course-correction-2026-09.md` | **DRAFT under section review** — audit findings, the context diet, pod-first roadmap (P0–P3), agents/skills tuning; task lists CC-1..CC-14 are filed only after each section is signed off |
 | This file | `CLAUDE.md` | Current project state; session context |
 
 **Read the architecture doc before implementing anything.**
