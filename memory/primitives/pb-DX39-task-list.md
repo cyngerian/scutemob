@@ -44,6 +44,6 @@ Status legend: `[ ]` pending · `[~]` in_progress · `[x]` completed
 - [x] B2 v4 memo §4 row 15 struck; banner repointed to rank 16 (PB-DX53)
 - [x] B3 `memory/primitives/pb-DX39-execution-notes.md` written
 - [x] B4 CLAUDE.md Current State + `memory/workstream-state.md` handoff
-- [~] B5 `/review` run; all findings taken or declined with reasons
+- [x] B5 `/review` run; all findings taken or declined with reasons
 - [x] B6 Headline surfaces re-checked against the registry AFTER the fix cycle (dispatch hygiene 8)
-- [~] B7 All four acceptance criteria satisfied via `esm task satisfy` as each is met
+- [x] B7 All four acceptance criteria satisfied via `esm task satisfy` as each is met
