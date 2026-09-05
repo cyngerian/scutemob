@@ -17,6 +17,16 @@
 > Live structural counts (corpus size = 1,803 card defs) are kept current here; numbers
 > that appear inside a historical narrative of when a gate was built (e.g. SR-35's
 > "1,380 of 1,748 defs were inert") are point-in-time record and are left as written.
+>
+> **Source-text gates are proxies — pair or demote them (CC-17, 2026-09-05).** Many of the
+> gates below and most of the per-batch `r*`/`p*` rosters read engine SOURCE TEXT. A gate that
+> stands in for a behaviour ("site X calls helper Y", "no second predicate exists") ships with a
+> behavioural probe that reddens under the same revert, or a one-line reason plus seed ID; an
+> existing unpaired gate gets its probe when a batch re-keys it after a defeat, never by a
+> retroactive sweep; a paired gate is a backstop and needs no bypass matrix. The rule, its
+> exemptions (SR-3, SR-5, SR-8, SR-36 and count ratchets measure the source itself) and the A5
+> must-not-retire list live in `memory/conventions.md` → "Pair-or-demote: a source gate that
+> stands in for a behaviour ships with its probe".
 
 ---
 

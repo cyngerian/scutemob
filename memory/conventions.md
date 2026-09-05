@@ -231,6 +231,43 @@ aspirationally correct (that's what CR 603.10a requires) but the code path calle
 object and drops battlefield-gated filters. The PB-N close commit replaced the comment
 with a `TODO(BASELINE-LKI-01)` pointing at the tracking LOW.
 
+### Pair-or-demote: a source gate that stands in for a behaviour ships with its probe
+
+Adopted 2026-09-05 (course-correction addendum A3, accepted as written; CC-17, `scutemob-254`).
+
+A source-text gate proves a line is SPELLED a certain way. It cannot prove the line does
+anything. The batch records already say so — `OOS-DX52-2`: *"a row that reddens only a source
+gate is telling you the behaviour has no probe."* This makes that sentence a rule:
+
+1. **A new source gate that stands in for a behaviour** ("site X calls helper Y", "no second
+   predicate exists", "arm Z consults field W") **ships with a behavioural probe that reddens
+   under the same revert**, or with a **one-line reason in the gate's own doc** why no probe can
+   be built **plus a seed ID** filed for it. The change-class table (row 4) already limits a new
+   gate to one executed defeat; this adds the pairing.
+2. **No retroactive sweep.** An existing unpaired source gate gets its probe **at the moment a
+   batch re-keys it after a defeat** — that is the occasion, and the probe is written THEN
+   instead of hardening the regex. Nothing schedules a walk over the 486 tests in 53 files that
+   read engine source; they are touched when they are touched.
+3. **A gate that has a paired probe is a backstop.** It needs no bypass matrix when re-keyed;
+   the probe is the verdict. Bypass work belongs only to gates that still stand alone.
+
+**Exempt** (they measure a property of the source itself, which is what they are for):
+exhaustiveness rosters over `all_cards()` (SR-36), the keyword registry (SR-5), the seal gate
+(SR-3), the declaration and stream fingerprints (SR-8), and any ratchet whose subject is a
+COUNT. Those are not proxies for a behaviour.
+
+**Why:** the records show source gates defeated by spelling alone — a `use` alias (PB-DX36,
+PB-DX49), a commented-out call (PB-DX56, `OOS-DX32-6`), an argument swap that compiles
+(PB-DX56), field order (PB-DX48 `r2`), a multi-line borrow (PB-DX51 `r1d`), a `/* */` block
+(PB-DX8) — and revert rows where ONLY a source gate reddened (PB-DX52 R6, PB-DX54 R2/R3,
+PB-DX42b R7, PB-DX49 `r7`). Each defeat cost a re-key and a re-executed bypass; the effort spent
+hardening a gate against spelling is effort not spent on the probe that would make it
+unnecessary.
+
+**Not retired by this rule (addendum A5, hard constraint):** the `HASH_SCHEMA_HISTORY` and
+PROTOCOL history rows, both `FROZEN_HISTORY_PREFIX_DIGEST` pins, the declaration and stream
+fingerprint gates, `[profile.fuzz]` with the HARD-equals-zero ratchet, and the SR-3 seal gate.
+
 ## Change-class acceptance table
 
 Recorded verbatim from `docs/course-correction-2026-09.md` §3.1 item 6 (owner-approved
@@ -256,6 +293,6 @@ Notes for applying it:
   "fmt" is `cargo fmt --check` **plus** `tools/check-defs-fmt.sh` (SR-35).
 - A batch can be in more than one class (an engine fix that also adds a source gate does rows 1
   and 4). The classes add; they do not pick the cheapest.
-- Row 4 pairs with the pair-or-demote rule (CC-17): a new source gate standing in for a
-  behaviour ships with a behavioural probe that reddens under the same revert, or a one-line
-  reason plus seed ID.
+- Row 4 pairs with the pair-or-demote rule above ("Pair-or-demote: a source gate that stands
+  in for a behaviour ships with its probe"): probe under the same revert, or a one-line reason
+  plus seed ID; a paired gate needs no bypass matrix.
