@@ -34,6 +34,6 @@ this file plus an `esm task comment` is the substitute. Updated as items land.
 | 7.2 | Registry rows closed (pipes escaped); `OOS-DX54-N` filed (grep first) | 7382 | **done** — OOS-DX25c-6 + OOS-DX25-4 CLOSED, OOS-DX25b-4 updated, OOS-DX54-1..3 filed, all rows split to 6 cells |
 | 7.3 | v4 memo §4 row 17 struck, banner repointed to rank 18 (PB-DX42b) | 7382 | **done** — row 17 struck, banner repointed to rank 18 with its two preconditions split (one discharged on main) |
 | 7.4 | CLAUDE.md Current State + workstream-state handoff + its W6 row | 7382 | **done** — CLAUDE.md Current State + narrative, workstream-state handoff + W6 row |
-| 8.1 | `/review` run; every finding taken or declined with a reason | 7382 | pending |
-| 8.2 | Headline surfaces re-checked against the registry AFTER the fix cycle (dispatch hygiene 8) | 7382 | pending |
+| 8.1 | `/review` run; every finding taken or declined with a reason | 7382 | **done** — 8 findings (2 HIGH / 2 MEDIUM / 3 LOW / 1 NIT), **all 8 taken**; both HIGHs were gates defeated by execution and both defeats re-executed RED |
+| 8.2 | Headline surfaces re-checked against the registry AFTER the fix cycle (dispatch hygiene 8) | 7382 | **done** — registry had `OOS-DX54-1..8` while three headlines said `-1..5`; caught AFTER the cycle, all three corrected |
 | 8.3 | `/tmp` bench dirs deleted | 7382 | **done** — bench target dirs and the base worktree cleaned at close |
