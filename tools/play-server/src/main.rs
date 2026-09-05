@@ -15317,4 +15317,310 @@ mod tests {
              {parsed:?}"
         );
     }
+
+    // ── PB-DX55 Half 1 (`OOS-SIM6-3`) — the browser half ─────────────────────
+    //
+    // The engine/simulator half is proven in
+    // `crates/simulator/tests/pb_dx55_activation_auto_tap.rs` on a real
+    // `LocalGame`/`HumanChoice` drive. This section is the OTHER channel the
+    // acceptance criterion names, and it is the one the seed is actually ABOUT:
+    // `OOS-SIM6-3` says *"a browser human activating a mana-cost ability gets a
+    // 422 unless they happened to have floating mana"*. A 422 is an HTTP fact,
+    // so it is refuted by an HTTP probe or not at all.
+
+    const DX55H_SEED: u64 = UI1_SEED;
+
+    /// `old-gnawbone`'s colour identity admits Forests, and the two probe cards
+    /// are colourless or mono-green, so the deck is `validate_deck`-legal
+    /// without any special pleading. Swiftfoot Boots is `Complete` by derive
+    /// (no `Completeness` marker in its def at all) and prints **Equip {1}** —
+    /// a `Cost::Mana` activation with no `{T}` component, which is exactly the
+    /// shape `auto_tap_commands_for` could not fund before this batch.
+    fn dx55h_deck(with_probe_cards: bool) -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = Vec::new();
+        if with_probe_cards {
+            main_deck.push(CardId("arbor-elf".to_string()));
+            main_deck.push(CardId("swiftfoot-boots".to_string()));
+        }
+        while main_deck.len() < 99 {
+            main_deck.push(CardId("forest".to_string()));
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX45H_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// The `dx45h_install` precedent, one deck over. `POST /api/game` cannot
+    /// build this fixture (`session::config_for` hard-codes
+    /// `DeckSource::RandomPerSeat`), so the DECK is installed directly and
+    /// nothing else is: the router, `session::submit`, `LocalGame::submit`,
+    /// `auto_tap_commands_for` and both of Architecture Invariant 9's gates all
+    /// run for real.
+    fn dx55h_install(state: &SharedState) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: DX55H_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), dx55h_deck(true)),
+                (mtg_engine::PlayerId(2), dx55h_deck(false)),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the PB-DX55 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// p1's floating mana, read out of band. The precondition this whole probe
+    /// rests on: **zero**. Funding an activation out of a pool that was already
+    /// full proves nothing about auto-tap.
+    fn dx55h_pool_total(state: &SharedState) -> u32 {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        session
+            .game
+            .state()
+            .players()
+            .get(&mtg_engine::PlayerId(1))
+            .expect("p1 exists")
+            .mana_pool
+            .total()
+    }
+
+    /// How many UNTAPPED lands p1 controls. The other half of the precondition:
+    /// the cost must be payable *with taps* and not otherwise.
+    fn dx55h_untapped_lands(state: &SharedState) -> usize {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        let gs = session.game.state();
+        gs.objects_in_zone(&mtg_engine::ZoneId::Battlefield)
+            .into_iter()
+            .filter(|o| {
+                o.controller == mtg_engine::PlayerId(1)
+                    && !o.status.tapped
+                    && o.characteristics
+                        .card_types
+                        .contains(&mtg_engine::CardType::Land)
+            })
+            .count()
+    }
+
+    /// Is the Equipment actually attached to the Elf? The RESOLUTION EFFECT, and
+    /// the only thing this probe accepts as proof — a 200 on the POST would be
+    /// satisfied by an activation that paid and fizzled.
+    fn dx55h_boots_are_attached(state: &SharedState) -> bool {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        let gs = session.game.state();
+        let elf = gs
+            .objects()
+            .values()
+            .find(|o| {
+                o.characteristics.name == "Arbor Elf" && o.zone == mtg_engine::ZoneId::Battlefield
+            })
+            .map(|o| o.id);
+        gs.objects().values().any(|o| {
+            o.characteristics.name == "Swiftfoot Boots"
+                && o.zone == mtg_engine::ZoneId::Battlefield
+                && o.attached_to.is_some()
+                && o.attached_to == elf
+        })
+    }
+
+    /// **PB-DX55 Half 1 over real HTTP — `OOS-SIM6-3`'s own headline sentence,
+    /// refuted in the channel it was written about.**
+    ///
+    /// CR 602.2a/602.2b: an activated ability's activation cost is paid as it is
+    /// activated, and CR 605/CR 601.2f let the player produce that mana first.
+    /// Before this batch `LocalGame::auto_tap_commands_for` opened with
+    /// `let Command::CastSpell(cast) = command else { return None; }`, so the
+    /// browser's `POST /api/game/action` for an `ActivateAbility` was applied
+    /// against whatever was already floating and the engine refused it — the
+    /// 422 the seed describes.
+    ///
+    /// The drive is the calls a browser makes and nothing else: `PlayLand`,
+    /// `CastSpell`, `PassPriority`, then the Equip activation. **No
+    /// `TapForMana` is ever submitted** — asserted, not merely omitted, by
+    /// counting the kind across every action this test posts. At the moment of
+    /// activation p1's pool is asserted EMPTY and their untapped land count
+    /// asserted non-zero, so the cost is payable with taps and in no other way.
+    /// The verdict is the attachment (CR 702.6a), not the status code.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx55_browser_activates_a_mana_cost_ability_with_an_empty_pool() {
+        let state = shared_state();
+        dx55h_install(&state);
+        let p1 = mtg_engine::PlayerId(1);
+
+        let (status, mut view) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+
+        let mut posted_kinds: Vec<String> = Vec::new();
+        let mut equip: Option<Value> = None;
+        for step in 0..400usize {
+            assert!(
+                !view["decision"].is_null(),
+                "step {step}: the game ended before the Equip activation was reachable: {view}"
+            );
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default();
+
+            // The Equip activation, recognised by its own target slots rather
+            // than by a label substring: an `ActivateAbility` on the Boots that
+            // offers at least one candidate is the one we can actually drive.
+            if let Some(a) = actions.iter().find(|a| {
+                a["kind"] == "ActivateAbility"
+                    && a["label"]
+                        .as_str()
+                        .unwrap_or("")
+                        .contains("Swiftfoot Boots")
+                    && a["target_slots"][0]["candidates"][0]["value"] != Value::Null
+            }) {
+                equip = Some(a.clone());
+                break;
+            }
+
+            let boots_out = ui2_battlefield_count_by_name(&state, p1, "Swiftfoot Boots") > 0;
+            let elf_out = ui2_battlefield_count_by_name(&state, p1, "Arbor Elf") > 0;
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| {
+                    if elf_out {
+                        None
+                    } else {
+                        actions.iter().find(|a| {
+                            a["kind"] == "CastSpell"
+                                && a["label"].as_str().unwrap_or("").contains("Arbor Elf")
+                        })
+                    }
+                })
+                .or_else(|| {
+                    if boots_out {
+                        None
+                    } else {
+                        actions.iter().find(|a| {
+                            a["kind"] == "CastSpell"
+                                && a["label"]
+                                    .as_str()
+                                    .unwrap_or("")
+                                    .contains("Swiftfoot Boots")
+                        })
+                    }
+                })
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .unwrap_or_else(|| panic!("step {step}: nothing drivable offered: {actions:?}"));
+            posted_kinds.push(pick["kind"].as_str().unwrap_or_default().to_string());
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({"seq": seq(&view), "action_index": pick["index"], "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+
+        let equip = equip.expect(
+            "the Equip {1} activation was never offered with a candidate — the drive needs \
+             re-observing, not the assertion relaxing",
+        );
+
+        // THE PRECONDITIONS. Without both of these the 200 below means nothing.
+        assert_eq!(
+            dx55h_pool_total(&state),
+            0,
+            "precondition: p1's pool must be EMPTY at the moment of activation — a funded \
+             pool proves nothing about auto-tap"
+        );
+        assert!(
+            dx55h_untapped_lands(&state) > 0,
+            "precondition: p1 must control an untapped land, or the cost is unpayable by \
+             any means and the refusal would be correct"
+        );
+        assert!(
+            !posted_kinds.iter().any(|k| k == "TapForMana"),
+            "this probe must never tap manually — the whole claim is that the browser does \
+             not have to. Posted kinds were {posted_kinds:?}"
+        );
+        assert!(
+            !dx55h_boots_are_attached(&state),
+            "precondition: the Boots must not already be attached, or the assertion below \
+             is satisfied by the fixture rather than by the activation"
+        );
+
+        let target = equip["target_slots"][0]["candidates"][0]["value"].clone();
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": equip["index"],
+                "params": { "targets": [target] },
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "OOS-SIM6-3's own sentence: the browser activation was refused: {after}"
+        );
+
+        // CR 602.2b/CR 608: an activated ability USES THE STACK, so acceptance is
+        // not resolution. Pass priority until it resolves. **The first draft of
+        // this probe asserted the attachment immediately after the 200 and failed
+        // — correctly, and that failure is the reason the attachment assertion is
+        // the verdict rather than the status code.**
+        view = after;
+        for step in 0..40usize {
+            if dx55h_boots_are_attached(&state) {
+                break;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "resolution step {step}: the game ended before the Equip ability resolved"
+            );
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default();
+            let Some(pass) = actions.iter().find(|a| a["kind"] == "PassPriority") else {
+                break;
+            };
+            posted_kinds.push("PassPriority".to_string());
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({"seq": seq(&view), "action_index": pass["index"], "params": {}}),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "resolution step {step}: {next}");
+            view = next;
+        }
+        assert!(
+            !posted_kinds.iter().any(|k| k == "TapForMana"),
+            "still no manual tap after the resolution passes: {posted_kinds:?}"
+        );
+
+        // THE VERDICT — the resolution effect (CR 702.6a), not the status code.
+        assert!(
+            dx55h_boots_are_attached(&state),
+            "the activation was accepted but the Equipment never attached — a 200 on a \
+             fizzle is exactly what this assertion exists to catch"
+        );
+    }
 }
