@@ -3358,28 +3358,23 @@ fn execute_effect_inner(
                                 // countered" -- exactly what happened.
                                 Some(stack_obj.id)
                             } else {
-                                match &stack_obj.kind {
-                                    // CR 701.6a: countering an ability removes it from
-                                    // the stack; the source stays where it is. CR
-                                    // 707.10b: a copy of an ability has the SAME source,
-                                    // so this arm is correct for ability copies too.
-                                    crate::state::stack::StackObjectKind::ActivatedAbility {
-                                        source_object,
-                                        ..
-                                    }
-                                    | crate::state::stack::StackObjectKind::TriggeredAbility {
-                                        source_object,
-                                        ..
-                                    } => Some(*source_object),
-                                    // Every other ability/trigger kind: NO event, exactly
-                                    // as before PB-DX25. This wildcard is a DIAGNOSTICS
-                                    // omission, not a state one -- the card-ownership
-                                    // decision above (`card_in_stack_zone`) has no
-                                    // wildcard and cannot lose a card. Widening the event
-                                    // to every kind is `OOS-DX25-4`, deliberately not
-                                    // taken here.
-                                    _ => None,
-                                }
+                                // PB-DX54 (`OOS-DX25-4` CLOSED): CR 113.7's source of the
+                                // countered object, through the ONE exhaustive
+                                // classification in `state::stack_registry::source_of` --
+                                // never a two-arm `match` with a `_ => None` wildcard.
+                                // What stood here named a source for `ActivatedAbility`
+                                // and `TriggeredAbility` and emitted NO
+                                // `GameEvent::SpellCountered` for the other 23 kinds, and
+                                // `resolution.rs::counter_stack_object` carried a
+                                // byte-identical copy of the same two-arm branch -- so the
+                                // omission existed in two places and could drift.
+                                // CR 707.10b: a copy of an ability has the SAME source, so
+                                // this is correct for ability copies too.
+                                //
+                                // Five kinds still name no source and so still emit no
+                                // event; that is a MEASURED absence, documented on
+                                // `source_of` itself rather than restated here.
+                                crate::state::stack_registry::source_of(&stack_obj.kind)
                             };
                             if let Some(source_object_id) = named {
                                 events.push(GameEvent::SpellCountered {

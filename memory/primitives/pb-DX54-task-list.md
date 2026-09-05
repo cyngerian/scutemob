@@ -9,17 +9,17 @@ this file plus an `esm task comment` is the substitute. Updated as items land.
 | # | Item | AC | State |
 |---|------|----|-------|
 | 0.1 | Pre-edit full-workspace baseline to a file; reproduce PB-DX53's 5,210/0/5 on 67 targets | 7382 | **done** — reproduces EXACTLY, no correction owed |
-| 0.2 | CR + ruling research (CR 608.2m, 608.2, 115.7a; Misdirection 2004-10-04 via MCP) | 7379 | pending |
-| 0.3 | Wire prediction PER OPTION, in writing, committed BEFORE any production line | 7381 | pending |
-| 0.4 | Stage-0 blast-radius MEASUREMENT: execute the suite with the pop MOVED (resolve-in-place) | 7379 | pending |
-| 0.5 | Design settled between resolve-in-place and shadow entry, with the measurement as the evidence | 7379 | pending |
-| 1.1 | Engine: move the pop to the end of `resolve_top_of_stack_inner` (remove-by-id, all early-return paths) | 7379 | pending |
+| 0.2 | CR + ruling research (CR 608.2m, 608.2, 115.7a; Misdirection 2004-10-04 via MCP) | 7379 | **done** — CR 608.2n is the warrant, NOT CR 608.2m; ruling verified via MCP |
+| 0.3 | Wire prediction PER OPTION, in writing, committed BEFORE any production line | 7381 | **done** — `54415c25`, committed before any production line |
+| 0.4 | Stage-0 blast-radius MEASUREMENT: execute the suite with the pop MOVED (resolve-in-place) | 7379 | **done** — pop moved to the function boundary: **5,207 / 3 / 5**, and all THREE failures are SOURCE gates; ZERO behavioural |
+| 0.5 | Design settled between resolve-in-place and shadow entry, with the measurement as the evidence | 7379 | **done** — **resolve-in-place**, on the measurement; option B costs a HASH bump and 6 call-site changes and is less CR-faithful |
+| 1.1 | Engine: move the pop to the end of `resolve_top_of_stack_inner` (remove-by-id, all early-return paths) | 7379 | **done** — peek + `depart_resolving_stack_entry` at the two CR-ordered points + a backstop for the four early returns |
 | 1.2 | Audit every resolution-time `stack_objects` consumer (copy/cascade/storm push, LKI, counter, top-of-stack queries, view-model, `check_stack_consistency`) | 7379 | pending |
 | 1.3 | Never-double-seen / never-resolved-twice COUNT assertions | 7379 | pending |
 | 2.1 | Probes: single-target redirect onto the resolving Misdirection, asserted BY RESOLUTION EFFECT | 7379 | pending |
 | 2.2 | Self-targeting (CR 601.2c) still refused both ways | 7379 | pending |
 | 2.3 | Real `LocalGame`/`HumanChoice` drive + bot-path offer | 7379 | pending |
-| 3.1 | Rider **OOS-DX25-4** decided, reason posted as a task comment | 7380 | pending |
+| 3.1 | Rider **OOS-DX25-4** decided, reason posted as a task comment | 7380 | **done** — rider **OOS-DX25-4 TAKEN**: both counter paths now consume `stack_registry::source_of` |
 | 3.2 | Rider **OOS-DX25b-4** decided, reason posted as a task comment | 7380 | pending |
 | 3.3 | T7/T8 route-around docs rewritten to what is now true; simplified where the workaround was the only reason for the shape | 7380 | pending |
 | 4.1 | Census by `all_cards()` PRINTED by a test (declared axis + inverse oracle axis) | 7381 | pending |
