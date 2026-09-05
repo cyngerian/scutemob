@@ -12,7 +12,7 @@
 //! symmetrically to the WouldChangeZone direct pattern already present.
 //!
 //! Tests:
-//!   (1) `test_pb_ewcd_hash_schema_version_is_23` — HASH-23 sentinel.
+//!   (1) (deleted by CC-2, 2026-09-05: the version sentinel — `core hash_schema` is the one pin.)
 //!   (2) `test_pb_ewcd_partial_eq_discriminates_subtype_variant` — PartialEq
 //!       variant equality and inequality.
 //!   (3) `test_pb_ewcd_serde_default_backward_compat` — JSON roundtrip for
@@ -35,7 +35,6 @@ use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition,
     CardRegistry, Command, GameEvent, GameState, GameStateBuilder, ManaColor, ObjectFilter,
     ObjectId, ObjectSpec, PlayerId, ReplacementModification, ReplacementTrigger, Step,
-    HASH_SCHEMA_VERSION,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -131,18 +130,6 @@ fn cast_creature(
         })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
-}
-
-// ── Test 1: Hash schema sentinel ──────────────────────────────────────────────
-
-/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
-/// without this test being updated. See the `state/hash.rs` history block.
-#[test]
-fn test_pb_ewcd_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 }
 
 // ── Test 2: PartialEq discriminator ───────────────────────────────────────────

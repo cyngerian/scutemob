@@ -20,7 +20,7 @@
 //!   (b) Toothy leaves-battlefield trigger draws correct card count from LKI (4 counters → 4 draws).
 //!   (c) Zero counters → 0 tokens/draws, no panic.
 //!   (d) Mixed counter types: only PlusOnePlusOne counters are counted (not Loyalty, etc.).
-//!   (e) Hash schema sentinel: HASH_SCHEMA_VERSION == 15 (PB-LKI-CC bump 14→15).
+//!   (e) (deleted by CC-2, 2026-09-05: the version sentinel — `core hash_schema` is the one pin.)
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -30,7 +30,7 @@ use mtg_engine::state::zone::ZoneId;
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition,
     CardRegistry, Command, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId,
-    Step, HASH_SCHEMA_VERSION,
+    Step,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -430,18 +430,6 @@ fn test_lki_counter_count_multi_type_returns_requested_counter_type_only() {
         "CR 603.10a: CounterCountAtLastKnownInformation {{PlusOnePlusOne}} must count only \
          +1/+1 counters (2), not Loyalty (5) or total (7). Got {}",
         squid_count
-    );
-}
-
-// ── Test (e): HASH_SCHEMA_VERSION sentinel ────────────────────────────────────
-
-/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
-/// without this test being updated. See the `state/hash.rs` history block.
-#[test]
-fn test_pb_lki_cc_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }
 

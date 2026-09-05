@@ -16,7 +16,7 @@
 //! - `state/hash.rs` arm — discriminant 16; HASH_SCHEMA_VERSION bumped 11→12.
 //!
 //! Tests:
-//!   1. Schema-version sentinel (catches unintended hash changes).
+//!   1. (deleted by CC-2, 2026-09-05: the version sentinel — `core hash_schema` is the one pin.)
 //!   2. `Controller` reads the controller's poison count.
 //!   3. `EachOpponent` sums every opponent's poison (the Vishgraz semantic).
 //!   4. `EachPlayer` sums every player including the controller.
@@ -32,7 +32,6 @@ use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::{
     calculate_characteristics, CardId, CounterType, Effect, EffectDuration, EffectFilter,
     EffectLayer, GameStateBuilder, LayerModification, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
-    HASH_SCHEMA_VERSION,
 };
 
 fn p(n: u64) -> PlayerId {
@@ -89,18 +88,6 @@ fn resolve_via_apply(
             other
         ),
     }
-}
-
-// ── Test 1: HASH_SCHEMA_VERSION sentinel ─────────────────────────────────────
-
-/// Catch any uncommitted bump after PB-LKI-CC. The next primitive that touches
-/// serialized struct shapes must update both the constant and this sentinel.
-#[test]
-fn test_hash_schema_version_after_pb_lki_cc() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 }
 
 // ── Test 2: PlayerTarget::Controller reads controller's poison ───────────────

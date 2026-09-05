@@ -33,7 +33,6 @@ use mtg_engine::{
     all_cards, card_name_to_id, process_command, AbilityDefinition, AttackTarget, CardId,
     CardRegistry, CardType, Command, CounterType, Effect, GameEvent, GameState, GameStateBuilder,
     ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, SubType, Target, TypeLine, ZoneId,
-    HASH_SCHEMA_VERSION,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -170,18 +169,6 @@ fn enrich(
             .with_card_id(id_for(name)),
         defs,
     )
-}
-
-// ── Live HASH sentinel ────────────────────────────────────────────────────────
-
-#[test]
-fn test_ef1_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "PB-EF1 added ActivationCost.sacrifice_exclude_self (HASH 43->44). Update this \
-         sentinel and the state/hash.rs history block together; the authoritative check \
-         is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 }
 
 // ── Site 1: EffectAmount::PermanentCount ─────────────────────────────────────

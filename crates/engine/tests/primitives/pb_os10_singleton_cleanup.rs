@@ -27,7 +27,7 @@ use mtg_engine::{
     CardEffectTarget as EffectTarget, CardId, CardRegistry, CardType, CastSpellData, Command,
     CounterType, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, GameStateError,
     ManaCost, ManaPool, ObjectId, ObjectSpec, PlayerId, SpellTarget, Step, Target,
-    TargetRequirement, TypeLine, ZoneId, HASH_SCHEMA_VERSION, PROTOCOL_VERSION,
+    TargetRequirement, TypeLine, ZoneId,
 };
 
 use mtg_engine::effects::{execute_effect, EffectContext};
@@ -80,27 +80,6 @@ fn attach(state: &mut GameState, equip_id: ObjectId, creature_id: ObjectId) {
     if let Some(equip_obj) = state.objects_mut().get_mut(&equip_id) {
         equip_obj.attached_to = Some(creature_id);
     }
-}
-
-// ── Version sentinel ─────────────────────────────────────────────────────────
-
-/// CR 601.2c / 510.3a: PB-OS10 bumped both wire versions. Authoritative machine gates
-/// are `tests/core/hash_schema.rs` / `tests/core/protocol_schema.rs`; this sentinel just
-/// forces a deliberate edit here (and to `state/hash.rs` / `rules/protocol.rs`) on any
-/// future bump, mirroring the convention on every other PB test module.
-#[test]
-fn test_pb_os10_version_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "PB-OS10 added TargetRequirement::TargetPermanentDistinctFrom plus \
-         TriggerEvent/TriggerCondition::(When)EquippedCreatureDealsCombatDamage \
-         (HASH 61->62). Update this sentinel and the state/hash.rs history block together."
-    );
-    assert_eq!(
-        PROTOCOL_VERSION, 44,
-        "PB-OS10 added TargetRequirement::TargetPermanentDistinctFrom (PROTOCOL 24->25). \
-         Update this sentinel and the rules/protocol.rs history block together."
-    );
 }
 
 // ── Inter-target distinctness (OOS-XS-1) ─────────────────────────────────────

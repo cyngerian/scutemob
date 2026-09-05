@@ -33,7 +33,7 @@ use mtg_engine::state::{ActivatedAbility, ActivationCost, SacrificeFilter};
 use mtg_engine::{
     process_command, AttackTarget, CardId, CardType, Command, GameEvent, GameRestriction,
     GameState, GameStateBuilder, KeywordAbility, ManaCost, ObjectId, ObjectSpec, PlayerId, Step,
-    TypeLine, ZoneId, HASH_SCHEMA_VERSION,
+    TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -155,20 +155,6 @@ fn sorcery_def(name: &str, card_id: &str, effect: Effect) -> CardDefinition {
         }],
         ..Default::default()
     }
-}
-
-// ── HASH_SCHEMA_VERSION sentinel ──────────────────────────────────────────────
-
-/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts without
-/// this test being updated. PB-AC8 bumped 34 -> 35.
-#[test]
-fn test_pb_ac8_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "PB-AC8 bumped HASH_SCHEMA_VERSION 34->35 (GameRestriction::CantAttackOwner disc 9, \
-         GameRestriction::CantBeSacrificed disc 10, Effect::WinGame disc 90, \
-         LossReason::OpponentWonGame disc 5). If you bumped again, update this test."
-    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

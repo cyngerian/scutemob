@@ -34,7 +34,7 @@ use mtg_engine::{
     Command, Condition, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, ManaCost,
     ObjectId, ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step, Target, TargetFilter,
     TargetRequirement, TokenSpec, TriggerCondition, TriggerEvent, TriggeredAbilityDef, TypeLine,
-    ZoneId, HASH_SCHEMA_VERSION,
+    ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -171,15 +171,6 @@ fn life_total(state: &GameState, player: PlayerId) -> i32 {
         .get(&player)
         .map(|p| p.life_total)
         .unwrap_or(0)
-}
-
-// ── A: Hash schema sentinel ─────────────────────────────────────────────────────
-
-#[test]
-/// Strict-equality hash schema sentinel (conventions.md hash-sentinel rule).
-/// PB-AC6 bumped 32 -> 33.
-fn test_hash_schema_version_is_33() {
-    assert_eq!(HASH_SCHEMA_VERSION, 85u8);
 }
 
 #[test]

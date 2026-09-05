@@ -45,7 +45,7 @@ use mtg_engine::{
     all_cards, calculate_characteristics, enrich_spec_from_def, process_command, AttackTarget,
     CardContinuousEffectDef, CardDefinition, Command, EffectDuration, EffectFilter, EffectLayer,
     GameEvent, GameState, GameStateBuilder, LayerModification, ObjectId, ObjectSpec, PlayerId,
-    Step, SubType, ZoneId, HASH_SCHEMA_VERSION, PROTOCOL_VERSION,
+    Step, SubType, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -683,31 +683,5 @@ fn test_os7_card_registered() {
     assert!(
         all.iter().any(|d| d.name == "Silumgar, the Drifting Death"),
         "'Silumgar, the Drifting Death' should be present in all_cards()"
-    );
-}
-
-// ── Test 11: wire sentinels ──────────────────────────────────────────────────────
-
-/// PB-OS7 bumped HASH_SCHEMA_VERSION 58 -> 59 (a single new `EffectFilter` variant,
-/// discriminant 36). PROTOCOL_VERSION ALSO moved 21 -> 22 -- a deviation from the
-/// plan's prediction of no PROTOCOL bump: `EffectFilter`'s sibling field
-/// `EffectDuration` (same `ContinuousEffectDef` struct) already put the struct in the
-/// wire closure at PB-EF9 (v14), so `EffectFilter`'s new variant is reachable too. See
-/// `crates/engine/src/rules/protocol.rs`'s `- 22:` history line for the full account.
-#[test]
-fn test_os7_version_sentinels() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted from this live sentinel. PB-OS7 first moved it to 59 \
-         (EffectFilter gained CreaturesControlledByDefendingPlayer, discriminant 36); it is \
-         since 60 (PB-OS8 TargetFilter.min_cmc_amount). Bump this value with the state/hash.rs \
-         history block on every HASH change."
-    );
-    assert_eq!(
-        PROTOCOL_VERSION, 44,
-        "PROTOCOL_VERSION drifted from this live sentinel. PB-OS7 first moved it to 22 (see the \
-         protocol.rs `- 22:` history line for why it moved despite the plan predicting no bump); \
-         it is since 23 (PB-OS8 Effect::LookAtTopThenPlace). Bump this value with the protocol.rs \
-         history block on every wire change."
     );
 }

@@ -19,7 +19,6 @@ use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardId, CardRegistry, CardType, Command, Effect,
     GameStateBuilder, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, TypeLine, ZoneId,
-    HASH_SCHEMA_VERSION,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -124,18 +123,6 @@ fn cast_test_sorcery(
         })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
-}
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
-/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
-/// without this test being updated. See the `state/hash.rs` history block.
-#[test]
-fn test_sft_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 }
 
 /// CR 701.21a + CR 109.1 — PB-SFT test 1: each-player-sacrifices-creature filter.

@@ -20,10 +20,7 @@ use mtg_engine::cards::card_definition::{
     AbilityDefinition, Effect, PlayerTarget, WheelDisposal, WheelDraw,
 };
 use mtg_engine::effects::{execute_effect, EffectContext};
-use mtg_engine::{
-    GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, ZoneId,
-    HASH_SCHEMA_VERSION,
-};
+use mtg_engine::{GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, ZoneId};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -77,21 +74,6 @@ fn setup_three_players(hands: [usize; 3], library_n: usize) -> GameState {
         }
     }
     builder.build().unwrap()
-}
-
-// ── HASH_SCHEMA_VERSION sentinel ──────────────────────────────────────────────
-
-/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
-/// without this test being updated. PB-EF11 COMMIT 1 bumped 53 -> 54
-/// (WheelDraw::GreatestDiscarded); COMMIT 2 bumped 54 -> 55
-/// (TargetRequirement::TargetSpellWithSingleTarget, see pb_ef11_spell_single_target.rs).
-#[test]
-fn test_pb_ef11_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "PB-EF11 bumped HASH_SCHEMA_VERSION 53->54->55 across its two commits. If you bumped \
-         again, update this test."
-    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

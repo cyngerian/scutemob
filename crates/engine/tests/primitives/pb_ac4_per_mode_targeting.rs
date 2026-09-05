@@ -35,7 +35,7 @@ use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::{CardId, CardType, GameStateBuilder, ObjectSpec, PlayerId, Target, ZoneId};
 use mtg_engine::{
     AdditionalCost, CardRegistry, EffectAmount, GameState, KeywordAbility, ManaCost, ModeSelection,
-    ObjectId, PlayerTarget, HASH_SCHEMA_VERSION,
+    ObjectId, PlayerTarget,
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -687,21 +687,15 @@ fn test_700_2d_duplicate_modes_independent_target_slices() {
     );
 }
 
-// ── T8: Hash — mode_targets contributes to the hash; schema version sentinel ──────────
+// ── T8: Hash — mode_targets contributes to the hash; ──────────
 
-/// CR N/A (hash infrastructure) — PB-AC4: `HASH_SCHEMA_VERSION` is 31 (this batch's bump).
+/// CR N/A (hash infrastructure) — PB-AC4 bumped `HASH_SCHEMA_VERSION` 30 -> 31.
 /// Two `ModeSelection` values differing ONLY in `mode_targets` (`None` vs `Some`) must hash
 /// to distinct values, confirming the new field contributes to `HashInto`.
 #[test]
 fn test_ac4_hash_distinguishes_mode_targets() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
-
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "PB-AC4 bumped HASH_SCHEMA_VERSION 30->31 (ModeSelection.mode_targets, CR 700.2c/700.2f). \
-         If you bumped again, update this test and state/hash.rs history."
-    );
 
     let base_modes = ModeSelection {
         min_modes: 1,

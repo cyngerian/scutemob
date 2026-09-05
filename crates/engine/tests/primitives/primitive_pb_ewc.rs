@@ -24,7 +24,7 @@
 //!       the subsequent entry's counter count: 4/6 MB → next entry gets 4.
 //!   (c) Ingenious Prodigy — cast with X=5 enters with 5 +1/+1 counters
 //!       via the replacement (counters present immediately, no trigger).
-//!   (d) Hash schema sentinel: `HASH_SCHEMA_VERSION == 18` (PB-EWC bump).
+//!   (d) (deleted by CC-2, 2026-09-05: the version sentinel — `core hash_schema` is the one pin.)
 
 use mtg_engine::rules::command::CastSpellData;
 use std::collections::HashMap;
@@ -35,7 +35,7 @@ use mtg_engine::state::zone::ZoneId;
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition,
     CardRegistry, Command, GameEvent, GameState, GameStateBuilder, ManaColor, ObjectId, ObjectSpec,
-    PlayerId, Step, HASH_SCHEMA_VERSION,
+    PlayerId, Step,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -387,18 +387,6 @@ fn test_ingenious_prodigy_x_value_replacement_counts() {
         "CR 107.3m / CR 614.1c: Ingenious Prodigy cast with X=5 must enter \
          with 5 +1/+1 counters via the EntersWithCounters replacement. Got {}.",
         counter_count
-    );
-}
-
-// ── Test (d): Hash schema sentinel ────────────────────────────────────────────
-
-/// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
-/// without this test being updated. See the `state/hash.rs` history block.
-#[test]
-fn test_pb_ewc_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }
 

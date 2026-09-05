@@ -19,9 +19,9 @@
 //! (partial -> Complete).
 //!
 //! Patterns mirrored: `tests/primitives/pb_ef10_sacrifice_driven_amounts.rs` (runtime cmc
-//! cap + sacrifice LKI + sentinels, direct-executor probing), the `RevealAndRoute` usage in
+//! cap + sacrifice LKI, direct-executor probing), the `RevealAndRoute` usage in
 //! narset/bounty (library top-N setup), `tests/primitives/pb_os6_dfc_flip_conditions.rs`
-//! (end-step-trigger card-integration harness + sentinel layout).
+//! (end-step-trigger card-integration harness layout).
 
 use mtg_engine::effects::{execute_effect, execute_effect_with_default_choices, EffectContext};
 use mtg_engine::rules::command::CastSpellData;
@@ -29,7 +29,7 @@ use mtg_engine::{
     all_cards, enrich_spec_from_def, process_command, CardDefinition, CardId, CardRegistry,
     CardType, Command, Cost, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
     LibraryPosition, ManaCost, ManaPool, ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step,
-    TargetFilter, ZoneId, ZoneTarget, HASH_SCHEMA_VERSION, PROTOCOL_VERSION,
+    TargetFilter, ZoneId, ZoneTarget,
 };
 use std::collections::HashMap;
 
@@ -1253,27 +1253,5 @@ fn test_min_cmc_amount_hashes_distinctly() {
         hash_filter(&f_min3),
         hash_filter(&f_min0),
         "min_cmc_amount(3) and min_cmc_amount(0) must hash distinctly"
-    );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Version sentinels
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// PROTOCOL_VERSION and HASH_SCHEMA_VERSION are the machine-forced values for this
-/// batch: `Effect` gained `LookAtTopThenPlace` and `TargetFilter` gained
-/// `min_cmc_amount` (both already in the closure -- type COUNT unchanged, declared
-/// shape moves). See crates/engine/src/rules/protocol.rs and
-/// crates/engine/src/state/hash.rs for the authoritative bump.
-#[test]
-fn test_pb_os8_version_sentinels() {
-    assert_eq!(
-        PROTOCOL_VERSION, 44,
-        "PROTOCOL_VERSION should be 23 after PB-OS8 (Effect::LookAtTopThenPlace + \
-         TargetFilter.min_cmc_amount)"
-    );
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION should be 60 after PB-OS8"
     );
 }

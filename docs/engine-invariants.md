@@ -1,6 +1,6 @@
 # Engine Invariants & Machine-Enforced Gates
 
-<!-- last_updated: 2026-08-02 -->
+<!-- last_updated: 2026-09-05 -->
 
 > **Standing invariant/machinery reference.** These bullets moved verbatim out of
 > CLAUDE.md's "Current State" section on 2026-07-18 (DOC-1v2, `scutemob-125`) because
@@ -133,6 +133,17 @@
   `GameState`, which is why this and `HASH_SCHEMA_VERSION` stay separate. The current
   `PROTOCOL_VERSION` is the `pub const` in `rules/protocol.rs` (read it there rather than
   quoting a number that drifts). Policy: `docs/mtg-engine-protocol-versioning.md`. **This was M10's hard blocker.**
+  **One pin per gate, no scattered literals (CC-2, 2026-09-05).** `HASH_SCHEMA_VERSION` and
+  `PROTOCOL_VERSION` are each pinned as a literal in exactly ONE test — `hash_schema_version_sentinel`
+  in `crates/engine/tests/core/hash_schema.rs` and `protocol_version_sentinel` in
+  `crates/engine/tests/core/protocol_schema.rs` — beside their `history_is_append_only` and
+  `frozen_prefix_is_pinned` companions. Every other test asserts against the **constant** or not at
+  all. The 48-file sweep of `assert_eq!(HASH_SCHEMA_VERSION, <n>)` sentinels (53 assertions, 33 of
+  them whole tests) was deleted because a scattered literal catches nothing the gate does not: it
+  only forces a re-pin ritual on every bump, and that ritual ("re-pin across 49 files, survivor-scan
+  both axes") failed twice in the recorded batches (`OOS-DX20b`, `OOS-DX36-8`). A new test that wants
+  to say "the wire moved" says so by hashing through the constant; a new literal outside the two
+  canonical gates is a review finding.
 - **Integration tests are 9 targets, not 297 binaries (SR-9a).** `crates/engine/tests/*.rs` became
   `crates/engine/tests/<group>/{main.rs, *.rs}` — `core`, `rules`, `combat`, `casting`,
   `primitives`, `scripts`, `mechanics_{a_d,e_l,m_z}`. Every file moved verbatim; a former

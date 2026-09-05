@@ -6,6 +6,20 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-09-05 — CC-2 (`scutemob-238`) — scattered HASH/PROTOCOL version sentinels deleted
+
+- 53 literal `assert_eq!(HASH_SCHEMA_VERSION|PROTOCOL_VERSION, <n>)` sites in 43 test files: 33 sentinel-only
+  tests deleted, 11 assertions deleted in place, 4 misnamed tests renamed; 40 unused imports and 30 orphan banners gone.
+- Only `core hash_schema` / `core protocol_schema` pin a version literal now; rule recorded in `docs/engine-invariants.md` SR-8.
+- Tests 5,363 → **5,330** (−33 == deleted tests; name diff 37 leavers / 4 additions, all accounted); 0 engine lines;
+  HASH 85 / PROTOCOL 44 untouched (A5). Notes: `memory/primitives/cc-2-execution-notes.md`.
+
+## 2026-09-05 — CC-1 (`scutemob-237`, merge `4815467c`) — context diet
+
+- `CLAUDE.md` 5,281 → 244 lines; `memory/workstream-state.md` 8,438 → 54; this file seeded with the last three batches.
+- Everything moved is verbatim (diff-verified) in `memory/archive/{claude-md-current-state,claude-md-reference-sections,workstream-state}-2026-09-05.md`.
+- Docs only; suite 5,363 / 0 / 6 unmoved.
+
 ## 2026-09-05 — PB-DX57 (`scutemob-236`, merge `cb6980f2`) — the gate-widening cluster
 
 - Closed **OOS-DX28-1** and **OOS-DX28-6** as classes, plus **OOS-DX28-5**, **OOS-DX26-3**, **OOS-DX21-7**;

@@ -15,7 +15,7 @@ use mtg_engine::{
     all_cards, enrich_spec_from_def, process_command, AbilityDefinition, AttackTarget,
     CardDefinition, CardId, CardRegistry, CardType, Command, Effect, ForEachTarget,
     GameStateBuilder, ObjectSpec, PlayerId, Step, SubType, Target, TargetController, TargetFilter,
-    TargetRequirement, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId, HASH_SCHEMA_VERSION,
+    TargetRequirement, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -607,19 +607,9 @@ fn test_damaged_player_destroy_all_filter_multiplayer_isolation() {
 // ── Test M6: Hash parity — all 4 TargetController variants produce distinct hashes ──
 
 /// PB-D M6: Hash parity test — all four TargetController variants hash to distinct values.
-/// Also verifies HASH_SCHEMA_VERSION is exactly 15 (PB-LKI-CC bump).
-///
-/// Discriminator: forces the sentinel assertion to fail if the bump is not made.
 /// Any two variants colliding would indicate a hash implementation bug.
 #[test]
 fn test_damaged_player_hash_parity_all_variants() {
-    // Hash sentinel bumped to 27 (BASELINE-LKI-01: GameEvent::CreatureDied.pre_death_characteristics,
-    // CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers).
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
-
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
 

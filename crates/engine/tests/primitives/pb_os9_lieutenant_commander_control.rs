@@ -52,7 +52,7 @@ use mtg_engine::{
     all_cards, calculate_characteristics, enrich_spec_from_def, process_command, AttackTarget,
     CardDefinition, CardEffectTarget, CardId, CardRegistry, CardType, Command, Condition, Effect,
     GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaCost, ObjectId, ObjectSpec,
-    PlayerId, Step, SuperType, TypeLine, ZoneId, HASH_SCHEMA_VERSION, PROTOCOL_VERSION,
+    PlayerId, Step, SuperType, TypeLine, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -876,22 +876,5 @@ fn test_check_static_condition_fallback_routes_you_control_your_commander() {
         check_static_condition(&state, &Condition::YouControlYourCommander, source_id, p1),
         "check_static_condition's fallback should route to check_condition and \
          correctly evaluate true when the commander is controlled"
-    );
-}
-
-// ── Test 15: wire sentinels ──────────────────────────────────────────────────────
-
-/// PB-OS9 bumped PROTOCOL_VERSION 23 -> 24 and HASH_SCHEMA_VERSION 60 -> 61 (a
-/// single new `Condition` unit variant, `YouControlYourCommander`, discriminant 51).
-#[test]
-fn test_pb_os9_version_sentinels() {
-    assert_eq!(
-        PROTOCOL_VERSION, 44,
-        "PROTOCOL_VERSION should be 24 after PB-OS9 (Condition::YouControlYourCommander)"
-    );
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION should be 61 after PB-OS9 (Condition::YouControlYourCommander, \
-         discriminant 51)"
     );
 }

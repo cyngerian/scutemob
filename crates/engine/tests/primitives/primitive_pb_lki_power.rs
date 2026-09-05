@@ -21,7 +21,7 @@
 //!   (b) Juri Master death trigger deals damage = LKI power (boosted, not printed 1).
 //!   (c) Discriminating LKI test: graveyard object has printed power (CR 400.7/122.2);
 //!       trigger still uses pre-death LKI power correctly.
-//!   (d) Hash schema sentinel + variant-discriminant determinism + Option tag-byte encoding.
+//!   (d) Variant-discriminant determinism + Option tag-byte encoding.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -32,7 +32,7 @@ use mtg_engine::state::zone::ZoneId;
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition,
     CardRegistry, Command, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId,
-    Step, HASH_SCHEMA_VERSION,
+    Step,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -378,23 +378,17 @@ fn test_lki_power_resolves_to_pre_death_value_not_printed_value() {
     );
 }
 
-// ── Test (d): Hash determinism + sentinel + variant-discrimination ────────────
+// ── Test (d): Hash determinism + variant-discrimination ────────────
 
-/// Hash schema sentinel, variant-discriminant determinism, and Option tag-byte encoding.
+/// Variant-discriminant determinism and Option tag-byte encoding.
 ///
 /// This test is the mechanical safety net for the PB-LKI-Power implementation.
-/// If any of the three sub-assertions fail, the hash infrastructure is broken.
+/// If any of the sub-assertions fail, the hash infrastructure is broken.
 #[test]
-fn test_pb_lki_power_hash_schema_version_and_determinism() {
+fn test_pb_lki_power_hash_determinism_and_variant_discrimination() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
     use mtg_engine::{CardEffectTarget, EffectAmount};
-
-    // Sub-assertion 1: HASH_SCHEMA_VERSION sentinel.
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 
     // Sub-assertion 2: variant-discriminant determinism.
     let h = |a: &EffectAmount| {

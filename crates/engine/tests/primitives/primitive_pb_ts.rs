@@ -22,14 +22,14 @@
 //!   (d) `EffectAmount::CounterCount` reads LKI counters from a dead source in graveyard
 //!       (Chasm Skulker scenario — CR 113.7a, CR 122.6).
 //!   (e) Hash determinism: `TokenSpec` with `Fixed(3)` vs `Fixed(5)` produce distinct
-//!       hashes; `HASH_SCHEMA_VERSION` sentinel is exactly 14.
+//!       hashes.
 
 use mtg_engine::cards::card_definition::{EffectAmount, EffectTarget, TokenSpec};
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::state::hash::HashInto;
 use mtg_engine::{
     CardType, Color, CounterType, Effect, GameStateBuilder, ObjectId, ObjectSpec, PlayerId,
-    SubType, TargetController, TargetFilter, ZoneId, HASH_SCHEMA_VERSION,
+    SubType, TargetController, TargetFilter, ZoneId,
 };
 
 fn p(n: u64) -> PlayerId {
@@ -353,23 +353,16 @@ fn test_pb_ts_counter_count_from_live_source() {
     }
 }
 
-// ── Test (e): Hash determinism and HASH_SCHEMA_VERSION sentinel ──────────────
+// ── Test (e): Hash determinism ───────────────────────────────────────────────
 
 /// CR N/A (hash infrastructure) — PB-TS bumped HASH_SCHEMA_VERSION 13 → 14 (bumped to 15 by PB-LKI-CC).
 ///
-/// (e-1) Sentinel: HASH_SCHEMA_VERSION is exactly 15.
 /// (e-2) Determinism: two `TokenSpec` values with `Fixed(3)` produce the same hash.
 /// (e-3) `Fixed(3)` vs `Fixed(5)` produce distinct hashes (count IS hashed).
 /// (e-4) `Fixed(3)` vs `PermanentCount{...}` produce distinct hashes
 ///        (variant discriminant IS hashed).
 #[test]
-fn test_pb_ts_hash_schema_version_and_token_spec_hash_determinism() {
-    // (e-1) Schema-version sentinel.
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
-
+fn test_pb_ts_token_spec_hash_determinism() {
     use blake3::Hasher;
     use mtg_engine::PlayerTarget;
 

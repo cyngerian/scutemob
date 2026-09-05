@@ -33,7 +33,7 @@ use mtg_engine::{
     all_cards, calculate_characteristics, card_name_to_id, enrich_spec_from_def, CardDefinition,
     CardId, CardRegistry, ContinuousEffect, CounterType, EffectAmount, EffectDuration,
     EffectFilter, EffectId, EffectLayer, GameStateBuilder, LayerModification, ObjectId, ObjectSpec,
-    PlayerId, Step, ZoneId, HASH_SCHEMA_VERSION,
+    PlayerId, Step, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -383,26 +383,19 @@ fn test_exuberant_fuseling_power_scales_with_oil_counters() {
     assert_eq!(chars.toughness, Some(1), "toughness unchanged");
 }
 
-// ── Test (e): Hash determinism and HASH_SCHEMA_VERSION sentinel ───────────────
+// ── Test (e): Hash determinism ────────────────────────────────────────────────
 
 /// Hash infrastructure — PB-TS bumped HASH_SCHEMA_VERSION 13→14.
 ///
-/// (e-1) Schema-version sentinel (catches uncommitted hash changes).
 /// (e-2) Determinism: two states with identical CdaModify ContinuousEffect → same hash.
 /// (e-3) Distinct inner amounts hash distinctly.
 /// (e-4) is_cda=true vs is_cda=false produce different hashes (is_cda IS hashed).
 /// (e-5) CdaModifyPowerToughness AbilityDefinition arms — power/toughness fields
 ///       contribute to the hash independently.
 #[test]
-fn test_hash_schema_version_after_pb_lki_cc() {
+fn test_cda_modify_hash_determinism_and_discrimination() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
-
-    // (e-1) Sentinel: must be exactly 15.
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 
     let hash_effect = |eff: &ContinuousEffect| -> [u8; 32] {
         let mut h = Hasher::new();

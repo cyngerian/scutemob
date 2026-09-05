@@ -35,7 +35,7 @@ use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, treasure_token_spec,
     AbilityDefinition, CardId, CardRegistry, CardType, Command, Effect, GameEvent, GameState,
     GameStateBuilder, ManaAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step,
-    Target, TypeLine, ZoneId, HASH_SCHEMA_VERSION,
+    Target, TypeLine, ZoneId,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -253,18 +253,6 @@ fn counter_scenario(p1: PlayerId, p2: PlayerId, counterer: &str) -> GameState {
         &[(ManaColor::Blue, 1)],
         Some(victim_on_stack),
     )
-}
-
-// ── Live HASH/PROTOCOL sentinel ──────────────────────────────────────────────
-
-#[test]
-fn test_pb_ef2_hash_schema_version_live_sentinel() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "PB-EF2 added TokenSpec.recipient + two PlayerTarget variants (HASH 44->45). Update \
-         this sentinel and the state/hash.rs history block together; the authoritative check \
-         is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 }
 
 // ── 1/2: Swan Song happy path + decoy ────────────────────────────────────────

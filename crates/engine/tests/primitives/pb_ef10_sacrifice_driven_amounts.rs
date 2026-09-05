@@ -17,7 +17,6 @@ use mtg_engine::{
     process_command, AdditionalCost, CardId, CardRegistry, Command, ContinuousEffect, EffectAmount,
     EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent, GameState, GameStateBuilder,
     LayerModification, ManaPool, ObjectId, ObjectSpec, PlayerId, Step, Target, ZoneId,
-    HASH_SCHEMA_VERSION, PROTOCOL_VERSION,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1634,22 +1633,6 @@ fn test_sacrificed_creature_lki_struct_hash() {
         h_base,
         hash_ac(&base_again),
         "identical LKI must hash identically"
-    );
-}
-
-/// Assert PROTOCOL_VERSION == 15 and HASH_SCHEMA_VERSION == 53 (the machine-forced
-/// values for this batch). See crates/engine/src/rules/protocol.rs and
-/// crates/engine/src/state/hash.rs for the authoritative bump.
-#[test]
-fn test_pb_ef10_version_sentinels() {
-    assert_eq!(
-        PROTOCOL_VERSION, 44,
-        "PROTOCOL_VERSION should be 15 after PB-EF10 (TargetFilter.max_cmc_amount / \
-         AdditionalCost::Sacrifice reshape)"
-    );
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION should be 53 after PB-EF10"
     );
 }
 

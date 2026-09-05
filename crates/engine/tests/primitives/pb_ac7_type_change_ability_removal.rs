@@ -30,7 +30,7 @@ use mtg_engine::{
     CardDefinition, CardId, CardRegistry, CardType, Command, ContinuousEffect, Effect,
     EffectDuration, EffectFilter, EffectId, EffectLayer, EnchantTarget, FaceDownKind, GameEvent,
     GameState, GameStateBuilder, KeywordAbility, LayerModification, ObjectId, ObjectSpec, PlayerId,
-    PlayerTarget, Step, SubType, Target, TriggerCondition, ZoneId, HASH_SCHEMA_VERSION,
+    PlayerTarget, Step, SubType, Target, TriggerCondition, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -953,16 +953,6 @@ fn test_spell_subtype_filter_none_matches_all() {
 // ---------------------------------------------------------------------------
 // Hash schema (CR N/A — hash infrastructure)
 // ---------------------------------------------------------------------------
-
-/// PB-AC7 bumped `HASH_SCHEMA_VERSION` 33 -> 34 (new `LayerModification` discriminants
-/// 30/31 + `WheneverYouCastSpell.spell_subtype_filter`). Live sentinel.
-#[test]
-fn test_hash_schema_version_is_34() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "PB-AC7 bumped HASH_SCHEMA_VERSION 33->34. If you bumped again, update this test."
-    );
-}
 
 /// Hash arm coverage: two `ContinuousEffect`s identical except `SetCreatureTypes`
 /// payload hash differently, and `SetCreatureTypes` vs `SetTypeLine` (same

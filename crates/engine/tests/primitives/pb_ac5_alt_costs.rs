@@ -24,7 +24,7 @@ use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,
     CardType, Color, Command, Designations, Effect, EffectAmount, GameEvent, GameState,
     GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerTarget,
-    Step, TargetRequirement, TypeLine, ZoneId, HASH_SCHEMA_VERSION,
+    Step, TargetRequirement, TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -409,14 +409,6 @@ fn graveyard_exert_def() -> CardDefinition {
         }],
         ..Default::default()
     }
-}
-
-// ── A: Hash schema sentinel ────────────────────────────────────────────────────
-
-#[test]
-/// Strict-equality hash schema sentinel (conventions.md hash-sentinel rule).
-fn test_hash_schema_version_is_32() {
-    assert_eq!(HASH_SCHEMA_VERSION, 85u8);
 }
 
 #[test]

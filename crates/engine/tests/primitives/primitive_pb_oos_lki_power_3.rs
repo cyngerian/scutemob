@@ -26,14 +26,14 @@
 //!   γ: `GameEvent::ObjectExiled` — control over `pre_lba_counters` axis: empty OrdMap vs
 //!      OrdMap with one (PlusOnePlusOne, 3) entry produces distinct hashes. Proves the counter
 //!      axis is also closed by this PB.
-//!   δ: `HASH_SCHEMA_VERSION == 24u8` sentinel (collocated in this file so future hash bumps
-//!      force a fail here as well as in the sweep files).
+//!   δ: (deleted by CC-2, 2026-09-05: the collocated version sentinel — `core hash_schema`
+//!      is the one pin; scattered literals only existed to be re-pinned.)
 
 use blake3::Hasher;
 use imbl::OrdMap;
 use mtg_engine::state::hash::HashInto;
 use mtg_engine::state::types::CounterType;
-use mtg_engine::{GameEvent, ObjectId, PlayerId, HASH_SCHEMA_VERSION};
+use mtg_engine::{GameEvent, ObjectId, PlayerId};
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -57,16 +57,6 @@ const P1: PlayerId = PlayerId(1);
 /// `pre_lba_power` into the state hash after HASH 23 → 24.
 #[test]
 fn test_pb_oos_lki_power_3_lba_variants_hash_pre_lba_fields() {
-    // ── δ: HASH_SCHEMA_VERSION sentinel ──────────────────────────────────────
-    //
-    // Collocated here so any future HASH bump fails in this dedicated file in
-    // addition to the per-PB sweep files. If this assertion fails, update this
-    // file's sentinel AND add a new history entry in state/hash.rs.
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
-
     // ── α: GameEvent::AuraFellOff — pre_lba_power axis + Option tag-byte ─────
     //
     // CR 603.10a: a SelfLeavesBattlefield trigger on an Aura uses LKI power

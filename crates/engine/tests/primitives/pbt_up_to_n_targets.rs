@@ -30,7 +30,7 @@ use mtg_engine::state::game_object::ManaCost;
 use mtg_engine::state::{
     CardId, CardType, GameStateBuilder, ManaPool, ObjectSpec, PlayerId, Target, ZoneId,
 };
-use mtg_engine::{CardRegistry, GameState, ObjectId, HASH_SCHEMA_VERSION};
+use mtg_engine::{CardRegistry, GameState, ObjectId};
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -398,20 +398,13 @@ fn test_pbt_up_to_n_full_targets_resolves() {
 
 // ── M4: Hash determinism + schema bump ────────────────────────────────────────
 
-/// CR N/A (hash infrastructure) — PB-T M4: HASH_SCHEMA_VERSION is 15 (PB-LKI-CC bump).
+/// CR N/A (hash infrastructure) — PB-T M4.
 /// Three distinct UpToN variants hash to distinct values, confirming the new discriminant-17 arm
 /// is reached and the count/inner fields contribute to the hash.
 #[test]
-fn test_pbt_hash_schema_version_live_sentinel() {
+fn test_pbt_up_to_n_variants_hash_distinctly() {
     use blake3::Hasher;
     use mtg_engine::state::hash::HashInto;
-
-    // HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
-    // without this test being updated. See the `state/hash.rs` history block.
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
-    );
 
     let hash_req = |req: &TargetRequirement| -> [u8; 32] {
         let mut hasher = Hasher::new();
@@ -853,18 +846,6 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
     assert!(
         result.is_err(),
         "M8: casting UpToN(Artifact) with a creature target must be rejected by inner validation"
-    );
-}
-
-// ── O1: Hash history integrity ────────────────────────────────────────────────
-
-/// HASH_SCHEMA_VERSION live sentinel — regression guard against accidental
-/// rollback. See the `state/hash.rs` history block.
-#[test]
-fn test_pbt_hash_schema_version_sentinel_regression() {
-    assert_eq!(
-        HASH_SCHEMA_VERSION, 85u8,
-        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }
 
