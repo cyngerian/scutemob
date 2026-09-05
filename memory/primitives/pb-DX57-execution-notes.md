@@ -459,3 +459,43 @@ need — *"is this comparing to a pre-call snapshot, or to a value the accepted 
 a claim about INTENT, and the gate strips comments and so cannot read the disclosure that makes them
 sound. Encoding the judgement once, with the reason, is honest; teaching the scanner to guess would
 make it fail OPEN on the real shape.
+
+---
+
+## §5. The wire — predicted NONE per half, executed UNMOVED, and the counterfactual is informative in BOTH directions
+
+**Executed against the final tree**: `hash_schema` **36/36**, `protocol_schema` **17/17**,
+`history_is_append_only` and `frozen_prefix_is_pinned` green on **both** gates.
+`HASH_SCHEMA_VERSION` **85**, `PROTOCOL_VERSION` **44** — both **UNMOVED**, exactly as predicted per
+half in `fb8e53c0` before any test line existed. `git diff` over `state/hash.rs` and
+`rules/protocol.rs` is **EMPTY**, so no sentinel re-pin, no survivor scan, no history row and no
+frozen-prefix re-pin were owed; the two append-only gates were executed anyway, green, as the
+evidence that none was owed rather than as a claim.
+
+**The counterfactual, verified by execution**, because "unmoved" only means something beside what
+would have moved it. Each type planted in **both** gates' `CLOSURE_MUST_NOT_CONTAIN`, one at a time,
+both gates executed, then restored (`git diff` over both files empty):
+
+| planted type | HASH | PROTOCOL | what it says |
+|---|---|---|---|
+| `TargetFilter` | **FAILS** | **FAILS** | on BOTH wires |
+| `Condition` | **FAILS** | **FAILS** | on BOTH wires |
+| `AbilityDefinition` | passes | passes | on **NEITHER** |
+
+The first two rows are the counterfactual proper: `TargetFilter` and `Condition` are the very types
+the `OOS-DX28-1` fingerprint work is *about*, and had any repair here needed to STORE the pinned
+information on one of them rather than derive it at run time, it would have cost **+1 HASH and +1
+PROTOCOL** plus a ~49-file sentinel re-pin. Deriving it costs nothing. That measurement is the reason
+for the design, not a preference.
+
+**The third row is the finding.** `AbilityDefinition` is in neither closure, and the reason is
+structural: it is reachable only through `CardDefinition`, which **both** lists exclude. That
+reproduces PB-DX18's own recorded observation (*"`AbilityDefinition::Splice` gained a field, and
+PROTOCOL still did not move, because `AbilityDefinition` is reachable only through `CardDefinition`,
+which the same list excludes"*) — **and it is exactly why `OOS-DX28-5`'s hand-written list could rot
+silently.** When PB-DX18 added `Splice.targets`, there was nothing anywhere in the tree that would
+have said anything: not the compiler (every construction site uses `..Default::default()` and
+`#[serde(default)]` covers deserialization — `OOS-DX20b-2`), not the wire gates (the type is off both
+closures), and not the walk that depended on the list (a hand-written literal). *Three independent
+mechanisms that each look like they would catch it, and all three are structurally blind to the same
+edit.*
