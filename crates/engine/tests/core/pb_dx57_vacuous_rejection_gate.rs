@@ -436,6 +436,131 @@ fn scan_file(path: &std::path::Path) -> Vec<Vacuous> {
             }
         }
 
+        // ── Shape C: the SNAPSHOT-BEFORE-MOVE form. `let snap = state.clone();` (or a
+        // value snapshot such as `let h = state.public_state_hash();`) taken BEFORE the call,
+        // the real `state` MOVED into the by-value entry point, and then an assertion reading
+        // the snapshot.
+        //
+        // **Found by the adversarial pass, and it is the more NATURAL way to write the test** —
+        // it needs no `.clone()` argument, no helper and no macro, and the first draft of this
+        // gate (shape A only) was blind to it. That matters more than the exotic bypasses: a
+        // gate that catches only the awkward spelling of a defect will be green on the common
+        // one. `OOS-DX54-6` verbatim — *a revert-proof written by the same author from the same
+        // mental model exercises the inputs that author already thought of*.
+        for entry in &entries {
+            let needle = format!("{entry}(");
+            let mut from = 0usize;
+            while let Some(rel) = body[from..].find(&needle) {
+                let at = from + rel;
+                from = at + 1;
+                if at > 0 && body[..at].chars().next_back().is_some_and(is_ident_char) {
+                    continue;
+                }
+                let tail = &body[at..];
+                let stmt_end = tail.find(';').map(|e| e + 1).unwrap_or(tail.len());
+                // Same Err-attribution rule as shape A: the Err must belong to THIS call,
+                // either in its own statement or via a `let` binding checked later.
+                let stmt_start = body[..at].rfind([';', '{']).map(|i| i + 1).unwrap_or(0);
+                let stmt = &body[stmt_start..at + stmt_end];
+                let err_is_this_calls = if stmt.contains("unwrap_err")
+                    || stmt.contains("expect_err")
+                    || stmt.contains("is_err")
+                {
+                    true
+                } else if stmt.contains(".unwrap()") || stmt.contains(".expect(") {
+                    false
+                } else if let Some(li) = stmt.find("let ") {
+                    let bind: String = stmt[li + 4..]
+                        .trim_start()
+                        .trim_start_matches("mut ")
+                        .chars()
+                        .take_while(|c| is_ident_char(*c))
+                        .collect();
+                    !bind.is_empty()
+                        && tail[stmt_end..].split(';').any(|later| {
+                            has_token(later, &bind)
+                                && (later.contains("is_err")
+                                    || later.contains("unwrap_err")
+                                    || later.contains("expect_err")
+                                    || later.contains("Err("))
+                        })
+                } else {
+                    false
+                };
+                if !err_is_this_calls {
+                    continue;
+                }
+                // Snapshot bindings declared BEFORE the call whose initialiser reads state.
+                let mut snaps: Vec<String> = Vec::new();
+                for stmt in body[..at].split(';') {
+                    let Some(li) = stmt.rfind("let ") else {
+                        continue;
+                    };
+                    let bind: String = stmt[li + 4..]
+                        .trim_start()
+                        .trim_start_matches("mut ")
+                        .chars()
+                        .take_while(|c| is_ident_char(*c))
+                        .collect();
+                    if bind.is_empty() {
+                        continue;
+                    }
+                    let Some(rhs) = stmt.split_once('=').map(|(_, r)| r) else {
+                        continue;
+                    };
+                    if !(STATE_READS.iter().any(|r| rhs.contains(r)) || rhs.contains(".clone()")) {
+                        continue;
+                    }
+                    // A binding whose initialiser is itself an entry-point call is a RESULT,
+                    // not a snapshot: `let result = process_command(..)` from an EARLIER
+                    // rejection, named in that rejection's own error-variant assertion, was
+                    // being read as a pre-call snapshot of a LATER one. Four such hits on the
+                    // real tree, all NOT-A-MEMBER.
+                    if entries.iter().any(|e| has_token(rhs, e)) {
+                        continue;
+                    }
+                    // **A binding passed INTO the failing call is an input, not a snapshot.**
+                    // Without this, shape C fires on every `let attacker_id = state...;` that
+                    // is handed to the command and then named in the error-VARIANT assertion —
+                    // six such hits on the real tree, all NOT-A-MEMBER (they assert which
+                    // error, never absence of mutation). An id resolved out of the state is a
+                    // handle; the thing this shape is about is a VALUE captured to compare
+                    // against later.
+                    if has_token(&body[at..at + stmt_end], &bind) {
+                        continue;
+                    }
+                    snaps.push(bind);
+                }
+                if snaps.is_empty() {
+                    continue;
+                }
+                // The `&mut` exemption, same rule as shape A: a BARE identifier only.
+                for stmt in tail[stmt_end..].split(';') {
+                    if stmt.contains("let ") {
+                        break;
+                    }
+                    if !stmt.contains("assert") {
+                        continue;
+                    }
+                    if let Some(sn) = snaps.iter().find(|s| has_token(stmt, s)) {
+                        if has_token(&body, &format!("&mut {sn}"))
+                            && !body.contains(&format!("&mut {sn}."))
+                        {
+                            continue;
+                        }
+                        out.push(Vacuous {
+                            file: file.clone(),
+                            test: test.clone(),
+                            shape:
+                                "C: snapshot bound BEFORE the call, assertion reads the snapshot",
+                            detail: format!("snapshot `{sn}`"),
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+
         // ── Shape B: `&mut X.clone()` — looks like the sound direct-handler idiom, is a
         // temporary dropped at the end of the statement. Live in the tree before this batch,
         // at `pb_dp7_cleanup_discard.rs`, and a gate keyed on "calls a handler with `&mut`"
@@ -618,6 +743,20 @@ fn v3_the_detector_fires_on_each_shape_and_spares_the_sound_ones() {
         scan_file(&d).is_empty(),
         "the detector read a COMMENTED-OUT call as code: {:?}",
         scan_file(&d)
+    );
+
+    // Shape C — the SNAPSHOT-BEFORE-MOVE form the adversarial pass defeated the first draft
+    // with. No `.clone()` argument, no helper, no macro: the natural way to write the test.
+    let g = write(
+        "g.rs",
+        "#[test]\nfn t() {\n let snap = state.public_state_hash();\n \
+         let r = process_command(state, cmd);\n assert!(r.is_err());\n \
+         assert_eq!(snap, 3);\n}\n",
+    );
+    assert!(
+        !scan_file(&g).is_empty(),
+        "shape C (snapshot bound before a by-value move) not detected — this is the form the \
+         adversarial pass used to defeat the first draft, and it is the MORE natural spelling"
     );
 
     // A REBIND after the rejection must NOT be detected: the assertion reads the ACCEPTED

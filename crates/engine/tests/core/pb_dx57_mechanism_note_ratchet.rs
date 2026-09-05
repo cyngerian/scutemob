@@ -79,6 +79,7 @@ use std::collections::{BTreeMap, BTreeSet};
 /// stated recall bound above rather than a silent failure. Matched case-insensitively against
 /// a sentence.
 const ASSERTIVE_FRAMES: &[&str] = &[
+    // ── The original eleven ──────────────────────────────────────────────────
     "resolves from",
     "resolves via",
     "resolves through",
@@ -90,6 +91,28 @@ const ASSERTIVE_FRAMES: &[&str] = &[
     "is taken from",
     "comes from",
     "is looked up",
+    // ── Added after the adversarial pass, which defeated the eleven above with
+    //    EIGHT plain-English assertive verbs, none of them exotic ─────────────
+    //
+    // Widening is the CORRECT repair for a fail-closed design and the reason the polarity was
+    // inverted in the first place: a frame that belongs here and is missing makes the gate
+    // fire LESS, which is the stated recall bound, whereas an over-wide *exclusion* list in the
+    // other polarity would make it fail OPEN. So a defeat by "you missed a verb" is answered by
+    // adding the verb, and each addition is monotone.
+    //
+    // **The sharpest of the eight was `snapshots`** — the verb in this file's own recorded
+    // offender `chandra_flamecaller` (*"Effect::WheelHand snapshots the pre-disposal hand
+    // size"*), which the gate caught there only through a DIFFERENT clause in the same comment.
+    // A gate that already holds a row it could not have found is a gate whose frame list is
+    // narrower than its own evidence.
+    "handles",
+    "supplies",
+    "does the work",
+    "drives",
+    "implements",
+    "performs",
+    "is used to resolve",
+    "snapshots",
 ];
 
 /// Prose that carries no identifier the DECLARATION knows is not a claim this gate can check.
@@ -386,6 +409,27 @@ const RECORDED_OFFENDERS: &[(&str, &str, &str)] = &[
          EffectAmount::SourcePowerAtLastKnownInformation it describes is declared at \
          elenda_the_dusk_rose.rs:66. Verified by reading the lowering site, not inferred.",
     ),
+    // ── Shape 4: a claim about what the ENGINE handles, in a def that authors nothing ──
+    // Surfaced only after the adversarial pass widened the frame list (`handles` was one of the
+    // eight verbs that defeated the first eleven), which is the widening working: one new hit
+    // on 1,803 defs, and it is real prose worth keeping. `tectonic_giant` declares
+    // `abilities: vec![]` DELIBERATELY -- W6 policy, since authoring the modal ability either
+    // way produces wrong game state -- and explains why by naming what the engine CAN do. The
+    // identifier is correctly absent from the def's own source because the def has no source
+    // to put it in.
+    //
+    // Distinct from shape 2: elenda's note names the runtime identifier its own DECLARED
+    // identifier lowers to; this one names an identifier the ENGINE handles, in a def that
+    // declares nothing at all.
+    (
+        "tectonic_giant",
+        "AbilityDefinition::Triggered",
+        "CONFIRMED TRUE and correctly absent: the note says 'resolution.rs handles \
+         AbilityDefinition::Triggered { modes, .. }' -- a claim about the ENGINE, in a def whose \
+         `abilities` is deliberately EMPTY (mode 1 has no DSL representation, and W6 policy is \
+         that a partial modal ability is worse than an absent one). There is no def source for \
+         the identifier to appear in, which is the point of the note.",
+    ),
     // ── Shape 3: PROSPECTIVE rationale (a claim about a rewire not yet made) ──
     (
         "fecundity",
@@ -485,9 +529,11 @@ fn m3_the_frames_match_real_prose_in_the_real_corpus() {
         }
     }
     assert!(
-        matched >= 40 && with_identifier >= 15,
+        matched >= 70 && with_identifier >= 28,
         "the assertive frames matched {matched} sentence(s), {with_identifier} of them naming a \
-         declared identifier (floors 40 / 15, measured at 56 / 23). Below these the gate is \
+         declared identifier (floors 70 / 28, measured at 91 / 35 after the adversarial pass \
+         widened the frame list from 11 frames to 19; it read 56 / 23 before). Below these the \
+         gate is \
          measuring nothing. \
          NOTE the ratio: the gap between the two numbers IS this gate's recall bound -- a \
          mechanism claim written in plain English is invisible to it, which the stage-0 census \

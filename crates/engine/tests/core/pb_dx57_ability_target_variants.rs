@@ -381,3 +381,127 @@ fn d4_the_historical_hand_written_six_were_already_short() {
         missed.len()
     );
 }
+
+/// **`d5` — the CONSUMER gate.** No walk in this test target may hand-write its own list of
+/// target-declaring `AbilityDefinition` variants; it must call
+/// `target_declaring_ability_variants()`.
+///
+/// # Why this test exists
+///
+/// `d1`–`d4` police the enumeration's DEFINITION and say nothing whatever about its CONSUMERS.
+/// The adversarial pass proved it by execution: a SECOND walk added to this same test target
+/// with its own six-element list — short by `Splice` and `Fuse`, `d4`'s exact historical error
+/// — left every test in the target GREEN, and so did a typed `matches!` version of the same
+/// thing. **That is PB-DX50's `r3` (*a gate on a predicate's DEFINITION says nothing about its
+/// CONSUMER*) committed inside a batch that cites `r3` in three other files**, and the module
+/// doc above claimed *"every walk in this test target that needs to find target-declaring
+/// ability nodes calls it"* while nothing enforced the claim. Either make the claim true or
+/// narrow it; this is making it true.
+///
+/// # What it keys on, and the residuals
+///
+/// A list of ≥3 of the eight variant names, as string literals, within a 400-byte window,
+/// outside this file. That over-collects deliberately (over-collection can only make it fire
+/// more) and is answered by an allowlist whose reason is re-checked, not by narrowing.
+///
+/// **Stated residuals**, because a gate that overclaims is this batch's subject:
+/// * A walk in a DIFFERENT test target (`primitives`, `rules`, `simulator`) is not scanned.
+///   Those targets cannot import from `core` at all — `tests/*/main.rs` may contain only bare
+///   `mod x;` lines, so `#[path]` sharing is forbidden and there is no shared test crate — so
+///   the enumeration is not even available to them. That is a real gap and it is the reason
+///   the tree's established answer (`pb_dp9_effect_choice.rs:2641`) is *keep the copy, document
+///   it, cross-check BY VALUE*.
+/// * A walk that names its variants through `const`s declared elsewhere, or builds them from
+///   `format!`, is invisible to a string-literal scan.
+#[test]
+fn d5_no_other_walk_in_this_target_hand_writes_the_variant_list() {
+    /// `(file, reason)` — re-checked below, because an allowlist whose reason is not checked is
+    /// a comment (`OOS-DX52-1`).
+    const ALLOWED: &[(&str, &str)] = &[(
+        "pb_dx57_ability_target_variants.rs",
+        "this file DECLARES the enumeration; d4 quotes PB-DX28's historical six as a baseline",
+    )];
+
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/core");
+    let declared = target_declaring_ability_variants();
+    let mut offenders: Vec<String> = Vec::new();
+    let mut scanned = 0usize;
+
+    for entry in std::fs::read_dir(&dir)
+        .expect("tests/core is readable")
+        .flatten()
+    {
+        let path = entry.path();
+        if path.extension().is_none_or(|x| x != "rs") {
+            continue;
+        }
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        scanned += 1;
+        let raw = std::fs::read_to_string(&path).unwrap_or_default();
+        // Comments stripped: this file's own doc names six variants in prose, and a scan that
+        // reads a comment as code fires on its own documentation (`OOS-DX32-6`).
+        let code: String = raw
+            .lines()
+            .map(|l| l.split("//").next().unwrap_or(""))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let quoted: Vec<usize> = declared
+            .iter()
+            .flat_map(|v| {
+                let needle = format!("\"{v}\"");
+                let mut hits = Vec::new();
+                let mut from = 0usize;
+                while let Some(rel) = code[from..].find(&needle) {
+                    hits.push(from + rel);
+                    from = from + rel + 1;
+                }
+                hits
+            })
+            .collect();
+        if quoted.len() < 3 {
+            continue;
+        }
+        let mut sorted = quoted.clone();
+        sorted.sort_unstable();
+        let clustered = sorted.windows(3).any(|w| w[2] - w[0] < 400);
+        if !clustered {
+            continue;
+        }
+        if ALLOWED.iter().any(|(f, _)| *f == name) {
+            continue;
+        }
+        offenders.push(name);
+    }
+
+    assert!(
+        scanned >= 60,
+        "d5 scanned only {scanned} files in tests/core — a walk that reaches nothing reports no \
+         offenders"
+    );
+    // The allowlist's reasons must still be about files that exist and still cluster, or the
+    // exemption is protecting nothing and reads as coverage.
+    for (f, reason) in ALLOWED {
+        assert!(
+            dir.join(f).exists(),
+            "allowlisted file {f} no longer exists — delete the row"
+        );
+        assert!(reason.len() > 30, "allowlist row {f} has no stated reason");
+    }
+    assert!(
+        offenders.is_empty(),
+        "file(s) {offenders:?} in tests/core hand-write a list of target-declaring \
+         AbilityDefinition variants instead of calling \
+         `pb_dx57_ability_target_variants::target_declaring_ability_variants()`.\n\
+         A hand-written list goes stale the moment the enum grows — measured: PB-DX28's list \
+         was widened to six and was short by two within one batch, because PB-DX18 added \
+         `Splice.targets` and NOTHING in the tree reddened (the compiler cannot see it, both \
+         wire gates exclude the type, and the walk was a literal).\n\
+         If a list here is deliberately narrower than the derivation, allowlist it WITH the \
+         reason — but read the derivation first: 'I only need Triggered and Spell' is exactly \
+         what the six said."
+    );
+}

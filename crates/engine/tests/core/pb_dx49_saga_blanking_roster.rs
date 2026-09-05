@@ -1284,15 +1284,25 @@ fn face_down_making_effect_variants() -> BTreeSet<String> {
     .expect("effects/mod.rs must be readable");
 
     let mut out = BTreeSet::new();
+    let mut sites = 0usize;
     let mut from = 0usize;
     while let Some(rel) = src[from..].find("status.face_down = true") {
         let at = from + rel;
-        // The `FaceDownKind` this site assigns, looked for in the window AFTER the
-        // assignment. A window rather than a statement parse, and the non-vacuity floor
-        // below is what stops a widened window from silently returning nothing.
-        let window = &src[at..(at + 400).min(src.len())];
-        if let Some(k) = window.find("FaceDownKind::") {
-            let name: String = window[k + "FaceDownKind::".len()..]
+        sites += 1;
+        // **Keyed on the enclosing `Effect::` ARM, not on the `FaceDownKind` the site
+        // assigns.** The first draft read the kind, and the adversarial pass defeated it by
+        // execution: because two different sites can assign the SAME kind, a THIRD genuine
+        // face-down arm -- byte-identical in shape to the two real ones, no indirection, both
+        // real sites left intact -- produced a set that still had two elements and left all 25
+        // tests in this file green. The floor of 2 was satisfied *because the kind name
+        // deduped*. Proven by a complementary pair: the same plant spelled
+        // `FaceDownKind::Manifest` yields a 1-element set and `FaceDownKind::Cloak` yields 2.
+        //
+        // The arm name is what `face_down_makers` actually walks the corpus for, so keying on
+        // it removes the gap between what the derivation measures and what its consumer uses.
+        let before = &src[at.saturating_sub(3000)..at];
+        if let Some(k) = before.rfind("Effect::") {
+            let name: String = before[k + "Effect::".len()..]
                 .chars()
                 .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
                 .collect();
@@ -1302,6 +1312,15 @@ fn face_down_making_effect_variants() -> BTreeSet<String> {
         }
         from = at + 1;
     }
+    assert!(
+        sites >= 2 && sites == out.len(),
+        "found {sites} face-down creation site(s) in effects/mod.rs but only {} distinct \
+         enclosing `Effect::` arm(s). Either two sites share an arm (say so and relax this) or \
+         the backward arm search is reaching past its own arm into the previous one -- and a \
+         derivation that collapses two sites into one name is exactly how a THIRD face-down \
+         channel joins the corpus in silence.",
+        out.len()
+    );
     assert!(
         !out.is_empty(),
         "no face-down-making Effect arm was found in effects/mod.rs. Either the creation \
@@ -1351,12 +1370,30 @@ fn r5d_face_down_effect_variants_are_derived_and_are_real_effect_variants() {
          that is not an Effect arm -- `FaceDownKind` also has Morph/Megamorph/Disguise \
          variants used by the CAST path."
     );
-    assert!(
-        derived.len() >= 2,
-        "the face-down-maker derivation returned {derived:?} (floor 2: Manifest and Cloak, \
-         CR 701.40a and CR 701.58a). A raise-only floor -- if a variant was genuinely removed, \
-         lower it deliberately in the same commit and say which; if not, the scan has narrowed \
-         and every CR 708.2a row below is under-covering in silence."
+    // **An EXACT SET, not a floor.** A floor was the first draft and the adversarial pass
+    // defeated it by execution: a THIRD genuine face-down site planted in a real `Effect` arm
+    // -- both existing sites intact, no indirection -- left all 25 tests in this file GREEN,
+    // because a floor of 2 is satisfied by a set of 3. Re-keying the derivation from the
+    // assigned `FaceDownKind` onto the enclosing `Effect::` arm (which removed a separate
+    // deduplication blindness) did NOT close it either: the roster `r5` only moves when a
+    // CORPUS DEF uses the new channel, and a new engine channel with no card using it yet is
+    // exactly the state in which nobody notices.
+    //
+    // So the set is pinned. A third channel is now a RED test that says what to do about it,
+    // which is the whole point: `FACE_DOWN_MAKERS` and `r5`'s "reachable from these defs and no
+    // others" claim are only as wide as this set.
+    let pinned: BTreeSet<String> = ["Cloak", "Manifest"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    assert_eq!(
+        derived, pinned,
+        "the set of `Effect` arms that create a face-down permanent has MOVED.\n\
+         If an arm was ADDED: the CR 708.2a blanking channel has a new entry point. Add it \
+         here, then re-derive FACE_DOWN_MAKERS (r5) -- until you do, `r5`'s claim that the \
+         channel is 'reachable from these defs and no others' is false, and it will stay green \
+         while it is false because no corpus def uses the new arm YET.\n\
+         If an arm was REMOVED: say which and why in the same commit."
     );
 }
 
@@ -2381,7 +2418,7 @@ fn layer_modification_enum_span() -> (usize, usize) {
     let raw = std::fs::read_to_string(&path).expect("continuous_effect.rs is readable");
     let src = strip_comments(&raw);
     let decl = src
-        .find("pub enum LayerModification")
+        .find("pub enum LayerModification {")
         .expect("`pub enum LayerModification` is declared in continuous_effect.rs");
     let open = src[decl..]
         .find('{')
