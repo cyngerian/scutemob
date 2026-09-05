@@ -22,7 +22,7 @@
 **Task**: `scutemob-230` — PB-DX39, v4 queue rank 15 (standing v3 rank 33). Branch
 `feat/pb-dx39-source-relative-filters-through-lki-a-continuous-eff`, merge base `604b7242`.
 **Seeds**: `OOS-DX5-3` (headline) and `OOS-DX5-7`'s named residual **both CLOSED**, each row
-corrected against three and four of its own claims. Filed `OOS-DX39-1..8`.
+corrected against three and four of its own claims. Filed `OOS-DX39-1..10`.
 
 **Shipped**: `rules::layers::SourceView<'a>` — ONE borrowed view of everything an `EffectFilter`
 arm needs to know about a continuous effect's source (`controller`, `attached_to`,
@@ -83,7 +83,9 @@ arbitrary card-def filter with a duration that need not be `WhileSourceOnBattlef
 unconditional fallback would have made a departed source's STATIC ability start applying —
 CR 611.3a-wrong, this batch creating a defect while closing one. The coordinator predicted the
 exposed population at ZERO and **`r7` refuted it**: 4 emblem registrations across 3 cards, 0
-statics, harmless only because CR 114.1 never retires an emblem's `ObjectId` (`OOS-DX39-2`).
+statics, harmless only because nothing in the engine moves an emblem out of the command zone, so CR 400.7
+never retires its `ObjectId` -- a MEASUREMENT, not a rule (`OOS-DX39-2`; the `CR 114.1` this line
+cited until the `/review` says only what an emblem is).
 
 **Also corrected**: the coordinator's own `t6` specification was **CR-wrong** — it said a creature
 entering between activation and resolution is not a member, when CR 611.2c determines the set at
@@ -95,6 +97,55 @@ RESOLUTION, so it is. The probe author wrote it to the CR and said so.
 the census states from the other side, that `OOS-DX5-7`'s deck-legal blast radius is ZERO. Its
 channel probes drive the same production mapping `LocalGame::submit` calls, and the file says what
 that omits.
+
+### `/review` FIX CYCLE — 7 findings, ALL TAKEN; FIVE of the seven gates had been defeated
+
+Full record with every plant, its verbatim failure output and the byte-exact restores:
+`memory/primitives/pb-DX39-execution-notes.md` §7.
+
+**The durable half is that five of seven source gates were green against planted regressions, and
+four of the five failures are shapes this queue had already recorded.** `r1`'s "two axes" were one
+idea measured twice (a map-iteration read and a helper-fn read both walked past it, with the whole
+suite green); `r3` and `r4` fell together to `GameState::lki_objects(state)`, because `r3`'s needle
+had a leading dot and `r4` was an ABSENCE list — **and an absence list cannot be completed, because
+the attacker picks the name**, so it is now a whitelist of the 47 identifiers `is_effect_active` may
+contain; `r3` was additionally blind to a read added INSIDE an allowlisted function, which is
+PB-DX49's own finding on its `r7` inherited without its fix, so the roster now stores COUNTS; `r6b`
+fell to `let src_id = source;`, PB-DX51's `r1` failure verbatim. `r5` required a trailing paren and
+missed a function POINTER — mitigated, and the half that held is worth naming: the behavioural
+in-source probe DID redden, so only the gate was blind.
+
+**Two new rows, and both were proven necessary by executing a defeat that the other one misses.**
+`r1c` pins the per-function occurrence count of `effect.source` in `layers.rs` (a source read
+hoisted above the arms under an unbanned name reddens it while `r1` axis 3 stays green); `r2c` pins
+the new laziness classifier's `true` set against the arms that consume the view (mis-classifying one
+filter silently hands it `None` — the pre-batch defect restored for one variant — and reddens
+nothing else).
+
+**Six CR citations were wrong and all six reproduce.** `CR 602.2c` **does not exist**; `CR 702.34`
+is Flashback and Channel is an ability word (CR 207.2c) with no rule entry, so the cite is DELETED
+rather than renumbered; `CR 114.1` was quoted for text it does not contain (*"neither a card nor a
+permanent"* is CR 114.5) and for a claim **no rule makes at all** (an emblem never leaving the
+command zone) — which is load-bearing, because `r7`'s emblem ratchet rested on it and now rests on
+the engine measurement instead; `CR 118.12` is a RESOLUTION cost and was cited for activation costs;
+`CR 611.2b` is the resolution-generated *"for as long as"* duration and was cited for a static
+population (CR 611.3b); `CR 508.1m` was cited for the word *"nontoken"*, which is card text. **The
+MCP rules server was not reachable from the fix session and that is stated rather than worked
+around**: every rule was verified in `.scryfall-cache/MagicCompRules.txt`, the file the MCP server
+indexes. **Jitte ruling #5 is now quoted in full wherever #3/#4 is** — #3 and #4 alone read as a
+refutation of the LKI design, and #5 is what settles it.
+
+**The eager source resolution is now lazy, and the benches are reported as measuring NOTHING here.**
+Six runs, same-code band taken first (`sba_check` moves 5.3-7.5% on identical code). The verdict is
+not "no regression" but "structurally unmeasurable": a `panic!` at the top of `effect_applies_to`,
+env-gated, **did not fire on any of the six benches** and **did fire** on the in-source layer-walk
+tests, so `effect_applies_to` is called zero times by this bench suite. Non-vacuity proven both ways
+rather than assumed.
+
+**Figures RE-TAKEN after the cycle, not inherited**: tests **5,196 / 0 / 5**, 66 targets (5,196 + the
+two new rows). HASH **84** / PROTOCOL **43** gate-executed and UNMOVED. `clippy --workspace
+--all-targets -D warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,803 defs) and
+`cargo build --workspace` all clean against the FINAL tree. No `Completeness` marker moved.
 
 ## Last Handoff (worker, 2026-09-04) — PB-DX52 / `scutemob-229`
 

@@ -163,7 +163,7 @@ pub fn handle_activate_ability(
     // or in graveyard for graveyard-activated abilities like Reassembling Skeleton).
     {
         let obj = state.object(source)?;
-        // CR 702.34 + CR 613.1f: Use layer-resolved activated abilities to determine whether
+        // CR 207.2c + CR 613.1f: Use layer-resolved activated abilities to determine whether
         // the ability at `ability_index` is a Channel/graveyard-zone ability. Base
         // characteristics only expose natively printed abilities; Layer 6 grants
         // (LayerModification::AddActivatedAbility) append past the native range.
@@ -179,10 +179,14 @@ pub fn handle_activate_ability(
             .map(|ab| (ab.cost.discard_self, ab.activation_zone.clone()))
             .unwrap_or((false, None));
         if is_channel {
-            // CR 702.34: Channel abilities are activated from hand.
+            // Channel abilities are activated from hand. (Channel is an ability word --
+            // CR 207.2c -- with no CR entry of its own; the `CR 702.34` once cited here is
+            // FLASHBACK's rule. The behaviour comes from each card's printed text.)
             if obj.zone != ZoneId::Hand(player) {
                 return Err(GameStateError::InvalidCommand(
-                    "channel ability can only be activated from hand (CR 702.34)".into(),
+                    "channel ability can only be activated from hand (printed text; \
+                     Channel is an ability word, CR 207.2c, with no rule entry)"
+                        .into(),
                 ));
             }
             if obj.owner != player {
@@ -928,14 +932,16 @@ pub fn handle_activate_ability(
             new_id: new_grave_id,
         });
     }
-    // CR 702.34: Pay discard-self cost (Channel abilities). The source card is in the
-    // player's hand; discarding it is part of the activation cost.
+    // Pay discard-self cost (Channel abilities). The source card is in the player's hand;
+    // discarding it is part of the activation cost. (Channel is an ability word, CR 207.2c,
+    // with no CR entry -- `CR 702.34` is Flashback.)
     if ability_cost.discard_self {
-        // CR 608.2h / CR 113.7a (PB-DX39): costs are paid during activation (CR 601.2h /
-        // CR 602.2c), i.e. BEFORE this ability is pushed onto the stack a few statements
+        // CR 608.2h / CR 113.7a (PB-DX39): costs are paid during activation (CR 601.2h,
+        // reached for an activated ability by CR 602.2b), i.e. BEFORE this ability is
+        // pushed onto the stack a few statements
         // below -- so `GameState::capture_lki_snapshot`'s pending-ability clause cannot
         // see it and declines. Capture explicitly. A measured no-op for THIS cost (the
-        // source is in hand by construction, CR 702.34, and the helper is battlefield-only
+        // source is in hand by construction, and the helper is battlefield-only
         // so it does not put hidden information into a public store); present so the three
         // self-move cost blocks stay uniform and a fourth cannot be written without it.
         state.capture_source_lki_for_pending_ability(source);

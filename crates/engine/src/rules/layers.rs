@@ -662,7 +662,10 @@ pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
     let duration_active = match effect.duration {
         // PB-DX39: this read is LIVE-ONLY ON PURPOSE and must never be routed through
         // `source_view_at_resolution` / `lki_object_snapshot`. The question it answers is
-        // "is the source still on the battlefield" (CR 611.2b / CR 613), and an LKI
+        // "is the source still on the battlefield" (CR 611.3b: "the effect applies at all
+        // times that the permanent generating it is on the battlefield" -- NOT CR 611.2b,
+        // which is the "for as long as" duration of a RESOLUTION-generated effect), and an
+        // LKI
         // fallback would answer "yes, as it last was" forever -- a departed permanent's
         // static ability would run for the rest of the game. Pinned by
         // `core::pb_dx39_source_view_gates::r4`.
@@ -774,12 +777,22 @@ pub(crate) fn effect_applies_to_object(
 ///
 /// # Why a LIVE source always beats a snapshot
 ///
-/// Umezawa's Jitte, ruling 2005-02-01: *"If the Jitte is moved after the '+2/+2' mode is
-/// announced but before it resolves, the bonus is given to the creature that is equipped
-/// when the ability resolves."* So a view captured at ACTIVATION time would be CR-wrong,
-/// not merely more expensive: it would name the creature equipped when the ability went
-/// on the stack. Both constructors read the live object first for exactly that reason;
-/// only when the id is retired (CR 400.7) does the resolution constructor fall back.
+/// Umezawa's Jitte, ruling 2005-02-01 **#3**: *"If the Jitte is moved after the '+2/+2'
+/// mode is announced but before it resolves, the bonus is given to the creature that is
+/// equipped when the ability resolves."* So a view captured at ACTIVATION time would be
+/// CR-wrong, not merely more expensive: it would name the creature equipped when the
+/// ability went on the stack. Both constructors read the live object first for exactly
+/// that reason; only when the id is retired (CR 400.7) does the resolution constructor
+/// fall back.
+///
+/// **#3 alone reads as an argument AGAINST the fallback, and #5 is what settles it** — it
+/// is quoted here rather than paraphrased, because a reader who has only #3 in front of
+/// them will conclude that a departed Jitte gives its bonus to nobody. Ruling 2005-02-01
+/// **#5**, verbatim: *"If the Jitte leaves the battlefield after the '+2/+2' mode is
+/// announced but before it resolves, the bonus is given to the creature that was most
+/// recently equipped once the ability resolves."* #3 governs a source that is still there
+/// (live read); #5 governs a source that is not (LKI). They are the two halves of
+/// CR 608.2h's own ordering, which is why one constructor implements both in that order.
 ///
 /// Fields are borrowed, never cloned: `chosen_creature_type` wraps a `String` and
 /// [`effect_applies_to_inner`] is on the layer walk (`calculate_characteristics`), so an
@@ -884,8 +897,79 @@ fn effect_applies_to(
     // its source's information is read live, with NO last-known-information fallback --
     // see `source_view_live` for the CR argument. `snapshot_affected_set` is the one
     // caller that passes a resolution-time view instead.
-    let source = effect.source.and_then(|sid| source_view_live(state, sid));
+    //
+    // LAZY ON PURPOSE (PB-DX39 `/review`). The first draft resolved the view here
+    // unconditionally, above both of `effect_applies_to_inner`'s short-circuits, which
+    // added one `OrdMap::get` per (effect, object) on the layer walk for two populations
+    // that never consult it: every LOCKED effect (`affected_set.is_some()` returns by
+    // membership alone, CR 611.2c -- the common resolution case) and the seventeen
+    // non-source-relative filter arms. Pre-PB-DX39 those paths did no source lookup at
+    // all, so publishing the batch as "twenty reads became one" while adding an
+    // unconditional one here would have been half the story.
+    //
+    // `filter_is_source_relative` is exhaustive with no `_` arm, so a new `EffectFilter`
+    // variant is a compile error until it is classified, and
+    // `core::pb_dx39_source_view_gates::r2c` asserts its `true` set is exactly the set of
+    // arms that consume `source` -- a mis-classification here would silently hand an arm
+    // `None`, which is why it is pinned rather than trusted.
+    let needs_source = effect.affected_set.is_none() && filter_is_source_relative(&effect.filter);
+    let source = if needs_source {
+        effect.source.and_then(|sid| source_view_live(state, sid))
+    } else {
+        None
+    };
     effect_applies_to_inner(state, effect, object_id, obj_zone, chars, source.as_ref())
+}
+/// Does this `EffectFilter`'s arm in [`effect_applies_to_inner`] consume the caller's
+/// [`SourceView`]?
+///
+/// Exhaustive, **no `_` arm**, mirroring the SR-5 keyword-catchall discipline and
+/// [`candidate_ids_for_filter`] directly above: a new variant cannot join silently on the
+/// `false` side, which is the side that would make a source-relative arm receive `None` and
+/// quietly match nothing.
+fn filter_is_source_relative(filter: &EffectFilter) -> bool {
+    match filter {
+        // CR 301.5 / CR 301.6 / CR 303.4: reads the source's `attached_to`.
+        EffectFilter::AttachedCreature
+        | EffectFilter::AttachedLand
+        | EffectFilter::AttachedPermanent
+        // CR 604.2 / CR 109.4: reads the source's `controller`.
+        | EffectFilter::CreaturesYouControl
+        | EffectFilter::OtherCreaturesYouControl
+        | EffectFilter::OtherCreaturesYouControlWithSubtype(_)
+        | EffectFilter::CreaturesOpponentsControl
+        | EffectFilter::CreaturesYouControlWithSubtype(_)
+        | EffectFilter::AttackingCreaturesYouControl
+        | EffectFilter::ArtifactsYouControl
+        | EffectFilter::CreaturesYouControlWithSupertype(_)
+        | EffectFilter::CreaturesYouControlWithColor(_)
+        | EffectFilter::OtherCreaturesYouControlExcludingSubtype(_)
+        | EffectFilter::CreaturesYouControlExcludingSubtype(_)
+        | EffectFilter::AttackingCreaturesYouControlWithSubtype(_)
+        | EffectFilter::OtherCreaturesYouControlWithSubtypes(_)
+        | EffectFilter::LandsYouControl
+        // CR 205.3m / CR 105.1: reads `chosen_creature_type` / `chosen_color` as well.
+        | EffectFilter::CreaturesYouControlOfChosenType
+        | EffectFilter::CreaturesYouControlOfChosenColor
+        | EffectFilter::OtherCreaturesYouControlOfChosenType => true,
+        EffectFilter::SingleObject(_)
+        | EffectFilter::AllCreatures
+        | EffectFilter::AllLands
+        | EffectFilter::AllNonbasicLands
+        | EffectFilter::AllEnchantments
+        | EffectFilter::AllNonAuraEnchantments
+        | EffectFilter::AllPermanents
+        | EffectFilter::AllCardsInGraveyards
+        | EffectFilter::ControlledBy(_)
+        | EffectFilter::CreaturesControlledBy(_)
+        | EffectFilter::DeclaredTarget { .. }
+        | EffectFilter::Source
+        | EffectFilter::TriggeringCreature
+        | EffectFilter::CreaturesControlledByDefendingPlayer
+        | EffectFilter::AllCreaturesWithSubtype(_)
+        | EffectFilter::AllCreaturesExcludingSubtype(_)
+        | EffectFilter::AllCreaturesExcludingChosenSubtype => false,
+    }
 }
 /// The body of [`effect_applies_to`], with the source's information supplied by the
 /// caller rather than re-read per arm.

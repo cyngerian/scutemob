@@ -423,15 +423,66 @@ fn accessor_calls_taking_a_source_argument(squeezed: &str) -> Vec<String> {
     hits
 }
 
+/// AXIS 3 (MECHANISM). The ONE form in which a filter arm may legally name `effect`.
+///
+/// CR 613.1's "**other** creatures you control" wording needs the arm to know which object
+/// IS the source, so that it can exclude it; that is a comparison of two `ObjectId`s and
+/// never a read of the source's characteristics, which is why it is safe and why
+/// `SourceView` does not carry it. Five arms use it verbatim at HEAD
+/// (`OtherCreaturesYouControl`, `...WithSubtype`, `...ExcludingSubtype`, `...WithSubtypes`,
+/// `...OfChosenType`) — the fix-cycle brief said four, and the truth is five.
+///
+/// Whitespace-squeezed, so a multi-line spelling of the same statement is the same bytes.
+const ALLOWED_ARM_SOURCE_MENTIONS: &[&str] = &["ifeffect.source==Some(object_id){returnfalse;}"];
+
+/// AXIS 3 (MECHANISM). Once the allowed form above is removed, an arm that still names any
+/// of these has a handle on the source that did not come from the caller's `SourceView`.
+///
+/// `effect` is the load-bearing one and it is deliberately the WHOLE binding, not
+/// `effect.source`: inside `effect_applies_to_inner` the only things in scope are `state`,
+/// `effect`, `object_id`, `obj_zone`, `chars` and `source`, so `effect` is the *only* route
+/// to the source id, whether the arm reads it inline, hands it to a local helper
+/// (`per_arm_source_controller(state, effect)`) or hands it to one in another file. The
+/// three `*id`/`sid` spellings cover the other route — a source id hoisted to a local above
+/// the match and consumed by name in the arm.
+const BANNED_ARM_TOKENS: &[&str] = &["effect", "source_id", "sid", "src_id", "lki"];
+
+/// An arm's text with every [`ALLOWED_ARM_SOURCE_MENTIONS`] form deleted.
+fn arm_text_minus_allowed_forms(squeezed: &str) -> String {
+    let mut out = squeezed.to_string();
+    for allowed in ALLOWED_ARM_SOURCE_MENTIONS {
+        out = out.replace(allowed, "");
+    }
+    out
+}
+
 /// CR 608.2h / CR 113.7a. The acceptance criterion's mechanism gate: a new arm that
 /// re-reads the source directly is RED.
 ///
-/// Both axes run over every arm. `OOS-DX36-8`: a survivor scan has two axes, the SHAPE of
-/// the match and the SPELLING of the value, and varying one while holding the other is half
-/// a check. Axis 1 is a literal-needle list (spelling); axis 2 parses argument lists
-/// (shape). Neither is a superset of the other: axis 1 catches `source_view_live(` being
-/// called from inside an arm (a legal-looking per-arm fallback that axis 2 cannot see,
-/// because its argument is a local); axis 2 catches an unforeseen accessor spelling.
+/// **Three axes, and the third is the one that measures the mechanism.** `OOS-DX36-8`: a
+/// survivor scan has a SHAPE axis and a SPELLING axis, and varying one while holding the
+/// other is half a check. The first draft of this row had two axes that were *the same
+/// idea* — axis 1 is a list of accessor-call spellings whose argument names the source, and
+/// axis 2 parses accessor-call argument lists for a source-flavoured token. Neither can see
+/// a read that is not an accessor call, and the `/review` proved it by execution: with
+///
+/// ```text
+/// let Some((_, srcobj)) = state.objects.iter().find(|(oid, _)| Some(**oid) == effect.source)
+/// ```
+///
+/// planted in `ArtifactsYouControl` — the exact pre-PB-DX39 defect, restored, and keeping
+/// the `let Some(src) = source else` binding so `r2` stayed satisfied — **all twelve gates
+/// and the whole engine + simulator suite stayed green.** A second plant, a
+/// `fn per_arm_source_controller(state, effect)` helper doing the live read and called from
+/// the arm, did the same. That matters concretely because only 2 of the 20 source-relative
+/// arms have behavioural LKI probes; for the other 18 this row is the only thing there is.
+///
+/// Axis 3 is therefore keyed on the MECHANISM rather than on a spelling: an arm may not
+/// hold a handle on the source at all, in any spelling, except the one comparison
+/// [`ALLOWED_ARM_SOURCE_MENTIONS`] permits. It over-collects on purpose — over-collection
+/// can only make `r1` redder — and axes 1 and 2 are kept as the narrower conjuncts they
+/// always were, because axis 1 still catches `source_view_live(` being called from inside
+/// an arm, which mentions no banned token at all.
 #[test]
 fn r1_no_filter_arm_reads_the_source_directly() {
     let arms = filter_arms();
@@ -445,17 +496,30 @@ fn r1_no_filter_arm_reads_the_source_directly() {
         for hit in accessor_calls_taking_a_source_argument(&arm.squeezed) {
             violations.push(format!("{} :: axis-2 shape `{hit}`", arm.name));
         }
+        let residue = arm_text_minus_allowed_forms(&arm.squeezed);
+        for token in BANNED_ARM_TOKENS {
+            if residue.contains(token) {
+                violations.push(format!(
+                    "{} :: axis-3 mechanism `{token}` (arm residue after removing the \
+                     allowed self-exclusion: {residue})",
+                    arm.name
+                ));
+            }
+        }
     }
     assert!(
         violations.is_empty(),
-        "PB-DX39 r1: a filter arm of `effect_applies_to_inner` reads the effect's SOURCE \
-         for itself instead of consuming the `source: Option<&SourceView>` the caller \
+        "PB-DX39 r1: a filter arm of `effect_applies_to_inner` holds a handle on the \
+         effect's SOURCE instead of consuming the `source: Option<&SourceView>` the caller \
          supplied. That is the defect this batch closed: twenty arms each had to be right \
          about CR 608.2h and none of them was. Consume `source`; if the arm needs a field \
          the view does not carry, add the field to `SourceView` so BOTH constructors \
-         answer it. Violations: {violations:#?}"
+         answer it. If you genuinely need a new `effect.source == Some(object_id)`-shaped \
+         self-exclusion, it is already allowed verbatim; anything else is the regression. \
+         Violations: {violations:#?}"
     );
-    // Non-vacuity floor: the axes must be capable of firing at all.
+    // Non-vacuity floors: every axis must be capable of firing at all, on the very read it
+    // was written for. Axis 3's plant is the `/review`'s own, byte for byte.
     let planted = "EffectFilter::Planted=>{state.objects.get(&source_id).map(|s|s.controller)}";
     assert!(
         DIRECT_SOURCE_READ_NEEDLES
@@ -466,6 +530,101 @@ fn r1_no_filter_arm_reads_the_source_directly() {
     assert!(
         !accessor_calls_taking_a_source_argument(planted).is_empty(),
         "PB-DX39 r1: axis 2 cannot see the very read it was written for"
+    );
+    let reviewers_plant = "EffectFilter::Planted=>{letSome((_,srcobj))=state.objects.iter()\
+                           .find(|(oid,_)|Some(**oid)==effect.source)else{returnfalse;};}";
+    let residue = arm_text_minus_allowed_forms(reviewers_plant);
+    assert!(
+        BANNED_ARM_TOKENS.iter().any(|t| residue.contains(t)),
+        "PB-DX39 r1: axis 3 cannot see the `/review`'s map-iteration plant, which is the \
+         read it was written for"
+    );
+    let helper_plant = "EffectFilter::Planted=>{per_arm_source_controller(state,effect)}";
+    assert!(
+        BANNED_ARM_TOKENS
+            .iter()
+            .any(|t| arm_text_minus_allowed_forms(helper_plant).contains(t)),
+        "PB-DX39 r1: axis 3 cannot see the `/review`'s helper-function plant"
+    );
+    // And the allowed form must still be *allowed*, or axis 3 is a gate nobody can satisfy.
+    assert!(
+        BANNED_ARM_TOKENS
+            .iter()
+            .all(|t| !arm_text_minus_allowed_forms(ALLOWED_ARM_SOURCE_MENTIONS[0]).contains(t)),
+        "PB-DX39 r1: the allowed self-exclusion form does not survive its own removal"
+    );
+}
+
+/// `r1`'s axis-3 companion at FUNCTION scope: `rules/layers.rs` is the only file that may
+/// name `effect.source`, and each function's occurrence COUNT is pinned.
+///
+/// Axis 3 bans the handle inside an arm. This row bans hoisting it just above the arms:
+/// `let sid = effect.source;` at the top of `effect_applies_to_inner`, with the arms then
+/// naming `sid`, is caught by axis 3 — but `let live = effect.source.and_then(|i|
+/// state.objects.get(&i));` with the arms naming `live` is not, because `live` is not a
+/// banned token and never could be enumerated. A per-function COUNT is what closes that,
+/// and it is `OOS-DX49`'s lesson applied one file over: a SET of sites collapses an extra
+/// occurrence inside an already-listed site, so the roster stores counts.
+const LAYERS_EFFECT_SOURCE_SITES: &[(&str, usize, &str)] = &[
+    (
+        "is_effect_active",
+        2,
+        "CR 611.3b duration read + CR 604.2 condition read. Both LIVE-ONLY -- see r4.",
+    ),
+    (
+        "effect_applies_to",
+        1,
+        "CR 611.3a: the LIVE path's single resolution, via `source_view_live`.",
+    ),
+    (
+        "effect_applies_to_inner",
+        5,
+        "The five CR 613.1 `other ... you control` self-exclusions, which compare two \
+         ObjectIds and read no characteristic. Allowed verbatim by r1 axis 3.",
+    ),
+    (
+        "snapshot_affected_set",
+        1,
+        "CR 611.2c / CR 608.2h: the LOCKED path's single resolution, via \
+         `source_view_at_resolution`, hoisted out of the candidate loop.",
+    ),
+];
+
+#[test]
+fn r1c_effect_source_is_named_only_where_the_roster_says() {
+    let src = production_source(&read_engine_file(LAYERS_RS));
+    let squeezed_all: String = src.chars().filter(|c| !c.is_whitespace()).collect();
+    assert!(
+        squeezed_all.contains("effect.source"),
+        "PB-DX39 r1c: `effect.source` does not occur in layers.rs at all -- the whitespace \
+         squeeze or the comment stripper has broken and this row is vacuous"
+    );
+    let mut live: BTreeMap<String, usize> = BTreeMap::new();
+    let mut from = 0usize;
+    while let Some(rel) = src[from..].find("effect") {
+        let at = from + rel;
+        // Squeeze forward from the hit so `effect\n        .source` counts as one site.
+        let tail: String = src[at..]
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .take("effect.source".len())
+            .collect();
+        if tail == "effect.source" {
+            *live.entry(enclosing_fn_name(&src, at)).or_default() += 1;
+        }
+        from = at + "effect".len();
+    }
+    let pinned: BTreeMap<String, usize> = LAYERS_EFFECT_SOURCE_SITES
+        .iter()
+        .map(|(f, n, _)| (f.to_string(), *n))
+        .collect();
+    assert_eq!(
+        live, pinned,
+        "PB-DX39 r1c: the per-function census of `effect.source` in {LAYERS_RS} has moved. \
+         `effect.source` is the ONLY route from a filter arm to the source object, so a new \
+         function naming it -- or an extra occurrence inside a listed one -- is either a \
+         new source-resolution site (which must be one of the two constructors, see r5) or \
+         the per-arm read this batch deleted. live: {live:#?}; pinned: {pinned:#?}"
     );
 }
 
@@ -551,11 +710,86 @@ fn r2b_every_source_relative_arm_has_battlefield_candidates() {
     }
 }
 
+/// CR 611.3a: `layers::filter_is_source_relative` — the classifier that makes the LIVE
+/// path's source resolution LAZY — must agree exactly with the arms that consume the view.
+///
+/// The `/review`'s NIT was that `effect_applies_to` resolved `source_view_live` eagerly,
+/// above both of `effect_applies_to_inner`'s short-circuits, adding an unconditional
+/// `OrdMap::get` per (effect, object) on the layer walk for every LOCKED effect and every
+/// non-source-relative arm. The fix skips the lookup for exactly those two populations —
+/// which buys a NEW way to be wrong: a filter mis-classified `false` would receive `None`
+/// and silently match nothing, i.e. the pre-PB-DX39 defect restored for one variant. The
+/// classifier is exhaustive with no `_` arm so a new variant cannot join silently, and this
+/// row is what stops an EXISTING variant being moved to the wrong side.
+///
+/// Both sides are derived from source: the classifier's `true` arms are parsed out of
+/// `layers.rs`, and the consuming arms come from [`source_relative_arm_names`], which reads
+/// the `let Some(src) = source` binding. Nothing here is hand-listed twice.
+#[test]
+fn r2c_the_laziness_classifier_matches_the_consuming_arms() {
+    let body = squeeze(&fn_body(LAYERS_RS, "filter_is_source_relative"));
+    // The `true` side is everything before `=>true,`; the `false` side follows it.
+    let split = body.find("=>true,").expect(
+        "PB-DX39 r2c: `filter_is_source_relative` has no `=> true,` arm -- it has \
+                 been restructured, and this row's parse is no longer measuring it",
+    );
+    let true_side = &body[..split];
+    let false_side = &body[split..];
+    let names = |s: &str| -> BTreeSet<String> {
+        let mut out = BTreeSet::new();
+        let mut from = 0usize;
+        while let Some(rel) = s[from..].find("EffectFilter::") {
+            let at = from + rel + "EffectFilter::".len();
+            out.insert(
+                s[at..]
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect(),
+            );
+            from = at;
+        }
+        out
+    };
+    let classified_true = names(true_side);
+    let classified_false = names(false_side);
+    let consuming = source_relative_arm_names();
+    assert_eq!(
+        classified_true,
+        consuming,
+        "PB-DX39 r2c: `layers::filter_is_source_relative` disagrees with the arms of \
+         `effect_applies_to_inner` that actually consume the `SourceView`. `effect_applies_to` \
+         uses this classifier to decide whether to resolve the source AT ALL, so a filter on \
+         the wrong side of it is handed `None` and matches nothing -- the exact CR 608.2h / \
+         CR 604.2 defect PB-DX39 closed, restored for one variant and invisible to every \
+         other row here. classified-true only: {:?}; consuming only: {:?}",
+        classified_true.difference(&consuming).collect::<Vec<_>>(),
+        consuming.difference(&classified_true).collect::<Vec<_>>()
+    );
+    // Non-vacuity: the parse must find BOTH sides, or the equality above could be two
+    // empty sets, and the classifier must cover every declared variant (its exhaustive
+    // match makes that a compile error, so this is a check on the PARSE, not on the code).
+    assert!(
+        classified_false.len() >= 15,
+        "PB-DX39 r2c: only {} variants parsed on the `false` side (17 at HEAD); the split \
+         on `=> true,` has broken and this row is measuring half a function",
+        classified_false.len()
+    );
+    assert!(
+        classified_true.is_disjoint(&classified_false),
+        "PB-DX39 r2c: {:?} appears on BOTH sides of the classifier -- the `=> true,` split \
+         has landed in the wrong place",
+        classified_true
+            .intersection(&classified_false)
+            .collect::<Vec<_>>()
+    );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // r3 — the SR-24 successor: the LKI reader roster
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Every `(file, enclosing fn)` allowed to touch the LKI store.
+/// Every `(file, enclosing fn)` allowed to touch the LKI store, **with its occurrence
+/// count**.
 ///
 /// SR-24's own in-source note said *"Adding a NEW READER that consults a fifth snapshot
 /// keyword is NOT machine-caught: add it here and add a matching sr13 case, or the gate
@@ -566,66 +800,145 @@ fn r2b_every_source_relative_arm_has_battlefield_candidates() {
 /// A new entry is not automatically wrong; what it must not be is SILENT. Whoever adds one
 /// is thereby told to check that `capture_lki_snapshot`'s gate stores what they intend to
 /// read.
-const LKI_SITES: &[(&str, &str, &str)] = &[
+///
+/// # Two `/review` defeats, both fixed here
+///
+/// **(1) The needles were `["lki_object_snapshot", ".lki_objects"]`, and the second one has
+/// a leading dot.** `GameState::lki_objects(state)` — the path-qualified spelling of the
+/// very same accessor — has no dot, so a planted
+///
+/// ```text
+/// pub(crate) fn a2c_alias_reader(state: &GameState, id: ObjectId) -> Option<PlayerId> {
+///     let map = GameState::lki_objects(state);
+///     map.get(&id).map(|o| o.controller)
+/// }
+/// ```
+///
+/// called from `is_effect_active`'s `WhileSourceOnBattlefield` arm as an LKI fallback — i.e.
+/// a departed permanent's static ability running for the rest of the game, exactly what
+/// `r4` exists to prevent — left **all thirteen gates and the full suite green**. The needle
+/// is now the BARE TOKEN at word boundaries, which also means `maybe_clear_lki_objects` and
+/// `store_lki_snapshot` are not false hits (`_` is a word character, so the token inside
+/// them is not bounded).
+///
+/// **(2) The roster was a `BTreeSet`, so a read added INSIDE an already-listed function
+/// collapsed into the existing element.** Planting
+/// `if let Some(o) = self.lki_object_snapshot(ObjectId(1)) { let _leak = o.controller; }`
+/// into `maybe_clear_lki_objects` — an allowlisted row — left `r3` green. **That is
+/// PB-DX49's own recorded finding on its `r7`**, which PB-DX49 closed with a second
+/// conjunct re-checking each allowlisted site's body; this row inherited the shape without
+/// the fix. The roster therefore stores a COUNT per site and compares maps, not sets.
+const LKI_SITES: &[(&str, &str, usize, &str)] = &[
+    (
+        "crates/engine/src/state/mod.rs",
+        "<top-level>",
+        1,
+        "The `GameState.lki_objects` field DECLARATION itself. Not a reader; it is here \
+         because the bare-token needle sees the declaration too, and hiding it would mean \
+         the needle had an exception nobody could audit.",
+    ),
     (
         "crates/engine/src/state/mod.rs",
         "lki_objects",
-        "SR-3 public read accessor for the whole store.",
+        2,
+        "SR-3 public read accessor for the whole store: its own name plus `&self.lki_objects`.",
     ),
     (
         "crates/engine/src/state/mod.rs",
         "lki_object_snapshot",
-        "SR-3 keyed read accessor -- the one every reader below goes through.",
+        2,
+        "SR-3 keyed read accessor -- the one every reader below goes through: its own name \
+         plus `self.lki_objects.get(&id)`.",
     ),
     (
         "crates/engine/src/state/mod.rs",
         "maybe_clear_lki_objects",
-        "SR-13 clear, gated on stack + pending-trigger emptiness (see r6).",
+        2,
+        "SR-13 clear, gated on stack + pending-trigger emptiness (see r6): the emptiness \
+         test and the reset. NOT a read of any snapshot's contents -- if this count moves \
+         up, someone has added one.",
     ),
     (
         "crates/engine/src/state/mod.rs",
         "store_lki_snapshot",
+        1,
         "PB-DX39: the single insert path, shared by both capture clauses.",
+    ),
+    (
+        "crates/engine/src/state/builder.rs",
+        "build",
+        1,
+        "`lki_objects: OrdMap::new()` -- the field initialiser. Not a reader; visible only \
+         because the needle is now the bare token.",
     ),
     (
         "crates/engine/src/state/hash.rs",
         "public_state_hash",
+        1,
         "SR-17: the store is hashed as state; not a semantic reader.",
     ),
     (
         "crates/engine/src/effects/mod.rs",
         "damage_source_characteristics",
+        1,
         "SR-13 reader 1: CR 702.80c / 702.90e wither + infect + deathtouch off a dead source.",
     ),
     (
         "crates/engine/src/effects/mod.rs",
         "damage_source_controller",
+        1,
         "SR-13 reader 2: CR 702.15b lifelink off a dead source.",
     ),
     (
         "crates/engine/src/rules/layers.rs",
         "source_view_at_resolution",
+        1,
         "PB-DX39 reader 3: CR 608.2h / 113.7a source-relative EffectFilter arms. Consults \
          controller / attached_to / chosen_creature_type / chosen_color -- NO keyword, which \
          is why widening LKI_RELEVANT_KEYWORDS is not how a future reader is served.",
     ),
 ];
 
-fn live_lki_sites() -> BTreeSet<(String, String)> {
-    let mut out = BTreeSet::new();
+/// Byte offsets at which `needle` occurs in `src` **as a whole token** — neither neighbour
+/// may be `[A-Za-z0-9_]`.
+///
+/// This is the fix for the `/review`'s path-qualified-alias defeat. It is deliberately
+/// receiver-agnostic: `self.lki_objects`, `state.lki_objects` and
+/// `GameState::lki_objects(state)` are all the same token, while `maybe_clear_lki_objects`
+/// and `store_lki_snapshot` are not (their preceding `_` is a word character).
+fn token_offsets(src: &str, needle: &str) -> Vec<usize> {
+    fn wordish(c: u8) -> bool {
+        c.is_ascii_alphanumeric() || c == b'_'
+    }
+    let b = src.as_bytes();
+    let mut out = Vec::new();
+    let mut from = 0usize;
+    while let Some(rel) = src[from..].find(needle) {
+        let at = from + rel;
+        let before_ok = at == 0 || !wordish(b[at - 1]);
+        let after = at + needle.len();
+        let after_ok = after >= b.len() || !wordish(b[after]);
+        if before_ok && after_ok {
+            out.push(at);
+        }
+        from = at + needle.len();
+    }
+    out
+}
+
+fn live_lki_sites() -> BTreeMap<(String, String), usize> {
+    let mut out: BTreeMap<(String, String), usize> = BTreeMap::new();
     for (label, path) in workspace_src_files_checked() {
         let Ok(raw) = std::fs::read_to_string(&path) else {
             continue;
         };
         let src = production_source(&raw);
-        for needle in ["lki_object_snapshot", ".lki_objects"] {
-            let mut from = 0usize;
-            while let Some(rel) = src[from..].find(needle) {
-                let at = from + rel;
+        for needle in ["lki_object_snapshot", "lki_objects"] {
+            for at in token_offsets(&src, needle) {
                 // The accessor DEFINITIONS name themselves; attribute by enclosing fn, which
                 // puts each definition in its own row rather than hiding it.
-                out.insert((label.clone(), enclosing_fn_name(&src, at)));
-                from = at + needle.len();
+                *out.entry((label.clone(), enclosing_fn_name(&src, at)))
+                    .or_default() += 1;
             }
         }
     }
@@ -634,32 +947,55 @@ fn live_lki_sites() -> BTreeSet<(String, String)> {
     out
 }
 
-/// CR 608.2h / CR 113.7a: the LKI store's reader set is pinned workspace-wide.
+/// CR 608.2h / CR 113.7a: the LKI store's reader set is pinned workspace-wide, **by site
+/// and by occurrence count**.
 #[test]
 fn r3_lki_reader_set_is_pinned() {
     let live = live_lki_sites();
-    let pinned: BTreeSet<(String, String)> = LKI_SITES
+    let pinned: BTreeMap<(String, String), usize> = LKI_SITES
         .iter()
-        .map(|(f, n, _)| (f.to_string(), n.to_string()))
+        .map(|(f, n, c, _)| ((f.to_string(), n.to_string()), *c))
+        .collect();
+    let live_only: Vec<_> = live
+        .iter()
+        .filter(|(k, v)| pinned.get(*k) != Some(v))
+        .collect();
+    let pinned_only: Vec<_> = pinned
+        .iter()
+        .filter(|(k, v)| live.get(*k) != Some(v))
         .collect();
     assert_eq!(
-        live,
-        pinned,
-        "PB-DX39 r3: the set of functions touching `lki_objects` / `lki_object_snapshot` has \
-         changed. SR-24's capture gate stores a snapshot only for a departing permanent that \
-         carries one of four DAMAGE keywords OR is the source of an ability already pending \
-         (`GameState::is_source_of_a_pending_ability`). A reader outside both of those \
-         conditions will silently observe an EMPTY map -- which is precisely how \
-         `OOS-DX5-3` and `OOS-DX5-7` stayed open. Add your site to LKI_SITES with a reason, \
-         and while you are there decide whether `capture_lki_snapshot`'s gate stores what \
-         you intend to read. live only: {:?}; pinned only: {:?}",
-        live.difference(&pinned).collect::<Vec<_>>(),
-        pinned.difference(&live).collect::<Vec<_>>()
+        live, pinned,
+        "PB-DX39 r3: the census of functions touching `lki_objects` / \
+         `lki_object_snapshot` has changed. SR-24's capture gate stores a snapshot only for \
+         a departing permanent that carries one of four DAMAGE keywords OR is the source of \
+         an ability already pending (`GameState::is_source_of_a_pending_ability`). A reader \
+         outside both of those conditions will silently observe an EMPTY map -- which is \
+         precisely how `OOS-DX5-3` and `OOS-DX5-7` stayed open. Add your site to LKI_SITES \
+         with a reason and a COUNT, and while you are there decide whether \
+         `capture_lki_snapshot`'s gate stores what you intend to read. A count that moved \
+         inside an EXISTING row is the same finding: an extra read added to an allowlisted \
+         function is still a new reader. differs (live): {live_only:?}; differs (pinned): \
+         {pinned_only:?}"
     );
     assert!(
         !live.is_empty(),
-        "PB-DX39 r3: zero LKI sites found -- the workspace walk has gone vacuous and the set \
-         assertion above is comparing two empty sets"
+        "PB-DX39 r3: zero LKI sites found -- the workspace walk has gone vacuous and the map \
+         assertion above is comparing two empty maps"
+    );
+    // Non-vacuity floor for the tokeniser itself: it must see the path-qualified spelling
+    // that defeated the first draft, and must NOT see the two `_`-prefixed function names
+    // that would otherwise be false hits.
+    assert_eq!(
+        token_offsets("letmap=GameState::lki_objects(state);", "lki_objects").len(),
+        1,
+        "PB-DX39 r3: the tokeniser cannot see `GameState::lki_objects(..)`, the exact \
+         spelling the `/review` used to defeat this row"
+    );
+    assert!(
+        token_offsets("self.maybe_clear_lki_objects();", "lki_objects").is_empty(),
+        "PB-DX39 r3: the tokeniser treats `maybe_clear_lki_objects` as a hit; `_` is a word \
+         character and the roster's counts assume it is not"
     );
 }
 
@@ -667,8 +1003,15 @@ fn r3_lki_reader_set_is_pinned() {
 // r4 — `is_effect_active`'s two reads stay LIVE-ONLY
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// CR 611.2b / CR 604.2: `is_effect_active` answers *"is this effect running at all"*, and
+/// CR 611.3b / CR 604.2: `is_effect_active` answers *"is this effect running at all"*, and
 /// both of its source reads must stay live.
+///
+/// The cite is **CR 611.3b** — *"the effect applies at all times that the permanent
+/// generating it is on the battlefield"* — and not CR 611.2b, which this row said until the
+/// `/review` corrected it. CR 611.2b is about the *"for as long as"* durations of an effect
+/// generated by a RESOLUTION, and it is still the right rule for this function's
+/// `UntilYourNextTurn` / `WhileYouControlSource` arms; it is the wrong one for the claim
+/// being made here, which is about a STATIC ability's source leaving the battlefield.
 ///
 /// The `WhileSourceOnBattlefield` read asks whether the source is still on the battlefield;
 /// answering it from LKI would return *"yes, as it last was"* for the rest of the game. The
@@ -678,13 +1021,121 @@ fn r3_lki_reader_set_is_pinned() {
 ///
 /// This row exists so a later batch cannot "finish the job" by routing these two through
 /// `source_view_at_resolution` on the theory that PB-DX39 missed them.
+///
+/// # It is a WHITELIST, because an absence test cannot be made complete
+///
+/// The first draft asserted the ABSENCE of three literals
+/// (`lki_object_snapshot`, `.lki_objects`, `source_view_at_resolution(`). The `/review`
+/// defeated it in one line, by giving the LKI read a new NAME: a
+/// `fn a2c_alias_reader(state, id)` wrapping `GameState::lki_objects(state)` and called
+/// from the `WhileSourceOnBattlefield` arm as an `unwrap_or_else` fallback left every gate
+/// green while making a departed permanent's static ability run for the rest of the game.
+/// No list of forbidden names can be complete, because the attacker picks the name. A list
+/// of PERMITTED identifiers can be, because this function's vocabulary is finite and small
+/// — so the assertion is now set equality over the identifiers the body contains, and
+/// `a2c_alias_reader` reddens it by existing.
+///
+/// Brittle on purpose: a genuine refactor of this function is exactly the moment someone
+/// should re-read the two CR arguments above.
+const IS_EFFECT_ACTIVE_VOCABULARY: &[&str] = &[
+    "Battlefield",
+    "EffectDuration",
+    "Indefinite",
+    "None",
+    "PlayerId",
+    "Some",
+    "UntilEndOfTurn",
+    "UntilYourNextTurn",
+    "WhilePaired",
+    "WhileSourceOnBattlefield",
+    "WhileYouControlSource",
+    "ZoneId",
+    "_",
+    "a",
+    "a_ok",
+    "b",
+    "b_ok",
+    "check_static_condition",
+    "condition",
+    "controller",
+    "crate",
+    "duration",
+    "duration_active",
+    "effect",
+    "effects",
+    "else",
+    "false",
+    "get",
+    "if",
+    "is_phased_in",
+    "let",
+    "map",
+    "match",
+    "o",
+    "obj",
+    "objects",
+    "paired_with",
+    "player",
+    "ref",
+    "return",
+    "source",
+    "source_id",
+    "state",
+    "true",
+    "unwrap_or",
+    "unwrap_or_else",
+    "zone",
+];
+
+/// Every `[A-Za-z_][A-Za-z0-9_]*` run in `src`.
+fn identifiers(src: &str) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let b = src.as_bytes();
+    let mut i = 0usize;
+    while i < b.len() {
+        if b[i].is_ascii_alphabetic() || b[i] == b'_' {
+            let start = i;
+            while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'_') {
+                i += 1;
+            }
+            out.insert(src[start..i].to_string());
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
 #[test]
 fn r4_is_effect_active_reads_are_live_only() {
-    let body = squeeze(&fn_body(LAYERS_RS, "is_effect_active"));
+    let raw_body = fn_body(LAYERS_RS, "is_effect_active");
+    let body = squeeze(&raw_body);
     assert!(
         body.len() > 800,
         "PB-DX39 r4: measured body is only {} bytes; the brace bounding has broken",
         body.len()
+    );
+    // The whitelist. This is the assertion the `/review` asked for; the three absence
+    // needles below are kept as the narrower conjunct, because they name the specific
+    // regression and therefore give the better failure message when they are the cause.
+    let live = identifiers(&raw_body);
+    let pinned: BTreeSet<String> = IS_EFFECT_ACTIVE_VOCABULARY
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    assert_eq!(
+        live,
+        pinned,
+        "PB-DX39 r4: `is_effect_active`'s vocabulary has changed. Both of its source reads \
+         are LIVE-ONLY on purpose (CR 611.3b duration, CR 604.2 static condition), and an \
+         LKI fallback in the duration read makes a departed permanent's static ability \
+         immortal -- the exact opposite of CR 611.3b. A new identifier here is either that \
+         regression under a name no forbidden-list could have anticipated (the `/review` \
+         used `a2c_alias_reader`), or a legitimate refactor -- in which case re-read the two \
+         CR arguments in this row's doc and then update the vocabulary. \
+         new: {:?}; gone: {:?}",
+        live.difference(&pinned).collect::<Vec<_>>(),
+        pinned.difference(&live).collect::<Vec<_>>()
     );
     for needle in [
         "lki_object_snapshot",
@@ -694,9 +1145,9 @@ fn r4_is_effect_active_reads_are_live_only() {
         assert!(
             !body.contains(needle),
             "PB-DX39 r4: `is_effect_active` now names `{needle}`. Both of its source reads \
-             are LIVE-ONLY on purpose (CR 611.2b duration, CR 604.2 static condition). An \
+             are LIVE-ONLY on purpose (CR 611.3b duration, CR 604.2 static condition). An \
              LKI fallback in the duration read makes a departed permanent's static ability \
-             immortal -- the exact opposite of CR 611.2b."
+             immortal -- the exact opposite of CR 611.3b."
         );
     }
     // Non-vacuity: the two live reads must still be there, so "no LKI needle" is a
@@ -705,7 +1156,7 @@ fn r4_is_effect_active_reads_are_live_only() {
         body.matches(".objects.get(&source_id)").count(),
         2,
         "PB-DX39 r4: expected exactly the two live `state.objects.get(&source_id)` reads in \
-         `is_effect_active` (the CR 611.2b duration read and the CR 604.2 condition read). \
+         `is_effect_active` (the CR 611.3b duration read and the CR 604.2 condition read). \
          If one legitimately moved, update this count and say where it went."
     );
 }
@@ -714,7 +1165,21 @@ fn r4_is_effect_active_reads_are_live_only() {
 // r5 — the LKI-consulting constructor has exactly one caller
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Every `(file, enclosing fn)` calling `source_view_at_resolution`, workspace-wide.
+/// Every `(file, enclosing fn)` naming `source_view_at_resolution`, workspace-wide.
+///
+/// **The needle is the BARE IDENTIFIER at word boundaries, not `identifier(`.** The first
+/// draft required the trailing paren, and the `/review` walked through it with
+///
+/// ```text
+/// let at_res: fn(&GameState, ObjectId) -> Option<SourceView<'_>> = source_view_at_resolution;
+/// ```
+///
+/// in `effect_applies_to`, calling `at_res(..)` — i.e. giving the CR 611.3a static path the
+/// LKI fallback this row exists to deny it — and every gate stayed green. **Mitigated, and
+/// it is worth saying which half held**: the in-source unit test
+/// `pb_dx39_source_view_tests::the_live_static_path_never_consults_last_known_information`
+/// DID go red, so the behaviour was covered and only the gate was not. Taking a function's
+/// address is a use like any other, and now it is measured like one.
 fn live_at_resolution_callers() -> BTreeSet<(String, String)> {
     let mut out = BTreeSet::new();
     for (label, path) in workspace_src_files_checked() {
@@ -722,15 +1187,12 @@ fn live_at_resolution_callers() -> BTreeSet<(String, String)> {
             continue;
         };
         let src = production_source(&raw);
-        let mut from = 0usize;
-        while let Some(rel) = src[from..].find("source_view_at_resolution(") {
-            let at = from + rel;
+        for at in token_offsets(&src, "source_view_at_resolution") {
             let func = enclosing_fn_name(&src, at);
             // The definition names itself; that is the `fn` whose body starts here.
             if func != "source_view_at_resolution" {
                 out.insert((label.clone(), func));
             }
-            from = at + "source_view_at_resolution(".len();
         }
     }
     out
@@ -788,8 +1250,14 @@ fn r5b_source_view_live_never_consults_the_lki_store() {
     assert!(
         at_res.contains(".objects.get(&source_id)") && at_res.contains("lki_object_snapshot("),
         "PB-DX39 r5b: `source_view_at_resolution` must read LIVE FIRST and fall back to the \
-         LKI store second (CR 608.2h's order is the rule -- Umezawa's Jitte, ruling \
-         2005-02-01: if the Jitte is MOVED before the ability resolves, the bonus goes to \
+         LKI store second (CR 608.2h's order is the rule, and the Jitte's own rulings are \
+         its two halves. 2005-02-01 #3: `If the Jitte is MOVED after the +2/+2 mode is \
+         announced but before it resolves, the bonus is given to the creature that is \
+         equipped when the ability resolves` -- the LIVE half. 2005-02-01 #5: `If the Jitte \
+         LEAVES THE BATTLEFIELD after the +2/+2 mode is announced but before it resolves, \
+         the bonus is given to the creature that was most recently equipped once the \
+         ability resolves` -- the LKI half, quoted in full because #3 on its own reads as \
+         an argument against the fallback. The bonus goes to \
          the creature equipped AT RESOLUTION). Measured body: {at_res:?}"
     );
     let live_at = at_res.find(".objects.get(&source_id)").unwrap();
@@ -850,12 +1318,78 @@ fn r6_clear_condition_covers_the_capture_condition() {
 /// PB-DX39: the activation-cost clause is wired at every self-move cost site.
 ///
 /// `rules::abilities` pays `Cost::SacrificeSelf` / `Cost::ExileSelf` / `Cost::DiscardSelf`
-/// BEFORE pushing the ability onto the stack (CR 601.2h / CR 602.2c), so
+/// BEFORE pushing the ability onto the stack (CR 601.2h, reached for an activated
+/// ability by CR 602.2b), so
 /// `capture_lki_snapshot`'s pending-ability disjunct cannot see the ability yet and
 /// declines. Each of those three blocks must therefore capture explicitly. Mardu Ascendancy
 /// (`OOS-DX5-7`) is the sacrifice case, and it was wrong in **every** game.
+/// Every first argument `handle_activate_ability` passes to `move_object_to_zone`, as a
+/// SORTED MULTISET.
+///
+/// Three are the self-moves this row is about. The other four are cost payments that move
+/// something else — a card from hand (`Cost::Discard`), another permanent
+/// (`Cost::Sacrifice`), a Food token, an exiled card — and they are pinned here **only** so
+/// that the total is accounted for. That is the `/review`'s fix: `r6b`'s first draft keyed
+/// on the literal `move_object_to_zone(source,`, so
+///
+/// ```text
+/// let src_id = source;
+/// let (_new, _) = state.move_object_to_zone(src_id, dest)?;
+/// ```
+///
+/// — a one-line rebinding — was invisible to it, which is **PB-DX51's `r1` failure
+/// verbatim**: a gate written for one variant measures that variant. Pinning every first
+/// argument means a fourth self-move cannot arrive under a new name.
+const ACTIVATE_ABILITY_MOVE_ARGS: &[&str] = &[
+    "card_to_discard",
+    "food_id",
+    "id",
+    "sac_id",
+    "source",
+    "source",
+    "source",
+];
+
 #[test]
 fn r6b_every_self_move_activation_cost_captures_first() {
+    // The `/review`'s fix, first: pin every `move_object_to_zone` call in
+    // `handle_activate_ability` by its FIRST ARGUMENT, not just the ones spelled `source`.
+    let activate_body = fn_body(
+        "crates/engine/src/rules/abilities.rs",
+        "handle_activate_ability",
+    );
+    let squeezed_body: String = activate_body
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
+    let mut live_args: Vec<String> = Vec::new();
+    let mut from = 0usize;
+    while let Some(rel) = squeezed_body[from..].find("move_object_to_zone(") {
+        let at = from + rel + "move_object_to_zone(".len();
+        let arg: String = squeezed_body[at..]
+            .chars()
+            .take_while(|c| *c != ',' && *c != ')')
+            .collect();
+        live_args.push(arg);
+        from = at;
+    }
+    live_args.sort();
+    let pinned_args: Vec<String> = ACTIVATE_ABILITY_MOVE_ARGS
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    assert_eq!(
+        live_args, pinned_args,
+        "PB-DX39 r6b: the multiset of first arguments `handle_activate_ability` passes to \
+         `move_object_to_zone` has changed (7 at HEAD: 3 self-moves plus 4 cost payments \
+         that move something OTHER than the source). If the new one moves the ability's own \
+         source -- under ANY spelling, including a local rebinding of `source` -- it must \
+         call `capture_source_lki_for_pending_ability(source)` immediately before it, or a \
+         source-relative continuous effect from that ability resolves at nobody \
+         (`OOS-DX5-7`, Mardu Ascendancy). If it moves something else, add it here with that \
+         reason."
+    );
+
     let src = strip_comments(&read_engine_file("crates/engine/src/rules/abilities.rs"));
     let squeezed: String = src.chars().filter(|c| !c.is_whitespace()).collect();
     let moves = squeezed.matches("move_object_to_zone(source,").count();
@@ -1013,12 +1547,19 @@ fn live_path_registrations() -> Vec<LiveRegistration> {
 ///   unconditional LKI fallback, a member of this class whose duration is not
 ///   `WhileSourceOnBattlefield` would START APPLYING from the graveyard, forever. There are
 ///   none today and there must not be one without someone reading this.
-/// * **`Effect::CreateEmblem` — ratchet 4.** CR 114.1: an emblem *"can't be a permanent"*
-///   and lives in the command zone, and `effects/mod.rs`'s emblem construction places it in
-///   `ZoneId::Command(controller)` with nothing in the engine ever moving it out. Its
-///   `ObjectId` is therefore never retired (CR 400.7 never fires on it), so
-///   `source_view_live`'s lookup always succeeds and the fallback is unreachable for these
-///   four **whichever constructor they used**. They are the SHAPE without the exposure.
+/// * **`Effect::CreateEmblem` — ratchet 4.** CR 114.5: an emblem *"is neither a card nor a
+///   permanent"*, and CR 114.2 puts it into the command zone. **The half that makes these
+///   four harmless is an ENGINE MEASUREMENT and not a rule, and the `/review` was right to
+///   force the distinction**: no CR rule says an emblem never leaves the command zone
+///   (CR 114.1 defines what an emblem is, CR 114.3 that it has no other characteristics,
+///   CR 114.4 that its abilities function there — none of them says it cannot move). What
+///   is true is measurable: `effects/mod.rs`'s emblem construction places it in
+///   `ZoneId::Command(controller)` and **nothing in the engine ever moves it out**, so its
+///   `ObjectId` is never retired (CR 400.7 never fires on it), `source_view_live`'s lookup
+///   always succeeds, and the fallback is unreachable for these four **whichever
+///   constructor they used**. They are the SHAPE without the exposure — and if a later
+///   batch teaches the engine to move an emblem, that measurement expires and this ratchet
+///   is the thing that should stop being trusted.
 ///
 /// So this row is not evidence that the scoping saved a live defect today. It is evidence
 /// that the shape exists in the corpus, that the only thing keeping it harmless is a
@@ -1048,7 +1589,7 @@ fn unprotected_live_registrations() -> Vec<(&'static str, String)> {
         .collect()
 }
 
-/// CR 611.3a / CR 114.1: the population the two-constructor split protects, ratcheted per
+/// CR 611.3a / CR 114.5: the population the two-constructor split protects, ratcheted per
 /// holder.
 #[test]
 fn r7_no_unprotected_live_path_source_relative_registration() {
@@ -1084,7 +1625,9 @@ fn r7_no_unprotected_live_path_source_relative_registration() {
         emblems.len() <= MAX_UNPROTECTED_EMBLEM_REGISTRATIONS,
         "PB-DX39 r7: {} emblem static effect(s) pair a source-relative filter with a \
          non-`WhileSourceOnBattlefield` duration, above the ratchet of {}. These are \
-         harmless only because CR 114.1 keeps an emblem in the command zone forever, so its \
+         harmless only because NOTHING IN THE ENGINE ever moves an emblem out of the \
+         command zone (a measurement, not a rule -- CR 114 says an emblem is put there and \
+         that its abilities function there, and says nothing about it staying), so its \
          `ObjectId` is never retired. Confirm that still holds for the new member (an \
          emblem that can leave would be the first real instance of this class) and then \
          raise the ratchet with that measurement stated. Members: {emblems:#?}",
@@ -1153,8 +1696,8 @@ fn t_census_report() {
         "LKI store sites (workspace-wide)             : {}",
         lki.len()
     );
-    for (f, n) in &lki {
-        println!("    - {f} :: {n}");
+    for ((f, n), count) in &lki {
+        println!("    - {f} :: {n}  (x{count})");
     }
     let callers = live_at_resolution_callers();
     println!(

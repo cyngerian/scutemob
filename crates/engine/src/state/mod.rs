@@ -1436,7 +1436,9 @@ impl GameState {
     /// # Why `capture_lki_snapshot`'s pending-ability clause cannot cover this
     ///
     /// `rules::abilities.rs` pays `Cost::SacrificeSelf` / `Cost::ExileSelf` /
-    /// `Cost::DiscardSelf` (CR 602.2c: costs are paid during activation, CR 601.2h) and
+    /// `Cost::DiscardSelf` (CR 601.2h: *"the player pays the total cost"*, reached for an
+    /// activated ability by CR 602.2b -- **there is no CR 602.2c**, which this line cited
+    /// until the `/review`; CR 602.2 has only 602.2a and 602.2b) and
     /// its own comment says *"Move source to graveyard **before pushing to stack**"* — it
     /// means it. At the moment `move_object_to_zone` runs, `stack_objects` does not yet
     /// contain the ability and `pending_triggers` does not contain a trigger for it, so
@@ -1456,8 +1458,10 @@ impl GameState {
     ///
     /// Battlefield-only, deliberately: `lki_objects` is reachable from the public
     /// `GameState::lki_objects()` accessor and is folded into `public_state_hash`, so
-    /// snapshotting a card leaving a player's **hand** (the `Cost::DiscardSelf` /
-    /// CR 702.34 Channel case) would put hidden information into a public store —
+    /// snapshotting a card leaving a player's **hand** (the `Cost::DiscardSelf` / Channel
+    /// case -- Channel is an ABILITY WORD, CR 207.2c, with no rule entry of its own, so the
+    /// `CR 702.34` this line used to cite was Flashback's rule) would put hidden
+    /// information into a public store —
     /// Architecture Invariant 7. A hand card also has no `attached_to`, so there is
     /// nothing a source-relative filter could learn from it that its controller does not
     /// already know. The `discard_self` call site is therefore a measured no-op today and

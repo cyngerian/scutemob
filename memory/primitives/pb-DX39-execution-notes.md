@@ -457,7 +457,8 @@ three-reader contract truthfully.
 
 `capture_source_lki_for_pending_ability` is **battlefield-only**. `lki_objects` is reachable from
 the `pub fn lki_objects()` accessor and is folded into `public_state_hash`, so snapshotting a card
-leaving a player's **hand** (the CR 702.34 Channel case) would put hidden information into a public
+leaving a player's **hand** (the Channel case -- Channel is an ability word, CR 207.2c, with no CR
+entry of its own; `CR 702.34` is FLASHBACK, corrected in the `/review`) would put hidden information into a public
 store — **Architecture Invariant 7**. The `discard_self` call therefore does nothing today; it is
 present so the three self-move blocks stay uniform and `r6b` can require a fourth if one appears.
 Filed as **`OOS-DX39-1`** with the population stated as UNMEASURED rather than assumed zero.
@@ -492,13 +493,16 @@ reports; all three engine files verified restored **byte-exactly** afterwards (`
 
 | row | what it undoes | reddens |
 |---|---|---|
-| R0 | *(control, unreverted)* | **nothing — all 33 green** |
-| **R1** | delete `.or_else(\|\| state.lki_object_snapshot(..))` from `source_view_at_resolution` — the READ | `t1`,`t4`,`t5`,`t6`, `c1`,`c2`,`c3`, `r3`, `r5b` — **9** |
-| **R2** | neutralise the `is_source_of_a_pending_ability` disjunct — the STACK capture clause | `c1`, `c5`, `t1` |
-| **R3** | drop the `sacrifice_self` capture call — the ACTIVATION-COST capture clause | `c2`,`c3`, `t4`,`t5`,`t6`, `r6b` |
-| **R4** | give `source_view_live` an LKI fallback — the OVER-WIDE direction | `r3`, `r5b` **only** |
-| **R5** | point `snapshot_affected_set` at the live constructor | `r5`, `t1`,`t4`,`t5`,`t6`, `c1`,`c2`,`c3` — **8** |
-| **R7** | move the `sacrifice_self` capture to AFTER the move | same set as R3 — so `r6b` catches ORDER, not just presence |
+**↻ RE-RUN AND RE-PUBLISHED after the `/review` fix cycle. The figures below are the SECOND
+measurement; the first was wrong in a way that is itself the finding — see §5.4.**
+
+| R0 | *(control, unreverted)* | **nothing — all green** |
+| **R1** | delete `.or_else(\|\| state.lki_object_snapshot(..))` from `source_view_at_resolution` — the READ | `t1`,`t4`,`t5`,`t6`, `c1`,`c2`,`c3`, `r3`, `r5b`, **+ both in-source `layers.rs` probes** — **11** |
+| **R2** | neutralise the `is_source_of_a_pending_ability` disjunct — the STACK capture clause | `c1`, `c5`, `t1` — **3** |
+| **R3** | drop the `sacrifice_self` capture call — the ACTIVATION-COST capture clause | `c2`,`c3`, `t4`,`t5`,`t6`, `r6b` — **6** |
+| **R4** | give `source_view_live` an LKI fallback — the OVER-WIDE direction | `r3`, `r5b`, **and the BEHAVIOURAL probe `the_live_static_path_never_consults_last_known_information`** — **3** |
+| **R5** | point `snapshot_affected_set` at the live constructor | `r5`, `t1`,`t4`,`t5`,`t6`, `c1`,`c2`,`c3`, **+ both in-source probes** — **10** |
+| **R7** | move the `sacrifice_self` capture to AFTER the move | same set as R3 — so `r6b` catches ORDER, not just presence — **6** |
 
 ### §5.1 R2 AND R3 ARE PRECISE COMPLEMENTS, AND THAT IS THE PROOF BOTH CLAUSES ARE LOAD-BEARING
 
@@ -508,15 +512,27 @@ at different moments (§0.3). **A batch that built only one clause would have pa
 thought to write for its own half** — which is precisely how `OOS-DX5-7`'s residual survived
 PB-DX5's fix of the same mechanism.
 
-### §5.2 R4 REDDENS ONLY SOURCE GATES, AND THIS TIME THAT IS A MEASUREMENT RATHER THAN A GAP
+### §5.2 R4 IS **NOT** A SOURCE-GATE-ONLY ROW, AND BELIEVING IT WAS IS THIS BATCH'S OWN WORST MEASUREMENT ERROR
 
-`OOS-DX52-2` records that *"a row that reddens only a source gate is telling you the behaviour has
-no probe"*. R4 moves no behavioural probe — and here the correct reading is the other one: `r7`
-measures the exposed live-path population at **0 statics**, with the 4 emblem members unreachable
-because CR 114.1 keeps an emblem in the command zone and nothing ever retires its `ObjectId`. There
-is no behaviour to probe, so gates are the right instrument. Filed as **`OOS-DX39-6`**, which
-refines `OOS-DX52-2` into a pair: *a source-gate-only row means either "no probe" or "no reachable
-behaviour", and a population measurement is what tells them apart.*
+The first draft of this section said R4 *"moves no behavioural probe"* and built a durable lesson
+on it, refining `OOS-DX52-2` into a pair. **That was false — and it was false because of a defect
+in the coordinator's own revert harness, not because of anything about R4.** Re-run with the
+harness fixed (§5.4), R4 reddens
+`rules::layers::pb_dx39_source_view_tests::the_live_static_path_never_consults_last_known_information`,
+a **behavioural** probe asserting exactly the property R4 breaks. The row was always discriminating
+on behaviour; the harness could not see the target the probe lives in.
+
+The surrounding measurements stand and are worth keeping: `r7` does measure the exposed live-path
+population at **0 statics** and 4 emblem registrations, and those four are harmless because
+**nothing in `effects/mod.rs` ever moves an emblem out of the command zone**, so CR 400.7 never
+retires the `ObjectId` — a MEASUREMENT with an expiry condition, not a rule (`CR 114.1`, cited here
+until the `/review`, says only what an emblem IS; the *"neither a card nor a permanent"* half is
+**CR 114.5**, and *nothing* says an emblem cannot leave).
+
+But the lesson is now about the instrument rather than about R4: **before concluding "this revert
+reddens only source gates", prove your harness can see every test target that could contradict
+you.** A red set is a claim, and a claim measured with an incomplete instrument is worth less than
+no claim at all. `OOS-DX39-6` is rewritten accordingly.
 
 ### §5.3 R5 PRODUCED NO VERDICT ON ITS FIRST RUN, AND THE FAILURE MODE IS THE DANGEROUS DIRECTION
 
@@ -567,3 +583,256 @@ path is a mass-filter RESOLUTION, and none of the six benches resolves one. On t
 lookup count is essentially unchanged (one arm runs per call, and the wrapper does the lookup the
 arm used to do). So there is no mechanism on any benched path that could produce the observed
 shift, which is the tell.
+
+---
+
+## §7 THE `/review` FIX CYCLE — 7 findings, ALL TAKEN, and five of the seven gates had been defeated by execution
+
+The `/review` had a shell and used it. **Five of this batch's seven source gates were defeated by
+planted code that left the entire `mtg-engine` + `mtg-simulator` suite green**, and six CR
+citations were wrong. Every finding was taken; every fix is re-proven below by re-running the
+reviewer's own plant against the fixed gate. Backups were taken with `cp` and every restore was
+verified byte-exact with `md5sum`.
+
+### §7.1 `r1` — the mechanism gate had TWO AXES THAT WERE ONE IDEA (MEDIUM-HIGH)
+
+`r1`'s axis 1 was a list of accessor-call spellings whose argument names the source; axis 2 parsed
+accessor-call **argument lists** for a source-flavoured token. Both are *"an accessor call whose
+argument names the source"*, so neither could see a read that is not an accessor call. That is not
+two axes in `OOS-DX36-8`'s sense — it is one axis measured twice.
+
+Executed defeat 1 (the pre-PB-DX39 defect restored in `ArtifactsYouControl`, keeping the
+`let Some(src) = source else` binding so `r2` stayed satisfied):
+
+```rust
+let Some((_, srcobj)) = state.objects.iter().find(|(oid, _)| Some(**oid) == effect.source) else {
+    return false;
+};
+state.objects.get(&object_id).map(|obj| obj.controller) == Some(srcobj.controller)
+```
+
+Executed defeat 2: a `fn per_arm_source_controller(state, effect)` helper doing the live read and
+called from the arm. **All twelve gates green on both.** Reproduced here before fixing.
+
+**Why it matters concretely, and it is a coverage fact rather than an argument: only 2 of the 20
+source-relative arms have behavioural LKI probes. For the other 18, `r1` is the only thing there
+is.**
+
+Fixed with **axis 3, keyed on the MECHANISM**: after deleting the one legal form
+(`if effect.source == Some(object_id) { return false; }` — the CR 613.1 *"other ... you control"*
+self-exclusion, which compares two `ObjectId`s and reads no characteristic), an arm may not name
+`effect`, `source_id`, `sid`, `src_id` or `lki` **at all**. `effect` is the load-bearing needle and
+it is deliberately the whole binding rather than `effect.source`: inside `effect_applies_to_inner`
+the only bindings in scope are `state`, `effect`, `object_id`, `obj_zone`, `chars` and `source`, so
+`effect` is the *only* route to the source id — inline, via a local helper, or via one in another
+file. Axes 1 and 2 are KEPT as the narrower conjuncts they always were (axis 1 still catches
+`source_view_live(` called from inside an arm, which names no banned token).
+
+**A correction to the fix-cycle brief, recorded rather than inherited**: it says *"the four
+`if source_id == object_id`-shaped self-exclusions"*. There are **five**
+(`OtherCreaturesYouControl`, `...WithSubtype`, `...ExcludingSubtype`, `...WithSubtypes`,
+`...OfChosenType`), and they are spelled `effect.source == Some(object_id)`.
+
+### §7.2 `r1c` — the new companion, because axis 3 alone is still short
+
+Axis 3 bans the handle *inside* an arm. It cannot see the handle hoisted just above the arms:
+`let live = effect.source.and_then(|i| state.objects.get(&i));` at the top of
+`effect_applies_to_inner`, with the arms naming `live`, mentions no banned token and could never be
+enumerated. `r1c` closes that by pinning the **per-function occurrence count** of `effect.source`
+across `layers.rs`'s production source (`is_effect_active` 2, `effect_applies_to` 1,
+`effect_applies_to_inner` 5, `snapshot_affected_set` 1). A SET would collapse an extra occurrence
+inside an existing function — `OOS-DX49`'s own lesson, applied one file over.
+
+Both rows are load-bearing and neither subsumes the other, which was **proven by execution rather
+than reasoned**: the coordinator's own hoisted-read defeat (§7.6) reddens `r1c` while `r1` axis 3
+stays green.
+
+### §7.3 `r3` + `r4` — one path-qualified alias defeated BOTH (MEDIUM)
+
+```rust
+pub(crate) fn a2c_alias_reader(state: &GameState, id: ObjectId) -> Option<PlayerId> {
+    let map = GameState::lki_objects(state);
+    map.get(&id).map(|o| o.controller)
+}
+```
+
+called from `is_effect_active`'s `WhileSourceOnBattlefield` arm as an LKI fallback — **a departed
+permanent's static ability running for the rest of the game, the exact regression `r4` exists to
+prevent** — left all twelve gates and the full suite green.
+
+* `r3`'s needles were `["lki_object_snapshot", ".lki_objects"]`, and `GameState::lki_objects(state)`
+  **has no leading dot**. Re-keyed on the **bare token at word boundaries**, which also means
+  `maybe_clear_lki_objects` and `store_lki_snapshot` are not false hits (`_` is a word character).
+  The wider needle surfaced two honest new rows the dotted one could not see — the
+  `GameState.lki_objects` field declaration and `state/builder.rs`'s initialiser — both recorded
+  with the reason that they are declarations, not readers.
+* `r4` asserted the **ABSENCE** of three literals. **An absence test cannot be made complete,
+  because the attacker picks the name.** It is now a **WHITELIST**: set equality over the 47
+  identifiers `is_effect_active`'s body contains, so `a2c_alias_reader` reddens it by existing. The
+  three absence needles are kept as the narrower conjunct, because they name the specific
+  regression and give the better message when they are the cause. Brittle on purpose — a genuine
+  refactor of that function is exactly the moment someone should re-read its two CR arguments.
+
+### §7.4 `r3` — a reader added INSIDE an allowlisted function was invisible (MEDIUM)
+
+`if let Some(o) = self.lki_object_snapshot(ObjectId(1)) { let _leak = o.controller; }` planted in
+`maybe_clear_lki_objects` — an allowlisted `LKI_SITES` row — left `r3` green, because
+`live_lki_sites()` attributed by `(file, enclosing fn)` into a `BTreeSet` and the extra occurrence
+collapsed into the existing element. **This is PB-DX49's own recorded finding on its `r7`**, which
+PB-DX49 closed with a second conjunct re-checking each allowlisted site's body; `r3` inherited the
+shape without the fix. `LKI_SITES` now carries a COUNT per row and `r3` compares maps.
+
+### §7.5 `r6b` — a one-line rebinding walked past it (MEDIUM)
+
+```rust
+if ability_cost.discard_self && false {
+    let dest = ZoneId::Exile;
+    let src_id = source;
+    let (_new, _) = state.move_object_to_zone(src_id, dest)?;
+}
+```
+
+`r6b` keyed on the literal `move_object_to_zone(source,`. **This is PB-DX51's `r1` failure
+verbatim** — a gate written for one variant measures that variant. The wrong-id half WAS caught
+(the exact-3 `capture_source_lki_for_pending_ability(source)` count), and that conjunct is kept;
+what was missing is a fourth self-move under a new name. `r6b` now additionally pins the **sorted
+multiset of every first argument** `handle_activate_ability` passes to `move_object_to_zone` — 7 at
+HEAD: `source` ×3 and the four cost payments that move something else (`card_to_discard`, `sac_id`,
+`food_id`, `id`).
+
+### §7.6 `r5` — the needle required a trailing paren (LOW-MEDIUM)
+
+```rust
+let at_res: fn(&GameState, ObjectId) -> Option<SourceView<'_>> = source_view_at_resolution;
+```
+
+then calling `at_res(..)` inside `effect_applies_to` — the CR 611.3a static path given the LKI
+fallback `r5` forbids — left `r5` GREEN, because `live_at_resolution_callers()` searched for
+`source_view_at_resolution(`. **Mitigated, and it is worth saying which half held**: the in-source
+unit test `pb_dx39_source_view_tests::the_live_static_path_never_consults_last_known_information`
+DID go red, so the behaviour was covered and only the gate was not. Taking a function's address is
+a use like any other; `r5` now matches the **bare identifier at word boundaries**.
+
+### §7.7 SIX WRONG CR CITATIONS, all re-verified against the CR text before being changed
+
+The MCP rules server was **not reachable from this session, and that is stated rather than worked
+around silently**: every rule below was looked up in `.scryfall-cache/MagicCompRules.txt`, which is
+the file the MCP server itself indexes, and the Jitte rulings in `.scryfall-cache/rulings.json`.
+**All six of the reviewer's findings reproduce; none was wrong.**
+
+| # | cited | what the CR actually says | now |
+|---|---|---|---|
+| 1 | `CR 602.2c`, 3× for *"costs are paid during activation"* | **NO SUCH RULE.** CR 602.2 has only 602.2a (announce) and 602.2b (*"the remainder ... is identical to ... 601.2b–i"*) | **`CR 601.2h` via `CR 602.2b`** |
+| 2 | `CR 702.34` for **Channel**, 3 new + 3 pre-existing in `abilities.rs` | CR 702.34 is **Flashback**. Channel is an **ability word** (CR 207.2c lists it) with *"no individual entries in the Comprehensive Rules"* | **cite DELETED**, not renumbered; CR 207.2c named where the *reason* is needed |
+| 3 | `CR 114.1` quoted for *"an emblem can't be a permanent"* and *"never leaves the command zone"* | CR 114.1 defines what an emblem IS. *"Neither a card nor a permanent"* is **CR 114.5**. **NO RULE AT ALL** says an emblem never leaves — CR 114.2 puts it there, CR 114.4 says its abilities function there | **CR 114.5** for the first; the second restated as an **ENGINE MEASUREMENT** (nothing in `effects/mod.rs` moves an emblem out, so CR 400.7 never retires its `ObjectId`) |
+| 4 | `CR 118.12` at `SOURCE_MOVING_COSTS` | CR 118.12 is a cost *"paid when the spell or ability **resolves**"* — the opposite end of the timeline from an activation cost, which made the sentence it justified false | **`CR 601.2h` via `CR 602.2b`** |
+| 5 | `CR 611.2b` for a **static-ability** population | CR 611.2b is the *"for as long as"* duration of a **resolution-generated** effect. The static rule is **CR 611.3b**: *"the effect applies at all times that the permanent generating it is on the battlefield"* | **CR 611.3b**, with CR 611.2b kept where it is genuinely right (`is_effect_active`'s `UntilYourNextTurn` / `WhileYouControlSource` arms) |
+| 6 | `CR 508.1m` for the word *"nontoken"* in `mardu_ascendancy`'s marker | CR 508.1m is *"Any abilities that trigger on attackers being declared trigger"* — it says nothing about tokens. *"nontoken"* is the card's PRINTED TEXT | the cite now covers the **attack-trigger half only**, and the marker says in terms that **no CR rule is cited for the nontoken blocker, because none applies** |
+
+**`r7`'s justification rested on the CR 114.1 error and is restated rather than patched.** Its
+emblem ratchet of 4 was defended with *"CR 114.1 keeps an emblem in the command zone forever"*. That
+sentence has no rule behind it. The ratchet survives on the true, **measurable** reason, and the row
+now says so — and adds the expiry condition: if a later batch teaches the engine to move an emblem,
+this ratchet is the thing that should stop being trusted.
+
+**Jitte ruling #5 is now quoted in full wherever #3 or #4 is quoted** (`SourceView`'s doc, `r5b`'s
+message, this file, the `OOS-DX5-3` row). **#3 and #4 on their own read as a REFUTATION of the LKI
+design** — #3 says the bonus goes to *"the creature that is equipped when the ability resolves"*,
+which for a departed Jitte is nobody — and **#5 is what settles it**: *"If the Jitte leaves the
+battlefield after the '+2/+2' mode is announced but before it resolves, the bonus is given to the
+creature that was most recently equipped once the ability resolves."* #3 governs a source still on
+the battlefield (the LIVE read), #5 a source that has left (the LKI read): the two halves of
+CR 608.2h's own ordering, which is why one constructor implements both in that order.
+
+**Scope stated rather than quietly widened**: `CR 602.2c` occurs **42 more times across 22 files**
+in the pre-existing tree (`mana.rs`, `hash.rs`, `protocol.rs`, `replay_harness.rs`,
+`game_object.rs`, several card defs and ~20 test files). Those are NOT this batch's and are not
+touched here; the population is published so a later batch can sweep it deliberately rather than
+discover it again.
+
+### §7.8 The eager source resolution is now LAZY, and the benches CANNOT see it — measured, not assumed (NIT)
+
+`effect_applies_to` resolved `source_view_live` **above both** of `effect_applies_to_inner`'s
+short-circuits, so every LOCKED effect (`affected_set.is_some()`, the common resolution case) and
+all seventeen non-source-relative arms paid an unconditional `OrdMap::get` per (effect, object) on
+the layer walk — work the pre-PB-DX39 code did not do. Publishing *"twenty reads became one"* while
+adding that would have been half the story.
+
+Fixed by resolving only when `effect.affected_set.is_none() && filter_is_source_relative(&effect.filter)`.
+`filter_is_source_relative` is **exhaustive with no `_` arm** (the SR-5 discipline
+`candidate_ids_for_filter` directly above it already uses), so a new `EffectFilter` variant is a
+compile error until classified. That buys a NEW way to be wrong — a variant mis-classified `false`
+receives `None` and silently matches nothing, i.e. the pre-PB-DX39 defect restored for one filter —
+so **`r2c`** asserts the classifier's `true` set equals the set of arms that actually consume the
+view, both sides derived from source and neither hand-listed.
+
+**BENCHES: SIX RUNS, AND THE HONEST ANSWER IS THAT THEY MEASURE NOTHING HERE.**
+Same-code band measured FIRST (two runs per side, `CARGO_TARGET_DIR` per side):
+
+| bench | eager r1 / r2 (µs) | lazy r1 / r2 (µs) | same-code band | eager→lazy |
+|---|---|---|---|---|
+| `priority_cycle_4p` | 24.056 / 24.156 | 24.357 / 24.553 | 0.4-0.8% | +1.4% |
+| `priority_cycle_6p` | 38.456 / 38.163 | 38.771 / 38.388 | 0.8-1.0% | +0.6% |
+| `sba_check` | 15.006 / 15.799 | 14.676 / 15.779 | **5.3-7.5%** | −0.2% |
+| `full_turn_4p` | 215.60 / 215.37 | 216.29 / 216.03 | 0.1% | +0.3% |
+| `full_turn_6p` | 345.03 / 346.57 | 344.67 / 342.92 | 0.4-0.5% | −0.7% |
+| `board_wipe_4p` | 121.22 / 119.73 | 121.37 / 121.24 | 0.1-1.2% | +0.8% |
+
+**No difference is claimed in either direction, and the reason is a MEASUREMENT rather than the
+usual noise argument.** `crates/engine/benches/engine_perf.rs` contains **zero** occurrences of
+`continuous_effect` / `ContinuousEffect` / `ApplyContinuousEffect` / `Static` — every fixture is
+vanilla 2/2 creatures — so `state.continuous_effects` is empty on every benched path. Proven by
+execution rather than by grep: a `panic!` at the top of `effect_applies_to`, gated on a
+`DX39_PROBE` env var, **did not fire on any of the six benches**, and the same probe **DID** fire on
+the in-source layer-walk unit tests, so the negative result is non-vacuous rather than a probe that
+was never compiled in. `effect_applies_to` is called **zero times** by this bench suite; the A/B
+above is structurally incapable of showing the change, and that is reported instead of a verdict it
+cannot support.
+
+### §7.9 Three further gate defeats attempted by the fix cycle itself — all three CAUGHT
+
+1. **Misclassify `ArtifactsYouControl` as non-source-relative** (move it to the `false` side of the
+   new classifier, so a real filter is silently handed `None`) → **`r2c` RED**
+   (`consuming only: ["ArtifactsYouControl"]`). Separately, *duplicating* a variant across both
+   sides is an `unreachable pattern` **compile error** under `-D warnings`, so that route is closed
+   by the compiler rather than by a gate.
+2. **Hoist the live source read above the arms under an unbanned name**
+   (`let live_ctrl = effect.source.and_then(..)` at the top of `effect_applies_to_inner`, consumed
+   by `ArtifactsYouControl`) → **`r1c` RED** (count 5 → 6), **and `r1` axis 3 GREEN**, which is the
+   executed proof that the two rows are complementary rather than redundant.
+3. **A `use` alias for the LKI constructor** (`use self::source_view_at_resolution as sv;` then
+   `sv(state, sid)` on the static path — PB-DX36's and PB-DX49's alias shape) → **`r5` RED**
+   (`live only: [("…/layers.rs", "effect_applies_to")]`), because the needle is now the bare token.
+
+### §7.10 Close-out figures, re-taken after the fix cycle rather than inherited
+
+Tests **5,196 / 0 / 5** full-workspace, **66** result-producing targets — the batch's published pin
+of 5,194 plus exactly the two rows this cycle added (`r1c`, `r2c`). **HASH 84 / PROTOCOL 43 both
+gate-executed and UNMOVED** (`hash_schema` 36/36, `protocol_schema` 17/17); nothing here adds a
+type, variant or field. `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check`
+clean, `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean — all against
+the FINAL tree. `mardu_ascendancy` keeps `Completeness::partial`; no `Completeness` marker moved, so
+the `CORPUS_COMPLETE` set is unmoved and no seeded fixture was re-dealt.
+
+
+### §5.4 THE HARNESS OMITTED A WHOLE TEST TARGET, SO EVERY PUBLISHED RED SET WAS A FLOOR
+
+The coordinator's matrix script ran three targets — `--test core`, `--test primitives` and the
+simulator channel binary — and **never ran `cargo test -p mtg-engine --lib`**. The engine's
+in-source `#[cfg(test)] mod pb_dx39_source_view_tests` lives there, and it is the only place this
+batch's `pub(crate)`/private items are reachable, so it holds five of the most direct probes in the
+batch.
+
+Every consequence is a correction to a figure this batch had already published:
+
+- **R1 is 11, not 9** — found by the `/review`, which was right.
+- **R5 is 10, not 8.**
+- **R4 is 3, not 2 — and the third is BEHAVIOURAL**, which demolishes §5.2's original conclusion
+  and the seed built on it.
+- R2, R3 and R7 are unchanged at 3 / 6 / 6, so the §5.1 complement finding is untouched.
+
+**A revert matrix is only as wide as the targets its harness runs, and an omitted target fails
+SILENTLY and in the reassuring direction** — every row still looks discriminating, merely less so,
+and one row looked like a *coverage* gap when it was an *instrument* gap. This is `OOS-DX39-8`'s
+shape one level up (there, a build failure read as a gate verdict): **the matrix must first be
+shown able to observe the thing it is about to measure.** Filed as the rewritten `OOS-DX39-6`.

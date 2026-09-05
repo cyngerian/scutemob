@@ -270,16 +270,18 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-05, PB-DX39)**: **5,194 / 0 / 5** full-workspace on branch
-  `scutemob-230` (+38 over the **5,156** baseline, measured on this branch BEFORE any edit and
+- **Tests (delta 2026-09-05, PB-DX39)**: **5,196 / 0 / 5** full-workspace on branch
+  `scutemob-230` (+40 over the **5,156** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX52's close pin exactly** — the second consecutive batch in which an inherited
   pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file, **66**
   result-producing targets (65 → 66: one new simulator test binary), residual list empty.
   **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
-  `sort` + `comm` (`OOS-DX20b-5`): 38 additions, 0 leavers, 0 removals, 0 renames.**
-  Count delta 38 == name-set delta 38, and the duplicate-name scan the byte-exact method is
+  `sort` + `comm` (`OOS-DX20b-5`): 40 additions, 0 leavers, 0 removals, 0 renames.**
+  **RE-TAKEN AFTER the `/review` fix cycle, not before it** (dispatch hygiene 8): the cycle added
+  `r1c` and `r2c`, so the pre-cycle figure of 38 is superseded by this line rather than left
+  standing beside it. Count delta 40 == name-set delta 40, and the duplicate-name scan the byte-exact method is
   structurally blind to (`OOS-DX35-8`) is **EMPTY on both runs** (5,156 lines / 5,156 distinct;
-  5,194 / 5,194).
+  5,196 / 5,196).
   **HASH 84 / PROTOCOL 43 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed
   (`hash_schema` 36/36, `protocol_schema` 17/17) and **predicted PER OPTION in writing before any
   production line** (`60975661`), with the counterfactual costed rather than waved away: option
@@ -329,10 +331,16 @@
   which is not the same as proving no `public_state_hash` anywhere moved.
   **Revert matrix: 6 rows, EXECUTED BY THE COORDINATOR rather than accepted from the four delegated
   reports, 6 discriminating, 0 UNDISCRIMINATED**, all three engine files verified restored
-  byte-exactly. **R2 and R3 are precise complements** — R2 (the stack-capture clause) reddens the
+  byte-exactly — and **RE-RUN, because the first harness omitted a whole test target**
+  (`cargo test -p mtg-engine --lib`, where five of this batch's most direct probes live), so every
+  published red set was a FLOOR: R1 is **11** not 9, R5 is **10** not 8, and R4 is **3** not 2 with
+  its third row **behavioural** — which demolished this batch's own "R4 reddens only source gates"
+  finding as an artefact of its own instrument (`OOS-DX39-6`, rewritten in place). **R2 and R3 are precise complements** — R2 (the stack-capture clause) reddens the
   Jitte probes and leaves Mardu green, R3 (the activation-cost clause) does the exact opposite —
   which is the proof BOTH capture clauses are load-bearing, and the reason a batch that built only
-  one would have passed every probe it thought to write for its own half. Filed **OOS-DX39-1..8**.
+  one would have passed every probe it thought to write for its own half. Filed **OOS-DX39-1..10** — and the first draft of this line said `-1..8`, which is dispatch
+  hygiene 8's exact case for the third batch running, caught by re-checking this cell against the
+  registry AFTER the `/review` fix cycle rather than before it.
 - **Tests (delta 2026-09-04, PB-DX52)**: **5,156 / 0 / 5** full-workspace on branch
   `scutemob-229` (+39 over the **5,117** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX36's close pin exactly** — the first time in five batches an inherited pin
