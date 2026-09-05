@@ -940,12 +940,16 @@ leave the set is `discard_cards` (13 → 12), closed by ENG-1.
 > residue). Ranks **1-17 are all shipped**, and rank 18 is the LAST task of the five-task chain
 > the user approved on 2026-09-04.
 >
-> **Read row 18's own preconditions before dispatching it**, both stated in that row and neither
-> discharged by PB-DX54: re-word `OOS-DX19-2` per `OOS-ADJ-3` first (it is a cross-layer
-> bounding problem framed as a CR 613.8b fixpoint, and a worker taking the row literally builds
-> the wrong thing), and if PB-DX9 has shipped in the meantime, re-measure the supply census,
-> because that is what promotes `the_world_tree` and moves this row's own deck-legal population
-> off 1.
+> **Read row 18's own two preconditions before dispatching it. One is now DISCHARGED and the
+> other is not**, and that split is worth reading rather than the pair being restated:
+>
+> * **DISCHARGED** — *re-word `OOS-DX19-2` per `OOS-ADJ-3`* (it is a cross-layer bounding problem
+>   framed as a CR 613.8b fixpoint, and a worker taking the row literally builds the wrong thing).
+>   Done by the coordinator on `main` at `9847aafb`, 2026-09-05, while PB-DX54 was in flight;
+>   `OOS-ADJ-3` carries the discharge note. PB-DX54 did **not** do this and does not claim to.
+> * **STANDING** — if PB-DX9 has shipped in the meantime, re-measure the supply census first,
+>   because that is what promotes `the_world_tree` and moves this row's own deck-legal population
+>   off 1.
 >
 > **↻ 2026-09-05 (historical): `PB-DX53` SHIPPED (`scutemob-231`); the next dispatch was
 > `PB-DX54`** (rank 17, `OOS-DX25c-6`).
