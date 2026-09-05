@@ -146,7 +146,27 @@ pub fn advance_turn(
     let mut turn = state.turn.clone();
     let mut events = Vec::new();
     // Determine who takes the next turn -- MR-M2-02: typed error instead of expect.
-    let next_player = if let Some(extra_turn_player) = turn.extra_turns.pop_back() {
+    //
+    // CR 800.4k (F2, PB-DX56): "If a player who has left the game would begin a
+    // turn, that turn doesn't begin." An extra turn queued (LIFO) for a player who
+    // subsequently left the game is dropped here rather than begun -- the queued
+    // turn "doesn't begin", it is not deferred to later in the queue or requeued.
+    // Keep popping until a live entry is found; if the whole queue is departed
+    // players, fall through to normal turn order exactly as if none had been
+    // queued at all. Same liveness predicate as `next_player_in_turn_order` below.
+    let mut next_extra_turn_player = None;
+    while let Some(candidate) = turn.extra_turns.pop_back() {
+        let alive = state
+            .expect_player(candidate)
+            .map(|p| !p.has_lost && !p.has_conceded)
+            .unwrap_or(false);
+        if alive {
+            next_extra_turn_player = Some(candidate);
+            break;
+        }
+        // else: CR 800.4k -- this queued extra turn doesn't begin. Keep popping.
+    }
+    let next_player = if let Some(extra_turn_player) = next_extra_turn_player {
         // LIFO: most recently added extra turn goes first.
         // Don't update last_regular_active -- extra turns don't advance normal order.
         extra_turn_player

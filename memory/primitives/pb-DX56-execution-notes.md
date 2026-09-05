@@ -284,3 +284,70 @@ action early, and it would silently delete the transient class rather than class
   `diagnostics.rs:134` both carry a comment asserting *"CR 800.4a removes their objects, not
   the PlayerState"* while no site removes or exiles a departed player's objects. A comment
   describing a procedure the engine does not run.
+
+---
+
+## §2 The three engine fixes, and the CR that decides the shape of F1
+
+Delegated to a `primitive-impl-runner` on `crates/engine/` alone (disjoint from the
+tooling agent's file set), then reviewed and re-verified by the coordinator.
+
+**All six CR cites re-verified against the rules server BY THE COORDINATOR**, because the
+implementing agent reported it had no `mcp__mtg-rules__*` tool available and **said so
+rather than proceeding as if it had** — the PB-DX52 precedent. CR 400.7, CR 704.5m,
+CR 704.5n, CR 800.4a, CR 800.4j and CR 800.4k all read exactly as the census quoted them.
+
+### F1 — CR 400.7 attachment symmetry (`state/mod.rs`, +39 / −0)
+
+One private helper `GameState::detach_from_host_on_departure`, called from BOTH zone-move
+helpers beside the existing CR 702.95e soulbond fix-up — not two hand-rolled copies, which
+is the class of defect this queue keeps closing. It removes the departing id from its
+host's `attachments` through `fizzle_object_mut`, because the host may itself have left in
+the same SBA batch and that is a legal fizzle rather than an engine bug (SR-4's
+classification, mirroring the soulbond site one statement above).
+
+**And there is a CR rule that makes the one-directionality load-bearing rather than merely
+conservative, which the census did not have.** Beyond the fact that CR 704.5m and CR 704.5n
+prescribe opposite dispositions, **CR 400.7f** exists *specifically* to let a
+leaves-the-battlefield trigger find an Aura in its owner's graveyard *"as a result of being
+put there as a state-based action for not being attached to a permanent. (See rule
+704.5m.)"* — i.e. the CR has an exception rule whose antecedent is that the Aura reached
+the graveyard **through 704.5m**. Clearing `attached_to` eagerly at the zone-move site would
+change which 704.5m arm fires (from "target gone" to "not attached") and, more importantly,
+would be an SBA performed outside an SBA sweep. So *"do not finish the job"* is a
+CR requirement with its own citable rule, not a scope decision — and it is pinned
+wrong-way-round by `t3` so a later batch cannot quietly symmetrise the helper.
+
+### F2 — CR 800.4k extra-turn liveness (`rules/turn_structure.rs`, +21 / −1)
+
+`advance_turn`'s extra-turn branch pops until it finds a live entry, **discarding** dead
+ones (CR 800.4k: that turn *"doesn't begin"* — it is not deferred and not requeued), and
+falls through to normal turn order if the whole queue is departed players. LIFO and
+`last_regular_active` semantics unchanged for live entries.
+
+**A pre-existing test was a PIN ON THIS DEFECT and its own docstring said so.**
+`mechanics_e_l::extra_turns::test_extra_turn_eliminated_player_skipped` documented
+*"the eliminated player may briefly be set as active_player … effectively a no-op turn"*
+as the expected behaviour — which is the CR 800.4k violation verbatim. It is **corrected,
+not re-pinned**, and the correction makes it STRONGER: its headline `assert_ne!(…, p1)`
+becomes `assert_eq!(…, p3)`, an exact assertion, because with the fix the departed
+player's entry is structurally unable to become `active_player` at all. The test NAME is
+unchanged, so this is an in-place inversion that the byte-exact NAME delta cannot see —
+disclosed here rather than left for the name set to hide (PB-DX48's rule).
+
+### F3 — CR 800.4a cleanup-SBA-round grant, closing `OOS-DP9-19` (`rules/engine.rs`, `rules/priority.rs`)
+
+The cleanup-SBA-round grant inside `enter_step` hand-rolled
+`grant_initial_priority` + two unconditional field writes. It now calls
+`priority::grant_priority_to_active_player`, **the helper that already existed and whose
+own doc named this exact site as the one deliberately-unrouted hole**. So F3 is finishing
+the wiring of a helper built for it, not new logic — and both doc comments that asserted
+the hole still existed (`engine.rs:~3079` and `priority.rs`'s grant inventory) are rewritten,
+because they become false the moment the fix lands. A comment left asserting a hole the
+code no longer has is `OOS-DX47-6`'s shape, and this batch's own §1.3 found two more of
+them.
+
+**Every one of the six probes was watched RED under a temporary revert**, with the panic
+line and message recorded, and every reverted file restored byte-exactly. `t3` and `t5`
+correctly stayed GREEN under F1's and F2's reverts respectively — stated as controls, not
+as gaps, because they pin different properties.

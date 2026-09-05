@@ -2720,11 +2720,15 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
                     return Ok(events);
                 }
                 // Grant priority — when all pass, handle_all_passed will re-enter cleanup.
-                let active = state.turn.active_player;
-                let (passed, priority_events) = priority::grant_initial_priority(state);
-                state.turn.players_passed = passed;
-                state.turn.priority_holder = Some(active);
-                events.extend(priority_events);
+                //
+                // CR 800.4a (F3, PB-DX56 / OOS-DP9-19): this grant used to be
+                // unconditional -- it named `state.turn.active_player` even when that
+                // player had since left the game, leaving `priority_holder` naming a
+                // departed seat for the rest of the cleanup round. Route through
+                // `grant_priority_to_active_player`, the same CR 800.4j/800.4a
+                // liveness check the step-priority grant twenty lines below already
+                // applies, instead of hand-rolling it a third time.
+                priority::grant_priority_to_active_player(state, &mut events);
                 return Ok(events);
             }
             // No SBAs (or safety limit reached) — fall through to auto-advance.
@@ -3072,12 +3076,13 @@ fn handle_concede(
     //    `advance_turn` below is a shortcut the CR does not require. What CR
     //    800.4j DOES require -- that the departed active player never receive
     //    priority -- is discharged at every grant site that could hand it to
-    //    them: `priority::grant_priority_to_active_player` (four sites: both
-    //    `resolve_top_of_stack_inner` grants, fixed by closing-review HIGH-1,
-    //    plus `handle_declare_blockers` and `counter_stack_object`, fixed by
-    //    the second closing review), `enter_step`'s ordinary step grant, and
-    //    the forced-payment branch of `handle_all_passed`. NOT `enter_step`'s
-    //    cleanup-SBA-round grant, which is still unconditional (OOS-DP9-19).
+    //    them: `priority::grant_priority_to_active_player` (five sites as of
+    //    PB-DX56 F3: both `resolve_top_of_stack_inner` grants, fixed by
+    //    closing-review HIGH-1, `handle_declare_blockers` and
+    //    `counter_stack_object`, fixed by the second closing review, and
+    //    `enter_step`'s cleanup-SBA-round grant, fixed by PB-DX56 F3
+    //    (OOS-DP9-19, formerly the one live hole)), `enter_step`'s ordinary
+    //    step grant, and the forced-payment branch of `handle_all_passed`.
     //    Probe:
     //    `test_dp9_active_player_concedes_under_a_foreign_block`, which drives a
     //    step boundary past the concede to pin it.
