@@ -15,9 +15,56 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available (**PB-DX53 `scutemob-231` SHIPPED 2026-09-05 `5b54081d` — task 3 of 5 of the approved chain; next is PB-DX54, rank 17, dispatching; then PB-DX42b (rank 18) is the LAST**) (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
+| W6: Primitive + Card Authoring | — | available (**PB-DX54 `scutemob-232` SHIPPED 2026-09-05 — task 4 of 5 of the approved chain; next and LAST is PB-DX42b, rank 18**) (**PB-DX53 `scutemob-231` SHIPPED 2026-09-05 `5b54081d` — task 3 of 5 of the approved chain; next is PB-DX54, rank 17, dispatching; then PB-DX42b (rank 18) is the LAST**) (**PB-DX39 `scutemob-230` SHIPPED 2026-09-05 — task 2 of 5**) (**PB-DX52 `scutemob-229` SHIPPED 2026-09-04 — task 1 of 5**) (**four-task dispatch chain COMPLETE 2026-09-04**: PB-DX18 `scutemob-225` `61f9d5e1`, PB-DX51 `scutemob-226` `275b00af`, PB-DX35 `scutemob-227` `e8c212e7`, PB-DX36 `scutemob-228` `d15692f7`; v4 ranks 1-13 all shipped; **FIVE-task chain APPROVED by user 2026-09-04 (exactly five, sequential, collect-before-next): PB-DX52 (rank 14) → PB-DX39 (15) → PB-DX53 (16) → PB-DX54 (17) → PB-DX42b (18); PB-DX52 dispatching**)
 
-## Last Handoff (worker, 2026-09-05) — PB-DX53 / `scutemob-231`
+## Last Handoff (worker, 2026-09-05) — PB-DX54 / `scutemob-232`
+
+**v4 rank 17. `OOS-DX25c-6` CLOSED**, plus rider **`OOS-DX25-4`** CLOSED and rider
+**`OOS-DX25b-4`** DECLINED with a measured wire cost. Next and LAST of the approved five-task
+chain: **PB-DX42b** (rank 18, `OOS-ADJ-1` ≡ `OOS-DX19-2`). Seeds filed **OOS-DX54-1..5**.
+Full record: `memory/primitives/pb-DX54-execution-notes.md`; the pre-committed wire prediction
+is `54415c25`, before any production line.
+
+### The one thing to read first
+
+**The design was chosen by a measurement, and the measurement is what makes the obvious shape
+wrong.** The criterion demanded both fix options' blast radius be executed at stage 0. With the
+pop moved to the FUNCTION BOUNDARY the workspace runs **5,207 / 3 / 5 and all three failures are
+SOURCE gates — zero behavioural**. That zero is not a green light: departing at the boundary
+breaks **CR 714.4**'s Saga sacrifice and **CR 309.6**'s dungeon removal, both of which read
+`state.stack_objects` from inside `check_and_apply_sbas`, and CR 704.3 checks SBAs *after*
+CR 608.2n. The suite is measurably incapable of noticing. So the departure goes at the two
+CR-ordered points inside `resolve_top_of_stack_inner`, with an idempotent backstop in the wrapper
+for the four early returns that run no trigger/SBA/priority tail.
+
+### What the next batch should carry forward
+
+1. **A wrong CR cite propagates the way a wrong number does, and it reads more plausibly.**
+   `CR 608.2m` was cited by the seed row, the v4 memo row AND the dispatch acceptance criterion;
+   the rule is `CR 608.2n`. Fourth batch running to inherit one. Check the rule text, not the
+   chain (`OOS-DX54-1`).
+2. **A gate you can respell past has stopped measuring — proven, not quoted.** Revert row R6
+   rewrites the departure as `retain(|so| so.id != entry_id)`: PB-DX52's inherited `r1a` stays
+   GREEN and only this batch's `r3` catches it. Obeying an inherited gate is cheaper than
+   allowlisting around it *and* is what surfaced the hole.
+3. **A revert row that reddens only a source gate is a coverage finding, and two of seven here
+   are.** R2 and R3 are disclosed as such **in `r2`'s own doc**, each with the reason its probe is
+   missing: R2's is currently UNBUILDABLE behind `OOS-DX54-4`, R3's needs three fixtures nothing
+   builds (`OOS-DX54-5`). A 7-for-7 RED matrix is easy to produce and easy to over-read.
+4. **An assertion-free `#[test]` is a number problem, not a style problem.** The probe agent
+   shipped one; it would have added +1 to the test delta every later batch inherits as its
+   baseline. Its doc was kept, its wrapper was not.
+5. **And the coordinator's own removal of that wrapper deleted a PASSING test.** Recovered from
+   the agent transcript and re-verified. `OOS-DX18-3`'s over-wide-cut shape, one tool over —
+   read every line a scripted deletion touches, not just the ones it was aimed at.
+6. **`OOS-DX54-4` is live and unrelated to this batch**: CR 714.4's exemption is checked against
+   `state.stack_objects` while the chapter ability is still in `pending_triggers`, so a Saga's
+   FINAL chapter resolves sourceless and does nothing. Filed with no probe on PB-DX49's
+   `OOS-DX49-1` precedent. Anyone touching Saga code should read it first.
+7. **Housekeeping the coordinator should close at `/collect`**: a zero-byte file literally named
+   `{}` has been tracked on `main` since `2ca6a741` (2026-08-14). `OOS-DX54-3`; one `git rm`.
+
+## Prior Handoff (worker, 2026-09-05) — PB-DX53 / `scutemob-231`
 
 **v4 rank 16. `OOS-DX21-1` CLOSED.** Next dispatch: **PB-DX54** (rank 17, `OOS-DX25c-6`).
 **`/review` run: 13 findings (2 HIGH / 5 MEDIUM / 4 LOW / 2 NIT), all thirteen taken** — both

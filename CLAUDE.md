@@ -103,8 +103,13 @@
   **↻ PB-DX53 SHIPPED** (`scutemob-231`, 2026-09-05; v4 rank 16 — **OOS-DX21-1** CLOSED, its row
   corrected against three of its own claims; the class is **2** deck-legal members, not the row's
   1, and the second is a card whose defect was that its ability was MISSING).
-  **Next dispatch: PB-DX54** (v4 rank 17 — a resolving spell cannot be its own redirect victim,
-  `OOS-DX25c-6`); ranks 1-16 all shipped.
+  **↻ PB-DX54 SHIPPED** (`scutemob-232`, 2026-09-05; v4 rank 17 — **OOS-DX25c-6** CLOSED, plus
+  rider **OOS-DX25-4** CLOSED and rider **OOS-DX25b-4** DECLINED with a measured wire cost; the
+  row's "2 deck-legal `Complete`" cell REPRODUCES, the first yield cell in five batches that is
+  not a floor, and the row's CR cite is wrong — CR 608.2n, not 608.2m).
+  **Next dispatch: PB-DX42b** (v4 rank 18 — CR 613.1d layer-bounded condition queries,
+  `OOS-ADJ-1` ≡ `OOS-DX19-2`); ranks 1-17 all shipped, and rank 18 is the LAST of the
+  user-approved five-task chain. Read row 18's two preconditions before dispatching it.
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -155,6 +160,12 @@
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
   `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,140/1,803 = 63.2%**
+  (**UNMOVED by PB-DX54, 2026-09-05 — 0 flips, predicted with the reason before any regeneration
+  and confirmed in every bucket (clean 1,140 / todo 516 / empty 147 identical). The batch makes
+  **0 card-def edits of any kind**, so no `Completeness` marker can move, the `CORPUS_COMPLETE`
+  SET is unmoved as well as its count, and `OOS-CARDS2-3`'s re-deal budget was checked and found
+  not owed. The empty-card-def-diff shortcut was available and the regeneration was run anyway**)
+  *(historical: **1,140/1,803 = 63.2%**
   (**PB-DX53, 2026-09-05 — ONE flip, `minas_tirith` `partial` → `Complete`, NAMED before any code;
   it is a THIRD member of the turn-scoped class that no document in the chain names, found by the
   INVERSE ORACLE axis because its ability was unauthored and a declared-axis census structurally
@@ -271,8 +282,13 @@
   **↻ PB-DX53 SHIPPED** (`scutemob-231`, 2026-09-05; v4 rank 16 — **OOS-DX21-1** CLOSED, its row
   corrected against three of its own claims; the class is **2** deck-legal members, not the row's
   1, and the second is a card whose defect was that its ability was MISSING).
-  **Next dispatch: PB-DX54** (v4 rank 17 — a resolving spell cannot be its own redirect victim,
-  `OOS-DX25c-6`); ranks 1-16 all shipped.
+  **↻ PB-DX54 SHIPPED** (`scutemob-232`, 2026-09-05; v4 rank 17 — **OOS-DX25c-6** CLOSED, plus
+  rider **OOS-DX25-4** CLOSED and rider **OOS-DX25b-4** DECLINED with a measured wire cost; the
+  row's "2 deck-legal `Complete`" cell REPRODUCES, the first yield cell in five batches that is
+  not a floor, and the row's CR cite is wrong — CR 608.2n, not 608.2m).
+  **Next dispatch: PB-DX42b** (v4 rank 18 — CR 613.1d layer-bounded condition queries,
+  `OOS-ADJ-1` ≡ `OOS-DX19-2`); ranks 1-17 all shipped, and rank 18 is the LAST of the
+  user-approved five-task chain. Read row 18's two preconditions before dispatching it.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
   one is historical. The authoritative queue is `memory/primitives/seed-rerank-2026-08-14.md`
   **§4**; `seed-rerank-2026-08-02.md` §4 is banner'd SUPERSEDED (its §1-§3 stay canonical).
@@ -283,6 +299,60 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
+- **Tests (delta 2026-09-05, PB-DX54)**: **5,231 / 0 / 5** full-workspace on branch
+  `scutemob-232` (+21 over the **5,210** baseline, measured on this branch BEFORE any edit and
+  **reproducing PB-DX53's close pin exactly** — the fourth consecutive batch in which an inherited
+  pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file, **68**
+  result-producing targets (67 → 68: one new simulator test binary), residual list empty.
+  **Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs — never
+  `sort` + `comm` (`OOS-DX20b-5`): 21 additions, 0 leavers, 0 removals, 0 renames.** Count delta
+  21 == name-set delta 21, and the duplicate-name scan the byte-exact method is structurally blind
+  to (`OOS-DX35-8`) is **EMPTY on both runs** (5,210 / 5,210 distinct; 5,231 / 5,231).
+  **HASH 85 / PROTOCOL 44 BOTH UNMOVED — ZERO bumps for the whole PB**, gate-executed (53/53
+  including `declaration_fingerprint_is_pinned`, `stream_fingerprint_is_pinned`,
+  `history_is_append_only` and `frozen_prefix_is_pinned` on both sides) and **predicted PER OPTION
+  in writing before any production line** (`54415c25`). Closure type counts **MEASURED** at
+  **98 / 132** by raising each gate's `MIN_CLOSURE_TYPES` to 9999 and reading its own panic text,
+  never transcribed from PB-DX53. `git diff` over `state/hash.rs` and `rules/protocol.rs` is
+  **EMPTY**, so no sentinel re-pin, no survivor scan on either axis, no `OOS-DX18-3`
+  over-replacement read, no history row and no frozen-prefix re-pin were owed; the two append-only
+  gates were executed anyway, green, as the evidence that none was owed rather than as a claim.
+  **The counterfactual is stated because "unmoved" only means something beside what would have
+  moved it, and all three legs were VERIFIED BY EXECUTION at stage 0**: planting `StackObject` in
+  `hash_schema.rs`'s `CLOSURE_MUST_NOT_CONTAIN` fails that gate while `protocol_schema.rs` already
+  lists both `StackObject` and `GameState` and stays green (so the rejected shadow-entry design is
+  HASH-only), and planting `EffectChoiceQuestion` fails BOTH (so the declined rider `OOS-DX25b-4`
+  is +1 on each).
+  Coverage **UNMOVED at 1,140/1,803 = 63.2%** by regeneration, **0 flips** predicted with the
+  reason before any regeneration and confirmed in every bucket (clean 1,140 / todo 516 / empty 147
+  identical), self-dating churn reverted; **0 card-def edits of any kind** — `git diff --numstat`
+  over `crates/card-defs` and `crates/card-types/src/cards` is empty, so the shortcut was available
+  and the regeneration was run anyway.
+  `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+  `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
+  gate) — all against the FINAL tree. **`npm run build` was NOT run and that is stated rather than
+  omitted**: N/A, because `git diff --numstat <merge-base>..HEAD -- tools/` is **EMPTY** and
+  `node_modules` is absent; unlike PB-DX52 no acceptance criterion predicted otherwise.
+  **Engine lines** (re-taken against the FINAL tree rather than transcribed from a mid-batch
+  figure — PB-DX28's re-take MEDIUM): `crates/engine/src` **+209 / −81**, and it is exactly two
+  files — `rules/resolution.rs` **+192 / −59** and `effects/mod.rs` **+17 / −22**; **`crates/card-types`, `crates/card-defs`, `crates/view-model`,
+  `crates/simulator/src` and `tools/` are all EXACTLY 0** — every consumer of the CR 608.2n
+  departure point lives in those two engine files, measured before the design was chosen rather
+  than asserted after.
+  **Revert matrix: 7 rows, EXECUTED BY THE COORDINATOR rather than accepted from the delegated
+  reports, all three source files restored byte-exactly (`cmp`)** — R1 (the whole fix) reddens 6;
+  **R4 and R5 are precise complements** (each reddens exactly one of the two rider probes, which
+  is the only way to show two byte-identical copies of a defect both needed fixing); **R6 is the
+  row worth reading** — respelling the departure as `retain(..)` satisfies PB-DX52's inherited
+  `r1a` and is caught ONLY by this batch's `r3`, which is *"a gate you edit prose to satisfy has
+  stopped measuring"* demonstrated by execution; R7 catches a third `sba.rs` stack reader in the
+  `for so in &state.stack_objects` form the gate's own first draft could not have seen.
+  **TWO ROWS ARE COVERAGE MEASUREMENTS, NOT PASSES, AND SAY SO IN THE TEST ITSELF**: R2 (the
+  function-boundary design) and R3 (the backstop) each redden ONE source gate and **no
+  behavioural probe anywhere** — `OOS-DX52-2`'s shape said out loud. R2's probe is currently
+  **UNBUILDABLE** rather than merely unwritten, blocked behind `OOS-DX54-4`; R3's needs three
+  fixtures nothing in the tree builds (`OOS-DX54-5`).
+  Filed **OOS-DX54-1..5**.
 - **Tests (delta 2026-09-05, PB-DX53 + `/review` fix cycle)**: **5,210 / 0 / 5** full-workspace on
   branch `scutemob-231` (+14 over the **5,196** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX39's close pin exactly** — the third consecutive batch in which an inherited
@@ -1529,7 +1599,103 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-09-05 — **PB-DX53 SHIPPED** (`scutemob-231`; v4 queue rank 16 —
+- **Last Updated**: 2026-09-05 — **PB-DX54 SHIPPED** (`scutemob-232`; v4 queue rank 17 —
+  **OOS-DX25c-6** CLOSED, plus rider **OOS-DX25-4** CLOSED and rider **OOS-DX25b-4** DECLINED
+  and re-filed with a measured wire cost).
+  **A ruling the engine could not implement, because its own resolution order put the answer out
+  of reach.** Misdirection's 2004-10-04 ruling says *"You can choose to make a spell on the stack
+  target this spell … **This spell is still on the stack when new targets are selected for the
+  spell**"*, and `resolve_top_of_stack_inner` opened with `state.stack_objects.pop_back()` — so
+  for the whole of a resolution the resolving object's ENTRY did not exist. Both single-target
+  retarget requirements resolve their candidate through `stack_index_for_announced_target`, which
+  therefore returned `None`, and Misdirection's own card was rejected as *not a spell* rather than
+  for anything to do with self-targeting.
+  **THE CR CITE IS WRONG IN THE SEED ROW, THE MEMO ROW AND THE DISPATCH CRITERION — ALL THREE
+  INHERITED FROM ONE FILING.** They cite **CR 608.2m**; the rule that puts the departure LAST is
+  **CR 608.2n** (*"As the final part of an instant or sorcery spell's resolution…"*), reinforced
+  by CR 608.2's own preamble (*"608.2n and 608.2p are followed last"*). CR 608.2m is about an
+  object removed by SOMETHING ELSE mid-resolution and cannot warrant the fix — and it IS the right
+  cite for exactly one thing here, the departure helper's idempotence, where "already gone" really
+  is 608.2m's case. `OOS-DX54-1`; the fourth batch running to inherit a wrong cite from its own
+  dispatch.
+  **THE DESIGN WAS SETTLED BY MEASUREMENT, AND THE MEASUREMENT IS THE HEADLINE.** The criterion
+  demanded both options' blast radius be executed, and it was, before any real line changed: with
+  the pop moved to the FUNCTION BOUNDARY the workspace runs **5,207 / 3 / 5** and **all three
+  failures are SOURCE gates** — two keyed on a function name the scaffold renamed, one on the
+  scaffold's own re-open-coded `.position(` scan. **ZERO behavioural.**
+  **AND THAT ZERO IS EXACTLY WHY THE OBVIOUS SHAPE IS WRONG.** Departing at the function boundary
+  breaks two SBAs that read `state.stack_objects` from inside `check_and_apply_sbas`: **CR 714.4**'s
+  Saga sacrifice (*"…isn't the source of a chapter ability that has triggered but not yet left the
+  stack"*) and **CR 309.6**'s dungeon removal. CR 704.3 checks SBAs when a player would receive
+  priority — AFTER CR 608.2n — so a resolving FINAL chapter ability that had not departed postpones
+  its own Saga's sacrifice by a whole SBA round, and **no behavioural test in the workspace catches
+  it**. Shipped instead: departure at the two CR-ordered points inside `resolve_top_of_stack_inner`,
+  plus an idempotent backstop in `resolve_top_of_stack` for the four early returns that run no
+  trigger/SBA/priority tail — PB-DP8's *"a guard that returns early inherits the obligation of the
+  statements it skipped"*, discharged structurally rather than at four `return` statements.
+  **THE FIX OBEYS AN INHERITED GATE RATHER THAN RESPELLING PAST IT, AND A REVERT ROW PROVES THAT
+  MATTERS.** The departure resolves its entry through the shared `stack_index_for_announced_target`
+  (its first clause is `so.id == announced`, and the two id spaces are disjoint by construction, so
+  the card clause cannot fire). Revert row **R6** respells it as `retain(|so| so.id != entry_id)`
+  — which **satisfies PB-DX52's `r1a`**, that gate staying green — while re-opening exactly the
+  drift `OOS-DX25-3`/`OOS-SIM3-5` were. Only this batch's `r3` catches it. *"A gate you edit prose
+  to satisfy has stopped measuring"*, demonstrated by execution rather than quoted.
+  **THE ROW'S YIELD CELL REPRODUCES — THE FIRST IN FIVE BATCHES THAT IS NOT A FLOOR — AND THE
+  CENSUS SUPPLIES THE REASON THE ROW DOES NOT.** 2 deck-legal `Complete` defs: `misdirection` and
+  `bolt_bend`. Only the two SINGLE-target requirements consult `state.stack_objects`;
+  `TargetSpell`, `TargetSpellWithFilter` and `TargetSpellOrAbility` decide the object branch on
+  `obj.zone == ZoneId::Stack` alone and the resolving spell's CARD never leaves that zone — which
+  is precisely why PB-DX25c's T7 could route around the defect with a filter, and why
+  `TargetSpellOrAbility` ships as a **stated CONTROL** (green before and after) rather than as a
+  third subject. `untimely_malfunction` is a `Partial` third declarer; `deflecting_swat` declares
+  the unaffected variant and is the still-open `OOS-DX25b-4`.
+  **THE INVERSE ORACLE AXIS FOUND A SIBLING GAP NO DOCUMENT NAMES.** 7 printed-only defs against 0
+  declared-only; five of the seven print *"choose new targets"* for a **COPY** (CR 707.10), not a
+  CR 115.7 retarget — and `Effect::CopySpellOnStack`'s own doc says *"choose-new-targets deferred
+  to M10"*. Same under-permission as `OOS-DX25b-4`, through a different `Effect`, with no registry
+  row. `OOS-DX54-2`. *The two axes do not nest*, for the fifth batch running.
+  **A PROBE THAT COULD NOT BE BUILT FOUND A LIVE, PRE-EXISTING DEFECT.** CR 714.4 exempts a Saga
+  that is the source of a chapter ability *"that has **triggered** but not yet left the stack"*.
+  `enter_step` QUEUES the chapter trigger, then runs SBAs, then flushes — and `sba.rs`'s guard
+  scans `state.stack_objects` alone, never `state.pending_triggers`. So on the step-entry that
+  crosses the FINAL chapter the Saga is sacrificed one mechanism early and that chapter resolves
+  sourceless, doing nothing. Observed in one command's event slice (`CounterAdded {Lore, 3}` →
+  `PermanentDestroyed` → `AbilityTriggered` → `AbilityResolved` **with no effect event**), with
+  chapters I and II resolving correctly on the same fixture — which is what isolates it to the
+  final chapter. **Pre-existing, proven structurally**: `git diff` over `sba.rs`,
+  `turn_actions.rs`, `engine.rs`, `replacement.rs` and `saga.rs` is EMPTY, and the sacrifice
+  happens at step entry, outside any resolution. Filed as **`OOS-DX54-4`** with **no probe**, on
+  PB-DX49's `OOS-DX49-1` precedent, and distinct from the two Saga rows already filed — both of
+  those would also break chapters I and II, which work here.
+  **TWO REVERT ROWS ARE COVERAGE MEASUREMENTS, NOT PASSES, AND SAY SO IN THE TEST ITSELF.** R2
+  (the function-boundary design) and R3 (the backstop) each redden ONE source gate and **no
+  behavioural probe anywhere** — `OOS-DX52-2`'s shape said out loud. R2's probe is currently
+  **UNBUILDABLE**, blocked behind `OOS-DX54-4`; R3's needs three fixtures nothing in the tree
+  builds, filed as **`OOS-DX54-5`** with the generalisation that is worth more than the three
+  instances — an early `return` inside `resolve_top_of_stack_inner` is a debt-inheriting guard and
+  the workspace cannot tell whether a FIFTH one was added correctly.
+  **THREE CORRECTIONS THE COORDINATOR MADE TO DELEGATED OUTPUT, AND ONE OF THEM IS THE
+  COORDINATOR'S OWN MISTAKE.** (1) The probe agent shipped an **empty `#[test]`** whose body was a
+  comment; its doc was excellent and is preserved verbatim in the module header, but an
+  assertion-free test adds **+1 to this batch's own test delta** for a row that tests nothing —
+  the one figure every later batch inherits as its baseline. (2) Removing that wrapper, **the
+  coordinator's own cut ran back to the wrong section banner and deleted a PASSING test plus two
+  helpers**; recovered from the agent transcript and re-verified green, and recorded because a
+  silent recovery is how a deleted test becomes a permanently missing one. (3) `t5`'s headline
+  assertion message **overclaimed**: its count is taken BEFORE the resolution, when the entry is
+  present under both revisions, so the 0 it described happens somewhere no assertion in the file
+  can see; reworded to state it is a PRECONDITION.
+  Tests **5,231 / 0 / 5** (+21 over a **5,210** pre-edit baseline reproducing PB-DX53's close pin
+  exactly, **68** targets, byte-exact set difference: 21 additions / 0 leavers / 0 removals / 0
+  renames, count-vs-name reconciliation AGREES and the duplicate-name scan is EMPTY on both runs).
+  **HASH 85 / PROTOCOL 44 BOTH UNMOVED — zero bumps**, gate-executed, closure counts MEASURED at
+  **98 / 132**, and the counterfactual for both rejected designs verified by execution. Coverage
+  **UNMOVED at 1,140/1,803 = 63.2%**, 0 flips, 0 card-def edits. All gates clean against the FINAL
+  tree; `npm run build` N/A and said so. **Revert matrix 7 rows, coordinator-executed, all three
+  source files restored byte-exactly** — R4/R5 precise complements, R6 defeating an inherited gate,
+  R2/R3 disclosed. Filed **OOS-DX54-1..5**. Full record:
+  `memory/primitives/pb-DX54-execution-notes.md`; handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-09-05 — **PB-DX53 SHIPPED** (`scutemob-231`; v4 queue rank 16 —
   **OOS-DX21-1** CLOSED, its row corrected against three of its own claims).
   **One DSL identifier carrying two CR concepts, and the obvious fix repairs one card by breaking
   the other.** `rules/combat.rs` ASSIGNED `attackers_declared_this_turn = attackers.len()`, so on a
