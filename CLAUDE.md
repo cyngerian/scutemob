@@ -299,7 +299,7 @@
   DESIGN-RECORD. **PB-DX42b re-decided, not carried** — `OOS-DX27-9`'s "rank premise falsified"
   does not hold on the deck-legal axis the rank used, so it keeps its scope at rank 18.
   Filed **OOS-RR4-1..3** for the user-directed Blood Moon / Urza's Saga flag, now discharged.
-- **Tests (delta 2026-09-05, PB-DX54)**: **5,231 / 0 / 5** full-workspace on branch
+- **Tests (delta 2026-09-05, PB-DX54 + `/review` fix cycle)**: **5,231 / 0 / 5** full-workspace on branch
   `scutemob-232` (+21 over the **5,210** baseline, measured on this branch BEFORE any edit and
   **reproducing PB-DX53's close pin exactly** — the fourth consecutive batch in which an inherited
   pin reproduces with no correction owed), `--workspace --no-fail-fast` to a file, **68**
@@ -330,12 +330,18 @@
   and the regeneration was run anyway.
   `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
   `tools/check-defs-fmt.sh` clean (1,803 defs), `cargo build --workspace` clean (the SR-3 seal
-  gate) — all against the FINAL tree. **`npm run build` was NOT run and that is stated rather than
+  gate) — all against the FINAL tree, **and `clippy` FIRED there**, on `useless_conversion` in the
+  `/review` fix cycle's own `r5` widening; fixed and recorded rather than swept, because "clean
+  against the FINAL tree" is only worth something if the final tree is the one checked. The suite
+  and its delta were **RE-TAKEN AFTER the fix cycle** (dispatch hygiene 8) and are unchanged, the
+  cycle having edited three test files and added no `#[test]`.
+  **`npm run build` was NOT run and that is stated rather than
   omitted**: N/A, because `git diff --numstat <merge-base>..HEAD -- tools/` is **EMPTY** and
   `node_modules` is absent; unlike PB-DX52 no acceptance criterion predicted otherwise.
   **Engine lines** (re-taken against the FINAL tree rather than transcribed from a mid-batch
   figure — PB-DX28's re-take MEDIUM): `crates/engine/src` **+209 / −81**, and it is exactly two
-  files — `rules/resolution.rs` **+192 / −59** and `effects/mod.rs` **+17 / −22**; **`crates/card-types`, `crates/card-defs`, `crates/view-model`,
+  files — `rules/resolution.rs` **+192 / −59** and `effects/mod.rs` **+17 / −22**;
+  **`crates/card-types`, `crates/card-defs`, `crates/view-model`,
   `crates/simulator/src` and `tools/` are all EXACTLY 0** — every consumer of the CR 608.2n
   departure point lives in those two engine files, measured before the design was chosen rather
   than asserted after.
@@ -1650,10 +1656,14 @@
   third subject. `untimely_malfunction` is a `Partial` third declarer; `deflecting_swat` declares
   the unaffected variant and is the still-open `OOS-DX25b-4`.
   **THE INVERSE ORACLE AXIS FOUND A SIBLING GAP NO DOCUMENT NAMES.** 7 printed-only defs against 0
-  declared-only; five of the seven print *"choose new targets"* for a **COPY** (CR 707.10), not a
-  CR 115.7 retarget — and `Effect::CopySpellOnStack`'s own doc says *"choose-new-targets deferred
-  to M10"*. Same under-permission as `OOS-DX25b-4`, through a different `Effect`, with no registry
-  row. `OOS-DX54-2`. *The two axes do not nest*, for the fifth batch running.
+  declared-only; **six** of the seven print *"choose new targets"* for a **COPY** (CR 707.10), not
+  a CR 115.7 retarget, and the seventh is a real retarget that declares none of the three scanned
+  requirements — the first draft of this line said FIVE and left two of the seven unaccounted, an
+  enumeration error inside a census whose whole purpose is enumeration, caught by this batch's own
+  `/review` reading the test's printed output rather than the prose. And
+  `Effect::CopySpellOnStack`'s own doc says *"choose-new-targets deferred to M10"*. Same
+  under-permission as `OOS-DX25b-4`, through a different `Effect`, with no registry row.
+  `OOS-DX54-2`. *The two axes do not nest*, for the fifth batch running.
   **A PROBE THAT COULD NOT BE BUILT FOUND A LIVE, PRE-EXISTING DEFECT.** CR 714.4 exempts a Saga
   that is the source of a chapter ability *"that has **triggered** but not yet left the stack"*.
   `enter_step` QUEUES the chapter trigger, then runs SBAs, then flushes — and `sba.rs`'s guard

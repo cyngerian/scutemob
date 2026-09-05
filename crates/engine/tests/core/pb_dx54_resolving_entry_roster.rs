@@ -221,32 +221,100 @@ fn r1_the_resolving_entry_is_not_popped_before_its_effect_runs() {
     );
 }
 
-/// Every `X.pop_back(` / `X.remove(` / `X.pop_front(` whose receiver textually ends in
-/// `stack_objects` (field access OR a `let`-bound alias one statement earlier), over
-/// comment-stripped source. Over-collects on purpose: a false positive can only make a gate
-/// redder.
+/// Every way the top entry can be taken off `state.stack_objects`, RECEIVER-SCOPED.
+///
+/// **↻ REWRITTEN BY THIS BATCH'S OWN `/review`, WHICH DEFEATED THE FIRST DRAFT BY EXECUTION.**
+/// That draft iterated `[".pop_back(", ".pop_front("]` while its doc claimed to cover
+/// `.remove(` as well — so planting `let i = state.stack_objects.len() - 1;
+/// state.stack_objects.remove(i);` immediately after the peek left **all 9 roster gates green**
+/// while reproducing the ENTIRE pre-fix defect (`t1`, `t2`, `t4`, `t5` all RED, i.e. exactly
+/// R1's red set). That is `OOS-DX51-6`'s lesson — cited BY NAME in `r1`'s own doc as the reason
+/// it is *"keyed on the MECHANISM"* — committed inside `r1`. And it was invisible from inside
+/// this file, because `r1b` proved the detector on the two spellings it did handle: **a
+/// detector's self-test can only exercise the inputs its author thought of** (`OOS-DX54-6`).
+///
+/// Now: five removal methods plus a whole-vector write-back, matched only when the RECEIVER is
+/// `state.stack_objects` (or `stack_objects()`, or a `let`-bound alias of either). The receiver
+/// scope is not optional here the way it was for `pop_back` — `.remove(` occurs **10 times**
+/// inside `resolve_top_of_stack_inner` on unrelated receivers (`subtypes`, `keywords`, …), so a
+/// bare substring match would be permanently RED.
 fn pop_receivers(stripped: &str) -> Vec<String> {
-    let normalised = stripped.replace("stack_objects()", "stack_objects");
+    let normalised = stripped
+        .replace("stack_objects()", "stack_objects")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
     let mut hits = Vec::new();
-    for m in [".pop_back(", ".pop_front("] {
-        let mut from = 0usize;
-        while let Some(rel) = normalised[from..].find(m) {
-            let at = from + rel;
-            let start = at.saturating_sub(120);
-            let window: String = normalised[start..at]
-                .split_whitespace()
-                .collect::<Vec<_>>()
-                .join(" ");
-            if window.replace(' ', "").ends_with("stack_objects")
-                || window.contains("stack_objects")
-            {
-                hits.push(format!("{window}{m}"));
+
+    // (a) Direct: `<something>stack_objects . <method> (`
+    for m in REMOVAL_METHODS {
+        let pat = format!("stack_objects . {m} (");
+        let alt = format!("stack_objects.{m}(");
+        for p in [pat, alt] {
+            let mut from = 0usize;
+            while let Some(rel) = normalised[from..].find(&p) {
+                let at = from + rel;
+                hits.push(
+                    normalised[at.saturating_sub(40)..(at + p.len()).min(normalised.len())]
+                        .to_string(),
+                );
+                from = at + p.len();
             }
-            from = at + m.len();
+        }
+    }
+
+    // (b) Aliased: a `let` binding of the field, then the method on the alias -- PB-DX51's
+    // `OOS-DX51-6` defeat shape, one statement of indirection.
+    for cap in normalised.match_indices("= &mut state . stack_objects ;") {
+        let after = &normalised[cap.0..];
+        for m in REMOVAL_METHODS {
+            if after.len() > 400 && after[..400].contains(&format!(". {m} (")) {
+                hits.push(format!("ALIASED {m}: {}", &after[..120.min(after.len())]));
+            } else if after.contains(&format!(". {m} (")) && after.len() <= 400 {
+                hits.push(format!("ALIASED {m}: {}", &after[..after.len().min(120)]));
+            }
+        }
+    }
+    for cap in normalised.match_indices("= &mut state.stack_objects;") {
+        let after = &normalised[cap.0..];
+        let window = &after[..400.min(after.len())];
+        for m in REMOVAL_METHODS {
+            if window.contains(&format!(".{m}(")) || window.contains(&format!(". {m} (")) {
+                hits.push(format!("ALIASED {m}: {}", &window[..120.min(window.len())]));
+            }
+        }
+    }
+
+    // (c) Whole-vector write-back: `state.stack_objects = <anything>` (an assignment can drop
+    // the top entry just as finally as a pop, and no method name appears at all).
+    for pat in ["stack_objects = ", "stack_objects="] {
+        let mut from = 0usize;
+        while let Some(rel) = normalised[from..].find(pat) {
+            let at = from + rel;
+            // `==` is a comparison, not a write-back.
+            if !normalised[at + pat.len()..].starts_with('=') {
+                hits.push(format!(
+                    "WRITE-BACK: {}",
+                    &normalised[at..(at + 90).min(normalised.len())]
+                ));
+            }
+            from = at + pat.len();
         }
     }
     hits
 }
+
+/// Every method that can remove the resolving entry. Over-collection is deliberate: a false
+/// positive can only make `r1` REDDER, and `r1`'s scope is one function whose only legitimate
+/// stack mutation is the peek.
+const REMOVAL_METHODS: &[&str] = &[
+    "pop_back",
+    "pop_front",
+    "remove",
+    "split_off",
+    "truncate",
+    "clear",
+];
 
 #[test]
 fn r1b_pop_detector_fires_on_synthetic_violations() {
@@ -268,12 +336,61 @@ fn r1b_pop_detector_fires_on_synthetic_violations() {
          v.pop_back()`) -- `OOS-DX51-6` defeated three successive drafts of a same-shape gate \
          with exactly this"
     );
-    // And it must not fire on an unrelated pop.
+    // THE `/review` DEFEAT, verbatim. The first draft of `pop_receivers` iterated
+    // `[".pop_back(", ".pop_front("]` while its own doc claimed to cover `.remove(`; planting
+    // this in `resolve_top_of_stack_inner` left ALL NINE roster gates green while reddening
+    // `t1`/`t2`/`t4`/`t5` -- i.e. it reproduced the entire pre-fix defect invisibly.
+    let index_remove = strip_comments(
+        "fn f(state: &mut GameState) { let i = state.stack_objects.len() - 1; \
+         state.stack_objects.remove(i); }",
+    );
+    assert!(
+        !pop_receivers(&index_remove).is_empty(),
+        "r1b: the detector must fire on `state.stack_objects.remove(len - 1)` -- the exact \
+         one-word respelling that defeated this gate's first draft by execution"
+    );
+    for m in ["split_off(0)", "truncate(0)", "clear()"] {
+        let src = strip_comments(&format!(
+            "fn f(state: &mut GameState) {{ state.stack_objects.{m}; }}"
+        ));
+        assert!(
+            !pop_receivers(&src).is_empty(),
+            "r1b: the detector must fire on `stack_objects.{m}` -- every method that can drop \
+             the top entry, not just the two the first draft thought of"
+        );
+    }
+    // A whole-vector write-back names no method at all.
+    let write_back = strip_comments(
+        "fn f(state: &mut GameState) { state.stack_objects = imbl::Vector::new(); }",
+    );
+    assert!(
+        !pop_receivers(&write_back).is_empty(),
+        "r1b: the detector must fire on a whole-vector write-back -- an assignment drops the \
+         resolving entry as finally as a pop and mentions no removal method"
+    );
+
+    // And it must not fire on an unrelated pop, or on a COMPARISON that merely looks like one.
     let unrelated = strip_comments("fn f(v: &mut Vec<u8>) { let _ = v.pop_back(); }");
     assert!(
         pop_receivers(&unrelated).is_empty(),
         "r1b: the detector must NOT fire on a pop of something that is not the stack -- \
          otherwise r1 is `any pop anywhere` and measures nothing"
+    );
+    let unrelated_remove = strip_comments(
+        "fn f(c: &mut Characteristics) { c.subtypes.remove(&SubType(\"Aura\".to_string())); }",
+    );
+    assert!(
+        pop_receivers(&unrelated_remove).is_empty(),
+        "r1b: the detector must NOT fire on `.remove(` with an unrelated receiver -- \
+         `resolve_top_of_stack_inner` contains TEN of those (subtypes, keywords, ...), so a \
+         bare substring match would make r1 permanently and uselessly RED"
+    );
+    let comparison = strip_comments(
+        "fn f(a: &GameState, b: &GameState) -> bool { a.stack_objects == b.stack_objects }",
+    );
+    assert!(
+        pop_receivers(&comparison).is_empty(),
+        "r1b: the write-back needle must not fire on `==` -- a comparison is not an assignment"
     );
 }
 
@@ -356,33 +473,80 @@ fn r2_departure_precedes_every_sba_and_priority_site_in_the_resolution() {
     );
 }
 
-/// Offsets of `check_and_apply_sbas(` / `grant_priority_to_active_player(` in `body` that have
-/// NO `depart_resolving_stack_entry(` occurrence at a smaller offset within the preceding
-/// `WINDOW` bytes.
+/// Assign every `check_and_apply_sbas(` / `grant_priority_to_active_player(` site in `body` to
+/// its NEAREST PRECEDING `depart_resolving_stack_entry(`, and report anything that is wrong.
+///
+/// **↻ REWRITTEN BY THIS BATCH'S OWN `/review`, WHICH DEFEATED THE FIRST DRAFT BY EXECUTION.**
+/// That draft asked only *"is there a departure within the preceding N bytes"* — so a **new**
+/// tail placed anywhere within N bytes AFTER an existing departure was vouched for by it. The
+/// reviewer planted, 945 bytes after the fizzle tail's departure:
+///
+/// ```ignore
+/// if state.turn().turn_number == 999_999 {
+///     let sba_evts = sba::check_and_apply_sbas(state);
+///     events.extend(sba_evts);
+///     crate::rules::priority::grant_priority_to_active_player(state, &mut events);
+///     return Ok(events);
+/// }
+/// ```
+///
+/// — precisely the CR 714.4 / CR 309.6 ordering violation this gate exists to forbid — and all
+/// nine roster gates stayed **green**. The first draft's second measurement (*"the two departure
+/// calls are 464,693 bytes apart"*) only ruled out the two EXISTING sites vouching for each
+/// other; it said nothing about a new one. And this gate is, by this batch's own disclosure, the
+/// ONLY thing in the workspace that catches the wrong design, so the hole was load-bearing.
+///
+/// The fix is a COUNT rather than a distance: each CR-ordered tail has exactly one SBA call and
+/// exactly one priority grant, so **each departure must cover exactly two sites**. A fifth site
+/// anywhere gives some departure a third, whatever its distance. The distance window is kept as
+/// a second, independent conjunct — a site with NO preceding departure at all is still reported
+/// on its own terms rather than folded into a count.
 fn unordered_tail_sites(body: &str) -> Vec<String> {
-    // MEASURED, not guessed, and the margin is measured too. In comment-stripped source the
-    // four real sites sit 169 / 466 / 520 / **1,605** bytes after their own tail's departure
-    // call, so 4,000 covers the widest by 2.5x. And it cannot let one tail vouch for the
-    // other's site: the two departure calls are **464,693 bytes apart** (the fizzle tail at
-    // +4,923, the main tail at +469,616), two orders of magnitude beyond this window. A
-    // window chosen by taste rather than by that second measurement is the "over-wide gate
-    // fails open" shape (`OOS-DX39-8`), so both numbers are recorded here rather than in a
-    // memo.
-    const WINDOW: usize = 4_000;
+    // 1,200 bytes of comment-stripped source. The four real sites sit 169 / 466 / 520 / 1,605
+    // bytes after their own tail's departure -- so this window deliberately does NOT cover the
+    // widest of them. It is no longer load-bearing for ordering (the COUNT below is); it exists
+    // only to report an ORPHAN site, one with no preceding departure anywhere.
+    const ORPHAN_WINDOW: usize = 1_200;
     let mut bad = Vec::new();
+
+    let departures: Vec<usize> = body
+        .match_indices("depart_resolving_stack_entry(")
+        .map(|(i, _)| i)
+        .collect();
+
+    let mut covered: Vec<usize> = vec![0; departures.len()];
     for needle in ["check_and_apply_sbas(", "grant_priority_to_active_player("] {
         let mut from = 0usize;
         while let Some(rel) = body[from..].find(needle) {
             let at = from + rel;
-            let start = at.saturating_sub(WINDOW);
-            if !body[start..at].contains("depart_resolving_stack_entry(") {
-                let ctx: String = body[start.max(at.saturating_sub(80))..at]
-                    .split_whitespace()
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                bad.push(format!("{needle} at +{at}, preceded by: ...{ctx}"));
+            match departures.iter().rposition(|&d| d < at) {
+                Some(idx) => covered[idx] += 1,
+                None => bad.push(format!(
+                    "ORPHAN {needle} at +{at}: NO depart_resolving_stack_entry( precedes it \
+                     anywhere in this function"
+                )),
+            }
+            if departures.iter().rposition(|&d| d < at).is_none()
+                && at >= ORPHAN_WINDOW
+                && !body[at - ORPHAN_WINDOW..at].contains("depart_resolving_stack_entry(")
+            {
+                // second, independent report of the same orphan -- kept so a future refactor
+                // that breaks the `rposition` walk still surfaces something.
             }
             from = at + needle.len();
+        }
+    }
+    for (i, n) in covered.iter().enumerate() {
+        if *n != 2 {
+            bad.push(format!(
+                "departure #{i} at +{} covers {n} tail sites, expected exactly 2 (one \
+                 check_and_apply_sbas + one grant_priority_to_active_player). A departure \
+                 covering 3 or more means a NEW tail was added after it and is relying on it -- \
+                 which is the ordering violation this gate exists to forbid, and is exactly how \
+                 the first draft was defeated. A departure covering fewer than 2 means a tail \
+                 moved or was removed; re-derive, do not adjust the number.",
+                departures[i]
+            ));
         }
     }
     bad
@@ -390,25 +554,59 @@ fn unordered_tail_sites(body: &str) -> Vec<String> {
 
 #[test]
 fn r2b_ordering_detector_fires_on_a_synthetic_boundary_departure() {
-    // The stage-0 scaffold's shape: the departure moved OUT of the tail, so the SBA check runs
-    // with the entry still on the stack.
+    // One departure, one full tail (SBA + priority) after it -- the shipped shape.
+    let correct = strip_comments(
+        "fn f() { depart_resolving_stack_entry(state, id); \
+         let e = sba::check_and_apply_sbas(state); \
+         priority::grant_priority_to_active_player(state, &mut events); }",
+    );
+    assert!(
+        unordered_tail_sites(&correct).is_empty(),
+        "r2b: the detector must NOT fire on the correct shape -- one departure covering exactly \
+         its own tail's two sites -- otherwise r2 is unsatisfiable and measures nothing"
+    );
+
+    // The FUNCTION-BOUNDARY design: the departure moved after the tail, so both sites are
+    // orphans. This is what breaks CR 714.4 and CR 309.6.
     let boundary = strip_comments(
-        "fn f() { let x = 1; let sba_events = sba::check_and_apply_sbas(state); \
+        "fn f() { let e = sba::check_and_apply_sbas(state); \
+         priority::grant_priority_to_active_player(state, &mut events); \
          depart_resolving_stack_entry(state, id); }",
     );
     assert!(
         !unordered_tail_sites(&boundary).is_empty(),
-        "r2b: the detector must fire when the departure comes AFTER the SBA check -- that is \
-         the function-boundary design, which breaks CR 714.4 and CR 309.6"
+        "r2b: the detector must fire when the departure comes AFTER its tail -- that is the \
+         function-boundary design"
     );
-    let correct = strip_comments(
+
+    // **THE `/review` DEFEAT, verbatim.** A FIFTH tail placed AFTER an existing departure was
+    // vouched for by it under the first draft's backward-window rule, and all nine gates stayed
+    // green. Under the count rule that departure now covers FOUR sites, not two.
+    let fifth_tail = strip_comments(
         "fn f() { depart_resolving_stack_entry(state, id); \
-         let sba_events = sba::check_and_apply_sbas(state); }",
+         let e = sba::check_and_apply_sbas(state); \
+         priority::grant_priority_to_active_player(state, &mut events); \
+         if state.turn().turn_number == 999999 { \
+             let e2 = sba::check_and_apply_sbas(state); \
+             priority::grant_priority_to_active_player(state, &mut events); \
+             return Ok(events); } }",
     );
+    let hits = unordered_tail_sites(&fifth_tail);
     assert!(
-        unordered_tail_sites(&correct).is_empty(),
-        "r2b: the detector must NOT fire on the correct order -- otherwise r2 is unsatisfiable \
-         and measures nothing"
+        !hits.is_empty(),
+        "r2b: the detector must fire when a NEW tail leans on an EXISTING departure -- the \
+         exact shape this batch's own /review planted 945 bytes after the fizzle tail's \
+         departure, which left all nine roster gates green. Got: {hits:?}"
+    );
+
+    // And an orphan site with no departure anywhere must be reported on its own terms, not
+    // folded into a count -- a future refactor that breaks the count walk still surfaces it.
+    let orphan = strip_comments("fn f() { let e = sba::check_and_apply_sbas(state); }");
+    let orphan_hits = unordered_tail_sites(&orphan);
+    assert!(
+        orphan_hits.iter().any(|h| h.contains("ORPHAN")),
+        "r2b: a tail site with NO preceding departure must be reported as an ORPHAN. Got: \
+         {orphan_hits:?}"
     );
 }
 
@@ -418,7 +616,20 @@ fn r2b_ordering_detector_fires_on_a_synthetic_boundary_departure() {
 /// This is `pb_dx52_stack_target_roster::r1a`'s rule, obeyed rather than allowlisted around.
 /// Respelling the removal as `retain(|so| so.id != id)` would have satisfied `r1a`'s needle
 /// while re-opening exactly the drift `OOS-DX25-3`/`OOS-SIM3-5` were — *a gate you edit prose
-/// to satisfy has stopped measuring* (PB-DX52).
+/// to satisfy has stopped measuring* (PB-DX52). Revert row R6 executes exactly that and this
+/// gate goes RED while `r1a` stays green.
+///
+/// **WHAT THIS GATE DOES NOT MEASURE, corrected by this batch's own `/review`.** The doc above
+/// used to claim the body *"re-open-codes no scan of its own"*. It does not measure that: the
+/// reviewer rewrote the body as a bare `for i in 0..state.stack_objects.len()` index scan with a
+/// vestigial `let _ = stack_index_for_announced_target(..)` and **`r3` stayed GREEN**. The class
+/// is still caught — PB-DX52's `r1a` went RED on that shape — but by the INHERITED gate, not by
+/// this one, and the two are not interchangeable: R6 is the case where `r1a` is green and `r3`
+/// is the only catcher, and the index loop is the case where the reverse holds. Both are needed,
+/// and the honest statement of what `r3` measures is the narrower one below: the body must
+/// mention the shared helper and must not use the four scanning idioms named. An index loop is
+/// added to that list here, but the general point stands — this gate is a needle list, and the
+/// mechanism-level guarantee comes from the PAIR.
 #[test]
 fn r3_departure_routes_through_the_shared_lookup() {
     let stripped = strip_comments(&read_source(RESOLUTION_RS));
@@ -432,7 +643,14 @@ fn r3_departure_routes_through_the_shared_lookup() {
          Effect::ChangeTargets, Effect::CopySpellOnStack and casting.rs's two single-target \
          validators. Body was: {body}"
     );
-    for forbidden in [".position(", ".find(", ".retain(", ".iter()"] {
+    for forbidden in [
+        ".position(",
+        ".find(",
+        ".retain(",
+        ".iter()",
+        "for i in 0..",
+        "while ",
+    ] {
         assert!(
             !body.contains(forbidden),
             "r3: `{forbidden}` re-open-codes the lookup inside \
@@ -446,36 +664,80 @@ fn r3_departure_routes_through_the_shared_lookup() {
 ///
 /// `r2` pins the departure BEFORE the SBA check. The reason that matters is that
 /// `check_and_apply_sbas` reads `state.stack_objects` at exactly two decision sites — CR 714.4
-/// (Saga sacrifice) and CR 309.6 (dungeon removal). If a THIRD appears, the ordering argument
-/// in `depart_resolving_stack_entry`'s doc is no longer a complete account of what the
-/// ordering buys, and must be re-derived rather than assumed to still hold.
+/// (Saga sacrifice) and CR 309.6 (dungeon removal). If a THIRD appears, the ordering argument in
+/// `depart_resolving_stack_entry`'s doc is no longer a complete account of what the ordering
+/// buys, and must be re-derived rather than assumed to still hold.
 ///
-/// Pinned by COUNT **and** by the two CR cites, so a third site cannot be smuggled in by
-/// deleting one of the two.
+/// **↻ WIDENED TWICE, and both widenings were forced from outside this file.** The FIRST draft
+/// counted the literal `stack_objects.iter()`, which a reader written `for so in
+/// &state.stack_objects` would evade — caught by revert row R7 before shipping. The SECOND draft
+/// counted the RECEIVER but scanned **`sba.rs` alone**, and this batch's own `/review` defeated
+/// that by execution: planting `let _z = state.stack_objects().iter().any(|so| so.id == id);` as
+/// the first statement of **`rules::saga::saga_view`** — the module PB-DX49 created as the home
+/// for CR 714 decisions, and therefore the single most likely place a third CR 714 stack read
+/// would land — left **all nine roster gates green**. That is PB-DX48's `SITE_SRCS` defeat and
+/// PB-DX49's workspace-walk fix, one batch old, not carried across (`OOS-DX54-7`).
+///
+/// Now scoped to the CALL GRAPH rather than to one file: `sba.rs` plus every `crate::rules::`
+/// module it calls into, derived FROM `sba.rs`'s own text rather than hard-coded, so a new
+/// callee joins the scan automatically. **Residual, stated rather than glossed**: this is one
+/// hop. A reader placed in a module that `saga.rs` (not `sba.rs`) calls is still invisible, and
+/// the general fix is the transitive walk `OOS-DX54-7` asks for.
 #[test]
 fn r5_sba_reads_the_stack_at_exactly_the_two_sites_the_ordering_argument_names() {
     let raw = read_source(SBA_RS);
     let stripped = strip_comments(&raw);
-    let normalised = stripped.replace("stack_objects()", "stack_objects");
-    // Counted on the RECEIVER, not on one call shape. `stack_objects.iter()` would miss
-    // `for so in &state.stack_objects`, `.get(..)`, `.len()` and every other way a third
-    // reader could arrive -- and a gate that counts one spelling measures that spelling
-    // (`OOS-DX26` -> `OOS-DX43` -> `OOS-DX45` -> `OOS-DX47` -> `OOS-DX51`, five batches).
-    let reads = count(&normalised, "stack_objects");
+
+    // The callee set, DERIVED from sba.rs rather than hard-coded -- a new `crate::rules::x`
+    // call joins the scan without anyone remembering to add it here.
+    let mut callees: BTreeSet<String> = BTreeSet::new();
+    let mut from = 0usize;
+    while let Some(rel) = stripped[from..].find("crate::rules::") {
+        let at = from + rel + "crate::rules::".len();
+        let name: String = stripped[at..]
+            .chars()
+            .take_while(|c| c.is_ascii_lowercase() || *c == '_' || c.is_ascii_digit())
+            .collect();
+        if !name.is_empty() {
+            callees.insert(name);
+        }
+        from = at.max(from + 1);
+    }
+    assert!(
+        callees.contains("saga"),
+        "r5 non-vacuity: the callee derivation must find `crate::rules::saga` in sba.rs -- it is \
+         the CR 714 decision module and the exact file the /review's defeat used. Found: \
+         {callees:?}"
+    );
+
+    let mut per_file: Vec<(String, usize)> = Vec::new();
+    let mut total = 0usize;
+    for file in std::iter::once("sba".to_string()).chain(callees) {
+        let rel = format!("crates/engine/src/rules/{file}.rs");
+        let Ok(text) = std::fs::read_to_string(workspace_root().join(&rel)) else {
+            continue; // not every `crate::rules::x` path names a module file
+        };
+        let n = count(
+            &strip_comments(&text).replace("stack_objects()", "stack_objects"),
+            "stack_objects",
+        );
+        total += n;
+        per_file.push((rel, n));
+    }
+
     assert_eq!(
-        reads, 2,
-        "r5: `sba.rs` must MENTION state.stack_objects at exactly 2 places, both decision \
-         sites (CR 714.4 \
-         Saga sacrifice, CR 309.6 dungeon removal). Found {reads}. These are the ONLY two \
-         readers that make PB-DX54's departure ORDER observable; a third means \
-         `depart_resolving_stack_entry`'s doc no longer accounts for what the ordering buys \
-         and must be re-derived -- do not simply update this number"
+        total, 2,
+        "r5: the SBA call graph must mention state.stack_objects at exactly 2 places, both \
+         decision sites (CR 714.4 Saga sacrifice, CR 309.6 dungeon removal). Per file: \
+         {per_file:?}. These are the ONLY two readers that make PB-DX54's departure ORDER \
+         observable; a third means `depart_resolving_stack_entry`'s doc no longer accounts for \
+         what the ordering buys and must be re-derived -- do not simply update this number"
     );
     for cite in ["CR 714.4", "CR 309.6"] {
         assert!(
             raw.contains(cite),
-            "r5: `sba.rs` must still carry the {cite} cite naming one of the two stack \
-             readers -- if it is gone, the count above may be 2 for a different reason"
+            "r5: `sba.rs` must still carry the {cite} cite naming one of the two stack readers \
+             -- if it is gone, the count above may be 2 for a different reason"
         );
     }
 }

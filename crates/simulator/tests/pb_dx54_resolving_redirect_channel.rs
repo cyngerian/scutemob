@@ -592,6 +592,17 @@ fn dx54_c1_misdirection_redirects_the_victim_onto_its_own_resolving_card_and_the
 /// Reached through `StubProvider::legal_actions` + `targeting::plan_targets` +
 /// `RandomBot::choose_action`, mirroring `pb_dx25c_bot_retarget_is_legal.rs`'s
 /// own S1 -- never a hand-built `LegalAction` or `Command`.
+///
+/// **WHAT THIS PROBE DOES NOT PROVE, stated because acceptance criterion 7379 asks for
+/// two different things in one clause and this covers only one of them.** It stops at
+/// "the cast was accepted and the stack has two entries". It never RESOLVES, so it never
+/// observes the CR 608.2n property at all, and it is correctly listed **GREEN under revert
+/// row R1** in `memory/primitives/pb-DX54-execution-notes.md` §9. The criterion's *"offered
+/// on the bot path"* is met literally and the SR-38 property is genuinely proven; what is
+/// NOT proven anywhere is a bot-DRIVEN drive that reaches the redirect. `c1` reaches the
+/// redirect through the human channel; nothing reaches it through the bot one. Recorded
+/// here rather than only in the execution notes, because a reader of this file would
+/// otherwise read a green bot probe as covering the batch's subject.
 #[test]
 fn dx54_c2_the_bot_layer_offers_and_the_engine_accepts_the_pitch_cast_at_the_victim() {
     let p1 = p(1);
