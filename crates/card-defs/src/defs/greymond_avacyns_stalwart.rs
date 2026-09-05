@@ -41,13 +41,19 @@ pub fn card() -> CardDefinition {
              (Condition::YouControlNOrMoreWithFilter + ContinuousEffectDef.condition) and may be \
              wired — but read this first (PB-DX19, 2026-08-02): until that batch, following this \
              note would have built a SECOND instance of the OOS-SIM2-6 stack-overflow class. It \
-             is safe to register now, at one cost: a registered static's condition is evaluated \
-             from INSIDE the layer walk, where the filter test reads base characteristics \
-             (rules::layers::characteristics_for_condition), so a Human created by another \
-             continuous effect's type change is not counted. That is a property of the LAYER \
-             PATH, not of the condition — the same condition used as an activation_condition or \
-             intervening_if reads layer-resolved characteristics. See OOS-DX19-2 for the CR \
-             613.8b-honest fixpoint.",
+             is safe to register now, and since PB-DX42b (scutemob-233, 2026-09-05) it is safe \
+             at NO cost: the sentence that stood here until then — 'a registered static's \
+             condition is evaluated from INSIDE the layer walk, where the filter test reads base \
+             characteristics, so a Human created by another continuous effect's type change is \
+             not counted' — is now FALSE, and so was its pointer to 'OOS-DX19-2 for the CR \
+             613.8b-honest fixpoint' (CR 613.8a clause (a) confines a dependency to a single \
+             layer, and this is a Layer-6 condition reading Layer-4 card types, so 613.8b never \
+             governed it; the shipped repair is a LAYER-BOUNDED QUERY). A condition on a \
+             continuous effect is now evaluated against characteristics resolved THROUGH the \
+             layer the filter actually needs, so a Human created by a Layer-4 type change IS \
+             counted, exactly as CR 613.1d requires. Rewritten rather than deleted because this \
+             note was actively inviting an author to build a second member of a deviation that \
+             no longer exists.",
         ),
         ..Default::default()
     }

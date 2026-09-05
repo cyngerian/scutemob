@@ -1071,6 +1071,26 @@ fn r3_lki_reader_set_is_pinned() {
 ///
 /// Brittle on purpose: a genuine refactor of either function is exactly the moment someone
 /// should re-read the two CR arguments above.
+///
+/// **PB-DX42b (`scutemob-233`): three tokens removed, and the PROVENANCE matters more than
+/// the removal.** `IS_EFFECT_CONDITION_SATISFIED_VOCABULARY` carried `"Copy"`,
+/// `"EffectLayer"` and a bare `"unwrap_or"`, which after PB-DX42b occur nowhere in the LIVE
+/// (comment-and-string-stripped) body — only inside the `OOS-DX42b-1` explanatory `//`
+/// comment above the `debug_assert!`, which discusses the REJECTED `unwrap_or(Copy)` design.
+///
+/// **This gate was GREEN when the vocabulary was captured and the coordinator's own later
+/// edit is what reddened it.** The first draft of this note said the pinned set "was
+/// evidently captured before [comment stripping] was adopted and never re-derived" — i.e.
+/// that the slack was pre-existing. That is FALSE, and the evidence is a measurement rather
+/// than a memory: `cargo test --workspace --no-fail-fast` ran GREEN at 5,231 / 0 / 5 on the
+/// tree that first introduced this vocabulary, and the three tokens are EXACTLY the
+/// identifiers that the next edit — gating the `debug_assert!` on `Some` instead of
+/// `unwrap_or(EffectLayer::Copy)` — deleted from the body. The gate did its job on its first
+/// real event; what failed is that the edit shipped without re-running the suite.
+/// **PB-DX28's "re-take the measured table" MEDIUM, committed by the coordinator rather than
+/// by a delegated agent** — and a wrong provenance is worse than a wrong count, because the
+/// next reader reuses the reason. Removed rather than left as silent slack in a gate whose
+/// whole point is exact set equality.
 const IS_EFFECT_DURATION_ACTIVE_VOCABULARY: &[&str] = &[
     "Battlefield",
     "EffectDuration",
@@ -1109,8 +1129,6 @@ const IS_EFFECT_DURATION_ACTIVE_VOCABULARY: &[&str] = &[
 ];
 
 const IS_EFFECT_CONDITION_SATISFIED_VOCABULARY: &[&str] = &[
-    "Copy",
-    "EffectLayer",
     "InFlightGuard",
     "PlayerId",
     "Some",
@@ -1145,7 +1163,6 @@ const IS_EFFECT_CONDITION_SATISFIED_VOCABULARY: &[&str] = &[
     "source_id",
     "state",
     "true",
-    "unwrap_or",
     "unwrap_or_else",
 ];
 

@@ -57,6 +57,7 @@ mod pb_dx36_damage_trigger_dispatch;
 mod pb_dx39_source_relative_lki;
 mod pb_dx3_stale_blocker_notes;
 mod pb_dx3b_stale_blocker_bucket;
+mod pb_dx42b_layer_bounded_conditions;
 mod pb_dx45_optional_cost;
 mod pb_dx47_modal_trigger_mode_zero;
 mod pb_dx48_ward_dispatch;

@@ -2,7 +2,19 @@
 // Flying
 // Metalcraft — Artifacts you control have shroud as long as you control three or more artifacts.
 //
-// CR 702.45a (Metalcraft): The condition checks that you control 3+ artifacts.
+// CR 207.2c / CR 604.2 (Metalcraft): **there is no CR 702.x entry for Metalcraft.** It is
+// an ABILITY WORD -- CR 207.2c names it in its own list and says ability words "have no
+// special rules meaning and no individual entries in the Comprehensive Rules" -- so the
+// clause is an ordinary CR 604.2 conditional static ability and nothing more. This line
+// cited **CR 702.45a**, which is **Bushido**, from this def's authoring until PB-DX42b
+// (`scutemob-233`, 2026-09-05) checked it against the rules server. Corrected rather than
+// swept, because this def is PB-DX42b's own headline card and a wrong cite on the card a
+// batch is about is the shape PB-DX27 exists to catch. `OOS-DX42b-2`.
+//
+// CR 613.1d: the condition reads CARD TYPES, which are set in Layer 4 -- strictly EARLIER
+// than this effect's own Layer 6, which is exactly why PB-DX42b's layer-bounded query can
+// answer it without re-entering itself, and why a Blinkmoth Nexus animated into an
+// artifact creature now feeds this count as CR 613.1d requires.
 // CR 613.1f (Layer 6): Static ability — grants shroud to all artifacts you control.
 use crate::cards::helpers::*;
 

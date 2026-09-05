@@ -181,7 +181,7 @@ impl Drop for InFlightGuard<'_> {
 /// OOS-SIM2-6 found. `eval.in_flight` breaks that cycle (§3 of the PB-DX42b
 /// plan: an undocumented deviation, labelled as one, because the CR is silent
 /// on condition-evaluation cycles — CR 613.8b governs only same-layer
-/// dependency loops, CR 613.8a(a)). `eval.bound` is what makes the recursion
+/// dependency loops, CR 613.8a clause (a)). `eval.bound` is what makes the recursion
 /// terminate WITHOUT reaching that cycle-breaker on this corpus at all: a
 /// nested query, bounded at `required < effect.layer` (asserted by
 /// [`is_effect_condition_satisfied`]), can only ever sweep effects at layers
@@ -910,7 +910,7 @@ pub fn is_effect_duration_active(state: &GameState, effect: &ContinuousEffect) -
 /// all; CR 611.3a's model is "applies at any given moment to whatever its
 /// text indicates"), and CR 613.8b -- which DOES pick a rule for a
 /// self-referential case, a timestamp-ordered total order rather than
-/// suppression -- does not govern here: CR 613.8a(a) confines a "dependency"
+/// suppression -- does not govern here: CR 613.8a clause (a) confines a "dependency"
 /// to effects in the SAME layer, and this recursion is strictly cross-layer
 /// by construction (see `calculate_characteristics_through`'s termination
 /// argument). So this suppression is an **undocumented deviation**, shipped
