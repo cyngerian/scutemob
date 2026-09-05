@@ -13,7 +13,7 @@
 //! see `decision_kind_for` below. Session 2 owns pregame setup and mulligans.
 //! See `memory/m11-session-plan.md` §3-4.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 
 use mtg_engine::{
     process_command, start_game, Command, GameEvent, GameState, GameStateError, PlayerId,
@@ -372,6 +372,21 @@ pub struct LocalGame<P: LegalActionProvider> {
     /// The decision `submit` is currently allowed to answer, if any.
     pending: Option<PendingDecision>,
     journal: Vec<CommandRecord>,
+    /// PB-DX56 / OOS-FB1-1: every `Command` this game has committed, oldest first,
+    /// bounded at [`MAX_RETAINED_COMMAND_HISTORY`]. Unlike `journal` (event-carrying,
+    /// gated behind `LocalGameLimits::record_journal` because the fuzzer runs
+    /// thousands of long games in parallel and cannot afford to retain events for
+    /// all of them -- see that field's doc) this is ALWAYS populated: it holds
+    /// `Command`s alone, no events, and it is the only thing that lets a crash
+    /// artefact reconstruct what happened to a game the fuzzer never journals. See
+    /// [`Self::push_command_history`].
+    command_history: VecDeque<Command>,
+    /// How many entries have fallen off the front of `command_history` because the
+    /// ring filled up. Uncapped and unguarded, like `rejection_count` beside
+    /// `rejections` -- a truncated history that LOOKS complete is worse than none,
+    /// so truncation stays visible rather than silent. See
+    /// [`Self::commands_dropped_from_history`].
+    commands_dropped_from_history: usize,
     /// Bot-seat commands the engine refused (SIM-5 fix (3)). Retention is capped at
     /// [`MAX_RETAINED_REJECTIONS`] with the journal on and [`MAX_SAMPLED_REJECTIONS`]
     /// with it off (PB-DX32 Stage 2, `OOS-SIM3-2`) — see [`Self::record_rejection`];
@@ -385,6 +400,11 @@ pub struct LocalGame<P: LegalActionProvider> {
     /// stays in `violations`, the hard bucket `--stop-on-error` and the crash-report
     /// writer key on.
     transient_violations: Vec<InvariantViolation>,
+    /// Per-seat turn number at which [`invariants::TRANSIENT_DEPARTED_ACTIVE_PLAYER`] was
+    /// first observed, so the CR 800.4k turn-boundary promotion can tell a bounded window
+    /// from a real defect — see [`Self::promote_if_it_crossed_a_turn`]. Keyed by the seat
+    /// string the check's own evidence carries.
+    departed_active_first_turn: std::collections::BTreeMap<String, u32>,
     check_invariants: bool,
     /// Constant-size mechanics census (PB-DX22 fix cycle). Always on: it costs a fold
     /// over events already in hand and no retention, so unlike `journal` it does not
@@ -424,6 +444,26 @@ pub const MAX_RETAINED_REJECTIONS: usize = 256;
 /// the sample itself is small.
 pub const MAX_SAMPLED_REJECTIONS: usize = 8;
 
+/// How many [`Command`]s [`LocalGame::command_history`] retains, oldest evicted
+/// first (PB-DX56 / OOS-FB1-1). Mirrors the [`MAX_RETAINED_REJECTIONS`] idiom just
+/// above: the count of dropped entries stays visible
+/// ([`LocalGame::commands_dropped_from_history`]) rather than silently truncating.
+///
+/// **Measured, not estimated**: `std::mem::size_of::<Command>()` is **160 bytes** on
+/// this build (a throwaway `#[test]` printed it and was removed — see the PB-DX56
+/// execution notes for the exact command used to reproduce the measurement). Peak
+/// retention per LIVE game is therefore `256 * 160 = 40,960` bytes (40 KiB). Unlike
+/// [`MAX_RETAINED_REJECTIONS`], this is NOT gated behind `LocalGameLimits::record_journal`
+/// — a crash artefact needs the command history precisely in the fuzzer's own
+/// configuration (`record_journal: false`), so gating it there would remove the
+/// history from the exact case it exists for. `bin/fuzzer.rs`'s `run_single_game`
+/// keeps the AGGREGATE `--games N` cost bounded a different way: it clears
+/// `GameResult::command_history` for any game with no HARD violations before
+/// returning, so `results` in `bin/fuzzer.rs` (which retains every game's
+/// `GameResult` for the whole run) only pays this 40 KiB peak for games that
+/// actually violated, not for all `N` of them.
+pub const MAX_RETAINED_COMMAND_HISTORY: usize = 256;
+
 impl<P: LegalActionProvider> LocalGame<P> {
     /// Starts a game from an assembled (but not yet started) `GameState`. Delegates to
     /// `mtg_engine::start_game`, which enforces Architecture Invariant 9 — a game
@@ -454,10 +494,13 @@ impl<P: LegalActionProvider> LocalGame<P> {
             decision_seq: 0,
             pending: None,
             journal: Vec::new(),
+            command_history: VecDeque::new(),
+            commands_dropped_from_history: 0,
             rejections: Vec::new(),
             rejection_count: 0,
             violations: Vec::new(),
             transient_violations: Vec::new(),
+            departed_active_first_turn: std::collections::BTreeMap::new(),
             check_invariants,
             mechanics: MechanicsTally::default(),
             waste: WasteTally::default(),
@@ -496,6 +539,12 @@ impl<P: LegalActionProvider> LocalGame<P> {
         // not a checkpoint artefact.
         let mut violations = self.violations.clone();
         violations.extend(invariants::check_no_leaked_tokens(&self.state));
+        // PB-DX56 (`OOS-DX22-8`): the second strictly-stronger end-state property, added
+        // beside the token one for the same reason and at the same single shared call site
+        // both real terminal paths go through. A dangling `attached_to` at a CHECKPOINT is
+        // the CR 704.3 / `OOS-M11-7` window; one still there when the game is OVER is a
+        // permanent CR 704.5m/704.5n blind spot.
+        violations.extend(invariants::check_no_dangling_attachment_at_rest(&self.state));
         GameResult {
             seed: self.seed,
             winner,
@@ -514,6 +563,12 @@ impl<P: LegalActionProvider> LocalGame<P> {
             transient_violations: self.transient_violations.clone(),
             // PB-DX32 Stage 6.
             decision_coverage: self.decisions,
+            // PB-DX56 / OOS-FB1-1: see `Self::command_history` for why this is
+            // ALWAYS populated here (never gated on `record_journal`); the fuzzer
+            // trims it back down for non-violating games (`bin/fuzzer.rs`'s
+            // `run_single_game`), not here.
+            command_history: self.command_history(),
+            commands_dropped_from_history: self.commands_dropped_from_history(),
         }
     }
 
@@ -523,6 +578,42 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
     pub fn violations(&self) -> &[InvariantViolation] {
         &self.violations
+    }
+
+    /// PB-DX56 / OOS-FB1-1: the retained command-history ring, oldest first.
+    /// Bounded at [`MAX_RETAINED_COMMAND_HISTORY`] -- see
+    /// [`Self::commands_dropped_from_history`] to tell whether it has ever
+    /// truncated.
+    pub fn command_history(&self) -> Vec<Command> {
+        self.command_history.iter().cloned().collect()
+    }
+
+    /// How many commands have fallen off the front of the ring because
+    /// [`MAX_RETAINED_COMMAND_HISTORY`] was exceeded. A truncated history that
+    /// LOOKS complete is worse than none -- this is what makes the truncation
+    /// visible instead.
+    pub fn commands_dropped_from_history(&self) -> usize {
+        self.commands_dropped_from_history
+    }
+
+    /// Push `command` onto the bounded command-history ring, evicting the oldest
+    /// entry once [`MAX_RETAINED_COMMAND_HISTORY`] is reached (PB-DX56 /
+    /// OOS-FB1-1).
+    ///
+    /// Called from BOTH commit paths -- [`Self::apply_sequence`]'s commit loop and
+    /// [`Self::apply_command`]'s `Ok` arm. Verified by reading every
+    /// `process_command(` call site in this file: those two are the ONLY places a
+    /// `Command` is ever actually committed to `self.state` (every other call site
+    /// in this crate operates on a state that is not `self` -- bots planning
+    /// against a clone, tests driving their own fixture -- and none of them is a
+    /// third commit path for THIS game's history).
+    fn push_command_history(&mut self, command: Command) {
+        if self.command_history.len() >= MAX_RETAINED_COMMAND_HISTORY {
+            self.command_history.pop_front();
+            self.commands_dropped_from_history =
+                self.commands_dropped_from_history.saturating_add(1);
+        }
+        self.command_history.push_back(command);
     }
 
     /// `no_orphaned_tokens` reports split out from [`Self::violations`] at collection
@@ -545,14 +636,82 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// `violations`, the hard bucket `--stop-on-error` and the crash-report writer key
     /// on. Mirrors `crates/simulator/tests/local_game_playthrough.rs:457-463`'s own
     /// treatment.
-    fn record_violations(&mut self, new: Vec<InvariantViolation>) {
-        for v in new {
-            if v.check == "no_orphaned_tokens" {
+    fn record_violations(&mut self, mut new: Vec<InvariantViolation>) {
+        for v in new.drain(..) {
+            let v = self.promote_if_it_crossed_a_turn(v);
+            if invariants::is_transient_check(&v.check) {
                 self.transient_violations.push(v);
             } else {
                 self.violations.push(v);
             }
         }
+    }
+
+    /// CR 800.4k, the strictly stronger property that keeps
+    /// [`invariants::TRANSIENT_DEPARTED_ACTIVE_PLAYER`] honest (PB-DX56, `OOS-DX32-1`).
+    ///
+    /// `turn.active_player` naming a departed player is what CR 800.4j *describes* — the
+    /// turn *"continues to its completion without an active player"* and this engine has no
+    /// way to say that, `TurnState::active_player` being a bare `PlayerId`. So the report is
+    /// transient. **But it is only transient because it is BOUNDED**, and the bound is
+    /// CR 800.4k: *"If a player who has left the game would begin a turn, that turn doesn't
+    /// begin."* `rules/turn_structure.rs::advance_turn` picks the next turn's active player
+    /// through `next_player_in_turn_order`, which skips `has_lost || has_conceded`, and
+    /// PB-DX56's **F2** closed that function's extra-turn branch, which applied no liveness
+    /// filter at all and was the one route by which the condition was unbounded.
+    ///
+    /// So the condition may hold for the remainder of ONE turn and no longer. The same
+    /// departed player still named as active at a **strictly greater** turn number is
+    /// therefore a real CR 800.4k defect, and is promoted out of the transient bucket under
+    /// its own name. That is a stronger assertion than an end-state check would be, and an
+    /// end-state check would be the WRONG shape here: when the game ends, the player who
+    /// just died may legitimately still be `active_player`.
+    ///
+    /// Keyed per player rather than globally: two different seats departing on two different
+    /// turns are two independent bounded windows, not one window that crossed a boundary.
+    fn promote_if_it_crossed_a_turn(&mut self, v: InvariantViolation) -> InvariantViolation {
+        if v.check != invariants::TRANSIENT_DEPARTED_ACTIVE_PLAYER {
+            return v;
+        }
+        // The seat is carried in the check's own evidence rather than re-derived from the
+        // state here: re-reading `state.turn().active_player` would be a second copy of the
+        // arithmetic `check_player_consistency` already did, and the two could drift.
+        //
+        // The key is `arm_player=`, NOT `player=`, and the difference is load-bearing:
+        // `check_all` prepends `state_context`, which emits a `player=` line PER SEAT, so a
+        // `player=` lookup returns the first state-context line -- a value identical across
+        // every violation in the game. This draft's first version did exactly that and
+        // manufactured a false CR 800.4k promotion on fuzz seed 5, keying PlayerId(4)'s
+        // turn-154 report against PlayerId(1)'s turn-133 one. It was caught by READING the
+        // evidence the artefact printed, not by the count -- which is the whole argument for
+        // `OOS-FB1-1` in one incident.
+        let Some(seat) = v
+            .evidence
+            .iter()
+            .find_map(|e| e.strip_prefix("arm_player=").map(str::to_string))
+        else {
+            return v;
+        };
+        let first = *self
+            .departed_active_first_turn
+            .entry(seat.clone())
+            .or_insert(v.turn_number);
+        if v.turn_number <= first {
+            return v;
+        }
+        let mut promoted = v;
+        promoted.evidence.push(format!("first_seen_on_turn={first}"));
+        promoted.evidence.push(format!(
+            "turns_crossed={}",
+            promoted.turn_number.saturating_sub(first)
+        ));
+        promoted.description = format!(
+            "{} -- and it was already true on turn {}, so it survived a turn boundary \
+             (CR 800.4k: a departed player's turn does not begin)",
+            promoted.description, first
+        );
+        promoted.check = invariants::HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN.into();
+        promoted
     }
 
     pub fn journal(&self) -> &[CommandRecord] {
@@ -1179,6 +1338,8 @@ impl<P: LegalActionProvider> LocalGame<P> {
         for record in &records {
             self.mechanics.record(&record.events, record.turn);
             self.fold_waste(&record.command, &record.events);
+            // PB-DX56 / OOS-FB1-1.
+            self.push_command_history(record.command.clone());
         }
 
         if self.check_invariants {
@@ -1218,6 +1379,9 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 self.mechanics
                     .record(&events, self.state.turn().turn_number);
                 self.fold_waste(&command, &events);
+                // PB-DX56 / OOS-FB1-1. Unconditional, like `mechanics`/`fold_waste`
+                // just above -- NOT gated on `track` or `record_journal`.
+                self.push_command_history(command.clone());
                 if self.limits.record_journal {
                     self.journal.push(CommandRecord {
                         command,

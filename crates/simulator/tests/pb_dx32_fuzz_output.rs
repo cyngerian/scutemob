@@ -819,21 +819,28 @@ fn test_dx32_leaked_token_at_game_end_is_a_hard_violation() {
 /// re-pin.
 #[test]
 fn test_dx32_distinct_collapses_checkpoint_weighting() {
+    // PB-DX56: `evidence` deliberately differs per entry (it carries the turn number
+    // among other per-checkpoint facts once `check_all` stamps it), and that is the
+    // point -- see `invariants::distinct`'s own doc for why the dedupe key excludes
+    // it. If evidence were folded into the key, these three would NOT collapse.
     let hand_built = vec![
         InvariantViolation {
             check: "no_orphaned_tokens".into(),
             description: "Token ObjectId(1) 'Spirit' found in zone Graveyard(PlayerId(1))".into(),
             turn_number: 3,
+            evidence: vec!["turn=3".into()],
         },
         InvariantViolation {
             check: "no_orphaned_tokens".into(),
             description: "Token ObjectId(1) 'Spirit' found in zone Graveyard(PlayerId(1))".into(),
             turn_number: 4,
+            evidence: vec!["turn=4".into()],
         },
         InvariantViolation {
             check: "no_orphaned_tokens".into(),
             description: "Token ObjectId(1) 'Spirit' found in zone Graveyard(PlayerId(1))".into(),
             turn_number: 5,
+            evidence: vec!["turn=5".into()],
         },
     ];
     let deduped = invariants::distinct(&hand_built);
@@ -841,6 +848,11 @@ fn test_dx32_distinct_collapses_checkpoint_weighting() {
     assert_eq!(
         deduped[0].turn_number, 3,
         "the FIRST occurrence must be preserved, not the last"
+    );
+    assert_eq!(
+        deduped[0].evidence,
+        vec!["turn=3".to_string()],
+        "the FIRST occurrence's evidence must be preserved too, not just its turn_number"
     );
 
     let game = play_fuzz_shaped(162, 4, 25);

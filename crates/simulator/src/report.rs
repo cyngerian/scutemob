@@ -12,6 +12,16 @@ use crate::invariants::InvariantViolation;
 use crate::local_game::{RejectedCommand, WasteTally};
 
 /// A crash report from a fuzzer game that hit an invariant violation.
+///
+/// **`violation.evidence` already carries the check's own structured facts**
+/// (PB-DX56 / OOS-FB1-1 -- see `InvariantViolation`'s doc); this struct does NOT
+/// duplicate that data onto a second field, because a duplicate is a second source
+/// of truth that can drift from the first. What IS added here is everything needed
+/// to reconstruct the `--replay` command line, which `violation` alone cannot
+/// supply: `max_turns` and `bot` are inputs to the game the violation itself has no
+/// way to carry, and `commands_dropped_from_history` states whether
+/// `command_history` is the WHOLE game or a truncated tail (see
+/// `crate::local_game::MAX_RETAINED_COMMAND_HISTORY`).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CrashReport {
     pub seed: u64,
@@ -20,6 +30,22 @@ pub struct CrashReport {
     pub command_history: Vec<Command>,
     pub turn_number: u32,
     pub total_commands: usize,
+    /// How many entries fell off the front of `command_history`'s ring before this
+    /// report was written -- see
+    /// `crate::local_game::LocalGame::commands_dropped_from_history`.
+    /// `#[serde(default)]` so a pre-PB-DX56 crash-report JSON still deserializes.
+    #[serde(default)]
+    pub commands_dropped_from_history: usize,
+    /// The `--max-turns` this game was run with. Without this, `--replay <seed>`
+    /// alone is not guaranteed to reproduce the same run (a different `--max-turns`
+    /// can end the game at a different point).
+    #[serde(default)]
+    pub max_turns: u32,
+    /// The `--bot` type this game was run with, `{:?}`-formatted (`"Random"` /
+    /// `"Heuristic"`). Same reason as `max_turns`: a crash artefact that cannot
+    /// reconstruct its own command line is not a reproduction.
+    #[serde(default)]
+    pub bot: String,
 }
 
 impl CrashReport {
@@ -27,6 +53,52 @@ impl CrashReport {
     pub fn write_to_file(&self, path: &std::path::Path) -> std::io::Result<()> {
         let json = serde_json::to_string_pretty(self)?;
         std::fs::write(path, json)
+    }
+}
+
+/// Written to disk BEFORE a fuzz game begins and removed after it completes
+/// cleanly (PB-DX56 / OOS-FB1-1). This is the ONLY mechanism that survives a
+/// process `abort()`: a SIGABRT is not unwindable (see
+/// `crates/engine/tests/primitives/pb_dx19_characteristics_recursion.rs`'s own
+/// `#[should_panic]` note on exactly that point), so `Drop`, `catch_unwind` and
+/// every other cleanup-on-panic scheme are unavailable to a game that hard-aborts
+/// the whole process. A Rust `panic!` fares no better here in practice: `rayon`
+/// resumes a caught worker panic on the joining thread, and the default
+/// panic-unwind strategy then aborts the WHOLE process from there too, so neither
+/// kind of crash ever reaches the code that writes `CrashReport`s after
+/// `.par_iter().collect()` returns.
+///
+/// The file's mere PRESENCE at the end of a LATER run is the signal
+/// (`report_leftover_inflight_files` in `bin/fuzzer.rs`); its CONTENTS exist only
+/// to reconstruct the `--replay` command line, nothing derived from in-flight game
+/// state (which cannot be safely read from outside the aborted process anyway).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InFlightGame {
+    pub seed: u64,
+    pub player_count: usize,
+    pub max_turns: u32,
+    /// The `--bot` type, `{:?}`-formatted (`"Random"` / `"Heuristic"`).
+    pub bot: String,
+    /// Human-readable explanation of what this file's continued existence means,
+    /// so a reader who stumbles on one without having read this doc comment is
+    /// not left guessing.
+    pub note: String,
+}
+
+impl InFlightGame {
+    /// Write this tombstone to a file as JSON, BEFORE the game it describes
+    /// starts running.
+    pub fn write_to_file(&self, path: &std::path::Path) -> std::io::Result<()> {
+        let json = serde_json::to_string_pretty(self)?;
+        std::fs::write(path, json)
+    }
+
+    /// Read a tombstone back, for a caller reporting leftovers from a prior
+    /// aborted run.
+    pub fn read_from_file(path: &std::path::Path) -> std::io::Result<Self> {
+        let data = std::fs::read_to_string(path)?;
+        serde_json::from_str(&data)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
     }
 }
 
@@ -46,6 +118,11 @@ impl CrashReport {
 /// struct grows. The two REAL construction sites (`local_game.rs`'s GameOver return and
 /// `driver.rs`'s Halted arm) do **not** rely on `Default` — they go through
 /// `LocalGame::result_snapshot`, which populates every field from live game state.
+///
+/// PB-DX56 adds two more (`command_history`, `commands_dropped_from_history`); the
+/// count above is now stale by two and is left as the historical PB-DX32 figure
+/// rather than silently bumped, since re-deriving "how many fields has this struct
+/// grown by, over how many batches" is not this doc's job.
 #[derive(Clone, Debug, Default)]
 pub struct GameResult {
     pub seed: u64,
@@ -72,6 +149,15 @@ pub struct GameResult {
     /// [`crate::local_game::LocalGame::decision_coverage`] and
     /// [`crate::decision_coverage`].
     pub decision_coverage: DecisionCoverage,
+    /// PB-DX56 / OOS-FB1-1: the retained command-history ring, oldest first — see
+    /// [`crate::local_game::LocalGame::command_history`]. `bin/fuzzer.rs`'s
+    /// `run_single_game` clears this for any game with NO hard violations before
+    /// returning, so at run scale (`--games N`) this field's aggregate retention
+    /// cost tracks the number of VIOLATING games, not `N`.
+    pub command_history: Vec<Command>,
+    /// How many entries fell off the front of `command_history`'s ring — see
+    /// [`crate::local_game::LocalGame::commands_dropped_from_history`].
+    pub commands_dropped_from_history: usize,
 }
 
 /// SR-38 at run scale. Re-quoted (PB-DX32 fix cycle, review finding M6) from the
