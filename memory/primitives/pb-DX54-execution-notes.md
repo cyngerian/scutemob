@@ -458,3 +458,67 @@ executed anyway, green, as the evidence that none was owed rather than as a clai
 * **`OOS-DX25b-4` was declined**, with the reason and the measured cost in §3.
 * **The tracked zero-byte `{}` file on `main` was left in place** (`OOS-DX54-3`), because a
   main-scope tidy inside a correctness batch is an unexplained diff at collect.
+
+---
+
+## §8 — Probes, and three corrections the coordinator made to delegated output
+
+### The files
+
+* `crates/engine/tests/primitives/pb_dx54_resolving_entry_target_space.rs` — t1..t7 (8 tests)
+* `crates/simulator/tests/pb_dx54_resolving_redirect_channel.rs` — c1..c3 plus one sentinel
+* `crates/engine/tests/core/pb_dx54_resolving_entry_roster.rs` — r1..r6 (9 tests), §5
+
+### Correction 1 — an EMPTY `#[test]` was removed, and the reason is a number
+
+The probe agent shipped `t7b_cr_714_4_same_command_sacrifice_is_confounded_by_a_different_bug`
+as a `#[test]` whose entire body was a comment. Its DOC was excellent — a careful record of a
+real, out-of-scope defect with four rejected alternative constructions — and is preserved
+verbatim in the file's module header. The WRAPPER was wrong: a test that asserts nothing always
+passes, contributes no coverage, and **adds +1 to this batch's own reported test delta for a row
+that tests nothing**, which corrupts the one figure every later batch inherits as its baseline.
+The finding is filed as **`OOS-DX54-4`** instead — which is where a real defect with no probe
+belongs, on PB-DX49's own `OOS-DX49-1` precedent (*a probe asserting today's behaviour would
+have to be inverted by whoever fixes it, and nothing this batch touched is on that path*).
+
+### Correction 2 — the coordinator's own edit deleted a PASSING test, and that is recorded
+
+Removing that wrapper, the coordinator's cut ran back to the wrong section banner and took
+`t7_non_final_chapters_resolve_normally_with_correct_departure_timing` and two helpers with it.
+Recovered from the agent's transcript and re-verified green. Written down because a silent
+recovery is how a deleted test becomes a permanently missing one — and because the same
+over-wide-cut shape is what `OOS-DX18-3` filed about a sentinel re-pin.
+
+### Correction 3 — `t5`'s headline assertion message OVERCLAIMED
+
+Its message read *"not zero (pre-fix, the popped entry made this arithmetic answer 0, which is
+the defect)"*. The count is taken **before** `resolve_top_of_stack` is called, when the entry is
+on the stack under BOTH revisions — pre-fix it answered 1 there too, and only answered 0 INSIDE
+the resolution, which no assertion in this file can observe directly. Reworded to state that it
+is a PRECONDITION whose value is that the `TargetsChanged` assertion below it cannot be
+satisfied by a double-count artefact. The probe's discrimination was always in that second
+assertion; only the prose was wrong.
+
+### The defect the probe that could not be built found (`OOS-DX54-4`)
+
+CR 714.4's exemption — *"…isn't the source of a chapter ability that has **triggered** but not
+yet left the stack"* — is checked against `state.stack_objects` alone, while `enter_step` queues
+the chapter trigger, THEN runs SBAs, THEN flushes. So a Saga is sacrificed one mechanism before
+its FINAL chapter reaches the stack, and that chapter resolves sourceless and does nothing.
+Observed in one command's event slice (`CounterAdded {Lore, 3}` → `PermanentDestroyed` →
+`AbilityTriggered` → `AbilityResolved` with no effect event), with chapters I and II resolving
+correctly on the same fixture, which is what isolates it to the final chapter. **Pre-existing,
+proven structurally**: `git diff <merge-base>..HEAD` over `sba.rs`, `turn_actions.rs`,
+`engine.rs`, `replacement.rs` and `saga.rs` is EMPTY, and the sacrifice happens at step entry,
+outside any resolution, so this batch's departure point is never reached in that trace.
+
+### Two claims in the channel brief that the channel agent found FALSE, reported not worked around
+
+1. `ObjectSpec::with_mana_cost(ManaCost { blue: 1, .. })` does **not** make an object Blue —
+   `legal_actions::eligible_pitch_cards` reads a separate `colors` field a naked `ObjectSpec`
+   never derives from `mana_cost`. Every pitch-fodder object needs an explicit
+   `.with_colors(vec![Color::Blue])`. Named in neither the brief nor either reference file.
+2. `LocalGame::submit`'s returned events do NOT surface bot-driven resolutions: `advance()`
+   stops only for a human seat, so a bot's pass and everything it triggers runs inside
+   `advance()` and never reaches the caller. `c1` reads `game.journal_since(cursor)` instead,
+   with the mechanism documented rather than only the fix.

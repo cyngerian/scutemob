@@ -1042,9 +1042,15 @@ fn t5_resolving_entry_is_seen_exactly_once_during_resolution_and_zero_times_afte
         .count();
     assert_eq!(
         matches_before, 1,
-        "PB-DX54's whole thesis in one COUNT: not zero (pre-fix, the popped entry \
-         made this arithmetic answer 0, which is the defect) and not two (a \
-         double-push would answer 2, PB-DX47's shape)"
+        "PRECONDITION, and it is stated as one rather than dressed as the thesis. \
+         This count is taken BEFORE `resolve_top_of_stack` is called, when the entry \
+         is on the stack under BOTH revisions -- pre-PB-DX54 it answered 1 here too, \
+         and only answered 0 INSIDE the resolution, which no assertion in this file \
+         can observe directly. What it buys is that the `TargetsChanged` assertion \
+         below cannot be satisfied by a double-count artefact: exactly one entry \
+         names Misdirection's card, so finding it during the resolution means the \
+         entry survived, not that two of them did (PB-DX47's double-push shape, which \
+         a `>= 1` assertion would pass)"
     );
 
     let (state, resolve_events) = resolve_top_of_stack(state);
