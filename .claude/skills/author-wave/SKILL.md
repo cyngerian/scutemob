@@ -50,9 +50,17 @@ Orchestrate the full author → review → fix → commit cycle for one authorin
 - Suggest: "Next group: `<group>` (A-<N>, <cards> cards, <sessions> sessions). Run `/author-wave <group>` to start."
 - Stop.
 
+**If `$ARGUMENTS` starts with `--cards`** (CC-3, 2026-09-05 — the pod-first input; CC-13's dry
+run uses it): the rest of the argument is a comma-separated card list, e.g.
+`/author-wave --cards "Rhystic Study, Smothering Tithe, ..."`. Treat the list as ONE session,
+skip the `_authoring_plan.json` lookup below, and pass the names verbatim to `bulk-card-author`.
+The canonical source of such lists is the ranked missing-card list in `docs/pod-coverage.md`
+(CC-6); until it exists, the missing worklist written beside `docs/authoring-status.md`.
+
 ### Step 1: Pre-check
 
 1. Read `test-data/test-cards/_authoring_plan.json` to find all sessions for the target group
+   (group mode only — this file is a 2026-03-10 snapshot; `--cards` mode never reads it)
 2. Check which sessions are `ready` vs `blocked`
 3. For ready sessions, check which cards already have def files (skip unless skeleton)
 4. Report:
@@ -70,7 +78,7 @@ For each ready session in the group:
    ```
    Agent tool:
      subagent_type: bulk-card-author
-     prompt: "Author session <ID> from _authoring_plan.json. Group: <group>. Read the session data, look up each card via MCP, read a reference def, and write all card files."
+     prompt: "Author these cards: <comma-separated names> (group: <group>, or 'pod' in --cards mode). Look up each card via MCP, read a reference def for the pattern, and write all card files."
    ```
 
 2. **Parallel execution**: Launch up to 2 agents simultaneously for different sessions.

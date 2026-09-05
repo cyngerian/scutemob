@@ -59,6 +59,10 @@ You are a code reviewer. Review the implementation on this branch against the ac
    - Code that doesn't match the criterion's intent
    - Obvious bugs or regressions
    - Files that should have been changed but weren't
+5. **Rank every issue HIGH / MEDIUM / LOW.** HIGH: a criterion is not met, a correctness or
+   CR defect, a gate that can be defeated by execution. MEDIUM: a real gap the merge should not
+   carry (a false claim in source or notes, a missing probe for a shipped fix). LOW: wording,
+   cites, tidiness. Put the severity first on each issue line.
 
 Report in this format:
 
@@ -76,10 +80,15 @@ Report in this format:
 
 ### 4. Report findings
 
-When the reviewer returns, relay its report to the user. If there are issues:
+When the reviewer returns, relay its report to the user. **HIGH and MEDIUM findings are fixed in
+this cycle; LOW findings are logged to the batch notes file
+(`memory/primitives/<batch>-execution-notes.md`, a "Review LOWs, not taken" list) and not fixed
+unless the fix is trivial** — a one-line cite or wording change. "All N taken" is not the goal;
+it is a driver of batch length (`docs/course-correction-2026-09.md` §6.1). If there are HIGH or
+MEDIUM issues:
 - List them clearly
-- Suggest fixes
-- After fixing, the user can run `/review` again to verify
+- Fix them, re-run the relevant tests
+- Run `/review` again to verify
 
 If all criteria pass and no issues found, report:
 ```

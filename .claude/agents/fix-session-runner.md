@@ -85,7 +85,7 @@ After applying ALL fixes in the session:
 
 2. **Run clippy**:
    ```bash
-   ~/.cargo/bin/cargo clippy -- -D warnings
+   ~/.cargo/bin/cargo clippy --workspace --all-targets -- -D warnings
    ```
    Zero warnings required. Fix any clippy issues introduced by your changes.
 

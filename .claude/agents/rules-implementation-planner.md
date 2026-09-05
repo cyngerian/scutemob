@@ -157,7 +157,7 @@ Write the plan to `memory/m<N>-session-plan.md` using this structure
     - [ ] Criterion 1 (from roadmap)
     - [ ] Criterion 2
     - [ ] All tests pass: `~/.cargo/bin/cargo test --all`
-    - [ ] Zero clippy warnings: `~/.cargo/bin/cargo clippy -- -D warnings`
+    - [ ] Zero clippy warnings: `~/.cargo/bin/cargo clippy --workspace --all-targets -- -D warnings`
     - [ ] Formatted: `~/.cargo/bin/cargo fmt --check`
 
     ## Key CR References

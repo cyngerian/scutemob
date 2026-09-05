@@ -105,23 +105,32 @@ when this bookkeeping gets dropped, so it is mandatory here, not optional.
 
 For a PB/queue collection, after the merge:
 
-1. **Active queue-plan file** (the dated file under `memory/primitives/` named in CLAUDE.md
-   "Current State"): strike/✅-mark the collected batch's row in its "Queue summary" table,
+1. **Active queue-plan file** (if a ranked queue is live — the v4 queue in
+   `memory/primitives/seed-rerank-2026-08-14.md` is CLOSED at rank 21 and the pod-first plan in
+   `docs/course-correction-2026-09.md` §9.2 replaces it): strike/✅-mark the collected batch's row,
    flip its §-section header to `✅ SHIPPED` with the merge/task ref, and **remove any
    "RECOMMENDED FIRST DISPATCH" / "next" banner** so the next dispatch can't re-pick it.
-2. **`memory/workstream-state.md`**: update the W6 row / Last Handoff to name the shipped
-   batch and the next queue target.
-3. **CLAUDE.md "Current State"**: make the leading active-queue bullet (~line 17) agree with
-   the queue — don't leave it a generation stale against the same section (audit #2 N1).
-4. If card defs changed, regenerate `docs/authoring-status.md` via
-   `python3 tools/authoring-report.py`. Never edit `docs/project-status.md` (RETIRED).
+2. **`CHANGELOG.md`**: prepend ONE entry of **at most ten lines** — task id, merge commit, seeds
+   closed/filed, wire (HASH/PROTOCOL) and test-count deltas, coverage/pod-coverage delta, and the
+   path of the batch's notes file (`memory/primitives/pb-<id>-execution-notes.md`). The narrative
+   lives in the notes file; the entry points at it.
+3. **`memory/workstream-state.md`**: replace the Last Handoff with the worker's handoff (or a
+   one-paragraph collect handoff) and keep the W6 row to ONE line. The file stays under 60 lines;
+   a displaced handoff goes VERBATIM to `memory/archive/workstream-state-<YYYY-MM-DD>.md`.
+4. **CLAUDE.md "Current State"**: edit exactly three lines and nothing else — the `Status` line
+   (test count), the **headline metric** line (pod coverage from `docs/pod-coverage.md` once CC-6
+   lands; `docs/authoring-status.md` until then) and the **Next dispatch** line. Never write a
+   batch narrative into CLAUDE.md; `wc -l CLAUDE.md` must stay under 250 (the `/eot` guard fails
+   otherwise).
+5. If card defs changed, regenerate `docs/authoring-status.md` (and `docs/pod-coverage.md` once
+   it exists) via `python3 tools/authoring-report.py`. Never edit `docs/project-status.md` (RETIRED).
 
 If a full `/eot` will run right after this collection it rotates `workstream-state.md` for
 you — but the queue-plan banner (item 1) is never touched by `/eot`, so always do item 1 here.
 
 ### 8. Update project knowledge
 
-Same as `/done`: check if this task established anything that future sessions should know. If so, update CLAUDE.md. If nothing new, skip.
+Same as `/done`: check if this task established anything that future sessions should know. Route it to `memory/conventions.md`, `memory/decisions.md` or a gotchas file — CLAUDE.md gets at most a one-line pointer. If nothing new, skip.
 
 ### 9. Report
 
@@ -147,5 +156,6 @@ Same as `/done`: check if this task established anything that future sessions sh
 - The `--no-ff` flag ensures a merge commit is created, keeping the branch history visible.
 - After collecting, run `esm worktree list` to show remaining active worktrees.
 - **Never skip step 7 for a PB/queue collection**, even mid-pause. The worker's worktree
-  carried old skill copies and could only edit its own branch; the queue-plan banner and
-  `workstream-state.md` on main are the coordinator's job. Dropping this is audit #2 N4.
+  carried old skill copies and could only edit its own branch; the queue-plan banner,
+  `CHANGELOG.md` and `workstream-state.md` on main are the coordinator's job. Dropping this is
+  audit #2 N4.

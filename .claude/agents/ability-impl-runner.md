@@ -19,7 +19,7 @@ description: |
   </example>
 model: sonnet
 color: green
-tools: ["Read", "Edit", "Write", "Grep", "Glob", "Bash", "Task"]
+tools: ["Read", "Edit", "Write", "Grep", "Glob", "Bash", "Agent"]
 ---
 
 # Ability Implementation Runner
@@ -129,7 +129,7 @@ After completing ALL steps (or all fixes):
 
 2. **Run clippy**:
    ```bash
-   ~/.cargo/bin/cargo clippy -- -D warnings 2>&1
+   ~/.cargo/bin/cargo clippy --workspace --all-targets -- -D warnings 2>&1
    ```
    Zero warnings required.
 

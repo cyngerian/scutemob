@@ -243,11 +243,10 @@ Task tool:
    - Check off step 7 in `ability-wip.md`
    - Set `phase: closed` in `ability-wip.md`
 
-3. **Update CLAUDE.md Current State** (inline — no agent needed):
+3. **Record the ability** (inline — no agent needed):
    - Run `~/.cargo/bin/cargo test --workspace 2>&1 | grep "^test result" | grep -oP '\d+ passed' | awk '{s+=$1} END {print s}'` to get the current test count
-   - Read the `## Current State` section of `CLAUDE.md`
-   - Update the `Status:` line: bump test count, validated count, and P<N> count to match current reality
-   - Update `Last Updated:` to today's date
+   - Prepend ONE ≤10-line `CHANGELOG.md` entry (ability, CR section, tests added, wire delta, notes file)
+   - In CLAUDE.md "Current State" edit ONLY the `Status:` line (test count) and `Last Updated:` — no narrative (`wc -l CLAUDE.md` < 250)
 
 4. **Update MEMORY.md** (inline — no agent needed):
    - Read the `## Milestone Review Tracking` section of `memory/MEMORY.md` (the auto-memory file at `/home/skydude/.claude/projects/-home-skydude-projects-scutemob/memory/MEMORY.md`)

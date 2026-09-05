@@ -61,7 +61,9 @@ If not, stop: "Infrastructure tasks must be complete before triage. Run I-* item
 
 ### T-2: Re-evaluate Blocked Sessions
 
-1. Read `test-data/test-cards/_authoring_plan.json`
+1. Read `test-data/test-cards/_authoring_plan.json` — a 2026-03-10 snapshot. The LIVE blocked
+   set is the `partial` / `known_wrong` notes in `docs/authoring-status.md` (and the pod
+   missing-card list in `docs/pod-coverage.md` once CC-6 lands); reconcile against those first.
 2. For each session with `"status": "blocked"`:
    a. Read the card list and oracle text
    b. Check whether abilities are now expressible in the DSL
