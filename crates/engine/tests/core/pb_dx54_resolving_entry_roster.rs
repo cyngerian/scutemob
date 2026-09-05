@@ -428,10 +428,15 @@ fn r5_sba_reads_the_stack_at_exactly_the_two_sites_the_ordering_argument_names()
     let raw = read_source(SBA_RS);
     let stripped = strip_comments(&raw);
     let normalised = stripped.replace("stack_objects()", "stack_objects");
-    let reads = count(&normalised, "stack_objects.iter()");
+    // Counted on the RECEIVER, not on one call shape. `stack_objects.iter()` would miss
+    // `for so in &state.stack_objects`, `.get(..)`, `.len()` and every other way a third
+    // reader could arrive -- and a gate that counts one spelling measures that spelling
+    // (`OOS-DX26` -> `OOS-DX43` -> `OOS-DX45` -> `OOS-DX47` -> `OOS-DX51`, five batches).
+    let reads = count(&normalised, "stack_objects");
     assert_eq!(
         reads, 2,
-        "r5: `sba.rs` must read state.stack_objects at exactly 2 decision sites (CR 714.4 \
+        "r5: `sba.rs` must MENTION state.stack_objects at exactly 2 places, both decision \
+         sites (CR 714.4 \
          Saga sacrifice, CR 309.6 dungeon removal). Found {reads}. These are the ONLY two \
          readers that make PB-DX54's departure ORDER observable; a third means \
          `depart_resolving_stack_entry`'s doc no longer accounts for what the ordering buys \
