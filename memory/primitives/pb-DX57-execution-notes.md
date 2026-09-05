@@ -220,3 +220,111 @@ narrowed is recorded rather than discarded — *"all rows RED" is a true sentenc
 can produce* (PB-DX48), and its converse is that a red row can be evidence about a different gate.
 
 Every file restored, `cmp` byte-identical.
+
+---
+
+## §3. `OOS-DX28-6` — the sibling class, measured, and the answer is a ZERO
+
+### §3.1 The census
+
+Stage 0 derived the population mechanically rather than by reading defs. The corpus splits into a
+PROSE surface (**15,394** line comments + **663** `Completeness` notes; **0** block comments) and a
+CODE surface (comments **and string literals** stripped — a `Completeness::partial("… Effect::Foo …")`
+note is a string LITERAL, and `OOS-DX53-2` records a census that read 5 where the truth was 4 for
+exactly that reason).
+
+**593 of the 663 notes — 89.4% — span multiple lines**, and a naive extractor that does not join
+`\`-continuations silently truncates every one of them (`OOS-DX35`). The extractor was reconciled
+against a raw grep and **was wrong once**: 662 against 663, because `darksteel_colossus.rs:63` puts a
+six-line comment BETWEEN `Completeness::known_wrong(` and its string. Fixed; 663/663.
+
+The vocabulary was derived **from the prose** by a closure that does not iterate (PB-DX8's lesson:
+*iterated bootstrapping DRIFTS, and a vocabulary learned from the DSL's own ground truth is
+self-blinding on the target*), and the CamelCase axis was filtered against a **declared** dictionary
+parsed from `card-types` — 92 enums / 954 variants — never against corpus usage.
+
+### §3.2 The result
+
+**34 hits across 33 files. 22 are real mechanism claims and every one is CONFIRMED TRUE. Zero
+stale. ZERO LIVE DEFECTS.** `sword_of_war_and_peace` appears to have been the only instance of the
+exact shape on the axes a derivation can see, and PB-DX28's repair of it is present at `:55-67` /
+`:74-95` and was re-verified.
+
+This is stated as a **result**, not as a clean bill of health. The recall bound is measured, not
+estimated: **33.7% of resolution-verb sentences name no identifier at all** and are structurally
+invisible — the seed's own case written in plain English would not be seen.
+
+### §3.3 The known-positive replay, and what it says about the obvious first draft
+
+The seed's verbatim pre-repair sentence fires against reconstructed pre-PB-DX28 code and is silent
+at HEAD. **The load-bearing detail: that sentence contains no `::` at all**, so a qualified-token
+(`Enum::Variant`) derivation — the obvious first draft, and the closest to the task brief's own
+suggested vocabulary — **would have missed the seed's own instance.** The BARE-identifier axis is
+what carries the known positive.
+
+**That prediction was reproduced by execution rather than taken on trust.** The first draft of
+`m4_the_gate_fires_on_the_seeds_own_pre_repair_sentence` failed on its first run against exactly
+that gate, before any of this was written down.
+
+### §3.4 The one repair, and why it survived three previous sweeps
+
+`well_of_lost_dreams.rs` — `inert`, comment-only, no marker moved, 0 coverage flips. Three claims
+repaired:
+
+* Clause **(c)** of its `Completeness::inert` note said *"'you may pay' has no interactive
+  expression"* — **falsified by PB-DX45 three days earlier** (`EffectChoiceQuestion::PayOptionalCost`,
+  `stubs.rs:1030`). A **seventh** "pay when able" residue that PB-DX45's own `/review` sweep did not
+  reach. Narrowed rather than deleted: the channel exists, and the surviving blocker is that
+  `PayOptionalCost` carries a FIXED `Cost`, not a cap.
+* Two `// TODO`s said `TriggerCondition::WhenYouGainLife` does not exist — which the def's **own
+  compiled note already calls false**. They survived PB-DX27's blocker sweep, PB-DX8's
+  `completeness_deviation_scan` and this census's own qualified-token pass for one reason: **they
+  MISSPELL the identifier** (`WhenYouGainLife` for `WheneverYouGainLife`), so it is not in any
+  declared dictionary and no needle set keyed on identifiers can see it.
+
+**The generalisation is worth more than the instance and is filed**: *a needle set keyed on
+identifiers is blind to a claim that gets the identifier's spelling wrong, and getting the spelling
+wrong is correlated with being wrong about the claim.*
+
+### §3.5 The ratchet, and why its polarity is inverted
+
+`crates/engine/tests/core/pb_dx57_mechanism_note_ratchet.rs`, six tests.
+
+The census's first proposal was to key on resolution VERBS and subtract the non-assertions. **Its
+own §6.2 then defeated that design**: *"filter (d) is the load-bearing weakness and no lengthening
+of the marker list repairs it"* — a stale claim can carry a negation word in a neighbouring clause
+while asserting the defect in its own, and one of the measured false-positive shapes carries **no
+negation word at all**. So the shipped gate enumerates a small set of **ASSERTIVE FRAMES**:
+**enumerating what may fire fails CLOSED; enumerating what may not fails OPEN.** That is PB-DX53's
+`/review` repair (*"enumerating what may mutate a container is unbounded… enumerating the 8 READ
+methods is short and fails closed"*) applied to a prose classifier.
+
+Measured at HEAD: **56** assertive-frame sentences across 1,803 defs, **23** naming a declared
+identifier, **4** live offenders — and *the gap between 56 and 23 IS the gate's recall bound*, which
+`m3` prints rather than hides.
+
+All four offenders are adjudicated in `RECORDED_OFFENDERS` with the verdict quoted, in **three
+distinct false-positive shapes**:
+
+| def | shape | verdict |
+|---|---|---|
+| `chandra_flamecaller` (×2 identifiers) | **rejected-alternative rationale** — *"a naive `DiscardCards{HandSize}+DrawCards{HandSize}` reads 0 after the hand is already emptied"* explains why the def uses `Effect::WheelHand` INSTEAD | TRUE |
+| `elenda_the_dusk_rose` | **the comment names the RUNTIME identifier the DECLARED one lowers to** — `TriggerCondition::WhenDies` lowers to `trigger_on: TriggerEvent::SelfDies` at `replay_harness.rs:2677`, verified by reading the site | TRUE |
+| `fecundity` | **prospective** — *"Residual AFTER REWIRE: … `ControllerOf` reads the graveyard object"* is a claim about a rewire not yet made, inside a note that says so | TRUE |
+
+They are **recorded, not filtered**, because Census C §6.3 is right that *a gate which makes an
+author delete a true sentence to go green has stopped measuring* — PB-DX54's `r3` finding stated
+inside this file's own subject matter.
+
+**A prediction of this batch's own was refuted by the corpus and is recorded rather than deleted.**
+The authorability filter (an enum no def's code ever names is engine plumbing) was expected to
+remove `TriggerEvent` and so to remove the `elenda` hit. It does not: `basri_ket.rs:78` and
+`ajani_sleeper_agent.rs:69` construct `TriggerEvent` variants in real emblem trigger specs, so the
+enum genuinely IS authorable. The hit is recorded on its merits instead.
+
+### §3.6 A tautology this batch wrote and deleted
+
+`m6`'s first draft closed with `assert!(AMBIGUOUS_BARE.is_empty() || !AMBIGUOUS_BARE.is_empty(), ..)`.
+That is `A || !A` — **`t9_fingerprints_match_their_structs`'s ORIGINAL defect
+(`intersection.is_none() || len != len`) reproduced by hand, inside the batch whose subject is
+assertions that cannot fail.** Deleted rather than reworded, with the note left at the site.
