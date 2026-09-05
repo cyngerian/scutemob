@@ -297,6 +297,108 @@ addendum A1 as amended in §9.1 — CC-15, `scutemob-252`). **No big-bang refact
    with the SR-38 channel probes in `crates/simulator/tests/`, which remain the verdict on
    whether an offer is honest. 43 sites is a ceiling to walk down, not a task.
 
+## Landscape rules (the phase.rs / Manabrew comparison)
+
+Adopted 2026-09-05 from `docs/mtg-engine-landscape-assessment.md` §9 row b and
+`crates/manabrew-compat/CLAUDE.md` rules 1–2 of the phase.rs clone (LL-3, `scutemob-257`).
+The clones are read-only reference at `~/projects/scutemob-landscape/` (MIT).
+
+### Parameterize, don't proliferate
+
+Before adding a **sibling variant** to an engine enum (`Effect`, `AbilityDefinition`,
+`KeywordAbility`, `StackObjectKind`, `AdditionalCost`, `TriggerCondition`, …), ask: is the new
+variant a leaf-level parameterization of an existing variant's structural axis — scope, target,
+comparator, aggregate, condition shape? If it is, parameterize the existing variants and do not
+add the sibling.
+
+1. **Sibling-cluster smell.** Three or more variants that share a name root (`X` / `OpponentX` /
+   `TargetX` / `AllX`), that differ only in a context label, or that differ only along a
+   comparator / aggregator / scope axis are a parameterization that did not happen. Refactor
+   before extending. This stays a **review checklist item, not a source gate**: the "three
+   variants sharing a name root" test is greppable, but pair-or-demote (above) says a gate ships
+   with a probe, and a naming smell has no behaviour to probe.
+2. **One-CR-section boundary.** The parameterization axis must lie inside a single CR rule
+   section. Life is CR 119 (players only); power and toughness are CR 208/209 (creatures). Do
+   not unify them under one `Amount { subject, kind }` — that conflates sections the engine
+   resolves separately. Cross-section unification belongs at the filter or the effect handler
+   (`Effect::DealDamage` legitimately unifies every damage subject under CR 120), never at the
+   leaf-reference layer.
+3. **The variant you add is not one edit.** Price it against
+   `memory/checklists/new-effect-variant.md` before you propose it: every registration point on
+   that list is a call site the sibling multiplies, and most of them fail silently rather than
+   at compile time.
+
+**Why:** one sibling is cheap and ten are not — call sites multiply across the DSL, the
+resolver, the wire fingerprints, the view model, the TUI and the tests, so the refactor that was
+an afternoon becomes multi-week.
+
+**scutemob example:** Type Consolidation (2026-03-09, "## Type Consolidation Patterns" above) is
+this refactor done late. It took eight sessions to fold one-off `CastSpell` cost fields into
+`additional_costs: Vec<AdditionalCost>` (RC-1, 32 fields → 13), the per-mechanic
+`StackObjectKind` trigger variants into one `KeywordTrigger { keyword, data }` (RC-2), and eight
+`bool` designation flags into the `Designations` bitfield (RC-4). `Effect` sits at ~106 variants
+against phase.rs's 233 — healthy, and this rule is what keeps it that way.
+
+### Never write "unsupported" without naming the population you searched
+
+Every claim that the engine cannot do something — an OOS seed, a review finding, a plan's
+"blocked by" line, a `// TODO` / `// ENGINE-BLOCKED` comment, a `Completeness::Partial` blocker
+note, a task comment — is read later as an inventory of deficiency and planned against. Before
+writing one:
+
+1. **Name the population.** Grep the enum or module and state which one you searched and how
+   many variants it has (`Effect`, `AbilityDefinition`, `KeywordAbility`, the `helpers.rs`
+   prelude, the arms of `execute_effect_inner`). Absence from one enum is not absence from the
+   engine.
+2. **Check the history.** `git log --grep=<mechanic>` — several "missing" primitives had already
+   shipped in a named PB.
+3. **Grep-verify the CR number** you cite against the CR text (`.scryfall-cache/`
+   `MagicCompRules.txt` in the main checkout — worktrees do not carry the cache — or the
+   `mtg-rules` MCP). 701.x / 702.x numbers are sequential assignments that models hallucinate.
+4. **Then phrase it as a bounded claim**: *"absent from `<enum>` (N variants) at `<sha>`;
+   reachable instead via X"* — never a bare "scutemob does not support X".
+
+**Why:** an unbounded absence claim is unfalsifiable, so nothing ever retires it; it outlives
+the gap it described and keeps working cards gated.
+
+**scutemob example:** `stroke_of_midnight.rs`, `emergency_eject.rs` and `saw_in_half.rs` each
+carry a `Partial` marker whose blocker text says to fix it "when `CreateToken` gains a player
+field". `TokenSpec.recipient` shipped in PB-EF2. Three deck-legal cards stayed gated on a gap
+that no longer existed, and the stale note was found by an outside comparison rather than by any
+gate (assessment §2).
+
+### Classify by payload type, never by concept name
+
+When deciding what a mechanic *is* — which primitive it needs, which `Effect` variant, whether
+it is new at all — read the **payload**: the fields the answering `Command` or `PendingDecision`
+carries, and what the engine derives from them. MTG mechanic names imply exotic structure; the
+decision underneath is almost always an ordinary shape that already exists.
+
+1. **Name the enum you checked, then check the others.** A mechanic's absence from one enum says
+   nothing about support (pairs with the rule above).
+2. **The field list is not the whole payload — read the projection.** A `Vec<ObjectId>` that the
+   offer layer projects as N separate one-at-a-time decisions is not a subset pick. The
+   answering `Command` and the `PendingDecision` it satisfies settle it; the field type only
+   narrows the possibilities.
+3. **A name that matches is not a payload that matches.** Two decisions wearing the same
+   mechanic name can be different shapes, and two different names are routinely one shape.
+
+**Why:** classifying by name is how a batch either builds a second copy of a primitive it
+already has, or routes a card through a look-alike that carries the wrong payload — the
+"legal-but-wrong" class (`project_legal_but_wrong_gap.md`), which compiles and passes tests.
+
+**scutemob example, both directions.** Ninjutsu *sounds* like an alternative cost; CR 702.49a
+makes it an activated ability, and the DSL encodes it as exactly that —
+`AbilityDefinition::Keyword(KeywordAbility::Ninjutsu)` is only the label, and
+`AbilityDefinition::Ninjutsu { cost }` is the ability that actually runs
+(`ninja_of_the_deep_hours.rs`). Inversely, `OOS-DX24-1` asked `doubler_applies_to_trigger`
+(`crates/engine/src/rules/abilities.rs`) to classify a trigger by its source ZONE — "the source
+is on the battlefield". PB-DX15a executed that and it was CR-wrong: a CR 603.6c/603.10a
+look-back "when this dies" trigger also presents a graveyard source, so the zone test stopped
+Teysa Karlov doubling the commonest case in its own arm, with the whole workspace green. The
+discriminator is the payload — `TriggerEvent::SelfDies` versus `AnyCreatureDies` — and the fix
+enumerated every construction site to prove the split was total instead of plausible.
+
 ## Change-class acceptance table
 
 Recorded verbatim from `docs/course-correction-2026-09.md` §3.1 item 6 (owner-approved

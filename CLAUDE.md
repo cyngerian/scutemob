@@ -152,6 +152,9 @@ These are non-negotiable. If a change would violate any of these, stop and recon
 
 All others: `memory/gotchas-rules.md`, `memory/gotchas-infra.md`.
 
+- **The single most prohibited pattern — a `completeness:` that is a guess**: a def that omits the
+  marker (defaulting to `Complete`) or names `Complete` while a clause is unmodelled is a
+  deck-legal WRONG card no gate can see. Name it deliberately, every def, every time.
 - **Object identity (CR 400.7)**: a zone change makes a NEW object; the old `ObjectId` is dead.
 - **Replacement effects are NOT triggers**: they modify events as they happen, off the stack.
 - **SBAs are checked as a batch**: all applicable SBAs happen simultaneously, then their triggers
