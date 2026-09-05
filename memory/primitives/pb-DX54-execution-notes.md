@@ -361,3 +361,32 @@ PB-DX53 → here), asserted by `r6` rather than stated.
 so no `Completeness` marker can move, `CORPUS_COMPLETE` cannot move, and no seeded fixture can
 be re-dealt (`OOS-CARDS2-3`'s budget checked and found not owed). The regeneration is run
 anyway, against the FINAL tree, rather than the empty-diff shortcut being taken as the answer.
+
+---
+
+## §5 — The roster (`core::pb_dx54_resolving_entry_roster`), 9 gates
+
+| gate | what it pins |
+|---|---|
+| `r1` | `resolve_top_of_stack_inner` does not pop the entry off the front of its own resolution — keyed on the MECHANISM (any mutable route to a `pop_back`/`pop_front` on the stack, direct or `let`-aliased), not on one spelling, because `OOS-DX51-6` defeated three successive drafts of a same-shape gate with exactly one statement of indirection |
+| `r1b` | that detector, proven on synthetic input in BOTH directions — it fires on the direct and the aliased pop, and does NOT fire on a pop of something that is not the stack (otherwise `r1` is "any pop anywhere" and measures nothing) |
+| `r2` | **the design decision the whole suite could not refute**: every `check_and_apply_sbas(` / `grant_priority_to_active_player(` inside `resolve_top_of_stack_inner` is preceded by a departure, plus exact counts (2 inside, 1 backstop in the wrapper) |
+| `r2b` | that ordering detector, proven on synthetic input in both directions — it fires on the function-boundary shape and stays quiet on the correct one |
+| `r3` | the departure resolves its entry through `stack_index_for_announced_target` and re-open-codes no `.position(` / `.find(` / `.retain(` / `.iter()` of its own |
+| `r4` | **rider `OOS-DX25-4`, behaviourally**: `counter_stack_object` names a source for a `LoyaltyAbility` — one of the 23 kinds the old two-arm `match` fell through |
+| `r4b` | the same on the OTHER counter path, `Effect::CounterSpell`, because the two carried byte-identical copies of the defect |
+| `r5` | the CONSUMER ROSTER behind `r2`'s argument: `sba.rs` reads the stack at exactly 2 decision sites, pinned by count AND by their two CR cites |
+| `r6` | the census, PRINTED |
+
+**`r2`'s first draft was wrong and its own failure is what corrected it.** The window was set
+at 1,200 bytes by taste; the real distances, measured afterwards, are 169 / 466 / 520 and
+**1,605** bytes. Widened to 4,000 — and the SECOND measurement, the one that stops the window
+failing open, is recorded beside it: the two departure calls sit **464,693 bytes apart**, so no
+window of this size can let one tail vouch for the other's site. `OOS-DX39-8`'s shape (an
+over-wide detector turning a verdict into a non-verdict) avoided by measuring both bounds rather
+than one.
+
+**`r4`/`r4b` are behavioural, not source, on purpose** — `OOS-DX52-2`: a row that reddens only a
+source gate is telling you the behaviour has no probe. Both drive a **real
+`Command::ActivateLoyaltyAbility`** rather than a hand-built `StackObject`, so the classification
+is proven on a shape production can actually produce (`OOS-DX47-4`'s naked-`ObjectSpec` lesson).

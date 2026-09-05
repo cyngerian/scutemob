@@ -331,10 +331,15 @@ fn r2_departure_precedes_every_sba_and_priority_site_in_the_resolution() {
 /// NO `depart_resolving_stack_entry(` occurrence at a smaller offset within the preceding
 /// `WINDOW` bytes.
 fn unordered_tail_sites(body: &str) -> Vec<String> {
-    // 1,200 bytes of comment-stripped source. Both real sites sit well inside it (the fizzle
-    // tail is ~120 bytes, the main tail ~420); a window this size cannot bridge the ~8,000
-    // lines between them, so neither departure can vouch for the other's site.
-    const WINDOW: usize = 1_200;
+    // MEASURED, not guessed, and the margin is measured too. In comment-stripped source the
+    // four real sites sit 169 / 466 / 520 / **1,605** bytes after their own tail's departure
+    // call, so 4,000 covers the widest by 2.5x. And it cannot let one tail vouch for the
+    // other's site: the two departure calls are **464,693 bytes apart** (the fizzle tail at
+    // +4,923, the main tail at +469,616), two orders of magnitude beyond this window. A
+    // window chosen by taste rather than by that second measurement is the "over-wide gate
+    // fails open" shape (`OOS-DX39-8`), so both numbers are recorded here rather than in a
+    // memo.
+    const WINDOW: usize = 4_000;
     let mut bad = Vec::new();
     for needle in ["check_and_apply_sbas(", "grant_priority_to_active_player("] {
         let mut from = 0usize;
