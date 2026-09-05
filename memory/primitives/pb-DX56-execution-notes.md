@@ -530,3 +530,115 @@ test and, only when it is `Some`, one `retain` over a `Vector` that is empty for
 unattached permanent — on the zone-move path, which no bench drives (the six benches are
 priority cycles, full turns, a board wipe and an SBA check). Everything else changed is in
 `crates/simulator` and `bin/`, which the engine benches do not link.
+
+---
+
+## §5 The revert / bypass matrix, EXECUTED BY THE COORDINATOR
+
+Rows R-A..R-E are this batch's own revert proofs (§3.2 for R-E). Rows A1..D3 are the
+adversarial bypass pass. **Every file was restored byte-exactly (`cmp`) after every row.**
+
+### 5.1 The delegated bypass agent had no shell, and said so
+
+The `primitive-impl-reviewer` reported `Bash is disabled for this session, in subagents as
+well as here`, planted nothing, executed nothing, and **put that at the top of its report
+rather than presenting reasoning as results**. It produced 16 traced predictions instead.
+**The coordinator then executed them.** That is worth recording as a positive: the
+alternative — a report of 16 confident GREEN/RED verdicts that were actually inferences —
+is precisely the failure mode this project keeps filing.
+
+### 5.2 Result: **SEVEN of eight plants bypassed the shipped gates.** All seven are closed.
+
+| row | plant | before | after the fix | what it means |
+|---|---|---|---|---|
+| **A1** | delete `check_attachment_symmetry(..)` from `check_all` | **GREEN** (74/74 + 6/6) | **RED** ×2 | both its probes called the PRIVATE fn directly, so nothing asserted it was dispatched. `check_stack_consistency` has had exactly this gate since SIM-3 and the new check did not get one. Closed by a front-door dispatch gate. |
+| **A2** | make the `Err(_)` (dead-`ObjectId`) arm unreachable | **GREEN** | **RED** | that arm is the WHOLE of `OOS-DX22-8`'s direction B and **no test drove it** — both probe branches drive `Ok(att)`. |
+| **B1''** | delete `check_no_dangling_attachment_at_rest` from `result_snapshot` | **GREEN** | **RED** | an end-state check with no call-site gate. |
+| **B1b** | delete `check_no_leaked_tokens` from `result_snapshot` | **GREEN** | **RED** | **the hole is INHERITED from PB-DX32, not introduced here.** One gate keyed on the `check_no_` prefix covers both and a third. `OOS-DX56-5`. |
+| **C1''** | add the promoted class to `is_transient_check` | **GREEN** | **RED** | routes the CR 800.4k promotion back into the transient bucket, silently voiding the entire justification for calling the CR 800.4j class transient. |
+| **C2'** | make the promotion never fire | **GREEN** | **RED** | it had **no test of any kind** — the constant occurred in exactly two places workspace-wide, its declaration and its assignment. |
+| **D1'** | remove F1 from ONLY the bottom-of-library site | **GREEN** | **RED** | `move_object_to_bottom_of_zone` is `pub(crate)`, so an integration test cannot call it. |
+| **D3'** | drop the `!has_conceded` conjunct from F2's liveness test | **GREEN** | **RED** | every F2 probe used `has_lost`. CR 104.3a concession is one of the ways to leave. |
+
+### 5.3 Two plants were NON-VERDICTS and are reported as such rather than counted
+
+* **D2 (`while let` → `if let`)** does not compile — the `break` inside becomes
+  `error[E0268]: break outside of a loop`. So its first two "GREEN" results were **build
+  failures wearing a pass's clothes**, `OOS-DX39-8`'s shape for the third time in this
+  batch (R-E was the first, a fmt-rewrapped plant the second). Re-planted as `if let` WITH
+  the `break` removed — a plant that compiles — and closed by `t7`.
+  **D2 is not merely a coverage gap: it is a fresh CR 500.7 violation.** With a dead entry
+  queued ON TOP of a live one, an `if let` pops the dead one, abandons the live player's
+  extra turn entirely, and falls through to normal order. CR 800.4k discards the DEAD entry
+  and says nothing that would justify discarding the live one underneath it.
+* **Two plants FAILED TO APPLY** because `cargo fmt` had rewrapped their target lines
+  between the first pass and the second. Both were reported as non-verdicts by the harness's
+  own `PLANT FAILED TO APPLY` line and redone against the wrapped spelling. *A plant that
+  does not apply produces a green run, and a green run that nobody checked applied is
+  indistinguishable from a gate that works.*
+
+### 5.4 Two of the NEW gates caught themselves before shipping, both on their non-vacuity floors
+
+* `t_every_class_constant_is_classified_by_its_own_name` parsed `pub const` **line by
+  line** and found 3 hard constants instead of 4, because `cargo fmt` wraps
+  `HARD_DEPARTED_ACTIVE_PLAYER_CROSSED_A_TURN`'s declaration across two lines. That is the
+  multi-line-spelling blind spot PB-DX45's re-pin and PB-DX50's sentinel census each hit
+  once. **The non-vacuity floor is what caught it** — which is the whole argument for
+  putting one on a parsing gate.
+* `t_every_end_state_check_is_called_from_result_snapshot` matched **its own source**
+  through `include_str!` and extracted the "name" `").skip` from the literal
+  `"pub fn check_no_"` inside its own body. A self-referential source gate that scans the
+  file it lives in has to exclude itself; the cheapest honest way is to insist the capture
+  is spellable as an identifier.
+
+### 5.5 One row is honestly a SOURCE GATE and says so in its own module doc
+
+`core::pb_dx56_departure_hygiene_roster` asserts both zone-move helpers call the CR 400.7
+fix-up. It is a source gate rather than a probe because `move_object_to_bottom_of_zone` is
+`pub(crate)` and an integration test is an external crate — **and because tracing that
+helper's callers finds none that reaches it with an attached battlefield permanent**, so a
+behavioural probe is not merely unwritten but unwritable today. The honest statement is
+*"no probe AND no currently reachable path"*, not *"an untested defect"*, and it is
+disclosed in the test file itself rather than only in `memory/` (`OOS-DX54-5`'s convention).
+Its bodies are **brace-matched, not byte-windowed**, so it fails closed (`OOS-DX49-2`), and
+each has a non-vacuity floor on body size.
+
+---
+
+## §6 Close-out figures (re-taken AFTER the bypass fix cycle — dispatch hygiene 8)
+
+**Tests: 5,312 / 0 / 5** full-workspace, **+25** over the **5,287** baseline (which
+reproduced PB-DX55's close pin exactly — the **eighth** consecutive batch in which an
+inherited pin reproduces with no correction owed), on **72** result-producing targets
+(unmoved: the new engine probes join existing targets and the simulator ones are unit
+tests). Residual list empty.
+
+**Delta itemised by test NAME by a BYTE-EXACT Python set difference of the two run logs**
+— never `sort` + `comm` (`OOS-DX20b-5`), with the extraction regex deliberately NOT
+end-anchored (`OOS-DX42b-6`), and **re-taken AFTER the bypass fix cycle rather than before
+it** (dispatch hygiene 8 — the cycle added 10 tests, so the pre-cycle figure of 15 is
+superseded by this line rather than left standing beside it): **25 additions, 0 leavers,
+0 removals, 0 renames.** Count delta 25 == name-set delta 25, and the duplicate-name scan
+the byte-exact method is structurally blind to (`OOS-DX35-8`) is **EMPTY on both runs**
+(5,292 / 5,292 distinct; 5,317 / 5,317).
+
+**"0 leavers" must NOT be read as "nothing was touched"** — two tests were edited IN PLACE
+and their names are unchanged, so the name-set delta cannot see either, and both are
+disclosed here rather than left for it to hide:
+
+* `mechanics_e_l::extra_turns::test_extra_turn_eliminated_player_skipped` — its docstring
+  DOCUMENTED the CR 800.4k violation F2 closes (*"the eliminated player may briefly be set
+  as active_player … effectively a no-op turn"*) as the expected behaviour. **Corrected,
+  and the correction is STRICTLY STRONGER**: its headline `assert_ne!(…, p1)` becomes
+  `assert_eq!(…, p3)`, because with the fix the departed player's entry is structurally
+  unable to become `active_player` at all.
+* `invariants::tests::t_check_all_prepends_state_context_before_the_checks_own_evidence` —
+  its `.find(|v| v.check == "player_consistency")` was repointed at
+  `HARD_DEPARTED_PRIORITY_HOLDER` when the class split.
+
+**Engine lines**: `crates/engine/src` **+82 / −20** across four files —
+`state/mod.rs` +39/−0 (the shared CR 400.7 helper and its two call sites),
+`rules/turn_structure.rs` +21/−1, `rules/engine.rs` +16/−11, `rules/priority.rs` +6/−8
+(two doc inventories that became false). **`crates/card-types`, `crates/card-defs` and
+`crates/view-model` are all EXACTLY 0.** `crates/simulator/src` is the bulk of the batch;
+`tools/` is one `..Default::default()` inside a `#[cfg(test)]` `GameResult` literal.

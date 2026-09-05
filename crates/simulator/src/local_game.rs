@@ -687,18 +687,14 @@ impl<P: LegalActionProvider> LocalGame<P> {
         // turn-154 report against PlayerId(1)'s turn-133 one. It was caught by READING the
         // evidence the artefact printed, not by the count -- which is the whole argument for
         // `OOS-FB1-1` in one incident.
-        let Some(seat) = v
-            .evidence
-            .iter()
-            .find_map(|e| e.strip_prefix("arm_player=").map(str::to_string))
-        else {
+        let Some(seat) = invariants::arm_player_of(&v).map(str::to_string) else {
             return v;
         };
         let first = *self
             .departed_active_first_turn
-            .entry(seat.clone())
+            .entry(seat)
             .or_insert(v.turn_number);
-        if v.turn_number <= first {
+        if !invariants::crosses_a_turn_boundary(&v.check, v.turn_number, first) {
             return v;
         }
         let mut promoted = v;

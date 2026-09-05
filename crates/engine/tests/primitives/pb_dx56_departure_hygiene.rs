@@ -425,3 +425,92 @@ fn t6_cleanup_sba_round_grant_skips_a_departed_active_player() {
          (OOS-DP9-19)"
     );
 }
+
+// ── PB-DX56 `/review` fix cycle ──────────────────────────────────────────────────
+// Both of these close a bypass that was EXECUTED and came back GREEN; see
+// `memory/primitives/pb-DX56-bypass-attempts.md`.
+
+/// **Bypass D2, closed.** `t4` and `t5` each queue EXACTLY ONE `extra_turns` entry, so
+/// turning F2's `while let` into an `if let` was invisible to both — and that plant is not
+/// merely a coverage gap, it is a fresh **CR 500.7** violation: with a dead entry queued on
+/// top of a live one, an `if let` pops the dead entry, abandons the live player's extra
+/// turn entirely, and falls through to normal turn order. The live player simply never
+/// takes the turn an effect gave them.
+///
+/// CR 800.4k discards the DEAD entry (*"that turn doesn't begin"*); it says nothing that
+/// would justify discarding the live one underneath it. So the loop must keep popping, and
+/// this is the only test that says so.
+#[test]
+fn t7_a_dead_extra_turn_stacked_on_a_live_one_discards_only_the_dead_one() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // LIFO: `pop_back` takes the LAST pushed first, so p3's dead entry is on top of p2's
+    // live one. This is the ordering an `if let` cannot survive.
+    state.turn_mut().extra_turns.push_back(p2);
+    state.turn_mut().extra_turns.push_back(p3);
+    state.turn_mut().last_regular_active = p1;
+    state.players_mut().get_mut(&p3).unwrap().has_lost = true;
+
+    let (new_turn, _events) = rules::turn_structure::advance_turn(&state).unwrap();
+
+    assert_eq!(
+        new_turn.active_player, p2,
+        "CR 800.4k discards p3's dead entry; CR 500.7 still owes p2 the extra turn \
+         underneath it. An `if let` here hands the turn to the normal-order player and \
+         silently eats p2's extra turn"
+    );
+    assert!(
+        new_turn.extra_turns.is_empty(),
+        "both entries are consumed -- p3's discarded, p2's taken"
+    );
+    assert_eq!(
+        new_turn.last_regular_active, p1,
+        "an extra turn must not advance normal order (CR 500.7)"
+    );
+}
+
+/// **Bypass D3, closed.** `t4` and `t7` both mark the departed player `has_lost`, so
+/// dropping the `!p.has_conceded` conjunct from F2's liveness predicate was invisible.
+/// CR 800.4k says *"a player who has left the game"*, and CR 104.3a concession is one of
+/// the ways to leave — a conceded player's queued extra turn must not begin either.
+#[test]
+fn t8_a_conceded_players_queued_extra_turn_does_not_begin_either() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    state.turn_mut().extra_turns.push_back(p1);
+    state.turn_mut().last_regular_active = p1;
+    // CONCEDED, not lost -- the conjunct the other probes never exercise.
+    state.players_mut().get_mut(&p1).unwrap().has_conceded = true;
+
+    let (new_turn, _events) = rules::turn_structure::advance_turn(&state).unwrap();
+
+    assert_eq!(
+        new_turn.active_player, p2,
+        "CR 800.4k / CR 104.3a: a CONCEDED player has left the game, so their queued \
+         extra turn does not begin any more than a lost player's does"
+    );
+    assert!(
+        new_turn.extra_turns.is_empty(),
+        "the dead entry is consumed"
+    );
+}

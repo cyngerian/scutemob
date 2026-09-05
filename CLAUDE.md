@@ -119,6 +119,11 @@
   chain — **OOS-SIM6-3**, **OOS-SIM5-3** and **OOS-SIM5-5** ALL FILED (none had a registry row)
   *and* CLOSED, plus the rider **OOS-DX51-3** CLOSED; the bot refusal surface goes **70 → 9**
   and every survivor is one unrelated class. **Next dispatch: PB-DX56 (rank 20).**)
+  **↻ PB-DX56 SHIPPED** (`scutemob-235`, 2026-09-05; v4 rank 20, task 2 of 5 of the SECOND
+  chain — **OOS-FB1-1** *(the prerequisite)*, **OOS-DX32-1** and **OOS-DX22-8** ALL CLOSED,
+  plus the rider **OOS-DP9-19(b)** CLOSED; the fuzzer's HARD bucket goes **291 → 0** on the
+  standard invocation, so `--stop-on-error` no longer halts on an undiagnosed class.
+  **Next dispatch: PB-DX57 (rank 21).**)
   of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
   was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   the playtest-successor run 174–181
@@ -323,6 +328,11 @@
   chain — **OOS-SIM6-3**, **OOS-SIM5-3** and **OOS-SIM5-5** ALL FILED (none had a registry row)
   *and* CLOSED, plus the rider **OOS-DX51-3** CLOSED; the bot refusal surface goes **70 → 9**
   and every survivor is one unrelated class. **Next dispatch: PB-DX56 (rank 20).**)
+  **↻ PB-DX56 SHIPPED** (`scutemob-235`, 2026-09-05; v4 rank 20, task 2 of 5 of the SECOND
+  chain — **OOS-FB1-1** *(the prerequisite)*, **OOS-DX32-1** and **OOS-DX22-8** ALL CLOSED,
+  plus the rider **OOS-DP9-19(b)** CLOSED; the fuzzer's HARD bucket goes **291 → 0** on the
+  standard invocation, so `--stop-on-error` no longer halts on an undiagnosed class.
+  **Next dispatch: PB-DX57 (rank 21).**)
   of the user-approved five-task chain (ranks 14-18), and `feedback_queue_autonomous_chaining`
   was RETRACTED 2026-08-01, so rank 19 (`PB-DX55`) needs explicit user approval.
   **↻ 2026-08-14 — QUEUE RE-RANKED (v4, `scutemob-212`)**: every "next dispatch" line above this
