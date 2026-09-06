@@ -1,13 +1,12 @@
 // Saw in Half — {2}{B}, Instant; destroy target creature.
 // If that creature dies this way, its controller creates two tokens that are copies of that
 // creature, except their power and toughness are each half (rounded up).
-// DSL gap: searched the `Effect` enum (crates/card-types/src/cards/card_definition.rs, 106
-// variants) for a copy-token primitive that supports a per-stat modifier. The only candidates
-// are `CreateTokenCopy` (5 fields: source, enters_tapped_and_attacking, except_not_legendary,
-// gains_haste, delayed_action), `CreateTokenAndAttachSource { spec: TokenSpec }`, and
-// `BecomeCopyOf` (copier, target, duration) — none of them carries a power/toughness override,
-// so "except their power/toughness are each half, rounded up" cannot be expressed today.
-// Implementing: the destroy effect only.
+//
+// Only the destroy clause is implemented. The unmodelled clause and the bounded
+// no-such-primitive claim are stated ONCE, in the `completeness` marker below — that is the
+// only copy a machine reads (`validate_deck`, `tools/authoring-report.py`,
+// `core::completeness_deviation_scan`), so a second prose copy here could only rot out of
+// step with it. LL-1 (`scutemob-255`) removed that second copy rather than maintain two.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -33,17 +32,20 @@ pub fn card() -> CardDefinition {
             targets: vec![TargetRequirement::TargetCreature],
             modes: None,
             cant_be_countered: false,
-            // "If that creature dies this way, its controller creates two tokens that are
-            // copies of that creature, except their power is half and their toughness is half
-            // (round up)." — not implemented; see the file-level DSL-gap note above.
+            // The "creates two half-size copies" clause is not implemented. It is described
+            // once, in this def's `completeness` marker below.
         }],
         completeness: Completeness::partial(
             "\"Its controller creates two tokens that are copies of that creature, except their \
              power is half that creature's power and their toughness is half that creature's \
-             toughness. Round up each time\" is not modeled — no `Effect` variant (106 variants \
-             searched in card_definition.rs) supports a per-stat halving modifier on a token copy \
-             (CreateTokenCopy/CreateTokenAndAttachSource/BecomeCopyOf all lack one). Only the \
-             destroy clause is implemented.",
+             toughness. Round up each time\" is not modeled. Searched `Effect` in \
+             crates/card-types/src/cards/card_definition.rs at 17fc2834 (106 variants): the only \
+             copy-token primitives are CreateTokenCopy (source, enters_tapped_and_attacking, \
+             except_not_legendary, gains_haste, delayed_action), CreateTokenAndAttachSource \
+             (fixed-P/T TokenSpec) and BecomeCopyOf (copier, target, duration) — none carries a \
+             power/toughness override; and `EffectAmount` at the same sha (26 variants) has \
+             PowerOf/ToughnessOf but no halving arithmetic to feed one. Only the destroy clause \
+             is implemented.",
         ),
         ..Default::default()
     }

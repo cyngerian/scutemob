@@ -11,10 +11,10 @@
 - **Active Milestone**: P1 pod-first (`docs/course-correction-2026-09.md` §5, approved 2026-09-05).
   M11-local DONE 2026-08-01 (engine first-playable: one human + three bots in a browser via
   `tools/play-server`). M10+ roadmap milestones are HISTORICAL pending CC-8.
-- **Status**: 5,333 tests passing / 0 failing / 6 ignored (after CC-15, 73 targets);
-  208 approved golden scripts; CI green since 2026-07-10.
-- **Last Updated**: 2026-09-05 — LL-3 collected (`9a560313`); LL-1 dispatching.
-- **Headline metric**: live card coverage **1,140 / 1,803 = 63.2%** (`docs/authoring-status.md`,
+- **Status**: 5,344 tests passing / 0 failing / 6 ignored (after LL-1, 73 targets);
+  209 approved golden scripts; CI green since 2026-07-10.
+- **Last Updated**: 2026-09-05 — LL-1 (`scutemob-255`) in review: SR-39 + 964-def sweep.
+- **Headline metric**: live card coverage **1,143 / 1,803 = 63.4%** (`docs/authoring-status.md`,
   regenerate with `tools/authoring-report.py`). Replaced by pod coverage (`docs/pod-coverage.md`)
   once CC-6 lands. Wire: PROTOCOL **44** / HASH **85**.
 - **Next dispatch**: NONE from the v4 queue — the second chain is **CLOSED at rank 21** (do NOT

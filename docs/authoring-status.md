@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-09-05 02:13 UTC  
-**Git:** `6b12c513` on `feat/pb-dx53-cr-5086-raid-gate-clobbered-by-re-declaration-across`  
+**Generated:** 2026-09-06 00:53 UTC  
+**Git:** `17fc2834` on `feat/ll-1-required-completeness-marker-gate-fix-caster-recipient-`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.2% | 1,140 | +1 |
-| With TODO markers | 516 | -1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.4% | 1,143 | +3 |
+| With TODO markers | 513 | -3 |
 | Empty `abilities: vec![]` placeholders | 147 | · |
-| Total TODO lines across all defs | 915 | -1 |
+| Total TODO lines across all defs | 909 | -6 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 31 |
-| last 30 days | 0 | 158 |
-| last 90 days | 57 | 2,947 |
-| last 1 year | 1,830 | 3,370 |
+| last 7 days | 0 | 992 |
+| last 30 days | 0 | 1,047 |
+| last 90 days | 57 | 2,975 |
+| last 1 year | 1,830 | 3,398 |
 
 ## Bonus defs outside the plan
 
@@ -74,9 +74,9 @@ are blocked on engine primitives.
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 65 | 26 | 1 |
 | `body-only` | 64 / 70 | 91% | 38 | 10 | 16 |
-| `removal-destroy` | 56 / 56 | 100% | 35 | 17 | 4 |
+| `removal-destroy` | 56 / 56 | 100% | 37 | 15 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 25 | 19 | 5 |
-| `land-fetch` | 45 / 45 | 100% | 28 | 13 | 4 |
+| `land-fetch` | 45 / 45 | 100% | 29 | 12 | 4 |
 | `attack-trigger` | 19 / 34 | 56% | 16 | 2 | 1 |
 | `death-trigger` | 34 / 34 | 100% | 20 | 9 | 5 |
 | `mana-artifact` | 34 / 34 | 100% | 22 | 10 | 2 |
@@ -171,8 +171,8 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 564 | -1 |
-| DSL gap (unspecified) | 116 | · |
+| OTHER (unclassified) | 559 | -5 |
+| DSL gap (unspecified) | 115 | -1 |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 15 | · |
@@ -201,21 +201,21 @@ _…and 26 more buckets totaling 44 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 564 
+Showing 12 of 559 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-blood_seeker: // TODO: "that player" — effect should target the entering creature's controller specifically,
-curiosity: // TODO: costless "you may draw a card" — CR 603.3c optionality with NO cost
+blind_obedience: // TODO: "Artifacts and creatures your opponents control enter tapped" — needs a global
+cultivator_colossus: // TODO: ETB land-play loop (put land, draw, repeat) — too complex for current DSL; deferred.
 everflowing_chalice: // TODO: "This artifact enters with a charge counter on it for each time it was kicked." —
 glimmer_lens: // TODO: the attack trigger only — "For Mirrodin!" is expressible and unauthored
-jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
-marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
-parapet_thrasher: // TODO: "Whenever one or more Dragons you control deal combat damage to an opponent,
-sarkhan_unbroken: // TODO: "Add one mana of any color" — player choice not in DSL.
+jeskas_will: // TODO: Mode 1 needs mana-scaled-by-opponent-hand-count.
+mardu_ascendancy: // TODO: Nontoken filter not yet in DSL for attack triggers — over-triggers on token
+pact_of_negation: // TODO: Counter target spell + delayed upkeep trigger "pay {3}{U}{U} or lose the game."
+sarkhan_fireblood: // TODO: "Any combination of colors" + Dragon-only restriction not in DSL.
 sorin_lord_of_innistrad: // TODO: Emblem with static P/T modification (all creatures +1/+0) — the emblem
 teferis_protection: // TODO: "Exile Teferi's Protection" — self-exile on resolution.
 tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with MV filter.
@@ -223,7 +223,7 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 
 ## ⚠ Completeness-marker drift
 
-16 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+17 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `birchlore_rangers` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -238,6 +238,7 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 - `marisi_breaker_of_the_coil` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `qarsi_sadist` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `saw_in_half` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `the_reaver_cleaver` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `thrasios_triton_hero` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -245,6 +246,15 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 ## Recent card-touching commits
 
 ```
+17fc2834 scutemob-255: LL-1 — "its controller creates" gives the token to the right player
+14c50b22 scutemob-255: LL-1 — sweep the 964 defaulted completeness markers
+9a52929a scutemob-236: PB-DX57 /review fix cycle — 16 findings, all 16 taken; FOUR were this batch's own gates again (p6/p7 gated a COPY, v1's exemption was per-function, the ratchet discharged on a substring, r2's coverage was unenforced)
+75023272 scutemob-236: PB-DX57 OOS-DX28-6 — assertive-frame ratchet (fail-closed polarity), 4 adjudicated rows, 0 stale and 0 live defects; census row 20 pinned; well_of_lost_dreams doc rot repaired
+921593e1 scutemob-233: PB-DX42b /review fix cycle — 12 findings, all 12 taken, and the MEDIUM is the one that matters
+98d8a440 scutemob-233: PB-DX42b — two standing card-def gates fired on this batch's own comment edits
+6e43eec8 scutemob-233: PB-DX42b probes, channel drives, the OOS-ADJ-2 rider, and four cite corrections
+ffeeab85 scutemob-231: PB-DX53 /review fix cycle — all 13 findings taken, both HIGHs this batch's own thesis
+e228383c scutemob-231: PB-DX53 — split one DSL identifier that carried two CR concepts
 389725eb scutemob-230: PB-DX39 /review fix cycle — all 10 findings taken, five defeated gates re-keyed, six wrong CR cites corrected
 2590246a scutemob-230: PB-DX39 — source-relative filters resolve through LKI on the locked path
 bf999079 scutemob-230: PB-DX39 — mardu_ascendancy's marker now names BOTH blockers
@@ -261,15 +271,6 @@ b1757a5b scutemob-228: PB-DX36 steps 1-7 — DamageRecipient, WhenDealsDamage, a
 dfd6e1ce scutemob-227: PB-DX35 Half A — re-observe every standing gate the batch's own card-def flips and refactor moved: SR-25 bare-lookup ceiling 75->72 (trigger_modal_plan consolidation), unordered-container ceiling 6->8 (t9's lookup-only HashMap, category (a)), card-defs fmt fix, decision_gate's MAX_AUTO_CHOSEN_COMPLETE_UNION 71->72 and BASELINE (Shambling Ghast added, modal_trigger row), canonical_walk_reproduces_pb_dp8_roster and pb_dp8_trigger_target_choice's roster floor 60->59 (retreat_to_kazandu's target left the flat targets list), completeness_deviation_scan's marker floor 666->665 and RECORDED_BASELINE_POPULATION 45->47 (two new entries), pb_dx4_baseline_triage's stale "Shambling Ghast must not be Complete" pin removed and disclosed, pb_dx32_fuzz_output's CORPUS_COMPLETE 1137->1138; all re-derived by executing the failing gate's own output, never computed
 ab6d8859 scutemob-227: PB-DX35 Half A card defs — shambling_ghast/retreat_to_kazandu/ retreat_to_coralhelm re-shaped into ModeSelection.mode_targets (shambling_ghast partial -> Complete); hullbreaker_horror/glissa_sunslayer/junji_the_midnight_sky markers re-adjudicated to name the registry-vs-runtime index-space blocker (OOS-DX35-1, not fixed); felidar_retreat noted as out of population
 b72b8c80 scutemob-225: PB-DX18 /review fix cycle — all 15 findings taken, none declined
-877510c5 scutemob-225: PB-DX18 — the phantom shuffles really shuffle (OOS-DP2-7), plus the fixture repairs
-e7dee121 scutemob-225: PB-DX18 — CR 702.47a splice targets, and the golden script that said bestow and did not
-0be8d904 scutemob-222: PB-DX20b -- EnchantFilter gains the OR over card TYPES, and the two arithmetics become one
-e524f676 scutemob-217: PB-DX45 /review fix cycle -- all 7 findings taken
-6af13425 scutemob-217: PB-DX45 -- the CR 118.12 suspension, the wire bump, and the policy ruling
-40b1e610 scutemob-216: PB-DX15a /review fix cycle 2 -- probes for the three uncovered APNAP sites, and five failures my own fix cycle introduced
-4c2a0afd scutemob-216: PB-DX15a /review fix cycle -- the HIGH is a regression I introduced, and two of my own claims did not survive
-7c435919 scutemob-213: PB-DX43 S1-S4 -- CR 305.6/305.7 intrinsic land mana abilities
-2ca6a741 scutemob-211: PB-DX29 /review H2 — the renumbering orphaned 30 in-source cites and the note asserted the opposite
 ```
 
 ## Missing card-defs sidecar

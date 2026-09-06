@@ -1,6 +1,6 @@
 //! LL-1 (`scutemob-255`) — "Destroy target permanent. **Its controller** creates a 3/3."
 //!
-//! CR 701.6a: the token is created by the DESTROYED permanent's controller, not by
+//! CR 701.7a: the token is created by the DESTROYED permanent's controller, not by
 //! the caster. At a two-player table nobody notices which of the two got the 3/3
 //! unless they look; at a four-player pod the difference decides games, and
 //! `beast_within.rs` / `generous_gift.rs` shipped deck-legal handing it to the caster
@@ -199,7 +199,7 @@ fn cast_and_resolve(state: GameState, caster: PlayerId) -> GameState {
     state
 }
 
-/// CR 701.6a at a four-player table: p1 casts Beast Within on a Sol Ring **p3**
+/// CR 701.7a at a four-player table: p1 casts Beast Within on a Sol Ring **p3**
 /// controls. The 3/3 Beast belongs to p3.
 ///
 /// This is the revert-proven probe for the CR 608.2h fallback in
@@ -223,7 +223,7 @@ fn t1_beast_lands_with_the_destroyed_permanents_controller_at_four_players() {
 
     match beast_controller(&state) {
         None => panic!(
-            "CR 701.6a: NO Beast token was created for anyone. The destroy retired the \
+            "CR 701.7a: NO Beast token was created for anyone. The destroy retired the \
              target's ObjectId (CR 400.7) and `PlayerTarget::ControllerOf` resolved to an \
              empty recipient list, so `Effect::CreateToken`'s recipient loop ran zero \
              times. The CR 608.2h fallback in `resolve_player_target_list` \
@@ -231,7 +231,7 @@ fn t1_beast_lands_with_the_destroyed_permanents_controller_at_four_players() {
         ),
         Some(owner) => assert_eq!(
             owner, p3,
-            "CR 701.6a: 'ITS controller creates a 3/3 green Beast' — the Beast belongs to \
+            "CR 701.7a: 'ITS controller creates a 3/3 green Beast' — the Beast belongs to \
              p3, who controlled the destroyed Sol Ring, not to p1 who cast the spell. \
              Getting p1 here means `beast_within.rs`'s `TokenSpec.recipient` has gone back \
              to the default `PlayerTarget::Controller`."
@@ -245,7 +245,7 @@ fn t1_beast_lands_with_the_destroyed_permanents_controller_at_four_players() {
             .objects()
             .iter()
             .all(|(_, o)| !(o.characteristics.name == "Sol Ring" && o.zone == ZoneId::Battlefield)),
-        "CR 701.7: the Sol Ring should have been destroyed"
+        "CR 701.8a: the Sol Ring should have been destroyed"
     );
 }
 
@@ -278,7 +278,7 @@ fn t2_controller_not_owner_when_the_permanent_was_under_someone_elses_control() 
     assert_eq!(
         beast_controller(&state),
         Some(p1),
-        "CR 701.6a / CR 608.2h: 'its controller' is the permanent's last known \
+        "CR 701.7a / CR 608.2h: 'its controller' is the permanent's last known \
          CONTROLLER (p1), not its owner (p4) and not the caster (p2). Getting p4 means \
          the fallback is reading the graveyard object — `move_object_to_zone` resets a \
          new object's controller to its owner (CR 400.7), which is exactly why the \
@@ -302,7 +302,7 @@ fn t2_controller_not_owner_when_the_permanent_was_under_someone_elses_control() 
 /// put it onto the battlefield tapped, then shuffle.")"
 ///
 /// Four players, p1 casts at a permanent **p3** controls, so both halves are pinned
-/// at once: the Lander must reach p3 (CR 701.6a, the recipient), and p3 must then be
+/// at once: the Lander must reach p3 (CR 701.7a, the recipient), and p3 must then be
 /// able to actually USE it — {2} + tap + sacrifice-self paid, a basic land onto the
 /// battlefield TAPPED, the Lander gone. SR-36's lesson is that an activation cost is
 /// only paid where code pays it; a token ability authored into a `Complete` def and
@@ -398,12 +398,12 @@ fn t3_emergency_eject_lander_reaches_the_targets_controller_and_actually_works()
     assert_eq!(
         landers.len(),
         1,
-        "CR 701.6a: exactly one Lander token should exist after resolution"
+        "CR 701.7a: exactly one Lander token should exist after resolution"
     );
     let (lander_id, lander_controller) = landers[0];
     assert_eq!(
         lander_controller, p3,
-        "CR 701.6a: 'ITS controller creates a Lander token' — p3 controlled the \
+        "CR 701.7a: 'ITS controller creates a Lander token' — p3 controlled the \
          destroyed Sol Ring; p1 merely cast the spell"
     );
 

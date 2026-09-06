@@ -5,9 +5,10 @@
     "name": "Beast Within destroys a land \u2014 target gets 3/3 Beast",
     "description": "p2 has a Command Tower on the battlefield. p1 casts Beast Within ({2}{G}) targeting the land. Command Tower is destroyed and p2 gets a 3/3 green Beast token. Tests Beast Within's ability to destroy any permanent.",
     "cr_sections_tested": [
+      "111.1",
       "601.2",
       "608.2",
-      "111.1"
+      "608.2h"
     ],
     "corner_case_ref": null,
     "tags": [
@@ -19,9 +20,9 @@
     ],
     "confidence": "high",
     "review_status": "approved",
-    "reviewed_by": "claude-sonnet-4-6",
-    "review_date": "2026-02-23",
-    "generation_notes": "Beast Within: Destroy target permanent. Its controller creates a 3/3 green Beast creature token. Can target lands \u2014 rare removal that hits any permanent type.",
+    "reviewed_by": "scutemob-255 (LL-1)",
+    "review_date": "2026-09-05",
+    "generation_notes": "Beast Within: Destroy target permanent. Its controller creates a 3/3 green Beast creature token. Can target lands \u2014 rare removal that hits any permanent type. CORRECTED 2026-09-05 (LL-1, scutemob-255): this script's own description and title always said the Beast goes to p2, but its ASSERTION read `zones.battlefield.p1` and its note said \"p1 (caster) gets the 3/3 Beast\" \u2014 the assertion had been bent to match the engine's defect rather than the printed card. `TokenSpec.recipient` now names the destroyed permanent's controller (CR 701.7a Create / CR 701.8a Destroy \u2014 the old 701.6a/701.7 cites in this file were both off by one keyword action; 701.6a is Counter) and the assertion is restored to p2.",
     "disputes": []
   },
   "initial_state": {
@@ -144,7 +145,7 @@
               },
               "card": null,
               "owner": null,
-              "cr_ref": "701.7",
+              "cr_ref": "701.8a",
               "note": "Command Tower destroyed."
             },
             {
@@ -163,7 +164,7 @@
               },
               "card": null,
               "owner": null,
-              "cr_ref": "111.1",
+              "cr_ref": "701.7a",
               "note": "p1 (Beast Within's controller) creates a 3/3 green Beast token."
             }
           ],
@@ -176,22 +177,22 @@
             "zones.stack": {
               "is_empty": true
             },
-            "zones.battlefield.p1": {
-              "includes": [
-                {
-                  "card": "Beast"
-                }
-              ]
-            },
             "zones.graveyard.p2": {
               "includes": [
                 {
                   "card": "Command Tower"
                 }
               ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Beast"
+                }
+              ]
             }
           },
-          "note": "Beast Within can destroy any permanent, including lands. p1 (caster) gets the 3/3 Beast token."
+          "note": "CR 701.7a / CR 701.8a: Beast Within can destroy any permanent, including lands. The 3/3 Beast goes to p2, who CONTROLLED the destroyed Command Tower \u2014 not to p1 who cast the spell."
         }
       ]
     }

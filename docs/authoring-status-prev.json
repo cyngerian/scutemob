@@ -1,20 +1,20 @@
 {
-  "generated": "2026-09-05 02:13 UTC",
-  "git_head": "6b12c513",
+  "generated": "2026-09-06 00:53 UTC",
+  "git_head": "17fc2834",
   "total_files": 1803,
-  "total_todos": 915,
+  "total_todos": 909,
   "file_buckets": {
-    "clean": 1140,
-    "todo": 516,
+    "clean": 1143,
+    "todo": 513,
     "empty": 147
   },
   "todo_classes": {
-    "OTHER (unclassified)": 564,
+    "OTHER (unclassified)": 559,
     "replacement effect missing": 14,
     "TriggerCondition::* missing variant": 17,
     "attack trigger (self / generic)": 23,
     "compleated": 1,
-    "DSL gap (unspecified)": 116,
+    "DSL gap (unspecified)": 115,
     "can't / must block-attack": 7,
     "gain / exchange control": 2,
     "can't be countered": 7,

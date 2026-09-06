@@ -136,14 +136,30 @@ in memory (`project_legal_but_wrong_gap.md`).
 
 **Concrete silent no-ops found (the survey's "these will lose games at the table" list):**
 
-| Card | Marker | Defect | Fix |
+**ALL SIX FIXED by LL-1 (`scutemob-255`, 2026-09-05)** — see `memory/primitives/ll-1-execution-notes.md`. The
+"Fix" column below was **half right and the half it got wrong mattered**: setting `recipient` alone does not work.
+`Effect::Sequence` runs the destroy first, `move_object_to_zone` retires the target's `ObjectId` (CR 400.7), and
+`resolve_effect_target_list_indexed` then drops that id (CR 608.2b's partial-fizzle skip), so `ControllerOf`
+resolved to an EMPTY recipient list and `Effect::CreateToken` created a token for **nobody** — strictly worse than
+the caster getting it. LL-1 was promoted from change-class row 2 to rows 1+2+4 on that finding, with owner approval,
+and added the CR 608.2h half: `Effect::DestroyPermanent` records the departed permanent's `(controller, owner)` into
+`EffectContext::departed_permanent_players`, which `ControllerOf` / `OwnerOf` read when the live lookup finds
+nothing. Not `GameState::lki_object_snapshot` — SR-24 declines to snapshot a permanent carrying none of four damage
+keywords, so a destroyed Sol Ring has no entry there.
+
+| Card | Marker before | Defect | Disposition (LL-1) |
 |---|---|---|---|
-| `beast_within.rs` | default Complete | token to caster, not target's controller | `recipient: PlayerTarget::ControllerOf(Box::new(EffectTarget::DeclaredTarget{index:0}))` |
-| `generous_gift.rs` | default Complete | same | same |
-| `stroke_of_midnight.rs`, `emergency_eject.rs` | Partial | same, but correctly gated; the TODO text says "fix when CreateToken gains a player field", which it did (PB-EF2) — **the blocker note is stale** | set `recipient`, drop marker |
-| `saw_in_half.rs` | Partial | **correction, `scutemob-257`**: lumped in with the two above when this table was written. Its blocker is a different and still-open gap — two copy-tokens with halved stats need a `CreateTokenCopy` with per-stat modification — so its marker is NOT stale | leave the marker; the gap is real |
-| `pongify.rs` | KnownWrong | same, gated | same |
-| `tokens/002_beast_within_creates_beast.json` | retired | retirement reason ("unthreaded target, Sol Ring survives") is stale: the destroy now works and the assertion that fails is the token's controller | re-approve after the def fix; it becomes the regression pin |
+| `beast_within.rs` | default Complete | token to caster, not target's controller | `recipient` set; **`Complete`** (now explicit). Pinned by `primitives::ll1_token_recipient_controller_of::t1`/`t2` at four players |
+| `generous_gift.rs` | default Complete | same | same; **`Complete`** |
+| `stroke_of_midnight.rs` | Partial | same, but correctly gated; the note said "fix when CreateToken gains a player field", which it did (PB-EF2) — **the blocker note was stale** | stale note + TODO deleted; **`Complete`** |
+| `emergency_eject.rs` | Partial | same stale blocker; its own note said a Lander "IS expressible today" | Lander authored AND **executed** end to end (`t3`: right seat, activated, cost paid, basic land onto the battlefield tapped) before the marker was moved — `Complete` makes the card deck-legal, so the note was proven, not trusted. **`Complete`** |
+| `saw_in_half.rs` | Partial | **correction, `scutemob-257`**: lumped in with the others when this table was written. Its blocker is a different, still-open gap — two copy-tokens with halved stats | **STAYS `Partial`.** Note rewritten as a bounded claim (`Effect`, 106 variants at `17fc2834`; `EffectAmount`, 26) and de-duplicated to one machine-read copy |
+| `pongify.rs` | KnownWrong | same stale blocker, stated as KnownWrong | stale note deleted; **`Complete`** |
+| `tokens/002_beast_within_creates_beast.json` | retired | retirement reason ("unthreaded target, Sol Ring survives") is stale: the destroy works and what fails is the token's controller | **re-approved** (208 → 209 approved scripts) and now the regression pin |
+| `stack/047`, `stack/048` | approved | **not in the original table**: both scripts' titles and descriptions said the token goes to p2 while their ASSERTIONS read `zones.battlefield.p1` — the assertion had been bent to the engine's defect | corrected to p2 |
+
+§9 item 2 ("make `completeness:` required") is also **DONE** by the same task: SR-39 plus a sweep of the 964
+defaulted defs. Corpus is now 1,143 Complete / 413 partial / 147 inert / 100 known_wrong, **zero defaulted**.
 
 That is two deck-legal wrong cards found by pulling one thread. It argues for one cheap addition
 (§9 item 2): make `completeness:` **required** rather than defaulted, so "I forgot to think about

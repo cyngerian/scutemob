@@ -5,11 +5,12 @@
     "name": "Beast Within destroys a permanent, creates a Beast token",
     "description": "p1 casts Beast Within targeting a Sol Ring on p2's battlefield. Sol Ring is destroyed and p2 creates a 3/3 green Beast creature token. Tests Beast Within's dual effect: destroy any permanent + create Beast token for target's controller.",
     "cr_sections_tested": [
+      "110.5",
       "601.2",
       "608.2",
-      "701.7",
-      "701.6a",
-      "110.5"
+      "608.2h",
+      "701.7a",
+      "701.8a"
     ],
     "corner_case_ref": null,
     "tags": [
@@ -155,8 +156,8 @@
                 "card": "Sol Ring",
                 "controller": "p2"
               },
-              "cr_ref": "701.7",
-              "note": "CR 701.7: Sol Ring is destroyed, moves to p2's graveyard."
+              "cr_ref": "701.8a",
+              "note": "CR 701.8a: Sol Ring is destroyed, moves to p2's graveyard."
             },
             {
               "effect": "create_token",
@@ -176,8 +177,8 @@
                 ],
                 "abilities": []
               },
-              "cr_ref": "701.6a",
-              "note": "CR 701.6a: p2 (Sol Ring's controller) creates a 3/3 green Beast token."
+              "cr_ref": "701.7a",
+              "note": "CR 701.7a: p2 (Sol Ring's controller) creates a 3/3 green Beast token."
             }
           ],
           "note": "Beast Within resolves: Sol Ring destroyed, p2 gets Beast token."

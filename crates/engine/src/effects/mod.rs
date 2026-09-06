@@ -93,7 +93,15 @@ pub struct EffectContext {
     ///
     /// Resolution-local scratch, cleared with the context: not hashed `GameState`, not
     /// part of the protocol declaration surface.
-    pub departed_permanent_players: HashMap<ObjectId, (PlayerId, PlayerId)>,
+    ///
+    /// A `BTreeMap` rather than a `HashMap` deliberately. It is `get`-only today, so a
+    /// `HashMap` would be sound, but `core::unordered_iteration_ratchet` exists because
+    /// PB-DP9 re-executes a whole resolution after a suspended choice is answered and
+    /// Rust's `RandomState` re-keys per map — any future edit that iterates this one
+    /// would diverge between passes within a single process (`OOS-DP9-10`). Ordered by
+    /// construction costs nothing at this size and removes that edit from the hazard
+    /// list entirely, which is better than raising a ceiling and hoping.
+    pub departed_permanent_players: std::collections::BTreeMap<ObjectId, (PlayerId, PlayerId)>,
     /// CR 702.33d: Number of times kicker was paid for this spell.
     ///
     /// 0 = not kicked. Used by `Condition::WasKicked`. Set from `StackObject.kicker_times_paid`
@@ -266,7 +274,7 @@ impl EffectContext {
             source,
             targets,
             target_remaps: HashMap::new(),
-            departed_permanent_players: HashMap::new(),
+            departed_permanent_players: std::collections::BTreeMap::new(),
             kicker_times_paid: 0,
             was_overloaded: false,
             was_bargained: false,
@@ -308,7 +316,7 @@ impl EffectContext {
             source,
             targets,
             target_remaps: HashMap::new(),
-            departed_permanent_players: HashMap::new(),
+            departed_permanent_players: std::collections::BTreeMap::new(),
             kicker_times_paid,
             was_overloaded: false,
             was_bargained: false,
@@ -4812,7 +4820,7 @@ fn execute_effect_inner(
                                 zone_at_cast: None,
                             }],
                             target_remaps: HashMap::new(),
-                            departed_permanent_players: HashMap::new(),
+                            departed_permanent_players: std::collections::BTreeMap::new(),
                             kicker_times_paid: ctx.kicker_times_paid,
                             was_overloaded: ctx.was_overloaded,
                             was_bargained: ctx.was_bargained,
@@ -4868,7 +4876,7 @@ fn execute_effect_inner(
                                 zone_at_cast: Some(ZoneId::Battlefield),
                             }],
                             target_remaps: HashMap::new(),
-                            departed_permanent_players: HashMap::new(),
+                            departed_permanent_players: std::collections::BTreeMap::new(),
                             kicker_times_paid: ctx.kicker_times_paid,
                             was_overloaded: ctx.was_overloaded,
                             was_bargained: ctx.was_bargained,
@@ -11527,7 +11535,7 @@ pub(crate) fn check_static_condition_ctx(
                 source,
                 targets: vec![],
                 target_remaps: std::collections::HashMap::new(),
-                departed_permanent_players: std::collections::HashMap::new(),
+                departed_permanent_players: std::collections::BTreeMap::new(),
                 kicker_times_paid: 0,
                 was_overloaded: false,
                 was_bargained: false,

@@ -718,15 +718,29 @@ fn test_dx32_random_bot_waste_ratio_is_bounded() {
 /// in `Graveyard(PlayerId(1))` at turn 25), 186 (4/1), 335 (4/1), 349 (5/1). **162 is
 /// the smallest** and reproduces the original raw-4/distinct-1 shape exactly; re-pinned
 /// here rather than 18. Shared with T4.3 deliberately, as 18 was.
+/// # Re-observed for LL-1 (`scutemob-255`, 2026-09-05)
+///
+/// `CORPUS_COMPLETE` moved **1140 -> 1143** (`stroke_of_midnight`, `emergency_eject`,
+/// `pongify` — three stale "CreateToken has no recipient" blockers deleted at once) and
+/// seed 162 now produces **0** transient reports. Re-swept 0..=399 at the unchanged
+/// configuration (4 players, 25 turns — the turn budget is shared with T2.x/T3.1 and was
+/// NOT moved to make a seed work). Every hit, measured: **18** (raw 4 / distinct 1),
+/// 64 (4/1), 163 (5/1), 164 (4/1), 186 (4/1), 335 (4/1) — all six all-orphan
+/// (`only no_orphaned_tokens`), 0 hard violations, 0 tokens leaked into the final state.
+/// **18 is the smallest** and reproduces the raw-4 / distinct-1 shape exactly: one orphan
+/// at turn 22, reported at four consecutive priority checkpoints of that single turn and
+/// cleared before the game ends. Re-pinned here rather than 162 — and 18 is the seed this
+/// fixture carried before PB-DX53, which is coincidence, not a fixed point.
+/// Shared with T4.3 deliberately, as 162 and 18 both were.
 #[test]
 fn test_dx32_orphaned_tokens_are_transient_and_the_end_state_is_clean() {
-    let game = play_fuzz_shaped(162, 4, 25);
+    let game = play_fuzz_shaped(18, 4, 25);
 
     assert!(
         !game.transient_violations().is_empty(),
-        "seed 162 at max_turns 25 is known to produce no_orphaned_tokens transient \
-         reports (measured 2026-09-05: 4 raw reports, one Treasure token in \
-         Graveyard(PlayerId(1)) at turn 25)"
+        "seed 18 at max_turns 25 is known to produce no_orphaned_tokens transient \
+         reports (re-measured 2026-09-05 for LL-1: 4 raw reports, all at turn 22, one \
+         orphan seen at four consecutive priority checkpoints of that turn)"
     );
     // PB-DX56: this used to read "transient_violations() must contain ONLY
     // no_orphaned_tokens", which was a CLASS fact when tokens were the only transient
@@ -738,7 +752,7 @@ fn test_dx32_orphaned_tokens_are_transient_and_the_end_state_is_clean() {
         game.transient_violations()
             .iter()
             .all(|v| v.check == "no_orphaned_tokens"),
-        "seed 162 at max_turns 25 produces only the TOKEN transient class -- this is a \
+        "seed 18 at max_turns 25 produces only the TOKEN transient class -- this is a \
          fact about this fixture, not about the class set, which is now three wide \
          (invariants::is_transient_check). A new name here means this seed's trajectory \
          moved, not that the split broke: {:?}",
@@ -865,18 +879,18 @@ fn test_dx32_distinct_collapses_checkpoint_weighting() {
         "the FIRST occurrence's evidence must be preserved too, not just its turn_number"
     );
 
-    let game = play_fuzz_shaped(162, 4, 25);
+    let game = play_fuzz_shaped(18, 4, 25);
     let raw = game.transient_violations();
     let distinct = invariants::distinct(raw);
     assert!(
         !distinct.is_empty(),
         "non-vacuity: an empty raw set collapses to an empty distinct set and would make \
-         the comparison below unfalsifiable in the wrong direction — seed 162 must still \
-         produce violations at all (measured 2026-09-05: raw 4, distinct 1)"
+         the comparison below unfalsifiable in the wrong direction — seed 18 must still \
+         produce violations at all (re-measured 2026-09-05 for LL-1: raw 4, distinct 1)"
     );
     assert!(
         distinct.len() < raw.len(),
-        "seed 162 at max_turns 25 is known to repeat a violation (Stage 0's own 94 -> 20 \
+        "seed 18 at max_turns 25 is known to repeat a violation (Stage 0's own 94 -> 20 \
          collapse at full scale, §0.3): raw {} distinct {}",
         raw.len(),
         distinct.len()
@@ -954,7 +968,26 @@ const CORPUS_DEFS: usize = 1803;
 // assumed, precisely because of that), but it is a Land, not a `CardType::Creature`,
 // so the commander-pool filter excludes it regardless; measured, not reasoned
 // (PB-DX26's lesson).
-const CORPUS_COMPLETE: usize = 1140;
+// LL-1 (2026-09-05, `scutemob-255`): 1140 -> **1143** (+3). Three promotions, one
+// repair: `stroke_of_midnight` and `emergency_eject` (`partial`) and `pongify`
+// (`known_wrong`) each named ONE blocker -- "CreateToken has no recipient, so the token
+// goes to the caster instead of the destroyed permanent's controller" -- and all three
+// notes were STALE: `TokenSpec.recipient` has existed since PB-EF2. This batch set the
+// recipient on all six "its controller creates" defs and added the CR 608.2h fallback
+// that makes it resolve after the destroy has retired the target's id, so the three
+// blockers are gone. `emergency_eject`'s Lander token was authored in the same batch
+// and is EXECUTED end to end by
+// `primitives::ll1_token_recipient_controller_of::t3` -- created for the right seat,
+// activated, cost paid, basic land onto the battlefield tapped -- rather than assumed,
+// because `Complete` is what makes the card deck-legal. `saw_in_half` stays `partial`
+// (its halved-copy-token clause is a real, still-open gap: no `Effect` variant carries
+// a per-stat modifier on a token copy) and `beast_within` / `generous_gift` were
+// already `Complete`-by-default, so neither moves this count.
+// COMMANDER_POOL re-measured by EXECUTING this gate and UNCHANGED at 90 -- all three
+// promoted cards are Instants, so none was ever a `CardType::Creature` candidate, but
+// PB-DX26's lesson is that a stable count is not a stable deal, so it was measured
+// rather than reasoned.
+const CORPUS_COMPLETE: usize = 1143;
 const COMMANDER_POOL: usize = 90;
 
 /// Mirrors `crates/simulator/src/deck.rs:40-47`'s three-clause commander filter
@@ -1366,11 +1399,26 @@ fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     // over. `decision_site_walk`'s partition is untouched -- `may_pay_then_effect` is
     // still a SERVABLE row; this batch's fix simply changes which of the 10 seeded
     // trajectories happens to reach it within a 60-turn window.
+    // LL-1 (2026-09-05, `scutemob-255`): `discard_cards` LEAVES the reached set, 6 -> 5,
+    // and this gate's own instruction is obeyed -- REPORTED as a finding, not silently
+    // re-tuned by widening the seed range. **Attributed by an EXECUTED ablation, not
+    // argued.** This batch's only card-def marker movement is three promotions
+    // (`stroke_of_midnight`, `emergency_eject`, `pongify`), moving `CORPUS_COMPLETE`
+    // 1140 -> 1143. With the whole engine change in the tree and ONLY those three markers
+    // forced back to non-`Complete` (so the deck pool returns to 1140), this test passes
+    // at its pre-LL-1 6-of-7 partition, and so do `pb_dx22_fuzz_instrument` (12/12),
+    // `sim5_bot_cast_discipline` (6/6) and play-server (130/130) at THEIR pre-LL-1 pins.
+    // So the engine half of LL-1 -- `EffectContext::departed_permanent_players` and the
+    // CR 608.2h fallback in `resolve_player_target_list` -- is **fuzz-neutral by
+    // measurement**, and this is `OOS-CARDS2-3`'s re-deal: one marker flip anywhere in
+    // 1,803 defs deals every seeded game a different opening, and `discard_cards`'s
+    // reachable sources simply are not drawn at this budget any more. Nothing about the
+    // engine's willingness to SERVE the row changed -- `decision_site_walk`'s partition is
+    // untouched and `discard_cards` stays a served row.
     let expected_reached: BTreeSet<&str> = [
         "triggered_targets",
         "search_library",
         "scry",
-        "discard_cards",
         "look_at_top_then_place_optional",
         "surveil",
     ]
@@ -1379,10 +1427,10 @@ fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     assert_eq!(
         reached, expected_reached,
         "the reached/never-reached partition of a 10-seed x 60-turn fuzz-shaped run \
-         changed from the measured baseline (6 of 7 served rows: triggered_targets, \
-         search_library, scry, discard_cards, look_at_top_then_place_optional, \
-         surveil, may_pay_then_effect never reached — re-observed by PB-DX55 Half 2 \
-         after the blocker-legality widening, attributed by an executed ablation, see \
+         changed from the measured baseline (5 of 7 served rows: triggered_targets, \
+         search_library, scry, look_at_top_then_place_optional, surveil; \
+         discard_cards and may_pay_then_effect never reached — re-observed by LL-1 \
+         after the corpus re-deal, attributed by an executed ablation, see \
          the comment above). Report this as a finding (does the engine now serve \
          fewer/more decisions, or did an unrelated change move which cards get \
          drawn/cast) rather than silently re-tuning the seed range to make it pass: \
