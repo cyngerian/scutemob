@@ -346,6 +346,12 @@
   describes an SR-1..38 track it calls closed. Before claiming the next number,
   `grep -rn "SR-<n>" crates/ docs/ memory/` for it; the next unused one after this batch is
   **SR-40**.
+  For the record, since this file otherwise jumps SR-37 → SR-39 and leaves a reader hunting:
+  **SR-38 is the play-server channel-probe family** — a decision reaches the human seat as a
+  `LegalAction` the server offers and the engine then accepts, and the probes assert the two do not
+  disagree. It lives in `crates/simulator/tests/cc15_raw_characteristics_ratchet.rs` and across
+  `tools/play-server/src/{api,view,main}.rs` + its README, not here, because its subject is the
+  client/engine boundary rather than an engine invariant.
   `CardDefinition::completeness` is `#[serde(default)]` over a `Completeness` whose `Complete`
   variant is `#[default]`, so a def that never mentions the field is `Complete` — deck-legal, with
   nobody having decided that. At `scutemob-255` **964 of the 1,140 `Complete` defs were `Complete`

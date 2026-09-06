@@ -165,6 +165,23 @@ That is two deck-legal wrong cards found by pulling one thread. It argues for on
 (§9 item 2): make `completeness:` **required** rather than defaulted, so "I forgot to think about
 it" is a compile error instead of `Complete`.
 
+**It was four, and the count is the argument (LL-1's `/review`, 2026-09-05).** Fixing the engine
+half repaired **eleven** defs, not the six this section names. Census — 21 of 1,803 defs mention
+`PlayerTarget::ControllerOf`; eleven pair it with `Effect::DestroyPermanent` over
+`DeclaredTarget { index: 0 }` in one `Effect::Sequence`, the shape whose second clause resolved to
+an EMPTY player list. Two of the five extras were **`Complete`** with a dead printed clause:
+`natures_claim.rs` ("Its controller gains 4 life" — nobody gained anything) and
+`boseiju_who_endures.rs` ("its controller may search their library for a basic land"). The other
+three (`assassins_trophy.rs`, `ghost_quarter.rs`, `sundering_eruption.rs`) were already
+non-`Complete` for unrelated reasons, so their no-op was uncaptured rather than invisible.
+`natures_claim` is now pinned by `primitives::ll1_token_recipient_controller_of::t4`.
+
+`natures_claim` also sharpens what SR-39 does and does not buy. Its marker was **explicit and
+wrong** — no default to blame, no TODO, a hand-written `Completeness::Complete` over a clause that
+did nothing. A source gate cannot see that; only running the card can. SR-39 closes the "nobody
+decided" class. The "someone decided, incorrectly" class is what §2's opening sentence is really
+about — scutemob fails closed at the CARD, and a card is only as honest as the human who marked it.
+
 ---
 
 ## 3. The reducer

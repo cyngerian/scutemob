@@ -35,15 +35,15 @@
 //!
 //! Both run against this file as shipped; the numbers are the runs, not a plan.
 //!
-//! | revert applied to `crates/engine/src/effects/mod.rs` | t1 | t2 |
-//! |---|---|---|
-//! | none (shipped) | ok | ok |
-//! | the `ControllerOf` / `OwnerOf` CR 608.2h fallback returns `Vec::new()` | **FAILED** — "NO Beast token was created for anyone" | **FAILED** |
-//! | the fallback returns the recorded `owner` instead of the `controller` (what reading the graveyard object would give) | ok | **FAILED** — got p4, expected p1 |
+//! | revert applied to `crates/engine/src/effects/mod.rs` | t1 | t2 | t3 | t4 |
+//! |---|---|---|---|---|
+//! | none (shipped) | ok | ok | ok | ok |
+//! | the `ControllerOf` / `OwnerOf` CR 608.2h fallback returns `Vec::new()` | **FAILED** — "NO Beast token was created for anyone" | **FAILED** (`None` vs `Some(p1)`) | **FAILED** (0 Landers vs 1) | **FAILED** (life 40 vs 44) |
+//! | the fallback returns the recorded `owner` instead of the `controller` (what reading the graveyard object would give) | ok | **FAILED** — got p4, expected p1 | ok | ok |
 //!
 //! The third row is why `t2` exists as a separate test: the cheap
-//! implementation passes `t1` and is wrong, and only a fixture where owner and
-//! controller are different seats can tell the two apart.
+//! implementation passes `t1`, `t3` and `t4` and is still wrong, and only a
+//! fixture where owner and controller are different seats can tell the two apart.
 //!
 //! Golden-script companion: `test-data/generated-scripts/tokens/002_beast_within_creates_beast.json`
 //! (re-approved by this batch) covers the same shape through the JSON harness at
@@ -499,5 +499,124 @@ fn state_activates_lander(mut state: GameState, controller: PlayerId, lander_id:
         forest_tapped,
         "the printed ability says the land enters TAPPED — an untapped one means the \
          `ZoneTarget::Battlefield {{ tapped: true }}` destination is not being honoured"
+    );
+}
+
+// ── The five siblings the batch did not set out to fix ───────────────────────
+
+/// `/review` MEDIUM: the CR 608.2h fallback repairs **eleven** defs, not the six
+/// the brief named, and two of the extra five were `Completeness::Complete` while
+/// a printed clause did nothing at all.
+///
+/// Census, so the number is measured rather than asserted (`memory/conventions.md`
+/// → "Never write 'unsupported' without naming the population you searched"):
+/// **21 of 1,803** defs mention `PlayerTarget::ControllerOf`. Of those, **eleven**
+/// pair it with `Effect::DestroyPermanent` over `DeclaredTarget { index: 0 }` in a
+/// single `Effect::Sequence` — the shape whose second half resolved to an EMPTY
+/// player list before this batch:
+///
+/// | def | marker | the clause that did nothing |
+/// |---|---|---|
+/// | the six in the brief | — | "its controller creates <token>" |
+/// | `natures_claim.rs` | **`Complete`** | "Its controller gains 4 life" |
+/// | `boseiju_who_endures.rs` | **`Complete`** | "its controller may search their library for a basic land" |
+/// | `assassins_trophy.rs` | `known_wrong` (for an unrelated reason) | same search clause |
+/// | `ghost_quarter.rs` | `known_wrong` (unrelated) | same |
+/// | `sundering_eruption.rs` | `partial` (unrelated) | same |
+///
+/// The other ten `ControllerOf` users are untouched by this batch and stay
+/// correct: three resolve it against a LIVE object (`fecundity`, `mesmeric_orb`,
+/// `massacre_wurm`, `magmatic_hellkite`, `edric_spymaster_of_trest`,
+/// `demolition_field`), two use `ControllerOfCounteredSpell` instead
+/// (`swan_song`, `an_offer_you_cant_refuse`), and three pair it with an
+/// EXILE (`path_to_exile`, `swords_to_plowshares`, `reality_shift`) — which is a
+/// different, still-open defect, recorded in
+/// `memory/primitives/ll-1-execution-notes.md` §9 rather than fixed here.
+///
+/// `natures_claim` gets the pin because it is the worst of the five: a
+/// `Complete`, deck-legal card, no TODO, no marker, whose only non-destroy clause
+/// was dead — the exact class SR-39 exists to argue about, and the one class SR-39
+/// itself cannot catch (the marker was explicit AND wrong). A source gate could
+/// never have found it; only running the card could.
+#[test]
+fn t4_natures_claim_gains_life_for_the_destroyed_permanents_controller() {
+    let (p1, p3) = (p(1), p(3));
+    let defs = all_defs_by_name();
+    let registry = CardRegistry::new(all_cards());
+
+    let claim = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Nature's Claim")
+            .in_zone(ZoneId::Hand(p1))
+            .with_card_id(card_name_to_id("Nature's Claim")),
+        &defs,
+    );
+    // Sol Ring is an artifact, which is what Nature's Claim can target.
+    let sol_ring = enrich_spec_from_def(
+        ObjectSpec::card(p3, "Sol Ring")
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(card_name_to_id("Sol Ring")),
+        &defs,
+    );
+
+    let mut state = GameStateBuilder::four_player()
+        .with_registry(registry)
+        .object(claim)
+        .object(sol_ring)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .expect("four-player board");
+    {
+        // Nature's Claim is {G}.
+        let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
+        pool.add(ManaColor::Green, 1);
+    }
+    state.turn_mut().priority_holder = Some(p1);
+
+    let life = |s: &GameState, pl: PlayerId| s.players().get(&pl).unwrap().life_total;
+    let (p1_before, p3_before) = (life(&state, p1), life(&state, p3));
+
+    let claim_id = find_object(&state, "Nature's Claim");
+    let sol_ring_id = find_object(&state, "Sol Ring");
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell(Box::new(CastSpellData {
+            player: p1,
+            card: claim_id,
+            targets: vec![Target::Object(sol_ring_id)],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            additional_costs: vec![],
+            face_down_kind: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        })),
+    )
+    .unwrap_or_else(|e| panic!("CastSpell(Nature's Claim) failed: {e:?}"));
+
+    let state = pass_round(state, p1);
+    assert!(
+        state.stack_objects().is_empty(),
+        "Nature's Claim should have resolved"
+    );
+
+    assert_eq!(
+        life(&state, p3),
+        p3_before + 4,
+        "CR 701.8a + the printed 'Its controller gains 4 life': p3 controlled the destroyed \
+         Sol Ring, so p3 gains the 4. Before the CR 608.2h fallback this clause resolved to \
+         an EMPTY player list and nobody gained anything — on a def marked \
+         `Completeness::Complete`, with no TODO and no marker to warn anyone."
+    );
+    assert_eq!(
+        life(&state, p1),
+        p1_before,
+        "the CASTER gains nothing — 'its controller' is not 'you'"
     );
 }

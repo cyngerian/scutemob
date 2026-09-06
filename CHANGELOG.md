@@ -8,16 +8,16 @@ carry pointers only, never narrative. Entries before 2026-09-05 are in
 
 ## 2026-09-05 — LL-1 (`scutemob-255`) — `completeness:` is mandatory (SR-39); "its controller creates" fixed
 
-- NEW gate **SR-39** (`core::card_defs_completeness_marker`): a def with no `completeness:` FIELD ASSIGNMENT fails,
-  keyed on `authoring-report.py`'s `MARKER_RE` not a substring (`misdirection.rs:36` has it in prose). Four canaries
-  + one executed defeat of the LIVE gate (`sol_ring.rs` marker deleted → RED), recorded in the test's own doc.
-- Swept the **964** defaulted defs to explicit `Complete` (behaviour-preserving): **1,143 Complete / 413 partial /
-  147 inert / 100 known_wrong = 1,803, ZERO defaulted** (was 1,140/415/147/101 plus the 964).
+- NEW gate **SR-39** (`core::card_defs_completeness_marker`): a def with no line-leading `completeness:` FIELD
+  ASSIGNMENT fails. Five canaries + one executed defeat of the LIVE gate, recorded in the test's own doc.
+- Swept the **964** defaulted defs to explicit `Complete`: **1,143 / 413 partial / 147 inert / 100 known_wrong, ZERO defaulted**.
 - Six "its controller creates" defs paid the CASTER; `recipient` alone made it WORSE — the destroy retires the id
   (CR 400.7), so `ControllerOf` resolved EMPTY. **Class promoted to rows 1+2+4** (owner-approved): `DestroyPermanent`
   records the departed `(controller, owner)` in `EffectContext`, CR 608.2h. No PROTOCOL/HASH bump: predicted, then met.
-- Emergency Eject's Lander authored + EXECUTED; `tokens/002` re-approved (208→209); `047`/`048` assertions were bent
-  to the bug; re-deal re-pinned in 6 files. Notes `ll-1-execution-notes.md`, review `ll-1-card-review.md`.
+- `/review` MEDIUM: it repairs **11** defs, not 6 — 21 of 1,803 use `ControllerOf`, and `natures_claim` /
+  `boseiju_who_endures` were `Complete` with a dead clause. `t4` pins the first; assessment §2 corrected to four.
+- Lander authored + EXECUTED; `tokens/002` re-approved (208→209); `047`/`048` assertions had been bent to the bug;
+  re-deal re-pinned in 6 files. Notes `ll-1-execution-notes.md`, review `ll-1-card-review.md`.
 
 ## 2026-09-05 — LL-3 (`scutemob-257`) — landscape lessons turned into project text (doc-only, class 0)
 

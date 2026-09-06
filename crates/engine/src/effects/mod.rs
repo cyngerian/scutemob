@@ -2273,8 +2273,26 @@ fn execute_effect_inner(
                     // arm the live lookup succeeds and wins. The entry is written and never
                     // read. Moving the insert into the two arms that actually move the
                     // object would duplicate it for no behavioural difference.
-                    ctx.departed_permanent_players
-                        .insert(id, (pre_death_controller, owner));
+                    //
+                    // Guarded on the object being LIVE rather than written
+                    // unconditionally. `pre_death_controller` above falls back to
+                    // `ctx.controller` when `state.objects.get(&id)` misses — a default
+                    // that is right for the death events (they need *a* player) and
+                    // exactly wrong here: it would record the CASTER as the departed
+                    // permanent's controller and hand the token straight back to the
+                    // player this batch took it away from. The miss is unreachable today
+                    // (the indestructible read above already proved the object exists),
+                    // which is precisely why it is worth closing structurally instead of
+                    // relying on that ordering surviving the next edit. `/review` LOW 4.
+                    //
+                    // Through `fizzle_object`, not a bare `state.objects.get`: SR-4 says new
+                    // code in this file must say which kind of absence it tolerates, and an
+                    // absent id here is a rules-correct nothing-to-record (the permanent was
+                    // never on the battlefield to depart from), not an engine bug.
+                    if state.fizzle_object(id).is_some() {
+                        ctx.departed_permanent_players
+                            .insert(id, (pre_death_controller, owner));
+                    }
                     // CR 614: Check replacement effects before moving to graveyard.
                     let action = crate::rules::replacement::check_zone_change_replacement(
                         state,

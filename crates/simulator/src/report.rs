@@ -308,6 +308,14 @@ pub const MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG: u32 = 99;
 /// play-server's three seeded probes. `OOS-CARDS2-3` again: one marker flip anywhere in
 /// 1,803 defs deals every seeded game a different opening. Raised rather than re-tuning
 /// the seed set, which is the move this gate's siblings tell the reader not to make.
+///
+/// **This is the one number in LL-1 that was relaxed rather than re-observed, and it should
+/// not creep again** (`/review` LOW 5). Doubling an `OOS-SIM2-1` ceiling costs real
+/// detection: what it now catches is a THIRD emptied pool on one seed, which is a wider net
+/// than the gate was built with. The correct next move is not another raise — it is closing
+/// `OOS-SIM2-1` (the greedy solver leaving slack on casts that SUCCEED), which drops this to
+/// **0** and retires the constant. A batch that finds itself wanting 3 should file that seed
+/// instead, or say in writing why the slack legitimately widened.
 pub const MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED: usize = 2;
 
 /// Errors that can occur during game execution (distinct from invariant violations).

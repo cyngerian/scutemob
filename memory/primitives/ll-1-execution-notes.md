@@ -349,16 +349,23 @@ Batch review of the six defs: `memory/primitives/ll-1-card-review.md` (0 HIGH, 1
 
 ---
 
-## 9. What this batch did NOT fix (a real, adjacent gap)
+## 9. What this batch did NOT fix (a real, adjacent gap), now with its population named
 
 `PlayerTarget::ControllerOf` on a **remapped** declared target still answers the OWNER, not the
 controller. When an Exile/MoveZone effect tracks its target into `ctx.target_remaps`, the live path
 resolves the NEW object, and `move_object_to_zone` reset that object's controller to its owner
-(`state/mod.rs`). Swords to Plowshares' "its controller gains life equal to its power" on a
-permanent you had gained control of is the shape. Same CR 608.2h family as the bug this batch
-closed, different trigger, and fixing it changes existing card behaviour well outside this task.
-**Deliberately out of scope; recorded here so the next reader finds it.** It was named in a task
-comment before the code, not discovered afterwards.
+(`state/mod.rs`). Same CR 608.2h family as the bug this batch closed, different trigger, and fixing
+it changes existing card behaviour well outside this task. **Deliberately out of scope; recorded
+here so the next reader finds it.** It was named in a task comment before the code, not discovered
+afterwards.
+
+The census in §11 sizes it: **three defs** pair `ControllerOf` with an exile rather than a destroy —
+`swords_to_plowshares.rs` (**`Complete`**, "its controller gains life equal to its power"),
+`reality_shift.rs` (**`Complete`**) and `path_to_exile.rs` (`known_wrong`, for an unrelated
+reason). The two `Complete` ones are wrong only when the exiled permanent's controller differs from
+its owner — you exile a creature you had gained control of, and the life or the land goes to the
+player who owns the card. Narrower than the destroy bug (which was wrong at every multiplayer
+table) but the same shape, and it is a seed a future batch should file rather than rediscover.
 
 
 ---
@@ -369,8 +376,8 @@ comment before the code, not discovered afterwards.
 re-deal failures in §7 were found) and once at the end.
 
 **Baseline at `168d8569`: 5,333 passing / 0 failing / 6 ignored, 73 targets.**
-**Final: 5,344 passing / 0 failing / 6 ignored, 73 targets.** Delta **+11, zero removed**,
-itemised by test NAME:
+**Final: 5,346 passing / 0 failing / 6 ignored, 73 targets.** Delta **+13, zero removed**,
+itemised by test NAME (the last two were added by the `/review` fix cycle, §11):
 
 | test | file |
 |---|---|
@@ -385,6 +392,8 @@ itemised by test NAME:
 | `ll1_token_recipient_controller_of::t1_beast_lands_with_the_destroyed_permanents_controller_at_four_players` | CR 701.7a at N=4 |
 | `ll1_token_recipient_controller_of::t2_controller_not_owner_when_the_permanent_was_under_someone_elses_control` | CR 608.2h vs CR 400.7 |
 | `ll1_token_recipient_controller_of::t3_emergency_eject_lander_reaches_the_targets_controller_and_actually_works` | the Lander, executed |
+| `card_defs_completeness_marker::gate_catches_a_commented_out_marker` | canary (RED) — `/review` LOW 1 |
+| `ll1_token_recipient_controller_of::t4_natures_claim_gains_life_for_the_destroyed_permanents_controller` | `/review` MEDIUM — the `Complete` def with a dead clause |
 
 Golden scripts: 208 approved → **209** (`tokens/002` re-approved). The partition gate
 (`scripts::run_all_scripts`) is green: 45/45.
@@ -395,3 +404,96 @@ and `core::hash_schema` 36/36 green with no constant touched (the wire predictio
 `docs/authoring-status.md` regenerated **once** (the script overwrites its Δ snapshot every run, so
 a second run would erase the delta): clean 1,140 → **1,143 (63.4%)**, TODO 516 → 513, empty 147
 unchanged — moved only by §5's three promotions, exactly as criterion 2 requires.
+
+
+---
+
+## 11. `/review` findings (Opus reviewer, after the four implementation commits)
+
+All five criteria PASS; every change-class obligation PASS. The reviewer re-executed both classes
+of defeat itself — the SR-39 live-corpus defeat and both CR 608.2h reverts — and reproduced the
+transcripts verbatim, restoring the tree byte-exact. Its own gate run matched the pre-fix tree exactly: 5,344 / 0 / 6 over
+73 targets (5,346 after the two tests its own findings added), clippy and fmt clean, and an independent marker count of
+`{Complete: 1143, partial: 413, inert: 147, known_wrong: 100}`, 0 unmarked.
+
+**1 MEDIUM + 4 LOW. Four fixed in-cycle, one recorded.**
+
+### MEDIUM — the fix repairs ELEVEN defs, not six, and two of the extras were `Complete`
+
+The reviewer found that the engine half silently repairs five defs the brief never named. **Census
+re-run to confirm it, and to name the population rather than take the number on trust**: of 1,803
+defs, **21** mention `PlayerTarget::ControllerOf`. Eleven pair it with `Effect::DestroyPermanent`
+over `DeclaredTarget { index: 0 }` in one `Effect::Sequence` — the shape whose second clause
+resolved to an empty player list:
+
+| def | marker | dead clause |
+|---|---|---|
+| the six in §5 | — | "its controller creates <token>" |
+| `natures_claim.rs` | **`Complete`** | "Its controller gains 4 life" |
+| `boseiju_who_endures.rs` | **`Complete`** | "its controller may search their library for a basic land" |
+| `assassins_trophy.rs` | `known_wrong` (unrelated reason) | the same search clause |
+| `ghost_quarter.rs` | `known_wrong` (unrelated) | same |
+| `sundering_eruption.rs` | `partial` (unrelated) | same |
+
+The remaining ten `ControllerOf` users are unaffected: six resolve it against a LIVE object
+(`fecundity`, `mesmeric_orb`, `massacre_wurm`, `magmatic_hellkite`, `edric_spymaster_of_trest`,
+`demolition_field`), two use `ControllerOfCounteredSpell` (`swan_song`,
+`an_offer_you_cant_refuse`), and three pair it with an EXILE — the separate, still-open defect
+in §9.
+
+Fixed in-cycle: `t4_natures_claim_gains_life_for_the_destroyed_permanents_controller` pins it (p3
+gains the 4, p1 gains nothing), and it is revert-proven alongside the other three — the full
+defeat matrix in the test's header now covers t1–t4. `natures_claim` earns the pin because it is
+the worst of the five: `Complete`, deck-legal, no TODO, and its only non-destroy clause was dead.
+The assessment §2 framing ("that is two deck-legal wrong cards") is corrected to four, with the
+observation that **`natures_claim`'s marker was explicit and wrong** — SR-39 closes the "nobody
+decided" class, and this is the "someone decided, incorrectly" class, which no source gate can
+reach. The aspirational comment at `natures_claim.rs:17-18` ("Using ControllerOf(DeclaredTarget{0})
+to **correctly** give life to the destroyed permanent's controller") became true only at
+`17fc2834`; it now says so.
+
+### LOW 1 — a commented-out marker defeated SR-39. FIXED.
+
+`// completeness: Completeness::Complete,` contains both halves the scanner looked for, so the
+prose canary could not catch it: a def carrying only that line was unmarked and looked marked.
+`OOS-DX32-6`'s shape one gate over. `markers_in` now requires the match to be **line-leading**,
+with a fifth canary (`gate_catches_a_commented_out_marker`) pinning it. Line-leading rather than
+stripping `//` comments first — which is what `bare_lookup_ratchet.rs` does — because this
+corpus's string literals contain `//` for real (every split card's name and `oracle_text`:
+`"Cut // Ribbons"`), so a comment stripper would need to understand string literals to be safe
+and a position test does not. rustfmt plus SR-35 make it free: all 1,803 markers are line-leading
+today.
+
+### LOW 2 — SR-38 had no entry in `docs/engine-invariants.md`. FIXED.
+
+The doc jumped SR-37 → SR-39, so the numbering-correction paragraph was the only mention and a
+reader following it found nothing. It now says what SR-38 is (the play-server channel-probe
+family) and why it does not live in that file.
+
+### LOW 3 — the insert could in principle record `(caster, caster)`. FIXED.
+
+`pre_death_controller` falls back to `ctx.controller` when the object lookup misses — right for
+the death events, exactly wrong here, because it would name the CASTER as the departed permanent's
+controller and hand the token straight back to the player this batch took it away from.
+Unreachable today (the indestructible read above already proved the object exists), which is
+precisely why it is worth closing structurally rather than trusting that ordering to survive the
+next edit. The insert is now guarded on `state.fizzle_object(id).is_some()` — through the
+diagnostics vocabulary rather than a bare `state.objects.get`, because SR-4 requires new code in
+this file to say which kind of absence it tolerates, and an absent id here is a rules-correct
+nothing-to-record.
+
+### LOW 4 — `MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED` 1 → 2 is the one relaxation. RECORDED.
+
+Not reverted: it is ablation-attributed, re-measured on all three A/B seeds, and the wasted-tap
+dimension is separately pinned unmoved. But the constant now carries a written stop: another raise
+is the wrong move, the right one is closing `OOS-SIM2-1` (which drops it to 0 and retires the
+constant), and a batch that wants 3 must file that seed or say in writing why the slack widened.
+
+### Recorded, not fixed (the reviewer's own "non-issue worth knowing")
+
+`Effect::DestroyAll` shares the destroy pipeline but records no departures. Correct today — no def
+pairs `DestroyAll` with `ControllerOf`, and the §11 census is what says so rather than an
+assumption — but it is an asymmetry the first "destroy all X; their controllers …" card will trip
+over. Left alone deliberately: writing a per-object map from a mass-destroy for zero current
+readers is speculative machinery, and the census above is the cheap way to notice when it stops
+being speculative.

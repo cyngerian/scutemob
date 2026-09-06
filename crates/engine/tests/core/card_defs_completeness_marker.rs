@@ -123,9 +123,28 @@ const MIN_DEF_FILES: usize = 1000;
 /// path. Hand-rolled rather than pulled in as a regex dependency: the engine's
 /// dev-dependencies carry no regex crate and this pattern is three tokens.
 ///
-/// Returns every variant name assigned to `completeness` in `text`. A `//`
-/// comment mentioning the word in prose yields nothing, because prose does not
-/// continue into `Completeness::`.
+/// Returns every variant name assigned to `completeness` in `text`. Two shapes
+/// are rejected, and both are shapes this corpus has actually produced:
+///
+/// 1. **Prose.** `misdirection.rs` line 36 says "…this def's completeness: no
+///    card was…" in a `//` comment. Rejected because prose does not continue
+///    into `Completeness::`.
+/// 2. **A commented-out real assignment.** `// completeness: Completeness::Complete,`
+///    IS followed by `Completeness::`, so (1) does not catch it, and a def carrying
+///    only that line is unmarked while looking marked. This is `OOS-DX32-6`'s shape
+///    — "a commented-out call" defeating a source gate — one gate over, and it was
+///    found by the `/review` of the batch that shipped this file. Rejected by
+///    requiring the match to be LINE-LEADING: only whitespace may precede
+///    `completeness:` on its own line.
+///
+/// The line-leading test is used in preference to stripping `//` comments first,
+/// which is what `bare_lookup_ratchet.rs` does, because this corpus's string
+/// literals contain `//` for real — every split card's `oracle_text` and `name`
+/// (`"Cut // Ribbons"`). A comment stripper would have to know about string
+/// literals to be safe here; a position test does not. rustfmt puts every struct
+/// field on its own line and `tools/check-defs-fmt.sh` (SR-35) enforces that over
+/// the whole corpus, so line-leading costs the gate nothing: all 1,803 markers
+/// satisfy it today.
 fn markers_in(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     let bytes = text.as_bytes();
@@ -136,6 +155,13 @@ fn markers_in(text: &str) -> Vec<String> {
             if prev.is_ascii_alphanumeric() || prev == b'_' {
                 continue;
             }
+        }
+        // Line-leading: everything between the previous newline and the match must
+        // be whitespace. Rejects `// completeness: Completeness::Complete,` and any
+        // other mid-line occurrence.
+        let line_start = text[..start].rfind('\n').map_or(0, |i| i + 1);
+        if !text[line_start..start].chars().all(char::is_whitespace) {
+            continue;
         }
         let rest = &text[start + "completeness:".len()..];
         let rest = rest.trim_start();
@@ -347,6 +373,21 @@ pub fn card() -> CardDefinition {
 }
 "#;
 
+/// A real assignment that someone commented out — the `OOS-DX32-6` shape. It
+/// contains `completeness:` AND `Completeness::`, so the prose test above does not
+/// catch it, and the def is unmarked while looking marked.
+const FIXTURE_COMMENTED_OUT: &str = r#"use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("zz-canary"),
+        name: "ZZ Canary".to_string(),
+        // completeness: Completeness::Complete,
+        ..Default::default()
+    }
+}
+"#;
+
 /// A def that spells a variant the report does not bucket. Must be reported as
 /// unrecognized rather than passing as marked.
 const FIXTURE_UNRECOGNIZED: &str = r#"use crate::cards::helpers::*;
@@ -418,6 +459,18 @@ fn gate_passes_a_def_that_names_its_marker() {
         "SR-39 FAILED a def that correctly names `completeness: Completeness::Complete`. \
          A gate that fails everything is not a gate; the two RED canaries above prove \
          nothing without this one."
+    );
+}
+
+#[test]
+fn gate_catches_a_commented_out_marker() {
+    assert_eq!(
+        shipped_scan_of("commented", FIXTURE_COMMENTED_OUT),
+        (1, 0),
+        "SR-39 PASSED a def whose only `completeness:` line is COMMENTED OUT. That line \
+         contains `Completeness::` too, so the prose canary above cannot catch it — this \
+         is `OOS-DX32-6`'s shape (a commented-out call defeating a source gate) one gate \
+         over. `markers_in` must require the match to be line-leading."
     );
 }
 
