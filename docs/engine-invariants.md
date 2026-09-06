@@ -341,6 +341,11 @@
   Filed as "SR-38" in `scutemob-255`'s criteria; **SR-38 was already taken** by the simulator
   channel-probe family (`crates/simulator/tests/cc15_raw_characteristics_ratchet.rs`), so the gate
   ships as SR-39 and the criterion is satisfied by that number.
+  **The SR namespace is shared and is NOT wholly enumerated by this file** — that is how the
+  collision happened. SR-38 lives only in a simulator test header, and `docs/sr-remediation-plan.md`
+  describes an SR-1..38 track it calls closed. Before claiming the next number,
+  `grep -rn "SR-<n>" crates/ docs/ memory/` for it; the next unused one after this batch is
+  **SR-40**.
   `CardDefinition::completeness` is `#[serde(default)]` over a `Completeness` whose `Complete`
   variant is `#[default]`, so a def that never mentions the field is `Complete` — deck-legal, with
   nobody having decided that. At `scutemob-255` **964 of the 1,140 `Complete` defs were `Complete`

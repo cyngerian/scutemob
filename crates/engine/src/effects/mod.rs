@@ -2264,6 +2264,15 @@ fn execute_effect_inner(
                     // its owner. Recorded BEFORE the replacement check so it holds whether
                     // the permanent is redirected (exile, library, command zone) or goes to
                     // the graveyard: either way it has left the battlefield.
+                    //
+                    // The third arm, `ChoiceRequired`, is the one this placement has to
+                    // answer for: it queues a `PendingZoneChange` and the permanent is
+                    // STILL on the battlefield when this resolution continues. Recording
+                    // here is harmless rather than merely tolerable — the readers consult
+                    // this map only after their LIVE lookup came back empty, and in that
+                    // arm the live lookup succeeds and wins. The entry is written and never
+                    // read. Moving the insert into the two arms that actually move the
+                    // object would duplicate it for no behavioural difference.
                     ctx.departed_permanent_players
                         .insert(id, (pre_death_controller, owner));
                     // CR 614: Check replacement effects before moving to graveyard.
