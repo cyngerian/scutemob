@@ -14,30 +14,37 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep COMPLETE 2026-05-16; 6 LOWs remain, deferred |
 | W4: M10 Networking | — | not-started | — | P3 of the course correction; after hot-seat |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6 |
-| W6: Primitive + Card Authoring | `scutemob-255` | dispatching | 2026-09-05 | v4 queue CLOSED at rank 21. CC batch COMPLETE; LL-3 (`-257`) collected `9a560313`. Approved chain: LL-1 (`-255`) → STOP, ask for CC-9 (`-245`) → LL-2 (`-256`). LL-4 (`-258`) blocked on CC-5 (owner). History: `CHANGELOG.md` |
+| W6: Primitive + Card Authoring | — | available | — | v4 queue CLOSED at rank 21. CC batch COMPLETE; LL-3 (`-257`, `9a560313`) and LL-1 (`-255`, `01ce7e2c`) collected. STOP: CC-9 (`-245`) awaits owner approval; LL-2 (`-256`) after. LL-4 (`-258`) blocked on CC-5 (owner). History: `CHANGELOG.md` |
 
-## Last Handoff (coordinator session, 2026-09-05 evening) — landscape assessment; LL-3 collected
+## Last Handoff (coordinator session, 2026-09-05 evening) — landscape assessment; LL-3 + LL-1 collected
 
 **Date**: 2026-09-05 (coordinator; `/collect scutemob-257` merge `9a560313`)
 **Workstream**: landscape lessons (`docs/mtg-engine-landscape-assessment.md`, commit `9677fa0c`)
 
 **Completed**: assessment of phase.rs / Manabrew / XMage / Forge vs scutemob (survey §6 tasks);
-LL-1..LL-4 filed (`scutemob-255..258`); LL-3 dispatched, reviewed, collected — new-variant
+LL-1..LL-4 filed (`scutemob-255..258`); LL-3 and LL-1 dispatched, reviewed, collected. LL-3 — new-variant
 checklist (`memory/checklists/new-effect-variant.md`, 31 sites, two the brief missed:
 `state/stack_registry.rs`, `rules/mana.rs::is_mana_producing_effect`), "## Landscape rules" in
 `memory/conventions.md`, most-prohibited-pattern line in CLAUDE.md (now **249 lines** — one under
 the `/eot` guard; the next CLAUDE.md edit must shave), exit-3 rule in `/dispatch`.
 
-**Finding worth a player's attention**: `beast_within.rs` and `generous_gift.rs` are deck-legal and
-give the token to the CASTER (`TokenSpec.recipient` defaulted); golden `tokens/002` retired with a
-stale reason. LL-1 fixes it and makes `completeness:` mandatory (964 defs default today).
+LL-1 (`01ce7e2c`, class rows 1+2+4): SR-39 (every def names `completeness:`; 964 swept, ZERO
+defaulted; tally 1,143 / 413 / 147 / 100); `DestroyPermanent` records the departed (controller,
+owner) in `EffectContext` so `ControllerOf` resolves under CR 608.2h — 11 defs repaired (not 6:
+`natures_claim` and `boseiju_who_endures` were EXPLICIT-Complete with a dead clause, the class SR-39
+cannot see). Suite 5,333 → 5,346 / 0 / 6; golden 208 → 209; wire 44/85 unchanged (predicted, met).
+One relaxation on record: `MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED` 1 → 2, ablation-attributed to the
+corpus re-deal (`OOS-CARDS2-3`), with a written stop. Seed candidate named, not filed: three
+exile-shape `ControllerOf` defs (`swords_to_plowshares`, `reality_shift`, `path_to_exile`) and
+`DestroyAll` recording no departures.
 
 **Next**: LL-1 (`scutemob-255`, approved) → then STOP and ask the owner for CC-9 (`-245`) before
 LL-2 (`-256`) — the portfolio agent's critique (process ahead of pod-facing work) was accepted.
 LL-4 (`-258`) and everything pod-facing wait on CC-5 (owner: six decklists).
 
-**Operator-delta line**: nothing yet — LL-1 will be the first (Beast Within right at a 4-player
-table). Fourth empty entry; CC-9 is next after LL-1 by agreement.
+**Operator-delta line**: Beast Within, Generous Gift, Nature's Claim and eight siblings now give
+the token / life to the destroyed permanent's controller at a four-player table. First non-empty
+entry since the course correction. CC-9 is next and awaits owner approval.
 
 **Hazards**: `esm worktree check` flags `.claude/skills/dispatch/SKILL.md` as provisioned damage
 whenever a task edits it on purpose — inspect, then `--allow-provisioned-changes`. `esm doctor`
