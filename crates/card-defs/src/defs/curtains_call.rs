@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
             },
         ],
         self_cost_reduction: Some(SelfCostReduction::PerOpponent),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

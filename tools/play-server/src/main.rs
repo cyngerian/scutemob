@@ -447,6 +447,10 @@ mod tests {
     /// engine actually ACCEPTS the cast, and the spell must be one a player cannot be a legal
     /// target of. Dispatch is `{W}` "Tap target creature" (CR 601.2c).
     ///
+    /// LL-1 (2026-09-05, `scutemob-255`): **Cyclonic Rift -> Noxious Revival**, moving with
+    /// [`TARGET_SEED`] 16 -> 1 — this constant is DERIVED from that seed (it is the targeted
+    /// cast the driver actually stops on), so it is never chosen independently. Full derivation,
+    /// sweep and ablation at [`TARGET_SEED`].
     /// PB-DX27 (2026-08-13, `scutemob-209`): **Dispatch -> Cyclonic Rift**, and [`TARGET_SEED`]
     /// 13 -> 16 with it. The batch flipped 6 completeness markers (net +4, the `Complete`-def
     /// count 1,133 -> 1,137), which moves `deck.rs::random_deck`'s commander pool and re-deals
@@ -459,7 +463,7 @@ mod tests {
     /// caller's `422 invalid target` still fires for the reason it names. Measured at seed 16,
     /// not reasoned to: 4 object candidates, all cross-checkable against the redacted view, and
     /// the cast is ACCEPTED (200) with an object target rather than refused for mana.
-    const TARGETED_SPELL: &str = "Cast Cyclonic Rift";
+    const TARGETED_SPELL: &str = "Cast Noxious Revival";
 
     /// Drive the seed-pinned opening until the human is offered a **targeted**
     /// spell.
@@ -610,8 +614,8 @@ mod tests {
             own_names,
             vec![
                 "Hedron Archive",
-                "Sol Ring",
-                "Simic Initiate",
+                "Slither Blade",
+                "Signal Pest",
                 "Farseek",
                 "Marwyn, the Nurturer",
                 "Cankerbloom",
@@ -1385,10 +1389,15 @@ mod tests {
         // run; see the exact-hand pin for the mechanism. PB-DX27, 2026-08-13: 18 -> 20,
         // re-read off a real run — that batch flipped 6 completeness markers, net +4, moving
         // the `Complete`-def count 1,133 -> 1,137 and so the commander pool `random_deck`
-        // indexes into, which re-deals every seat.)
+        // indexes into, which re-deals every seat. LL-1, 2026-09-05 (`scutemob-255`):
+        // 20 -> 16, re-read off a real run — three stale "CreateToken has no recipient"
+        // blockers deleted, `Complete`-def count 1,140 -> 1,143. Attributed by an EXECUTED
+        // ablation: with the whole engine change in the tree and only those three markers
+        // forced back to non-`Complete`, all three seeded probes in this file pass at their
+        // old values, so the engine half is deal-neutral and this is the re-deal alone.)
         assert_eq!(
             secrets.len(),
-            20,
+            16,
             "guard against a vacuous pass: {secrets:?}"
         );
 
@@ -1769,7 +1778,27 @@ mod tests {
     // and 15 reaches `Red Elemental Blast`, which wants 2 targets where the fixture announces 1.
     // Confirmed by RUNNING all six tests at 16 — the SIM-2 precedent, which is stricter than a
     // property sweep because it asserts the fixtures rather than their preconditions.
-    const TARGET_SEED: u64 = 16;
+    //
+    // LL-1 (2026-09-05, `scutemob-255`): **16 -> 1**, and [`TARGETED_SPELL`] with it,
+    // **Cyclonic Rift -> Noxious Revival**. The ordinary `OOS-CARDS2-3` death: three stale
+    // "CreateToken has no recipient" blockers were deleted, `CORPUS_COMPLETE` moved
+    // **1,140 -> 1,143**, `random_deck` re-picked every seat, and seed 16 stopped reaching a
+    // targeted cast beside five untapped sources at all (P5 timed out at `S7_MAX_STEPS`).
+    // ATTRIBUTED BY AN EXECUTED ABLATION: with the whole LL-1 engine change in the tree and ONLY
+    // those three markers forced back to non-`Complete`, this file is 130/130 at seed 16 with
+    // Cyclonic Rift — so the deal moved, not the server.
+    //
+    // Re-swept 0..=32 on P5 (the strictest property, and the one that died): it holds at
+    // **1**, 7, 13, 22, 25, 26, 27, 32 and fails everywhere else. `TARGETED_SPELL` is
+    // seed-derived, not free — it is whatever targeted cast that seed's driver actually stops
+    // on — so each candidate was re-derived and then CONFIRMED BY RUNNING THE WHOLE FILE, the
+    // SIM-2 precedent above: 1 -> `Cast Noxious Revival` **130/130**; 7 -> `Cast Tamiyo's
+    // Safekeeping` 130/130; 13 -> `Cast Dispatch` 130/130; 22 -> `Cast Rancor` 130/130.
+    // **1 is the smallest** and is used. (Pairing the new seed with the OLD `TARGETED_SPELL` is
+    // what makes `test_post_action_illegal_target_returns_422` hang to its step budget: it
+    // drives until a label that seed never offers. The two constants move together or not at
+    // all.)
+    const TARGET_SEED: u64 = 1;
 
     /// How many decisions the drivers below will answer before giving up. Chosen
     /// well above the observed cost of the slowest fixture (the X-value one needs

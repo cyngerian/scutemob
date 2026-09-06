@@ -88,6 +88,7 @@ pub fn card() -> CardDefinition {
                 modes: None,
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

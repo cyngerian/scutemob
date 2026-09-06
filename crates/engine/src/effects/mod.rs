@@ -67,6 +67,41 @@ pub struct EffectContext {
     /// Updated by zone-change effects (ExileObject, MoveZone, etc.) so
     /// subsequent effects can still refer to the target's power/toughness/etc.
     pub target_remaps: HashMap<usize, ObjectId>,
+    /// CR 608.2h: `(controller, owner)` of each permanent this resolution has
+    /// already REMOVED from the battlefield, keyed by the ObjectId it had there.
+    ///
+    /// Written by `Effect::DestroyPermanent`; read by `PlayerTarget::ControllerOf`
+    /// and `PlayerTarget::OwnerOf` when the live lookup finds nothing. It exists for
+    /// the "Destroy target permanent. **Its controller** creates a 3/3" shape — Beast
+    /// Within, Generous Gift, Pongify, Stroke of Midnight, Emergency Eject. The
+    /// destroy runs first, `move_object_to_zone` retires the id (CR 400.7), and
+    /// without this the recipient list came back EMPTY and the token was created for
+    /// nobody (LL-1, `scutemob-255`).
+    ///
+    /// **Why not `GameState::lki_object_snapshot`.** That store is deliberately and
+    /// measurably narrow: `capture_lki_snapshot` (state/mod.rs) declines unless the
+    /// departing permanent carries Wither / Infect / Deathtouch / Lifelink or is the
+    /// source of a pending ability (SR-24, `docs/sr-24-lki-capture-cost.md`). A
+    /// destroyed Sol Ring is none of those, so there is no snapshot to read, and
+    /// PB-DX39's note on that gate says widening the keyword list is not the way to
+    /// serve a new non-keyword reader.
+    ///
+    /// **Why the controller and not the graveyard object.** `move_object_to_zone`
+    /// resets the new object's controller to its OWNER, so reading the graveyard
+    /// object would hand the token to the owner of a permanent you had gained control
+    /// of. The pair recorded here is the pre-move battlefield truth.
+    ///
+    /// Resolution-local scratch, cleared with the context: not hashed `GameState`, not
+    /// part of the protocol declaration surface.
+    ///
+    /// A `BTreeMap` rather than a `HashMap` deliberately. It is `get`-only today, so a
+    /// `HashMap` would be sound, but `core::unordered_iteration_ratchet` exists because
+    /// PB-DP9 re-executes a whole resolution after a suspended choice is answered and
+    /// Rust's `RandomState` re-keys per map — any future edit that iterates this one
+    /// would diverge between passes within a single process (`OOS-DP9-10`). Ordered by
+    /// construction costs nothing at this size and removes that edit from the hazard
+    /// list entirely, which is better than raising a ceiling and hoping.
+    pub departed_permanent_players: std::collections::BTreeMap<ObjectId, (PlayerId, PlayerId)>,
     /// CR 702.33d: Number of times kicker was paid for this spell.
     ///
     /// 0 = not kicked. Used by `Condition::WasKicked`. Set from `StackObject.kicker_times_paid`
@@ -239,6 +274,7 @@ impl EffectContext {
             source,
             targets,
             target_remaps: HashMap::new(),
+            departed_permanent_players: std::collections::BTreeMap::new(),
             kicker_times_paid: 0,
             was_overloaded: false,
             was_bargained: false,
@@ -280,6 +316,7 @@ impl EffectContext {
             source,
             targets,
             target_remaps: HashMap::new(),
+            departed_permanent_players: std::collections::BTreeMap::new(),
             kicker_times_paid,
             was_overloaded: false,
             was_bargained: false,
@@ -2218,6 +2255,44 @@ fn execute_effect_inner(
                                 None,
                             )
                         });
+                    // CR 608.2h (LL-1, `scutemob-255`): remember who this permanent
+                    // belonged to before it leaves. Both values were just captured above
+                    // for the death events; recording the pair costs one map insert and is
+                    // what lets a later "ITS controller creates a 3/3" in the SAME
+                    // resolution find an answer at all — after the move the id is retired
+                    // (CR 400.7) and the graveyard object's controller has been reset to
+                    // its owner. Recorded BEFORE the replacement check so it holds whether
+                    // the permanent is redirected (exile, library, command zone) or goes to
+                    // the graveyard: either way it has left the battlefield.
+                    //
+                    // The third arm, `ChoiceRequired`, is the one this placement has to
+                    // answer for: it queues a `PendingZoneChange` and the permanent is
+                    // STILL on the battlefield when this resolution continues. Recording
+                    // here is harmless rather than merely tolerable — the readers consult
+                    // this map only after their LIVE lookup came back empty, and in that
+                    // arm the live lookup succeeds and wins. The entry is written and never
+                    // read. Moving the insert into the two arms that actually move the
+                    // object would duplicate it for no behavioural difference.
+                    //
+                    // Guarded on the object being LIVE rather than written
+                    // unconditionally. `pre_death_controller` above falls back to
+                    // `ctx.controller` when `state.objects.get(&id)` misses — a default
+                    // that is right for the death events (they need *a* player) and
+                    // exactly wrong here: it would record the CASTER as the departed
+                    // permanent's controller and hand the token straight back to the
+                    // player this batch took it away from. The miss is unreachable today
+                    // (the indestructible read above already proved the object exists),
+                    // which is precisely why it is worth closing structurally instead of
+                    // relying on that ordering surviving the next edit. `/review` LOW 4.
+                    //
+                    // Through `fizzle_object`, not a bare `state.objects.get`: SR-4 says new
+                    // code in this file must say which kind of absence it tolerates, and an
+                    // absent id here is a rules-correct nothing-to-record (the permanent was
+                    // never on the battlefield to depart from), not an engine bug.
+                    if state.fizzle_object(id).is_some() {
+                        ctx.departed_permanent_players
+                            .insert(id, (pre_death_controller, owner));
+                    }
                     // CR 614: Check replacement effects before moving to graveyard.
                     let action = crate::rules::replacement::check_zone_change_replacement(
                         state,
@@ -4772,6 +4847,7 @@ fn execute_effect_inner(
                                 zone_at_cast: None,
                             }],
                             target_remaps: HashMap::new(),
+                            departed_permanent_players: std::collections::BTreeMap::new(),
                             kicker_times_paid: ctx.kicker_times_paid,
                             was_overloaded: ctx.was_overloaded,
                             was_bargained: ctx.was_bargained,
@@ -4827,6 +4903,7 @@ fn execute_effect_inner(
                                 zone_at_cast: Some(ZoneId::Battlefield),
                             }],
                             target_remaps: HashMap::new(),
+                            departed_permanent_players: std::collections::BTreeMap::new(),
                             kicker_times_paid: ctx.kicker_times_paid,
                             was_overloaded: ctx.was_overloaded,
                             was_bargained: ctx.was_bargained,
@@ -8624,6 +8701,57 @@ fn resolve_effect_target_list_indexed(
     }
 }
 /// Resolve a `PlayerTarget` into a list of `PlayerId`s.
+/// CR 608.2h: the last-known-information view of a DECLARED target that has left.
+///
+/// `PlayerTarget::ControllerOf` / `OwnerOf` ask *who an object belonged to*. When the
+/// object left during this very resolution — "Destroy target permanent. **Its
+/// controller** creates a 3/3" — that is exactly the question CR 608.2h answers with
+/// last known information, and `resolve_effect_target_list` cannot: its
+/// `DeclaredTarget` arm drops an id that is in neither `state.objects` nor
+/// `state.stack_objects`, which is CR 608.2b's partial-fizzle skip and is CORRECT for
+/// every *object*-target consumer (you may not destroy a permanent that is already
+/// gone). Only the two player-target arms want the departed id, so only they get it,
+/// through this helper — the shared resolver keeps its skip untouched.
+///
+/// Deliberately narrow, in three ways:
+///
+/// 1. **`DeclaredTarget` only.** Every other `EffectTarget` shape (`Source`,
+///    `EachPlayer`, filters over the battlefield…) is a live query by construction;
+///    there is no departed-object reading of them.
+/// 2. **Callers use it only after the live path returned nothing**, so no existing
+///    resolution changes answer. This is a fallback, not a new preference.
+/// 3. **The remap wins when one exists.** If a zone-change effect tracked the target
+///    (`ctx.target_remaps`), the live path already answered and this is never reached.
+///    That path has its own CR 608.2h wrinkle — `move_object_to_zone` resets the new
+///    object's controller to its owner, so `ControllerOf` on a *remapped* target
+///    reports the owner — but it is a different trigger with different blast radius
+///    and is logged as a LOW in `memory/primitives/ll-1-execution-notes.md` rather
+///    than changed here.
+///
+/// The record it reads is `ctx.departed_permanent_players`, NOT
+/// `GameState::lki_object_snapshot`: that store is populated only for departing
+/// permanents carrying one of four damage keywords or sourcing a pending ability
+/// (SR-24), so a destroyed Sol Ring has no entry in it. See the field's own docs.
+///
+/// Named `lki_*` per SR-4: an absent record here is a rules-correct empty answer (the
+/// target was never an object, or is still on the battlefield and the caller's live
+/// path already answered), not an engine bug, so it returns `None` quietly rather than
+/// going through the `expect_*` family.
+///
+/// Returns `(controller, owner)` as of the moment the permanent left.
+fn lki_departed_declared_target(
+    effect_target: &EffectTarget,
+    ctx: &EffectContext,
+) -> Option<(PlayerId, PlayerId)> {
+    let EffectTarget::DeclaredTarget { index } = effect_target else {
+        return None;
+    };
+    let id = match ctx.targets.get(*index)?.target {
+        Target::Object(id) => id,
+        _ => return None,
+    };
+    ctx.departed_permanent_players.get(&id).copied()
+}
 fn resolve_player_target_list(
     state: &GameState,
     player: &PlayerTarget,
@@ -8667,7 +8795,7 @@ fn resolve_player_target_list(
             // triggered ward). Check state.objects first (battlefield/graveyard/etc.), then
             // fall back to state.stack_objects for spells/abilities still on the stack.
             let targets = resolve_effect_target_list(state, effect_target, ctx);
-            targets
+            let live: Vec<PlayerId> = targets
                 .into_iter()
                 .filter_map(|t| {
                     if let ResolvedTarget::Object(id) = t {
@@ -8685,13 +8813,33 @@ fn resolve_player_target_list(
                         None
                     }
                 })
+                .collect();
+            if !live.is_empty() {
+                return live;
+            }
+            // CR 608.2h (LL-1, `scutemob-255`): nothing live answered. If the declared
+            // target is an object that LEFT during this same resolution, "its controller"
+            // is a question about a permanent that no longer exists, and CR 608.2h says to
+            // use its last known information. This is the "Destroy target permanent. ITS
+            // CONTROLLER creates a 3/3" shape (Beast Within, Generous Gift, Pongify): the
+            // destroy runs first, `move_object_to_zone` retires the id (CR 400.7), and
+            // without this arm the recipient list came back EMPTY and no token was created
+            // for anyone.
+            //
+            // LKI, not the graveyard object, on purpose. The graveyard object is a NEW
+            // object whose controller `move_object_to_zone` reset to its OWNER, so reading
+            // it would hand the Beast to the owner of a permanent you had gained control
+            // of. The snapshot holds the battlefield controller.
+            lki_departed_declared_target(effect_target, ctx)
+                .map(|(controller, _owner)| controller)
+                .into_iter()
                 .collect()
         }
         PlayerTarget::OwnerOf(effect_target) => {
             // CR 108.3: The owner of a card is the player who started the game with it in
             // their deck. Used for bounce effects that say "return to its owner's hand."
             let targets = resolve_effect_target_list(state, effect_target, ctx);
-            targets
+            let live: Vec<PlayerId> = targets
                 .into_iter()
                 .filter_map(|t| {
                     if let ResolvedTarget::Object(id) = t {
@@ -8700,6 +8848,17 @@ fn resolve_player_target_list(
                         None
                     }
                 })
+                .collect();
+            if !live.is_empty() {
+                return live;
+            }
+            // CR 608.2h, same LKI fallback as the `ControllerOf` arm above and for the same
+            // reason: "its owner" asked about an object that left during this resolution is
+            // a last-known-information question. Owner never changes (CR 108.3), so this
+            // arm cannot disagree with the live path — it only stops it returning nothing.
+            lki_departed_declared_target(effect_target, ctx)
+                .map(|(_controller, owner)| owner)
+                .into_iter()
                 .collect()
         }
         PlayerTarget::TriggeringPlayer => {
@@ -11403,6 +11562,7 @@ pub(crate) fn check_static_condition_ctx(
                 source,
                 targets: vec![],
                 target_remaps: std::collections::HashMap::new(),
+                departed_permanent_players: std::collections::BTreeMap::new(),
                 kicker_times_paid: 0,
                 was_overloaded: false,
                 was_bargained: false,

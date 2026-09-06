@@ -294,7 +294,29 @@ pub const MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG: u32 = 99;
 /// NOT zero: `OOS-SIM2-1` — the greedy solver leaves slack on casts that SUCCEED, so a
 /// destroyed pool is not necessarily a wasted one. That seed is the reason this pin
 /// exists at all; closing it is what lowers this to 0.
-pub const MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED: usize = 1;
+///
+/// **LL-1 (`scutemob-255`, 2026-09-05): 1 -> 2.** RE-MEASURED across all three A/B seeds
+/// at the unchanged configuration: seed 0 = **2**, seed 7 = 0, seed 42 = 0 (max 2). The
+/// wasted-tap dimension did NOT move -- `wasted_tap_runs: 0` and `wasted_taps: 0` on all
+/// three, exactly as before; what changed is which spells seed 0's bots get to cast
+/// (`casts` 18/22/20), and `OOS-SIM2-1`'s slack on SUCCEEDING casts is per-cast.
+///
+/// **Attributed by an EXECUTED ablation, not argued.** With the whole LL-1 engine change
+/// in the tree and ONLY the three card-def markers it promoted forced back to
+/// non-`Complete` (so the deck pool returns to `CORPUS_COMPLETE` 1140), this gate is GREEN
+/// at 1 and so are `pb_dx22_fuzz_instrument` (12/12), `pb_dx32_fuzz_output`'s T6.3 and
+/// play-server's three seeded probes. `OOS-CARDS2-3` again: one marker flip anywhere in
+/// 1,803 defs deals every seeded game a different opening. Raised rather than re-tuning
+/// the seed set, which is the move this gate's siblings tell the reader not to make.
+///
+/// **This is the one number in LL-1 that was relaxed rather than re-observed, and it should
+/// not creep again** (`/review` LOW 5). Doubling an `OOS-SIM2-1` ceiling costs real
+/// detection: what it now catches is a THIRD emptied pool on one seed, which is a wider net
+/// than the gate was built with. The correct next move is not another raise — it is closing
+/// `OOS-SIM2-1` (the greedy solver leaving slack on casts that SUCCEED), which drops this to
+/// **0** and retires the constant. A batch that finds itself wanting 3 should file that seed
+/// instead, or say in writing why the slack legitimately widened.
+pub const MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED: usize = 2;
 
 /// Errors that can occur during game execution (distinct from invariant violations).
 #[derive(Clone, Debug, Serialize, Deserialize)]

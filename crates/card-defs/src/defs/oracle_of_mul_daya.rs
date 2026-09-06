@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                 on_cast_effect: None,
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

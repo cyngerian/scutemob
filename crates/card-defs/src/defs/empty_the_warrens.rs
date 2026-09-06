@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Storm),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

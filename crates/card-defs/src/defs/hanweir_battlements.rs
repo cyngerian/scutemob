@@ -81,6 +81,7 @@ pub fn card() -> CardDefinition {
             pair_card_id: CardId("hanweir-garrison".to_string()),
             melded_card_id: CardId("hanweir-the-writhing-township".to_string()),
         }),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

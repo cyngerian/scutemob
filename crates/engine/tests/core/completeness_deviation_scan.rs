@@ -1384,9 +1384,23 @@ fn the_marker_detector_is_not_vacuous() {
     // `Condition::YouAttackedWithNOrMore(u32)` has existed since PB-OS6 -- and PB-DX53's
     // per-turn split gives it a correctly-scoped variant to read), net -1. RE-MEASURED
     // DIRECTLY: `all_cards()` reports 1,140 Complete / 663 non-Complete of 1,803.
+    // LL-1 (2026-09-05, `scutemob-255`): threshold 663 -> **660**, net -3, all three the
+    // same repair. `stroke_of_midnight` and `emergency_eject` (`partial`) and `pongify`
+    // (`known_wrong`) each named ONE blocker -- "CreateToken has no recipient, so the
+    // token goes to the caster" -- and all three notes were stale: `TokenSpec.recipient`
+    // has existed since PB-EF2. This batch set the recipient and added the CR 608.2h
+    // fallback that makes it resolve after the destroy, so all three go `Complete`.
+    // `emergency_eject`'s Lander token was authored at the same time and is EXECUTED by
+    // `primitives::ll1_token_recipient_controller_of::t3` rather than assumed, because
+    // `Complete` is what makes the card deck-legal. `saw_in_half` stays `partial` (its
+    // halved-copy-token clause is a real, still-open gap) and its note was rewritten, so
+    // MARKER_FRAGMENTS still matches that file. RE-MEASURED DIRECTLY over
+    // `crates/card-defs/src/defs/*.rs` with `authoring-report.py`'s MARKER_RE, the same
+    // predicate `all_cards()` is generated from: 1,143 Complete / 660 non-Complete
+    // (413 partial + 147 inert + 100 known_wrong) of 1,803.
     assert!(
-        marked >= 663,
-        "marker detector matched {marked} files; expected >= 663. This assertion has NO \
+        marked >= 660,
+        "marker detector matched {marked} files; expected >= 660. This assertion has NO \
          margin (see the comment above) and can fail for two different reasons: (1) \
          MARKER_FRAGMENTS stopped matching (a detector bug -- the gate would then spuriously \
          flag marked defs) or, far more likely on an ordinary day, (2) a ROUTINE Complete \

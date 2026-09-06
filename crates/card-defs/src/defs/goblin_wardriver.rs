@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // CR 702.92a: Battle cry — handled keyword (state::keyword_registry).
             AbilityDefinition::Keyword(KeywordAbility::BattleCry),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

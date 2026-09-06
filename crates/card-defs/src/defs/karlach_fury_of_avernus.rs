@@ -91,6 +91,7 @@ pub fn card() -> CardDefinition {
         // `test_karlach_extra_combat_once_per_turn` in
         // `crates/engine/tests/primitives/pb_dx1_lowered_intervening_if.rs`; (4) no
         // clause failed.
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

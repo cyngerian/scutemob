@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

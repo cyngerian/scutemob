@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             exclude_self: false,
             colored_mana_reduction: None,
         }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

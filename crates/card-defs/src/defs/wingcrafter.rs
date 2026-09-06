@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 modification: LayerModification::AddKeyword(KeywordAbility::Flying),
             }],
         }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

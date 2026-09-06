@@ -62,6 +62,7 @@ pub fn card() -> CardDefinition {
             },
         ],
         // PB-EF12 (EF-W-PB2-3): un-marked, see birds_of_paradise.rs for the fix.
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

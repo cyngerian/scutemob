@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Retrace),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

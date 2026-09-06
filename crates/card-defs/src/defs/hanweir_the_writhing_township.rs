@@ -71,6 +71,7 @@ pub fn card() -> CardDefinition {
             toughness: Some(4),
             color_indicator: None,
         }),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

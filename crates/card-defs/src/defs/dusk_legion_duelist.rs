@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: true,
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

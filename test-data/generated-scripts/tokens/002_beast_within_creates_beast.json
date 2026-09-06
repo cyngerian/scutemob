@@ -5,11 +5,12 @@
     "name": "Beast Within destroys a permanent, creates a Beast token",
     "description": "p1 casts Beast Within targeting a Sol Ring on p2's battlefield. Sol Ring is destroyed and p2 creates a 3/3 green Beast creature token. Tests Beast Within's dual effect: destroy any permanent + create Beast token for target's controller.",
     "cr_sections_tested": [
+      "110.5",
       "601.2",
       "608.2",
-      "701.7",
-      "701.6a",
-      "110.5"
+      "608.2h",
+      "701.7a",
+      "701.8a"
     ],
     "corner_case_ref": null,
     "tags": [
@@ -20,12 +21,11 @@
       "destroy"
     ],
     "confidence": "high",
-    "review_status": "retired",
-    "reviewed_by": null,
-    "review_date": null,
-    "generation_notes": "Beast Within oracle: 'Destroy target permanent. Its controller creates a 3/3 green Beast creature token.' Cost {2}{G}. Targets any permanent — Sol Ring is an artifact permanent. After resolution: Sol Ring goes to p2's graveyard (indestructible check: Sol Ring has no indestructible), p2 gets a 3/3 Beast token. Beast Within goes to p1's graveyard. Initial: p1 has Beast Within with {2}{G} in pool; p2 has Sol Ring on battlefield (untapped).",
-    "disputes": [],
-    "retirement_reason": "SR-9c: Beast Within's 'destroy target permanent, its controller creates a 3/3 Beast' resolves with an unthreaded target (same ETB/effect empty-target DSL gap): Sol Ring survives and no Beast token is created. Unblocks when spell/effect targets are threaded to the token+destroy effect."
+    "review_status": "approved",
+    "reviewed_by": "scutemob-255 (LL-1)",
+    "review_date": "2026-09-05",
+    "generation_notes": "Beast Within oracle: 'Destroy target permanent. Its controller creates a 3/3 green Beast creature token.' Cost {2}{G}. Targets any permanent \u2014 Sol Ring is an artifact permanent. After resolution: Sol Ring goes to p2's graveyard (indestructible check: Sol Ring has no indestructible), p2 gets a 3/3 Beast token. Beast Within goes to p1's graveyard. Initial: p1 has Beast Within with {2}{G} in pool; p2 has Sol Ring on battlefield (untapped). RE-APPROVED 2026-09-05 (LL-1, scutemob-255): the old retirement reason claimed the destroy itself did not resolve and Sol Ring survived. That was stale \u2014 the destroy worked; what failed was the token's RECIPIENT. Beast Within's TokenSpec had no `recipient`, so the 3/3 was created for the CASTER (p1) instead of the destroyed permanent's controller (p2), and this script's `zones.battlefield.p2 includes Beast` assertion is exactly the pin for that. Fixed by setting `recipient: PlayerTarget::ControllerOf(DeclaredTarget 0)` on the def plus the CR 608.2h departed-controller fallback in `resolve_player_target_list`.",
+    "disputes": []
   },
   "initial_state": {
     "format": "commander",
@@ -144,7 +144,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both pass — Beast Within resolves."
+          "note": "CR 116.3: Both pass \u2014 Beast Within resolves."
         },
         {
           "type": "stack_resolve",
@@ -156,8 +156,8 @@
                 "card": "Sol Ring",
                 "controller": "p2"
               },
-              "cr_ref": "701.7",
-              "note": "CR 701.7: Sol Ring is destroyed, moves to p2's graveyard."
+              "cr_ref": "701.8a",
+              "note": "CR 701.8a: Sol Ring is destroyed, moves to p2's graveyard."
             },
             {
               "effect": "create_token",
@@ -177,8 +177,8 @@
                 ],
                 "abilities": []
               },
-              "cr_ref": "701.6a",
-              "note": "CR 701.6a: p2 (Sol Ring's controller) creates a 3/3 green Beast token."
+              "cr_ref": "701.7a",
+              "note": "CR 701.7a: p2 (Sol Ring's controller) creates a 3/3 green Beast token."
             }
           ],
           "note": "Beast Within resolves: Sol Ring destroyed, p2 gets Beast token."

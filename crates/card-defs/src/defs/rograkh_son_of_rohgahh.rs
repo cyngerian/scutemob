@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Trample),
             AbilityDefinition::Keyword(KeywordAbility::Partner),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

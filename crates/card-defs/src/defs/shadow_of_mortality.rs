@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(7),
         abilities: vec![],
         self_cost_reduction: Some(SelfCostReduction::LifeLostFromStarting),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

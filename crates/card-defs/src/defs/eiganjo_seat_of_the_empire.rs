@@ -67,6 +67,7 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

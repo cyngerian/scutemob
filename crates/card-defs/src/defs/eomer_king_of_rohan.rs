@@ -83,6 +83,7 @@ pub fn card() -> CardDefinition {
         // PB-EF1 (scutemob-99): the PermanentCount resolver now honors `exclude_self`
         // (effects/mod.rs, CR 109.1), so "for each OTHER Human you control" no longer
         // counts Éomer itself. A 2/2 with no other Humans enters as a 2/2. Complete.
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

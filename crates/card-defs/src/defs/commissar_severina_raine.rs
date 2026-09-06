@@ -90,6 +90,7 @@ pub fn card() -> CardDefinition {
         // AttackingCreatureCount with exclude_self ("other attacking creatures"); the
         // "{2}, Sacrifice another creature" cost is enforced via
         // ActivationCost.sacrifice_exclude_self (CR 109.1). Complete.
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

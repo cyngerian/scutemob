@@ -171,6 +171,25 @@ fn test_dx22_build_fuzz_state_produces_the_fuzzers_table() {
 /// The test asserts that this arm was really taken, so the seed silently ceasing to draw
 /// a colourless commander reddens rather than quietly reverting the coverage.
 ///
+/// # Re-observed for LL-1 (`scutemob-255`, 2026-09-05)
+///
+/// The seed-50 pin died the same `OOS-CARDS2-3` death the seed-8 pin below did: LL-1
+/// deleted three stale "CreateToken has no recipient" blockers, `CORPUS_COMPLETE` moved
+/// **1140 -> 1143**, and seed 50 now draws four coloured commanders
+/// (`colourless_seats_seen` fell to 0). ATTRIBUTED BY AN EXECUTED ABLATION, not argued:
+/// with the whole engine change in the tree and ONLY the three markers forced back to
+/// non-`Complete`, this file passes 12/12 at its old pins — so the movement is the
+/// re-deal and nothing about the engine.
+///
+/// Re-swept by enumeration over seeds 1..=200 at this exact 4-player configuration. Hits
+/// (exactly one colourless seat): **40**, 73, 119, 128, 132, 163, 175, 182, 200 — every
+/// one of them `rograkh-son-of-rohgahh` again, still the only `Complete` colourless
+/// legendary creature in the pool. **40 is used because it is the smallest.** Measured at
+/// seed 40: seat 1 `vorinclex-monstrous-raider` [G], seat 2 `adriana-captain-of-the-guard`
+/// [W,R], seat 3 `rograkh-son-of-rohgahh` **[]**, seat 4 `hermes-overseer-of-elpis` [U] —
+/// exactly one colourless seat, so the non-vacuity assertion below stays an EQUALITY
+/// rather than being relaxed to a floor.
+///
 /// # Re-observed for PB-DX27 (`scutemob-209`, 2026-08-13)
 ///
 /// The previous pin was **seed 8 seat `PlayerId(3)`**, and it died the ordinary
@@ -193,7 +212,7 @@ fn test_dx22_libraries_are_shuffled_cr_103_3() {
 
     // (seed, how many seats must have a colourless commander)
     let mut colourless_seats_seen = 0usize;
-    for seed in [1u64, 50] {
+    for seed in [1u64, 40] {
         let setup = built(seed, &cards, &registry);
 
         for (i, pid) in seats(PLAYERS).into_iter().enumerate() {
@@ -236,7 +255,7 @@ fn test_dx22_libraries_are_shuffled_cr_103_3() {
 
     assert_eq!(
         colourless_seats_seen, 1,
-        "non-vacuity: seed 50 seat PlayerId(2) must still draw a colourless commander, \
+        "non-vacuity: seed 40 seat PlayerId(3) must still draw a colourless commander, \
          or the CR 903.5c padding arm (deck.rs's `basics.is_empty()` branch) is once \
          again unexercised by every probe in this file"
     );
@@ -1068,10 +1087,36 @@ fn test_dx22_cr_903_10a_commander_damage_is_recorded_on_the_fuzz_build() {
 ///   max_commander_damage: 4 }
 /// ```
 ///
+/// # Re-observed for LL-1 (`scutemob-255`, 2026-09-05)
+///
+/// Seed 6 went vacuous in the CR 903.8 dimension again (`commander_casts_from_command_zone:
+/// 0`), and this time it IS the card-pool re-deal rather than an RNG reindexing: LL-1
+/// deleted three stale "CreateToken has no recipient" blockers and `CORPUS_COMPLETE` moved
+/// **1140 -> 1143**. ATTRIBUTED BY AN EXECUTED ABLATION: with the whole engine change in
+/// the tree and ONLY the three markers forced back to non-`Complete`, this test passes at
+/// seed 6 unchanged.
+///
+/// Re-swept over seeds 0..=40 at this exact configuration, checked against every assertion
+/// this test makes (not a throwaway approximation of them), ascending until one satisfies
+/// all of them. **0 is the smallest — it is the first seed tried and it passes.** Measured:
+///
+/// ```text
+/// MechanicsTally { spell_casts: 17, first_spell_cast_turn: Some(5),
+///   first_library_spell_cast_turn: Some(5), lands_played: 31,
+///   first_land_played_turn: Some(4), commander_casts_from_command_zone: 2,
+///   first_commander_cast_turn: Some(26), commander_returns_to_command_zone: 1,
+///   commander_zone_redirects: 0, seats_dealt_commander_damage: 3,
+///   max_commander_damage: 10 }
+/// ```
+///
+/// Strictly richer than the seed-6 tally it replaces (2 command-zone casts instead of 1,
+/// 3 seats dealt commander damage instead of 1, and a commander return the old seed never
+/// produced), so no dimension of this census got thinner.
+///
 /// No assertion was weakened: the same nine gates run, against a different seed.
 #[test]
 fn test_dx22_the_fuzzers_mechanics_census_is_not_vacuous() {
-    const SEED: u64 = 6;
+    const SEED: u64 = 0;
     const MAX_TURNS: u32 = 60;
     let (cards, registry) = pool();
     let setup = built(SEED, &cards, &registry);

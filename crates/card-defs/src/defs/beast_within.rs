@@ -37,6 +37,14 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        // CR 701.7a / CR 608.2h: "ITS controller" is the destroyed
+                        // permanent's controller, not the caster. The destroy has already
+                        // retired the target's ObjectId (CR 400.7), so this resolves
+                        // through the LKI snapshot -- see `resolve_player_target_list`'s
+                        // `ControllerOf` arm.
+                        recipient: PlayerTarget::ControllerOf(Box::new(
+                            EffectTarget::DeclaredTarget { index: 0 },
+                        )),
                         ..Default::default()
                     },
                 },
@@ -45,6 +53,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

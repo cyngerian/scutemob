@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(12),
         abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Trample)],
         self_cost_reduction: Some(SelfCostReduction::TotalPowerOfCreatures),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

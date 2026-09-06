@@ -85,6 +85,7 @@ pub fn card() -> CardDefinition {
             threshold: 4,
             reduction: 3,
         }),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

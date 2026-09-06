@@ -55,6 +55,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

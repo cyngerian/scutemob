@@ -74,6 +74,7 @@ pub fn card() -> CardDefinition {
                 required_alt_cost: None,
             },
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

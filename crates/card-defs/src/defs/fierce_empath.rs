@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             trigger_zone: None,
         }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

@@ -16,12 +16,6 @@ pub fn card() -> CardDefinition {
                       creature token."
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
-            // "Its controller creates a 1/1 white Human creature token."
-            // TODO: CreateToken does not have a player/controller field — tokens always go to
-            // ctx.controller (the spell's caster). In multiplayer, the token should go to the
-            // destroyed permanent's controller (e.g., PlayerTarget::ControllerOf), but
-            // CreateToken lacks this parameter. This is a known systemic DSL gap (see also
-            // Pongify, Rapid Hybridization, Beast Within). Fix when CreateToken gains a player field.
             effect: Effect::Sequence(vec![
                 Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -43,6 +37,11 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        // CR 608.2h: "its controller" is the destroyed permanent's
+                        // controller, not the caster (resolves via LKI after CR 400.7).
+                        recipient: PlayerTarget::ControllerOf(Box::new(
+                            EffectTarget::DeclaredTarget { index: 0 },
+                        )),
                         ..Default::default()
                     },
                 },
@@ -54,10 +53,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial(
-            "CreateToken does not have a player/controller field — tokens always go to \
-             ctx.controller (the spell's caster). In...",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

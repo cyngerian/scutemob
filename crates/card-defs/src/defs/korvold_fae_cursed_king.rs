@@ -101,6 +101,7 @@ pub fn card() -> CardDefinition {
         // TargetFilter.exclude_self (source threaded into eligible_sacrifice_targets, CR
         // 109.1), so the "another permanent" restriction is enforced. Both the enters/attacks
         // forced sacrifice and the "whenever you sacrifice" reward are implemented. Complete.
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

@@ -62,6 +62,7 @@ pub fn card() -> CardDefinition {
             // with: remove all damage + destroy this Aura instead.
             AbilityDefinition::Keyword(KeywordAbility::UmbraArmor),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

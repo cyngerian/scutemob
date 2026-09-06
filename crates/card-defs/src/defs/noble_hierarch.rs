@@ -63,6 +63,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Exalted),
         ],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }
