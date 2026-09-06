@@ -38,9 +38,13 @@ corpus re-deal (`OOS-CARDS2-3`), with a written stop. Seed candidate named, not 
 exile-shape `ControllerOf` defs (`swords_to_plowshares`, `reality_shift`, `path_to_exile`) and
 `DestroyAll` recording no departures.
 
-**Next**: LL-1 (`scutemob-255`, approved) → then STOP and ask the owner for CC-9 (`-245`) before
-LL-2 (`-256`) — the portfolio agent's critique (process ahead of pod-facing work) was accepted.
-LL-4 (`-258`) and everything pod-facing wait on CC-5 (owner: six decklists).
+**Not done / deferred**: seed NOT filed for the exile-shape `ControllerOf` defs + `DestroyAll`
+departures (named in `ll-1-execution-notes.md`; grep the registry before filing). `chord_of_calling`
+shows as marker drift in `authoring-status.md` (prose TODO, false positive — reword the comment).
+
+**Next session candidates**: (1) CC-9 hot-seat (`scutemob-245`) — pod-facing, AWAITS OWNER
+APPROVAL; (2) LL-2 CR-cite verifier (`-256`) after it; (3) CC-5 decklists (owner) → LL-4 (`-258`),
+CC-6/7/8. The portfolio agent's critique (process ahead of pod-facing work) was accepted.
 
 **Operator-delta line**: Beast Within, Generous Gift, Nature's Claim and eight siblings now give
 the token / life to the destroyed permanent's controller at a four-player table. First non-empty
@@ -49,3 +53,7 @@ entry since the course correction. CC-9 is next and awaits owner approval.
 **Hazards**: `esm worktree check` flags `.claude/skills/dispatch/SKILL.md` as provisioned damage
 whenever a task edits it on purpose — inspect, then `--allow-provisioned-changes`. `esm doctor`
 `missing: end, spawn` is expected. Landscape clones live at `~/projects/scutemob-landscape/`.
+A defs-only fix for "its controller …" after a zone move CANNOT work (dead id, CR 400.7; LKI store
+is sparse by design, SR-24) — see `memory/gotchas-rules.md`. CLAUDE.md is 249/250.
+
+**Commit prefix used**: `scutemob-N:` / `merge:` / `chore:`

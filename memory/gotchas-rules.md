@@ -267,3 +267,11 @@ were verified to fail this way in the PB-N fix phase experiment. Do not try to b
 wedge around these until BASELINE-LKI-01 is fixed; use a different test pattern
 (e.g., base characteristics + filter-read dispatch, which at least validates the
 dispatch path consumption of the filter field, without validating the LKI semantics).
+
+- **"Its controller/owner …" after a zone move (CR 608.2h, LL-1 2026-09-05)**: once `DestroyPermanent`
+  moves the target, its `ObjectId` is dead (CR 400.7) and `resolve_effect_target_list_indexed` skips it
+  (CR 608.2b), so `PlayerTarget::ControllerOf(DeclaredTarget)` resolves to NOBODY — the token/life goes
+  nowhere. Do not reach for `lki_object_snapshot`: the store is deliberately sparse (SR-24; PB-DX39's
+  `r3` gate refuses new readers). The destroy site records the departed `(controller, owner)` in
+  `EffectContext::departed_permanent_players`; only the DESTROY shape is covered — exile-shape
+  `ControllerOf` (Swords, Reality Shift, Path) and `DestroyAll` are open seed candidates.
