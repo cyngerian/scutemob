@@ -15,9 +15,6 @@ pub fn card() -> CardDefinition {
                       3/3 green Ape creature token."
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
-            // KI-8 note: "its controller creates a token" — using Controller as approximation.
-            // TODO: PlayerTarget::TargetController when available (wrong in multiplayer when
-            // opponent's creature is destroyed — token goes to caster, not destroyed creature's controller).
             effect: Effect::Sequence(vec![
                 Effect::DestroyPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -39,6 +36,11 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        // CR 608.2h: "its controller" is the destroyed permanent's
+                        // controller, not the caster (resolves via LKI after CR 400.7).
+                        recipient: PlayerTarget::ControllerOf(Box::new(
+                            EffectTarget::DeclaredTarget { index: 0 },
+                        )),
                         ..Default::default()
                     },
                 },
@@ -47,13 +49,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::known_wrong(
-            "'Its controller creates a 3/3 Ape' is modeled as the caster creating the token. \
-             Effect::CreateToken takes no recipient (card_definition.rs:1372) and TokenSpec has \
-             no recipient field, so the token always goes to the spell's controller — wrong \
-             whenever the destroyed creature belongs to another player. Needs a recipient on \
-             CreateToken/TokenSpec.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

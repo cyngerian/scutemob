@@ -1,8 +1,12 @@
 // Saw in Half — {2}{B}, Instant; destroy target creature.
 // If that creature dies this way, its controller creates two tokens that are copies of that
 // creature, except their power and toughness are each half (rounded up).
-// TODO: DSL gap — creating two copy-tokens with halved stats requires CreateTokenCopy with
-// stat modifications; the DSL does not support fractional/halved stat overrides on token copies.
+// DSL gap: searched the `Effect` enum (crates/card-types/src/cards/card_definition.rs, 106
+// variants) for a copy-token primitive that supports a per-stat modifier. The only candidates
+// are `CreateTokenCopy` (5 fields: source, enters_tapped_and_attacking, except_not_legendary,
+// gains_haste, delayed_action), `CreateTokenAndAttachSource { spec: TokenSpec }`, and
+// `BecomeCopyOf` (copier, target, duration) — none of them carries a power/toughness override,
+// so "except their power/toughness are each half, rounded up" cannot be expressed today.
 // Implementing: the destroy effect only.
 use crate::cards::helpers::*;
 
@@ -29,14 +33,17 @@ pub fn card() -> CardDefinition {
             targets: vec![TargetRequirement::TargetCreature],
             modes: None,
             cant_be_countered: false,
-            // TODO: "If that creature dies this way, its controller creates two tokens that are
+            // "If that creature dies this way, its controller creates two tokens that are
             // copies of that creature, except their power is half and their toughness is half
-            // (round up)." — requires CreateTokenCopy with per-stat halving modification.
-            // DSL gap: no halved-stat copy token variant exists.
+            // (round up)." — not implemented; see the file-level DSL-gap note above.
         }],
         completeness: Completeness::partial(
-            "DSL gap — creating two copy-tokens with halved stats requires CreateTokenCopy with \
-             stat modifications; the DSL does not...",
+            "\"Its controller creates two tokens that are copies of that creature, except their \
+             power is half that creature's power and their toughness is half that creature's \
+             toughness. Round up each time\" is not modeled — no `Effect` variant (106 variants \
+             searched in card_definition.rs) supports a per-stat halving modifier on a token copy \
+             (CreateTokenCopy/CreateTokenAndAttachSource/BecomeCopyOf all lack one). Only the \
+             destroy clause is implemented.",
         ),
         ..Default::default()
     }

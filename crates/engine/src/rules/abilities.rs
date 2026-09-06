@@ -267,6 +267,7 @@ pub fn handle_activate_ability(
                 controller: player,
                 targets: vec![],
                 target_remaps: Default::default(),
+                departed_permanent_players: Default::default(),
                 kicker_times_paid: 0,
                 was_overloaded: false,
                 was_bargained: false,

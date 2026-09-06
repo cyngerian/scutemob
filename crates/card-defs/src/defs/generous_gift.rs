@@ -37,6 +37,11 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        // CR 608.2h: "its controller" is the destroyed permanent's
+                        // controller, not the caster (resolves via LKI after CR 400.7).
+                        recipient: PlayerTarget::ControllerOf(Box::new(
+                            EffectTarget::DeclaredTarget { index: 0 },
+                        )),
                         ..Default::default()
                     },
                 },

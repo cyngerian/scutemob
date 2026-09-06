@@ -8,6 +8,7 @@
 mod cards1_equip_target_repair;
 mod cards2_printed_field_repair;
 mod counter_replacement_pb_cd;
+mod ll1_token_recipient_controller_of;
 mod pb_ac1_untap_counter;
 mod pb_ac2_card_integration;
 mod pb_ac3_dynamic_pt_counts;

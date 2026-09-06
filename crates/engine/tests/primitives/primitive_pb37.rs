@@ -45,6 +45,7 @@ fn make_ctx(state: &GameState, source: ObjectId) -> mtg_engine::effects::EffectC
         controller,
         targets: vec![],
         target_remaps: std::collections::HashMap::new(),
+        departed_permanent_players: Default::default(),
         kicker_times_paid: 0,
         was_overloaded: false,
         was_bargained: false,

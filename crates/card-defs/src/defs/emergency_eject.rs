@@ -2,12 +2,6 @@
 // Destroy target nonland permanent. Its controller creates a Lander token.
 // (It's an artifact with "{2}, {T}, Sacrifice this token: Search your library for a basic
 // land card, put it onto the battlefield tapped, then shuffle.")
-//
-// TODO: "Lander token" is a new named token type not present in the DSL.
-// The CreateToken effect requires a TokenSpec, and no lander_token_spec() helper
-// exists. The destroy effect is expressible but the Lander creation cannot be
-// faithfully implemented without a Lander token spec. Per W5 policy, only the
-// destroy effect is implemented; the Lander creation is left as TODO.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -31,9 +25,63 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     cant_be_regenerated: false,
                 },
-                // TODO: Create a Lander token for the target's controller.
-                // Lander is an artifact token with an activated ability.
-                // TokenSpec does not have a Lander variant; no lander_token_spec() exists.
+                Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Lander".to_string(),
+                        power: 0,
+                        toughness: 0,
+                        colors: OrdSet::new(),
+                        supertypes: OrdSet::new(),
+                        card_types: [CardType::Artifact].into_iter().collect(),
+                        subtypes: [SubType("Lander".to_string())].into_iter().collect(),
+                        keywords: OrdSet::new(),
+                        count: EffectAmount::Fixed(1),
+                        tapped: false,
+                        enters_attacking: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![ActivatedAbility {
+                            targets: vec![],
+                            cost: ActivationCost {
+                                requires_tap: true,
+                                mana_cost: Some(ManaCost {
+                                    generic: 2,
+                                    ..ManaCost::default()
+                                }),
+                                sacrifice_self: true,
+                                ..Default::default()
+                            },
+                            description: "{2}, {T}, Sacrifice this token: Search your library for \
+                                          a basic land card, put it onto the battlefield tapped, \
+                                          then shuffle."
+                                .to_string(),
+                            effect: Some(Effect::Sequence(vec![
+                                Effect::SearchLibrary {
+                                    player: PlayerTarget::Controller,
+                                    filter: basic_land_filter(),
+                                    reveal: false,
+                                    destination: ZoneTarget::Battlefield { tapped: true },
+                                    shuffle_before_placing: false,
+                                    also_search_graveyard: false,
+                                },
+                                Effect::Shuffle {
+                                    player: PlayerTarget::Controller,
+                                },
+                            ])),
+                            sorcery_speed: false,
+                            activation_condition: None,
+                            activation_zone: None,
+                            once_per_turn: false,
+                            modes: None,
+                        }],
+                        // CR 608.2h: "its controller" is the destroyed permanent's
+                        // controller, not the caster (resolves via LKI after CR 400.7).
+                        recipient: PlayerTarget::ControllerOf(Box::new(
+                            EffectTarget::DeclaredTarget { index: 0 },
+                        )),
+                        ..Default::default()
+                    },
+                },
             ]),
             targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
                 non_land: true,
@@ -42,14 +90,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial(
-            "'Its controller creates a Lander token' — blocked on token recipient, NOT on the \
-             token spec. Effect::CreateToken { spec } has no recipient field and always creates \
-             for ctx.controller (effects/mod.rs:666-714); TokenSpec has no owner field. A Lander \
-             IS expressible today (TokenSpec.activated_abilities, card_definition.rs:3706; \
-             precedent: food/clue helpers at 3794/3845). Needs a CreateToken recipient \
-             (PlayerTarget::ControllerOf) primitive. Destroy clause implemented.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }
