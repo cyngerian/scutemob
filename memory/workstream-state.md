@@ -56,4 +56,5 @@ whenever a task edits it on purpose — inspect, then `--allow-provisioned-chang
 A defs-only fix for "its controller …" after a zone move CANNOT work (dead id, CR 400.7; LKI store
 is sparse by design, SR-24) — see `memory/gotchas-rules.md`. CLAUDE.md is 249/250.
 
+**Note (2026-09-14)**: the 2026-09-04/05 chain-coordinator session (PB-DX52..DX57) was resumed and closed; it verified its final collect (`scutemob-236`, `cb6980f2`) had been done by a later session and made no project changes.
 **Commit prefix used**: `scutemob-N:` / `merge:` / `chore:`
