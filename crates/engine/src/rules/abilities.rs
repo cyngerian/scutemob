@@ -6376,7 +6376,7 @@ pub fn check_triggers_with_timing(
             // before merging. After the merge, it has ALL abilities from ALL components
             // (via the layer system). We fire SelfMutates on the merged permanent itself.
             //
-            // CR 729.2c: The merged permanent is NOT new — it did not enter the battlefield.
+            // CR 730.2c: The merged permanent is NOT new — it did not enter the battlefield.
             // No ETB triggers fire. Only SelfMutates triggers fire.
             GameEvent::CreatureMutated { object_id, .. } => {
                 // collect_triggers_for_event checks zone == Battlefield, which is correct:
@@ -9188,7 +9188,7 @@ fn flush_pending_triggers_once(state: &mut GameState) -> Vec<GameEvent> {
         //
         // SECOND CLOSING-REVIEW Finding 3 (LOW / OOS-DP8-13): only the PRIORITY
         // half of the debt is dropped. Zeroing the whole `FlushResumeSite` also
-        // threw away the `cleanup_sba_rounds` ratchet and the CR 726 mandatory-loop
+        // threw away the `cleanup_sba_rounds` ratchet and the CR 727 mandatory-loop
         // check, and those are not the same severity class as a duplicate event --
         // they are the bound on a genuinely repeating position. The site is still
         // zeroed (so nothing downstream can grant), and its obligations are run
@@ -9204,7 +9204,7 @@ fn flush_pending_triggers_once(state: &mut GameState) -> Vec<GameEvent> {
         if let Some(evs) = drop_departed_trigger_flush(state, player) {
             reaped = evs;
         }
-        // Only once the reaped batch's continuation is COMPLETE: CR 726 cannot be
+        // Only once the reaped batch's continuation is COMPLETE: CR 727 cannot be
         // evaluated against a half-placed CR 603.3b batch. Residual, now the whole
         // of OOS-DP8-13: a continuation that immediately re-suspends loses the
         // reaped site's ratchet bump for that round -- the current caller's own
@@ -10484,7 +10484,7 @@ pub(crate) fn resume_trigger_flush(
 /// owed. `enter_step`'s two guards both return *before*
 /// `loop_detection::check_for_mandatory_loop`, and the Cleanup one additionally
 /// before `state.turn.cleanup_sba_rounds += 1`. Skipping them turns two bounded
-/// pathological states into unbounded ones: CR 726's mandatory-loop draw is never
+/// pathological states into unbounded ones: CR 727's mandatory-loop draw is never
 /// declared for any batch that suspends, and the 100-round cleanup ratchet stops
 /// advancing so the cleanup step can never fall through to auto-advance. Both are
 /// reproduced here, selected by [`FlushResumeSite`].
@@ -10503,7 +10503,7 @@ fn finish_resumed_flush(state: &mut GameState, owed: FlushResumeSite, events: &m
     }
     grant_priority_after_batch(state, events);
 }
-/// CR 514.3a / CR 726: the NON-priority half of what a suspended call site owed.
+/// CR 514.3a / CR 727: the NON-priority half of what a suspended call site owed.
 ///
 /// Split out of [`finish_resumed_flush`] by the second closing review's Finding 3
 /// (LOW / OOS-DP8-13). The two halves of a [`FlushResumeSite`] are not
@@ -10512,7 +10512,7 @@ fn finish_resumed_flush(state: &mut GameState, owed: FlushResumeSite, events: &m
 /// `flush_pending_triggers`' reap has to discard the first half and must not
 /// discard the second, so it calls this directly.
 ///
-/// Returns `true` if it ended the game (a CR 726 draw), in which case no priority
+/// Returns `true` if it ended the game (a CR 727 draw), in which case no priority
 /// is granted by anybody.
 fn run_flush_resume_obligations(
     state: &mut GameState,
@@ -10523,11 +10523,11 @@ fn run_flush_resume_obligations(
     // Bumped unconditionally rather than under `cleanup_sba_rounds <
     // MAX_CLEANUP_SBA_ROUNDS`: the fall-through-at-max the original branch does is
     // `enter_step`'s to make, and the next non-suspending cleanup round makes it.
-    // The CR 726 check below is the real bound on a genuinely repeating state.
+    // The CR 727 check below is the real bound on a genuinely repeating state.
     if owed == FlushResumeSite::EnterStepCleanup {
         state.turn.cleanup_sba_rounds = state.turn.cleanup_sba_rounds.saturating_add(1);
     }
-    // CR 104.4b / CR 726: the mandatory-loop check both `enter_step` guards
+    // CR 104.4b / CR 727: the mandatory-loop check both `enter_step` guards
     // returned before reaching. The has-priority branch runs it only when the
     // batch actually placed something, which `!events.is_empty()` reproduces.
     if matches!(
@@ -10679,7 +10679,7 @@ pub(crate) fn repair_departed_priority_holder(state: &mut GameState, events: &mu
     }
     grant_priority_after_batch(state, events);
 }
-/// CR 603.3 / CR 117.3a / CR 726 (PB-DP8): record what the call site whose
+/// CR 603.3 / CR 117.3a / CR 727 (PB-DP8): record what the call site whose
 /// `flush_pending_triggers` just suspended still owes once the batch completes.
 ///
 /// Called by exactly the guards named in the `BlockingDecision` doc block. The 30

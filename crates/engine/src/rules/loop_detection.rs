@@ -1,6 +1,6 @@
-//! Infinite loop detection for mandatory game loops (CR 726, CR 104.4b).
+//! Infinite loop detection for mandatory game loops (CR 727, CR 104.4b).
 //!
-//! CR 726: If a game situation arises where the game cannot proceed and all
+//! CR 727: If a game situation arises where the game cannot proceed and all
 //! remaining choices are mandatory (no player can choose to break the loop),
 //! the game is a draw.
 //!
@@ -73,7 +73,7 @@ pub fn check_for_mandatory_loop(state: &mut GameState) -> Option<GameEvent> {
         Some(GameEvent::LoopDetected {
             description: format!(
                 "Mandatory infinite loop detected: game state hash {:#018x} \
-                 has recurred {} times (CR 104.4b, CR 726). Game is a draw.",
+                 has recurred {} times (CR 104.4b, CR 727). Game is a draw.",
                 hash, count
             ),
         })
@@ -114,7 +114,7 @@ pub fn reset_loop_detection(state: &mut GameState) {
 /// that folded their pending fields in. PB-DP9's suspension is an
 /// abort-and-REPLAY: the entry and the answer bank grow between replay k and
 /// replay k+1 of the *same* resolution, so including them would make two
-/// structurally identical CR 726 positions fingerprint differently and could
+/// structurally identical CR 727 positions fingerprint differently and could
 /// silently mask a mandatory loop. They ARE in `public_state_hash` (they are
 /// real state); the two hashes answer different questions. Pinned by
 /// `tests/primitives/pb_dp9_effect_choice.rs::

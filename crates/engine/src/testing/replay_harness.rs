@@ -2031,7 +2031,7 @@ pub fn translate_player_action(
         // `effect_choice.mutate_on_top`, and a script that omits that step gets ON TOP,
         // which is `default_effect_choice_answer`'s answer and the exact value every
         // pre-PB-DX50 script encoded here.
-        // On legal merge the spell does not enter the battlefield separately (CR 729.2b).
+        // On legal merge the spell does not enter the battlefield separately (CR 730.2b).
         "cast_spell_mutate" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             // Resolve mutate target from target_creature_name (find non-Human creature on battlefield).
@@ -3232,7 +3232,7 @@ fn build_face_triggered_abilities(abilities: &[&AbilityDefinition]) -> Vec<Trigg
     }
     // CR 702.140d: Convert "Whenever this creature mutates" card-definition triggers
     // into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
-    // via CreatureMutated events. Only fires on the merged permanent itself (CR 729.2c).
+    // via CreatureMutated events. Only fires on the merged permanent itself (CR 730.2c).
     for ability in abilities {
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenMutates,

@@ -376,7 +376,7 @@ fn card_defs_by_name() -> HashMap<String, CardDefinition> {
 /// explicitly rather than trusting the reading. The merge itself is never reached — the
 /// verdict is taken at ANNOUNCEMENT, with the ward trigger sitting on top of the still-
 /// unresolved mutating creature spell — so the question of what the merged permanent's
-/// name and supertypes would be (CR 729.2a) never arises here either.
+/// name and supertypes would be (CR 730.2a) never arises here either.
 #[test]
 fn c5_deck_legal_gemrazer_onto_adrix_fires_ward_exactly_once() {
     let defs = card_defs_by_name();

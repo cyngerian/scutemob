@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![],
         completeness: Completeness::inert(
-            "Blocked on the Room door chassis (CR 726): no locked/unlocked door state, no \
+            "Blocked on the Room door chassis (CR 727): no locked/unlocked door state, no \
              per-door unlock cost, no two-half Room representation ('Room' is only a subtype \
              string; the RoomIndex/RoomDef types are Dungeon rooms). The 'You may play lands from \
              your graveyard' text itself is expressible via \

@@ -1,6 +1,6 @@
-// Monster Manual // Zoological Study — {3}{G} Artifact + Adventure
+// Monster Manual // Zoological Study — {3}{G} Artifact — Book + Adventure
 //
-// Main face: {3}{G} Artifact
+// Main face: {3}{G} Artifact — Book (Book subtype added by the 2026-08 Oracle update)
 // "{1}{G}, {T}: You may put a creature card from your hand onto the battlefield."
 // Adventure face: "Zoological Study" {2}{G} Sorcery — Adventure
 // "Mill five cards, then return a creature card from your graveyard to your hand."
@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
             green: 1,
             ..Default::default()
         }),
-        types: types(&[CardType::Artifact]),
+        types: types_sub(&[CardType::Artifact], &["Book"]),
         oracle_text: "{1}{G}, {T}: You may put a creature card from your hand onto the \
                       battlefield."
             .to_string(),

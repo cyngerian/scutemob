@@ -420,7 +420,7 @@ what a permanent *is*.
 | M.1 | Data model | Medium | Add `merged_cards: Vec<ObjectId>` to `GameObject`; hash it; `top_card()` accessor |
 | M.2 | Cast command | Medium | `Command::CastWithMutate { target }` — cast creature targeting non-Human you control |
 | M.3 | Resolution merge | High | On resolve: caster chooses over/under; merged permanent has top card's characteristics + ALL abilities from all cards |
-| M.4 | Zone-change split | Medium | When merged permanent changes zones, all cards move together; if it dies, each card is a separate card in graveyard (CR 729.5) |
+| M.4 | Zone-change split | Medium | When merged permanent changes zones, all cards move together; if it dies, each card is a separate card in graveyard (CR 730.5) |
 | M.5 | Mutate trigger | Low | "Whenever this creature mutates" trigger fires on successful merge |
 | M.6 | Tests | Medium | Basic mutate, over/under choice, zone-change splitting, mutate trigger, interaction with Auras/Equipment |
 | M.7 | Card definitions | Low | Gemrazer, Nethroi, Brokkos (popular Ikoria commanders) |
@@ -428,8 +428,8 @@ what a permanent *is*.
 **Minimal viable scope**: Top card characteristics + all abilities + zone-change splits.
 Covers the 4-5 popular Ikoria commanders that show up in actual Commander games.
 
-**Deferred complexity**: Mutate with copy effects (CR 729.8), mutate with face-down
-creatures (CR 729.6), mutate token ownership — handle if needed.
+**Deferred complexity**: Mutate with copy effects (CR 730.8), mutate with face-down
+creatures (CR 730.6), mutate token ownership — handle if needed.
 
 - [x] Mutate mini-milestone complete
 

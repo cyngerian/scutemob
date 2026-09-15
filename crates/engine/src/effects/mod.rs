@@ -3337,7 +3337,7 @@ fn execute_effect_inner(
                     // by card match (for traditional CounterSpell usage -- CR 601.2c /
                     // CR 608.2b, `TargetSpell` validates against the CARD in
                     // `ZoneId::Stack`, never a stack-entry id). Every card-owning kind,
-                    // not just `Spell` -- CR 702.140a / CR 729.2 makes
+                    // not just `Spell` -- CR 702.140a / CR 730.2 makes
                     // `MutatingCreatureSpell` a card-owning kind too, and the single
                     // classification for "which kinds own a card" lives in
                     // `state::stack_registry`, never re-derived here.
@@ -5232,12 +5232,12 @@ fn execute_effect_inner(
                 }
             }
         }
-        // CR 724.1/724.3: Target player becomes the monarch.
+        // CR 725.1/724.3: Target player becomes the monarch.
         // Sets state.monarch, replacing any previous monarch.
         Effect::BecomeMonarch { player } => {
             let players = resolve_player_target_list(state, player, ctx);
             if let Some(&target_player) = players.first() {
-                // CR 724.3: Only one player can be the monarch at a time.
+                // CR 725.3: Only one player can be the monarch at a time.
                 state.monarch = Some(target_player);
                 events.push(GameEvent::PlayerBecameMonarch {
                     player: target_player,
@@ -5412,7 +5412,7 @@ fn execute_effect_inner(
                 //
                 // NOTE: Only poison counters are currently tracked on PlayerState. CR 122.1
                 // recognizes additional player counter types (experience from Commander 2015,
-                // energy, rad counters from CR 727). CounterType::Experience and
+                // energy, rad counters from CR 728). CounterType::Experience and
                 // CounterType::Energy exist in the type system but have no corresponding
                 // PlayerState fields. When those fields are added to PlayerState, update
                 // this loop to also proliferate them.
@@ -5665,15 +5665,15 @@ fn execute_effect_inner(
                 events.extend(venture_events);
             }
         }
-        // CR 725.2: Take the initiative.
+        // CR 726.2: Take the initiative.
         //
         // Sets `has_initiative = Some(controller)` on GameState, emits InitiativeTaken,
-        // and immediately ventures into the Undercity (CR 725.2 inherent trigger).
+        // and immediately ventures into the Undercity (CR 726.2 inherent trigger).
         Effect::TakeTheInitiative => {
             let controller = ctx.controller;
             state.has_initiative = Some(controller);
             events.push(GameEvent::InitiativeTaken { player: controller });
-            // CR 725.2: Taking the initiative also ventures into the Undercity.
+            // CR 726.2: Taking the initiative also ventures into the Undercity.
             if let Ok(venture_events) =
                 crate::rules::engine::handle_venture_into_dungeon(state, controller, true)
             {
@@ -9906,7 +9906,7 @@ pub fn make_token(
         // CR 702.55b: Tokens have no haunting relationship.
         haunting_target: None,
         // CR 702.151b: Tokens are not reconfigured by default.
-        // CR 729.2: Tokens are not part of a merged permanent by default.
+        // CR 730.2: Tokens are not part of a merged permanent by default.
         merged_components: imbl::Vector::new(),
         // CR 712.8a: Tokens and new permanents start untransformed.
         is_transformed: false,

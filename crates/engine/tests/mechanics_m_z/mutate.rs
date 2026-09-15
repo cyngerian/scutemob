@@ -1,4 +1,4 @@
-//! Mutate keyword ability tests (CR 702.140 / CR 729).
+//! Mutate keyword ability tests (CR 702.140 / CR 730).
 //!
 //! Mutate is an alternative cost (CR 118.9a) that allows a creature spell to merge
 //! with a non-Human creature you own on the battlefield instead of entering as a
@@ -10,13 +10,13 @@
 //! - CR 702.140b: If the target becomes illegal before resolution, the spell resolves
 //!   as a normal creature spell (enters battlefield separately).
 //! - CR 702.140c: On legal merge, controller chooses to place on top or underneath.
-//! - CR 729.2a: Topmost component's characteristics become the merged permanent's
+//! - CR 730.2a: Topmost component's characteristics become the merged permanent's
 //!   base characteristics (name, P/T, types, etc.).
-//! - CR 702.140e / CR 729.3: Merged permanent has ALL abilities from ALL components.
+//! - CR 702.140e / CR 730.3: Merged permanent has ALL abilities from ALL components.
 //! - CR 702.140d: "Whenever this creature mutates" trigger fires after merge.
-//! - CR 729.3: When merged permanent leaves battlefield, each component becomes
+//! - CR 730.3: When merged permanent leaves battlefield, each component becomes
 //!   a separate object in the destination zone.
-//! - CR 729.2c: ETB triggers do NOT fire on merge (same object, not new entry).
+//! - CR 730.2c: ETB triggers do NOT fire on merge (same object, not new entry).
 
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::game_object::{Characteristics, TriggerEvent, TriggeredAbilityDef};
@@ -306,8 +306,8 @@ fn test_mutate_resolution_basic_merge() {
     // CR 702.140c (PB-DX50): the resolution suspends to ask over-or-under.
     let (state, _) = answer_mutate(state, true);
 
-    // CR 729.2: After resolution, the wolf's ObjectId should still be on the battlefield.
-    // The merged permanent uses the wolf's ObjectId (CR 729.2c). Its displayed name is the
+    // CR 730.2: After resolution, the wolf's ObjectId should still be on the battlefield.
+    // The merged permanent uses the wolf's ObjectId (CR 730.2c). Its displayed name is the
     // topmost component's name (beast), since mutate_on_top=true.
     assert!(
         state
@@ -315,10 +315,10 @@ fn test_mutate_resolution_basic_merge() {
             .get(&wolf_id)
             .map(|obj| obj.zone == ZoneId::Battlefield)
             .unwrap_or(false),
-        "CR 729.2: wolf's ObjectId should still be on battlefield after merge (CR 729.2c)"
+        "CR 730.2: wolf's ObjectId should still be on battlefield after merge (CR 730.2c)"
     );
 
-    // CR 729.2b: The mutating beast's source object should no longer exist separately.
+    // CR 730.2b: The mutating beast's source object should no longer exist separately.
     // After merge, there should be exactly one object with the beast's name
     // (the merged permanent itself, whose base name is now the beast's).
     let beast_objects_count = state
@@ -329,42 +329,42 @@ fn test_mutate_resolution_basic_merge() {
     assert_eq!(
         beast_objects_count,
         1,
-        "CR 729.2b: only one object named 'Mock Mutating Beast' should exist (the merged permanent)"
+        "CR 730.2b: only one object named 'Mock Mutating Beast' should exist (the merged permanent)"
     );
 
-    // CR 729.2a / CR 729.2: Wolf permanent should have merged_components with 2 entries.
+    // CR 730.2a / CR 730.2: Wolf permanent should have merged_components with 2 entries.
     let wolf_obj = state
         .objects()
         .get(&wolf_id)
-        .expect("wolf should still exist with same ObjectId (CR 729.2c)");
+        .expect("wolf should still exist with same ObjectId (CR 730.2c)");
     assert_eq!(
         wolf_obj.merged_components.len(),
         2,
-        "CR 729.2: merged permanent should have 2 components (beast on top, wolf on bottom)"
+        "CR 730.2: merged permanent should have 2 components (beast on top, wolf on bottom)"
     );
 
-    // CR 729.2a: Topmost component (index 0) is the beast (mutate_on_top=true).
+    // CR 730.2a: Topmost component (index 0) is the beast (mutate_on_top=true).
     assert_eq!(
         wolf_obj.merged_components[0].characteristics.name, "Mock Mutating Beast",
-        "CR 729.2a: topmost component should be the mutating beast (mutate_on_top=true)"
+        "CR 730.2a: topmost component should be the mutating beast (mutate_on_top=true)"
     );
     assert_eq!(
         wolf_obj.merged_components[1].characteristics.name, "Mock Wolf",
-        "CR 729.2: bottom component should be the wolf"
+        "CR 730.2: bottom component should be the wolf"
     );
 
-    // CR 729.2a: Via the layer system, the merged permanent should use beast's P/T.
+    // CR 730.2a: Via the layer system, the merged permanent should use beast's P/T.
     let merged_chars = calculate_characteristics(&state, wolf_id)
         .expect("merged permanent should have characteristics");
     assert_eq!(
         merged_chars.power,
         Some(4),
-        "CR 729.2a: merged permanent should have beast's power (4)"
+        "CR 730.2a: merged permanent should have beast's power (4)"
     );
     assert_eq!(
         merged_chars.toughness,
         Some(4),
-        "CR 729.2a: merged permanent should have beast's toughness (4)"
+        "CR 730.2a: merged permanent should have beast's toughness (4)"
     );
 
     // CR 702.140e: Merged permanent should have beast's Reach keyword.
@@ -373,10 +373,10 @@ fn test_mutate_resolution_basic_merge() {
         "CR 702.140e: merged permanent should have beast's Reach keyword"
     );
 
-    // CR 729.2c: Stack should be empty — no ETB triggers fired.
+    // CR 730.2c: Stack should be empty — no ETB triggers fired.
     assert!(
         state.stack_objects().is_empty(),
-        "CR 729.2c: no ETB triggers should fire (merged, not new entry)"
+        "CR 730.2c: no ETB triggers should fire (merged, not new entry)"
     );
 }
 
@@ -572,7 +572,7 @@ fn test_mutate_resolution_illegal_target_fallback() {
         "wolf should be in graveyard (we moved it there)"
     );
 
-    // CR 729.2c: The beast entered normally — it should have NO merged_components.
+    // CR 730.2c: The beast entered normally — it should have NO merged_components.
     let beast_on_field = state
         .objects()
         .values()
@@ -589,7 +589,7 @@ fn test_mutate_resolution_illegal_target_fallback() {
 // ── Test 4: Zone-change splits merged permanent into components ────────────────
 
 #[test]
-/// CR 729.3: When a merged permanent leaves the battlefield, all components
+/// CR 730.3: When a merged permanent leaves the battlefield, all components
 /// become separate objects in the destination zone. Each component card appears
 /// individually in the graveyard (or other zone).
 fn test_mutate_zone_change_splits_components() {
@@ -659,7 +659,7 @@ fn test_mutate_zone_change_splits_components() {
     let _ = test_util::move_object_to_zone(&mut state, wolf_id, ZoneId::Graveyard(p1))
         .expect("move to graveyard should succeed");
 
-    // CR 729.3: Each component should be a separate object in the graveyard.
+    // CR 730.3: Each component should be a separate object in the graveyard.
     let graveyard_cards: Vec<_> = state
         .objects()
         .values()
@@ -669,26 +669,26 @@ fn test_mutate_zone_change_splits_components() {
     assert_eq!(
         graveyard_cards.len(),
         2,
-        "CR 729.3: both components should be in graveyard as separate objects (got {})",
+        "CR 730.3: both components should be in graveyard as separate objects (got {})",
         graveyard_cards.len()
     );
 
-    // CR 729.3: Each component object should have empty merged_components (fresh objects).
+    // CR 730.3: Each component object should have empty merged_components (fresh objects).
     for obj in &graveyard_cards {
         assert!(
             obj.merged_components.is_empty(),
-            "CR 729.3 / CR 400.7: each split component starts with empty merged_components"
+            "CR 730.3 / CR 400.7: each split component starts with empty merged_components"
         );
     }
 
     // Verify both component names appear in the graveyard.
     assert!(
         is_in_graveyard(&state, "Mock Mutating Beast", p1),
-        "CR 729.3: beast component should be in graveyard"
+        "CR 730.3: beast component should be in graveyard"
     );
     assert!(
         is_in_graveyard(&state, "Mock Wolf", p1),
-        "CR 729.3: wolf component should be in graveyard"
+        "CR 730.3: wolf component should be in graveyard"
     );
 }
 
@@ -826,14 +826,14 @@ fn test_mutate_trigger_fires() {
     });
     assert!(
         trigger_on_stack,
-        "CR 702.140d: mutate trigger should be from the merged permanent (wolf_id preserved, CR 729.2c)"
+        "CR 702.140d: mutate trigger should be from the merged permanent (wolf_id preserved, CR 730.2c)"
     );
 }
 
 // ── Test 6: Mutate under (mutate_on_top=false) ────────────────────────────────
 
 #[test]
-/// CR 729.2c: When mutate_on_top=false, the mutating spell goes underneath.
+/// CR 730.2c: When mutate_on_top=false, the mutating spell goes underneath.
 /// The existing permanent's characteristics remain on top.
 fn test_mutate_under_uses_target_characteristics() {
     let p1 = p(1);
@@ -892,7 +892,7 @@ fn test_mutate_under_uses_target_characteristics() {
     let beast_id = find_object(&state, "Mock Mutating Beast");
     let wolf_id = find_object(&state, "Mock Wolf");
 
-    // CR 729.2: mutate_on_top=false — spell goes underneath.
+    // CR 730.2: mutate_on_top=false — spell goes underneath.
     let (state, _) = process_command(
         state,
         Command::CastSpell(Box::new(CastSpellData {
@@ -931,28 +931,28 @@ fn test_mutate_under_uses_target_characteristics() {
         "should have 2 merged components"
     );
 
-    // CR 729.2: When mutate_on_top=false, the existing permanent (wolf) is on top.
+    // CR 730.2: When mutate_on_top=false, the existing permanent (wolf) is on top.
     assert_eq!(
         wolf_obj.merged_components[0].characteristics.name, "Mock Wolf",
-        "CR 729.2: wolf should be topmost component (mutate_on_top=false)"
+        "CR 730.2: wolf should be topmost component (mutate_on_top=false)"
     );
     assert_eq!(
         wolf_obj.merged_components[1].characteristics.name, "Mock Mutating Beast",
-        "CR 729.2: beast should be bottom component (mutate_on_top=false)"
+        "CR 730.2: beast should be bottom component (mutate_on_top=false)"
     );
 
-    // CR 729.2a: Merged permanent uses wolf's P/T (it's on top).
+    // CR 730.2a: Merged permanent uses wolf's P/T (it's on top).
     let merged_chars = calculate_characteristics(&state, wolf_id)
         .expect("merged permanent should have characteristics");
     assert_eq!(
         merged_chars.power,
         Some(2),
-        "CR 729.2a: merged permanent should have wolf's power (2) when wolf is on top"
+        "CR 730.2a: merged permanent should have wolf's power (2) when wolf is on top"
     );
     assert_eq!(
         merged_chars.toughness,
         Some(3),
-        "CR 729.2a: merged permanent should have wolf's toughness (3) when wolf is on top"
+        "CR 730.2a: merged permanent should have wolf's toughness (3) when wolf is on top"
     );
 
     // CR 702.140e: Merged permanent should still have beast's Reach keyword (bottom component).
@@ -1087,18 +1087,18 @@ fn test_mutate_gemrazer_trigger_queued_after_merge() {
         "CR 702.140d: Gemrazer's 'whenever this creature mutates' trigger should be on the stack"
     );
 
-    // CR 729.2a: Merged permanent should have Gemrazer's P/T (beast on top).
+    // CR 730.2a: Merged permanent should have Gemrazer's P/T (beast on top).
     let merged_chars = calculate_characteristics(&state, wolf_id)
         .expect("merged permanent should have characteristics");
     assert_eq!(
         merged_chars.power,
         Some(4),
-        "CR 729.2a: merged permanent should have Gemrazer's power (4)"
+        "CR 730.2a: merged permanent should have Gemrazer's power (4)"
     );
     assert_eq!(
         merged_chars.toughness,
         Some(4),
-        "CR 729.2a: merged permanent should have Gemrazer's toughness (4)"
+        "CR 730.2a: merged permanent should have Gemrazer's toughness (4)"
     );
 
     // CR 702.140e: Merged permanent should have Gemrazer's Reach and Trample.
@@ -1115,7 +1115,7 @@ fn test_mutate_gemrazer_trigger_queued_after_merge() {
 // ── Test 8: Three-deep mutate stacking ────────────────────────────────────────
 
 #[test]
-/// CR 729.2: A merged permanent can be mutated onto again. Three-deep stacking
+/// CR 730.2: A merged permanent can be mutated onto again. Three-deep stacking
 /// produces 3 merged components. Topmost characteristics are from the last mutation.
 fn test_mutate_stacking_three_deep() {
     let p1 = p(1);
@@ -1212,20 +1212,20 @@ fn test_mutate_stacking_three_deep() {
     assert_eq!(
         wolf_obj.merged_components.len(),
         3,
-        "CR 729.2: merged permanent should have 3 components after three-deep stacking"
+        "CR 730.2: merged permanent should have 3 components after three-deep stacking"
     );
 
-    // CR 729.2a: Topmost component (index 0) should be the "top beast" (Flying, 5/5).
+    // CR 730.2a: Topmost component (index 0) should be the "top beast" (Flying, 5/5).
     let merged_chars = calculate_characteristics(&state, wolf_id)
         .expect("merged permanent should have characteristics");
     assert_eq!(
         merged_chars.power,
         Some(5),
-        "CR 729.2a: topmost component's P/T (5/5) should be used"
+        "CR 730.2a: topmost component's P/T (5/5) should be used"
     );
     assert!(
         merged_chars.keywords.contains(&KeywordAbility::Flying),
-        "CR 729.2a: topmost component's Flying keyword should be present"
+        "CR 730.2a: topmost component's Flying keyword should be present"
     );
 
     // CR 702.140e: All non-topmost components' abilities should be on the merged permanent.
@@ -1234,7 +1234,7 @@ fn test_mutate_stacking_three_deep() {
         "CR 702.140e: Reach from middle component (beast at index 1) should be present"
     );
 
-    // CR 729.3: When merged permanent leaves battlefield, all 3 components become separate.
+    // CR 730.3: When merged permanent leaves battlefield, all 3 components become separate.
     let _ = test_util::move_object_to_zone(&mut state, wolf_id, ZoneId::Graveyard(p1))
         .expect("move to graveyard should succeed");
 
@@ -1245,14 +1245,14 @@ fn test_mutate_stacking_three_deep() {
         .count();
     assert_eq!(
         graveyard_count, 3,
-        "CR 729.3: all 3 components should become separate objects in graveyard"
+        "CR 730.3: all 3 components should become separate objects in graveyard"
     );
 }
 
 // ── Test 9: Bounce returns all components to hand ─────────────────────────────
 
 #[test]
-/// CR 729.3: When a merged permanent is bounced (returned to hand), all components
+/// CR 730.3: When a merged permanent is bounced (returned to hand), all components
 /// become separate cards in the owner's hand. Each component is a separate object.
 fn test_mutate_bounce_returns_all_cards() {
     let p1 = p(1);
@@ -1312,11 +1312,11 @@ fn test_mutate_bounce_returns_all_cards() {
         ];
     }
 
-    // CR 729.3: Bounce the merged permanent to hand.
+    // CR 730.3: Bounce the merged permanent to hand.
     let _ = test_util::move_object_to_zone(&mut state, wolf_id, ZoneId::Hand(p1))
         .expect("bounce to hand should succeed");
 
-    // CR 729.3: Both components should be in hand as separate objects.
+    // CR 730.3: Both components should be in hand as separate objects.
     let hand_count = state
         .objects()
         .values()
@@ -1324,7 +1324,7 @@ fn test_mutate_bounce_returns_all_cards() {
         .count();
     assert_eq!(
         hand_count, 2,
-        "CR 729.3: both components should be in hand as separate objects after bounce"
+        "CR 730.3: both components should be in hand as separate objects after bounce"
     );
 
     // Beast and wolf should both be in hand.
@@ -1334,17 +1334,17 @@ fn test_mutate_bounce_returns_all_cards() {
             .values()
             .any(|obj| obj.characteristics.name == "Mock Mutating Beast"
                 && obj.zone == ZoneId::Hand(p1)),
-        "CR 729.3: beast component should be in hand after bounce"
+        "CR 730.3: beast component should be in hand after bounce"
     );
     assert!(
         state
             .objects()
             .values()
             .any(|obj| obj.characteristics.name == "Mock Wolf" && obj.zone == ZoneId::Hand(p1)),
-        "CR 729.3: wolf component should be in hand after bounce"
+        "CR 730.3: wolf component should be in hand after bounce"
     );
 
-    // CR 400.7 / CR 729.3: Each component in hand should have empty merged_components.
+    // CR 400.7 / CR 730.3: Each component in hand should have empty merged_components.
     for obj in state
         .objects()
         .values()
@@ -1352,7 +1352,7 @@ fn test_mutate_bounce_returns_all_cards() {
     {
         assert!(
             obj.merged_components.is_empty(),
-            "CR 400.7 / CR 729.3: each component in hand starts with empty merged_components"
+            "CR 400.7 / CR 730.3: each component in hand starts with empty merged_components"
         );
     }
 }
@@ -1360,7 +1360,7 @@ fn test_mutate_bounce_returns_all_cards() {
 // ── Test 10: Mutate onto a face-down creature ─────────────────────────────────
 
 #[test]
-/// CR 702.140a / CR 708.2 / CR 729.6: A face-down creature (Morph) IS a legal
+/// CR 702.140a / CR 708.2 / CR 730.6: A face-down creature (Morph) IS a legal
 /// Mutate target.
 ///
 /// CR 708.2: A face-down permanent has no name, mana cost, color, or type —
@@ -1376,7 +1376,7 @@ fn test_mutate_bounce_returns_all_cards() {
 /// the engine (face-down creatures have no visible Human subtype). The spell goes
 /// onto the stack successfully.
 ///
-/// Source: CR 702.140a, CR 708.2, CR 729.6
+/// Source: CR 702.140a, CR 708.2, CR 730.6
 fn test_mutate_onto_face_down_creature_accepted() {
     let p1 = p(1);
     let p2 = p(2);
@@ -1480,28 +1480,28 @@ fn test_mutate_onto_face_down_creature_accepted() {
     assert_eq!(
         state.stack_objects().len(),
         1,
-        "CR 729.6: mutating creature spell targeting face-down permanent should be on stack"
+        "CR 730.6: mutating creature spell targeting face-down permanent should be on stack"
     );
 }
 
 // ── Test 11: Copy of a mutating creature spell (documentation) ────────────────
 
 #[test]
-/// CR 729.8: If a copy of a mutating creature spell is put onto the stack,
+/// CR 730.8: If a copy of a mutating creature spell is put onto the stack,
 /// the copy is also a mutating creature spell. However, a copy cannot be cast
 /// from hand — the copy would resolve as a new creature entering the battlefield
 /// (it has no associated card object to merge). The copy targets the same base
 /// creature if the original does; if the original's target has become illegal,
 /// the copy also fizzles.
 ///
-/// MR-Mutate-01: This test documents the expected behavior per CR 729.8 and
+/// MR-Mutate-01: This test documents the expected behavior per CR 730.8 and
 /// verifies that a MutatingCreatureSpell on the stack has an associated target
 /// in its additional_costs. Setting up a true copy-of-spell is complex because
 /// it requires the copy effect from the rules, so this test validates the
 /// data model invariant: a mutating spell on the stack must have a Mutate
 /// AdditionalCost entry.
 ///
-/// Source: CR 729.8, CR 706.10
+/// Source: CR 730.8, CR 706.10
 fn test_mutate_stack_object_has_mutate_additional_cost() {
     let p1 = p(1);
     let p2 = p(2);
@@ -1575,7 +1575,7 @@ fn test_mutate_stack_object_has_mutate_additional_cost() {
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate failed: {:?}", e));
 
-    // CR 729.8: The stack object for a mutating spell must record its Mutate target.
+    // CR 730.8: The stack object for a mutating spell must record its Mutate target.
     // This invariant must hold for any copy of the spell as well — the copy would
     // inherit the same additional_costs (including the Mutate target).
     assert_eq!(
@@ -1590,7 +1590,7 @@ fn test_mutate_stack_object_has_mutate_additional_cost() {
         .any(|c| matches!(c, AdditionalCost::Mutate { target, .. } if *target == wolf_id));
     assert!(
         has_mutate_cost,
-        "CR 729.8: MutatingCreatureSpell on stack must have AdditionalCost::Mutate \
+        "CR 730.8: MutatingCreatureSpell on stack must have AdditionalCost::Mutate \
          recording the target — a copy of this spell would inherit the same cost data"
     );
 }

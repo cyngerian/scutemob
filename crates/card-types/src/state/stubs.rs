@@ -866,13 +866,13 @@ pub struct PendingTriggerTargets {
     ///
     /// Fix-cycle Findings 3 and 4 widened this from a bare `bool`: a 31st
     /// `check_and_flush_triggers` call site was found (`handle_all_passed`'s
-    /// overdue-payment branch), and the two `enter_step` guards owed a CR 726 loop
+    /// overdue-payment branch), and the two `enter_step` guards owed a CR 727 loop
     /// check — and the Cleanup one a `cleanup_sba_rounds` ratchet — that the bool
     /// could not express.
     #[serde(default)]
     pub resume_site: FlushResumeSite,
 }
-/// CR 603.3 / CR 117.3a / CR 726 (PB-DP8): what the call site whose
+/// CR 603.3 / CR 117.3a / CR 727 (PB-DP8): what the call site whose
 /// `flush_pending_triggers` suspended still owes once the CR 603.3b batch
 /// completes.
 ///
@@ -895,10 +895,10 @@ pub enum FlushResumeSite {
     /// else. `handle_declare_attackers`, `handle_declare_blockers`, the resolution
     /// tail, and `handle_all_passed`'s forced-overdue-payment branch.
     GrantPriority,
-    /// CR 726: run the mandatory-loop check over the batch just placed, then grant
+    /// CR 727: run the mandatory-loop check over the batch just placed, then grant
     /// priority. `enter_step`'s has-priority branch.
     EnterStepPriority,
-    /// CR 514.3a / CR 726: advance `cleanup_sba_rounds`, run the mandatory-loop
+    /// CR 514.3a / CR 727: advance `cleanup_sba_rounds`, run the mandatory-loop
     /// check, then grant priority. `enter_step`'s Cleanup branch.
     EnterStepCleanup,
 }

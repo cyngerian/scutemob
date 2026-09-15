@@ -3,7 +3,7 @@
   "metadata": {
     "id": "script_stack_194",
     "name": "Daybound/Nightbound — Brutal Cathar day/night cycle (assertion gap noted)",
-    "description": "Tests CR 702.145 (Daybound/Nightbound) and CR 730.2 (day/night transitions). P1 casts Brutal Cathar during their precombat main phase on turn 1. The card's Daybound keyword causes the game to become Day (CR 702.145d). Both players pass priority through turn 1 with no additional spells cast. At the start of turn 2 (p2's turn), the untap step checks the incoming player's previous spells_cast_this_turn (which is 0 for p2 on their first turn), triggering a Day-to-Night transition (CR 730.2a) and transforming Brutal Cathar to Moonrage Brute. Then p1 casts Lightning Bolt and Brainstorm on turn 3, accumulating 2 spells. At the start of turn 4 (p2's turn), the untap step finds the incoming p2's spells_cast_this_turn still 0 (unchanged from their previous turn start), so no Night-to-Day transition fires. The script documents a harness limitation: zones.battlefield assertions use obj.characteristics.name (the stored front-face name), which is never updated when is_transformed changes, so transform assertions cannot be verified through the standard path.",
+    "description": "Tests CR 702.145 (Daybound/Nightbound) and CR 731.2 (day/night transitions). P1 casts Brutal Cathar during their precombat main phase on turn 1. The card's Daybound keyword causes the game to become Day (CR 702.145d). Both players pass priority through turn 1 with no additional spells cast. At the start of turn 2 (p2's turn), the untap step checks the incoming player's previous spells_cast_this_turn (which is 0 for p2 on their first turn), triggering a Day-to-Night transition (CR 731.2a) and transforming Brutal Cathar to Moonrage Brute. Then p1 casts Lightning Bolt and Brainstorm on turn 3, accumulating 2 spells. At the start of turn 4 (p2's turn), the untap step finds the incoming p2's spells_cast_this_turn still 0 (unchanged from their previous turn start), so no Night-to-Day transition fires. The script documents a harness limitation: zones.battlefield assertions use obj.characteristics.name (the stored front-face name), which is never updated when is_transformed changes, so transform assertions cannot be verified through the standard path.",
     "cr_sections_tested": [
       "702.145",
       "702.145b",
@@ -31,7 +31,7 @@
     "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Brutal Cathar card_id: brutal-cathar-moonrage-brute. Front face: {2}{W} Human Soldier Werewolf 2/2, Daybound. Back face: Moonrage Brute Werewolf 3/3, Nightbound, FirstStrike. ETB exile-until-leaves is DSL gap, not wired. Day/Night logic: enforce_daybound_nightbound() runs when Brutal Cathar enters battlefield — sets day_night=Day (CR 702.145d). check_day_night_transition() runs at Untap step. The engine's reset_turn_state(new_active_player) saves the INCOMING player's spells_cast_this_turn as previous_turn_spells_cast before resetting it. For p2's first turn: p2.spells_cast_this_turn=0 (never cast) -> previous_turn_spells_cast=0 -> Day+0 -> Night fires at turn 2 Untap. This corresponds to CR 730.2a but tracks the incoming player's last turn, not the outgoing player's. For Night->Day (CR 730.2b), the incoming player's p2.spells_cast_this_turn would need to be >=2. Since p2 cast 0 spells on turn 2 (reset to 0 at turn 2 start), it stays 0, and Night->Day never fires on turn 4 start. Primary harness gap: zones.battlefield.p1 assertion uses obj.characteristics.name (stored value, always 'Brutal Cathar' on front face). calculate_characteristics() applies is_transformed to derive the back-face name dynamically, but does not write back to obj.characteristics. So after transform: is_transformed=true, obj.characteristics.name still='Brutal Cathar'. The assertion check reads the stored value and finds 'Brutal Cathar', not 'Moonrage Brute'. See disputes.",
+    "generation_notes": "Brutal Cathar card_id: brutal-cathar-moonrage-brute. Front face: {2}{W} Human Soldier Werewolf 2/2, Daybound. Back face: Moonrage Brute Werewolf 3/3, Nightbound, FirstStrike. ETB exile-until-leaves is DSL gap, not wired. Day/Night logic: enforce_daybound_nightbound() runs when Brutal Cathar enters battlefield — sets day_night=Day (CR 702.145d). check_day_night_transition() runs at Untap step. The engine's reset_turn_state(new_active_player) saves the INCOMING player's spells_cast_this_turn as previous_turn_spells_cast before resetting it. For p2's first turn: p2.spells_cast_this_turn=0 (never cast) -> previous_turn_spells_cast=0 -> Day+0 -> Night fires at turn 2 Untap. This corresponds to CR 731.2a but tracks the incoming player's last turn, not the outgoing player's. For Night->Day (CR 731.2b), the incoming player's p2.spells_cast_this_turn would need to be >=2. Since p2 cast 0 spells on turn 2 (reset to 0 at turn 2 start), it stays 0, and Night->Day never fires on turn 4 start. Primary harness gap: zones.battlefield.p1 assertion uses obj.characteristics.name (stored value, always 'Brutal Cathar' on front face). calculate_characteristics() applies is_transformed to derive the back-face name dynamically, but does not write back to obj.characteristics. So after transform: is_transformed=true, obj.characteristics.name still='Brutal Cathar'. The assertion check reads the stored value and finds 'Brutal Cathar', not 'Moonrage Brute'. See disputes.",
     "disputes": [
       {
         "step_index": null,
@@ -46,7 +46,7 @@
         "step_index": null,
         "action_index": null,
         "raised_by": "game-script-generator",
-        "description": "Night->Day transition timing: The engine's reset_turn_state(new_active_player) at the start of each turn saves the INCOMING player's spells_cast_this_turn (not the OUTGOING player's) as previous_turn_spells_cast. For Night->Day (CR 730.2b), the condition is previous_turn_spells_cast>=2. This would only fire if the incoming player had cast >=2 spells in their most recent prior turn. Since p2 cast 0 spells on their turn 2 (spells_cast_this_turn was reset to 0 at turn 2 start), previous_turn_spells_cast=0 at turn 4 start, so Night->Day never fires in this script. The full Night->Day cycle would require p2 to cast >=2 spells on a turn, which this script does not test.",
+        "description": "Night->Day transition timing: The engine's reset_turn_state(new_active_player) at the start of each turn saves the INCOMING player's spells_cast_this_turn (not the OUTGOING player's) as previous_turn_spells_cast. For Night->Day (CR 731.2b), the condition is previous_turn_spells_cast>=2. This would only fire if the incoming player had cast >=2 spells in their most recent prior turn. Since p2 cast 0 spells on their turn 2 (spells_cast_this_turn was reset to 0 at turn 2 start), previous_turn_spells_cast=0 at turn 4 start, so Night->Day never fires in this script. The full Night->Day cycle would require p2 to cast >=2 spells on a turn, which this script does not test.",
         "resolution": null,
         "resolved_by": null,
         "resolved_date": null
@@ -308,7 +308,7 @@
     },
     {
       "step": "postcombat_main",
-      "step_note": "Turn 1 PostCombatMain and End. At Cleanup, turn advances to p2 (turn 2). reset_turn_state(p2): saves p2.spells_cast_this_turn=0 as previous_turn_spells_cast=0. Untap fires: previous=0, Day -> Night (CR 730.2a). enforce_daybound_nightbound: Brutal Cathar (is_transformed=false, Daybound) -> is_transformed=true (CR 702.145c). Stored name remains 'Brutal Cathar' due to harness gap.",
+      "step_note": "Turn 1 PostCombatMain and End. At Cleanup, turn advances to p2 (turn 2). reset_turn_state(p2): saves p2.spells_cast_this_turn=0 as previous_turn_spells_cast=0. Untap fires: previous=0, Day -> Night (CR 731.2a). enforce_daybound_nightbound: Brutal Cathar (is_transformed=false, Daybound) -> is_transformed=true (CR 702.145c). Stored name remains 'Brutal Cathar' due to harness gap.",
       "actions": [
         {
           "type": "priority_round",
@@ -326,7 +326,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Turn 1 End step: both pass — Cleanup auto-advances, turn advances to p2 (turn 2). reset_turn_state(p2): p2.spells_cast_this_turn=0 -> previous=0. Untap fires: previous=0 + Day -> Night (CR 730.2a). Brutal Cathar is_transformed becomes true. characteristics.name still 'Brutal Cathar' (see disputes)."
+          "note": "Turn 1 End step: both pass — Cleanup auto-advances, turn advances to p2 (turn 2). reset_turn_state(p2): p2.spells_cast_this_turn=0 -> previous=0. Untap fires: previous=0 + Day -> Night (CR 731.2a). Brutal Cathar is_transformed becomes true. characteristics.name still 'Brutal Cathar' (see disputes)."
         }
       ]
     },

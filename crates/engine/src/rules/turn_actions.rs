@@ -334,7 +334,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             });
         }
     }
-    // CR 725.2: "At the beginning of your upkeep, if you have the initiative,
+    // CR 726.2: "At the beginning of your upkeep, if you have the initiative,
     // venture into Undercity." This is an inherent triggered ability of the initiative
     // designation. It forces The Undercity when entering a new dungeon.
     let mut events = Vec::new();
@@ -803,7 +803,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             });
         }
     }
-    // CR 724.2: "At the beginning of the monarch's end step, that player draws a card."
+    // CR 725.2: "At the beginning of the monarch's end step, that player draws a card."
     // This is an inherent triggered ability. For the deterministic engine, we resolve
     // it immediately (no stack interaction) like other turn-based actions.
     let mut direct_events = Vec::new();
@@ -1013,9 +1013,9 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
     // protections for the active player. Also resets abilities_activated_this_turn (CR 602.5b).
     // Called before phasing and untapping so effects are gone when those happen.
     super::layers::expire_until_next_turn_effects(state, active);
-    // CR 730.2: As the second part of the untap step, check if the day/night designation
+    // CR 731.2: As the second part of the untap step, check if the day/night designation
     // should change based on the previous turn's active player's spell count.
-    // CR 730.2c: If it's neither day nor night, this check doesn't happen.
+    // CR 731.2c: If it's neither day nor night, this check doesn't happen.
     let day_night_events = check_day_night_transition(state);
     events.extend(day_night_events);
     // CR 502.1 / CR 702.26a: Phase-in and phase-out happen SIMULTANEOUSLY.
@@ -1621,9 +1621,9 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
     // SR-13: hard per-turn bound on LKI snapshots — the stack is empty at a turn
     // boundary, so no departed source's last-known information can still be needed.
     state.maybe_clear_lki_objects();
-    // CR 730.2a/b: Before resetting spells_cast_this_turn, save it as the
+    // CR 731.2a/b: Before resetting spells_cast_this_turn, save it as the
     // "previous turn's spell count" for day/night transition checking.
-    // This is checked at the NEXT player's untap step (CR 730.2).
+    // This is checked at the NEXT player's untap step (CR 731.2).
     let prev_spells = state
         .expect_player(player)
         .map(|p| p.spells_cast_this_turn)
@@ -1768,14 +1768,14 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
     }
 }
 // ---------------------------------------------------------------------------
-// Day/Night enforcement (CR 730 + CR 702.145 Daybound/Nightbound)
+// Day/Night enforcement (CR 731 + CR 702.145 Daybound/Nightbound)
 // ---------------------------------------------------------------------------
-/// CR 730.2: Check whether the game's day/night designation should change at the
+/// CR 731.2: Check whether the game's day/night designation should change at the
 /// start of the untap step.
 ///
-/// - CR 730.2a: If it's day and the previous turn's active player cast no spells → becomes night.
-/// - CR 730.2b: If it's night and the previous turn's active player cast two or more spells → becomes day.
-/// - CR 730.2c: If it's neither, skip.
+/// - CR 731.2a: If it's day and the previous turn's active player cast no spells → becomes night.
+/// - CR 731.2b: If it's night and the previous turn's active player cast two or more spells → becomes day.
+/// - CR 731.2c: If it's neither, skip.
 ///
 /// After any transition, applies daybound/nightbound enforcement (CR 702.145c/f).
 fn check_day_night_transition(state: &mut GameState) -> Vec<GameEvent> {
@@ -1784,14 +1784,14 @@ fn check_day_night_transition(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
     let transition = match state.day_night {
         Some(DayNight::Day) if state.previous_turn_spells_cast == 0 => {
-            // CR 730.2a: Becomes night.
+            // CR 731.2a: Becomes night.
             Some(DayNight::Night)
         }
         Some(DayNight::Night) if state.previous_turn_spells_cast >= 2 => {
-            // CR 730.2b: Becomes day.
+            // CR 731.2b: Becomes day.
             Some(DayNight::Day)
         }
-        _ => None, // CR 730.2c or no change
+        _ => None, // CR 731.2c or no change
     };
     if let Some(new_designation) = transition {
         state.day_night = Some(new_designation);
@@ -1997,14 +1997,14 @@ fn begin_combat(state: &mut GameState) -> Vec<GameEvent> {
     }
     Vec::new()
 }
-/// CR 725.2: Check whether any combat damage was dealt to the initiative holder
+/// CR 726.2: Check whether any combat damage was dealt to the initiative holder
 /// and transfer the initiative if so.
 ///
-/// CR 725.2: "Whenever one or more creatures a player controls deal combat damage
+/// CR 726.2: "Whenever one or more creatures a player controls deal combat damage
 /// to the player who has the initiative, the controller of those creatures takes
 /// the initiative."
-/// CR 725.3: Only one player has the initiative at a time. Taking it (even from
-/// yourself) still triggers venture into the Undercity (CR 725.5).
+/// CR 726.3: Only one player has the initiative at a time. Taking it (even from
+/// yourself) still triggers venture into the Undercity (CR 726.5).
 /// CR 603.2g: 0-damage assignments do not trigger.
 ///
 /// This is called after both first-strike damage and regular combat damage so
@@ -2036,7 +2036,7 @@ fn check_initiative_steal_from_combat_damage(state: &mut GameState, events: &mut
     if let Some(new_holder) = new_holder {
         state.has_initiative = Some(new_holder);
         events.push(GameEvent::InitiativeTaken { player: new_holder });
-        // CR 725.2: Taking the initiative also ventures into the Undercity.
+        // CR 726.2: Taking the initiative also ventures into the Undercity.
         match super::engine::handle_venture_into_dungeon(state, new_holder, true) {
             Ok(venture_events) => events.extend(venture_events),
             Err(_) => {
@@ -2046,7 +2046,7 @@ fn check_initiative_steal_from_combat_damage(state: &mut GameState, events: &mut
         }
     }
 }
-/// CR 724.2: "Whenever a creature deals combat damage to the monarch, its controller
+/// CR 725.2: "Whenever a creature deals combat damage to the monarch, its controller
 /// becomes the monarch."
 ///
 /// Mirrors `check_initiative_steal_from_combat_damage`. Scans combat damage events
@@ -2119,9 +2119,9 @@ fn first_strike_damage_step(state: &mut GameState) -> Vec<GameEvent> {
         state.combat.as_mut().unwrap().first_strike_participants = participants;
     }
     let mut events = super::combat::apply_combat_damage(state, true);
-    // CR 725.2: Initiative steal applies to first-strike damage as well.
+    // CR 726.2: Initiative steal applies to first-strike damage as well.
     check_initiative_steal_from_combat_damage(state, &mut events);
-    // CR 724.2: Monarch steal applies to first-strike damage as well.
+    // CR 725.2: Monarch steal applies to first-strike damage as well.
     check_monarch_steal_from_combat_damage(state, &mut events);
     events
 }
@@ -2130,9 +2130,9 @@ fn first_strike_damage_step(state: &mut GameState) -> Vec<GameEvent> {
 /// Called as a turn-based action in `Step::CombatDamage`.
 fn combat_damage_step(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = super::combat::apply_combat_damage(state, false);
-    // CR 725.2: Check whether any creature dealt combat damage to the initiative holder.
+    // CR 726.2: Check whether any creature dealt combat damage to the initiative holder.
     check_initiative_steal_from_combat_damage(state, &mut events);
-    // CR 724.2: Check whether any creature dealt combat damage to the monarch.
+    // CR 725.2: Check whether any creature dealt combat damage to the monarch.
     check_monarch_steal_from_combat_damage(state, &mut events);
     events
 }

@@ -1,18 +1,18 @@
-//! Monarch designation tests (CR 724).
+//! Monarch designation tests (CR 725).
 //!
 //! Tests for the monarch mechanic:
-//! - CR 724.1: Designation assigned by effects
-//! - CR 724.2: EOT draw trigger + combat damage steal
-//! - CR 724.3: Only one monarch at a time
-//! - CR 724.4: Monarch leaves game → active player takes over
+//! - CR 725.1: Designation assigned by effects
+//! - CR 725.2: EOT draw trigger + combat damage steal
+//! - CR 725.3: Only one monarch at a time
+//! - CR 725.4: Monarch leaves game → active player takes over
 
 use mtg_engine::state::player::PlayerId;
 use mtg_engine::{CardType, GameEvent, GameStateBuilder, ObjectSpec, Step, ZoneId};
 
-// ── CR 724.1: BecomeMonarch effect ──────────────────────────────────────────
+// ── CR 725.1: BecomeMonarch effect ──────────────────────────────────────────
 
 #[test]
-/// CR 724.1 — BecomeMonarch effect sets state.monarch().
+/// CR 725.1 — BecomeMonarch effect sets state.monarch().
 fn test_724_1_become_monarch_sets_designation() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
@@ -32,10 +32,10 @@ fn test_724_1_become_monarch_sets_designation() {
     assert_eq!(state.monarch(), Some(p1));
 }
 
-// ── CR 724.3: Only one monarch at a time ────────────────────────────────────
+// ── CR 725.3: Only one monarch at a time ────────────────────────────────────
 
 #[test]
-/// CR 724.3 — Setting a new monarch replaces the previous one.
+/// CR 725.3 — Setting a new monarch replaces the previous one.
 fn test_724_3_new_monarch_replaces_old() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
@@ -56,10 +56,10 @@ fn test_724_3_new_monarch_replaces_old() {
     assert_eq!(state.monarch(), Some(p2));
 }
 
-// ── CR 724.2: EOT draw ─────────────────────────────────────────────────────
+// ── CR 725.2: EOT draw ─────────────────────────────────────────────────────
 
 #[test]
-/// CR 724.2 — Monarch draws a card at the beginning of their end step.
+/// CR 725.2 — Monarch draws a card at the beginning of their end step.
 fn test_724_2_monarch_eot_draw() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
@@ -112,7 +112,7 @@ fn test_724_2_monarch_eot_draw() {
 }
 
 #[test]
-/// CR 724.2 — Non-monarch does not draw at end step.
+/// CR 725.2 — Non-monarch does not draw at end step.
 fn test_724_2_non_monarch_no_eot_draw() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
@@ -153,10 +153,10 @@ fn test_724_2_non_monarch_no_eot_draw() {
     );
 }
 
-// ── CR 724.4: Monarch leaves game ──────────────────────────────────────────
+// ── CR 725.4: Monarch leaves game ──────────────────────────────────────────
 
 #[test]
-/// CR 724.4 — When the monarch dies, the active player becomes the monarch.
+/// CR 725.4 — When the monarch dies, the active player becomes the monarch.
 fn test_724_4_monarch_leaves_active_player_inherits() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
@@ -191,7 +191,7 @@ fn test_724_4_monarch_leaves_active_player_inherits() {
 }
 
 #[test]
-/// CR 724.4 — Non-monarch leaving doesn't change the monarch.
+/// CR 725.4 — Non-monarch leaving doesn't change the monarch.
 fn test_724_4_non_monarch_leaves_no_change() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);

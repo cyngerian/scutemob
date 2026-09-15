@@ -1885,10 +1885,10 @@ pub enum Effect {
     /// permanent. Clears `is_suspected`, removing the menace grant and unblocking
     /// the can't-block restriction.
     Unsuspect { target: EffectTarget },
-    /// CR 724.1/724.3: Target player becomes the monarch.
+    /// CR 725.1/724.3: Target player becomes the monarch.
     ///
     /// Sets `state.monarch` to the target player. If another player was the monarch,
-    /// they cease to be the monarch (CR 724.3). Emits `GameEvent::PlayerBecameMonarch`.
+    /// they cease to be the monarch (CR 725.3). Emits `GameEvent::PlayerBecameMonarch`.
     /// Inherent triggers (EOT draw, combat damage steal) are handled in turn_actions.rs
     /// and combat.rs respectively.
     BecomeMonarch { player: PlayerTarget },
@@ -2170,10 +2170,10 @@ pub enum Effect {
     /// start new one). Deterministic fallback: enter LostMineOfPhandelver when
     /// choosing a new dungeon. Room abilities push a RoomAbility SOK onto the stack.
     VentureIntoDungeon,
-    /// CR 725.2: Take the initiative.
+    /// CR 726.2: Take the initiative.
     ///
     /// Sets `has_initiative = Some(controller)` on GameState, emits `InitiativeTaken`,
-    /// and immediately ventures into the Undercity (CR 725.2: "that player ventures
+    /// and immediately ventures into the Undercity (CR 726.2: "that player ventures
     /// into the Undercity" as an inherent triggered ability of taking the initiative).
     TakeTheInitiative,
     /// CR 701.54a-c: "The Ring tempts you."
@@ -3774,7 +3774,7 @@ pub enum TriggerCondition {
     /// CR 702.140d: "Whenever this creature mutates."
     ///
     /// Fires on the merged permanent itself (same ObjectId as the target before merging,
-    /// per CR 729.2c) after a successful mutate merge. Converted by `enrich_spec_from_def`
+    /// per CR 730.2c) after a successful mutate merge. Converted by `enrich_spec_from_def`
     /// to `TriggerEvent::SelfMutates` so `check_triggers` can dispatch it via
     /// `GameEvent::CreatureMutated`.
     WhenMutates,

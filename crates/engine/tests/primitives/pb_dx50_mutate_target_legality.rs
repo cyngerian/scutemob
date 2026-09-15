@@ -532,7 +532,7 @@ fn assert_cr_702_140b_fallback(state: &GameState, events: &[GameEvent], host_id:
         "CR 702.140b: the spell continues resolving as a creature spell and is put onto \
          the battlefield. Events: {events:#?}"
     );
-    // Identity, not name: CR 729.2a would give a MERGED permanent the beast's name too,
+    // Identity, not name: CR 730.2a would give a MERGED permanent the beast's name too,
     // so a name-only search cannot tell the fallback from a successful merge. The beast
     // must be a battlefield object that is NOT the host.
     let beast = state
@@ -698,13 +698,13 @@ fn test_dx50_t7d_an_undisturbed_mutate_still_merges() {
     let host = state
         .objects()
         .get(&host_id)
-        .expect("the host permanent survives the merge (CR 729.2: same object)");
+        .expect("the host permanent survives the merge (CR 730.2: same object)");
     assert_eq!(
         host.merged_components.len(),
         2,
-        "CR 729.2: the merged permanent carries both components (spell + host)"
+        "CR 730.2: the merged permanent carries both components (spell + host)"
     );
-    // CR 729.2a: the merged permanent takes the TOPMOST component's name, so it is now
+    // CR 730.2a: the merged permanent takes the TOPMOST component's name, so it is now
     // itself called `BEAST` -- a name-only assertion here would be satisfied by the merged
     // object and prove nothing. Assert on IDENTITY instead: the only battlefield object is
     // the host, i.e. the spell created no separate permanent.
@@ -717,7 +717,7 @@ fn test_dx50_t7d_an_undisturbed_mutate_still_merges() {
     assert_eq!(
         battlefield,
         vec![host_id],
-        "CR 729.2: the mutating spell does NOT enter the battlefield as a separate          permanent -- the only battlefield object is the merged host"
+        "CR 730.2: the mutating spell does NOT enter the battlefield as a separate          permanent -- the only battlefield object is the merged host"
     );
 }
 

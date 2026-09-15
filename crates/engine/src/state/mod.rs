@@ -394,27 +394,27 @@ pub struct GameState {
     /// Each forecast ability can be activated at most once per turn (CR 702.57b).
     #[serde(default)]
     pub(crate) forecast_used_this_turn: imbl::OrdSet<crate::state::player::CardId>,
-    /// CR 730.1: Current day/night designation of the game.
+    /// CR 731.1: Current day/night designation of the game.
     ///
     /// `None` = neither day nor night (game start, default).
     /// `Some(Day)` = it is currently day.
     /// `Some(Night)` = it is currently night.
     ///
-    /// Once set, never returns to None (CR 730.1: "the game will have exactly one
+    /// Once set, never returns to None (CR 731.1: "the game will have exactly one
     /// of those designations from that point forward").
     ///
-    /// Checked and potentially changed in the untap step (CR 730.2).
+    /// Checked and potentially changed in the untap step (CR 731.2).
     /// Also set immediately when a Daybound or Nightbound permanent enters the
     /// battlefield while neither day nor night (CR 702.145d/g).
     #[serde(default)]
     pub(crate) day_night: Option<DayNight>,
-    /// CR 730.2: The number of spells cast by the previous turn's active player.
+    /// CR 731.2: The number of spells cast by the previous turn's active player.
     ///
     /// Captured at the end of each turn (in `reset_turn_state`) from the active
     /// player's `spells_cast_this_turn`. Used at the next turn's untap step to
     /// determine if day/night should change:
-    /// - Day → Night if previous player cast 0 spells (CR 730.2a)
-    /// - Night → Day if previous player cast 2+ spells (CR 730.2b)
+    /// - Day → Night if previous player cast 0 spells (CR 731.2a)
+    /// - Night → Day if previous player cast 2+ spells (CR 731.2b)
     #[serde(default)]
     pub(crate) previous_turn_spells_cast: u32,
     /// CR 309.4: Per-player dungeon tracking.
@@ -426,23 +426,23 @@ pub struct GameState {
     /// Empty at game start — no player has a dungeon in the command zone.
     #[serde(default)]
     pub(crate) dungeon_state: OrdMap<PlayerId, dungeon::DungeonState>,
-    /// CR 725.1: Which player currently has the initiative.
+    /// CR 726.1: Which player currently has the initiative.
     ///
     /// `None` = no player has the initiative (game start, or initiative was never taken).
     /// `Some(player_id)` = that player has the initiative.
     ///
-    /// Only one player can have the initiative at a time (CR 725.3). Taking the
-    /// initiative also causes the taker to venture into The Undercity (CR 725.2).
+    /// Only one player can have the initiative at a time (CR 726.3). Taking the
+    /// initiative also causes the taker to venture into The Undercity (CR 726.2).
     #[serde(default)]
     pub(crate) has_initiative: Option<PlayerId>,
-    /// CR 724.1: The monarch is a designation a player can have.
+    /// CR 725.1: The monarch is a designation a player can have.
     ///
     /// `None` = no player is the monarch (game start, or monarch left the game
-    /// and no replacement could be found — CR 724.4).
+    /// and no replacement could be found — CR 725.4).
     /// `Some(player_id)` = that player is the monarch.
     ///
-    /// Only one player can be the monarch at a time (CR 724.3).
-    /// Inherent triggers (CR 724.2): EOT draw + combat damage steals.
+    /// Only one player can be the monarch at a time (CR 725.3).
+    /// Inherent triggers (CR 725.2): EOT draw + combat damage steals.
     #[serde(default)]
     pub(crate) monarch: Option<PlayerId>,
     /// CR 305.2: Static "additional land play" sources from permanents on the battlefield.
@@ -1752,9 +1752,9 @@ impl GameState {
             // CR 702.55b / CR 400.7: haunting relationship is cleared on zone change.
             // The exiled haunt card's haunting_target is set AFTER zone move, not inherited.
             haunting_target: None,
-            // CR 729.2 / CR 400.7: merged_components are cleared on zone change.
+            // CR 730.2 / CR 400.7: merged_components are cleared on zone change.
             // When a merged permanent leaves the battlefield, components are split into
-            // separate GameObjects (CR 729.3). Each new object starts with empty merged_components.
+            // separate GameObjects (CR 730.3). Each new object starts with empty merged_components.
             merged_components: imbl::Vector::new(),
             // CR 712.8a / CR 400.7: DFC transform state is reset on zone change.
             // The front face is used in all non-battlefield zones (CR 712.8a).
@@ -1815,7 +1815,7 @@ impl GameState {
                 }
             }
         }
-        // CR 729.3: When a merged permanent leaves the battlefield, the primary new object
+        // CR 730.3: When a merged permanent leaves the battlefield, the primary new object
         // takes the characteristics of the topmost component (merged_components[0]).
         // Without this override, new_object would have the underlying game-object's
         // characteristics (the target permanent's base), not the topmost component's.
@@ -1833,16 +1833,16 @@ impl GameState {
         to_zone.insert(new_id);
         // Insert new object
         self.objects.insert(new_id, new_object);
-        // CR 729.3: Merged permanent zone-change splitting.
+        // CR 730.3: Merged permanent zone-change splitting.
         // When a merged permanent leaves the battlefield, each component becomes a separate
         // object in the destination zone. The topmost component (index 0) is the primary new
         // object (already created above as `new_id`). Components at indices 1..N get fresh
         // GameObjects created here.
         //
-        // CR 729.3a: For graveyard/library, the player may arrange order — we use
+        // CR 730.3a: For graveyard/library, the player may arrange order — we use
         // component order (topmost to bottommost) as the deterministic default.
         // CR 400.7: Each component object starts with empty merged_components (it's a new object).
-        // CR 729.2d: Token status is determined per component's `is_token` field.
+        // CR 730.2d: Token status is determined per component's `is_token` field.
         if old_object.zone == ZoneId::Battlefield && old_object.merged_components.len() > 1 {
             // Components at indices 1..N become additional objects in `to`.
             let additional_components: Vec<_> = old_object
@@ -1915,7 +1915,7 @@ impl GameState {
                     gift_opponent: None,
                     encoded_cards: imbl::Vector::new(),
                     haunting_target: None,
-                    // CR 729.3 / CR 400.7: Each split component starts with empty merged_components.
+                    // CR 730.3 / CR 400.7: Each split component starts with empty merged_components.
                     merged_components: imbl::Vector::new(),
                     // CR 712.8a / CR 400.7: DFC transform state is reset on zone change.
                     is_transformed: false,
@@ -2265,9 +2265,9 @@ impl GameState {
             // CR 702.55b / CR 400.7: haunting relationship is cleared on zone change.
             // The exiled haunt card's haunting_target is set AFTER zone move, not inherited.
             haunting_target: None,
-            // CR 729.2 / CR 400.7: merged_components are cleared on zone change.
+            // CR 730.2 / CR 400.7: merged_components are cleared on zone change.
             // When a merged permanent leaves the battlefield, components are split into
-            // separate GameObjects (CR 729.3). Each new object starts with empty merged_components.
+            // separate GameObjects (CR 730.3). Each new object starts with empty merged_components.
             merged_components: imbl::Vector::new(),
             // CR 712.8a / CR 400.7: DFC transform state is reset on zone change.
             // The front face is used in all non-battlefield zones (CR 712.8a).

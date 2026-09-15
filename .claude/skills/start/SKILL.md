@@ -42,7 +42,7 @@ Run via Bash:
 esm project bootstrap <project_id>
 ```
 
-This returns active tasks, recent activity, pending approvals, alerts, and last session's handoff summary.
+This returns active tasks, recent activity, and last session's handoff summary.
 
 If the server is unreachable, warn the user and continue with local-only context (git log, file reads).
 
@@ -53,7 +53,10 @@ Run via Bash:
 esm session start --project <project_id> --agent primary
 ```
 
-Save the returned `session_id` — you need it for `esm session end` later.
+The CLI records the returned `session_id` in `.esm/session`, so it is sent as a
+heartbeat on every later `esm` call (the session no longer auto-expires while
+you work) and `esm session end`/`heartbeat` default to it — you don't need to
+pass it by hand. Note it in your context anyway as a fallback.
 
 ### 4. Check local state
 
@@ -62,6 +65,36 @@ Run these in parallel:
 - `git branch` — confirm current branch
 - `git log --oneline -10` — recent commits
 - `esm worktree list` — check for active worktrees with ESM task status
+
+### 4a. Check for provisioned-file drift
+
+Run via Bash:
+```bash
+esm doctor --dir . --human
+```
+
+Look at the `skills` check. If it reports missing skills, ESM-provisioned files
+have been lost from this project — most often deleted by a worker branch and
+merged without anyone noticing. Tell the user which skills are missing and offer
+to restore them with `esm update`. Then have them commit the restoration, or the
+next merge will silently drop them again.
+
+Other failing checks are informational at session start — mention them, don't act
+on them unless the user asks.
+
+### 4b. Project-local start check
+
+If the project has `tools/start-check.sh`, run it via Bash:
+```bash
+tools/start-check.sh
+```
+
+It is the project's own read-only freshness/health probe (scutemob: `tools/data-freshness.py check`,
+which compares the local Comprehensive Rules text, Scryfall bulk files, `cards.sqlite` and the
+SR-37 fixture against what is published). Include its output verbatim in the report. Exit 0 means
+current; non-zero means it printed a refresh command — offer to run that command, do not run it
+unprompted (it downloads and rebuilds local data). If the script does not exist, skip this step
+silently.
 
 ### 5. Orient and report
 
@@ -75,7 +108,7 @@ Report to the user in this format:
 **Session**: {session_id}
 
 ### Context from ESM
-{summary from bootstrap: active tasks, recent activity, any alerts}
+{summary from bootstrap: active tasks, recent activity}
 
 ### Local state
 - Uncommitted changes: {yes/no, brief summary}
@@ -85,6 +118,16 @@ Report to the user in this format:
 ### Active worktrees
 {output from esm worktree list, if any}
 {if none, omit this section}
+
+### Provisioned files
+{if esm doctor's skills check failed: list the missing skills and say
+ `esm update` restores them}
+{if it passed, omit this section entirely}
+
+### Project start check
+{output of tools/start-check.sh, verbatim; if it exited non-zero, end with the
+ refresh command it named and ask whether to run it}
+{if the script does not exist, omit this section entirely}
 
 ### Documentation
 {if .claude/docs.yaml exists, read it and check each template:}
@@ -105,5 +148,5 @@ If the bootstrap response includes active tasks (in_progress or in_review), ment
 ## Notes
 
 - If `esm project bootstrap` fails (server unreachable), warn the user and continue with local-only context.
-- Heartbeats happen automatically on authenticated requests to the server.
+- Heartbeats ride on every authenticated `esm` call automatically — but only once a session has been started with `esm session start`, which records the session id in `.esm/session` for the CLI to attach as the `X-ESM-Session-Id` header. The file is found by walking up from the current directory (like git finds `.git`), so calls from anywhere inside the project heartbeat fine. A session started before that plumbing existed has no `.esm/session` at all and won't heartbeat on its own; run `esm session heartbeat` explicitly, or start a fresh session.
 - If this is the first session for the project, bootstrap will return empty context. That's normal — start by creating tasks.

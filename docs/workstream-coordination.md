@@ -312,7 +312,7 @@ Track progress across sessions by checking these off:
 - [x] Mutate mini-milestone (merged-permanent model, CastWithMutate, zone-change splitting)
 - [x] Morph mini-milestone (face-down model, TurnFaceUp command, Manifest/Cloak effects, Disguise ward{2})
 - [x] LegalActionProvider updated (4 update points: after batches 3, 6, 10, 14; Morph/TurnFaceUp in Morph session)
-- [x] Batch 16: Venture/Dungeon (CR 309, 701.49) — 4 dungeons, dungeon zone infra, venture marker, room triggers, SBA 704.5t, initiative (CR 725) — 4 sessions
+- [x] Batch 16: Venture/Dungeon (CR 309, 701.49) — 4 dungeons, dungeon zone infra, venture marker, room triggers, SBA 704.5t, initiative (CR 726) — 4 sessions
 - [x] Batch 16: The Ring Tempts You (CR 701.54) — ring bearer designation, 4-level temptation, layer grants, EOC sacrifice, combat triggers — 1 session
 
 #### Phase 2: TUI Hardening

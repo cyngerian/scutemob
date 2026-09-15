@@ -1,11 +1,11 @@
-//! Daybound/Nightbound ability tests (CR 702.145 / CR 730).
+//! Daybound/Nightbound ability tests (CR 702.145 / CR 731).
 //!
 //! Daybound and Nightbound are keyword abilities on DFCs that link their transform
 //! to the global day/night state. Key rules verified:
 //! - CR 702.145d: Daybound permanent causes it to become day if neither day nor night.
 //! - CR 702.145g: Nightbound permanent causes it to become night (if no daybound exists).
-//! - CR 730.2a: Day→Night transition if previous turn's active player cast 0 spells.
-//! - CR 730.2b: Night→Day transition if previous turn's active player cast 2+ spells.
+//! - CR 731.2a: Day→Night transition if previous turn's active player cast 0 spells.
+//! - CR 731.2b: Night→Day transition if previous turn's active player cast 2+ spells.
 //! - CR 702.145c: When it becomes night, daybound permanents (front face) transform.
 //! - CR 702.145f: When it becomes day, nightbound permanents (back face) transform.
 //! - CR 702.145b: Daybound permanents can't transform except via daybound (lock).
@@ -325,7 +325,7 @@ fn test_nightbound_sets_night() {
 
 // ── Test 6: No change when it's neither day nor night and no daybound/nightbound ─
 
-/// CR 730.2c: If it's neither day nor night, the untap step check doesn't happen.
+/// CR 731.2c: If it's neither day nor night, the untap step check doesn't happen.
 /// enforce_daybound_nightbound with no relevant permanents should do nothing.
 #[test]
 fn test_day_night_no_change_without_permanents() {

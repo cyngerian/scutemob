@@ -6,7 +6,7 @@
 //! variant's NAME — `casting.rs::handle_cast_spell` moves a spell's card into
 //! `ZoneId::Stack` once (`move_object_to_zone(card, ZoneId::Stack)`), and only
 //! AFTER that move does it choose between `StackObjectKind::Spell` and
-//! `StackObjectKind::MutatingCreatureSpell` (CR 702.140a / CR 729.2), on
+//! `StackObjectKind::MutatingCreatureSpell` (CR 702.140a / CR 730.2), on
 //! `cast_with_mutate` alone. So both kinds own a Stack-zone card, and every
 //! other kind puts an ability or a trigger on the stack and moves no card there.
 //!
@@ -53,7 +53,7 @@ use crate::state::game_object::ObjectId;
 /// The card this stack object owns in `ZoneId::Stack`, if it owns one.
 ///
 /// `Some(*source_object)` for `Spell` and `MutatingCreatureSpell` (CR 601.2c /
-/// CR 702.140a / CR 729.2 -- one `move_object_to_zone(card, ZoneId::Stack)` at
+/// CR 702.140a / CR 730.2 -- one `move_object_to_zone(card, ZoneId::Stack)` at
 /// cast time, then a `cast_with_mutate` branch that only picks the kind).
 ///
 /// `None` for every other variant: each puts an ability or a trigger on the
@@ -72,7 +72,7 @@ pub fn card_in_stack_zone(kind: &StackObjectKind) -> Option<ObjectId> {
         // CR 601.2c: a spell's card is moved into ZoneId::Stack as part of
         // casting it.
         K::Spell { source_object } => Some(*source_object),
-        // CR 702.140a / CR 729.2: a mutating creature spell is cast down the
+        // CR 702.140a / CR 730.2: a mutating creature spell is cast down the
         // SAME code path as a plain Spell (casting.rs: one
         // move_object_to_zone, then a cast_with_mutate branch that picks the
         // kind afterwards) -- its card is in ZoneId::Stack exactly like a

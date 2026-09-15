@@ -4,7 +4,7 @@
 //! the stack. It doesn't resolve and none of its effects occur. A countered spell
 //! is put into its owner's graveyard." That sentence is about a CARD. A stack
 //! object with no card (a copy, CR 707.10) has nothing to put anywhere; a stack
-//! object WITH a card (`Spell`, and — since CR 702.140a / CR 729.2 — also
+//! object WITH a card (`Spell`, and — since CR 702.140a / CR 730.2 — also
 //! `MutatingCreatureSpell`) must have that card moved. At HEAD,
 //! `Effect::CounterSpell`'s zone-move decides which is which by matching the
 //! `StackObjectKind` variant NAME rather than asking "does this kind own a card in
@@ -224,7 +224,7 @@ fn push_mutating_creature_spell_stack_object(
 /// CR 701.6a / CR 702.140a / CR 400.7 — countering a mutate spell's card (the
 /// ordinary "counter target spell" path) removes it from the stack, puts the
 /// countered card in its owner's graveyard under a fresh `ObjectId` (CR 400.7),
-/// and the merge (CR 729.2) never happens.
+/// and the merge (CR 730.2) never happens.
 ///
 /// REAL corpus cards, exactly the plan's §0.3 probe pair: `gemrazer` (explicit
 /// `Completeness::Complete`, no spell-level target requirement) x `counterspell`
@@ -372,14 +372,14 @@ fn test_dx25_counterspell_counters_a_mutate_spell() {
         "CR 400.7: the graveyard object must be a NEW ObjectId, not the pre-counter Stack id"
     );
 
-    // CR 729.2 must NOT have happened: the Wolf is unmerged.
+    // CR 730.2 must NOT have happened: the Wolf is unmerged.
     let wolf_obj = state
         .objects()
         .get(&wolf_id)
         .expect("Wolf should still be on the battlefield, unmerged");
     assert!(
         wolf_obj.merged_components.is_empty(),
-        "CR 701.6a / CR 729.2: a properly countered mutate spell must NOT merge -- \
+        "CR 701.6a / CR 730.2: a properly countered mutate spell must NOT merge -- \
          merged_components should be empty, got {:?}",
         wolf_obj.merged_components
     );
@@ -1242,7 +1242,7 @@ fn one_of_each_variant() -> Vec<(&'static str, StackObjectKind)> {
     ]
 }
 
-/// CR 601.2c / CR 702.140a / CR 729.2 — `stack_registry::card_in_stack_zone`
+/// CR 601.2c / CR 702.140a / CR 730.2 — `stack_registry::card_in_stack_zone`
 /// classifies every `StackObjectKind` variant, exhaustively: `Some` for exactly
 /// `Spell` and `MutatingCreatureSpell`, `None` for everything else.
 ///
@@ -1282,7 +1282,7 @@ fn test_dx25_stack_registry_classifies_every_kind() {
     assert_eq!(
         card_owning,
         vec!["Spell", "MutatingCreatureSpell"],
-        "CR 601.2c / CR 702.140a / CR 729.2: exactly Spell and MutatingCreatureSpell \
+        "CR 601.2c / CR 702.140a / CR 730.2: exactly Spell and MutatingCreatureSpell \
          own a card in ZoneId::Stack -- got {:?}",
         card_owning
     );

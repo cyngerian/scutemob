@@ -3,7 +3,7 @@
 // Whenever you attack, target attacking Cleric, Rogue, Warrior, or Wizard gains
 // protection from creatures until end of turn. It explores.
 //
-// CR 725.2: "take the initiative" — sets has_initiative, ventures into Undercity.
+// CR 726.2: "take the initiative" — sets has_initiative, ventures into Undercity.
 // CR 701.12a: Explore — look at top card, put land into hand or put +1/+1 counter.
 //
 // DSL gaps:
@@ -34,9 +34,9 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
-            // CR 725.2: ETB trigger — take the initiative.
+            // CR 726.2: ETB trigger — take the initiative.
             // Taking the initiative sets has_initiative = Some(controller) and immediately
-            // ventures into the Undercity (CR 725.2).
+            // ventures into the Undercity (CR 726.2).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,

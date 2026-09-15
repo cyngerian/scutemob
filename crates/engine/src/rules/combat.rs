@@ -69,7 +69,7 @@ pub fn handle_declare_attackers(
     // CR 508.1 (PB-DX21, OOS-M11-9): declaring attackers is a once-per-combat
     // turn-based action. Rejected HERE, before the CombatState init below and
     // before any validation, tapping (508.1f) or cost payment (508.1j), so a
-    // refused re-declaration leaves the game byte-identical (CR 732: "the game
+    // refused re-declaration leaves the game byte-identical (CR 733: "the game
     // returns to the moment before the declaration").
     if state.combat.as_ref().is_some_and(|c| c.attackers_declared) {
         return Err(GameStateError::AlreadyDeclaredAttackers(player));
@@ -216,7 +216,7 @@ pub fn handle_declare_attackers(
     // allowed"). Costs from multiple sources are cumulative (Propaganda ruling).
     //
     // Affordability is checked HERE, before any state is mutated, so an unaffordable
-    // declaration is rejected with the game untouched (CR 508.1 / CR 732: "the declaration
+    // declaration is rejected with the game untouched (CR 508.1 / CR 733: "the declaration
     // is illegal; the game returns to the moment before the declaration"). The DEBIT
     // happens after the tapping loop below, matching CR 508.1f -> 508.1j order.
     //
@@ -306,7 +306,7 @@ pub fn handle_declare_attackers(
         // calls -- two copies of this order is how OOS-RS2-1/OOS-DP4-1 happened.
         let total = accumulate_attack_tax_total(state, &attackers);
         // CR 508.1h/508.1j: affordability, checked before any mutation so an
-        // unaffordable declaration leaves the game untouched (CR 732). Evaluated on
+        // unaffordable declaration leaves the game untouched (CR 733). Evaluated on
         // the PIPPED total, not the flattened one -- a cost_per_creature that is
         // entirely Phyrexian and entirely paid with life flattens to {0} with
         // phyrexian_life > 0, and gating on the flattened value here would silently
@@ -689,7 +689,7 @@ pub fn handle_declare_attackers(
     // attacker, an unmet CR 508.1c/d restriction, a bad enlist/exert choice or an
     // unaffordable CR 508.1h tax still left a fresh `CombatState` behind. It now stands
     // below EVERY `return Err` in this function, so a refused declaration leaves
-    // `state.combat` exactly as it found it (CR 732: "the game returns to the moment
+    // `state.combat` exactly as it found it (CR 733: "the game returns to the moment
     // before the declaration"). Every line below this point is infallible.
     //
     // Behaviour-preserving and invisible through `process_command`, whose `Err` arm

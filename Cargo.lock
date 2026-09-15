@@ -2530,6 +2530,7 @@ name = "scryfall-import"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "flate2",
  "mtg-card-db",
  "rusqlite",
  "serde",

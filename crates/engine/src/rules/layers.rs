@@ -534,7 +534,7 @@ pub(crate) fn calculate_characteristics_through(
             chars.keywords.insert(KeywordAbility::Ward(2));
         }
     }
-    // CR 729.2a: Merged permanent — Layer 1 (Copy) integration.
+    // CR 730.2a: Merged permanent — Layer 1 (Copy) integration.
     // If this permanent has non-empty merged_components, the topmost component's
     // characteristics become the base characteristics before applying any continuous effects.
     // This is a "copiable effect" whose timestamp is the time the objects merged.
@@ -743,7 +743,7 @@ pub(crate) fn calculate_characteristics_through(
             }
         }
     }
-    // CR 702.140e / CR 729.3: Merged permanent — Layer 6 (Ability) integration.
+    // CR 702.140e / CR 730.3: Merged permanent — Layer 6 (Ability) integration.
     // ALL components of a merged permanent contribute their abilities. The topmost
     // component's abilities were already included in the base characteristics (via the
     // Layer 1 merge above). Here we add abilities from non-topmost components (indices 1..N).

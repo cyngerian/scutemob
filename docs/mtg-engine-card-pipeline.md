@@ -1,6 +1,6 @@
 # Card Definition Pipeline & Scaling Strategy
 
-<!-- last_updated: 2026-07-10 -->
+<!-- last_updated: 2026-09-14 -->
 
 > How card definitions are structured, authored, and organized — and how this
 > approach scales from 112 cards to 27,000+.
@@ -187,6 +187,41 @@ source to runtime loading is a swap at the loading layer, not a rewrite of the
 engine. This is the escape hatch that makes it safe to start with the Rust DSL.
 
 ---
+
+## Data Sources and Refresh
+
+Everything the pipeline reads about real cards and rules is derived, gitignored, and rebuilt by one
+tool. Check it at `/start` (the start skill runs `tools/start-check.sh`); refresh when it says STALE.
+
+| Artifact | Source | Built by |
+|---|---|---|
+| `.scryfall-cache/MagicCompRules.txt` | the current `MagicCompRules *.txt` linked from magic.wizards.com/en/rules | `data-freshness.py refresh --only cr` |
+| `.scryfall-cache/oracle-cards.jsonl.gz`, `rulings.jsonl.gz` | Scryfall bulk data (`jsonl_download_uri`, rebuilt daily) | `scryfall-import` (via `refresh --only scryfall`) |
+| `cards.sqlite` (cards, card_faces, rulings, rules + FTS) | the three files above | `scryfall-import` + `mtg-mcp-server --import-only` |
+| `test-data/card-fidelity/printed-fields.tsv` (**committed**, SR-37) | `cards.sqlite` joined to `all_cards()` | `refresh --only fixture`, then run `core::cards2_printed_field_fidelity` |
+| `.scryfall-cache/meta.json` | written by `refresh`, read by `check` | records what each artifact was built from |
+
+```bash
+python3 tools/data-freshness.py check          # exit 0 CURRENT / 1 STALE / 2 unknown or offline failure
+python3 tools/data-freshness.py refresh        # cr → scryfall → rules → fixture (~1 min)
+python3 tools/data-freshness.py cites          # every `CR NNN[.N[a]]` in crates/ docs/ test-data/ exists
+```
+
+Rules of the road:
+
+- **The CR is stale on any effective-date difference; Scryfall files after 30 days** (`--max-age-days`).
+  A new CR can renumber whole sections (2026-08-07 inserted 722 "Preparation Cards" and shifted
+  722–732 by one; 378 citations had to move). After a CR refresh, run `cites` and sweep with a
+  one-pass map — never sequential replaces.
+- **A refresh can change committed files**: the SR-37 fixture stores printed fields verbatim, so an
+  Oracle update (Monster Manual gaining the Book subtype, 2026-08) fails the gate until the def is
+  fixed. That is the gate working; do not "refresh to make it pass" — fix the def or mark it.
+- **Non-card layouts must be excluded everywhere `cards` is queried by name.** Scryfall's `front_card`
+  (the "(Theme color: {G})" front of a preparation card) shares its name with real cards (Savage
+  Lands). The exclusion list lives in `refresh-card-fidelity-fixture.py` (`EXCLUDED_LAYOUTS`) and is
+  mirrored in the MCP `lookup_card`, `generate_skeleton.py`, and `bulk_generate.py`. When Scryfall
+  adds a layout, `SELECT layout, COUNT(*) FROM cards GROUP BY layout` and decide.
+- A running `mtg-rules` MCP server reads `cards.sqlite` live; no restart after a refresh.
 
 ## Authoring Pipeline
 

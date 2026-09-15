@@ -1420,16 +1420,16 @@ pub struct GameObject {
     /// the engine scans exile for haunt cards with a matching haunting_target.
     #[serde(default)]
     pub haunting_target: Option<ObjectId>,
-    /// CR 729.2: Components of a merged permanent (Mutate, CR 702.140).
+    /// CR 730.2: Components of a merged permanent (Mutate, CR 702.140).
     ///
     /// Empty for unmerged permanents (the common case — NOT a vec of one).
     /// When non-empty, `merged_components[0]` is always the topmost component;
     /// the merged permanent uses the topmost component's characteristics as its
-    /// base copiable values (CR 729.2a) and has ALL abilities from ALL components
+    /// base copiable values (CR 730.2a) and has ALL abilities from ALL components
     /// (CR 702.140e).
     ///
     /// When the merged permanent leaves the battlefield, each component becomes
-    /// a separate `GameObject` in the destination zone (CR 729.3).
+    /// a separate `GameObject` in the destination zone (CR 730.3).
     ///
     /// CR 400.7: Reset to empty on zone changes (new objects start unmerged).
     #[serde(default)]
@@ -1584,11 +1584,11 @@ pub struct GameObject {
     #[serde(default)]
     pub triggered_abilities_fired_this_turn: imbl::OrdSet<usize>,
 }
-/// CR 729.2: A single component in a merged permanent.
+/// CR 730.2: A single component in a merged permanent.
 ///
 /// When a mutating creature spell resolves, it merges with the target permanent.
 /// Each card involved in the merge is represented as a `MergedComponent`.
-/// `merged_components[0]` is always the topmost component (CR 729.2a).
+/// `merged_components[0]` is always the topmost component (CR 730.2a).
 ///
 /// An unmerged permanent has `merged_components` empty — not a vec of one.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1596,7 +1596,7 @@ pub struct MergedComponent {
     /// The CardId of this component (for looking up definitions and zone-change reconstruction).
     pub card_id: Option<crate::state::player::CardId>,
     /// The base characteristics of this component, frozen at merge time.
-    /// Used to reconstruct individual GameObjects when the merged permanent leaves the battlefield (CR 729.3).
+    /// Used to reconstruct individual GameObjects when the merged permanent leaves the battlefield (CR 730.3).
     pub characteristics: Characteristics,
     /// True if this component is a token.
     pub is_token: bool,

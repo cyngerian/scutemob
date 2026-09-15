@@ -57,7 +57,7 @@ pub fn card() -> CardDefinition {
                 // CR 603.5: "When ~ enters" — ETB trigger.
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
-                    // "target player becomes the monarch" — CR 724.1.
+                    // "target player becomes the monarch" — CR 725.1.
                     Effect::BecomeMonarch {
                         player: PlayerTarget::DeclaredTarget { index: 0 },
                     },

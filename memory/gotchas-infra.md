@@ -611,3 +611,23 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
 - **Shareable docs HTML (docs/interactions/) must not depend on JavaScript**: iOS Files-app
   QuickLook renders HTML with JS disabled, so interactive controls need CSS-only mechanisms
   (radio+label `:checked` siblings — the pattern in `blood-moon-urzas-saga.html`, scutemob-224).
+
+## External Data Gotchas (2026-09-14, `scutemob-259`)
+
+- **Check freshness before trusting a rule number or oracle text**: `python3 tools/data-freshness.py
+  check` (the `/start` hook). The CR of 2026-08-07 renumbered sections 722–732 (+1; new 722 =
+  Preparation Cards). Any doc, comment, or memory note written before 2026-09-14 that says CR 724
+  (monarch), 725 (initiative), 729 (merging), 730 (day/night) is one section low; `crates/`,
+  `docs/`, `test-data/` were swept, `memory/` was not.
+- **Scryfall layout `front_card` is not a card** ("(Theme color: {G})", type_line "Card") and shares
+  names with real cards. Every by-name query against `cards` must exclude it alongside `art_series`,
+  `token`, `double_faced_token`, `emblem` — the fixture script's `EXCLUDED_LAYOUTS` is the reference
+  list. Layout `prepare` IS real cards (Creature // Sorcery).
+- Scryfall bulk files are now gzipped JSON-Lines (`*.jsonl.gz`, `jsonl_download_uri`); the old
+  `oracle-cards.json` array no longer exists upstream. `scryfall-import` handles both.
+- The MCP server only re-imports the CR when the `rules` table is empty or `--import` /
+  `--import-only` is passed; a new CR text file in the cache changes nothing until then.
+  `refresh` does it; `.scryfall-cache/meta.json` records which CR the sqlite was built from.
+- The fixture script echoes its argv into the committed fixture header — call it with paths relative
+  to the repo root or the header churns with your home directory.
+

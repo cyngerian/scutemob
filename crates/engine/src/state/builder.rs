@@ -376,15 +376,15 @@ impl GameStateBuilder {
             pending_cumulative_upkeep_payments: Vector::new(),
             pending_recover_payments: Vector::new(),
             forecast_used_this_turn: imbl::OrdSet::new(),
-            // CR 730.1: Game starts with neither day nor night.
+            // CR 731.1: Game starts with neither day nor night.
             day_night: None,
-            // CR 730.2: No previous turn spells cast at game start.
+            // CR 731.2: No previous turn spells cast at game start.
             previous_turn_spells_cast: 0,
             // CR 309.4: No player has a dungeon in their command zone at game start.
             dungeon_state: OrdMap::new(),
-            // CR 725.1: No player has the initiative at game start.
+            // CR 726.1: No player has the initiative at game start.
             has_initiative: None,
-            // CR 724.1: No player is the monarch at game start.
+            // CR 725.1: No player is the monarch at game start.
             monarch: None,
             // CR 305.2: No additional land play sources at game start.
             additional_land_play_sources: imbl::Vector::new(),
@@ -1105,7 +1105,7 @@ impl GameStateBuilder {
                 encoded_cards: imbl::Vector::new(),
                 // CR 702.55b: test-placed objects have no haunting relationship.
                 haunting_target: None,
-                // CR 729.2: test-placed objects are not part of a merged permanent.
+                // CR 730.2: test-placed objects are not part of a merged permanent.
                 merged_components: imbl::Vector::new(),
                 // CR 712.8d: test-placed objects start with front face up.
                 is_transformed: false,

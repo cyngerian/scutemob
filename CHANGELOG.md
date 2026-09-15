@@ -6,6 +6,18 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-09-14 — Data sync (`scutemob-259`) — CR 2026-08-07 + Scryfall 2026-09-14; `/start` freshness check
+
+- Local CR was 2026-01-16, Scryfall cache 2026-02-20, `cards.sqlite` 2026-03-23; Scryfall's bulk API had
+  changed shape so the importer could not run. NEW `tools/data-freshness.py check|refresh|cites` +
+  `tools/start-check.sh`, wired into the start skill (step 4b, global + project copies).
+- **CR 722–732 renumbered +1** (new 722 Preparation Cards): 378 citations in 60 files swept (crates/docs/
+  test-data; `memory/` not swept). Pre-existing 33 dangling numbers / 307 cites left for LL-2 (`-256`).
+- New Scryfall layout `front_card` shadowed Savage Lands — excluded in the fixture script, MCP lookup, and
+  the two skeleton generators. Monster Manual gained the printed **Book** subtype (SR-37 caught it).
+- `scryfall-import` → gzipped JSON-Lines (+4 tests); `mtg-mcp-server --import-only`. No PROTOCOL/HASH bump.
+- Notes: `memory/data-sync-2026-09-14.md` (CR wording changes worth a rules pass: 603.10a, 605.1a, 714.3).
+
 ## 2026-09-05 — LL-1 (`scutemob-255`) — `completeness:` is mandatory (SR-39); "its controller creates" fixed
 
 - NEW gate **SR-39** (`core::card_defs_completeness_marker`): a def with no line-leading `completeness:` FIELD

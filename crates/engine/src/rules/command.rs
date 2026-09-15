@@ -664,7 +664,7 @@ pub enum Command {
     /// tempts you" as a keyword action (CR 701.54a). It is also the fallback used
     /// internally by `Effect::TheRingTemptsYou`.
     TheRingTemptsYou { player: PlayerId },
-    // ── Dungeon / Venture (CR 701.49, CR 725) ────────────────────────────────
+    // ── Dungeon / Venture (CR 701.49, CR 726) ────────────────────────────────
     /// Trigger a venture-into-the-dungeon action for the given player (CR 701.49).
     ///
     /// The engine applies deterministic dungeon/room selection:

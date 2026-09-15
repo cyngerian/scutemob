@@ -87,7 +87,7 @@ def build_sqlite_card_index(db_path: str) -> dict[str, dict]:
         cur.execute("""
             SELECT name, mana_cost, type_line, oracle_text, power, toughness
             FROM cards
-            WHERE layout NOT IN ('art_series', 'token', 'emblem')
+            WHERE layout NOT IN ('art_series', 'token', 'emblem', 'front_card')
         """)
         for row in cur.fetchall():
             name, mana_cost, type_line, oracle_text, power, toughness = row

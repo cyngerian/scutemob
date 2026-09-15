@@ -9,7 +9,9 @@
 //! Usage: mtg-mcp-server --db <path-to-cards.sqlite> --rules <path-to-CompRules.txt>
 //!
 //! On first run (or with --import), imports the CR text into the database.
-//! Subsequent runs skip import if rules are already present.
+//! Subsequent runs skip import if rules are already present; `--import` forces a
+//! re-import (a new CR release) and `--import-only` exits right after it instead of
+//! serving — `tools/data-freshness.py refresh` uses that pair.
 
 mod rules_db;
 
@@ -230,7 +232,9 @@ impl MtgServer {
         let include_rulings = req.include_rulings.unwrap_or(true);
 
         // Try exact match first, then LIKE. Exclude non-game layouts
-        // (art_series, token, double_faced_token, emblem, etc.)
+        // (art_series, token, double_faced_token, emblem, and front_card — the
+        // "(Theme color: {G})" front of a preparation card, CR 722, which shares its
+        // name with a real card such as Savage Lands).
         // MR-M0-10: LIKE '%name%' matches substrings broadly. This is intentional
         // for the MCP tool (callers may supply partial names). Results are capped at
         // 5 and sorted exact-first, so short queries return the most relevant card first.
@@ -242,7 +246,7 @@ impl MtgServer {
                         power, toughness, loyalty, color_identity, keywords
                  FROM cards
                  WHERE (name = ?1 OR name LIKE '%' || ?1 || '%')
-                   AND layout NOT IN ('art_series', 'token', 'double_faced_token', 'emblem')
+                   AND layout NOT IN ('art_series', 'token', 'double_faced_token', 'emblem', 'front_card')
                  ORDER BY CASE WHEN name = ?1 THEN 0 ELSE 1 END
                  LIMIT 5",
             )
@@ -410,7 +414,8 @@ async fn main() -> anyhow::Result<()> {
         .and_then(|i| args.get(i + 1))
         .map(String::as_str);
 
-    let force_import = args.iter().any(|a| a == "--import");
+    let import_only = args.iter().any(|a| a == "--import-only");
+    let force_import = import_only || args.iter().any(|a| a == "--import");
 
     // Open database
     let conn = Connection::open(db_path)?;
@@ -491,6 +496,11 @@ async fn main() -> anyhow::Result<()> {
         eprintln!("Building rulings FTS index ({} rulings)...", rulings_count);
         rules_db::rebuild_rulings_fts(&conn)?;
         eprintln!("Rulings FTS index built.");
+    }
+
+    if import_only {
+        eprintln!("Import complete; exiting (--import-only).");
+        return Ok(());
     }
 
     eprintln!("MTG MCP server starting on stdio...");

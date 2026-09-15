@@ -428,7 +428,7 @@ fn stack_card_of(kind: &mtg_engine::StackObjectKind) -> Option<ObjectId> {
         // CR 601.2c — the card is moved to `ZoneId::Stack` as part of casting.
         // `MutatingCreatureSpell` is the same cast down the same code path
         // (`casting.rs`: one `move_object_to_zone`, then a `cast_with_mutate`
-        // branch that picks the kind), CR 702.140a / CR 729.2.
+        // branch that picks the kind), CR 702.140a / CR 730.2.
         K::Spell { source_object } | K::MutatingCreatureSpell { source_object, .. } => {
             Some(*source_object)
         }
@@ -1430,7 +1430,7 @@ mod tests {
     ///
     /// `casting.rs::handle_cast_spell` moves the card into `ZoneId::Stack` and *then*
     /// branches on `cast_with_mutate` to choose between `Spell` and
-    /// `MutatingCreatureSpell` (CR 702.140a / CR 729.2). The S8 rewrite classified on
+    /// `MutatingCreatureSpell` (CR 702.140a / CR 730.2). The S8 rewrite classified on
     /// the `Spell` variant alone, on the stated premise that every Stack-zone move
     /// "ends in that same `Spell` kind" — which this state is the counterexample to:
     /// before [`stack_card_of`], this fired direction (2) on every mutate cast, a

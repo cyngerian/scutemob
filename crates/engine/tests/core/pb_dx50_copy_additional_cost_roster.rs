@@ -323,7 +323,7 @@ fn r3_the_allowlist_comment_cites_the_rule_that_actually_governs() {
 /// `copy.rs` clones `original.kind` wholesale, so a copy of a mutating creature spell
 /// names the ORIGINAL's card in its `source_object`. Without a guard, the copy's
 /// resolution calls `move_object_to_zone` on that card (CR 702.140b branch) or merges it
-/// into the target (CR 729.2 branch) — either way consuming another object's card and
+/// into the target (CR 730.2 branch) — either way consuming another object's card and
 /// leaving the original to resolve against a dead `ObjectId` (CR 400.7).
 ///
 /// The sibling `StackObjectKind::Spell` arm guards exactly this, and its comment says so:

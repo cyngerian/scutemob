@@ -680,7 +680,7 @@ fn test_dx51_refused_declaration_leaves_combat_state_untouched() {
     assert!(
         refused_state.combat().is_none(),
         "OOS-DX21-5: a REFUSED declaration must leave state.combat exactly as it found \
-         it -- CR 732, \"the game returns to the moment before the declaration\""
+         it -- CR 733, \"the game returns to the moment before the declaration\""
     );
 
     // (2) A companion on a FRESH state: the ACCEPTED path still installs CombatState,

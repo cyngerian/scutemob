@@ -1190,8 +1190,8 @@ pub enum GameEvent {
     /// Emitted when a `MutatingCreatureSpell` resolves with a legal target and
     /// the spell's card data is absorbed into `target.merged_components`.
     /// The `object_id` is the merged permanent's ObjectId (the target's id is preserved,
-    /// per CR 729.2c: "same object"). No ETB triggers fire — the merged permanent
-    /// is not considered to have just entered the battlefield (CR 729.2c).
+    /// per CR 730.2c: "same object"). No ETB triggers fire — the merged permanent
+    /// is not considered to have just entered the battlefield (CR 730.2c).
     ///
     /// This event is used by `TriggerEvent::SelfMutates` trigger dispatch in
     /// `abilities.rs` to fire "whenever this creature mutates" abilities.
@@ -1230,9 +1230,9 @@ pub enum GameEvent {
         /// False if it transformed back to its front face.
         to_back_face: bool,
     },
-    /// CR 730.1: The game's day/night designation changed.
+    /// CR 731.1: The game's day/night designation changed.
     ///
-    /// Emitted when it becomes day or night due to CR 730.2, or when a Daybound/Nightbound
+    /// Emitted when it becomes day or night due to CR 731.2, or when a Daybound/Nightbound
     /// permanent establishes the initial day/night designation (CR 702.145d/g).
     ///
     /// Discriminant: 109.
@@ -1285,7 +1285,7 @@ pub enum GameEvent {
         /// The real name of the card revealed to all players.
         card_name: String,
     },
-    // ── Dungeon / Venture events (CR 309, CR 701.49, CR 725) ─────────────────
+    // ── Dungeon / Venture events (CR 309, CR 701.49, CR 726) ─────────────────
     /// CR 309.5a / CR 701.49: A player's venture marker moved into a dungeon room.
     ///
     /// Emitted when a player ventures into the dungeon and the marker is placed on
@@ -1312,10 +1312,10 @@ pub enum GameEvent {
         /// Which dungeon was completed and removed.
         dungeon: crate::state::dungeon::DungeonId,
     },
-    /// CR 725.2: A player took the initiative.
+    /// CR 726.2: A player took the initiative.
     ///
     /// Emitted when `Effect::TakeTheInitiative` resolves. The player who took
-    /// the initiative also ventures into the Undercity (CR 725.2 inherent trigger).
+    /// the initiative also ventures into the Undercity (CR 726.2 inherent trigger).
     ///
     /// Discriminant: 116.
     InitiativeTaken {
@@ -1347,10 +1347,10 @@ pub enum GameEvent {
         /// The creature that became the ring-bearer.
         creature: crate::state::game_object::ObjectId,
     },
-    /// CR 724.1/724.3: A player became the monarch.
+    /// CR 725.1/724.3: A player became the monarch.
     ///
     /// Emitted when a player becomes the monarch (from an effect or from
-    /// combat damage to the previous monarch — CR 724.2).
+    /// combat damage to the previous monarch — CR 725.2).
     ///
     /// Discriminant: 119.
     PlayerBecameMonarch {

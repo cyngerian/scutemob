@@ -392,13 +392,13 @@ Deadly Rollick	{3}{B}	-	-	Instant	If you control a commander, you may cast this 
 Deadly Tempest	{4}{B}{B}	-	-	Sorcery	Destroy all creatures. Each player loses life equal to the number of creatures they controlled that were destroyed this way.
 Deafening Silence	{W}	-	-	Enchantment	Each player can't cast more than one noncreature spell each turn.
 Deathcap Glade	-	-	-	Land	This land enters tapped unless you control two or more other lands.\n{T}: Add {B} or {G}.
-Deathrite Shaman	{B/G}	1	2	Creature — Elf Shaman	{T}: Exile target land card from a graveyard. Add one mana of any color.\n{B}, {T}: Exile target instant or sorcery card from a graveyard. Each opponent loses 2 life.\n{G}, {T}: Exile target creature card from a graveyard. You gain 2 life.
+Deathrite Shaman	{B/G}	1	2	Creature — Elf Shaman	{T}: Exile target land card from a graveyard. Add one mana of any color. (Activate only as an instant.)\n{B}, {T}: Exile target instant or sorcery card from a graveyard. Each opponent loses 2 life.\n{G}, {T}: Exile target creature card from a graveyard. You gain 2 life.
 Decadent Dragon // Expensive Taste	{2}{R}{R}	4	4	Creature — Dragon	Flying, trample\nWhenever this creature attacks, create a Treasure token.
 Decanter of Endless Water	{3}	-	-	Artifact	You have no maximum hand size.\n{T}: Add one mana of any color.
 Deep Gnome Terramancer	{1}{W}	2	2	Creature — Gnome Wizard	Flash\nMold Earth — Whenever one or more lands enter under an opponent's control without being played, you may search your library for a Plains card, put it onto the battlefield tapped, then shuffle. Do this only once each turn.
 Deflecting Swat	{2}{R}	-	-	Instant	If you control a commander, you may cast this spell without paying its mana cost.\nYou may choose new targets for target spell or ability.
 Delighted Halfling	{G}	1	2	Creature — Halfling Citizen	{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a legendary spell, and that spell can't be countered.
-Delney, Streetwise Lookout	{2}{W}	2	2	Legendary Creature — Human Scout	Creatures you control with power 2 or less can't be blocked by creatures with power 3 or greater.\nIf an ability of a creature you control with power 2 or less triggers, that ability triggers an additional time.
+Delney, Streetwise Lookout	{2}{W}	2	2	Legendary Creature — Human Scout	Creatures you control with power 2 or less can't be blocked by creatures with power 3 or greater.\nIf a triggered ability of a creature you control with power 2 or less triggers, that ability triggers an additional time.
 Delver of Secrets	{U}	1	1	Creature — Human Wizard	At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform this creature.
 Demolition Field	-	-	-	Land	{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Destroy target nonbasic land an opponent controls. That land's controller may search their library for a basic land card, put it onto the battlefield, then shuffle. You may search your library for a basic land card, put it onto the battlefield, then shuffle.
 Demon's Disciple	{2}{B}	3	1	Creature — Human Cleric	When this creature enters, each player sacrifices a creature or planeswalker of their choice.
@@ -512,7 +512,7 @@ Elvish Harbinger	{2}{G}	1	2	Creature — Elf Druid	When this creature enters, yo
 Elvish Mystic	{G}	1	1	Creature — Elf Druid	{T}: Add {G}.
 Elvish Promenade	{3}{G}	-	-	Kindred Sorcery — Elf	Create a 1/1 green Elf Warrior creature token for each Elf you control.
 Elvish Reclaimer	{G}	1	2	Creature — Elf Warrior	This creature gets +2/+2 as long as there are three or more land cards in your graveyard.\n{2}, {T}, Sacrifice a land: Search your library for a land card, put it onto the battlefield tapped, then shuffle.
-Elvish Spirit Guide	{2}{G}	2	2	Creature — Elf Spirit	Exile this creature from your hand: Add {G}.
+Elvish Spirit Guide	{2}{G}	2	2	Creature — Elf Spirit	Exile this card from your hand: Add {G}.
 Elvish Visionary	{1}{G}	1	1	Creature — Elf Shaman	When this creature enters, draw a card.
 Elvish Warmaster	{1}{G}	2	2	Creature — Elf Warrior	Whenever one or more other Elves you control enter, create a 1/1 green Elf Warrior creature token. This ability triggers only once each turn.\n{5}{G}{G}: Elves you control get +2/+2 and gain deathtouch until end of turn.
 Emerald Medallion	{2}	-	-	Artifact	Green spells you cast cost {1} less to cast.
@@ -901,7 +901,7 @@ Legion Lieutenant	{W}{B}	2	2	Creature — Vampire Knight	Other Vampires you cont
 Legion Loyalist	{R}	1	1	Creature — Goblin Soldier	Haste\nBattalion — Whenever this creature and at least two other creatures attack, creatures you control gain first strike and trample until end of turn and can't be blocked by creature tokens this turn.
 Legion Warboss	{2}{R}	2	2	Creature — Goblin Soldier	Mentor (Whenever this creature attacks, put a +1/+1 counter on target attacking creature with lesser power.)\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token. That token gains haste until end of turn and attacks this combat if able.
 Legion's Landing	{W}	-	-	Legendary Enchantment	When Legion's Landing enters, create a 1/1 white Vampire creature token with lifelink.\nWhen you attack with three or more creatures, transform Legion's Landing.
-Legolas's Quick Reflexes	{G}	-	-	Instant	Split second (As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities.)\nUntap target creature. Until end of turn, it gains hexproof, reach, and "Whenever this creature becomes tapped, it deals damage equal to its power to up to one target creature."
+Legolas's Quick Reflexes	{G}	-	-	Instant	Split second (As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities.)\nUntap target creature. Until end of turn, it gains reach, hexproof, and "Whenever this creature becomes tapped, it deals damage equal to its power to up to one target creature."
 Lena, Selfless Champion	{4}{W}{W}	3	3	Legendary Creature — Human Knight	When Lena enters, create a 1/1 white Soldier creature token for each nontoken creature you control.\nSacrifice Lena: Creatures you control with power less than Lena's power gain indestructible until end of turn.
 Leonin Warleader	{2}{W}{W}	4	4	Creature — Cat Soldier	Whenever this creature attacks, create two 1/1 white Cat creature tokens with lifelink that are tapped and attacking.
 Leyline of Abundance	{2}{G}{G}	-	-	Enchantment	If this card is in your opening hand, you may begin the game with it on the battlefield.\nWhenever you tap a creature for mana, add an additional {G}.\n{6}{G}{G}: Put a +1/+1 counter on each creature you control.
@@ -1014,7 +1014,7 @@ Moment's Peace	{1}{G}	-	-	Instant	Prevent all combat damage that would be dealt 
 Momentous Fall	{2}{G}{G}	-	-	Instant	As an additional cost to cast this spell, sacrifice a creature.\nYou draw cards equal to the sacrificed creature's power, then you gain life equal to its toughness.
 Monastery Mentor	{2}{W}	2	2	Creature — Human Monk	Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\nWhenever you cast a noncreature spell, create a 1/1 white Monk creature token with prowess.
 Monastery Swiftspear	{R}	1	2	Creature — Human Monk	Haste\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)
-Monster Manual // Zoological Study	{3}{G}	-	-	Artifact	{1}{G}, {T}: You may put a creature card from your hand onto the battlefield.
+Monster Manual // Zoological Study	{3}{G}	-	-	Artifact — Book	{1}{G}, {T}: You may put a creature card from your hand onto the battlefield.
 Moon-Circuit Hacker	{1}{U}	2	1	Enchantment Creature — Human Ninja	Ninjutsu {U} ({U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, you may draw a card. If you do, discard a card unless this creature entered this turn.
 Moonblade Shinobi	{3}{U}	3	2	Creature — Human Ninja	Ninjutsu {2}{U} ({2}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, create a 1/1 blue Illusion creature token with flying.
 Moonsnare Specialist	{3}{U}	2	2	Creature — Human Ninja	Ninjutsu {2}{U} ({2}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhen this creature enters, return up to one target creature to its owner's hand.
@@ -1163,7 +1163,7 @@ Plague Myr	{2}	1	1	Artifact Creature — Phyrexian Myr	Infect (This creature dea
 Plague Stinger	{1}{B}	1	1	Creature — Phyrexian Insect Horror	Flying\nInfect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)
 Plains	-	-	-	Basic Land — Plains	({T}: Add {W}.)
 Plateau	-	-	-	Land — Mountain Plains	({T}: Add {R} or {W}.)
-Plumb the Forbidden	{1}{B}	-	-	Instant	As an additional cost to cast this spell, you may sacrifice one or more creatures. When you do, copy this spell for each creature sacrificed this way.\nYou draw a card and you lose 1 life.
+Plumb the Forbidden	{1}{B}	-	-	Instant	As an additional cost to cast this spell, you may sacrifice one or more creatures. When you do, copy this spell for each creature sacrificed this way.\nYou draw a card and lose 1 life.
 Poison-Tip Archer	{2}{B}{G}	2	3	Creature — Elf Archer	Reach (This creature can block creatures with flying.)\nDeathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\nWhenever another creature dies, each opponent loses 1 life.
 Polluted Delta	-	-	-	Land	{T}, Pay 1 life, Sacrifice this land: Search your library for an Island or Swamp card, put it onto the battlefield, then shuffle.
 Polymorphist's Jest	{1}{U}{U}	-	-	Instant	Until end of turn, each creature target player controls loses all abilities and becomes a blue Frog with base power and toughness 1/1.
@@ -1174,7 +1174,7 @@ Preacher of the Schism	{2}{B}	2	4	Creature — Vampire Cleric	Deathtouch\nWhenev
 Predator Dragon	{3}{R}{R}{R}	4	4	Creature — Dragon	Flying, haste\nDevour 2 (As this creature enters, you may sacrifice any number of creatures. It enters with twice that many +1/+1 counters on it.)
 Preordain	{U}	-	-	Sorcery	Scry 2, then draw a card. (To scry 2, look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)
 Press the Enemy	{2}{U}{U}	-	-	Instant	Return target spell or nonland permanent an opponent controls to its owner's hand. You may cast an instant or sorcery spell with equal or lesser mana value from your hand without paying its mana cost.
-Priest of Forgotten Gods	{1}{B}	1	2	Creature — Human Cleric	{T}, Sacrifice two other creatures: Any number of target players each lose 2 life and sacrifice a creature of their choice. You add {B}{B} and draw a card.
+Priest of Forgotten Gods	{1}{B}	1	2	Creature — Human Cleric	{T}, Sacrifice two other creatures: Any number of target players each lose 2 life and sacrifice a creature of their choice. You add {B}{B} and draw a card. (Activate only as an instant.)
 Priest of Titania	{1}{G}	1	1	Creature — Elf Druid	{T}: Add {G} for each Elf on the battlefield.
 Prismatic Vista	-	-	-	Land	{T}, Pay 1 life, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield, then shuffle.
 Professional Face-Breaker	{2}{R}	2	3	Creature — Human Warrior	Menace\nWhenever one or more creatures you control deal combat damage to a player, create a Treasure token.\nSacrifice a Treasure: Exile the top card of your library. You may play that card this turn.
@@ -1466,7 +1466,7 @@ Stitcher's Supplier	{B}	1	1	Creature — Zombie	When this creature enters or die
 Stock Up	{2}{U}	-	-	Sorcery	Look at the top five cards of your library. Put two of them into your hand and the rest on the bottom of your library in any order.
 Stomping Ground	-	-	-	Land — Mountain Forest	({T}: Add {R} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.
 Stony Silence	{1}{W}	-	-	Enchantment	Activated abilities of artifacts can't be activated.
-Storm-Kiln Artist	{3}{R}	2	2	Creature — Dwarf Shaman	This creature gets +1/+0 for each artifact you control.\nMagecraft — Whenever you cast or copy an instant or sorcery spell, create a Treasure token.
+Storm-Kiln Artist	{3}{R}	2	2	Creature — Dwarf Shaman	This creature gets +1/+0 for each artifact you control.\nMagecraft — Whenever you cast or copy an instant or sorcery spell, create a Treasure token. (It's an artifact with "{T}, Sacrifice this token: Add one mana of any color.")
 Stormblood Berserker	{1}{R}	1	1	Creature — Human Berserker	Bloodthirst 2 (If an opponent was dealt damage this turn, this creature enters with two +1/+1 counters on it.)\nMenace (This creature can't be blocked except by two or more creatures.)
 Stormcarved Coast	-	-	-	Land	This land enters tapped unless you control two or more other lands.\n{T}: Add {U} or {R}.
 Street Wraith	{3}{B}{B}	3	4	Creature — Wraith	Swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)\nCycling—Pay 2 life. (Pay 2 life, Discard this card: Draw a card.)

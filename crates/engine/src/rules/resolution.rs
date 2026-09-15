@@ -5275,7 +5275,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         encoded_cards: imbl::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
-                        // CR 729.2: tokens are not part of a merged permanent by default.
+                        // CR 730.2: tokens are not part of a merged permanent by default.
                         merged_components: imbl::Vector::new(),
                         // CR 712.8a: DFC state is reset for all new permanents.
                         is_transformed: false,
@@ -5487,7 +5487,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                     encoded_cards: imbl::Vector::new(),
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
-                    // CR 729.2: tokens are not part of a merged permanent by default.
+                    // CR 730.2: tokens are not part of a merged permanent by default.
                     merged_components: imbl::Vector::new(),
                     // CR 712.8a: DFC state is reset for all new permanents.
                     is_transformed: false,
@@ -6272,7 +6272,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         encoded_cards: imbl::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
-                        // CR 729.2: tokens are not part of a merged permanent by default.
+                        // CR 730.2: tokens are not part of a merged permanent by default.
                         merged_components: imbl::Vector::new(),
                         // CR 712.8a: DFC state is reset for all new permanents.
                         is_transformed: false,
@@ -6996,7 +6996,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         encoded_cards: imbl::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
-                        // CR 729.2: tokens are not part of a merged permanent by default.
+                        // CR 730.2: tokens are not part of a merged permanent by default.
                         merged_components: imbl::Vector::new(),
                         // CR 712.8a: DFC state is reset for all new permanents.
                         is_transformed: false,
@@ -7222,7 +7222,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         encoded_cards: imbl::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
-                        // CR 729.2: tokens are not part of a merged permanent by default.
+                        // CR 730.2: tokens are not part of a merged permanent by default.
                         merged_components: imbl::Vector::new(),
                         // CR 712.8a: DFC state is reset for all new permanents.
                         is_transformed: false,
@@ -7464,7 +7464,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             encoded_cards: imbl::Vector::new(),
                             haunting_target: None,
                             // CR 702.151b: tokens are not reconfigured by default.
-                            // CR 729.2: tokens are not part of a merged permanent by default.
+                            // CR 730.2: tokens are not part of a merged permanent by default.
                             merged_components: imbl::Vector::new(),
                             // CR 712.8a: DFC state is reset for all new permanents.
                             is_transformed: false,
@@ -7684,7 +7684,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                 stack_object_id: stack_obj.id,
             });
         }
-        // CR 702.140b / CR 729.2: Mutating creature spell resolution.
+        // CR 702.140b / CR 730.2: Mutating creature spell resolution.
         //
         // CR 702.140b: If the target becomes illegal before this spell resolves
         // (it left the battlefield, stopped being a creature, became a Human, or
@@ -7692,7 +7692,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
         // mutating creature spell and instead resolves as a normal creature spell —
         // the creature enters the battlefield as if the mutate cost had not been paid.
         //
-        // CR 729.2: When the target is still legal, the resolving card is placed onto
+        // CR 730.2: When the target is still legal, the resolving card is placed onto
         // the target permanent (on top if mutate_on_top=true, underneath if false).
         // The spell does NOT enter the battlefield as a separate permanent.
         // The target permanent's characteristics are updated via the layer system.
@@ -7944,7 +7944,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         // keeps a release build on the pre-batch behaviour if it ever happens.
                         Some(_) => true,
                     };
-                    // CR 729.2: Legal target — merge the spell with the target permanent.
+                    // CR 730.2: Legal target — merge the spell with the target permanent.
                     // The spell does NOT enter the battlefield separately.
                     // Step 1: Capture the spell's data from the source object BEFORE removing it.
                     let spell_card_id = state
@@ -8024,10 +8024,10 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             v
                         };
                     // Step 5: Update the target permanent's merged_components.
-                    // CR 729.2c: The merged permanent is the SAME object — its ObjectId is preserved.
+                    // CR 730.2c: The merged permanent is the SAME object — its ObjectId is preserved.
                     // No ETB triggers fire. Continuous effects (Auras, Equipment) remain valid.
                     //
-                    // CR 729.2a: Also sync base characteristics from the new topmost component
+                    // CR 730.2a: Also sync base characteristics from the new topmost component
                     // (merged_components[0]). This ensures that trigger scanning and other
                     // raw-characteristics lookups (which bypass the layer system) see the correct
                     // abilities. The layer system's Layer 1 override is consistent with this.
@@ -8039,7 +8039,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         target_obj.merged_components = new_components;
                     }
                     // Step 6: Remove the spell's source_object from state.
-                    // CR 729.2b: "The spell leaves its previous zone and becomes part of an object."
+                    // CR 730.2b: "The spell leaves its previous zone and becomes part of an object."
                     // The card is absorbed into the target permanent's merged_components.
                     // It is NOT moved to any zone — it simply ceases to exist as a separate entity.
                     let spell_zone = state.objects.get(&source_object).map(|o| o.zone);
@@ -8058,7 +8058,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                     });
                     // Step 8: Emit SpellResolved for the mutating spell.
                     // source_object_id is the target (merged permanent) since the spell
-                    // became part of it (CR 729.2b). No PermanentEnteredBattlefield (CR 729.2c).
+                    // became part of it (CR 730.2b). No PermanentEnteredBattlefield (CR 730.2c).
                     events.push(GameEvent::SpellResolved {
                         player: controller,
                         stack_object_id: stack_obj.id,

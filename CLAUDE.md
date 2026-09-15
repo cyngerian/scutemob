@@ -11,9 +11,9 @@
 - **Active Milestone**: P1 pod-first (`docs/course-correction-2026-09.md` §5, approved 2026-09-05).
   M11-local DONE 2026-08-01 (engine first-playable: one human + three bots in a browser via
   `tools/play-server`). M10+ roadmap milestones are HISTORICAL pending CC-8.
-- **Status**: 5,346 tests passing / 0 failing / 6 ignored (after LL-1, 73 targets);
+- **Status**: 5,350 tests passing / 0 failing / 6 ignored (after `scutemob-259`, 73 targets);
   209 approved golden scripts; CI green since 2026-07-10.
-- **Last Updated**: 2026-09-05 — LL-1 collected (`01ce7e2c`): SR-39, 964-def sweep, CR 608.2h.
+- **Last Updated**: 2026-09-14 — data sync (`scutemob-259`): CR 2026-08-07, Scryfall 2026-09-14, `/start` check.
 - **Headline metric**: live card coverage **1,143 / 1,803 = 63.4%** (`docs/authoring-status.md`,
   regenerate with `tools/authoring-report.py`). Replaced by pod coverage (`docs/pod-coverage.md`)
   once CC-6 lands. Wire: PROTOCOL **44** / HASH **85**.
@@ -145,7 +145,8 @@ These are non-negotiable. If a change would violate any of these, stop and recon
 ## MCP Resources
 
 - **Rules / card / rulings search** (`mtg-rules`): by rule number, concept, or exact card name. CR text
-  is authoritative; rulings can be stale.
+  is authoritative; rulings can be stale. Data freshness: `tools/data-freshness.py check|refresh|cites`
+  (`/start` runs `check`; CR effective 2026-08-07 + Scryfall 2026-09-14 as of `scutemob-259`).
 - **rust-analyzer**: semantic navigation; ~70s warmup; call `rust_analyzer_stop` when done (~2.5GB).
 
 ## Critical Gotchas

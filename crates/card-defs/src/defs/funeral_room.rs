@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![],
         completeness: Completeness::inert(
-            "Blocked on the Room / door-unlock mechanic (CR 725): no two-door split-enchantment \
+            "Blocked on the Room / door-unlock mechanic (CR 726): no two-door split-enchantment \
              representation, no per-door mana costs, no unlock action, and no 'when you unlock \
              this door' trigger. The Funeral Room door's own body is expressible today \
              (WheneverCreatureDies{controller: You} + LoseLife EachOpponent + GainLife \
