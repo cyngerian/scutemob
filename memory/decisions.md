@@ -314,3 +314,24 @@ the end of a batch and removed three cards from every deck to no one's benefit.
 
 Batch scope line, for completeness: PB-DX45 repairs every caller of
 `effects::try_pay_optional_cost`, not every printed "you may pay".
+
+## 2026-09-14 — `cards.sqlite` has an external read-only reader (webber); refresh cadence stated
+
+webber's `/webresearch` domain profile `domains/mtg.md` (webber task `webber-6`) reads
+`/home/skydude/projects/scutemob/cards.sqlite` with `sqlite3 -readonly -safe` for card facts —
+`cards(name, oracle_id, layout, oracle_text, type_line, legalities)`, `card_faces(card_id,
+face_index)`, `rulings(oracle_id, published_at, comment)`. It never writes and never runs
+`refresh`. Acknowledged; scutemob owns the file.
+
+**Cadence, as committed to**: there is no timer. `tools/data-freshness.py check` runs from the
+SessionStart hook at every scutemob session start; `refresh` is offered (never auto-run) when the
+CR effective date differs from the published file or the Scryfall bulk files are more than 30 days
+behind (`--max-age-days`). So the database is at most ~30 days behind Scryfall while scutemob
+sessions are happening, and stale without bound when they are not. Last import: 2026-09-15T00:17Z.
+
+**Guarantees to the reader**: `cards`/`card_faces` and `rulings` are each rewritten inside ONE
+transaction (WAL mode), so a concurrent `-readonly` connection sees the old or the new snapshot,
+never a half-empty table. The `rules` table is NOT transactional on re-import (webber does not read
+it). Column renames in `cards`, `card_faces` or `rulings` require a heads-up to webber first — note
+it in the task that renames them. Readers must exclude non-game layouts:
+`art_series, token, double_faced_token, emblem, front_card` (the last shares names with real cards).
