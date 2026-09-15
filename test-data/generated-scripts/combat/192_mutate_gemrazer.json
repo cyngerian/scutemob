@@ -237,14 +237,14 @@
               "card": "Gemrazer",
               "owner": "p1",
               "cr_ref": "702.140c",
-              "note": "CR 702.140c: Mutate target (Canopy Crawler) is still legal. Gemrazer merges with Canopy Crawler: Gemrazer's component data is prepended to merged_components (index 0, mutate_on_top=true). CR 729.2a: Topmost component (Gemrazer) supplies base characteristics. CR 702.140e: ALL components contribute abilities. CR 729.2c: No ETB trigger — same object. GameEvent::CreatureMutated emitted. Gemrazer's card object removed from state.objects (CR 729.2b)."
+              "note": "CR 702.140c: Mutate target (Canopy Crawler) is still legal. Gemrazer merges with Canopy Crawler: Gemrazer's component data is prepended to merged_components (index 0, mutate_on_top=true). CR 730.2a: Topmost component (Gemrazer) supplies base characteristics. CR 702.140e: ALL components contribute abilities. CR 730.2c: No ETB trigger — same object. GameEvent::CreatureMutated emitted. Gemrazer's card object removed from state.objects (CR 730.2b)."
             }
           ],
           "note": "CR 608.2: Mutating creature spell resolves via resolution.rs StackObjectKind::MutatingCreatureSpell arm. After merge, GameEvent::CreatureMutated fires (abilities.rs check_triggers → SelfMutates → PendingTrigger pushed). flush_pending_triggers auto-selects the sole legal target (P2's Arcane Signet, CR 603.3d) and places the 'Whenever this creature mutates' trigger on the stack as StackObjectKind::TriggeredAbility."
         },
         {
           "type": "assert_state",
-          "description": "After merge resolves: one object on stack (the WhenMutates trigger, targeting P2's Arcane Signet). Gemrazer on P1 battlefield as the merged permanent (name from topmost component, CR 729.2a). Both Arcane Signets still on battlefield.",
+          "description": "After merge resolves: one object on stack (the WhenMutates trigger, targeting P2's Arcane Signet). Gemrazer on P1 battlefield as the merged permanent (name from topmost component, CR 730.2a). Both Arcane Signets still on battlefield.",
           "assertions": {
             "zones.stack.count": 1,
             "zones.battlefield.p1": {
@@ -265,7 +265,7 @@
               ]
             }
           },
-          "note": "CR 729.2a: The merged permanent's name (and all other characteristics) come from the topmost component, which is Gemrazer (mutate_on_top=true). The engine represents the merged permanent with the Canopy Crawler ObjectId (same object, CR 729.2c) but the card name displayed is 'Gemrazer' from the topmost component's characteristics. Stack count = 1 (the mutate trigger, targeting P2's Arcane Signet per CR 603.3d auto-selection). Canopy Crawler's name is no longer the active name — Gemrazer is."
+          "note": "CR 730.2a: The merged permanent's name (and all other characteristics) come from the topmost component, which is Gemrazer (mutate_on_top=true). The engine represents the merged permanent with the Canopy Crawler ObjectId (same object, CR 730.2c) but the card name displayed is 'Gemrazer' from the topmost component's characteristics. Stack count = 1 (the mutate trigger, targeting P2's Arcane Signet per CR 603.3d auto-selection). Canopy Crawler's name is no longer the active name — Gemrazer is."
         },
         {
           "type": "priority_round",
@@ -326,7 +326,7 @@
             "players.p1.life": 40,
             "players.p2.life": 40
           },
-          "note": "CR 729.2a: The merged permanent shows as 'Gemrazer' (topmost component's name). CR 729.2c: Same object as the original Canopy Crawler permanent. P1's own Arcane Signet survives (not a legal target — controller filter). P2's Arcane Signet is destroyed (PB-EF3 EF-W-MISS-10 fix) and moves to P2's graveyard (CR 704.5g / 700.4). Life totals unchanged: no damage dealt."
+          "note": "CR 730.2a: The merged permanent shows as 'Gemrazer' (topmost component's name). CR 730.2c: Same object as the original Canopy Crawler permanent. P1's own Arcane Signet survives (not a legal target — controller filter). P2's Arcane Signet is destroyed (PB-EF3 EF-W-MISS-10 fix) and moves to P2's graveyard (CR 704.5g / 700.4). Life totals unchanged: no damage dealt."
         }
       ]
     }

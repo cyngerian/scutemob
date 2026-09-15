@@ -36,7 +36,7 @@
 //! human channel (`ActionParams::effect_choice_answer` → UNDER), which is the answer no
 //! channel could produce at resolution time before this batch.
 //!
-//! CR 702.140e / CR 729.2a are why any of it matters: the **topmost** component supplies
+//! CR 702.140e / CR 730.2a are why any of it matters: the **topmost** component supplies
 //! the merged permanent's non-ability characteristics — name, card id, mana cost,
 //! colours, types and power/toughness — so "over" and "under" are genuinely different
 //! permanents from the same two cards, on **six deck-legal `Complete` mutate defs**.
@@ -216,13 +216,13 @@ fn test_dx50_m2_params_builds_the_mutate_cost_with_no_over_under_answer() {
     );
 }
 
-/// M3 (**RE-HOMED by PB-DX50, not deleted**) — CR 702.140e / CR 729.2a, end to end with
+/// M3 (**RE-HOMED by PB-DX50, not deleted**) — CR 702.140e / CR 730.2a, end to end with
 /// the NON-DEFAULT answer, through the **resolution-time** channel.
 ///
 /// This is the assertion AC 7302 requires to survive: mutating UNDER leaves the host's
 /// name on the merged permanent; mutating OVER replaces it. It reads the merged permanent
 /// by NAME (CR 400.7 — and note that a mutate merge deliberately PRESERVES the target's
-/// `ObjectId`, CR 729.2c, so the id survives here where a zone change would have killed
+/// `ObjectId`, CR 730.2c, so the id survives here where a zone change would have killed
 /// it), and the two answers produce different names from the same two cards.
 ///
 /// **Both channels, and the difference between them is the point.** The BOT path submits
@@ -297,13 +297,13 @@ fn test_dx50_m3_mutating_under_keeps_the_hosts_characteristics() {
         assert_eq!(
             merged.len(),
             1,
-            "CR 729.2b: the mutating spell is absorbed into the host and does NOT enter as a \
+            "CR 730.2b: the mutating spell is absorbed into the host and does NOT enter as a \
              separate permanent, so exactly one permanent must remain. Got: {merged:?}"
         );
         merged.into_iter().next().expect("checked above")
     };
 
-    // CR 729.2a: the topmost component supplies the merged permanent's characteristics.
+    // CR 730.2a: the topmost component supplies the merged permanent's characteristics.
     assert_eq!(
         outcome(Some(true)),
         MUTATOR,
@@ -312,7 +312,7 @@ fn test_dx50_m3_mutating_under_keeps_the_hosts_characteristics() {
     assert_eq!(
         outcome(Some(false)),
         HOST,
-        "CR 702.140e / CR 729.2a: mutating UNDER must leave the HOST's name, mana cost, types \
+        "CR 702.140e / CR 730.2a: mutating UNDER must leave the HOST's name, mana cost, types \
          and P/T on the merged permanent. Before PB-DX50 this was reachable only by choosing \
          it at ANNOUNCEMENT, which is not when CR 702.140c puts the choice."
     );

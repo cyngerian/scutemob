@@ -137,7 +137,7 @@ fn run_delayed_trigger_cleanup(state: &mut GameState) {
 /// 6. Every site that RESUMES the blocked engine must reproduce what the guard
 ///    it replaced was about to do -- not just "grant priority". PB-DP8 shipped a
 ///    `bool` for that and it was too narrow: `enter_step`'s two guards also owed
-///    a CR 726 mandatory-loop check, and its Cleanup guard a `cleanup_sba_rounds`
+///    a CR 727 mandatory-loop check, and its Cleanup guard a `cleanup_sba_rounds`
 ///    ratchet (fix-cycle Finding 4 / seed OOS-DP8-10). See
 ///    [`crate::state::stubs::FlushResumeSite`].
 ///
@@ -230,7 +230,7 @@ fn run_delayed_trigger_cleanup(state: &mut GameState) {
 /// fingerprint, and argue it. PB-DP7 and PB-DP8 both folded theirs in; PB-DP9
 /// deliberately does not, because its entry and its answer bank GROW between
 /// successive replays of the SAME resolution, so including them would make two
-/// structurally identical CR 726 positions fingerprint differently and could
+/// structurally identical CR 727 positions fingerprint differently and could
 /// silently mask a mandatory loop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BlockingDecision {
@@ -2705,7 +2705,7 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
             let had_events = !sba_events.is_empty() || !trigger_events.is_empty();
             if had_events && state.turn.cleanup_sba_rounds < MAX_CLEANUP_SBA_ROUNDS {
                 state.turn.cleanup_sba_rounds += 1;
-                // CR 104.4b / CR 726: After each mandatory SBA + trigger batch,
+                // CR 104.4b / CR 727: After each mandatory SBA + trigger batch,
                 // check for a recurring board state indicating a mandatory infinite loop.
                 if let Some(loop_event) = loop_detection::check_for_mandatory_loop(state) {
                     events.push(loop_event);
@@ -2755,7 +2755,7 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
                 abilities::mark_flush_resume_site(state, FlushResumeSite::EnterStepPriority);
                 return Ok(events);
             }
-            // CR 104.4b / CR 726: After each mandatory SBA + trigger batch,
+            // CR 104.4b / CR 727: After each mandatory SBA + trigger batch,
             // check for a recurring board state indicating a mandatory infinite loop.
             if !trigger_events.is_empty() {
                 if let Some(loop_event) = loop_detection::check_for_mandatory_loop(state) {
@@ -2826,7 +2826,7 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
 /// (`process_command`, `blocking_decision`) rejects every command while the
 /// block stands -- **except two**: the answer itself, which is the mechanism,
 /// and `Concede`, which mutates the board (`has_conceded`, CR 611.2b
-/// `UntilYourNextTurn` expiry, `temporary_protection_qualities`, CR 725.4
+/// `UntilYourNextTurn` expiry, `temporary_protection_qualities`, CR 726.4
 /// initiative, and via `check_game_over` the game's own liveness).
 ///
 /// So the correct invalidation condition is **"has the board changed since the
@@ -2990,7 +2990,7 @@ fn handle_concede(
             ps.temporary_protection_qualities.clear();
         }
     }
-    // CR 725.4: If the conceding player had the initiative, transfer it to the
+    // CR 726.4: If the conceding player had the initiative, transfer it to the
     // next active player in turn order.
     let initiative_events = sba::transfer_initiative_on_player_leave(state, player);
     events.extend(initiative_events);
@@ -3002,7 +3002,7 @@ fn handle_concede(
     //
     //  * AFTER every board mutation this command performs (the `has_conceded`
     //    mark, `drop_departed_trigger_flush`, the CR 611.2b `UntilYourNextTurn`
-    //    expiry + protection clear, the CR 725.4 initiative transfer,
+    //    expiry + protection clear, the CR 726.4 initiative transfer,
     //    `check_game_over`) -- because the discharge RE-DRIVES the suspended
     //    resolution and records a fresh question. Running it earlier would
     //    record that question against a board this same command then goes on to
@@ -3178,7 +3178,7 @@ fn handle_concede(
 /// Returns GameOver event if applicable.
 ///
 /// `pub(crate)` since PB-DP8's fix cycle: `abilities::finish_resumed_flush`
-/// reproduces `enter_step`'s CR 726 mandatory-loop branch, which ends here.
+/// reproduces `enter_step`'s CR 727 mandatory-loop branch, which ends here.
 pub(crate) fn check_game_over(state: &GameState) -> Vec<GameEvent> {
     let active = state.active_players();
     match active.len() {

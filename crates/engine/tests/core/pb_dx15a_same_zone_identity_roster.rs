@@ -604,7 +604,7 @@ fn r5_the_two_move_helpers_guard_before_they_mint() {
 
     // Per-function mint counts, measured 2026-08-23. `move_object_to_zone` legitimately
     // carries THREE: its own cross-zone `new_id`, plus two `component_id` re-mints for the
-    // merged components of a mutate/meld pile coming apart (CR 702.140f / CR 728.3b), each of
+    // merged components of a mutate/meld pile coming apart (CR 702.140f / CR 729.3b), each of
     // which really is a separate object arriving in a separate zone.
     // `move_object_to_bottom_of_zone` carries one. The first draft of this row asserted "one
     // each" and the test reddened on its first run — the count is measured here rather than

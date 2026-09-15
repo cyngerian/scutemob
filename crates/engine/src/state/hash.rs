@@ -628,7 +628,7 @@
 ///   v66 shape dropped `UpToN`'s `count` and capped every "up to N" announcement at
 ///   one target), and `PendingTriggerTargets.grant_priority_on_resume: bool` becomes
 ///   `resume_site: FlushResumeSite` (a 31st `check_and_flush_triggers` call site was
-///   found, and the two `enter_step` guards owed a CR 726 loop check plus a
+///   found, and the two `enter_step` guards owed a CR 727 loop check plus a
 ///   `cleanup_sba_rounds` ratchet that a bool could not express). `decl_fingerprint`
 ///   MOVES (changed field + new enum in the `GameState` serde closure);
 ///   `stream_fingerprint` moves per the v40 mechanism. `TriggerTargetOption` is in
@@ -648,7 +648,7 @@
 ///   `public_state_hash`; **none** is mirrored into `loop_detection.rs`'s
 ///   mandatory-state fingerprint, a deliberate deviation from the v65/v66
 ///   precedent (they grow between successive replays of ONE resolution, so
-///   including them could mask a CR 726 mandatory loop). Also: `GameEvent`
+///   including them could mask a CR 727 mandatory loop). Also: `GameEvent`
 ///   gains `EffectChoiceRequired { player, choice_id, source_object_id,
 ///   question }` (discriminant 131 — see the `GameEvent` hashing match).
 ///   `decl_fingerprint` MOVES (three new fields + four new types in the
@@ -2750,7 +2750,7 @@ impl HashInto for GameObject {
         }
         // Haunt (CR 702.55b) — creature this exiled card is haunting
         self.haunting_target.hash_into(hasher);
-        // Mutate (CR 729.2) — merged components (empty for unmerged permanents)
+        // Mutate (CR 730.2) — merged components (empty for unmerged permanents)
         (self.merged_components.len() as u64).hash_into(hasher);
         for component in self.merged_components.iter() {
             component.hash_into(hasher);
@@ -3813,7 +3813,7 @@ impl HashInto for TriggerTargetOption {
         self.max.hash_into(hasher);
     }
 }
-// CR 601.2c / CR 726 (PB-DP8 fix cycle, Findings 3+4): the resume obligation.
+// CR 601.2c / CR 727 (PB-DP8 fix cycle, Findings 3+4): the resume obligation.
 impl HashInto for crate::state::stubs::FlushResumeSite {
     fn hash_into(&self, hasher: &mut Hasher) {
         use crate::state::stubs::FlushResumeSite as S;
@@ -4795,7 +4795,7 @@ impl HashInto for StackObjectKind {
                 55u8.hash_into(hasher);
                 source_object.hash_into(hasher);
             }
-            // MutatingCreatureSpell (discriminant 59) -- CR 702.140a / CR 729.2
+            // MutatingCreatureSpell (discriminant 59) -- CR 702.140a / CR 730.2
             StackObjectKind::MutatingCreatureSpell {
                 source_object,
                 target,
@@ -6239,7 +6239,7 @@ impl HashInto for GameEvent {
                 object_id.hash_into(hasher);
                 to_back_face.hash_into(hasher);
             }
-            // CR 730.1: day/night changed (discriminant 110)
+            // CR 731.1: day/night changed (discriminant 110)
             GameEvent::DayNightChanged { now } => {
                 110u8.hash_into(hasher);
                 (*now as u8).hash_into(hasher);
@@ -6291,7 +6291,7 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 dungeon.hash_into(hasher);
             }
-            // InitiativeTaken -- CR 725.2 (discriminant 116)
+            // InitiativeTaken -- CR 726.2 (discriminant 116)
             GameEvent::InitiativeTaken { player } => {
                 116u8.hash_into(hasher);
                 player.hash_into(hasher);
@@ -6308,7 +6308,7 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 creature.hash_into(hasher);
             }
-            // PlayerBecameMonarch -- CR 724.1 (discriminant 119)
+            // PlayerBecameMonarch -- CR 725.1 (discriminant 119)
             GameEvent::PlayerBecameMonarch { player } => {
                 119u8.hash_into(hasher);
                 player.hash_into(hasher);
@@ -7793,11 +7793,11 @@ impl HashInto for Effect {
             }
             // VentureIntoDungeon effect (discriminant 49) — CR 701.49
             Effect::VentureIntoDungeon => 49u8.hash_into(hasher),
-            // TakeTheInitiative effect (discriminant 50) — CR 725.2
+            // TakeTheInitiative effect (discriminant 50) — CR 726.2
             Effect::TakeTheInitiative => 50u8.hash_into(hasher),
             // TheRingTemptsYou effect (discriminant 51) — CR 701.54
             Effect::TheRingTemptsYou => 51u8.hash_into(hasher),
-            // BecomeMonarch effect (discriminant 52) — CR 724.1
+            // BecomeMonarch effect (discriminant 52) — CR 725.1
             Effect::BecomeMonarch { player } => {
                 52u8.hash_into(hasher);
                 player.hash_into(hasher);
@@ -9003,7 +9003,7 @@ impl GameState {
         // mandatory-state fingerprint, unlike PB-DP7's and PB-DP8's fields: the
         // entry and the bank GROW between replay k and replay k+1 of the same
         // resolution, so including them would make two structurally identical
-        // CR 726 positions fingerprint differently and could silently mask a
+        // CR 727 positions fingerprint differently and could silently mask a
         // mandatory loop. Pinned by
         // `test_dp9_loop_detection_fingerprint_excludes_the_choice_state`.
         self.pending_effect_choice.hash_into(&mut hasher);
@@ -9064,14 +9064,14 @@ impl GameState {
         for card_id in self.forecast_used_this_turn.iter() {
             card_id.hash_into(&mut hasher);
         }
-        // 12. Day/Night designation (CR 730.1) and previous turn spell count (CR 730.2)
+        // 12. Day/Night designation (CR 731.1) and previous turn spell count (CR 731.2)
         match self.day_night {
             None => 0u8.hash_into(&mut hasher),
             Some(crate::state::DayNight::Day) => 1u8.hash_into(&mut hasher),
             Some(crate::state::DayNight::Night) => 2u8.hash_into(&mut hasher),
         }
         self.previous_turn_spells_cast.hash_into(&mut hasher);
-        // 13. Dungeon state (CR 309.4) and initiative (CR 725.1)
+        // 13. Dungeon state (CR 309.4) and initiative (CR 726.1)
         (self.dungeon_state.len() as u64).hash_into(&mut hasher);
         for (player_id, ds) in &self.dungeon_state {
             player_id.hash_into(&mut hasher);

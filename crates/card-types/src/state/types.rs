@@ -139,7 +139,7 @@ pub enum AltCostKind {
     Cleave,
     /// CR 702.140a: Mutate [cost] -- alternative cost targeting a non-Human creature
     /// the caster owns. When paid, the spell merges with the target instead of entering
-    /// the battlefield normally (CR 729.2).
+    /// the battlefield normally (CR 730.2).
     Mutate,
     /// CR 702.146a: Disturb [cost] -- alternative cost: cast this card transformed from
     /// your graveyard by paying [cost] rather than its mana cost.
@@ -1628,7 +1628,7 @@ pub enum KeywordAbility {
     /// When cast for the mutate cost, the spell does not enter the battlefield normally.
     /// Instead, it merges with the target permanent: the controller chooses whether the
     /// mutating card goes on top or under the target (CR 702.140c). The topmost
-    /// component's characteristics become the merged permanent's characteristics (CR 729.2a),
+    /// component's characteristics become the merged permanent's characteristics (CR 730.2a),
     /// and the permanent has all abilities from all components (CR 702.140e).
     ///
     /// "Whenever this creature mutates, [effect]" triggers fire on successful merge (CR 702.140d).
@@ -1842,16 +1842,16 @@ pub enum TurnFaceUpMethod {
     /// Pay the card's mana cost (for manifested/cloaked creature cards — CR 701.40b/701.58b).
     ManaCost,
 }
-/// CR 730.1: Day and night designations for the game. Once set, the game always has
+/// CR 731.1: Day and night designations for the game. Once set, the game always has
 /// exactly one of these designations. Used for Daybound/Nightbound mechanics.
 ///
-/// CR 730.2: Checked at the beginning of the untap step to determine if the
+/// CR 731.2: Checked at the beginning of the untap step to determine if the
 /// designation should change based on the previous turn's spell count.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DayNight {
-    /// CR 730.1: The game currently has the day designation.
+    /// CR 731.1: The game currently has the day designation.
     Day,
-    /// CR 730.1: The game currently has the night designation.
+    /// CR 731.1: The game currently has the night designation.
     Night,
 }
 /// CR 702.72a: The filter for what can be championed.

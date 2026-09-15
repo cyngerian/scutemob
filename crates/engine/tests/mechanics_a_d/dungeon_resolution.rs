@@ -1,11 +1,11 @@
-//! Dungeon resolution tests — Session 3 (CR 309.4c, CR 704.5t, CR 725.2, CR 725.4).
+//! Dungeon resolution tests — Session 3 (CR 309.4c, CR 704.5t, CR 726.2, CR 726.4).
 //!
 //! Tests cover:
 //! - Room ability resolution: room effects execute through the standard effect path
 //! - SBA 704.5t: dungeon removed when on bottommost room + no room ability on stack
 //! - SBA 704.5t: dungeon NOT removed while room ability still on stack
-//! - Initiative: upkeep venture into Undercity for initiative holder (CR 725.2)
-//! - Initiative: combat damage steal transfers initiative (CR 725.2)
+//! - Initiative: upkeep venture into Undercity for initiative holder (CR 726.2)
+//! - Initiative: combat damage steal transfers initiative (CR 726.2)
 
 use mtg_engine::state::stack::StackObjectKind;
 use mtg_engine::state::test_util;
@@ -385,11 +385,11 @@ fn test_sba_704_5t_waits_for_room_ability() {
 
 // ── Initiative Upkeep Trigger ─────────────────────────────────────────────────
 
-/// CR 725.2: "At the beginning of your upkeep, if you have the initiative,
+/// CR 726.2: "At the beginning of your upkeep, if you have the initiative,
 /// venture into the Undercity." The initiative holder ventures at the start of
 /// each of their upkeep steps.
 ///
-/// Source: CR 725.2 — "Whenever a player takes the initiative, that player ventures
+/// Source: CR 726.2 — "Whenever a player takes the initiative, that player ventures
 /// into the dungeon. At the beginning of that player's upkeep, they venture into
 /// the dungeon."
 #[test]
@@ -442,10 +442,10 @@ fn test_initiative_upkeep_venture() {
 
 // ── Initiative Combat Damage Steal ───────────────────────────────────────────
 
-/// CR 725.2: "Whenever a creature deals combat damage to the player who has the
+/// CR 726.2: "Whenever a creature deals combat damage to the player who has the
 /// initiative, that creature's controller takes the initiative."
 ///
-/// Source: CR 725.2 — "Whenever a creature an opponent controls deals combat damage
+/// Source: CR 726.2 — "Whenever a creature an opponent controls deals combat damage
 /// to the player with the initiative, that creature's controller takes the initiative."
 #[test]
 fn test_initiative_combat_damage_steal() {
@@ -543,7 +543,7 @@ fn test_initiative_combat_damage_steal() {
         "InitiativeTaken event should be emitted when p1 takes initiative"
     );
 
-    // p1 should also have ventured into the Undercity (CR 725.2: taking initiative ventures).
+    // p1 should also have ventured into the Undercity (CR 726.2: taking initiative ventures).
     let ventured_undercity = all_events.iter().any(|e| {
         matches!(
             e,

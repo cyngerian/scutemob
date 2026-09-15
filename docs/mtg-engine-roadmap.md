@@ -598,7 +598,7 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [x] Storm keyword + spell copying on stack — CR 702.40, 707.10
 - [x] Cascade keyword + split card mana value — CR 702.84, 708.4
 - [x] Trigger doubling (Panharmonicon-style modifier) — CR 603.2
-- [x] Infinite loop detection (mandatory loop = draw) — CR 726, 104.4b
+- [x] Infinite loop detection (mandatory loop = draw) — CR 727, 104.4b
 
 **Phase 4 — Gap Tests** (test-only items for existing engine capabilities):
 - [x] CC#4: Yixlid Jailer + Anger (layer 6 removal of graveyard static ability)

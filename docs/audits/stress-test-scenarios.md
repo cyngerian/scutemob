@@ -263,7 +263,7 @@ These test CR 400.7 (new object on zone change) and LKI.
 ### S-26: Mutate + zone change splitting
 - **Cards**: Mutated creature (2+ cards), any sacrifice effect
 - **Expected**: When mutated creature dies, all component cards go to graveyard as separate
-  objects (CR 729.5). Each component's "when this dies" trigger fires separately.
+  objects (CR 730.5). Each component's "when this dies" trigger fires separately.
 - **CR**: 729.5 (zone-change splitting)
 - **Subsystems**: Mutate zone splitting, trigger generation per component
 

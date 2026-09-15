@@ -27,7 +27,7 @@ pub enum DungeonId {
     DungeonOfTheMadMage,
     /// 5-room dungeon. Painful for everyone; used by Acererak the Archlich.
     TombOfAnnihilation,
-    /// 7-room dungeon. Entered via "take the initiative" (CR 725.2).
+    /// 7-room dungeon. Entered via "take the initiative" (CR 726.2).
     TheUndercity,
 }
 /// CR 309.4: Index into a dungeon's room list.

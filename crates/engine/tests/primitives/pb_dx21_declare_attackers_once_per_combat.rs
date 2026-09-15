@@ -139,7 +139,7 @@ fn advance_until(
 // ── T1 — (a) attack-target overwrite (plan §4 T1) ───────────────────────────
 
 #[test]
-/// CR 508.1 / CR 732 (PB-DX21, OOS-M11-9): a second `Command::DeclareAttackers`
+/// CR 508.1 / CR 733 (PB-DX21, OOS-M11-9): a second `Command::DeclareAttackers`
 /// in the same combat is REJECTED, and the FIRST declaration's attack target is
 /// not overwritten.
 ///

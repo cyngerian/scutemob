@@ -908,14 +908,14 @@ pub enum StackObjectKind {
         /// The ObjectId of the Mount being saddled.
         source_object: ObjectId,
     },
-    /// CR 702.140a / CR 729.2: A mutating creature spell on the stack.
+    /// CR 702.140a / CR 730.2: A mutating creature spell on the stack.
     ///
     /// When a spell is cast for its mutate cost targeting a non-Human creature
     /// the caster owns, it becomes a `MutatingCreatureSpell` rather than a plain
     /// `Spell`. On resolution:
     /// - If the target is still legal (CR 702.140b), the spell merges with the
-    ///   target permanent (CR 729.2). The card is absorbed into the target's
-    ///   `merged_components` list; no ETB triggers fire (CR 729.2c).
+    ///   target permanent (CR 730.2). The card is absorbed into the target's
+    ///   `merged_components` list; no ETB triggers fire (CR 730.2c).
     /// - If the target is no longer legal, the spell resolves as a normal creature
     ///   spell (enters the battlefield as though not mutating — CR 702.140b).
     ///

@@ -439,7 +439,7 @@ The owner should choose to apply the commander replacement first to avoid giving
 
 **Cards**: Reveillark ("When Reveillark leaves the battlefield, return up to two target creatures with power 2 or less from your graveyard to the battlefield") + Karmic Guide ("When Karmic Guide enters the battlefield, return target creature card from your graveyard to the battlefield") + a sacrifice outlet.
 
-**What's being tested**: This is a classic infinite loop enabled by the stack. Sacrifice Reveillark → triggers return Karmic Guide → Karmic Guide ETB triggers returns Reveillark → sacrifice Reveillark again. The engine must detect and handle mandatory infinite loops per CR 726.
+**What's being tested**: This is a classic infinite loop enabled by the stack. Sacrifice Reveillark → triggers return Karmic Guide → Karmic Guide ETB triggers returns Reveillark → sacrifice Reveillark again. The engine must detect and handle mandatory infinite loops per CR 727.
 
 **Correct behavior**: The loop continues until a player breaks it or a game state change makes it stop. If the loop is all mandatory triggers with no optional components, the game is a draw unless a player can interrupt it. The engine must detect the loop (same game state recurring) and prompt for intervention or declare a draw.
 

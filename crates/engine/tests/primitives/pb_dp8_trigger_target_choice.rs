@@ -1944,14 +1944,14 @@ fn test_dp8_overdue_payment_branch_grants_no_priority_while_suspended() {
 
 // ── T26 (fix cycle, Finding 4 / OOS-DP8-10) ───────────────────────────────────
 
-/// CR 514.3a / CR 726 — `enter_step`'s Cleanup guard owed more than a priority
+/// CR 514.3a / CR 727 — `enter_step`'s Cleanup guard owed more than a priority
 /// grant.
 ///
 /// Fix-cycle Finding 4 (MEDIUM), closing seed OOS-DP8-10 and widening it. The guard
 /// returns before `state.turn.cleanup_sba_rounds += 1` **and** before
 /// `loop_detection::check_for_mandatory_loop`, so every cleanup round that suspended
 /// left the 100-round ratchet where it was (the cleanup step could then never fall
-/// through to auto-advance) and CR 726's mandatory-loop draw was never declared for
+/// through to auto-advance) and CR 727's mandatory-loop draw was never declared for
 /// any batch that suspends. `finish_resumed_flush` now reproduces both.
 ///
 /// **Fail-before**: `cleanup_sba_rounds` was unchanged after the answer.
@@ -1998,9 +1998,9 @@ fn test_dp8_suspended_cleanup_batch_still_advances_the_ratchet() {
     );
 }
 
-// ── T27 (fix cycle, Finding 4 — the CR 726 half) ──────────────────────────────
+// ── T27 (fix cycle, Finding 4 — the CR 727 half) ──────────────────────────────
 
-/// CR 104.4b / CR 726 — the mandatory-loop check is not skipped by a suspension.
+/// CR 104.4b / CR 727 — the mandatory-loop check is not skipped by a suspension.
 ///
 /// Fix-cycle Finding 4, the half seed OOS-DP8-10 did not name. Both `enter_step`
 /// guards return *before* `loop_detection::check_for_mandatory_loop`, so a mandatory
@@ -2035,7 +2035,7 @@ fn test_dp8_resume_runs_the_cr726_loop_check() {
     assert_eq!(
         state.loop_detection_hashes().len(),
         1,
-        "CR 726: `enter_step`'s has-priority guard returned before the mandatory-loop \
+        "CR 727: `enter_step`'s has-priority guard returned before the mandatory-loop \
          check, so the resume owes it"
     );
 }
@@ -2772,13 +2772,13 @@ fn test_dp8_forced_answer_that_breaks_distinctness_removes_the_trigger() {
 
 // ── T37 (second closing review, Finding 3 — LOW / OOS-DP8-13) ─────────────────
 
-/// CR 514.3a / CR 726 — the reap drops only the reaped site's PRIORITY debt, and
+/// CR 514.3a / CR 727 — the reap drops only the reaped site's PRIORITY debt, and
 /// keeps its cleanup ratchet.
 ///
 /// Second-closing-review Finding 3 (LOW). The first closing review's Finding 2 fix
 /// zeroed the reaped entry's whole `FlushResumeSite`, which is right for the
 /// priority half (a double grant inside the current caller's own flush is a real
-/// wire anomaly) but threw away the `cleanup_sba_rounds` ratchet and the CR 726
+/// wire anomaly) but threw away the `cleanup_sba_rounds` ratchet and the CR 727
 /// mandatory-loop check with it -- and losing a *bound* is a different severity
 /// class from emitting a duplicate event (OOS-DP8-13). The two halves are now
 /// separated: the obligations run, the grant does not.

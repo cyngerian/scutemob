@@ -4667,7 +4667,7 @@ pub fn handle_cast_spell(
     // CR 700.2c/700.2f per-mode target computation now happen earlier — see
     // `mode_selection_opt` / `validated_modes_chosen` above (PB-AC4), used by the
     // target-requirements lookup below.
-    // CR 702.140a / CR 729.2: If casting with the mutate cost, the spell goes on the stack
+    // CR 702.140a / CR 730.2: If casting with the mutate cost, the spell goes on the stack
     // as a MutatingCreatureSpell rather than a plain Spell. The `target` field is the
     // validated non-Human creature the spell will merge with on resolution.
     // The source_object is still the card in the Stack zone (same as normal casts).

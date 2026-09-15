@@ -2089,7 +2089,7 @@ const NON_ROW_EFFECT_VARIANTS: &[(&str, &str)] = &[
     ),
     (
         "TakeTheInitiative",
-        "CR 725.2 — the controller takes the initiative. (It then ventures, and THAT half is `VentureIntoDungeon`'s row on the candidate list below; this variant contributes no choice of its own.)",
+        "CR 726.2 — the controller takes the initiative. (It then ventures, and THAT half is `VentureIntoDungeon`'s row on the candidate list below; this variant contributes no choice of its own.)",
     ),
     (
         "TapPermanent",

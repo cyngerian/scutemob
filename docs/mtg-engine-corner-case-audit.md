@@ -74,7 +74,7 @@
 | 29 | Cascade into a Split Card | 702.84, 708.4 | **COVERED** | `test_cascade_combined_mana_value_skip` in `cascade.rs` — documents split-card MV behavior (CR 708.4); cascade implemented via `copy::resolve_cascade` | M9.4 S9 |
 | 30 | Morph/Manifest Face-Down | 708 | **COVERED** | `test_morph_*`, `test_manifest_*`, `test_cloak_*`, `test_disguise_*` in `morph.rs` — FaceDownKind enum, face-down 2/2 characteristics (CR 708.2a), cast face-down via Morph/Megamorph/Disguise (CR 702.37), turn face-up special action (CR 702.37e), Manifest/Cloak effects (CR 701.40/701.58), dies-reveal (CR 708.9); 14 unit tests; scripts stack/197+198 | Morph |
 | 31 | Aura on Illegal Permanent After Type Change | 704.5m | **COVERED** | `test_cc31_aura_falls_off_after_type_change_ends` in `sba.rs` | M9.4 S4 |
-| 32 | Mutate Stack Ordering | 725 | **COVERED** | `test_mutate_*` in `mutate.rs` — merged_cards model, over/under choice, zone-change splitting (CR 729.5), mutate trigger; game script 192 | B15+Mutate |
+| 32 | Mutate Stack Ordering | 725 | **COVERED** | `test_mutate_*` in `mutate.rs` — merged_cards model, over/under choice, zone-change splitting (CR 730.5), mutate trigger; game script 192 | B15+Mutate |
 | 33 | Sylvan Library + Draw Replacement | 614 | **COVERED** | `test_cc33_sylvan_library_draw_tracking` in `replacement_effects.rs` — `cards_drawn_this_turn` tracking verified | M9.4 S4 |
 | 34 | Reveillark + Karmic Guide Loop | 726, 104.4b | **COVERED** | `test_loop_detection_threshold_is_three` in `loop_detection.rs` — detection algorithm in `rules/loop_detection.rs` | M9.4 S10 |
 | 35 | Storm + Copying | 702.40, 707.10 | **COVERED** | `test_storm_creates_copies`, `test_spell_copy_is_not_cast` in `storm_copy.rs` | M9.4 S8 |

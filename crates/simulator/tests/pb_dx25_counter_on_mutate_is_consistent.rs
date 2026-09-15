@@ -230,7 +230,7 @@ fn test_dx25_counter_on_mutate_produces_no_stack_consistency_violations() {
         .expect("Wolf should still exist");
     assert!(
         wolf_obj.merged_components.is_empty(),
-        "CR 701.6a / CR 729.2: Gemrazer was countered and must NOT have merged with \
+        "CR 701.6a / CR 730.2: Gemrazer was countered and must NOT have merged with \
          the Wolf -- merged_components should be empty, got {:?}",
         wolf_obj.merged_components
     );

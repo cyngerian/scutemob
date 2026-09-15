@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![],
         completeness: Completeness::inert(
-            "Blocked on the Room / door-unlock mechanic (CR 725): no 'when you unlock this door' \
+            "Blocked on the Room / door-unlock mechanic (CR 726): no 'when you unlock this door' \
              trigger event, no unlock action, and no representation for a two-door split \
              enchantment with per-door mana costs. The effect body ('return up to one target \
              creature to its owner's hand') is expressible today via TargetRequirement::UpToN + \

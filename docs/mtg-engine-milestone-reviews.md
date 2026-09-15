@@ -1342,7 +1342,7 @@ commit `8ca4474` (M9.4 session 10). 53 files changed, +7,794 / -218 lines.
 |------|-------|---------|
 | `rules/copy.rs` | 408 | Layer 1 copy effects, clone chain resolution (CR 707.2/707.3), spell copying (CR 707.10), storm (CR 702.40a), cascade (CR 702.85) |
 | `rules/protection.rs` | 166 | Protection keyword DEBT enforcement (CR 702.16a-f): damage prevention, targeting, blocking, aura/equipment SBA |
-| `rules/loop_detection.rs` | 159 | Mandatory infinite loop detection (CR 104.4b, CR 726): hash-based board state recurrence check |
+| `rules/loop_detection.rs` | 159 | Mandatory infinite loop detection (CR 104.4b, CR 727): hash-based board state recurrence check |
 | `tests/copy_effects.rs` | 339 | Layer 1 copy effect tests: clone, clone chain, layer ordering, counters excluded |
 | `tests/storm_copy.rs` | 442 | Storm keyword tests: copy creation, independent resolution, count reset, copy-not-cast |
 | `tests/cascade.rs` | 492 | Cascade keyword tests: exile until hit, skip lands, combined MV, CC#29 |
@@ -2332,14 +2332,14 @@ Batch 15 implemented 3 partner variants (deck validation only): Friends Forever 
 
 ## W1-Mutate: Mutate Mini-Milestone Review (2026-03-08)
 
-Mutate (CR 702.140) implemented as a dedicated mini-milestone. Core model: `merged_cards: Vec<MergedComponent>` on `GameObject`; `Command::CastWithMutate`; `StackObjectKind::MutatingCreatureSpell` (SOK 59); `AbilityDefinition::MutateCost` (AbilDef 59); KW 147. Resolution: over/under choice; merged permanent gets top card's characteristics + all abilities from all cards. Zone-change splitting (CR 729.5). Mutate trigger ("whenever this creature mutates"). 9 unit tests; game script 192 (PASS); cards: Gemrazer, Nethroi, Brokkos. LegalActionProvider updated (ActivateBloodrush, SaddleMount, CastWithMutate). Corner case 32 (Mutate Stack Ordering) promoted from DEFERRED to COVERED. No HIGH or MEDIUM findings.
+Mutate (CR 702.140) implemented as a dedicated mini-milestone. Core model: `merged_cards: Vec<MergedComponent>` on `GameObject`; `Command::CastWithMutate`; `StackObjectKind::MutatingCreatureSpell` (SOK 59); `AbilityDefinition::MutateCost` (AbilDef 59); KW 147. Resolution: over/under choice; merged permanent gets top card's characteristics + all abilities from all cards. Zone-change splitting (CR 730.5). Mutate trigger ("whenever this creature mutates"). 9 unit tests; game script 192 (PASS); cards: Gemrazer, Nethroi, Brokkos. LegalActionProvider updated (ActivateBloodrush, SaddleMount, CastWithMutate). Corner case 32 (Mutate Stack Ordering) promoted from DEFERRED to COVERED. No HIGH or MEDIUM findings.
 
 ### New Findings
 
 | ID | Severity | File | Description | Status |
 |----|----------|------|-------------|--------|
-| MR-Mutate-01 | **LOW** | `rules/resolution.rs` — Mutate with copy effects | Mutate interaction with copy effects (CR 729.8) not tested. Copying a mutating creature spell is a deferred complexity item per the batch plan. | **CLOSED — W3 LOW S5** |
-| MR-Mutate-02 | **LOW** | `rules/resolution.rs` — Mutate onto face-down | Mutate onto a face-down creature (CR 729.6) not tested. Face-down mechanics are not yet implemented (Morph deferred). | **CLOSED — W3 LOW S5** |
+| MR-Mutate-01 | **LOW** | `rules/resolution.rs` — Mutate with copy effects | Mutate interaction with copy effects (CR 730.8) not tested. Copying a mutating creature spell is a deferred complexity item per the batch plan. | **CLOSED — W3 LOW S5** |
+| MR-Mutate-02 | **LOW** | `rules/resolution.rs` — Mutate onto face-down | Mutate onto a face-down creature (CR 730.6) not tested. Face-down mechanics are not yet implemented (Morph deferred). | **CLOSED — W3 LOW S5** |
 
 ---
 
@@ -2559,8 +2559,8 @@ Cross-session review of the complete Dungeon mini-milestone (4 sessions). Covers
 | `effects/mod.rs` | +58 | Effect execution for VentureIntoDungeon/TakeTheInitiative, condition evaluation for CompletedADungeon/CompletedSpecificDungeon/Not |
 | `rules/engine.rs` | +202 | `handle_venture_into_dungeon()` (3 cases + recursive), VentureIntoDungeon/ChooseDungeonRoom command handlers |
 | `rules/resolution.rs` | +288 | RoomAbility resolution arm (effect lookup + execute), CardDefETB resolution path, RoomAbility in counter arm |
-| `rules/sba.rs` | +148 | `check_dungeon_completion_sba()` (CR 704.5t), `transfer_initiative_on_player_leave()` (CR 725.4) with active-player priority, initiative transfer on player loss |
-| `rules/turn_actions.rs` | +68 | Initiative upkeep venture trigger (CR 725.2), `check_initiative_steal_from_combat_damage()` for both first-strike and regular damage |
+| `rules/sba.rs` | +148 | `check_dungeon_completion_sba()` (CR 704.5t), `transfer_initiative_on_player_leave()` (CR 726.4) with active-player priority, initiative transfer on player loss |
+| `rules/turn_actions.rs` | +68 | Initiative upkeep venture trigger (CR 726.2), `check_initiative_steal_from_combat_damage()` for both first-strike and regular damage |
 | `rules/command.rs` | +23 | `Command::VentureIntoDungeon`, `Command::ChooseDungeonRoom` |
 | `rules/events.rs` | +40 | `GameEvent::VenturedIntoDungeon`, `DungeonCompleted`, `InitiativeTaken` (discriminants 114-116) |
 | `testing/replay_harness.rs` | +5 | `venture_into_dungeon` harness action |
@@ -2580,11 +2580,11 @@ Cross-session review of the complete Dungeon mini-milestone (4 sessions). Covers
 | CR 309.7 | `player.rs` + `sba.rs` + `engine.rs` -- dungeons_completed counter, dungeons_completed_set |
 | CR 701.49a-d | `engine.rs` -- handle_venture_into_dungeon: 3 cases + force_undercity for 701.49d |
 | CR 704.5t | `sba.rs` -- check_dungeon_completion_sba: remove dungeon when on bottommost + no room ability on stack |
-| CR 725.1 | `mod.rs` -- has_initiative: Option<PlayerId> on GameState |
-| CR 725.2 | `turn_actions.rs` + `effects/mod.rs` -- upkeep venture, combat steal, taking initiative ventures into Undercity |
-| CR 725.3 | `effects/mod.rs` -- assigning initiative replaces previous holder |
-| CR 725.4 | `sba.rs` -- transfer_initiative_on_player_leave: active player first, then turn order |
-| CR 725.5 | `effects/mod.rs` -- taking initiative from self still triggers venture (CR 725.2 third ability) |
+| CR 726.1 | `mod.rs` -- has_initiative: Option<PlayerId> on GameState |
+| CR 726.2 | `turn_actions.rs` + `effects/mod.rs` -- upkeep venture, combat steal, taking initiative ventures into Undercity |
+| CR 726.3 | `effects/mod.rs` -- assigning initiative replaces previous holder |
+| CR 726.4 | `sba.rs` -- transfer_initiative_on_player_leave: active player first, then turn order |
+| CR 726.5 | `effects/mod.rs` -- taking initiative from self still triggers venture (CR 726.2 third ability) |
 | CR 603.4 | `resolution.rs` -- intervening-if re-evaluated at resolution for CardDefETB (Acererak) |
 
 ### Findings
@@ -2617,9 +2617,9 @@ Cross-session review of the complete Dungeon mini-milestone (4 sessions). Covers
 | CR 309.4c: Room ability resolves (CreateToken) | Full | `test_room_ability_resolves_create_token` |
 | CR 704.5t: SBA removes completed dungeon | Full | `test_sba_704_5t_removes_completed_dungeon` |
 | CR 704.5t: SBA waits for room ability on stack | Full | `test_sba_704_5t_waits_for_room_ability` |
-| CR 725.2: Initiative upkeep venture | Full | `test_initiative_upkeep_venture` |
-| CR 725.2: Initiative combat damage steal | Full | `test_initiative_combat_damage_steal` |
-| CR 725.4: Initiative transfer on player leave | Partial | Tested in SBA path (loss events); no dedicated test for concession or multi-player edge cases |
+| CR 726.2: Initiative upkeep venture | Full | `test_initiative_upkeep_venture` |
+| CR 726.2: Initiative combat damage steal | Full | `test_initiative_combat_damage_steal` |
+| CR 726.4: Initiative transfer on player leave | Partial | Tested in SBA path (loss events); no dedicated test for concession or multi-player edge cases |
 | CR 603.4: Intervening-if (Acererak, condition true) | Full | `test_acererak_bounces_without_tomb` |
 | CR 603.4: Intervening-if (Acererak, condition false) | Full | `test_acererak_stays_after_tomb_completed` |
 | Nadaar ETB venture | Full | `test_nadaar_enters_ventures` |

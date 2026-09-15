@@ -1,4 +1,4 @@
-//! Infinite loop detection tests (CR 726, CR 104.4b).
+//! Infinite loop detection tests (CR 727, CR 104.4b).
 //!
 //! Session 10 of M9.4 implements:
 //! - `rules/loop_detection.rs` — detection algorithm
@@ -9,7 +9,7 @@
 //!
 //! CC#34: Reveillark + Karmic Guide loop (mandatory loop with only triggered abilities)
 //!
-//! CR 726: A mandatory infinite loop leads to a draw; optional loops are breakable.
+//! CR 727: A mandatory infinite loop leads to a draw; optional loops are breakable.
 //! CR 104.4b: If the game situation cannot proceed due to mandatory actions, it's a draw.
 
 use mtg_engine::{CardRegistry, GameEvent, GameState, GameStateBuilder, PlayerId, Step};
@@ -23,7 +23,7 @@ fn p2() -> PlayerId {
 
 // ── Item 1: Mandatory loop detection (CC#34) ─────────────────────────────────
 
-/// CR 104.4b / CR 726 — test_mandatory_loop_detected_draws_game
+/// CR 104.4b / CR 727 — test_mandatory_loop_detected_draws_game
 ///
 /// Simulates a mandatory infinite loop scenario by directly inserting a hash
 /// into the loop_detection_hashes map to the detection threshold (3 occurrences).
@@ -80,7 +80,7 @@ fn test_mandatory_loop_detected_draws_game() {
     );
 }
 
-/// CR 104.4b / CR 726 — test_loop_detection_threshold_is_three
+/// CR 104.4b / CR 727 — test_loop_detection_threshold_is_three
 ///
 /// Verifies that the loop detection threshold is exactly 3: the same state must
 /// be seen 3 times before a draw is declared. Seen twice is not enough.
@@ -133,7 +133,7 @@ fn test_loop_detection_threshold_is_three() {
 
 // ── Item 2: Optional loop not detected (breakable loops) ─────────────────────
 
-/// CR 726 — test_optional_loop_not_detected
+/// CR 727 — test_optional_loop_not_detected
 ///
 /// Verifies that when a player makes a meaningful choice (a game-decision command),
 /// the loop detection hash table is reset, so optional loops (where a player COULD

@@ -273,7 +273,7 @@ pub fn handle_tap_for_mana(
         None => (None, 0),
     };
     // 5b. SR-34: cost legality check (CR 118.3, 119.4). Pure validation, no mutation —
-    //     an unaffordable Signet/horizon-land activation touches nothing (CR 732 is free
+    //     an unaffordable Signet/horizon-land activation touches nothing (CR 733 is free
     //     here regardless, since `process_command` takes `GameState` by value and only
     //     returns it on `Ok`, but validating first keeps the transaction visibly clean).
     if let Some(ref flat_cost) = flat_mana_cost {

@@ -275,9 +275,9 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 player: id,
                 reason: LossReason::LifeTotal,
             });
-            // CR 725.4: If the player who lost had the initiative, transfer it.
+            // CR 726.4: If the player who lost had the initiative, transfer it.
             events.extend(transfer_initiative_on_player_leave(state, id));
-            // CR 724.4: If the player who lost was the monarch, transfer it.
+            // CR 725.4: If the player who lost was the monarch, transfer it.
             events.extend(transfer_monarch_on_player_leave(state, id));
             continue; // Only emit one loss event per player per pass.
         }
@@ -290,9 +290,9 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 player: id,
                 reason: LossReason::PoisonCounters,
             });
-            // CR 725.4: If the player who lost had the initiative, transfer it.
+            // CR 726.4: If the player who lost had the initiative, transfer it.
             events.extend(transfer_initiative_on_player_leave(state, id));
-            // CR 724.4: If the player who lost was the monarch, transfer it.
+            // CR 725.4: If the player who lost was the monarch, transfer it.
             events.extend(transfer_monarch_on_player_leave(state, id));
             continue;
         }
@@ -314,23 +314,23 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 player: id,
                 reason: LossReason::CommanderDamage,
             });
-            // CR 725.4: If the player who lost had the initiative, transfer it.
+            // CR 726.4: If the player who lost had the initiative, transfer it.
             events.extend(transfer_initiative_on_player_leave(state, id));
-            // CR 724.4: If the player who lost was the monarch, transfer it.
+            // CR 725.4: If the player who lost was the monarch, transfer it.
             events.extend(transfer_monarch_on_player_leave(state, id));
         }
     }
     events
 }
-/// CR 725.4: If the player who has the initiative leaves the game, the active player
+/// CR 726.4: If the player who has the initiative leaves the game, the active player
 /// takes the initiative. If the active player is also leaving, the next player in turn
 /// order takes the initiative.
 ///
-/// CR 725.4: "If the player who has the initiative leaves the game, the active player
+/// CR 726.4: "If the player who has the initiative leaves the game, the active player
 /// takes the initiative at the same time that player leaves the game. If the active
 /// player is leaving the game or if there is no active player, the next player in turn
 /// order takes the initiative."
-/// Taking the initiative triggers venture into the Undercity (CR 725.2).
+/// Taking the initiative triggers venture into the Undercity (CR 726.2).
 pub fn transfer_initiative_on_player_leave(
     state: &mut GameState,
     leaving_player: PlayerId,
@@ -339,7 +339,7 @@ pub fn transfer_initiative_on_player_leave(
     if state.has_initiative != Some(leaving_player) {
         return Vec::new();
     }
-    // CR 725.4: The active player takes the initiative first, unless they are also
+    // CR 726.4: The active player takes the initiative first, unless they are also
     // the leaving player or have already lost/conceded.
     let active = state.turn.active_player;
     let active_is_eligible = active != leaving_player
@@ -378,7 +378,7 @@ pub fn transfer_initiative_on_player_leave(
     };
     state.has_initiative = Some(new_holder);
     let mut events = vec![GameEvent::InitiativeTaken { player: new_holder }];
-    // CR 725.2: Taking the initiative also ventures into the Undercity.
+    // CR 726.2: Taking the initiative also ventures into the Undercity.
     use super::engine::handle_venture_into_dungeon;
     match handle_venture_into_dungeon(state, new_holder, true) {
         Ok(venture_events) => events.extend(venture_events),
@@ -389,7 +389,7 @@ pub fn transfer_initiative_on_player_leave(
     }
     events
 }
-/// CR 724.4: If the monarch leaves the game, the active player becomes the monarch.
+/// CR 725.4: If the monarch leaves the game, the active player becomes the monarch.
 ///
 /// Mirrors `transfer_initiative_on_player_leave`. If the active player is also
 /// leaving, the next player in turn order becomes the monarch. If no player can

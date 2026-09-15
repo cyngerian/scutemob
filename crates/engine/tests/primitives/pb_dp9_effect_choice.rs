@@ -2682,7 +2682,7 @@ fn test_dp9_private_to_leak_probe() {
 // ── T21 — the loop-detection deviation ───────────────────────────────────────
 
 #[test]
-/// CR 726 (PB-DP9's deliberate deviation from the PB-DP7/PB-DP8 precedent).
+/// CR 727 (PB-DP9's deliberate deviation from the PB-DP7/PB-DP8 precedent).
 ///
 /// The three CR 608.2d fields are in `public_state_hash` but NOT in
 /// `loop_detection.rs`'s mandatory-state fingerprint. This test pins both
@@ -2692,7 +2692,7 @@ fn test_dp9_private_to_leak_probe() {
 /// states differ only in the choice fields plus the priority bookkeeping the
 /// mandatory hash already ignores.
 ///
-/// If the fields were folded in, two structurally identical CR 726 positions
+/// If the fields were folded in, two structurally identical CR 727 positions
 /// would fingerprint differently and a mandatory loop could be silently masked.
 fn test_dp9_loop_detection_fingerprint_excludes_the_choice_state() {
     use mtg_engine::rules::loop_detection::compute_mandatory_state_hash;
@@ -2726,7 +2726,7 @@ fn test_dp9_loop_detection_fingerprint_excludes_the_choice_state() {
     assert_eq!(
         compute_mandatory_state_hash(&blocked),
         mandatory_before,
-        "CR 726: a rolled-back, blocked resolution is the SAME mandatory-loop \
+        "CR 727: a rolled-back, blocked resolution is the SAME mandatory-loop \
          position as the moment before it -- the choice fields are excluded"
     );
     assert_ne!(

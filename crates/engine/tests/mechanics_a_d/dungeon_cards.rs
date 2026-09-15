@@ -1,11 +1,11 @@
-//! Card definition tests for dungeon/venture cards — Session 4 (CR 309.4, CR 701.49, CR 725.2).
+//! Card definition tests for dungeon/venture cards — Session 4 (CR 309.4, CR 701.49, CR 726.2).
 //!
 //! Tests cover:
 //! - Nadaar ETB triggers venture into the dungeon (CR 701.49a)
 //! - Nadaar attack triggers venture into the dungeon (CR 701.49b context)
 //! - Nadaar "+1/+1 to other creatures" (DSL gap — static ability absent; presence of ability list tested)
 //! - Acererak bounces to hand when Tomb of Annihilation not completed (CR 603.4 intervening-if)
-//! - TakeTheInitiative forces venture into Undercity (CR 725.2, CR 701.49d)
+//! - TakeTheInitiative forces venture into Undercity (CR 726.2, CR 701.49d)
 
 use mtg_engine::rules::command::CastSpellData;
 use std::collections::HashMap;
@@ -605,13 +605,13 @@ fn test_acererak_stays_after_tomb_completed() {
 
 // ── Take the Initiative ───────────────────────────────────────────────────────
 
-/// CR 725.2 / CR 701.49d: When a player takes the initiative, they immediately
+/// CR 726.2 / CR 701.49d: When a player takes the initiative, they immediately
 /// venture into the Undercity (forced dungeon choice per CR 701.49d).
 ///
 /// Effect::TakeTheInitiative sets has_initiative = Some(controller), emits
 /// InitiativeTaken, and calls handle_venture_into_dungeon with force_undercity=true.
 ///
-/// Source: CR 725.2 — "take the initiative" inherent triggered ability.
+/// Source: CR 726.2 — "take the initiative" inherent triggered ability.
 #[test]
 fn test_initiative_take_ventures_undercity() {
     let (defs, registry) = build_defs_and_registry();
@@ -690,7 +690,7 @@ fn test_initiative_take_ventures_undercity() {
 
     let all_etb: Vec<_> = etb_events.into_iter().chain(etb_events2).collect();
 
-    // CR 725.2: InitiativeTaken event should fire.
+    // CR 726.2: InitiativeTaken event should fire.
     let initiative_taken = all_etb
         .iter()
         .any(|e| matches!(e, GameEvent::InitiativeTaken { player } if *player == p1));
@@ -699,7 +699,7 @@ fn test_initiative_take_ventures_undercity() {
         "InitiativeTaken event should be emitted when Seasoned Dungeoneer ETB fires"
     );
 
-    // CR 725.1: p1 should now hold the initiative.
+    // CR 726.1: p1 should now hold the initiative.
     assert_eq!(
         state.has_initiative(),
         Some(p1),
