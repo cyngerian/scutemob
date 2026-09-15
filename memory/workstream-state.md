@@ -45,9 +45,8 @@ visible but the card is `inert`. Second consecutive empty entry is NOT reached (
 CC-9 is the pod-facing item and is already at the front.
 
 **Hazards**: `/start` now runs `tools/start-check.sh`; a STALE result must be reported and the
-refresh OFFERED, never run unprompted. The global `~/.claude/skills/start/SKILL.md` carries the
-step by owner request (the `/eot` skill's "do not touch globals" note predates this); `esm update
---force` would drop it. After any CR refresh run `cites` before trusting numbers. CLAUDE.md is
-249/250 again.
+refresh OFFERED, never run unprompted. Step 4b lives in the ESM template (`~/projects/esm`
+commit `f556652`; `~/.claude/skills/start` is a symlink to it), so `esm update`, forced or not,
+re-applies it. After any CR refresh run `cites` before trusting numbers. CLAUDE.md is 249/250.
 
 **Commit prefix used**: `scutemob-259:` / `merge:` / `chore:`
