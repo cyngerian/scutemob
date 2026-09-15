@@ -144,9 +144,8 @@ These are non-negotiable. If a change would violate any of these, stop and recon
 
 ## MCP Resources
 
-- **Rules / card / rulings search** (`mtg-rules`): by rule number, concept, or exact card name. CR text
-  is authoritative; rulings can be stale. Data freshness: `tools/data-freshness.py check|refresh|cites`
-  (`/start` runs `check`; CR effective 2026-08-07 + Scryfall 2026-09-14 as of `scutemob-259`).
+- **Rules / card / rulings search** (`mtg-rules`): by rule number, concept, or exact card name. CR text is
+  authoritative; rulings can be stale. Freshness: `tools/data-freshness.py check|refresh|cites` (`/start` runs `check`).
 - **rust-analyzer**: semantic navigation; ~70s warmup; call `rust_analyzer_stop` when done (~2.5GB).
 
 ## Critical Gotchas
