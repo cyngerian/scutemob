@@ -23,8 +23,8 @@
 
 **Completed**: owner found the local CR seven months stale. Synced everything to current: CR
 effective 2026-08-07, Scryfall 2026-09-14, `cards.sqlite` rebuilt, SR-37 fixture regenerated.
-NEW `tools/data-freshness.py check|refresh|cites` + `tools/start-check.sh`; start skill step 4b
-(global AND project copies, now identical). `scryfall-import` moved to gzipped JSON-Lines (the API
+NEW `tools/data-freshness.py check|refresh|cites` + `tools/start-check.sh`, run by a scutemob-only
+SessionStart hook (`.claude/settings.json`; the start-skill route was withdrawn, see Hazards). `scryfall-import` moved to gzipped JSON-Lines (the API
 had changed; +4 tests); `mtg-mcp-server --import-only`. CR 722–732 renumbered +1 (new 722
 Preparation Cards): 378 cites in 60 files swept, pure shift verified. New Scryfall layout
 `front_card` shadowed Savage Lands — excluded in fixture script, MCP lookup, both skeleton
