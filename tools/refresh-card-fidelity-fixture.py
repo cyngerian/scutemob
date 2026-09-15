@@ -40,14 +40,17 @@ from pathlib import Path
 # CR 108.1/111: these Scryfall layouts are not cards a deck can contain. `token` and
 # `double_faced_token` are game objects created by effects, `emblem` likewise; `art_series`
 # is a collectible with no game text; `planar`, `scheme` and `vanguard` belong to variant
-# formats the engine does not implement. Including them would let a token's printed line
-# masquerade as an oracle card's when a definition shares its name (e.g. "Angel").
+# formats the engine does not implement; `front_card` (Scryfall, 2026-08) is the printed
+# front of a preparation card (CR 722): a "(Theme color: {G})" placeholder that shares its
+# name with a real card (e.g. "Savage Lands"). Including any of them would let a non-card's
+# printed line masquerade as an oracle card's when a definition shares its name.
 EXCLUDED_LAYOUTS = frozenset(
     {
         "token",
         "double_faced_token",
         "emblem",
         "art_series",
+        "front_card",
         "planar",
         "scheme",
         "vanguard",

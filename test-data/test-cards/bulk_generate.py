@@ -293,7 +293,7 @@ def load_card_data(conn: sqlite3.Connection, card_name: str) -> dict | None:
     # Try exact match on cards table
     row = conn.execute(
         "SELECT id, name, mana_cost, type_line, oracle_text, power, toughness, layout "
-        "FROM cards WHERE name = ? AND layout NOT IN ('art_series', 'token', 'emblem')",
+        "FROM cards WHERE name = ? AND layout NOT IN ('art_series', 'token', 'emblem', 'front_card')",
         (card_name,)
     ).fetchone()
 
@@ -331,7 +331,7 @@ def load_card_data(conn: sqlite3.Connection, card_name: str) -> dict | None:
 
     # Strategy 2: LIKE match on cards table
     like_row = conn.execute(
-        "SELECT id, layout FROM cards WHERE name LIKE ? AND layout NOT IN ('art_series', 'token', 'emblem')",
+        "SELECT id, layout FROM cards WHERE name LIKE ? AND layout NOT IN ('art_series', 'token', 'emblem', 'front_card')",
         (front + " // %",)
     ).fetchone()
     if like_row:
