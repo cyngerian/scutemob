@@ -27,7 +27,9 @@ Verbs:
            exists in the local CR. Existence only — the per-section coverage report is
            LL-2 (scutemob-256). Exit 1 on any unknown citation.
 
-The /start skill runs `tools/start-check.sh` (= `check`) and offers `refresh` when STALE.
+A scutemob-only SessionStart hook (.claude/settings.json) runs `tools/start-check.sh --hook`
+(= `check`, always exit 0) so the table is in context when /start reports; /start offers
+`refresh` when STALE. The start skill itself is the pristine ESM template.
 """
 
 from __future__ import annotations

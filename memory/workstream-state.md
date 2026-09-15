@@ -44,9 +44,9 @@ APPROVAL; (2) LL-2 (`-256`) after it, starting from `data-freshness.py cites`; (
 visible but the card is `inert`. Second consecutive empty entry is NOT reached (LL-1 was non-empty);
 CC-9 is the pod-facing item and is already at the front.
 
-**Hazards**: `/start` now runs `tools/start-check.sh`; a STALE result must be reported and the
-refresh OFFERED, never run unprompted. Step 4b lives in the ESM template (`~/projects/esm`
-commit `f556652`; `~/.claude/skills/start` is a symlink to it), so `esm update`, forced or not,
-re-applies it. After any CR refresh run `cites` before trusting numbers. CLAUDE.md is 249/250.
+**Hazards**: a scutemob-only SessionStart hook (`.claude/settings.json`) runs `tools/start-check.sh
+--hook`; a STALE result must be reported and the refresh OFFERED, never run unprompted. Do NOT put
+this in the start skill: `~/.claude/skills/start` symlinks the ESM template and personal skills
+shadow project ones (owner: scutemob only). After a CR refresh run `cites`. CLAUDE.md is 249/250.
 
 **Commit prefix used**: `scutemob-259:` / `merge:` / `chore:`

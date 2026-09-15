@@ -191,7 +191,8 @@ engine. This is the escape hatch that makes it safe to start with the Rust DSL.
 ## Data Sources and Refresh
 
 Everything the pipeline reads about real cards and rules is derived, gitignored, and rebuilt by one
-tool. Check it at `/start` (the start skill runs `tools/start-check.sh`); refresh when it says STALE.
+tool. A project SessionStart hook (`.claude/settings.json` → `tools/start-check.sh --hook`) puts the
+check in context at every session start; `/start` reports it and offers the refresh when it says STALE.
 
 | Artifact | Source | Built by |
 |---|---|---|

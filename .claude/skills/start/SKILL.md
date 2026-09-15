@@ -82,20 +82,6 @@ next merge will silently drop them again.
 Other failing checks are informational at session start — mention them, don't act
 on them unless the user asks.
 
-### 4b. Project-local start check
-
-If the project has `tools/start-check.sh`, run it via Bash:
-```bash
-tools/start-check.sh
-```
-
-It is the project's own read-only freshness/health probe (scutemob: `tools/data-freshness.py check`,
-which compares the local Comprehensive Rules text, Scryfall bulk files, `cards.sqlite` and the
-SR-37 fixture against what is published). Include its output verbatim in the report. Exit 0 means
-current; non-zero means it printed a refresh command — offer to run that command, do not run it
-unprompted (it downloads and rebuilds local data). If the script does not exist, skip this step
-silently.
-
 ### 5. Orient and report
 
 Report to the user in this format:
@@ -123,11 +109,6 @@ Report to the user in this format:
 {if esm doctor's skills check failed: list the missing skills and say
  `esm update` restores them}
 {if it passed, omit this section entirely}
-
-### Project start check
-{output of tools/start-check.sh, verbatim; if it exited non-zero, end with the
- refresh command it named and ask whether to run it}
-{if the script does not exist, omit this section entirely}
 
 ### Documentation
 {if .claude/docs.yaml exists, read it and check each template:}

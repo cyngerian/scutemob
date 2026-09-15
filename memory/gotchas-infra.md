@@ -615,7 +615,8 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
 ## External Data Gotchas (2026-09-14, `scutemob-259`)
 
 - **Check freshness before trusting a rule number or oracle text**: `python3 tools/data-freshness.py
-  check` (the `/start` hook). The CR of 2026-08-07 renumbered sections 722–732 (+1; new 722 =
+  check` (a project SessionStart hook runs it; the hook skips itself in worker checkouts/worktrees
+  because the gitignored cache is absent there). The CR of 2026-08-07 renumbered sections 722–732 (+1; new 722 =
   Preparation Cards). Any doc, comment, or memory note written before 2026-09-14 that says CR 724
   (monarch), 725 (initiative), 729 (merging), 730 (day/night) is one section low; `crates/`,
   `docs/`, `test-data/` were swept, `memory/` was not.
