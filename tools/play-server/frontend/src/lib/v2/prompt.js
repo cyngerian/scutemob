@@ -100,9 +100,28 @@ export function composePrompt({
 export function looseActions(decision, renderedIds = null) {
   return (decision?.actions ?? []).filter((a) => {
     if (QUIET_KINDS.has(a.kind)) return false;
+    if (!answerable(a)) return false;
     if (a.object_id === null || a.object_id === undefined) return true;
     return !renderedIds || !renderedIds.has(Number(a.object_id));
   });
+}
+
+/**
+ * Can this action be carried through from the client at all?
+ *
+ * The server offers an activation whose target requirement has no legal
+ * candidate (Equip with no creature on your side, B1 probe at turn 21): the
+ * picker then shows "no legal target" with Confirm disabled, and Back is the
+ * only way out. Lighting the chip for that invites a dead click, so an action
+ * whose every target slot is empty while it still demands a target is not
+ * offered by this surface. Conservative on purpose: anything with at least one
+ * candidate somewhere, or with no target requirement, is left alone.
+ */
+export function answerable(a) {
+  const slots = a?.target_slots ?? [];
+  const min = a?.target_min ?? 0;
+  if (min <= 0 || slots.length === 0) return true;
+  return slots.some((s) => (s.candidates?.length ?? 0) > 0);
 }
 
 export { QUIET_KINDS };

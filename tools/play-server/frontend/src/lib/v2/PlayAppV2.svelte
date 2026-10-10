@@ -25,6 +25,7 @@
   import HandBar from './HandBar.svelte';
   import SideColumn from './SideColumn.svelte';
   import { getReport } from '../api.js';
+  import { answerable } from './prompt.js';
   import {
     seatView,
     decision,
@@ -103,6 +104,7 @@
     const ids = new Set();
     for (const a of $decision?.actions ?? []) {
       if (a.kind === 'TapForMana') continue;
+      if (!answerable(a)) continue;
       if (a.object_id !== null && a.object_id !== undefined) ids.add(Number(a.object_id));
       for (const e of a.attack?.eligible ?? []) ids.add(Number(e.id));
       for (const e of a.block?.eligible ?? []) ids.add(Number(e.id));
