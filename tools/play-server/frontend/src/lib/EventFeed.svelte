@@ -39,10 +39,27 @@
    * has not been taught) is treated as `'game'` and is **never hidden** by a
    * filter — see `tierOf`.
    */
+  import { eventKindName, stepChangedText } from './names.js';
+
   const { events = [] } = $props();
 
   /** The scroll container. */
   let box = $state(null);
+
+  /**
+   * `scutemob-260`: the `scrollTop` this component last set on itself, or -1.
+   *
+   * A programmatic scroll dispatches its `scroll` event asynchronously. During
+   * a pass-until run the server answers faster than that: the `$effect` below
+   * scrolls to the bottom, a second response appends more lines *before* the
+   * first scroll event is delivered, and `onScroll` then measures a box whose
+   * `scrollHeight` has grown past the position it was scrolled to. It read
+   * that as "the user scrolled up", cleared `stick`, and the feed sat still
+   * with a "jump to latest" button for the rest of the game. Reproduced with
+   * the headless driver; a scroll event arriving at exactly the position this
+   * component chose is this component's own and is ignored.
+   */
+  let autoScrollTop = -1;
 
   /**
    * Whether new lines should pull the view down.
@@ -58,6 +75,8 @@
 
   function onScroll() {
     if (!box) return;
+    if (box.scrollTop === autoScrollTop) return;
+    autoScrollTop = -1;
     stick = box.scrollHeight - box.scrollTop - box.clientHeight <= STICK_SLACK_PX;
   }
 
@@ -110,14 +129,50 @@
     return KNOWN_TIERS.has(t) ? t : 'game';
   }
 
-  /** Per-tier totals for the chip badges — computed over ALL lines, not the filtered ones. */
+  /**
+   * The lines after folding (`scutemob-260`).
+   *
+   * Every priority pass arrives as a pair — "Bot-2 has priority" then "Bot-2
+   * passes" — and a round of four players passing is eight lines that say
+   * four things. The first playtest feed was mostly this. A `PriorityGiven`
+   * line is dropped when the very next line is the same player's
+   * `PriorityPassed`: the pass implies the grant. A grant that is NOT followed
+   * by that player's pass stays, because then it is information — it is the
+   * last line before a human's decision, or the line before a bot cast
+   * something. Display-only: `events` itself is untouched, and the fold is a
+   * strict function of adjacent `kind`/`player`, never of the text.
+   */
+  const lines = $derived.by(() => {
+    const out = [];
+    for (let i = 0; i < events.length; i++) {
+      const ev = events[i];
+      const next = events[i + 1];
+      if (
+        ev?.kind === 'PriorityGiven' &&
+        next?.kind === 'PriorityPassed' &&
+        ev.player != null &&
+        next.player === ev.player
+      ) {
+        continue;
+      }
+      out.push(ev);
+    }
+    return out;
+  });
+
+  /** Per-tier totals for the chip badges — computed over ALL folded lines, not the filtered ones. */
   const counts = $derived.by(() => {
     const c = { game: 0, player: 0, card: 0, stack: 0 };
-    for (const ev of events) c[tierOf(ev)] += 1;
+    for (const ev of lines) c[tierOf(ev)] += 1;
     return c;
   });
 
-  const visible = $derived(events.filter((ev) => enabled.has(tierOf(ev))));
+  const visible = $derived(lines.filter((ev) => enabled.has(tierOf(ev))));
+
+  /** `StepChanged` lines carry enum names from the server; everything else is shown as sent. */
+  function lineText(ev) {
+    return ev?.kind === 'StepChanged' ? stepChangedText(ev.text) : ev?.text;
+  }
 
   /**
    * Group the lines into turn sections.
@@ -141,7 +196,7 @@
   const sections = $derived.by(() => {
     const out = [];
     let current = null;
-    for (const [i, ev] of events.entries()) {
+    for (const [i, ev] of lines.entries()) {
       if (ev.kind === 'TurnStarted') {
         // `?? i` for the same reason the line-level key below carries one: a
         // caller passing unstamped lines would key every section `turn-undefined`
@@ -184,6 +239,7 @@
     void visible.length;
     if (stick && box) {
       box.scrollTop = box.scrollHeight;
+      autoScrollTop = box.scrollTop;
     }
   });
 
@@ -210,7 +266,7 @@
   <div class="feed-header">
     <span class="feed-label">Events</span>
     <span class="feed-count">
-      {visible.length === events.length ? events.length : `${visible.length}/${events.length}`}
+      {visible.length === lines.length ? lines.length : `${visible.length}/${lines.length}`}
     </span>
   </div>
 
@@ -237,7 +293,7 @@
 
   <!-- Newest at the bottom: the journal is already oldest-first. -->
   <div class="feed-lines" bind:this={box} onscroll={onScroll}>
-    {#if events.length === 0}
+    {#if lines.length === 0}
       <div class="feed-empty">— nothing yet —</div>
     {:else if visible.length === 0}
       <div class="feed-empty">— every tier is filtered out —</div>
@@ -266,10 +322,10 @@
             -->
             {#each section.lines as ev, i (ev.seq ?? i)}
               <div class="feed-line tone-{tone(ev.kind)} tier-{tierOf(ev)}">
-                <div class="line-text">{ev.text}</div>
+                <div class="line-text">{lineText(ev)}</div>
                 <div class="line-meta">
                   {#if ev.player}<span class="line-player">{ev.player}</span>{/if}
-                  <span class="line-kind">{ev.kind}</span>
+                  <span class="line-kind">{eventKindName(ev.kind)}</span>
                 </div>
               </div>
             {/each}

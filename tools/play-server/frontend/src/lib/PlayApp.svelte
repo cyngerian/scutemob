@@ -500,6 +500,47 @@
    */
   const combat = $derived(state?.combat ?? null);
 
+  /**
+   * The combat box is worth its space only once something is attacking
+   * (`scutemob-260`). `state.combat` is present from the beginning-of-combat
+   * step onward, so without this guard a full-width red "0 attackers · No
+   * attackers declared" panel sat between the action bar and the board for the
+   * whole of every combat phase of every turn, including the three where the
+   * human was not involved. The declare-attackers picker is the affordance for
+   * *choosing* attackers; this box is for *reading* what was declared.
+   */
+  const combatToShow = $derived(
+    combat && (combat.attackers?.length ?? 0) > 0 ? combat : null,
+  );
+
+  /**
+   * Every `object_id` the current decision offers a play for (`scutemob-260`).
+   *
+   * Passed down to the hand bar, the battlefields and the command chips, which
+   * mark the matching card so the human can see what is castable, playable or
+   * activatable without clicking each one to find out — the first-playtest
+   * complaint under "which of these can I even use". The set is derived from
+   * `decision.actions` alone, the same list `actionsForCard` consults, so a
+   * highlighted card always has a click-through and nothing unhighlighted does.
+   *
+   * `TapForMana` is excluded on purpose: during any priority every untapped
+   * land would light up, which is the G10 clutter problem again in a different
+   * colour. Mana sources have their own collapsed group in the action bar.
+   */
+  const offeredIds = $derived.by(() => {
+    const ids = new Set();
+    for (const a of $decision?.actions ?? []) {
+      if (a.kind === 'TapForMana') continue;
+      if (a.object_id !== null && a.object_id !== undefined) ids.add(Number(a.object_id));
+      // A declare action carries no `object_id` of its own; the creatures it is
+      // about are its `eligible` list (CR 508.1a / 509.1a), and those are what
+      // the human is deciding over, so they get the ring.
+      for (const e of a.attack?.eligible ?? []) ids.add(Number(e.id));
+      for (const e of a.block?.eligible ?? []) ids.add(Number(e.id));
+    }
+    return ids;
+  });
+
   /** The human's own hand, for the permanent bottom bar. */
   const ownHand = $derived(
     humanName !== null ? (state?.zones?.hand?.[humanName] ?? []) : [],
@@ -666,6 +707,7 @@
             hand={state.zones?.hand?.[pname] ?? []}
             graveyard={state.zones?.graveyard?.[pname] ?? []}
             onCardClick={handleCardClick}
+            {offeredIds}
           />
         {/each}
       </section>
@@ -718,13 +760,13 @@
       stack, which is where the playtest note asked for it ("could be a section
       under the stack which shows attackers and subsequent blockers").
     -->
-    {#if state && ((state.zones?.stack?.length ?? 0) > 0 || combat)}
+    {#if state && ((state.zones?.stack?.length ?? 0) > 0 || combatToShow)}
       <section class="stack-dock">
         {#if (state.zones?.stack?.length ?? 0) > 0}
           <ZoneStack items={state.zones.stack} onCardClick={handleCardClick} />
         {/if}
-        {#if combat}
-          <CombatView {combat} />
+        {#if combatToShow}
+          <CombatView combat={combatToShow} />
         {/if}
       </section>
     {/if}
@@ -750,7 +792,7 @@
           the server already removed, while creating a second place for the two
           policies to disagree.
         -->
-        <PlayBoard {state} {humanName} onCardClick={handleCardClick} />
+        <PlayBoard {state} {humanName} onCardClick={handleCardClick} {offeredIds} />
       {:else}
         <div class="empty-state"><div class="empty-title">Loading…</div></div>
       {/if}
@@ -768,7 +810,7 @@
   -->
   {#if state && humanName !== null}
     <footer class="hand-bar">
-      <ZoneHand cards={ownHand} playerName={humanName} onCardClick={handleCardClick} />
+      <ZoneHand cards={ownHand} playerName={humanName} onCardClick={handleCardClick} {offeredIds} />
     </footer>
   {/if}
 </div>

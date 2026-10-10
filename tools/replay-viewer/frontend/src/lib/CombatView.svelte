@@ -258,7 +258,9 @@
     color: #ccd;
     font-size: 0.75rem;
     font-weight: bold;
-    max-width: 100px;
+    /* 180, not 100: an attacker's own name was an ellipsis in the one row
+       whose job is to say who is attacking (`scutemob-260`). */
+    max-width: 180px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

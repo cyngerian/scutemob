@@ -43,7 +43,13 @@
     hand = [],
     graveyard = [],
     onCardClick = null,
+    /** Set<number>|null — see `ZoneHand`; marks a castable commander (`scutemob-260`). */
+    offeredIds = null,
   } = $props();
+
+  function isOffered(card) {
+    return !!offeredIds && !card?.hidden && offeredIds.has(Number(card?.object_id));
+  }
 
   let expanded = $state(false);
 
@@ -123,6 +129,7 @@
             type="button"
             class="cmd-card"
             class:clickable={onCardClick !== null}
+            class:offered={isOffered(card)}
             disabled={onCardClick === null}
             onclick={() => onCardClick?.(card)}
             use:cardTooltip={tooltipArg(card)}
@@ -270,6 +277,13 @@
 
   .cmd-card:hover:not(:disabled) {
     background: #3a2a10;
+  }
+
+  /* CR 903.8 — castable from the command zone right now (`scutemob-260`). */
+  .cmd-card.offered {
+    border-color: #5c5;
+    box-shadow: 0 0 0 1px #2a5a2a, 0 0 7px rgba(110, 230, 130, 0.35);
+    color: #efe;
   }
 
   .cmd-card:disabled {

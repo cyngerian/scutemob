@@ -21,6 +21,7 @@
  */
 import { get, writable } from 'svelte/store';
 import * as api from './api.js';
+import { decisionKindName, phaseName, stepName } from './names.js';
 
 /** The whole `SeatView` from the last successful response (null = no game). */
 export const seatView = writable(null);
@@ -187,6 +188,13 @@ export async function act(actionIndex, params = {}) {
     });
     return false;
   }
+  // `scutemob-260`: a finished auto-pass run's "stopped — your turn began"
+  // strip has done its job the moment the human acts on that turn. Leaving it
+  // up made the bar read as though a run were still parked there. A run that is
+  // still going (`stopReason === null`) is not touched: it is `startPassUntil`'s
+  // own loop that is calling `act`.
+  const finished = get(passUntil);
+  if (finished && finished.stopReason !== null) passUntil.set(null);
   return run(() => api.submitAction(pending.seq, actionIndex, params));
 }
 
@@ -364,7 +372,7 @@ const PASS_UNTIL_PREDICATES = {
     const step = view?.state?.turn?.step ?? null;
     const phase = view?.state?.turn?.phase ?? null;
     if (step !== ctx.step || phase !== ctx.phase) {
-      return `the ${ctx.phase} phase moved on (${ctx.step} → ${step})`;
+      return `the ${phaseName(ctx.phase)} phase moved on (${stepName(ctx.step)} → ${stepName(step)})`;
     }
     const depth = view?.state?.zones?.stack?.length ?? 0;
     const grew = depth > ctx.stackDepth;
@@ -455,7 +463,7 @@ export async function startPassUntil(modeKind) {
     const pending = get(decision);
     if (!pending) return finish('there is nothing to answer');
     if (pending.kind !== 'Priority') {
-      return finish(`you have a ${pending.kind} decision to make`);
+      return finish(`you have a ${decisionKindName(pending.kind)} decision to make`);
     }
 
     // Only after the loop has passed at least once do we let the predicate stop

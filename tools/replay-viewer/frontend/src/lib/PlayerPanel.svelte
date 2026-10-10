@@ -106,7 +106,7 @@
     {/if}
     {#if (player?.land_plays_remaining ?? 0) > 0}
       <span title="Land plays remaining" class="land-plays">
-        Lands: {player.land_plays_remaining}
+        Land drops: {player.land_plays_remaining}
       </span>
     {/if}
   </div>

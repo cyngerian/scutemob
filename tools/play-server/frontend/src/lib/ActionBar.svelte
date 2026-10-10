@@ -231,6 +231,7 @@
   import ConfirmPicker from './ConfirmPicker.svelte';
   import BinaryChoicePicker from './BinaryChoicePicker.svelte';
   import CostPicker from './CostPicker.svelte';
+  import { decisionKindName } from './names.js';
 
   const {
     decision = null,
@@ -354,6 +355,26 @@
 
   /** Collapsed by default — that is the whole request. */
   let manaOpen = $state(false);
+
+  /**
+   * Plays folded by `(kind, label)`, insertion order preserved (`scutemob-260`).
+   *
+   * Three Plains in hand used to be three identical "Play Plains" buttons in a
+   * row — the mana-source clutter G10 fixed, one group over. Same rule as
+   * `manaSourceRows`: two options share a row only when the server printed the
+   * same sentence for both, and clicking submits `options[0]`. The human could
+   * not have told the two apart from the bar anyway; the hand bar's own chips
+   * still offer each copy individually through click-through.
+   */
+  const playRows = $derived.by(() => {
+    const byKey = new Map();
+    for (const a of plays) {
+      const key = `${a.kind}\u0000${a.label}`;
+      if (byKey.has(key)) byKey.get(key).options.push(a);
+      else byKey.set(key, { key, options: [a] });
+    }
+    return [...byKey.values()];
+  });
 
   /** Found by `kind`, never by a hardcoded index — the list order is the server's. */
   const passAction = $derived(actions.find((a) => a.kind === 'PassPriority') ?? null);
@@ -645,6 +666,33 @@
   });
 
   /**
+   * Open the combat picker on arrival (`scutemob-260`).
+   *
+   * A `DeclareAttackers` / `DeclareBlockers` decision used to render as a bar
+   * whose only non-mana button was "Declare attackers (N eligible)", which the
+   * human had to click to reach the picker that is the whole decision. One
+   * click, every combat, every turn, to get to the question. The picker now
+   * opens itself when the decision offers exactly one declare action; **Back**
+   * still closes it and leaves the action list standing — the mana sources are
+   * reachable there, which is why the action list is not removed.
+   *
+   * Once per `seq`, tracked in a plain variable rather than `$state` so that
+   * recording the seq does not re-run this effect: after Back the human has
+   * said "not the picker", and reopening it on the next reactive tick would be
+   * a loop with a button in it.
+   */
+  let autoOpenedSeq = null;
+  $effect(() => {
+    if (!decision || loading || stage !== null) return;
+    if (decision.seq === autoOpenedSeq) return;
+    if (decision.kind !== 'DeclareAttackers' && decision.kind !== 'DeclareBlockers') return;
+    const declare = (decision.actions ?? []).filter((a) => a.attack || a.block);
+    if (declare.length !== 1) return;
+    autoOpenedSeq = decision.seq;
+    beginChain(declare[0]);
+  });
+
+  /**
    * Keyboard shortcuts (plan item 5): space = pass priority, Escape = cancel the
    * pending picker and dismiss the error strip.
    *
@@ -773,7 +821,7 @@
   {#if decision}
     <div class="bar-row">
       <div class="decision-heading">
-        <span class="decision-kind">{decision.kind}</span>
+        <span class="decision-kind" title={decision.kind}>{decisionKindName(decision.kind)}</span>
         <span class="decision-seq">seq {decision.seq}</span>
       </div>
 
@@ -791,7 +839,8 @@
                 : 'No plays available.'}
             </span>
           {:else}
-            {#each plays as option (option.index)}
+            {#each playRows as row (row.key)}
+              {@const option = row.options[0]}
               <button
                 class="action-btn kind-{option.kind}"
                 disabled={loading || chainOpen}
@@ -799,6 +848,9 @@
                 onclick={() => beginChain(option)}
               >
                 {option.label}
+                {#if row.options.length > 1}
+                  <span class="play-count">×{row.options.length}</span>
+                {/if}
                 {#if option.needs_x}<span class="needs-x">X</span>{/if}
               </button>
             {/each}
@@ -1240,7 +1292,8 @@
     max-width: 34rem;
   }
 
-  .mana-count {
+  .mana-count,
+  .play-count {
     color: #8c8;
     font-weight: bold;
   }

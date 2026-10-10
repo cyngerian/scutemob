@@ -39,7 +39,7 @@
   import ZoneGraveyard from '$viewer/ZoneGraveyard.svelte';
   import ZoneExile from '$viewer/ZoneExile.svelte';
 
-  const { state, humanName = null, onCardClick = null } = $props();
+  const { state, humanName = null, onCardClick = null, offeredIds = null } = $props();
 
   const playerNames = $derived(state?.players ? Object.keys(state.players).sort() : []);
 
@@ -115,7 +115,7 @@
           whole reasoning (this is a play surface; that one is a step debugger
           whose job is per-object identity).
         -->
-        <ZoneBattlefield {permanents} playerName={pname} {onCardClick} stackLands />
+        <ZoneBattlefield {permanents} playerName={pname} {onCardClick} {offeredIds} stackLands />
       </div>
     {/each}
   </section>
@@ -129,6 +129,7 @@
             permanents={state.zones.battlefield[pname]}
             playerName={pname}
             {onCardClick}
+            {offeredIds}
             stackLands
           />
         </div>
