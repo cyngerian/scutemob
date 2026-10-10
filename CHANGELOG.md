@@ -6,6 +6,17 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-10-10 — Play surface v2 B1 (`scutemob-263`) — fixed-slot skeleton behind `?v2`
+
+- Owner verdict on `-260`/`-261`: "things shift all the time, it's never obvious what to do". Brief
+  `docs/play-surface-v2-brief.md` approved 2026-10-10 (`scutemob-262`); this is its B1.
+- NEW `frontend/src/lib/v2/`: `100vh` grid (header / opponent row / your board / prompt panel / hand;
+  320px side column with stack, combat, log boxes that keep their height when empty). One prompt
+  panel composes the sentence (`prompt.js`) and holds the picker chain (ported from `ActionBar`).
+- Headless probe: every region's rect identical across 90 transitions on seed 3 through turn 11.
+- First surface untouched and still default; `main.js` mounts v2 on `?v2`. Notes:
+  `memory/play-v2-b1-2026-10-10.md`.
+
 ## 2026-10-09 — Play-server UI density pass (`scutemob-261`) — specced for 1080p
 
 - Owner on the 1080p monitor after `-260`: board "tiny", text "too big … especially the life total".

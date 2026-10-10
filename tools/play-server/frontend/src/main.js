@@ -1,6 +1,7 @@
 import { mount } from 'svelte'
 import './app.css'
 import App from './App.svelte'
+import PlayAppV2 from './lib/v2/PlayAppV2.svelte'
 import { installGlobalErrorReporting } from './lib/stores.js'
 
 // UI-4 (`scutemob-185`): installed before mount so the listeners are armed for
@@ -12,7 +13,13 @@ import { installGlobalErrorReporting } from './lib/stores.js'
 // handler's exception at all.
 installGlobalErrorReporting()
 
-const app = mount(App, {
+// `scutemob-263`: the second surface (`docs/play-surface-v2-brief.md`) mounts
+// behind `?v2` on the same bundle and the same server, so the two can be
+// compared on one seed. The first surface stays the default until the owner
+// says otherwise (brief §7).
+const useV2 = new URLSearchParams(window.location.search).has('v2')
+
+const app = mount(useV2 ? PlayAppV2 : App, {
   target: document.getElementById('app'),
 })
 
