@@ -16,6 +16,7 @@
       case 'triggered_ability': return 'trigger';
       case 'cascade_trigger': return 'cascade';
       case 'storm_trigger': return 'storm';
+      case 'room_ability': return 'room';
       default: return kind ?? '';
     }
   }

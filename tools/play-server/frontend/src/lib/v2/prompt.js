@@ -86,11 +86,23 @@ export function composePrompt({
   }
 }
 
-/** Actions the lit cards cannot stand for: no object on screen, not quiet. */
-export function looseActions(decision) {
-  return (decision?.actions ?? []).filter(
-    (a) => !QUIET_KINDS.has(a.kind) && (a.object_id === null || a.object_id === undefined),
-  );
+/**
+ * Actions the lit cards cannot stand for: not quiet, and either carrying no
+ * `object_id` or carrying one that no rendered card has.
+ *
+ * The second half is what makes the surface never dead-end (`scutemob-263`
+ * probe finding): a dungeon room's scry arrived as an `AnswerEffectChoice`
+ * with `object_id: 0` — the redacted placeholder id, since a room is not a
+ * card — so no chip was lit and nothing was offered. `renderedIds` is every
+ * id the surface currently draws (hand, battlefields, command zones); an
+ * action outside that set gets a button, whatever its id says.
+ */
+export function looseActions(decision, renderedIds = null) {
+  return (decision?.actions ?? []).filter((a) => {
+    if (QUIET_KINDS.has(a.kind)) return false;
+    if (a.object_id === null || a.object_id === undefined) return true;
+    return !renderedIds || !renderedIds.has(Number(a.object_id));
+  });
 }
 
 export { QUIET_KINDS };

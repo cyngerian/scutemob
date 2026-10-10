@@ -110,6 +110,21 @@
     return ids;
   });
 
+  /**
+   * Every object id the surface draws right now — what `looseActions` checks
+   * an action's `object_id` against, so an action on anything NOT drawn (a
+   * graveyard card's flashback, a dungeon room, a redacted id) still gets a
+   * button in the prompt panel. Graveyard and exile are not drawn in B1.
+   */
+  const renderedIds = $derived.by(() => {
+    const ids = new Set();
+    const z = state?.zones ?? {};
+    for (const c of ownHand) if (!c?.hidden) ids.add(Number(c.object_id));
+    for (const list of Object.values(z.battlefield ?? {})) for (const p of list) ids.add(Number(p.object_id));
+    for (const list of Object.values(z.command_zone ?? {})) for (const c of list) if (!c?.hidden) ids.add(Number(c.object_id));
+    return ids;
+  });
+
   /** Mana sources folded by label, for the header menu (G10: reachable, never hidden). */
   const manaRows = $derived.by(() => {
     const byLabel = new Map();
@@ -260,6 +275,7 @@
       {chooser}
       {clickMessage}
       hasGame={!!$seatView}
+      {renderedIds}
       onAct={(index, params) => act(index, params)}
       onRefresh={refresh}
       onDismissError={dismissError}

@@ -45,6 +45,7 @@
     chooser = null,
     clickMessage = null,
     hasGame = false,
+    renderedIds = null,
     onAct = null,
     onRefresh = null,
     onDismissError = null,
@@ -63,7 +64,7 @@
 
   const actions = $derived(decision?.actions ?? []);
   const passAction = $derived(actions.find((a) => a.kind === 'PassPriority') ?? null);
-  const loose = $derived(looseActions(decision));
+  const loose = $derived(looseActions(decision, renderedIds));
   const autoPassing = $derived(!!passUntil && passUntil.stopReason === null);
 
   const prompt = $derived(
@@ -233,18 +234,22 @@
   });
 
   /**
-   * A declare decision opens its picker on arrival, once per `seq`, so Back
-   * sticks (carried over from `scutemob-260`).
+   * A blocking decision with exactly one real answer opens its picker on
+   * arrival, once per `seq`, so Back sticks (generalised from `scutemob-260`'s
+   * declare-only rule after the B1 probe found an effect choice — a dungeon
+   * scry — sitting behind nothing). `Priority` is never auto-opened: its
+   * answers are the lit cards and the pass button. A decision with two real
+   * answers (a commander-zone yes/no) shows both as buttons instead.
    */
   let autoOpenedSeq = null;
   $effect(() => {
     if (!decision || loading || stage !== null) return;
     if (decision.seq === autoOpenedSeq) return;
-    if (decision.kind !== 'DeclareAttackers' && decision.kind !== 'DeclareBlockers') return;
-    const declare = actions.filter((a) => a.attack || a.block);
-    if (declare.length !== 1) return;
+    if (decision.kind === 'Priority') return;
+    const real = actions.filter((a) => a.kind !== 'Concede' && a.kind !== 'PassPriority' && a.kind !== 'TapForMana');
+    if (real.length !== 1) return;
     autoOpenedSeq = decision.seq;
-    beginChain(declare[0]);
+    beginChain(real[0]);
   });
 
   // ── Keyboard ───────────────────────────────────────────────────────────────
