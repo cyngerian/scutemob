@@ -820,9 +820,8 @@
 
   {#if decision}
     <div class="bar-row">
-      <div class="decision-heading">
+      <div class="decision-heading" title="seq {decision.seq}">
         <span class="decision-kind" title={decision.kind}>{decisionKindName(decision.kind)}</span>
-        <span class="decision-seq">seq {decision.seq}</span>
       </div>
 
       <div class="action-groups" class:dimmed={chainOpen}>
@@ -1129,9 +1128,6 @@
       />
     {/if}
 
-    {#if passAction}
-      <div class="hint">space = pass priority · Esc = cancel selection</div>
-    {/if}
   {:else}
     <div class="bar-row empty">
       <span class="empty-reason">{emptyReason}</span>
@@ -1155,7 +1151,7 @@
       it rather than above it.
     */
     border-bottom: 1px solid #2a2a44;
-    padding: 0.35rem 0.6rem;
+    padding: 0.2rem 0.5rem;
     font-family: monospace;
   }
 
@@ -1180,11 +1176,11 @@
     display: flex;
     align-items: baseline;
     gap: 0.4rem;
-    padding: 0.15rem 0.4rem;
+    padding: 0.05rem 0.4rem;
     background: #101c20;
     border: 1px solid #1e3a44;
     border-radius: 3px;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     color: #9bb;
   }
 
@@ -1222,7 +1218,7 @@
 
   .bar-row {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.6rem;
   }
 
@@ -1234,11 +1230,11 @@
   .decision-heading {
     display: flex;
     flex-direction: column;
-    min-width: 8rem;
+    min-width: 6rem;
   }
 
   .decision-kind {
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     color: #fa0;
     font-weight: bold;
     text-transform: uppercase;
@@ -1308,8 +1304,8 @@
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.76rem;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.72rem;
     background: #1c1c38;
     color: #ccd;
     border: 1px solid #33335a;

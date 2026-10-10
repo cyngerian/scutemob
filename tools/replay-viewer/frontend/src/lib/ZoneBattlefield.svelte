@@ -61,6 +61,14 @@
      * gets the `offered` ring. `null` (the replay viewer) changes nothing.
      */
     offeredIds = null,
+    /**
+     * Play-surface opt-in (`scutemob-261`): drop this component's own
+     * "Battlefield · N permanents" header and tighten the paddings. `PlayBoard`
+     * labels each cell itself (seat name, you/active badges, count), so the
+     * header was the same fact twice, one line each, in every cell. The replay
+     * viewer does not pass it and renders exactly what it did.
+     */
+    compact = false,
   } = $props();
 
   function isOffered(p) {
@@ -220,11 +228,13 @@
   }
 </script>
 
-<div class="zone-battlefield">
-  <div class="zone-header">
-    <span class="zone-label">Battlefield</span>
-    <span class="zone-count muted">{permanents.length} permanents</span>
-  </div>
+<div class="zone-battlefield" class:compact>
+  {#if !compact}
+    <div class="zone-header">
+      <span class="zone-label">Battlefield</span>
+      <span class="zone-count muted">{permanents.length} permanents</span>
+    </div>
+  {/if}
 
   {#if permanents.length === 0}
     <div class="empty-zone muted">— empty —</div>
@@ -460,6 +470,18 @@
     padding: 0.4rem 0.5rem;
     font-family: monospace;
     font-size: 0.78rem;
+  }
+
+  .zone-battlefield.compact {
+    padding: 0.25rem 0.35rem;
+  }
+
+  .zone-battlefield.compact .perm-group {
+    margin-bottom: 0.2rem;
+  }
+
+  .zone-battlefield.compact .empty-zone {
+    padding: 0.15rem;
   }
 
   .zone-header {

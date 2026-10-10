@@ -258,6 +258,18 @@ production bundle contains the viewer components' scoped CSS
     a month behind `frontend/src` — two "defects" (mana sources in the play
     list, Cancel for Back) were already fixed in source. **Run `npm run build`
     after pulling.**
+- **Density pass (`scutemob-261`, 2026-10-09) — specced for 1080p.** The owner's
+  verdict on the pass above, seen on the 1080p monitor: the board was "tiny" and
+  the text "too big, especially the life total". Measured headless, the chrome
+  above the board went from ~41% of a 1080 screen to **23%**, and the board
+  region from ~45% to **71%**. `PhaseStrip` (play-local, one row) replaces the
+  viewer's two-line `PhaseIndicator` here; `SeatCard` no longer wraps
+  `$viewer/PlayerPanel` and renders its fields in two rows with a 1rem life
+  total; `ZoneBattlefield` takes an opt-in `compact` that drops its own header
+  (the cell label already says who, and now how many); the board grid stretches
+  to tile the region; the action-bar hint line is gone; feed lines are one line;
+  base font is 13px. Figures and the band table:
+  `memory/play-ui-density-2026-10-09.md`.
 
 ### Changes made *outside* `tools/play-server`
 

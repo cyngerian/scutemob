@@ -108,6 +108,7 @@
           {pname}
           {#if pname === humanName}<span class="you">you</span>{/if}
           {#if state?.turn?.active_player === pname}<span class="active">active</span>{/if}
+          <span class="count">{permanents.length}</span>
         </div>
         <!--
           `stackLands` — G13 (`scutemob-190`). Opted into here and NOT in the
@@ -115,7 +116,7 @@
           whole reasoning (this is a play surface; that one is a step debugger
           whose job is per-object identity).
         -->
-        <ZoneBattlefield {permanents} playerName={pname} {onCardClick} {offeredIds} stackLands />
+        <ZoneBattlefield {permanents} playerName={pname} {onCardClick} {offeredIds} stackLands compact />
       </div>
     {/each}
   </section>
@@ -131,6 +132,7 @@
             {onCardClick}
             {offeredIds}
             stackLands
+            compact
           />
         </div>
       {/each}
@@ -158,7 +160,8 @@
   .play-board {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    min-height: 100%;
     font-family: monospace;
   }
 
@@ -177,8 +180,14 @@
   .battlefield-grid {
     display: grid;
     grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
+    /* `scutemob-261`: the grid takes the whole board region and every row is
+       an equal share of it, so four boards tile the space instead of sitting
+       as four content-sized boxes over a dead area. A cell still grows past
+       its share when its board is big, and the pane scrolls. */
+    grid-auto-rows: minmax(0, 1fr);
+    flex: 1;
     gap: 0.4rem;
-    align-items: start;
+    align-items: stretch;
   }
 
   /* One living board should not stretch to a single absurdly wide column. */
@@ -198,6 +207,10 @@
     flex-direction: column;
     gap: 0.15rem;
     min-width: 0;
+  }
+
+  .bf-cell > :global(.zone-battlefield) {
+    flex: 1;
   }
 
   .bf-cell.is-human {
@@ -239,6 +252,11 @@
 
   .out {
     color: #a66;
+    font-size: 0.62rem;
+  }
+
+  .count {
+    color: #445;
     font-size: 0.62rem;
   }
 

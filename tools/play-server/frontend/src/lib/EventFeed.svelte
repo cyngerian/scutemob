@@ -478,31 +478,40 @@
     font-size: 0.64rem;
   }
 
+  /* `scutemob-261`: text and its meta tag on ONE line — the two-line layout
+     doubled the feed's height per event for a tag nobody reads twice. */
   .feed-line {
-    padding: 0.15rem 0.25rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    padding: 0.05rem 0.25rem;
     border-left: 2px solid transparent;
-    margin-bottom: 0.1rem;
+    margin-bottom: 0.05rem;
   }
 
   .line-text {
-    font-size: 0.78rem;
+    flex: 1;
+    font-size: 0.72rem;
     color: #ccd;
     word-break: break-word;
   }
 
   .line-meta {
     display: flex;
-    gap: 0.35rem;
+    gap: 0.3rem;
     align-items: baseline;
+    flex-shrink: 0;
+    max-width: 45%;
+    overflow: hidden;
+    white-space: nowrap;
   }
 
   .line-player {
-    font-size: 0.65rem;
-    color: #668;
+    display: none;
   }
 
   .line-kind {
-    font-size: 0.62rem;
+    font-size: 0.56rem;
     color: #445;
     text-transform: uppercase;
     letter-spacing: 0.04em;

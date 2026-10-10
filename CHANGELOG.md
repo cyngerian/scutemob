@@ -6,6 +6,16 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-10-09 — Play-server UI density pass (`scutemob-261`) — specced for 1080p
+
+- Owner on the 1080p monitor after `-260`: board "tiny", text "too big … especially the life total".
+  Measured headless: chrome above the board 41% → **23%** of 1080; `.body` 45% → **71%** (79% at 1440p).
+- NEW play-local `PhaseStrip` (one row; viewer's `PhaseIndicator` untouched); `SeatCard` rewritten to two
+  rows with a 1rem life total (no longer wraps `$viewer/PlayerPanel`, which is unmodified).
+- `$viewer/ZoneBattlefield` gains opt-in `compact` (no duplicate header, tighter padding); board cells
+  stretch to tile the region; `ActionBar` heading one line and hint line dropped; feed lines one line;
+  base font 14 → 13px. Notes: `memory/play-ui-density-2026-10-09.md`.
+
 ## 2026-10-09 — Play-server UI usability pass (`scutemob-260`) — frontend only, class "tooling"
 
 - Driven headless (playwright + system Chromium) and read from screenshots. First finding: the gitignored
