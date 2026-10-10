@@ -39,7 +39,7 @@
   // app can reuse them without a copy — see
   // `docs/mtg-engine-replay-viewer.md` §"Import Mechanism". A copy would fork on
   // the next `StackObjectKind` variant.
-  import PhaseIndicator from '$viewer/PhaseIndicator.svelte';
+  import PhaseStrip from './PhaseStrip.svelte';
   import ZoneStack from '$viewer/ZoneStack.svelte';
   import ZoneHand from '$viewer/ZoneHand.svelte';
   import CombatView from '$viewer/CombatView.svelte';
@@ -658,7 +658,7 @@
   {/if}
 
   {#if state}
-    <PhaseIndicator turn={state.turn} />
+    <PhaseStrip turn={state.turn} />
   {/if}
 
   {#if gameOver}
@@ -827,9 +827,9 @@
   .app-header {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.8rem;
     flex-wrap: wrap;
-    padding: 0.35rem 0.8rem;
+    padding: 0.15rem 0.6rem;
     background: #0b0b18;
     border-bottom: 1px solid #2a2a44;
   }
@@ -855,8 +855,8 @@
   .summary {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
-    font-size: 0.72rem;
+    gap: 0.5rem;
+    font-size: 0.66rem;
     color: #99a;
   }
 
@@ -890,7 +890,7 @@
   }
 
   .new-game input {
-    width: 5.5rem;
+    width: 4.5rem;
     background: #141428;
     border: 1px solid #33335a;
     border-radius: 3px;
@@ -901,8 +901,8 @@
   }
 
   button {
-    padding: 0.2rem 0.45rem;
-    font-size: 0.74rem;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.7rem;
     background: #1c1c38;
     color: #ccd;
     border: 1px solid #33335a;
@@ -999,7 +999,10 @@
       cards can leave view when it overflows. It only engages in the case where
       the alternative is the board vanishing entirely.
     */
-    max-height: 62vh;
+    /* `scutemob-261`: 48vh, down from 62 — the dock is now ~18% of 1080 when
+       nothing is open, and a picker should still leave the board the larger
+       half. */
+    max-height: 48vh;
     overflow-y: auto;
     background: #0d0d1a;
     border-bottom: 1px solid #22223a;
@@ -1008,9 +1011,9 @@
   .seat-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.4rem;
     align-items: flex-start;
-    padding: 0.35rem 0.6rem 0;
+    padding: 0.25rem 0.5rem 0;
   }
 
   /*
@@ -1022,28 +1025,31 @@
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
-    max-height: 30vh;
+    max-height: 24vh;
     overflow-y: auto;
-    padding: 0 0.6rem 0.35rem;
+    padding: 0 0.5rem 0.25rem;
   }
 
   .body {
     display: flex;
     flex: 1;
     min-height: 0;
-    gap: 0.5rem;
-    padding: 0.5rem;
+    gap: 0.4rem;
+    padding: 0.35rem 0.5rem;
   }
 
   .state-pane {
     flex: 1;
     min-width: 0;
     overflow-y: auto;
+    /* So `PlayBoard`'s `min-height: 100%` has a height to be 100% of. */
+    display: flex;
+    flex-direction: column;
   }
 
   .feed-pane {
-    width: 22rem;
-    min-width: 14rem;
+    width: 19rem;
+    min-width: 13rem;
     display: flex;
     min-height: 0;
   }
@@ -1054,9 +1060,9 @@
   */
   .hand-bar {
     flex-shrink: 0;
-    max-height: 22vh;
+    max-height: 18vh;
     overflow-y: auto;
-    padding: 0.3rem 0.6rem;
+    padding: 0.2rem 0.5rem;
     background: #0d0d1a;
     border-top: 1px solid #22223a;
   }
@@ -1085,7 +1091,7 @@
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0.6rem;
-    padding: 0.3rem 0.8rem;
+    padding: 0.2rem 0.6rem;
     background: #101c28;
     border-bottom: 1px solid #2a4a60;
     font-size: 0.76rem;
@@ -1118,7 +1124,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.3rem 0.8rem;
+    padding: 0.2rem 0.6rem;
     background: #1a140a;
     border-bottom: 1px solid #4a3010;
     font-size: 0.75rem;
