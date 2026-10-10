@@ -1,9 +1,9 @@
 # Play surface v2 — design brief
 
-<!-- last_updated: 2026-10-09 -->
+<!-- last_updated: 2026-10-10 -->
 
-> Status: **DRAFT for owner approval** (`scutemob-262`). Nothing is built until this is
-> approved or amended. Approval is a task comment on `scutemob-262`.
+> Status: **APPROVED by the owner 2026-10-10** (`scutemob-262`), with the four §8
+> questions answered as recommended. Build tasks follow §7.
 
 ## 1. Why a new surface
 
@@ -188,11 +188,11 @@ the existing frontend source gates (`title` ban on tooltip anchors, no
 `structuredClone`, picker error wiring) extend to `v2/` automatically because they walk
 `frontend/src`.
 
-## 8. Open questions for the owner
+## 8. Owner decisions (2026-10-10)
 
-1. **Opponent lands as pips, not images** (§3). Agree, or images everywhere?
-2. **Mana sources in the menu** rather than the prompt panel. They are needed for
-   activation costs (`OOS-SIM6-3`) until auto-tap covers activations. Agree?
-3. **Log column at 320px.** Keep, narrower, or collapsible to a button?
-4. **Scryfall dependency** for a playable surface. Accept for now, with the proxy as a
-   follow-up?
+1. **Opponent lands as pips, not images** (§3) — **agreed.**
+2. **Mana sources in the menu** rather than the prompt panel — **agreed.** They are
+   needed for activation costs (`OOS-SIM6-3`) until auto-tap covers activations.
+3. **Log column at 320px** — **keep.**
+4. **Scryfall dependency** for card art — **accepted for now**; a cached image proxy in
+   `play-server` is a follow-up task.
