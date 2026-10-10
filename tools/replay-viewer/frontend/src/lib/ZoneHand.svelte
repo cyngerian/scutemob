@@ -12,7 +12,18 @@
    *   playerName (string) — player label for the zone header
    */
   import { cardTooltip, zoneCaption } from './cardTooltip.js';
-  const { cards = [], playerName, onCardClick = null } = $props();
+  /**
+   * `offeredIds` (Set<number>|null) — play-surface opt-in (`scutemob-260`):
+   * the `object_id`s the current decision offers an action for. A card in the
+   * set is marked so the human can see what is playable before clicking. The
+   * replay viewer does not pass it (there is no decision there), and `null`
+   * renders exactly what it did before.
+   */
+  const { cards = [], playerName, onCardClick = null, offeredIds = null } = $props();
+
+  function isOffered(card) {
+    return !!offeredIds && !card?.hidden && offeredIds.has(Number(card?.object_id));
+  }
 
   /**
    * Keyed-`#each` key. **Not** `card.object_id` alone, and the reason is a crash,
@@ -71,6 +82,7 @@
         <div
           class="hand-card card-type-{primaryType(card.card_types)}"
           class:clickable={onCardClick !== null}
+          class:offered={isOffered(card)}
           onclick={() => onCardClick?.(card)}
           use:cardTooltip={{ name: card.hidden ? null : card.name, caption: zoneCaption(card) }}
         >
@@ -146,6 +158,24 @@
   .card-name {
     color: #ccce;
     white-space: nowrap;
+  }
+
+  /*
+    A card the current decision offers an action for. Two classes so it wins
+    over the single-class type tints below regardless of source order; the
+    green is the same family as the battlefield's own "offered" ring.
+  */
+  .hand-card.offered {
+    border-color: #5c5;
+    box-shadow: 0 0 0 1px #2a5a2a, 0 0 7px rgba(110, 230, 130, 0.35);
+  }
+
+  .hand-card.offered .card-name {
+    color: #efe;
+  }
+
+  .hand-card.offered.clickable:hover {
+    border-color: #9f9;
   }
 
   /* Type-based background tints */

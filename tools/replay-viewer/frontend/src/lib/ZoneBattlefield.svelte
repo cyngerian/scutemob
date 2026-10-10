@@ -54,7 +54,18 @@
     playerName,
     onCardClick = null,
     stackLands = false,
+    /**
+     * Play-surface opt-in (`scutemob-260`), same contract as `ZoneHand`'s: the
+     * `object_id`s the current decision offers an action for. A chip whose
+     * permanent is in the set — or, for a land stack, any member of which is —
+     * gets the `offered` ring. `null` (the replay viewer) changes nothing.
+     */
+    offeredIds = null,
   } = $props();
+
+  function isOffered(p) {
+    return !!offeredIds && offeredIds.has(Number(p?.object_id));
+  }
 
   // Group permanents by rough type category
   const groups = $derived(() => {
@@ -233,6 +244,7 @@
               class:is-commander={p.is_commander}
               class:is-token={p.is_token}
               class:clickable={onCardClick !== null}
+              class:offered={isOffered(p)}
               onclick={() => onCardClick?.(p, [p])}
               use:cardTooltip={tooltipArg(p, { image: !p.is_token })}
             >
@@ -299,6 +311,7 @@
               class="permanent-card permanent-pw"
               class:tapped={p.tapped}
               class:clickable={onCardClick !== null}
+              class:offered={isOffered(p)}
               onclick={() => onCardClick?.(p, [p])}
               use:cardTooltip={tooltipArg(p)}
             >
@@ -347,6 +360,7 @@
               class:permanent-artifact={p.card_types?.includes('Artifact')}
               class:permanent-enchantment={p.card_types?.includes('Enchantment')}
               class:clickable={onCardClick !== null}
+              class:offered={isOffered(p)}
               onclick={() => onCardClick?.(p, [p])}
               use:cardTooltip={tooltipArg(p, { image: !p.is_token })}
             >
@@ -387,6 +401,7 @@
               class:tapped={p.tapped}
               class:is-commander={p.is_commander}
               class:clickable={onCardClick !== null}
+              class:offered={stack.members.some(isOffered)}
               class:land-stack={n > 1}
               data-land-stack-count={n}
               onclick={() => clickStack(stack)}
@@ -421,6 +436,7 @@
               class="permanent-card"
               class:tapped={p.tapped}
               class:clickable={onCardClick !== null}
+              class:offered={isOffered(p)}
               onclick={() => onCardClick?.(p, [p])}
               use:cardTooltip={tooltipArg(p, { image: !p.is_token })}
             >
@@ -503,7 +519,10 @@
     border: 1px solid #2a4830;
     border-radius: 3px;
     min-width: 70px;
-    max-width: 100px;
+    /* 150, not 100: at 100px every two-word name was an ellipsis ("Dusk
+       Legion…", "Marble Diam…") and a land stack's "×2" fell off the chip.
+       The battlefield cells have the room (`scutemob-260`). */
+    max-width: 150px;
     transition: border-color 0.1s;
   }
 
@@ -518,6 +537,20 @@
   .permanent-card.clickable:hover {
     border-color: #6aaa80;
     box-shadow: 0 0 4px rgba(100, 200, 130, 0.3);
+  }
+
+  /* A permanent the current decision offers an action for (`scutemob-260`). */
+  .permanent-card.offered {
+    border-color: #5c5;
+    box-shadow: 0 0 0 1px #2a5a2a, 0 0 7px rgba(110, 230, 130, 0.35);
+  }
+
+  .permanent-card.offered .perm-name {
+    color: #efe;
+  }
+
+  .permanent-card.offered.clickable:hover {
+    border-color: #9f9;
   }
 
   .permanent-card.tapped {
@@ -544,7 +577,7 @@
 
   .permanent-land {
     min-width: 50px;
-    max-width: 70px;
+    max-width: 110px;
     background: #121a14;
   }
 
@@ -582,7 +615,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 90px;
+    max-width: 140px;
   }
 
   .badge {

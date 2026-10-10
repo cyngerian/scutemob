@@ -222,6 +222,42 @@ production bundle contains the viewer components' scoped CSS
 - **Errors** are shown, not logged. A 422 `rejected` reads as "the engine refused
   this play" and carries the `GameStateError` text; a 409 `stale_decision`
   re-reads `GET /api/game` on its own.
+- **Usability pass (`scutemob-260`, 2026-10-09)** — found by driving the surface
+  headless (`playwright` + the system Chromium) and reading the screenshots:
+  - **Actionable cards are marked.** `PlayApp` derives `offeredIds` — every
+    `object_id` the current decision offers an action for, plus the `eligible`
+    creatures of a declare action, minus `TapForMana` — and passes it to
+    `ZoneHand`, `ZoneBattlefield` and `SeatCard`, which ring the matching chip
+    green. The shared `$viewer` components take it as an opt-in prop
+    (`offeredIds = null`), so the replay viewer renders exactly what it did.
+  - **Identical plays fold** (`Play Plains ×3`), the same rule as the G10 mana
+    rows: one row per `(kind, label)`, clicking submits the first member.
+  - **Human names** for steps, phases and decision kinds (`lib/names.js`): the
+    feed's `StepChanged` lines, the pass-until stop reason and the bar heading
+    no longer print `PreCombatMain` / `DeclareAttackers`. Each falls back to a
+    camel-case split for a variant the map does not know.
+  - **The combat box renders only once attackers exist.** `state.combat` is
+    present from beginning of combat onward, so the box used to occupy the dock
+    with "0 attackers · No attackers declared" for every combat phase of every
+    turn.
+  - **Declare pickers open on arrival.** A `DeclareAttackers` / `DeclareBlockers`
+    decision with exactly one declare action opens its picker without the click
+    on "Declare attackers (N eligible)"; once per `seq`, so **Back** sticks.
+  - **The feed follows again.** A programmatic scroll's event is delivered
+    asynchronously; during a pass-until run a second response grew the box
+    first, `onScroll` read that as "the user scrolled up", and the feed parked
+    with a "jump to latest" button for the rest of the game. A scroll event at
+    the position the feed set itself is now ignored.
+  - **"X has priority" folds into "X passes"** when the two are adjacent for the
+    same player (display only; `events` is untouched). A grant NOT followed by
+    its pass still renders — that is the line before a human's decision.
+  - A finished pass-until strip clears when the human acts; battlefield and
+    combat chips are wide enough for a two-word name and a land stack's `×N`;
+    `PlayerPanel`'s "Lands: N" reads "Land drops: N".
+  - `dist/` is gitignored, and the first finding was that the served bundle was
+    a month behind `frontend/src` — two "defects" (mana sources in the play
+    list, Cancel for Back) were already fixed in source. **Run `npm run build`
+    after pulling.**
 
 ### Changes made *outside* `tools/play-server`
 

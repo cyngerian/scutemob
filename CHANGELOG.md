@@ -6,6 +6,19 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-10-09 — Play-server UI usability pass (`scutemob-260`) — frontend only, class "tooling"
+
+- Driven headless (playwright + system Chromium) and read from screenshots. First finding: the gitignored
+  `dist/` was a month behind `frontend/src` (G8/G10 already fixed in source) — rebuild after pulling.
+- **Actionable cards ringed**: `offeredIds` from `decision.actions` (+ declare `eligible`, − `TapForMana`)
+  → opt-in prop on `$viewer/ZoneHand` / `ZoneBattlefield` / `SeatCard`; replay viewer unchanged.
+- Identical plays fold ("Play Plains ×3"); NEW `lib/names.js` humanises steps / phases / decision kinds
+  in the feed, stop strip and bar heading; combat box only once attackers exist; declare pickers
+  auto-open once per `seq`; feed-follow race fixed (`autoScrollTop`); "has priority" folds into "passes".
+- `$viewer` cosmetics: chip widths (`ZoneBattlefield`, `CombatView`), "Land drops: N" (`PlayerPanel`).
+- No PROTOCOL/HASH bump (no Rust). Notes: `memory/play-ui-usability-2026-10-09.md` (follow-up: mana
+  cost on hand chips needs a `CardInZoneView` field).
+
 ## 2026-09-14 — Data sync (`scutemob-259`) — CR 2026-08-07 + Scryfall 2026-09-14; `/start` freshness check
 
 - Local CR was 2026-01-16, Scryfall cache 2026-02-20, `cards.sqlite` 2026-03-23; Scryfall's bulk API had
