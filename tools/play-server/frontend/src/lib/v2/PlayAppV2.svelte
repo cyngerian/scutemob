@@ -116,7 +116,9 @@
    * Every object id the surface draws right now — what `looseActions` checks
    * an action's `object_id` against, so an action on anything NOT drawn (a
    * graveyard card's flashback, a dungeon room, a redacted id) still gets a
-   * button in the prompt panel. Graveyard and exile are not drawn in B1.
+   * button in the prompt panel. Pile popovers (graveyard, exile) are not
+   * "drawn": they open on demand, so an action on a card in one keeps its
+   * button and the card is ALSO lit inside the open pile.
    */
   const renderedIds = $derived.by(() => {
     const ids = new Set();
@@ -183,6 +185,19 @@
       chooser = { name, options: matches };
       return;
     }
+    // B2 (`scutemob-264`): a lit ELIGIBLE attacker or blocker carries no
+    // `object_id` of its own — the declare action does — so clicking it used to
+    // say "No legal action" for the very card the ring invited. Open the declare
+    // picker instead; the card is in its list.
+    const declare = ($decision?.actions ?? []).find(
+      (a) =>
+        (a.attack?.eligible ?? []).some((e) => Number(e.id) === Number(card.object_id)) ||
+        (a.block?.eligible ?? []).some((e) => Number(e.id) === Number(card.object_id)),
+    );
+    if (declare) {
+      prompt?.beginExternal(declare);
+      return;
+    }
     clickMessage = `No legal action for "${name}" right now.`;
   }
 
@@ -232,6 +247,7 @@
         player={state.players[pname]}
         commanders={state.zones?.command_zone?.[pname] ?? []}
         permanents={state.zones?.battlefield?.[pname] ?? []}
+        graveyard={state.zones?.graveyard?.[pname] ?? []}
         isActive={state.turn?.active_player === pname}
         hasPriority={state.turn?.priority === pname}
         {offeredIds}
@@ -250,6 +266,8 @@
         player={state.players[humanName]}
         commanders={state.zones?.command_zone?.[humanName] ?? []}
         permanents={state.zones?.battlefield?.[humanName] ?? []}
+        graveyard={state.zones?.graveyard?.[humanName] ?? []}
+        exile={state.zones?.exile ?? []}
         isActive={state.turn?.active_player === humanName}
         hasPriority={state.turn?.priority === humanName}
         {offeredIds}
@@ -313,7 +331,7 @@
   .v2 {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 320px;
-    grid-template-rows: 32px 236px minmax(0, 1fr) 150px 140px;
+    grid-template-rows: 32px 236px minmax(0, 1fr) 150px 150px;
     grid-template-areas:
       'header header'
       'opps side'
