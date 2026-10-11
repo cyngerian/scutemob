@@ -7910,6 +7910,90 @@ mod tests {
         }
     }
 
+    // ── `scutemob-264` (play surface v2 B2): printed activation lines ──
+
+    /// `view::printed_ability_line` pins the oracle line by cost prefix and
+    /// refuses when the text and the definition disagree on how many abilities
+    /// share that cost. Each case here is a shape seen in the deck-legal corpus.
+    #[test]
+    fn test_printed_ability_line_matches_cost_prefix_and_keyword_costs() {
+        use view::printed_ability_line as line;
+        // Keyword cost with reminder text: Equip {1}.
+        let boots = "Equipped creature has haste and hexproof.\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)";
+        assert_eq!(line(boots, "{1}", 0, 1).as_deref(), Some("Equip {1}"));
+        // Mana + tap, one ability: the whole line, reminder stripped.
+        let lib = "{1}{G}, {T}: Draw a card. (Reminder.)";
+        assert_eq!(
+            line(lib, "{1}{G}, {T}", 0, 1).as_deref(),
+            Some("{1}{G}, {T}: Draw a card.")
+        );
+        // A `{T}: Add {G}.` mana ability line is NOT a candidate for prefix `{T}`,
+        // so the non-mana `{T}, Sacrifice` line is the only one and k = 0 finds it.
+        let bird = "Flying\n{T}: Add {G}.\n{T}, Sacrifice this creature: Draw a card.";
+        assert_eq!(
+            line(bird, "{T}", 0, 1).as_deref(),
+            Some("{T}, Sacrifice this creature: Draw a card.")
+        );
+        // Two abilities with the same cost resolve by order (k).
+        let two = "{2}: Target creature gets +1/+0 until end of turn.\n{2}: Target creature gets +0/+1 until end of turn.";
+        assert_eq!(
+            line(two, "{2}", 1, 2).as_deref(),
+            Some("{2}: Target creature gets +0/+1 until end of turn.")
+        );
+        // The count check: the text has two lines for a cost the definition says
+        // one ability carries — no line is trustworthy, so the index form stays.
+        assert_eq!(line(two, "{2}", 0, 1), None);
+        // No prefix match at all.
+        assert_eq!(line(boots, "{3}", 0, 1), None);
+        // Prefix must end at a cost boundary: `{1}` must not match `{1}{G}`.
+        assert_eq!(line(lib, "{1}", 0, 1), None);
+        // Long lines are truncated at 80 characters with an ellipsis.
+        let long = format!("{{T}}: {}", "x".repeat(120));
+        let got = line(&long, "{T}", 0, 1).expect("one candidate");
+        assert_eq!(got.chars().count(), 81);
+        assert!(got.ends_with('…'));
+    }
+
+    /// B2's cards are images with the text chip as fallback (brief §4). Two
+    /// things the layout contract depends on are pinned at the source: images
+    /// are requested lazily (Scryfall's ≤10 req/s ask) and every `<img>` in the
+    /// v2 card carries an error handler, so an unreachable Scryfall leaves the
+    /// chip, never a broken-image icon in a fixed box.
+    #[test]
+    fn test_frontend_v2_card_images_are_lazy_and_fall_back() {
+        let card =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("frontend/src/lib/v2/Card.svelte");
+        let text = std::fs::read_to_string(&card).expect("v2 Card.svelte is readable");
+        // Elements only: the prose in the component's comments writes `<img>`,
+        // closed, when it names the element.
+        let imgs = text.matches("<img").count() - text.matches("<img>").count();
+        assert!(
+            imgs >= 1,
+            "v2 Card.svelte renders no <img>; B2 is images with a chip fallback"
+        );
+        assert_eq!(
+            text.matches("loading=\"lazy\"").count(),
+            imgs,
+            "every <img> in v2 Card.svelte must be loading=\"lazy\" (brief §4 rate limit)"
+        );
+        assert_eq!(
+            text.matches("onerror=").count(),
+            imgs,
+            "every <img> in v2 Card.svelte must carry an onerror fallback to the chip"
+        );
+        assert!(
+            text.contains("from './images.js'"),
+            "v2 Card.svelte builds its URL through `images.js`, the one place the source is named"
+        );
+        let images =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("frontend/src/lib/v2/images.js");
+        let images = std::fs::read_to_string(&images).expect("v2 images.js is readable");
+        assert!(
+            images.contains("version=small"),
+            "board and hand images are the Scryfall `small` printing (brief §4)"
+        );
+    }
+
     /// **UI-4 (`scutemob-185`), G1 of `memory/playtest-triage-2026-08-02b.md` —
     /// no file in the Svelte client may hand a value to a platform primitive that
     /// rejects `Proxy` objects.**
