@@ -175,6 +175,28 @@ production bundle contains the viewer components' scoped CSS
   `test_tap_for_mana_is_grouped_and_still_reachable`, which asserts *both* sides.
   The residual gap where a human's mana-cost activation still 422s because
   nothing auto-taps for it is `OOS-SIM6-3`, on the SIM track.
+- **v2 cards are images with the chip as fallback (B2, `scutemob-264`).** Every card
+  on the `?v2` surface is a fixed box (hand 84×117, board 92×128, small 48×67) holding
+  the Scryfall `small` printing with the name band, P/T and state tags overlaid; the
+  text chip renders first, underneath, and is what remains if the image fails or has
+  not arrived, so the layout is identical offline. `v2/images.js` is the one place the
+  URL is built (the cached proxy is the recorded follow-up, brief §8.4). Images are
+  `loading="lazy"` and kept in layout at `opacity: 0` until loaded — a lazy image with
+  no box is never fetched. Pinned by `test_frontend_v2_card_images_are_lazy_and_fall_back`.
+  Your graveyard and the shared exile are piles at the right end of the lands row, each
+  opponent's graveyard a `gy N` button in their cell; a pile opens as a popover **over**
+  its region (nothing moves), lists the cards top-first, lights offered ones and clicks
+  through. Pile cards are not in `renderedIds`, so an action on one keeps its prompt
+  button as well.
+- **Activation labels name the printed line (B2).** "Activate ability 0 of Swiftfoot
+  Boots" is now "Swiftfoot Boots — Equip {1}": `view::activation_label` renders the
+  ability's `ActivationCost` prefix (mana, `{T}`, life) and finds the oracle line of the
+  layer-resolved `rules_text` that starts with it (`calculate_characteristics`, the same
+  non-gated read `action_needs_x` makes). Keyword-cost lines ("Equip {1}", "Cycling {2}")
+  match without a colon; `{T}: Add …` mana lines never do. The match is refused — and the
+  index form kept — unless the number of matching lines equals the number of abilities
+  sharing that cost, so a wrong line is never shown. Unit test
+  `test_printed_ability_line_matches_cost_prefix_and_keyword_costs`.
 - **Card hover has a caption, and no card element carries a native `title`
   (UI-5, G11).** The playtest note is "hover card name interferes with the card
   image". It was the browser-native `title` on the same element: chrome drawn at

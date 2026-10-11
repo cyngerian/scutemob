@@ -46,9 +46,10 @@ use std::collections::HashMap;
 use mtg_engine::cards::card_definition::Cost;
 use mtg_engine::cards::card_definition::GiftType;
 use mtg_engine::{
-    AbilityDefinition, AdditionalCost, AltCostKind, AttackTarget, Effect, EffectChoiceAnswer,
-    EffectChoiceQuestion, GameState, HybridMana, ManaColor, ManaCost, ModeSelection, ObjectId,
-    PhyrexianMana, PlayerId, SpellAdditionalCost, Target, TargetRequirement,
+    AbilityDefinition, ActivationCost, AdditionalCost, AltCostKind, AttackTarget, Effect,
+    EffectChoiceAnswer, EffectChoiceQuestion, GameState, HybridMana, ManaColor, ManaCost,
+    ModeSelection, ObjectId, PhyrexianMana, PlayerId, SpellAdditionalCost, Target,
+    TargetRequirement,
 };
 use mtg_simulator::legal_actions::{CountCostKind, MarkerCostKind};
 use mtg_simulator::{
@@ -1615,11 +1616,20 @@ fn action_label(action: &LegalAction, names: &NameIndex, state: &GameState) -> S
             _ => format!("Cast {}", card(*c)),
         },
         LegalAction::TapForMana { source, .. } => format!("Tap {} for mana", card(*source)),
+        // `scutemob-264` (play surface v2 B2): name the PRINTED line, not the slot.
+        // "Activate ability 0 of Swiftfoot Boots" told the human nothing the card
+        // in their hand does not already say better; `activation_label` finds the
+        // oracle line whose cost matches this ability's and renders "Swiftfoot
+        // Boots — Equip {1}". The index form stays as the fallback for every line
+        // the matcher cannot pin with certainty (see `printed_ability_line`).
         LegalAction::ActivateAbility {
             source,
             ability_index,
             ..
-        } => format!("Activate ability {ability_index} of {}", card(*source)),
+        } => match activation_label(state, *source, *ability_index) {
+            Some(line) => format!("{} — {line}", card(*source)),
+            None => format!("Activate ability {ability_index} of {}", card(*source)),
+        },
         LegalAction::DeclareAttackers { eligible, .. } => {
             format!("Declare attackers ({} eligible)", eligible.len())
         }
@@ -1739,6 +1749,138 @@ fn loyalty_cost_label(state: &GameState, source: ObjectId, ability_index: usize)
         LoyaltyCost::Zero => "0".to_string(),
         LoyaltyCost::MinusX => "\u{2212}X".to_string(),
     })
+}
+
+/// `scutemob-264`: the printed line for a non-mana activated ability, when it
+/// can be pinned with certainty.
+///
+/// The layer-resolved `ActivatedAbility` carries no prose (`description` is
+/// empty by construction in `replay_harness`'s lowering), so the only text to
+/// show is the card's own `rules_text` — which *is* reachable through
+/// `calculate_characteristics`, the same non-gated read `action_needs_x` and
+/// `action_modes` already make. The cost is the join: the oracle line that
+/// starts with this ability's rendered cost is this ability's line. The
+/// matcher is deliberately conservative (`printed_ability_line`) because a
+/// wrong line on a button is worse than the index form it replaces.
+fn activation_label(state: &GameState, source: ObjectId, ability_index: usize) -> Option<String> {
+    let chars = mtg_engine::calculate_characteristics(state, source)?;
+    let ability = chars.activated_abilities.get(ability_index)?;
+    let prefix = activation_cost_prefix(&ability.cost)?;
+    let same_cost: Vec<bool> = chars
+        .activated_abilities
+        .iter()
+        .map(|a| activation_cost_prefix(&a.cost).as_deref() == Some(prefix.as_str()))
+        .collect();
+    let k = same_cost[..ability_index].iter().filter(|b| **b).count();
+    let total = same_cost.iter().filter(|b| **b).count();
+    printed_ability_line(&chars.rules_text, &prefix, k, total)
+}
+
+/// The leading, printed-order part of an activation cost: mana, then `{T}`,
+/// then life (CR 602.2, printed convention). `None` when the cost has none of
+/// those (a pure sacrifice or discard cost), because the matcher has nothing
+/// unambiguous to anchor on.
+fn activation_cost_prefix(cost: &ActivationCost) -> Option<String> {
+    let mut parts = Vec::new();
+    if let Some(mc) = &cost.mana_cost {
+        let rendered = format_mana_cost_compact(mc);
+        if rendered != "{0}" {
+            parts.push(rendered);
+        }
+    }
+    if cost.requires_tap {
+        parts.push("{T}".to_string());
+    }
+    if cost.life_cost > 0 {
+        parts.push(format!("Pay {} life", cost.life_cost));
+    }
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(", "))
+    }
+}
+
+/// The `k`-th oracle line (of `total` expected) whose cost starts with `prefix`.
+///
+/// A line is a candidate when either
+/// * it is "`prefix`[, more cost]: effect" — the cost ends at the first colon
+///   and the character after `prefix` is `:` or `,` — and the effect does not
+///   start with "Add " (a mana ability, CR 605.1a, which is never in
+///   `activated_abilities`); or
+/// * it is a keyword cost "Keyword `prefix`" with no colon at all (Equip,
+///   Cycling, Unearth, Level up, …), optionally followed by reminder text.
+///
+/// **Returns `None` unless the number of candidates equals `total`**, the number
+/// of layer-resolved abilities sharing this prefix: when the text and the
+/// definition disagree on how many abilities carry this cost, no mapping from
+/// index to line is trustworthy, and the caller keeps the index form. Reminder
+/// text in parentheses is stripped and the line is truncated to 80 characters.
+pub(crate) fn printed_ability_line(
+    rules_text: &str,
+    prefix: &str,
+    k: usize,
+    total: usize,
+) -> Option<String> {
+    let candidates: Vec<String> = rules_text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .filter_map(|line| {
+            let rest = line.strip_prefix(prefix)?;
+            let first = rest.chars().next();
+            if matches!(first, Some(':') | Some(',')) {
+                let (_, effect) = line.split_once(':')?;
+                if effect.trim_start().starts_with("Add ") {
+                    return None;
+                }
+                return Some(line.to_string());
+            }
+            None
+        })
+        .chain(rules_text.lines().map(str::trim).filter_map(|line| {
+            // "Equip {1}", "Cycling {2} (…)": a keyword followed by exactly this
+            // cost, no colon anywhere.
+            if prefix.contains(',') {
+                return None;
+            }
+            let bare = strip_reminder(line);
+            if bare.contains(':') {
+                return None;
+            }
+            let head = bare.strip_suffix(prefix)?.trim_end();
+            let keyword = !head.is_empty()
+                && head.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+                && head
+                    .chars()
+                    .all(|c| c.is_ascii_alphabetic() || c == ' ' || c == '-');
+            keyword.then(|| bare.to_string())
+        }))
+        .collect();
+    if candidates.len() != total {
+        return None;
+    }
+    let line = strip_reminder(candidates.get(k)?);
+    let mut out: String = line.chars().take(80).collect();
+    if line.chars().count() > 80 {
+        out.push('…');
+    }
+    Some(out)
+}
+
+/// Oracle reminder text is the parenthesised tail of a line (CR 207.2).
+fn strip_reminder(line: &str) -> String {
+    let mut out = String::new();
+    let mut depth = 0usize;
+    for c in line.chars() {
+        match c {
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            _ if depth == 0 => out.push(c),
+            _ => {}
+        }
+    }
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// CR 107.3 / 601.2b: does this action need an `x_value`?

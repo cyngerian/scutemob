@@ -6,6 +6,18 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-10-10 — Play surface v2 B2 (`scutemob-264`) — card images, piles, printed activation labels
+
+- Brief §4: every v2 card is a Scryfall `small` image inside the same fixed box as the text chip, which
+  renders first and is the fallback (verified with Scryfall blocked). NEW `v2/images.js` (one URL site),
+  `v2/Pile.svelte` + `v2/PilePopover.svelte` (your graveyard / shared exile on the board, each opponent's
+  graveyard in their cell; popovers open OVER a region, nothing moves).
+- `view.rs`: `ActivateAbility` labels read "Swiftfoot Boots — Equip {1}" (oracle line matched by cost
+  prefix through `calculate_characteristics`; refused unless the count agrees, else the index form).
+- Lesson: a `loading="lazy"` image at `display: none` is never fetched — keep it in layout at `opacity: 0`.
+- Sweep: seeds 0..5 to turn 10 at 1920×1080, 0 region moves, 0 page errors; Scryfall blocked on
+  seeds 0 and 3, every box a chip. Notes: `memory/play-v2-b2-2026-10-10.md`.
+
 ## 2026-10-10 — Play surface v2 B1 (`scutemob-263`) — fixed-slot skeleton behind `?v2`
 
 - Owner verdict on `-260`/`-261`: "things shift all the time, it's never obvious what to do". Brief

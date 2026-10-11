@@ -31,7 +31,7 @@
   import ConfirmPicker from '../ConfirmPicker.svelte';
   import BinaryChoicePicker from '../BinaryChoicePicker.svelte';
   import CostPicker from '../CostPicker.svelte';
-  import { composePrompt, looseActions } from './prompt.js';
+  import { answerable, composePrompt, looseActions } from './prompt.js';
 
   const {
     decision = null,
@@ -64,6 +64,10 @@
 
   const actions = $derived(decision?.actions ?? []);
   const passAction = $derived(actions.find((a) => a.kind === 'PassPriority') ?? null);
+  /** What passing MEANS here: on a declare decision it is the empty declaration. */
+  const passLabel = $derived(
+    decision?.kind === 'DeclareAttackers' ? 'Attack with nothing' : decision?.kind === 'DeclareBlockers' ? 'Block with nothing' : 'Pass priority',
+  );
   const loose = $derived(looseActions(decision, renderedIds));
   const autoPassing = $derived(!!passUntil && passUntil.stopReason === null);
 
@@ -246,7 +250,11 @@
     if (!decision || loading || stage !== null) return;
     if (decision.seq === autoOpenedSeq) return;
     if (decision.kind === 'Priority') return;
-    const real = actions.filter((a) => a.kind !== 'Concede' && a.kind !== 'PassPriority' && a.kind !== 'TapForMana');
+    // `answerable`: an offer with no legal target (B1's Equip case) is not a
+    // real answer and must not stop a lone declare from opening (B2, seed 5).
+    const real = actions.filter(
+      (a) => a.kind !== 'Concede' && a.kind !== 'PassPriority' && a.kind !== 'TapForMana' && answerable(a),
+    );
     if (real.length !== 1) return;
     autoOpenedSeq = decision.seq;
     beginChain(real[0]);
@@ -504,14 +512,19 @@
             <button class="btn primary stop" onclick={() => onCancelPassUntil?.()}>■ Stop passing ({passUntil.passes})</button>
           {:else}
             <button class="btn primary" disabled={loading} onclick={() => onAct?.(passAction.index, {})}>
-              Pass priority <kbd>space</kbd>
+              {passLabel} <kbd>space</kbd>
             </button>
-            <button class="btn" disabled={loading} onclick={() => onPassUntil?.('my-turn')} title="Keep passing until your own turn begins">
-              ⏭ to my next turn
-            </button>
-            <button class="btn" disabled={loading} onclick={() => onPassUntil?.('phase-end')} title="Keep passing until the step changes or something goes on the stack">
-              ⏵ to next step
-            </button>
+            <!-- B2: pass-until stops at once on any non-Priority decision
+                 ("you have a Declare attackers decision to make"), so on one
+                 the two buttons were a click that did nothing. -->
+            {#if decision.kind === 'Priority'}
+              <button class="btn" disabled={loading} onclick={() => onPassUntil?.('my-turn')} title="Keep passing until your own turn begins">
+                ⏭ to my next turn
+              </button>
+              <button class="btn" disabled={loading} onclick={() => onPassUntil?.('phase-end')} title="Keep passing until the step changes or something goes on the stack">
+                ⏵ to next step
+              </button>
+            {/if}
           {/if}
         {/if}
         {#each loose as option (option.index)}

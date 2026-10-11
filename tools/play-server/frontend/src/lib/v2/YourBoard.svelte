@@ -6,20 +6,31 @@
    * creatures, then other non-land permanents, then lands in their own bottom
    * row with same-name lands stacked by `(name, tapped)` (G13 kept). A chip the
    * current decision offers an action for is lit; clicking it is the
-   * click-through the app owns.
+   * click-through the app owns. The graveyard and the shared exile sit at the
+   * right end of the lands row as piles (B2) whose popovers open over the
+   * board without moving it.
    */
   import Card from './Card.svelte';
+  import Pile from './Pile.svelte';
 
   const {
     playerName,
     player,
     commanders = [],
     permanents = [],
+    graveyard = [],
+    exile = [],
     isActive = false,
     hasPriority = false,
     offeredIds = null,
     onCardClick = null,
   } = $props();
+
+  /** Which pile popover is open: 'graveyard' | 'exile' | null. One at a time. */
+  let openPile = $state(null);
+  function togglePile(which) {
+    openPile = openPile === which ? null : which;
+  }
 
   function offered(c) {
     return !!offeredIds && offeredIds.has(Number(c?.object_id));
@@ -79,7 +90,6 @@
     {#if hasPriority}<span class="badge prio">PRIORITY</span>{/if}
     <span class="counts">
       hand {player?.hand_size ?? 0} · lib {player?.library_size ?? 0}
-      {#if (player?.graveyard_size ?? 0) > 0}· gy {player.graveyard_size}{/if}
       {#if (player?.land_plays_remaining ?? 0) > 0}· <span class="drop">land drop available</span>{/if}
       {#if (player?.poison ?? 0) > 0}· <span class="poison">☠ {player.poison}</span>{/if}
       {#each cmdDamage as d (d.card)}· <span class="cmddmg" class:lethal={d.dmg >= 21}>⚔ {d.card} {d.dmg}</span>{/each}
@@ -123,11 +133,30 @@
         />
       {/each}
     </div>
+    <div class="piles">
+      <Pile
+        title="graveyard"
+        cards={graveyard}
+        {offeredIds}
+        {onCardClick}
+        open={openPile === 'graveyard'}
+        onToggle={() => togglePile('graveyard')}
+      />
+      <Pile
+        title="exile"
+        cards={exile}
+        {offeredIds}
+        {onCardClick}
+        open={openPile === 'exile'}
+        onToggle={() => togglePile('exile')}
+      />
+    </div>
   </div>
 </div>
 
 <style>
   .board {
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -247,7 +276,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.3rem;
-    min-height: 44px;
+    min-height: 128px;
   }
 
   .lands {
@@ -255,14 +284,25 @@
     gap: 0.4rem;
     align-items: flex-start;
     flex-shrink: 0;
-    max-height: 90px;
-    overflow-y: auto;
+    height: 96px;
     border-top: 1px solid #1e3a22;
     padding-top: 0.25rem;
     margin-top: 0.25rem;
   }
 
   .lands .chips {
-    min-height: 36px;
+    flex: 1;
+    min-width: 0;
+    min-height: 67px;
+    max-height: 90px;
+    overflow-y: auto;
+    align-content: flex-start;
+  }
+
+  .piles {
+    display: flex;
+    gap: 0.3rem;
+    flex: 0 0 auto;
+    align-items: flex-start;
   }
 </style>

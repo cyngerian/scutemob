@@ -8,12 +8,14 @@
    * Eliminated seats grey to their header; the row does not reflow.
    */
   import Card from './Card.svelte';
+  import PilePopover from './PilePopover.svelte';
 
   const {
     playerName,
     player,
     commanders = [],
     permanents = [],
+    graveyard = [],
     isActive = false,
     hasPriority = false,
     offeredIds = null,
@@ -24,6 +26,9 @@
   const lands = $derived(permanents.filter((p) => (p.card_types ?? []).includes('Land')));
   const nonLands = $derived(permanents.filter((p) => !(p.card_types ?? []).includes('Land')));
   const tappedLands = $derived(lands.filter((p) => p.tapped).length);
+
+  /** The graveyard popover (B2): opens over the cell, moving nothing. */
+  let gyOpen = $state(false);
 
   function offered(c) {
     return !!offeredIds && offeredIds.has(Number(c?.object_id));
@@ -49,7 +54,7 @@
   <div class="counts">
     <span>hand {player?.hand_size ?? 0}</span>
     <span>lib {player?.library_size ?? 0}</span>
-    {#if (player?.graveyard_size ?? 0) > 0}<span>gy {player.graveyard_size}</span>{/if}
+    <button type="button" class="gy" class:open={gyOpen} onclick={() => (gyOpen = !gyOpen)} aria-expanded={gyOpen}>gy {graveyard.length}</button>
     {#if (player?.poison ?? 0) > 0}<span class="poison">☠ {player.poison}</span>{/if}
     {#each cmdDamage as d (d.card)}<span class="cmddmg" class:lethal={d.dmg >= 21}>⚔ {d.dmg}</span>{/each}
     {#each commanders as c (c.object_id)}
@@ -65,17 +70,21 @@
         {#if nonLands.length === 0}<span class="none">no permanents</span>{/if}
       </div>
       <div class="lands" title="{lands.length} lands, {tappedLands} tapped">
-        <span class="lands-label">lands {lands.length}</span>
+        <span class="lands-label">lands {lands.length}{#if tappedLands > 0} · {tappedLands} tapped{/if}</span>
         {#each lands as p (p.object_id)}
           <span class="pip" class:tapped={p.tapped}></span>
         {/each}
       </div>
     </div>
   {/if}
+  {#if gyOpen}
+    <PilePopover title="{playerName}'s graveyard" cards={graveyard} {offeredIds} {onCardClick} onClose={() => (gyOpen = false)} />
+  {/if}
 </div>
 
 <style>
   .opp {
+    position: relative;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -144,6 +153,29 @@
   .counts {
     color: #778;
     font-size: 0.64rem;
+  }
+
+  .gy {
+    background: none;
+    border: 1px solid #2a2a40;
+    border-radius: 3px;
+    color: #99a;
+    font-family: monospace;
+    font-size: 0.6rem;
+    padding: 0 0.25rem;
+    cursor: pointer;
+  }
+
+  .gy:hover, .gy.open { border-color: #778; color: #dde; }
+
+  /* The opponent cell's popover opens DOWN over the cell body, not above it. */
+  .opp :global(.popover) {
+    top: 2.6rem;
+    bottom: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: calc(100% - 2.8rem);
   }
 
   .poison { color: #9f6; }
