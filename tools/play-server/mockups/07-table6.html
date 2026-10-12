@@ -83,8 +83,9 @@
   .t7 .zonebox .pile .card { --card: 55px; --scale: 1; }
   .zonebox .pile .empty { width: 55px; height: calc(55px * 1.4); }
   .zonebox { width: calc(55px * 2 + 8px + 12px + 2px); }
-  .zonebox.active { outline: 2px solid var(--active); outline-offset: 1px; }
-  .seat-name.prio { outline: 2px solid #fc8; outline-offset: 2px; border-radius: 3px; padding: 0 3px; }
+  .is-active { outline: 2px solid var(--active); outline-offset: 1px; }
+  .has-prio { box-shadow: 0 0 0 3px #fc8, 0 0 14px 3px rgba(255,200,128,.45); animation: prio 1.6s ease-in-out infinite; }
+  .is-active.has-prio { box-shadow: 0 0 0 2px #0a0a14, 0 0 0 5px #fc8, 0 0 14px 5px rgba(255,200,128,.45); }
   .board .zone, .focused .zone { padding-right: calc(55px * 2 + 2.5rem); }   /* keep clear of the (fixed-size) zone box */
   .pile { position: relative; cursor: pointer; }
   .pile .card { --scale: 0.7; }
@@ -281,9 +282,9 @@
   }
 
   function sideCell(o) {
-    const d = el('div', 'cell' + (o.active ? ' active' : '') + (o.name === focus ? ' focused-cell' : ''));
+    const d = el('div', 'cell' + (o.active ? ' active is-active' : '') + (o.name === G.priority ? ' has-prio' : '') + (o.name === focus ? ' focused-cell' : ''));
     const top = el('div', 'top');
-    const who = el('div', 'who', `<div><span class="seat-name${o.name === G.priority ? ' prio' : ''}">${o.name}</span></div><div class="life${o.life < 20 ? ' low' : ''}">${o.life}</div>`);
+    const who = el('div', 'who', `<div><span class="seat-name">${o.name}</span></div><div class="life${o.life < 20 ? ' low' : ''}">${o.life}</div>`);
     const z5 = el('div', 'zones5'); z5.append(commandZone(o), handPile(o), piles(o));
     top.append(who, z5); d.append(top);
     const z = el('div', 'zones');
@@ -299,10 +300,10 @@
   }
 
   function focusedArea(o) {
-    const f = $('focused'); f.innerHTML = ''; f.className = 'focused' + (o.active ? ' active' : '');
-    const np = el('div', 'nameplate', `<span class="seat-name${o.name === G.priority ? ' prio' : ''}">${o.name}</span><span class="life${o.life < 20 ? ' low' : ''}">${o.life}</span>`);
+    const f = $('focused'); f.innerHTML = ''; f.className = 'focused' + (o.active ? ' active is-active' : '') + (o.name === G.priority ? ' has-prio' : '');
+    const np = el('div', 'nameplate', `<span class="seat-name">${o.name}</span><span class="life${o.life < 20 ? ' low' : ''}">${o.life}</span>`);
     np.oncontextmenu = (e) => ctxMenu(e, o);
-    const zb = el('div', 'zonebox' + (o.active ? ' active' : '')); zb.append(np, commandZone(o), piles(o)); f.append(zb);
+    const zb = el('div', 'zonebox' + (o.active ? ' is-active' : '') + (o.name === G.priority ? ' has-prio' : '')); zb.append(np, commandZone(o), piles(o)); f.append(zb);
     const z1 = el('div', 'zone lands'); z1.append(el('div', 'row-label', `lands ${o.lands.total}`), landsAsCards(o.lands));
     const hb = el('div', 'meta handmeta'); hb.append(el('span', '', `hand ${o.hand}`), oppHand(o)); z1.append(hb); f.append(z1);
     const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', `other ${o.others.length}`), grid8(o.others)); f.append(z2);
@@ -314,15 +315,15 @@
 
   function yourBoard() {
     const b = $('board'); b.innerHTML = '';
-    b.className = 'board' + (G.active === 'Human-1' ? ' active' : '');
-    const np = el('div', 'nameplate', `<span class="seat-name${G.priority === 'Human-1' ? ' prio' : ''}">Human-1</span><span class="life">${G.you.life}</span>`);
+    b.className = 'board' + (G.active === 'Human-1' ? ' active is-active' : '') + (G.priority === 'Human-1' ? ' has-prio' : '');
+    const np = el('div', 'nameplate', `<span class="seat-name">Human-1</span><span class="life">${G.you.life}</span>`);
     np.oncontextmenu = (e) => ctxMenu(e, G.you);
     const z1 = el('div', 'zone creatures'); z1.append(el('div', 'row-label', `creatures ${G.you.creatures.length}`), grid8(G.you.creatures)); b.append(z1);
     const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', `other ${G.you.others.length}`), grid8(G.you.others)); b.append(z2);
     const z3 = el('div', 'zone lands'); z3.append(el('div', 'row-label', `lands ${G.you.lands.reduce((a, c) => a + (c.count || 1), 0)}`), cardsRow(G.you.lands, 'perm'));
     const you = { ...G.you, name: 'Human-1' };
     b.append(z3);
-    const zb = el('div', 'zonebox' + (G.active === 'Human-1' ? ' active' : '')); zb.append(np, commandZone({ ...you, inCommandZone: false }), piles(you)); b.append(zb);
+    const zb = el('div', 'zonebox' + (G.active === 'Human-1' ? ' is-active' : '') + (G.priority === 'Human-1' ? ' has-prio' : '')); zb.append(np, commandZone({ ...you, inCommandZone: false }), piles(you)); b.append(zb);
     b.dataset.rows = JSON.stringify([[G.you.creatures.length, 1], [G.you.others.length, 1], [G.you.lands.length, 0.7]]);
     b.dataset.overhead = '3.2';
   }
