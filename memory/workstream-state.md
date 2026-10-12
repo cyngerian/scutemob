@@ -28,7 +28,9 @@ plays at 100 % (2560×1340). Five static layout mockups, then mockup 7 iterated 
 must-land additions (drag-arrow targeting, card right-click menus incl. counters, drag-rearrange
 hand/battlefield, summoning-sick outline), phases C1–C3 = `scutemob-266/267/268` (backlog), server
 gaps (per-player exile, commander tax, revealed cards, image proxy, pass-until-step), §7 dispatch
-notes for C1. `frontend/src/lib/v3/layout.js` is a starting helper. CHANGELOG entry written.
+notes for C1. `frontend/src/lib/v3/layout.js` is a starting helper. CHANGELOG entry written. After the
+ESM close the owner added brief rules 3 + 14 (mirrored opponent cells; greyed focused cell that lifts
+while targetable; one-second hover peek, not over cards) — mockup + snapshot tag refreshed; C1 must include them.
 
 **Not done / deferred**: the v3 build itself (C1–C3) — to be DISPATCHED to workers next session,
 not built inline (owner, 2026-10-12). `cockatrice*.png` at the repo root are the owner's untracked

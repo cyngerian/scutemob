@@ -16,6 +16,10 @@ carry pointers only, never narrative. Entries before 2026-09-05 are in
 - NEW `docs/play-surface-v3-brief.md` (approved): the settled rules, the four must-land additions
   (drag-arrow targeting, card right-click menus incl. counters, drag-rearrange hand/battlefield,
   summoning-sick outline), phases C1–C3 = `scutemob-266..268` (backlog, to be dispatched), server gaps.
+- Late owner additions (after the session close, chore commits 89e6cb0f…e074ac44, brief rules 3 + 14, snapshot
+  tag `mockup-7-combat` refreshed): opponent cells mirrored (lands nearest the strip, creatures last); the
+  focused opponent's cell greyed out, lifting while its cards are targetable; one-second hover PEEK grows a
+  cell in place (never armed while a card is hovered).
 - `docs/play-surface-v2-brief.md` banner'd SUPERSEDED. No engine or wire change; 5,352 tests unchanged.
   Notes: `memory/play-v2-b2-2026-10-10.md` (B2), auto-memory `project_play_v3_alpha_ui`.
 
