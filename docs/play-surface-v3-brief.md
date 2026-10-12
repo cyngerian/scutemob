@@ -48,7 +48,9 @@ pixel decision below; when the brief and the mockup disagree, the mockup wins.
    dimmed art, no "T" tag, targeted = red outline.
 7. **One hover.** A single fixed overlay (240px, the 488px printing) beside the hovered
    card, flipped near edges, never clipped. The same hover feeds a popped-out card window
-   (`BroadcastChannel`) for the second monitor.
+   (`BroadcastChannel`) for the second monitor. *C1 amendment (2026-10-12): the build feeds it
+   by a `localStorage` write + `storage` event instead — the existing frontend gate bans
+   `.postMessage(` outright and the ban was kept (`memory/play-v3-c1-2026-10-12.md` §Gates).*
 8. **Active and priority recolour the container's own border**, nothing added: active =
    blue, priority = gold pulsing; the gold wins when both. Applies to the cell, the focused
    board, your board and their 2×2 boxes.
