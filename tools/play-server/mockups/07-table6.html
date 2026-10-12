@@ -388,7 +388,7 @@
     c = Math.max(22, c);
     const cUp = c;   // the model's answer is the ceiling; the DOM has the final say
     const apply = (v) => { elm.style.setProperty('--card', v.toFixed(1) + 'px'); elm.style.setProperty('--cardn', v.toFixed(1)); };
-    const overflows = () => elm.scrollHeight > elm.clientHeight + 1 || elm.scrollWidth > elm.clientWidth + 1;
+    const overflows = () => elm.scrollHeight > elm.clientHeight + 1;   // vertical only: wrapped rows never overflow sideways
     apply(c);
     if (auto || elm.classList.contains('cell')) {
       while (c > 22 && overflows()) { c -= 1; apply(c); }                      // never scroll
@@ -398,7 +398,7 @@
   function sizeStrips() {
     document.querySelectorAll('.cell').forEach((cell) => {
       const who = cell.querySelector('.who'); const whoW = who ? who.getBoundingClientRect().width : 70;
-      const room = cell.clientWidth - 14 - whoW - 8 - 10 - 4 * 5;   // padding, name block, gap, strip padding, pile gaps
+      const room = cell.clientWidth - 14 - whoW - 8 - 10 - 4 * 5 - 10;   // padding, name block, gap, strip padding, pile gaps, the CMD outline
       const pw = Math.max(34, Math.min(56, Math.floor(room / 5)));
       cell.style.setProperty('--pile', pw + 'px');
     });
