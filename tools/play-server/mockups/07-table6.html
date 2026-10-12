@@ -127,6 +127,39 @@
   .t7 .card .band { font-size: 0.66rem; line-height: 1.15; top: 0; bottom: auto; white-space: normal; max-height: 2.4em; overflow: hidden; padding: 2px 3px; font-weight: 600; letter-spacing: 0; }
   .t7 .card:hover, .t7 .card.mini:hover, .t7 .card.small:hover { transform: none; outline: 2px solid #9bd; z-index: 5; box-shadow: none; }
   .t7 .card.tapped:hover { transform: rotate(6deg); }
+
+  /* ---- legibility pass (1920x1080 screenshot, 2026-10-12): everything that was
+     a grey on a dark grey gets a real colour and a size ---- */
+  .app { grid-template-rows: 2.2rem 2.5rem minmax(0, 1fr); }
+  .phase { font-size: 0.92rem; gap: 14px; }
+  .phase .turn { font-size: 1rem; color: #cfe; }
+  .phase .who { color: #ccd; font-size: 0.92rem; }
+  .track { height: 1.9rem; gap: 4px; }
+  .seg { font-size: 0.78rem; color: #aab; background: #161634; border-color: #2e2e52; letter-spacing: .06em; }
+  .seg.past { color: #889; background: #121228; }
+  .seg.combat { color: #e8b090; border-color: #5a3a2a; }
+  .seg.combat.past { color: #a07860; }
+  .seg.now { color: #fff; font-size: 0.86rem; }
+  .phase .prio { color: #bbc; font-size: 0.92rem; }
+  .phase .prio.me { color: #ffd080; }
+  .zone .row-label { font-size: 0.72rem; color: #8fb59a; font-weight: 600; padding-top: 3px; }
+  .focused .zone .row-label { color: #9aa8d0; }
+  .pile .lbl, .cz .lbl { font-size: 0.68rem; font-weight: 700; color: #f2f2f8; background: rgba(0,0,0,.85); }
+  .cz .lbl { color: #ffd890; }
+  .cz .onbf { font-size: 0.64rem; color: #d8c8a8; border-color: #8a7a4a; }
+  .meta { font-size: 0.86rem; color: #bbc; }
+  .panel-title { font-size: 0.72rem; color: #aab; font-weight: 600; }
+  .s-who { font-size: 0.74rem; color: #aab; }
+  .s-text { font-size: 0.8rem; color: #ccd; }
+  .s-name { font-size: 1rem; }
+  .hand .label { font-size: 0.76rem; color: #aab; font-weight: 600; }
+  .hand .dim { color: #aab; font-size: 0.8rem; }
+  .dim { color: #8890a8; }
+  .prompt-box .waiting { color: #99a; }
+  .hdr .counts { color: #aab; }
+  .t7 .card .band { font-size: clamp(8px, calc(var(--card) * var(--scale, 1) * 0.135), 13px); }
+  .t7 .card .pt { font-size: clamp(8px, calc(var(--card) * var(--scale, 1) * 0.145), 17px); }
+  .cell .zone.lands .row-label { color: #8fb59a; }
 </style></head><body class="t6 t7">
 <div class="app">
   <div class="top">
