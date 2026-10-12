@@ -89,7 +89,7 @@ GAME.opps[2].gyCards = [{ n: 'Bloodghast' }, { n: 'Gravecrawler' }, { n: 'Arcane
 
 /** The in-page hover card: one fixed overlay (never clipped by a board's overflow),
  *  the `normal` 488px printing scaled to HOVER_W, placed beside the hovered card. */
-const HOVER_W = 320;
+const HOVER_W = 240;
 let hoverEl = null;
 function showHover(name, r) {
   if (!hoverEl) { hoverEl = el('div', 'hover-card'); hoverEl.append(el('img')); document.body.append(hoverEl); }
