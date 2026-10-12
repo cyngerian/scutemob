@@ -51,9 +51,8 @@
   .cell .who .seat-name { font-size: 1rem; }
   .cell .who .life { margin: 0; font-size: 1.6rem; line-height: 1.1; }
   .zones5 { margin-left: auto; display: flex; gap: 5px; padding: 4px 5px; background: rgba(8,8,20,.75); border: 1px solid #3a3a66; border-radius: 6px; }
-  .t7 .cell .zones5 .card, .t7 .cell .zones5 .cz .card, .t7 .cell .zones5 .pile .card { --scale: 1.15; }
-  .zones5 .onbf, .zones5 .pile .empty { width: calc(var(--card) * 1.15); height: calc(var(--card) * 1.15 * 1.4); }
-  .zones5 .cz { margin: 0; }
+  .t7 .cell .zones5 .pile .card { --scale: 1.15; }
+  .zones5 .pile .empty { width: calc(var(--card) * 1.15); height: calc(var(--card) * 1.15 * 1.4); }
   .zones5 .piles { display: contents; }
   .cell.active { border-color: var(--active); box-shadow: inset 0 0 0 1px var(--active); }
   .cell.focused-cell { background: #171732; border-color: #6a6aa8; }
@@ -69,10 +68,6 @@
   .zone .cards { gap: 3px; flex: 1; min-width: 0; }
   .zone.lands .cards { --scale: 0.7; }
   .meta { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #99a; min-height: 0; }
-  .cz { position: relative; margin-right: 6px; }
-  .cz .card { --scale: 0.7; }
-  .cz .onbf { width: calc(var(--card) * 0.7); height: calc(var(--card) * 0.7 * 1.4); border: 1px dashed #6a5a2a; border-radius: 4px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.56rem; color: #a98; padding: 2px; }
-  .cz .lbl { position: absolute; left: 0; right: 0; bottom: -0.1rem; text-align: center; font-size: 0.56rem; background: rgba(0,0,0,.8); color: #fd9; letter-spacing: .04em; }
   .meta .handrow { display: flex; gap: 2px; align-items: center; }
   .meta .handrow .card { --scale: 0.55; }
   .meta .piles { display: flex; gap: 4px; margin-left: auto; }
@@ -80,12 +75,12 @@
   .board .zonebox { bottom: 8px; }
   .focused .zonebox { top: 8px; }
   .zonebox .piles { display: contents; }
-  .zonebox .cz, .zones5 .cz { margin: 0; padding: 3px; background: rgba(120,90,30,.28); border: 1px solid #7a6230; border-radius: 6px; }
-  .zonebox .cz .lbl, .zones5 .cz .lbl { left: 3px; right: 3px; bottom: 3px; }
-  .cz .onbf { font-size: 1.2rem; color: #8a7a4a; border-style: dashed; }
-  .t7 .zonebox .card, .t7 .zonebox .cz .card, .t7 .zonebox .pile .card { --scale: 1; }
-  .zonebox .onbf, .zonebox .pile .empty { width: var(--card); height: calc(var(--card) * 1.4); }
-  .t7 .cell .cz .card, .t7 .cell .pile .card { --scale: 0.7; }
+  .pile.cz { background: rgba(120,90,30,.28); outline: 1px solid #7a6230; outline-offset: 2px; border-radius: 4px; }
+  .pile.cz .empty { border-color: #8a7a4a; display: flex; align-items: center; justify-content: center; color: #8a7a4a; font-size: 1.2rem; }
+  .pile.cz .empty::after { content: '★'; }
+  .t7 .zonebox .pile .card { --scale: 1; }
+  .zonebox .pile .empty { width: var(--card); height: calc(var(--card) * 1.4); }
+  .t7 .cell .pile .card { --scale: 0.7; }
   .board .zone.lands, .board .zone.others, .focused .zone.lands, .focused .zone.others, .focused .meta { padding-right: calc(var(--card) * 2 + 2.5rem); }
   .pile { position: relative; cursor: pointer; }
   .pile .card { --scale: 0.7; }
@@ -149,9 +144,8 @@
   .phase .prio.me { color: #ffd080; }
   .zone .row-label { font-size: 0.72rem; color: #8fb59a; font-weight: 600; padding-top: 3px; }
   .focused .zone .row-label { color: #9aa8d0; }
-  .pile .lbl, .cz .lbl { font-size: 0.68rem; font-weight: 700; color: #f2f2f8; background: rgba(0,0,0,.85); }
-  .cz .lbl { color: #ffd890; }
-  .cz .onbf { font-size: 0.64rem; color: #d8c8a8; border-color: #8a7a4a; }
+  .pile .lbl { font-size: 0.68rem; font-weight: 700; color: #f2f2f8; background: rgba(0,0,0,.85); }
+  .pile.cz .lbl { color: #ffd890; }
   .meta { font-size: 0.86rem; color: #bbc; }
   .panel-title { font-size: 0.72rem; color: #aab; font-weight: 600; }
   .s-who { font-size: 0.74rem; color: #aab; }
@@ -167,7 +161,7 @@
   .cell .zone.lands .row-label { color: #8fb59a; }
 
   /* card text: a sans-serif at weight 700, no shadow, crisp; tapped tilts only the art */
-  .t7 .card .band, .t7 .card .pt, .t7 .card .count, .t7 .card .tag, .pile .lbl, .cz .lbl, .cz .onbf {
+  .t7 .card .band, .t7 .card .pt, .t7 .card .count, .t7 .card .tag, .pile .lbl {
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; text-shadow: none; letter-spacing: 0;
   }
@@ -238,10 +232,10 @@
     return `<span class="seat-name">${p.name}</span>${p.active ? ' <span class="badge active">active</span>' : ''}${p.name === G.priority ? ' <span class="badge prio">priority</span>' : ''}<span class="counts">hand ${hand} · lib ${p.lib} · gy ${(p.gyCards || []).length} · ex ${(p.exileCards || []).length}</span>${extra}<span class="life${p.life < 20 ? ' low' : ''}">${p.life}</span>`;
   }
   function grid8(list, cls = '') { const r = cardsRow(list, 'perm', cls); r.classList.add('grid8'); return r; }
-  function pile(label, top, count, onclick) {
-    const p = el('div', 'pile'); p.title = `${label} (${count})`;
+  function pile(label, top, count, onclick, cls = '') {
+    const p = el('div', 'pile' + (cls ? ' ' + cls : '')); p.title = count == null ? label : `${label} (${count})`;
     p.append(top ? cardEl(top, 'perm') : el('div', 'empty'));
-    p.append(el('div', 'lbl', `${label} ${count}`));
+    p.append(el('div', 'lbl', count == null ? label : `${label} ${count}`));
     p.onclick = (e) => { e.stopPropagation(); onclick(e); };
     return p;
   }
@@ -253,10 +247,9 @@
     return d;
   }
   function commandZone(p) {
-    const d = el('div', 'cz'); d.title = 'command zone';
-    if (p.inCommandZone) d.append(cardEl({ n: p.commander, cmd: true }, 'perm')); else d.append(el('div', 'onbf', '★'));
-    d.append(el('div', 'lbl', `CMD${p.commanderTax ? ' · tax ' + p.commanderTax : ''}`));
-    return d;
+    const label = p.commanderTax ? `CMD · tax ${p.commanderTax}` : 'CMD';
+    return pile(label, p.inCommandZone ? { n: p.commander, cmd: true } : null, null,
+      (ev) => pilePopover(ev, `${p.name}'s command zone`, p.inCommandZone ? [{ n: p.commander }] : [], p.inCommandZone ? '' : `${p.commander} is on the battlefield`), 'cz');
   }
   function handPile(o) {
     const n = o.handCards ? o.handCards.length : o.hand;
@@ -384,6 +377,12 @@
   }
   function fitAll() {
     document.querySelectorAll('[data-rows]').forEach(fitBoard);
+    // your board and the board across the table share one size: the smaller fit
+    const centre = [document.getElementById('board'), document.getElementById('focused')].filter((e) => e && e.style.getPropertyValue('--card'));
+    if (centre.length === 2) {
+      const c = Math.min(...centre.map((e) => parseFloat(e.style.getPropertyValue('--card'))));
+      centre.forEach((e) => { e.style.setProperty('--card', c.toFixed(1) + 'px'); e.style.setProperty('--cardn', c.toFixed(1)); });
+    }
     const cells = [...document.querySelectorAll('.cell[data-rows]')];
     if (cells.length) {
       const c = Math.min(...cells.map((e) => parseFloat(e.style.getPropertyValue('--card'))));
