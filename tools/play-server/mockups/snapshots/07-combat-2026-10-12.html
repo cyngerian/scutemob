@@ -55,6 +55,20 @@
   .autopass .status.off { color: #778; }
   .cell { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; cursor: pointer; flex: 1 1 0; overflow: auto; }
   .cell:hover { border-color: #55558a; }
+  /* peek: hover a cell for a second and it grows to double size in place (anchored on its own
+     corner, over its neighbours); cards inside autoscale to the bigger box and hover as usual */
+  .cell-pop { position: fixed; z-index: 80; background: #141430; border: 1px solid #6a6aa8; border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 16px 50px rgba(0,0,0,.85); overflow: hidden; transform-origin: top left; animation: pop .14s ease-out; }
+  .cell-pop.from-right { transform-origin: top right; }
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .cell-pop .top { display: flex; align-items: flex-start; gap: 8px; }
+  .cell-pop .who { display: flex; flex-direction: column; flex: 0 0 auto; white-space: nowrap; }
+  .cell-pop .who .seat-name { font-size: 1.2rem; }
+  .cell-pop .who .life { margin: 0; font-size: 2rem; line-height: 1.1; }
+  .cell-pop .zones5 { margin-left: auto; }
+  .t7 .cell-pop .zones5 .pile .card { --card: 64px; --scale: 1; }
+  .cell-pop .zones5 .pile .empty { width: 64px; height: calc(64px * 1.4); }
+  .cell-pop .zones { display: flex; flex-direction: column; gap: 6px; min-height: 0; flex: 1; }
+  .cell-pop .hint { font-size: 0.7rem; color: #889; }
   .cell .top { display: flex; align-items: flex-start; gap: 8px; flex-wrap: nowrap; }
   .cell .who { display: flex; flex-direction: column; gap: 0; flex: 0 0 auto; white-space: nowrap; min-width: 3.6rem; }
   .cell .who .seat-name { font-size: 1rem; }
@@ -349,14 +363,43 @@
     const z2 = el('div', 'zone others'); z2.append(grid8(o.others)); z.append(z2);
     const z3 = el('div', 'zone creatures'); z3.append(grid8(o.creatures)); z.append(z3);
     d.append(z);
-    d.onclick = () => { focus = o.name; render(); };
+    d.onclick = () => { focus = o.name; closePeek(); render(); };
     d.oncontextmenu = (e) => ctxMenu(e, o);
+    d.onmouseenter = () => { clearTimeout(peekTimer); peekTimer = setTimeout(() => openPeek(o, d), 1000); };
+    d.onmouseleave = () => { clearTimeout(peekTimer); peekTimer = null; };
     d.dataset.rows = JSON.stringify([[2, 0.7], [o.others.length, 1], [o.creatures.length, 1]]);
     d.dataset.overhead = '8';   // name line + the fixed 56px strip + gaps
     d.dataset.label = '0';
     return d;
   }
 
+  // ---- peek: a cell held under the pointer for a second grows in place ------
+  let peekTimer = null, peekEl = null, peekLeaveTimer = null;
+  function closePeek() { if (peekEl) { peekEl.remove(); peekEl = null; } clearTimeout(peekTimer); peekTimer = null; }
+  function openPeek(o, cell) {
+    closePeek();
+    const r = cell.getBoundingClientRect();
+    const fromRight = r.left > innerWidth / 2;
+    const w = Math.min(r.width * 2, innerWidth * 0.5), h = Math.min(r.height * 2, innerHeight - 16);
+    const d = el('div', 'cell-pop' + (fromRight ? ' from-right' : ''));
+    d.style.width = w + 'px'; d.style.height = h + 'px';
+    d.style.top = Math.max(8, Math.min(r.top, innerHeight - h - 8)) + 'px';
+    if (fromRight) d.style.left = (r.right - w) + 'px'; else d.style.left = r.left + 'px';
+    const top = el('div', 'top');
+    top.append(el('div', 'who', `<div><span class="seat-name">${o.name}</span></div><div class="life${o.life < 20 ? ' low' : ''}">${o.life}</div>`));
+    const z5 = el('div', 'zones5'); z5.append(commandZone(o), handPile(o), piles(o)); top.append(z5); d.append(top);
+    const z = el('div', 'zones');
+    const z1 = el('div', 'zone lands'); z1.append(el('div', 'row-label', `lands ${o.lands.total - o.lands.tapped}/${o.lands.total}`), landsAsCards(o.lands)); z.append(z1);
+    const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', `other ${o.others.length}`), grid8(o.others)); z.append(z2);
+    const z3 = el('div', 'zone creatures'); z3.append(el('div', 'row-label', `creatures ${o.creatures.length}`), grid8(o.creatures)); z.append(z3);
+    d.append(z, el('div', 'hint', 'peek — move the pointer away to close · click to bring across the table'));
+    d.classList.add('cell'); d.dataset.rows = JSON.stringify([[2, 0.7], [o.others.length, 1], [o.creatures.length, 1]]); d.dataset.overhead = '9'; d.dataset.label = '4.6';
+    d.onclick = () => { focus = o.name; closePeek(); render(); };
+    d.oncontextmenu = (e) => ctxMenu(e, o);
+    d.onmouseleave = () => closePeek();
+    document.body.append(d); peekEl = d;
+    const keep = cap; fitBoard(d);
+  }
   function focusedArea(o) {
     const f = $('focused'); f.innerHTML = ''; f.className = 'focused' + (o.active ? ' active is-active' : '') + (o.name === G.priority ? ' has-prio' : '');
     const np = el('div', 'nameplate', `<span class="seat-name">${o.name}</span><span class="life${o.life < 20 ? ' low' : ''}">${o.life}</span>`);
@@ -559,7 +602,7 @@
       const c = Math.min(...centre.map((e) => parseFloat(e.style.getPropertyValue('--card'))));
       centre.forEach((e) => { e.style.setProperty('--card', c.toFixed(1) + 'px'); e.style.setProperty('--cardn', c.toFixed(1)); });
     }
-    const cells = [...document.querySelectorAll('.cell[data-rows]')];
+    const cells = [...document.querySelectorAll('.cell[data-rows]:not(.cell-pop)')];
     if (cells.length) {
       const c = Math.min(...cells.map((e) => parseFloat(e.style.getPropertyValue('--card'))));
       cells.forEach((e) => { e.style.setProperty('--card', c.toFixed(1) + 'px'); e.style.setProperty('--cardn', c.toFixed(1)); });

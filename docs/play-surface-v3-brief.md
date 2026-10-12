@@ -63,6 +63,10 @@ pixel decision below; when the brief and the mockup disagree, the mockup wins.
     activated, attackers declared at you) and a sentence stating the rule.
 13. **Legibility pass** (1080p screenshot): no grey-on-grey; row labels, pile labels, stack
     text, panel titles, hand label all readable.
+14. **Peek.** Holding the pointer on an opponent's cell for one second grows it to double size
+    in place — anchored on its own corner, over its neighbours, not a centred window — with its
+    cards autoscaled to the bigger box and hoverable as usual; it closes when the pointer
+    leaves. Lets you check a board without bringing that player across (owner, 2026-10-12).
 
 ## 2. Must land in the build (owner, 2026-10-12 — not possible in the mockup)
 
