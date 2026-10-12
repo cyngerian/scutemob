@@ -388,3 +388,15 @@ html.v3-page, html.v3-page body { margin: 0; height: 100%; background: #0a0a14; 
 /* The "across" tag (brief rule 3). The mockup hangs it on a `.hdr` its cell never renders;
    here it sits under the life total, where it cannot squeeze the strip's share of the name line. */
 .v3 .cell.focused-cell .who::after { content: '▲ across'; align-self: flex-start; font-size: 0.58rem; color: #9bd; background: #334; border-radius: 3px; padding: 0 4px; }
+/* A seat that has lost or conceded, poison, and a floating mana pool: seat-view facts the mockup's
+   sample data never carried. Small flags under the name, and an eliminated seat's cell stands down. */
+.v3 .seat-flag { font-size: 0.68rem; font-weight: 700; border-radius: 3px; padding: 0 4px; align-self: flex-start; white-space: nowrap; }
+.v3 .seat-flag.out { color: #fbb; background: #522; text-transform: uppercase; letter-spacing: .05em; }
+.v3 .seat-flag.poison { color: #cf9; background: #243a14; }
+.v3 .seat-flag.pool { color: #ffe0a0; background: #3a3014; }
+.v3 .seat-flags { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 3px; }
+.v3 .cell.seat-out .zones { opacity: .35; filter: grayscale(1); }
+/* The enlarged combat view is opened while you hold a decision, so it goes over the decision box;
+   a pile popover likewise (the mockup gave both the box's own level or less). */
+.v3 .combat-float { z-index: 75; }
+.v3 .popover, .v3 .ctx { z-index: 78; }

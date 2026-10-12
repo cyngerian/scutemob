@@ -32,6 +32,7 @@
   import { splitBattlefield, landStacks } from './layout.js';
   import { settings, openPeek, closePeek } from './ui.svelte.js';
   import { fitBoard } from './fit.js';
+  import { poolText, seatOut } from './zones.js';
 
   let {
     name,
@@ -54,6 +55,8 @@
   const stacks = $derived(landStacks(rows.lands));
   const untapped = $derived(rows.lands.filter((p) => !p.tapped).length);
   const life = $derived(player?.life ?? 0);
+  const out = $derived(seatOut(player));
+  const pool = $derived(poolText(player));
   const dataRows = $derived(JSON.stringify([[stacks.length, 0.7], [rows.others.length, 1], [rows.creatures.length, 1]]));
 
   const isLit = (card) => offeredIds.has(Number(card.object_id));
@@ -121,6 +124,7 @@
   class:is-active={isActive}
   class:has-prio={hasPrio}
   class:focused-cell={focused && !pop}
+  class:seat-out={!!out}
   class:lift={lift && !pop}
   style={pop ? popStyle : undefined}
   data-seat={name}
@@ -136,6 +140,9 @@
     <div class="who">
       <div><span class="seat-name">{name}</span></div>
       <div class="life" class:low={life < 20}>{life}</div>
+      {#if out}<div class="seat-flag out">{out}</div>{/if}
+      {#if player?.poison > 0}<div class="seat-flag poison">poison {player.poison}</div>{/if}
+      {#if pool}<div class="seat-flag pool">{pool}</div>{/if}
     </div>
     <ZoneStrip {name} {player} {zones} />
   </div>

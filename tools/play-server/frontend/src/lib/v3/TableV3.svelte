@@ -126,10 +126,7 @@
 
   /**
    * Every card this seat can identify, by object id — what the decision panel
-   * draws its card items from. An action whose `object_id` is not in here (a
-   * dungeon room, a redacted placeholder) stays a plain button in the prompt:
-   * the keys double as `looseActions`' `renderedIds`, so the two never overlap
-   * and nothing offered is ever unreachable.
+   * draws its card items from on a `Priority` decision.
    */
   const cardIndex = $derived.by(() => {
     const idx = new Map();
@@ -143,7 +140,24 @@
     for (const c of zones?.exile ?? []) add(c);
     return idx;
   });
-  const renderedIds = $derived(new Set(cardIndex.keys()));
+
+  /**
+   * The ids some clickable card stands for right now — `looseActions`' cue to
+   * NOT draw a button. On `Priority` that is every card in the index (each
+   * becomes a card item). On any other decision the panel draws no card items,
+   * so only cards on the table itself count: your hand and the battlefields.
+   * A pile's cards are not clickable, which is why a commander-zone choice —
+   * both of whose answers carry the id of a commander already in a graveyard
+   * or in exile — must fall through to buttons (review finding 1: with the
+   * whole index here it had no answer on screen at all).
+   */
+  const renderedIds = $derived.by(() => {
+    if ($decision?.kind === 'Priority') return new Set(cardIndex.keys());
+    const ids = new Set();
+    for (const c of ownHand) if (!c?.hidden) ids.add(Number(c.object_id));
+    for (const list of Object.values(zones?.battlefield ?? {})) for (const p of list) ids.add(Number(p.object_id));
+    return ids;
+  });
 
   // ── Click-through (ported from PlayAppV2) ──────────────────────────────────
 

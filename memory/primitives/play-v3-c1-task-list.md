@@ -44,6 +44,6 @@ plus row 4 per new source gate.
 - [x] 30. Criterion 8608 (drive + gates) satisfied
 
 ## Close
-- [ ] 31. `/review`; HIGH and MEDIUM fixed, LOW logged
-- [ ] 32. Notes `memory/play-v3-c1-2026-10-12.md`, CHANGELOG entry, README pointer
+- [x] 31. `/review`; HIGH and MEDIUM fixed, LOW logged
+- [x] 32. Notes `memory/play-v3-c1-2026-10-12.md`, CHANGELOG entry, README pointer
 - [ ] 33. Scratch deleted, committed by explicit path, signal-ready, session end

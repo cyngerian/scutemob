@@ -13,13 +13,15 @@
    *   onSeatMenu          — `(event, name)` on a right-click of the name plate
    */
   import Pile from './Pile.svelte';
-  import { seatPiles } from './zones.js';
+  import { poolText, seatOut, seatPiles } from './zones.js';
   import { openPopover } from './ui.svelte.js';
 
   let { name, player, zones, isActive = false, hasPrio = false, onSeatMenu = null } = $props();
 
   const piles = $derived(seatPiles(name, player, zones));
   const life = $derived(player?.life ?? 0);
+  const out = $derived(seatOut(player));
+  const pool = $derived(poolText(player));
 
   function open(pile, event) {
     openPopover({ title: pile.title, note: pile.note, cards: pile.cards, x: event.clientX, y: event.clientY });
@@ -38,6 +40,13 @@
   >
     <span class="seat-name">{name}</span><span class="life" class:low={life < 20}>{life}</span>
   </div>
+  {#if out || pool || player?.poison > 0}
+    <div class="seat-flags">
+      {#if out}<span class="seat-flag out">{out}</span>{/if}
+      {#if player?.poison > 0}<span class="seat-flag poison">poison {player.poison}</span>{/if}
+      {#if pool}<span class="seat-flag pool">{pool}</span>{/if}
+    </div>
+  {/if}
   <Pile label={piles.cmd.label} top={piles.cmd.top} cz onclick={(e) => open(piles.cmd, e)} />
   <div class="piles">
     {#each [piles.lib, piles.gy, piles.ex] as pile (pile.label)}

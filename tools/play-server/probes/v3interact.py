@@ -4,12 +4,14 @@
 #   seat right-click menu (+ "Bring across the table"), one-second peek (arms on the cell,
 #   never on a card; closes on leave), hover overlay, size slider turns auto-fit off and
 #   boards may then scroll, auto toggle restores the fit, decision minimise / re-open,
-#   the ?card-window route receiving a hover over a storage event.
+#   a new decision re-opening the minimised box, a turn change changing who is across, the
+#   grey-out lifting for blockers, a commander-zone choice being answerable (those four on the
+#   server's real answer rewritten in flight), the ?card-window route receiving a hover over a storage event.
 # Needs a play-server on 127.0.0.1 (never the owner's 3040):
 #   cargo run -p play-server -- --port 3041 --players 4 --bot heuristic --seed 0
 # Run:  python3 tools/play-server/probes/v3interact.py --port 3041 --seed 3 --out /tmp/v3i
 # Exit 0 = every check ok, 1 = a check is BAD, 2 = COULD-NOT-RUN (no server / no table).
-import argparse, asyncio, os, sys
+import argparse, asyncio, json, os, sys
 from playwright.async_api import async_playwright
 
 RESULTS = []
@@ -138,7 +140,8 @@ async def main():
         pop = pg.locator(".v3 .cell-pop")
         opened = await pop.count() == 1
         pb = await pop.bounding_box() if opened else None
-        check("peek grows the cell to double size in place", opened and abs(pb["width"] - min(box["width"] * 2, w * 0.5)) < 3 and abs(pb["x"] - box["x"]) < 3 or (opened and abs(pb["x"] + pb["width"] - box["x"] - box["width"]) < 3), f"cell {box}, pop {pb}")
+        anchored = opened and (abs(pb["x"] - box["x"]) < 3 or abs(pb["x"] + pb["width"] - box["x"] - box["width"]) < 3)
+        check("peek grows the cell to double size in place", opened and abs(pb["width"] - min(box["width"] * 2, w * 0.5)) < 3 and anchored, f"cell {box}, pop {pb}")
         if opened:
             sc = await pop.evaluate("e => [e.scrollHeight, e.clientHeight]")
             check("the peeked cell's cards fit its box", sc[0] <= sc[1] + 1, str(sc))
@@ -176,6 +179,78 @@ async def main():
         check("the dock button re-opens the decision", await pg.locator(".v3 .decision-float").count() == 1)
         await pg.mouse.move(1, 1)
         await pg.screenshot(path=os.path.join(a.out, "v3i-end.png"))
+
+        # ---- states a short real game does not reach: the server's own answer, rewritten on the way
+        # in (GET /api/game and the reply to an action), so the page sees a seat view of the real shape.
+        mut = {"fn": None}
+
+        async def rewrite(route):
+            resp = await route.fetch()
+            if mut["fn"] is None or resp.status != 200:
+                return await route.fulfill(response=resp)
+            v = await resp.json()
+            mut["fn"](v)
+            await route.fulfill(status=200, content_type="application/json", body=json.dumps(v))
+        await pg.route("**/api/game", rewrite)
+        await pg.route("**/api/game/action", rewrite)
+
+        async def seat(sel):
+            return await pg.evaluate(f"document.querySelector('{sel}')?.dataset.seat ?? null")
+
+        # a new decision re-opens a minimised box
+        await pg.click(".v3 .decision-float .mini-btn")
+        await pg.wait_for_timeout(120)
+        was_min = await pg.locator(".v3 .decision-float").count() == 0
+        await pg.keyboard.press("Space")  # pass priority: the reply carries the next decision
+        await pg.wait_for_timeout(900)
+        check("a new decision re-opens the minimised box", was_min and await pg.locator(".v3 .decision-float").count() == 1)
+
+        # a turn change brings the new active player across, over a clicked focus
+        across = await seat(".v3 .focused")
+        others = [n for n in await pg.evaluate("[...document.querySelectorAll('.v3 .cell:not(.cell-pop)')].map(e => e.dataset.seat)") if n != across]
+        real_active = await pg.evaluate("fetch('/api/game').then(r => r.json()).then(v => v.state.turn.active_player)")
+        newcomer = next(n for n in others if n != real_active)
+
+        def turn_to(v, who=newcomer):
+            v["state"]["turn"]["active_player"] = who
+        mut["fn"] = turn_to
+        await pg.reload()
+        await pg.wait_for_selector(".v3 .cell", timeout=10000)
+        await pg.wait_for_timeout(500)
+        check("a turn change brings the active player across", await seat(".v3 .focused") == newcomer, f"{across} -> {await seat('.v3 .focused')} (active {newcomer})")
+
+        # the focused seat's grey-out lifts while blockers are being declared
+        def blockers(v, who=newcomer):
+            turn_to(v, who)
+            if v.get("decision"):
+                v["decision"]["kind"] = "DeclareBlockers"
+                v["decision"]["actions"] = [x for x in v["decision"]["actions"] if x["kind"] in ("PassPriority", "Concede")]
+        grey = await pg.evaluate("getComputedStyle(document.querySelector('.v3 .cell.focused-cell')).opacity")
+        mut["fn"] = blockers
+        await pg.reload()
+        await pg.wait_for_selector(".v3 .cell", timeout=10000)
+        await pg.wait_for_timeout(500)
+        lifted = await pg.evaluate("(() => { const e = document.querySelector('.v3 .cell.focused-cell'); return e ? [e.classList.contains('lift'), getComputedStyle(e).opacity, getComputedStyle(e).filter] : null; })()")
+        check("the grey-out lifts while blockers are declared", float(grey) < 0.6 and bool(lifted) and lifted[0] and float(lifted[1]) == 1 and lifted[2] == "none", f"before {grey}, during {lifted}")
+
+        # a commander-zone choice: both answers carry the id of a card that is in a pile, not on the table
+        def commander_choice(v):
+            d = v.get("decision")
+            if not d:
+                return
+            tmpl = dict(d["actions"][0])
+            v["state"]["zones"]["graveyard"].setdefault("Human-1", []).insert(0, {"object_id": 9001, "name": "Isamaru, Hound of Konda", "card_types": ["Creature"], "hidden": False})
+            acts = []
+            for i, (k, l) in enumerate([("ReturnCommanderToCommandZone", "Return Isamaru, Hound of Konda to the command zone"), ("LeaveCommanderInZone", "Leave Isamaru, Hound of Konda where it is")]):
+                x = dict(tmpl); x.update(index=i, kind=k, label=l, object_id=9001); acts.append(x)
+            d["kind"], d["actions"] = "CommanderZoneChoice", acts
+        mut["fn"] = commander_choice
+        await pg.reload()
+        await pg.wait_for_selector(".v3 .cell", timeout=10000)
+        await pg.wait_for_timeout(500)
+        btns = await pg.locator(".v3 .decision-float .prompt .buttons .btn").all_inner_texts()
+        check("a commander-zone choice shows both answers as buttons", sum("command zone" in t for t in btns) == 1 and sum("where it is" in t for t in btns) == 1, str(btns))
+        mut["fn"] = None
         check("zero page errors", not errs, str(errs))
         await b.close()
     sys.exit(0 if all(RESULTS) else 1)

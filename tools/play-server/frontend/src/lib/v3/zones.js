@@ -10,6 +10,20 @@
  * one (brief §5, phase C3), so that pile is labelled `EX*` and says so.
  */
 
+/** "W2 G1" for a non-empty mana pool, else ''. The pool is public (CR 106.4). */
+export function poolText(player) {
+  const p = player?.mana_pool ?? {};
+  return [['W', p.white], ['U', p.blue], ['B', p.black], ['R', p.red], ['G', p.green], ['C', p.colorless]]
+    .filter(([, n]) => n > 0)
+    .map(([k, n]) => `${k}${n}`)
+    .join(' ');
+}
+
+/** 'conceded' / 'out' for a seat no longer in the game, else null. */
+export function seatOut(player) {
+  return player?.has_conceded ? 'conceded' : player?.has_lost ? 'out' : null;
+}
+
 export const EXILE_NOTE = 'shared by all players (per-player exile is a later server change)';
 
 const BACK = { hidden: true };

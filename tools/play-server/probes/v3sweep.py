@@ -138,9 +138,10 @@ JS_MEASURE = """() => {
   const boxes = [];
   for (const sel of ['.v3 .focused', '.v3 .board', '.v3 .cell:not(.cell-pop)']) {
     document.querySelectorAll(sel).forEach((el, i) => {
-      if (el.scrollHeight > el.clientHeight + 1) {
+      if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) {
         boxes.push({ box: sel + '[' + i + ']', seat: ((el.querySelector('.seat-name') || {}).textContent || '').trim(),
-                     scrollHeight: el.scrollHeight, clientHeight: el.clientHeight });
+                     scrollHeight: el.scrollHeight, clientHeight: el.clientHeight,
+                     scrollWidth: el.scrollWidth, clientWidth: el.clientWidth });
       }
     });
   }
@@ -255,7 +256,9 @@ async def run(browser, a, seed, w, h):
                 if r["iters"] == 0 and not (m["auto"] and m["oppAuto"]):
                     r["reason"] = "auto toggles are not on (v3-auto / v3-oppauto)"
                     break
+                r["measured"] = r.get("measured", 0) + 1
                 r["cards"], r["images"] = m["cards"], m["images"]
+                r["max_cards"] = max(r.get("max_cards", 0), m["cards"])
                 r["chipless"], r["offscreen"] = max(r["chipless"], m["chipless"]), max(r["offscreen"], m["offscreen"])
                 if m["pageScroll"]:
                     r["page_scroll"] += 1
@@ -265,6 +268,8 @@ async def run(browser, a, seed, w, h):
                     r["box_scroll"] += 1
                     if len(r["box_scroll_incidents"]) < 60:
                         r["box_scroll_incidents"].append({"turn": turn, "iter": r["iters"], **bx})
+            else:
+                r["measure_failed"] = r.get("measure_failed", 0) + 1   # a metric that was not taken is not a pass
             if st.get("status") != 200:
                 waits += 1
                 if waits > 20:
@@ -393,6 +398,11 @@ def verdict(r, turns):
             why.append(f"{name} {r[key]}")
     if r["page_errors"]:
         why.append(f"page-errors {len(r['page_errors'])}")
+    # Vacuity: zeroes only count if the measurements were really taken, on a table with cards on it.
+    if r.get("measure_failed"):
+        why.append(f"measure-failed {r['measure_failed']}")
+    if not r["reason"] and (not r.get("measured") or not r.get("max_cards")):
+        why.append(f"nothing measured (measures {r.get('measured', 0)}, most cards seen {r.get('max_cards', 0)})")
     return why
 
 
