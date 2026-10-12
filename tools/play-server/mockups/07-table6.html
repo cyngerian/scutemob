@@ -133,6 +133,16 @@
   .prompt-box .p-buttons { flex-direction: column; }
   .prompt-box .btn.primary { font-size: 0.95rem; padding: 10px; }
   .prompt-box .waiting { color: #667; font-style: italic; padding: 10px 0; }
+  .prompt-box .minimised { display: flex; flex-direction: column; gap: 6px; }
+  .decision-float { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 70; width: min(640px, 60vw); max-height: 80vh; overflow: auto; background: #14142a; border: 2px solid #fc8; border-radius: 10px; padding: 14px 16px; box-shadow: 0 20px 60px rgba(0,0,0,.85); display: flex; flex-direction: column; gap: 10px; }
+  .decision-float .head { display: flex; align-items: center; gap: 10px; }
+  .decision-float .head .panel-title { flex: 1; font-size: 0.8rem; color: #fc8; }
+  .decision-float .p-sentence { font-size: 1.05rem; line-height: 1.4; }
+  .decision-float .btn.primary { font-size: 1.05rem; padding: 10px 16px; }
+  .group .gtitle { font-size: 0.7rem; letter-spacing: .06em; text-transform: uppercase; color: #9aa; margin: 6px 0 4px; }
+  .group .items { display: flex; flex-wrap: wrap; gap: 6px; }
+  .group.muted .items .btn { opacity: .55; font-size: 0.74rem; padding: 3px 8px; }
+  .mini-btn { background: #1c1c38; color: #ccd; border: 1px solid #33335a; border-radius: 4px; font: inherit; font-size: 0.72rem; padding: 3px 8px; cursor: pointer; }
 
   /* per-board card sizing: every card box is --card × --scale; fitBoard sets --card per board */
   .t7 .card { --scale: 1; }
@@ -216,13 +226,14 @@
   const params = new URLSearchParams(location.search);
   let stateId = Number(params.get('state')) || 5;
   let S = STATES[stateId](); let G = S.game; let focus = S.focus; let handOffset = 0;
+  let decisionMin = false;   // the decision panel opens in the centre whenever you hold priority; minimise sends it to the dock
   const $ = (id) => document.getElementById(id);
 
   // ---- mockup controls ----------------------------------------------------
   const sel = $('state');
   for (const k of Object.keys(STATES)) { const o = document.createElement('option'); o.value = k; o.textContent = `${k} · ${STATES[k]().label}`; sel.append(o); }
   sel.value = stateId;
-  sel.onchange = () => { stateId = Number(sel.value); S = STATES[stateId](); G = S.game; focus = S.focus; handOffset = 0; render(); };
+  sel.onchange = () => { stateId = Number(sel.value); S = STATES[stateId](); G = S.game; focus = S.focus; handOffset = 0; decisionMin = false; render(); };
   let cap = 84; try { cap = Number(localStorage.getItem('t7-cap')) || 84; } catch {}
   const size = $('size'); size.value = cap; $('sizev').textContent = cap + 'px';
   let auto = true; try { auto = localStorage.getItem('t7-auto') !== '0'; } catch {}
@@ -242,6 +253,7 @@
     if (next !== 'Human-1') focus = next;
     G.prompt = next === 'Human-1' ? { sentence: 'Your untap step.', buttons: [{ t: 'Pass priority', key: 'space', primary: true }] } : { sentence: `${next} is deciding…`, buttons: [], waiting: true };
     G.you.hand.forEach((c) => { delete c.lit; });
+    decisionMin = false;
     render();
   };
 
@@ -364,10 +376,27 @@
     if (G.stack.length === 0) s.append(el('div', 'dim', 'empty'));
     [...G.stack].reverse().forEach((x, k) => s.append(el('div', 'stack-item' + (k === 0 ? ' top' : ''), `<div class="s-who">${x.who} cast${k === 0 ? ' · resolves next' : ''}</div><div class="s-name">${x.n}</div><div class="s-text">${x.text}</div>`)));
     const p = $('prompt'); p.innerHTML = '';
+    document.querySelectorAll('.decision-float').forEach((n) => n.remove());
     p.append(el('div', 'panel-title', G.priority === 'Human-1' ? 'Your decision' : 'Waiting'));
     if (G.prompt.waiting) { p.append(el('div', 'waiting', G.prompt.sentence)); return; }
-    const pr = el('div', 'prompt'); pr.append(el('div', 'p-sentence', G.prompt.sentence));
-    const b = el('div', 'p-buttons'); G.prompt.buttons.forEach((x) => b.append(el('button', 'btn' + (x.primary ? ' primary' : '') + (x.lit ? ' lit' : ''), x.t + (x.key ? ` <kbd>${x.key}</kbd>` : '')))); pr.append(b); p.append(pr);
+    if (decisionMin) {
+      // minimised: the dock shows the sentence and the primary action; the rest is one click away
+      const m = el('div', 'minimised'); m.append(el('div', 'p-sentence', G.prompt.sentence));
+      const b = el('div', 'p-buttons'); G.prompt.buttons.forEach((x) => b.append(el('button', 'btn' + (x.primary ? ' primary' : ''), x.t + (x.key ? ` <kbd>${x.key}</kbd>` : ''))));
+      const open = el('button', 'mini-btn', `⤢ open in the centre${G.prompt.groups ? ' · ' + G.prompt.groups.filter((g) => !g.muted).reduce((a, g) => a + g.items.length, 0) + ' more options' : ''}`); open.onclick = () => { decisionMin = false; stackAndPrompt(); };
+      m.append(b, open); p.append(m); return;
+    }
+    p.append(el('div', 'dim', 'open in the centre of the table'));
+    const f = el('div', 'decision-float');
+    const head = el('div', 'head'); head.append(el('div', 'panel-title', 'Your decision'));
+    const mini = el('button', 'mini-btn', '▁ minimise to the corner'); mini.onclick = () => { decisionMin = true; stackAndPrompt(); }; head.append(mini); f.append(head);
+    f.append(el('div', 'p-sentence', G.prompt.sentence));
+    const b = el('div', 'p-buttons'); G.prompt.buttons.forEach((x) => b.append(el('button', 'btn' + (x.primary ? ' primary' : '') + (x.lit ? ' lit' : ''), x.t + (x.key ? ` <kbd>${x.key}</kbd>` : '')))); f.append(b);
+    (G.prompt.groups || []).forEach((g) => {
+      const gd = el('div', 'group' + (g.muted ? ' muted' : '')); gd.append(el('div', 'gtitle', g.title));
+      const it = el('div', 'items'); g.items.forEach((x) => it.append(el('button', 'btn' + (x.lit ? ' lit' : ''), x.t))); gd.append(it); f.append(gd);
+    });
+    document.body.append(f);
   }
 
   // ---- fit: the one card size per board that makes its rows fit the box ----

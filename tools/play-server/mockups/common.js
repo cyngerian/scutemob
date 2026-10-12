@@ -189,7 +189,15 @@ function sixPlayerLateGame() {
   y.gyCards = pick([...POOL.creatures, ...POOL.spells], 11, 7).map((c) => ({ n: c.n })); y.exileCards = pick(POOL.creatures, 4, 8).map((c) => ({ n: c.n }));
   y.lib = 61; y.libTop = null;
   g.stack = [{ who: 'Bot-3', n: 'Beast Within', text: 'targeting your Luminarch Aspirant' }, { who: 'Bot-5', n: 'Swords to Plowshares', text: 'targeting Bot-3\'s Beast Whisperer' }];
-  g.prompt = { sentence: 'Bot-5 cast Swords to Plowshares targeting Beast Whisperer, in response to Beast Within. Respond, or let it resolve.', buttons: [{ t: 'Let it resolve', key: 'space', primary: true }, { t: 'Swords to Plowshares → …', lit: true }, { t: 'Path to Exile → …', lit: true }, { t: 'Beast Within → …', lit: true }] };
+  g.prompt = {
+    sentence: 'Bot-5 cast Swords to Plowshares targeting Beast Whisperer, in response to Beast Within. Respond, or let it resolve.',
+    buttons: [{ t: 'Let it resolve', key: 'space', primary: true }],
+    groups: [
+      { title: 'Cast an instant', items: [{ t: 'Swords to Plowshares → choose a creature', lit: true }, { t: 'Path to Exile → choose a creature', lit: true }, { t: 'Beast Within → choose a permanent', lit: true }] },
+      { title: 'Activate an ability', items: [{ t: 'Seasoned Hallowblade — Discard a card: gains indestructible until end of turn, tap it', lit: true }, { t: 'Hedron Archive — {2}, {T}, Sacrifice: Draw two cards', lit: true }] },
+      { title: 'Mana (tapped automatically when you pay)', muted: true, items: [{ t: 'Plains ×5 untapped' }, { t: 'Command Tower' }, { t: 'Forest ×2' }, { t: 'Thought Vessel' }, { t: 'Marble Diamond' }, { t: 'Hedron Archive' }] },
+    ],
+  };
   return g;
 }
 STATES[5] = () => ({ label: 'Six players · turn 23 · late game everywhere · two spells on the stack', game: sixPlayerLateGame(), focus: 'Bot-3' });
