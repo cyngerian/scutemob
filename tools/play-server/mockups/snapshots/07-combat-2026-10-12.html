@@ -343,13 +343,15 @@
     const who = el('div', 'who', `<div><span class="seat-name">${o.name}</span></div><div class="life${o.life < 20 ? ' low' : ''}">${o.life}</div>`);
     const z5 = el('div', 'zones5'); z5.append(commandZone(o), handPile(o), piles(o));
     top.append(who, z5); d.append(top);
+    // mirrored like the board across the table: lands nearest the strip, then other, creatures last
     const z = el('div', 'zones');
-    const z1 = el('div', 'zone creatures'); z1.append(grid8(o.creatures.concat(o.others))); z.append(z1);
-    const z2 = el('div', 'zone lands'); z2.append(el('div', 'row-label', `lands ${o.lands.total - o.lands.tapped}/${o.lands.total}`), landsAsCards(o.lands)); z.append(z2);
+    const z1 = el('div', 'zone lands'); z1.append(el('div', 'row-label', `lands ${o.lands.total - o.lands.tapped}/${o.lands.total}`), landsAsCards(o.lands)); z.append(z1);
+    const z2 = el('div', 'zone others'); z2.append(grid8(o.others)); z.append(z2);
+    const z3 = el('div', 'zone creatures'); z3.append(grid8(o.creatures)); z.append(z3);
     d.append(z);
     d.onclick = () => { focus = o.name; render(); };
     d.oncontextmenu = (e) => ctxMenu(e, o);
-    d.dataset.rows = JSON.stringify([[o.creatures.length + o.others.length, 1], [2, 0.7]]);
+    d.dataset.rows = JSON.stringify([[2, 0.7], [o.others.length, 1], [o.creatures.length, 1]]);
     d.dataset.overhead = '8';   // name line + the fixed 56px strip + gaps
     d.dataset.label = '0';
     return d;

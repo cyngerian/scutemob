@@ -24,7 +24,8 @@ pixel decision below; when the brief and the mockup disagree, the mockup wins.
    card backs (36px) on their lands row; revealed cards face up.
 3. **Fixed seats.** Every opponent keeps a cell in the side columns (left, right, left …
    in seat order; six seats = three + two). The focused one is marked in its cell; the top
-   copy is in addition, never instead.
+   copy is in addition, never instead. A cell is mirrored like the board across: under the
+   1×5 strip come lands, then other permanents, then creatures last (owner, 2026-10-12).
 4. **Zones are piles with the top card showing.** Your board and the focused board each
    carry a 2×2 box (title row: name + life; then command zone, library, graveyard, exile)
    pinned to a corner — bottom-right for you, top-right across. Side cells carry a 1×5 strip
