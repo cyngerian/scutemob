@@ -129,8 +129,9 @@
   .dock { grid-area: dock; display: grid; grid-template-rows: minmax(0, 1fr) auto auto; gap: 6px; min-height: 0; }
   .combat-box { cursor: pointer; }
   .combat-box .dim { font-size: 0.8rem; }
-  .combat-box .grp { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
-  .combat-box .grp .to { font-size: 0.78rem; color: #e8b090; flex: 0 0 5.5rem; }
+  .combat-box .def { border: 1px solid #4a3028; background: #1a1220; border-radius: 6px; padding: 4px 6px; margin-top: 5px; }
+  .combat-box .def .to { font-size: 0.78rem; color: #e8b090; font-weight: bold; margin-bottom: 3px; }
+  .combat-box .grp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .combat-box .card { --card: 40px; }
   .combat-box .blk { font-size: 0.7rem; color: #9bd; }
   .combat-float { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 70; width: min(1100px, 80vw); max-height: 85vh; overflow: auto; background: #14142a; border: 2px solid #d07a4a; border-radius: 10px; padding: 14px 16px; box-shadow: 0 20px 60px rgba(0,0,0,.85); display: flex; flex-direction: column; gap: 10px; }
@@ -143,6 +144,16 @@
   .combat-float .pair .card { --card: 96px; }
   .combat-float .pair .arrow { color: #9bd; font-size: 1.4rem; padding-top: 50px; }
   .combat-float .pair .none { color: #778; font-size: 0.8rem; padding-top: 55px; }
+  /* blocker assignment: attackers above, my creatures below, arrows between */
+  .blockui { position: relative; display: flex; flex-direction: column; gap: 26px; padding: 6px 0; }
+  .blockui .brow { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+  .blockui .brow .lbl { width: 100%; font-size: 0.7rem; letter-spacing: .06em; text-transform: uppercase; color: #9aa; }
+  .blockui .act { width: 92px; } .blockui .act .card { --card: 84px; --scale: 1; }
+  .blockui .act.sel .card { outline: 3px solid #fc8; }
+  .blockui .act.assigned .card { outline: 2px solid #9bd; }
+  .blockui .act.attacker .card { outline: 2px solid #d07a4a; }
+  .blockui svg.arrows { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .blockui .hint { font-size: 0.78rem; color: #aab; }
   /* decision items are cards */
   .group .items { align-items: flex-start; }
   .act { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 92px; cursor: pointer; }
@@ -256,7 +267,7 @@
   const sel = $('state');
   for (const k of Object.keys(STATES)) { const o = document.createElement('option'); o.value = k; o.textContent = `${k} · ${STATES[k]().label}`; sel.append(o); }
   sel.value = stateId;
-  sel.onchange = () => { stateId = Number(sel.value); S = STATES[stateId](); G = S.game; focus = S.focus; handOffset = 0; decisionMin = false; render(); };
+  sel.onchange = () => { stateId = Number(sel.value); S = STATES[stateId](); G = S.game; focus = S.focus; handOffset = 0; decisionMin = false; blocks = []; selMine = null; render(); };
   let cap = 84; try { cap = Number(localStorage.getItem('t7-cap')) || 84; } catch {}
   const size = $('size'); size.value = cap; $('sizev').textContent = cap + 'px';
   let auto = true; try { auto = localStorage.getItem('t7-auto') !== '0'; } catch {}
@@ -402,9 +413,10 @@
     if (!C) { cb.append(el('div', 'dim', 'not in combat')); cb.onclick = null; return; }
     cb.append(el('div', '', `<b>${C.attacker}</b> attacks`));
     C.groups.forEach((gp) => {
-      const row = el('div', 'grp'); row.append(el('span', 'to', `→ ${gp.defender === 'Human-1' ? 'you' : gp.defender}`));
+      const box = el('div', 'def'); box.append(el('div', 'to', `→ attacking ${gp.defender === 'Human-1' ? 'you' : gp.defender}`));
+      const row = el('div', 'grp');
       gp.attackers.forEach((a) => { row.append(cardEl({ n: a.n, pt: a.pt }, 'perm')); if (a.blockers.length) row.append(el('span', 'blk', `⛨ ${a.blockers.map((b) => b.n).join(', ')}`)); });
-      cb.append(row);
+      box.append(row); cb.append(box);
     });
     cb.append(el('div', 'dim', 'click to enlarge'));
     cb.onclick = () => openCombat();
@@ -425,6 +437,32 @@
       lanes.append(lane);
     });
     f.append(lanes); document.body.append(f);
+  }
+  // ---- blocker assignment (mockup state only) --------------------------------
+  let blocks = [];      // [myIndex, attackerIndex]
+  let selMine = null;
+  function blockUi(B) {
+    const ui = el('div', 'blockui');
+    const top = el('div', 'brow'); top.append(el('div', 'lbl', 'attacking you'));
+    const atkEls = B.attackers.map((a, i) => { const d = el('div', 'act attacker'); d.append(cardEl({ n: a.n, pt: a.pt }, 'perm'), el('div', 'cap', a.pt)); d.onclick = () => { if (selMine === null) return; blocks = blocks.filter((p) => p[0] !== selMine); blocks.push([selMine, i]); selMine = null; redraw(); }; top.append(d); return d; });
+    const bot = el('div', 'brow'); bot.append(el('div', 'lbl', 'your untapped creatures — click one, then the attacker it blocks'));
+    const myEls = B.mine.map((m, i) => { const d = el('div', 'act'); d.append(cardEl({ n: m.n, pt: m.pt }, 'perm'), el('div', 'cap', m.pt)); d.onclick = () => { if (blocks.some((p) => p[0] === i)) { blocks = blocks.filter((p) => p[0] !== i); selMine = null; } else selMine = selMine === i ? null : i; redraw(); }; bot.append(d); return d; });
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'arrows');
+    svg.innerHTML = '<defs><marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9bd"/></marker></defs>';
+    const hint = el('div', 'hint', '');
+    ui.append(top, bot, svg, hint);
+    function redraw() {
+      myEls.forEach((d, i) => { d.classList.toggle('sel', selMine === i); d.classList.toggle('assigned', blocks.some((p) => p[0] === i)); });
+      const r0 = ui.getBoundingClientRect();
+      const mid = (d, side) => { const r = d.querySelector('.card').getBoundingClientRect(); return [r.left + r.width / 2 - r0.left, (side === 'top' ? r.top : r.bottom) - r0.top]; };
+      let paths = '';
+      blocks.forEach(([m, a]) => { const [x1, y1] = mid(myEls[m], 'top'); const [x2, y2] = mid(atkEls[a], 'bottom'); paths += `<path d="M${x1},${y1} C${x1},${y1 - 30} ${x2},${y2 + 30} ${x2},${y2}" stroke="#9bd" stroke-width="2.5" fill="none" marker-end="url(#ah)"/>`; });
+      svg.innerHTML = svg.innerHTML.split('</defs>')[0] + '</defs>' + paths;
+      const words = blocks.map(([m, a]) => `${B.mine[m].n} blocks ${B.attackers[a].n}`);
+      hint.textContent = words.length ? words.join(' · ') + '. Click a blocker again to undo.' : (selMine !== null ? `${B.mine[selMine].n} selected — now click the attacker it blocks.` : 'No blocks yet.');
+    }
+    requestAnimationFrame(redraw);
+    return ui;
   }
   function stackAndPrompt() {
     combatCard();
@@ -448,6 +486,7 @@
     const mini = el('button', 'mini-btn', '▁ minimise to the corner'); mini.onclick = () => { decisionMin = true; stackAndPrompt(); }; head.append(mini); f.append(head);
     f.append(el('div', 'p-sentence', G.prompt.sentence));
     const b = el('div', 'p-buttons'); G.prompt.buttons.forEach((x) => b.append(el('button', 'btn' + (x.primary ? ' primary' : '') + (x.lit ? ' lit' : ''), x.t + (x.key ? ` <kbd>${x.key}</kbd>` : '')))); f.append(b);
+    if (G.prompt.block) f.append(blockUi(G.prompt.block));
     (G.prompt.groups || []).forEach((g) => {
       const gd = el('div', 'group' + (g.muted ? ' muted' : '')); gd.append(el('div', 'gtitle', g.title));
       const it = el('div', 'items');

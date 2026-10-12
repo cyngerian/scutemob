@@ -214,12 +214,12 @@ STATES[6] = () => {
   };
   g.you.hand.forEach((c) => { delete c.lit; });
   g.prompt = {
-    sentence: 'Bot-3 attacks you with Toski, Bearer of Secrets and Beast Whisperer (and Bot-5 with two more). Declare blockers.',
-    buttons: [{ t: 'Block with nothing', key: 'space', primary: true }, { t: 'Confirm blocks' }],
-    groups: [
-      { title: 'Block Toski, Bearer of Secrets (1/1) with', items: [{ card: 'Benalish Marshal', t: '3/3', lit: true }, { card: 'Archon of Emeria', t: '2/3 flying', lit: true }, { card: 'Dusk Legion Duelist', t: '2/2', lit: true }] },
-      { title: 'Block Beast Whisperer (2/3) with', items: [{ card: 'Sun Titan', t: '6/6', lit: true }, { card: 'Adeline, Resplendent Cathar', t: '4/4', lit: true }, { card: 'Thalia, Guardian of Thraben', t: '2/1 first strike', lit: true }] },
-    ],
+    sentence: 'Bot-3 attacks you with Toski, Bearer of Secrets and Beast Whisperer. Click one of your creatures, then the attacker it blocks. Finish when done.',
+    buttons: [{ t: 'Block with nothing', key: 'space', primary: true }, { t: 'Finish blocks' }],
+    block: {
+      attackers: [{ n: 'Toski, Bearer of Secrets', pt: '1/1' }, { n: 'Beast Whisperer', pt: '2/3' }],
+      mine: g.you.creatures.filter((x) => !x.tapped).map((x) => ({ n: x.n, pt: x.pt })),
+    },
   };
   return { label: 'Combat · Bot-3 attacks you and Bot-5 with four creatures · you declare blockers', game: g, focus: 'Bot-3' };
 };
