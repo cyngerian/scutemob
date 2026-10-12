@@ -9,7 +9,7 @@ names = [n.replace("\\'", "'") for n in names]
 out = here / 'img'; out.mkdir(exist_ok=True)
 def slug(n): return re.sub(r'[^a-z0-9]+', '-', n.lower()).strip('-')
 for n in names:
-    for v in ('small', 'normal'):
+    for v in ('small', 'normal', 'large'):
         dest = out / f'{slug(n)}-{v}.jpg'
         if dest.exists(): continue
         url = f'https://api.scryfall.com/cards/named?exact={urllib.parse.quote(n)}&format=image&version={v}'

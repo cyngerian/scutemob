@@ -80,6 +80,55 @@ const GAME = {
   ],
 };
 
+GAME.steps = ['Untap', 'Upkeep', 'Draw', 'Main 1', 'Begin combat', 'Attackers', 'Blockers', 'Damage', 'End combat', 'Main 2', 'End', 'Cleanup'];
+GAME.you.gyCards = [{ n: 'Wrath of God' }, { n: 'Luminarch Aspirant' }, { n: 'Plains' }];
+GAME.you.exileCards = [{ n: 'Gravecrawler' }];
+GAME.opps[0].gyCards = [{ n: 'Goblin Guide' }, { n: 'Sol Ring' }];
+GAME.opps[1].gyCards = [{ n: 'Llanowar Elves' }, { n: 'Sylvan Library' }, { n: 'Beast Whisperer' }, { n: 'Llanowar Elves' }, { n: 'Beast Within' }];
+GAME.opps[2].gyCards = [{ n: 'Bloodghast' }, { n: 'Gravecrawler' }, { n: 'Arcane Signet' }, { n: 'Phyrexian Arena' }, { n: 'Bloodghast' }, { n: 'Ayara, First of Locthwain' }, { n: 'Gravecrawler' }];
+
+/** Hover → the popped-out card window (card-window.html) on the second monitor. */
+const CARD_CHANNEL = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('scutemob-card') : null;
+function broadcastHover(name) { CARD_CHANNEL?.postMessage({ name }); }
+
+/** Deep-ish copy of the sample state so a state switcher can mutate freely. */
+function cloneGame() { return JSON.parse(JSON.stringify(GAME)); }
+
+/** Repeat a list to n entries (names repeat; stands in for tokens and duplicates). */
+function padTo(list, n) { const out = []; for (let i = 0; out.length < n; i++) out.push({ ...list[i % list.length] }); return out; }
+
+/** The four board states mockup 6 switches between. Each returns {game, focus}. */
+const STATES = {
+  1: () => ({ label: "Bot-3's turn · Beast Within on the stack · you hold priority", game: cloneGame(), focus: 'Bot-3' }),
+  2: () => {
+    const g = cloneGame();
+    g.active = 'Human-1'; g.priority = 'Human-1'; g.step = 'Main 1'; g.stack = [];
+    g.you.creatures.forEach((c) => { delete c.targeted; });
+    g.you.hand = [{ n: 'Swords to Plowshares', lit: true }, { n: 'Path to Exile', lit: true }, { n: 'Sun Titan', lit: true }, { n: 'Plains', lit: true }, { n: 'Wrath of God', lit: true }];
+    g.prompt = { sentence: 'Your main phase. Play a land, cast a spell, or pass.', buttons: [{ t: 'Pass priority', key: 'space', primary: true }, { t: 'to combat' }, { t: 'to end of turn' }] };
+    g.opps.forEach((o) => { delete o.active; });
+    return { label: 'Your turn · Main 1 · empty stack', game: g, focus: 'Bot-3' };
+  },
+  3: () => {
+    const g = cloneGame();
+    g.step = 'Blockers';
+    g.you.creatures = padTo(g.you.creatures, 12); g.you.others = padTo(g.you.others, 6);
+    g.you.lands = [{ n: 'Plains', count: 9, tapped: 4 }, { n: 'Command Tower' }, { n: 'Reliquary Tower', tapped: true }, { n: 'Plains', count: 2 }];
+    g.opps[1].creatures = padTo(g.opps[1].creatures, 12); g.opps[1].others = padTo(g.opps[1].others, 6); g.opps[1].lands = { total: 11, tapped: 8 };
+    g.opps[0].creatures = padTo(g.opps[0].creatures, 8); g.opps[0].others = padTo(g.opps[0].others, 4); g.opps[0].lands = { total: 9, tapped: 2 };
+    g.opps[2].creatures = padTo(g.opps[2].creatures, 9); g.opps[2].others = padTo(g.opps[2].others, 3); g.opps[2].lands = { total: 10, tapped: 10 };
+    g.you.hand = padTo(g.you.hand, 9);
+    return { label: 'Late game · 22 / 18 / 12 / 12 permanents · declare blockers', game: g, focus: 'Bot-3' };
+  },
+  4: () => {
+    const g = cloneGame();
+    g.priority = 'Bot-4';
+    g.you.hand.forEach((c) => { delete c.lit; });
+    g.prompt = { sentence: 'Bot-4 is deciding…', buttons: [], waiting: true };
+    return { label: "Bot-3's turn · Bot-4 holds priority · you are waiting", game: g, focus: 'Bot-3' };
+  },
+};
+
 // ---- rendering helpers ------------------------------------------------------
 
 function el(tag, cls, html) {
@@ -97,6 +146,15 @@ function cardEl(c, size = 'perm') {
   if (c.targeted) d.classList.add('targeted');
   if (c.cmd) d.classList.add('cmd');
   d.title = c.n;
+  d.dataset.name = c.n;
+  d.addEventListener('mouseenter', (ev) => {
+    // Keep a magnified card on screen: flip the transform origin near the edges.
+    const r = d.getBoundingClientRect();
+    const ox = r.left < 180 ? 'left' : window.innerWidth - r.right < 180 ? 'right' : 'center';
+    const oy = r.top < 160 ? 'top' : window.innerHeight - r.bottom < 160 ? 'bottom' : 'center';
+    d.style.transformOrigin = `${ox} ${oy}`;
+    broadcastHover(c.n);
+  });
   const chip = el('div', 'chip', `<div class="chip-name">${c.n}</div>`);
   const img = el('img', 'art');
   const v = size === 'hand' || size === 'big' ? 'normal' : 'small';
