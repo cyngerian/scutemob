@@ -8,3 +8,4 @@ tags mark the same points.
 | Snapshot | Tag | Owner's words |
 |---|---|---|
 | `07-readable-2026-10-12.html` | `mockup-7-readable` (d93fc230) | "the cards look much more readable now" |
+| `07-zones-2026-10-12.html` | `mockup-7-zones` (d7947cb5) | fixed 2x2 / 1x5 zones, battlefield-only autosize, outlines for active / priority — "ok this is another snapshot" |
