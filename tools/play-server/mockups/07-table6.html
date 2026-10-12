@@ -81,7 +81,7 @@
   .t7 .zonebox .pile .card { --scale: 1; }
   .zonebox .pile .empty { width: var(--card); height: calc(var(--card) * 1.4); }
   .t7 .cell .pile .card { --scale: 0.7; }
-  .board .zone.lands, .board .zone.others, .focused .zone.lands, .focused .zone.others { padding-right: calc(var(--card) * 2 + 2.5rem); }
+  .board .zone, .focused .zone { padding-right: calc(var(--card) * 2 + 2.5rem); }   /* keep clear of the zone box */
   .pile { position: relative; cursor: pointer; }
   .pile .card { --scale: 0.7; }
   .pile .lbl { position: absolute; left: 0; right: 0; bottom: -0.1rem; text-align: center; font-size: 0.6rem; background: rgba(0,0,0,.8); color: #bbc; letter-spacing: .04em; }
@@ -104,7 +104,8 @@
   .board .hdr { border-bottom-color: #1e3a22; }
   .board .zone.lands { margin-top: auto; border-top: 1px solid #1e3a22; padding-top: 5px; }
   .board .meta { border-top: 1px solid #1e3a22; padding-top: 4px; }
-  #hand { --card: calc(var(--cap, 84) * 1.15px); }
+  #hand { --card: 70px; }
+  .t7 .focused .meta.handmeta .handrow .card { --card: 50px; --scale: 1; }
   .hand { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: #0d0d1a; border: 1px solid var(--line); border-radius: 8px; }
   .hand .label { color: #88a; font-size: 0.64rem; letter-spacing: .06em; flex: 0 0 3.4rem; }
   .hand .cards { flex: 1; flex-wrap: nowrap; overflow: hidden; }
@@ -322,9 +323,8 @@
 
   function handRow() {
     const h = $('hand'); h.innerHTML = '';
-    h.style.setProperty('--cap', cap);
     const cards = G.you.hand; const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const cardW = cap * 1.15 + 6, labelW = 3.4 * rem + 16;
+    const cardW = 70 + 6, labelW = 3.4 * rem + 16;
     const fitAll = Math.floor((h.clientWidth - labelW) / cardW);
     const paged = cards.length > fitAll;
     const visible = paged ? Math.max(1, Math.floor((h.clientWidth - labelW - 2 * 1.6 * rem - 7 * rem) / cardW)) : cards.length;
@@ -372,8 +372,9 @@
     let c = Math.min(cap, (W - (minPerRow - 1) * 3) / minPerRow);
     for (; (auto || elm.classList.contains('cell')) && c > 22; c -= 1) {
       let units = 0;
+      const Wb = elm.classList.contains('cell') ? W : W - (2 * c + 2.5 * rem);   // centre boards reserve the zone box's width
       for (const [n, sc] of rows) {
-        const perRow = Math.max(minPerRow, Math.floor((W + 3) / (c * sc + 3)));   // a row of this zone's cards fills the width
+        const perRow = Math.max(minPerRow, Math.floor((Wb + 3) / (c * sc + 3)));   // a row of this zone's cards fills the width
         units += Math.max(1, Math.ceil(n / perRow)) * sc * 1.4 + 0.06;
       }
       if (units * c <= H) break;
