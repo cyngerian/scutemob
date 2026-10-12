@@ -78,7 +78,7 @@
   .meta .piles { display: flex; gap: 4px; margin-left: auto; }
   .zonebox { position: absolute; right: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; padding: 6px; background: rgba(8,8,20,.78); border: 1px solid #33335a; border-radius: 8px; z-index: 3; }
   .board .zonebox { bottom: 8px; }
-  .focused .zonebox { top: 2.4rem; }
+  .focused .zonebox { top: 8px; }
   .zonebox .piles { display: contents; }
   .zonebox .cz, .zones5 .cz { margin: 0; padding: 3px; background: rgba(120,90,30,.28); border: 1px solid #7a6230; border-radius: 6px; }
   .zonebox .cz .lbl, .zones5 .cz .lbl { left: 3px; right: 3px; bottom: 3px; }
@@ -96,11 +96,10 @@
   .centre { grid-area: centre; display: grid; grid-template-rows: 42% minmax(0, 1fr) auto; gap: 6px; min-height: 0; min-width: 0; }
   .focused { position: relative; background: #121226; border: 1px solid #33335a; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: auto; }
   .focused.active { border-color: var(--active); }
-  .nameplate { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px 4px; border-bottom: 1px solid #33335a; }
+  .nameplate { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px; }
   .nameplate .line { display: flex; align-items: center; gap: 6px; }
   .nameplate .seat-name { font-size: 1.05rem; }
   .nameplate .life { margin: 0; font-size: 1.7rem; line-height: 1.1; }
-  .board .nameplate { border-color: #2e4a30; }
   .focused .zone.creatures { margin-top: auto; }
   .zone.creatures, .zone.others { overflow: visible; }
   .board { position: relative; background: #0f1a12; border: 1px solid #2a4a30; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: auto; }
@@ -174,6 +173,8 @@
   }
   .t7 .card .band { font-weight: 700; background: rgba(0,0,0,.9); line-height: 1.2; max-height: none; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; overflow-wrap: break-word; hyphens: auto; }
   .t7 .card .pt { font-weight: 800; }
+  .t7 .card .count { top: auto; bottom: 2px; right: 2px; font-size: clamp(8px, calc(var(--card) * var(--scale, 1) * 0.145), 17px); font-weight: 800; padding: 0 0.35em; }
+  .t7 .card .count ~ .tag.cmdr { top: auto; }
   .t7 .card.tapped { transform: rotate(8deg); }
   .t7 .card.tapped:hover { transform: rotate(8deg); }
 </style></head><body class="t6 t7">
@@ -294,7 +295,7 @@
 
   function focusedArea(o) {
     const f = $('focused'); f.innerHTML = ''; f.className = 'focused' + (o.active ? ' active' : '');
-    const np = el('div', 'nameplate' + (o.name === G.priority ? ' prio-ring' : ''), `<div class="line"><span class="badge" style="background:#334;color:#9bd">across</span><span class="seat-name">${o.name}</span>${o.active ? '<span class="badge active">active</span>' : ''}${o.name === G.priority ? '<span class="badge prio">priority</span>' : ''}</div><div class="life${o.life < 20 ? ' low' : ''}">${o.life}</div>`);
+    const np = el('div', 'nameplate' + (o.name === G.priority ? ' prio-ring' : ''), `<div class="line"><span class="seat-name">${o.name}</span>${o.active ? '<span class="badge active">active</span>' : ''}${o.name === G.priority ? '<span class="badge prio">priority</span>' : ''}</div><div class="life${o.life < 20 ? ' low' : ''}">${o.life}</div>`);
     np.oncontextmenu = (e) => ctxMenu(e, o);
     const meta = el('div', 'meta'); meta.append(el('span', '', `hand ${o.hand}`), oppHand(o)); f.append(meta);
     const zb = el('div', 'zonebox'); zb.append(np, commandZone(o), piles(o)); f.append(zb);
@@ -309,7 +310,7 @@
   function yourBoard() {
     const b = $('board'); b.innerHTML = '';
     b.className = 'board' + (G.active === 'Human-1' ? ' active' : '');
-    const np = el('div', 'nameplate' + (G.priority === 'Human-1' ? ' prio-ring' : ''), `<div class="line"><span class="badge" style="background:#443;color:#fd6">you</span><span class="seat-name">Human-1</span>${G.active === 'Human-1' ? '<span class="badge active">active</span>' : ''}${G.priority === 'Human-1' ? '<span class="badge prio">priority</span>' : ''}</div><div class="life">${G.you.life}</div>`);
+    const np = el('div', 'nameplate' + (G.priority === 'Human-1' ? ' prio-ring' : ''), `<div class="line"><span class="seat-name">Human-1</span>${G.active === 'Human-1' ? '<span class="badge active">active</span>' : ''}${G.priority === 'Human-1' ? '<span class="badge prio">priority</span>' : ''}</div><div class="life">${G.you.life}</div>`);
     np.oncontextmenu = (e) => ctxMenu(e, G.you);
     const z1 = el('div', 'zone creatures'); z1.append(el('div', 'row-label', `creatures ${G.you.creatures.length}`), grid8(G.you.creatures)); b.append(z1);
     const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', `other ${G.you.others.length}`), grid8(G.you.others)); b.append(z2);
