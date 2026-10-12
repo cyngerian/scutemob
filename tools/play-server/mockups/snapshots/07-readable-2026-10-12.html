@@ -1,0 +1,424 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>7 · Table, six players</title>
+<link rel="stylesheet" href="common-2026-10-12.css">
+<style>
+  /* 7 · TABLE for a six-player late game (owner's feedback on 6, 2026-10-12).
+     Same shape as 6 — you in the middle, focused opponent across the table,
+     the rest in the side columns (two per side), dock on the right — but:
+       · battlefield rows hold at most 8 cards; more cards start a new row and
+         the cards shrink so the whole board still fits its area (fitBoard)
+       · the hand shows up to 10 cards; past that, arrows page it sideways
+       · opponents' hands are card backs; revealed cards show face up
+       · library (top card face up if revealed), graveyard and exile are piles
+         with the top card showing, for every seat; click opens the pile
+       · the phase dial is gone; a horizontal phase track sits under the header
+       · (rev 2) every opponent keeps a fixed seat in the side columns; the focused
+         one is marked there and mirrored large at the top. Rows fill the width
+         before stacking (never fewer than 8 per row), so the size slider really
+         sets the size; hover shows a 300px card; names sit on top of the card.
+     Still no fixed pixel bands: fr / % / em and one --card cap per board. */
+  .app { display: grid; height: 100vh; gap: 6px; padding: 6px;
+         grid-template-columns: minmax(230px, 17%) minmax(0, 1fr) minmax(230px, 17%) 19rem;
+         grid-template-rows: 2.2rem 2rem minmax(0, 1fr);
+         grid-template-areas: 'top top top top' 'phase phase phase phase' 'left centre right dock'; }
+  .top { grid-area: top; display: flex; align-items: center; gap: 12px; padding: 0 8px; border-bottom: 1px solid var(--line); font-size: 0.8rem; }
+  .top .mock { display: flex; align-items: center; gap: 6px; margin-left: 1rem; padding: 2px 8px; border: 1px dashed #445; border-radius: 4px; color: #889; font-size: 0.7rem; }
+  .top .mock select, .top .mock input { font: inherit; background: #0f0f22; color: #ccd; border: 1px solid #33335a; border-radius: 3px; }
+  .top .spacer { margin-left: auto; }
+  .top .btn { padding: 2px 10px; font-size: 0.75rem; }
+
+  /* phase track */
+  .phase { grid-area: phase; display: flex; align-items: center; gap: 10px; padding: 0 8px; font-size: 0.78rem; }
+  .phase .turn { color: #adf; font-weight: bold; white-space: nowrap; }
+  .phase .who { color: #aab; white-space: nowrap; }
+  .phase .who.me { color: #6af; font-weight: bold; }
+  .track { display: flex; flex: 1; gap: 3px; align-items: stretch; height: 1.5rem; }
+  .seg { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; letter-spacing: .05em; color: #556; background: #12122a; border: 1px solid #22223a; border-radius: 3px; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+  .seg.past { color: #667; background: #16162e; }
+  .seg.combat { border-color: #4a3028; }
+  .seg.combat.past { background: #241a1a; }
+  .seg.now { color: #fff; background: #3a5aa0; border-color: #6a8ad0; font-weight: bold; flex: 1.6; box-shadow: 0 0 10px rgba(90,130,220,.5); }
+  .seg.now.combat { background: #a04a2a; border-color: #d07a4a; box-shadow: 0 0 10px rgba(220,120,60,.5); }
+  .phase .prio { white-space: nowrap; color: #889; }
+  .phase .prio.me { color: #fc8; font-weight: bold; }
+
+  /* seats */
+  .side { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
+  .side.left { grid-area: left; } .side.right { grid-area: right; }
+  .cell { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; cursor: pointer; flex: 1 1 0; overflow: auto; }
+  .cell:hover { border-color: #55558a; }
+  .cell .top { display: flex; align-items: flex-start; gap: 8px; }
+  .cell .who { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+  .cell .who .seat-name { font-size: 1rem; }
+  .cell .who .life { margin: 0; font-size: 1.6rem; line-height: 1.1; }
+  .zones5 { margin-left: auto; display: flex; gap: 5px; padding: 4px 5px; background: rgba(8,8,20,.75); border: 1px solid #3a3a66; border-radius: 6px; }
+  .t7 .cell .zones5 .card, .t7 .cell .zones5 .cz .card, .t7 .cell .zones5 .pile .card { --scale: 1.15; }
+  .zones5 .onbf, .zones5 .pile .empty { width: calc(var(--card) * 1.15); height: calc(var(--card) * 1.15 * 1.4); }
+  .zones5 .cz { margin: 0; }
+  .zones5 .piles { display: contents; }
+  .cell.active { border-color: var(--active); box-shadow: inset 0 0 0 1px var(--active); }
+  .cell.focused-cell { background: #171732; border-color: #6a6aa8; }
+  .cell.focused-cell .hdr::before { content: '▲ across'; font-size: 0.58rem; color: #9bd; background: #334; border-radius: 3px; padding: 0 4px; margin-right: 2px; }
+  .hdr { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.92rem; }
+  .hdr .counts { font-size: 0.84rem; color: #99a; }
+  .hdr .life { font-size: 1.35rem; }
+  .cmd { color: #aab; font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cmd b { color: #fd9; }
+  .zones { display: flex; flex-direction: column; gap: 4px; min-height: 0; flex: 1; }
+  .zone { display: flex; gap: 6px; min-height: 0; flex-shrink: 0; }
+  .zone .row-label { flex: 0 0 4.2rem; padding-top: 2px; color: #586; }
+  .zone .cards { gap: 3px; flex: 1; min-width: 0; }
+  .zone.lands .cards { --scale: 0.7; }
+  .meta { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #99a; min-height: 0; }
+  .cz { position: relative; margin-right: 6px; }
+  .cz .card { --scale: 0.7; }
+  .cz .onbf { width: calc(var(--card) * 0.7); height: calc(var(--card) * 0.7 * 1.4); border: 1px dashed #6a5a2a; border-radius: 4px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.56rem; color: #a98; padding: 2px; }
+  .cz .lbl { position: absolute; left: 0; right: 0; bottom: -0.1rem; text-align: center; font-size: 0.56rem; background: rgba(0,0,0,.8); color: #fd9; letter-spacing: .04em; }
+  .meta .handrow { display: flex; gap: 2px; align-items: center; }
+  .meta .handrow .card { --scale: 0.55; }
+  .meta .piles { display: flex; gap: 4px; margin-left: auto; }
+  .zonebox { position: absolute; right: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; padding: 6px; background: rgba(8,8,20,.78); border: 1px solid #33335a; border-radius: 8px; z-index: 3; }
+  .board .zonebox { bottom: 8px; }
+  .focused .zonebox { top: 2.4rem; }
+  .zonebox .piles { display: contents; }
+  .zonebox .cz { margin: 0; }
+  .t7 .zonebox .card, .t7 .zonebox .cz .card, .t7 .zonebox .pile .card { --scale: 1; }
+  .zonebox .onbf, .zonebox .pile .empty { width: var(--card); height: calc(var(--card) * 1.4); }
+  .t7 .cell .cz .card, .t7 .cell .pile .card { --scale: 0.7; }
+  .board .zone.lands, .board .zone.others, .focused .zone.lands, .focused .zone.others { padding-right: calc(var(--card) * 2 + 2.5rem); }
+  .pile { position: relative; cursor: pointer; }
+  .pile .card { --scale: 0.7; }
+  .pile .lbl { position: absolute; left: 0; right: 0; bottom: -0.1rem; text-align: center; font-size: 0.6rem; background: rgba(0,0,0,.8); color: #bbc; letter-spacing: .04em; }
+  .pile .empty { width: calc(var(--card) * 0.7); height: calc(var(--card) * 0.7 * 1.4); border: 1px dashed #3a3a5a; border-radius: 4px; }
+
+  /* centre */
+  .centre { grid-area: centre; display: grid; grid-template-rows: 42% minmax(0, 1fr) auto; gap: 6px; min-height: 0; min-width: 0; }
+  .focused { position: relative; background: #121226; border: 1px solid #33335a; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: auto; }
+  .focused.active { border-color: var(--active); }
+  .focused .hdr, .board .hdr { border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+  .focused .zone.creatures { margin-top: auto; }
+  .zone.creatures, .zone.others { overflow: visible; }
+  .board { position: relative; background: #0f1a12; border: 1px solid #2a4a30; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: auto; }
+  .board.active { border-color: var(--you); }
+  .board .hdr { border-bottom-color: #1e3a22; }
+  .board .zone.lands { margin-top: auto; border-top: 1px solid #1e3a22; padding-top: 5px; }
+  .board .meta { border-top: 1px solid #1e3a22; padding-top: 4px; }
+  #hand { --card: calc(var(--cap, 84) * 1.15px); }
+  .hand { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: #0d0d1a; border: 1px solid var(--line); border-radius: 8px; }
+  .hand .label { color: #88a; font-size: 0.64rem; letter-spacing: .06em; flex: 0 0 3.4rem; }
+  .hand .cards { flex: 1; flex-wrap: nowrap; overflow: hidden; }
+  .hand .arrow { flex: 0 0 auto; width: 1.6rem; align-self: stretch; display: flex; align-items: center; justify-content: center; background: #1c1c38; border: 1px solid #33335a; border-radius: 4px; color: #ccd; cursor: pointer; }
+  .hand .arrow:disabled { opacity: .25; cursor: default; }
+
+  /* dock */
+  .dock { grid-area: dock; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 6px; min-height: 0; }
+  .dock > div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-height: 0; }
+  .stack-box { overflow: auto; }
+  .prompt-box .p-sentence { font-size: 0.88rem; }
+  .prompt-box .p-buttons { flex-direction: column; }
+  .prompt-box .btn.primary { font-size: 0.95rem; padding: 10px; }
+  .prompt-box .waiting { color: #667; font-style: italic; padding: 10px 0; }
+
+  /* per-board card sizing: every card box is --card × --scale; fitBoard sets --card per board */
+  .t7 .card { --scale: 1; }
+  .t7 .card.perm, .t7 .card.small, .t7 .card.mini, .t7 .card.hand { width: calc(var(--card) * var(--scale)); height: calc(var(--card) * var(--scale) * 1.4); }
+  .t7 .zone.lands .card { --scale: 0.7; }
+  .t7 .pile .card { --scale: 0.7; }
+  .t7 .meta .handrow .card { --scale: 0.55; }
+  .t7 .card .band { font-size: 0.66rem; line-height: 1.15; top: 0; bottom: auto; white-space: normal; max-height: 2.4em; overflow: hidden; padding: 2px 3px; font-weight: 600; letter-spacing: 0; }
+  .t7 .card:hover, .t7 .card.mini:hover, .t7 .card.small:hover { transform: none; outline: 2px solid #9bd; z-index: 5; box-shadow: none; }
+  .t7 .card.tapped:hover { transform: rotate(6deg); }
+
+  /* ---- legibility pass (1920x1080 screenshot, 2026-10-12): everything that was
+     a grey on a dark grey gets a real colour and a size ---- */
+  .app { grid-template-rows: 2.2rem 2.5rem minmax(0, 1fr); }
+  .phase { font-size: 0.92rem; gap: 14px; }
+  .phase .turn { font-size: 1rem; color: #cfe; }
+  .phase .who { color: #ccd; font-size: 0.92rem; }
+  .track { height: 1.9rem; gap: 4px; }
+  .seg { font-size: 0.78rem; color: #aab; background: #161634; border-color: #2e2e52; letter-spacing: .06em; }
+  .seg.past { color: #889; background: #121228; }
+  .seg.combat { color: #e8b090; border-color: #5a3a2a; }
+  .seg.combat.past { color: #a07860; }
+  .seg.now { color: #fff; font-size: 0.86rem; }
+  .phase .prio { color: #bbc; font-size: 0.92rem; }
+  .phase .prio.me { color: #ffd080; }
+  .zone .row-label { font-size: 0.72rem; color: #8fb59a; font-weight: 600; padding-top: 3px; }
+  .focused .zone .row-label { color: #9aa8d0; }
+  .pile .lbl, .cz .lbl { font-size: 0.68rem; font-weight: 700; color: #f2f2f8; background: rgba(0,0,0,.85); }
+  .cz .lbl { color: #ffd890; }
+  .cz .onbf { font-size: 0.64rem; color: #d8c8a8; border-color: #8a7a4a; }
+  .meta { font-size: 0.86rem; color: #bbc; }
+  .panel-title { font-size: 0.72rem; color: #aab; font-weight: 600; }
+  .s-who { font-size: 0.74rem; color: #aab; }
+  .s-text { font-size: 0.8rem; color: #ccd; }
+  .s-name { font-size: 1rem; }
+  .hand .label { font-size: 0.76rem; color: #aab; font-weight: 600; }
+  .hand .dim { color: #aab; font-size: 0.8rem; }
+  .dim { color: #8890a8; }
+  .prompt-box .waiting { color: #99a; }
+  .hdr .counts { color: #aab; }
+  .t7 .card .band { font-size: clamp(8px, calc(var(--card) * var(--scale, 1) * 0.135), 13px); }
+  .t7 .card .pt { font-size: clamp(8px, calc(var(--card) * var(--scale, 1) * 0.145), 17px); }
+  .cell .zone.lands .row-label { color: #8fb59a; }
+
+  /* card text: a sans-serif at weight 700, no shadow, crisp; tapped tilts only the art */
+  .t7 .card .band, .t7 .card .pt, .t7 .card .count, .t7 .card .tag, .pile .lbl, .cz .lbl, .cz .onbf {
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; text-shadow: none; letter-spacing: 0;
+  }
+  .t7 .card .band { font-weight: 700; background: rgba(0,0,0,.9); line-height: 1.2; max-height: none; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; overflow-wrap: break-word; hyphens: auto; }
+  .t7 .card .pt { font-weight: 800; }
+  .t7 .card.tapped { transform: rotate(8deg); }
+  .t7 .card.tapped:hover { transform: rotate(8deg); }
+</style></head><body class="t6 t7">
+<div class="app">
+  <div class="top">
+    <b style="color:#adf">scutemob</b><span class="dim">seed 3 · <span id="seats">6</span> seats</span>
+    <span class="mock">mockup state <select id="state"></select> · card size <input id="size" type="range" min="44" max="140"> <span id="sizev"></span> <label><input id="auto" type="checkbox" checked> auto-fit</label> · <span id="vp"></span> <button class="btn" id="nextturn">next turn ↻</button></span>
+    <span class="spacer"></span>
+    <button class="btn" id="popout">card window ↗</button>
+    <button class="btn">log</button>
+    <button class="btn">≡ menu</button>
+  </div>
+  <div class="phase" id="phase"></div>
+  <div class="side left" id="left"></div>
+  <div class="centre">
+    <div class="focused" id="focused"></div>
+    <div class="board" id="board"></div>
+    <div class="hand" id="hand"></div>
+  </div>
+  <div class="side right" id="right"></div>
+  <div class="dock">
+    <div class="stack-box"><div class="panel-title">Stack</div><div id="stack"></div></div>
+    <div class="prompt-box" id="prompt"></div>
+  </div>
+</div>
+<script src="common-2026-10-12.js"></script>
+<script>
+  const PER_ROW = 8, HAND_VISIBLE = 10;
+  const params = new URLSearchParams(location.search);
+  let stateId = Number(params.get('state')) || 5;
+  let S = STATES[stateId](); let G = S.game; let focus = S.focus; let handOffset = 0;
+  const $ = (id) => document.getElementById(id);
+
+  // ---- mockup controls ----------------------------------------------------
+  const sel = $('state');
+  for (const k of Object.keys(STATES)) { const o = document.createElement('option'); o.value = k; o.textContent = `${k} · ${STATES[k]().label}`; sel.append(o); }
+  sel.value = stateId;
+  sel.onchange = () => { stateId = Number(sel.value); S = STATES[stateId](); G = S.game; focus = S.focus; handOffset = 0; render(); };
+  let cap = 84; try { cap = Number(localStorage.getItem('t7-cap')) || 84; } catch {}
+  const size = $('size'); size.value = cap; $('sizev').textContent = cap + 'px';
+  let auto = true; try { auto = localStorage.getItem('t7-auto') !== '0'; } catch {}
+  $('auto').checked = auto;
+  $('auto').onchange = () => { auto = $('auto').checked; try { localStorage.setItem('t7-auto', auto ? '1' : '0'); } catch {} fitAll(); };
+  size.oninput = () => { cap = Number(size.value); $('sizev').textContent = cap + 'px'; auto = false; $('auto').checked = false; try { localStorage.setItem('t7-cap', cap); localStorage.setItem('t7-auto', '0'); } catch {} fitAll(); };
+  const vp = () => { $('vp').textContent = `viewport ${innerWidth}×${innerHeight}`; }; vp(); addEventListener('resize', vp);
+  $('popout').onclick = () => window.open('card-window.html', 'scutemob-card', 'width=760,height=1060');
+  $('nextturn').onclick = () => {
+    const order = ['Human-1', ...G.opps.map((o) => o.name)];
+    const next = order[(order.indexOf(G.active) + 1) % order.length];
+    G.active = next; G.priority = next; G.step = 'Untap';
+    G.opps.forEach((o) => { o.active = o.name === next; });
+    if (next !== 'Human-1') focus = next;
+    G.prompt = next === 'Human-1' ? { sentence: 'Your untap step.', buttons: [{ t: 'Pass priority', key: 'space', primary: true }] } : { sentence: `${next} is deciding…`, buttons: [], waiting: true };
+    G.you.hand.forEach((c) => { delete c.lit; });
+    render();
+  };
+
+  // ---- pieces --------------------------------------------------------------
+  function seatHdr(p, extra = '') {
+    const hand = Array.isArray(p.hand) ? p.hand.length : p.hand;
+    return `<span class="seat-name">${p.name}</span>${p.active ? ' <span class="badge active">active</span>' : ''}${p.name === G.priority ? ' <span class="badge prio">priority</span>' : ''}<span class="counts">hand ${hand} · lib ${p.lib} · gy ${(p.gyCards || []).length} · ex ${(p.exileCards || []).length}</span>${extra}<span class="life${p.life < 20 ? ' low' : ''}">${p.life}</span>`;
+  }
+  function grid8(list, cls = '') { const r = cardsRow(list, 'perm', cls); r.classList.add('grid8'); return r; }
+  function pile(label, top, count, onclick) {
+    const p = el('div', 'pile'); p.title = `${label} (${count})`;
+    p.append(top ? cardEl(top, 'perm') : el('div', 'empty'));
+    p.append(el('div', 'lbl', `${label} ${count}`));
+    p.onclick = (e) => { e.stopPropagation(); onclick(e); };
+    return p;
+  }
+  function piles(p, e) {
+    const d = el('div', 'piles');
+    d.append(pile('LIB', p.libTop ? { n: p.libTop } : { back: true }, p.lib, (ev) => pilePopover(ev, `${p.name}'s library`, p.libTop ? [{ n: p.libTop }] : [], 'top card revealed' )));
+    d.append(pile('GY', p.gyCards?.[0], (p.gyCards || []).length, (ev) => pilePopover(ev, `${p.name}'s graveyard`, p.gyCards || [])));
+    d.append(pile('EX', p.exileCards?.[0], (p.exileCards || []).length, (ev) => pilePopover(ev, `${p.name}'s exile`, p.exileCards || [])));
+    return d;
+  }
+  function commandZone(p) {
+    const d = el('div', 'cz'); d.title = 'command zone';
+    if (p.inCommandZone) d.append(cardEl({ n: p.commander, cmd: true }, 'perm')); else d.append(el('div', 'onbf', 'cmdr on battlefield'));
+    d.append(el('div', 'lbl', `CMD${p.commanderTax ? ' · tax ' + p.commanderTax : ''}`));
+    return d;
+  }
+  function handPile(o) {
+    const n = o.handCards ? o.handCards.length : o.hand;
+    const revealed = (o.handCards || []).filter((c) => !c.back);
+    return pile('HAND', { back: true }, n, (ev) => pilePopover(ev, `${o.name}'s hand`, (o.handCards || Array.from({ length: n }, () => ({ back: true }))).map((c) => (c.back ? { back: true } : { n: c.n })), revealed.length ? `${revealed.length} revealed` : 'all hidden'));
+  }
+  function oppHand(o, scale) {
+    const h = el('div', 'handrow');
+    (o.handCards || Array.from({ length: o.hand }, () => ({ back: true }))).forEach((c) => h.append(cardEl(c.back ? { back: true } : { n: c.n }, 'perm')));
+    return h;
+  }
+  function landsAsCards(l) {
+    const list = [];
+    if (l.total - l.tapped > 0) list.push({ n: 'Forest', count: l.total - l.tapped });
+    if (l.tapped > 0) list.push({ n: 'Forest', count: l.tapped, tapped: true });
+    return cardsRow(list, 'perm');
+  }
+
+  function sideCell(o) {
+    const d = el('div', 'cell' + (o.active ? ' active' : '') + (o.name === G.priority ? ' prio-ring' : '') + (o.name === focus ? ' focused-cell' : ''));
+    const top = el('div', 'top');
+    const who = el('div', 'who', `<div><span class="seat-name">${o.name}</span>${o.active ? ' <span class="badge active">active</span>' : ''}${o.name === G.priority ? ' <span class="badge prio">priority</span>' : ''}</div><div class="life${o.life < 20 ? ' low' : ''}">${o.life}</div>`);
+    const z5 = el('div', 'zones5'); z5.append(commandZone(o), handPile(o), piles(o));
+    top.append(who, z5); d.append(top);
+    const z = el('div', 'zones');
+    const z1 = el('div', 'zone creatures'); z1.append(grid8(o.creatures.concat(o.others))); z.append(z1);
+    const z2 = el('div', 'zone lands'); z2.append(el('div', 'row-label', `lands ${o.lands.total - o.lands.tapped}/${o.lands.total}`), landsAsCards(o.lands)); z.append(z2);
+    d.append(z);
+    d.onclick = () => { focus = o.name; render(); };
+    d.oncontextmenu = (e) => ctxMenu(e, o);
+    d.dataset.rows = JSON.stringify([[1, 1.15], [o.creatures.length + o.others.length, 1], [2, 0.7]]);   // top row: the five zone piles at 1.15
+    d.dataset.overhead = '2.4';
+    d.dataset.label = '0';
+    return d;
+  }
+
+  function focusedArea(o) {
+    const f = $('focused'); f.innerHTML = ''; f.className = 'focused' + (o.active ? ' active' : '');
+    const hdr = el('div', 'hdr' + (o.name === G.priority ? ' prio-ring' : ''), `<span class="badge" style="background:#334;color:#9bd">across</span> ${seatHdr(o, `<span class="cmd">★ <b>${o.commander}</b></span>`)}`);
+    hdr.oncontextmenu = (e) => ctxMenu(e, o); f.append(hdr);
+    const meta = el('div', 'meta'); meta.append(el('span', '', `hand ${o.hand}`), oppHand(o)); f.append(meta);
+    const zb = el('div', 'zonebox'); zb.append(commandZone(o), piles(o)); f.append(zb);
+    const z1 = el('div', 'zone lands'); z1.append(el('div', 'row-label', `lands ${o.lands.total}`), landsAsCards(o.lands)); f.append(z1);
+    const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', `other ${o.others.length}`), grid8(o.others)); f.append(z2);
+    const z3 = el('div', 'zone creatures'); z3.append(el('div', 'row-label', `creatures ${o.creatures.length}`), grid8(o.creatures)); f.append(z3);
+    const maxC = Math.max(...G.opps.map((x) => x.creatures.length)), maxO = Math.max(...G.opps.map((x) => x.others.length));
+    f.dataset.rows = JSON.stringify([[1, 0.55], [maxC, 1], [maxO, 1], [2, 0.7]]);
+    f.dataset.overhead = '3.2';
+  }
+
+  function yourBoard() {
+    const b = $('board'); b.innerHTML = '';
+    b.className = 'board' + (G.active === 'Human-1' ? ' active' : '') + (G.priority === 'Human-1' ? ' prio-ring' : '');
+    const hdr = el('div', 'hdr', `<span class="badge" style="background:#443;color:#fd6">you</span> ${seatHdr(G.you, `<span class="cmd">★ <b>${G.you.commander}</b></span>`)}`);
+    hdr.oncontextmenu = (e) => ctxMenu(e, G.you); b.append(hdr);
+    const z1 = el('div', 'zone creatures'); z1.append(el('div', 'row-label', `creatures ${G.you.creatures.length}`), grid8(G.you.creatures)); b.append(z1);
+    const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', `other ${G.you.others.length}`), grid8(G.you.others)); b.append(z2);
+    const z3 = el('div', 'zone lands'); z3.append(el('div', 'row-label', `lands ${G.you.lands.reduce((a, c) => a + (c.count || 1), 0)}`), cardsRow(G.you.lands, 'perm'));
+    const you = { ...G.you, name: 'Human-1' };
+    b.append(z3);
+    const zb = el('div', 'zonebox'); zb.append(commandZone({ ...you, inCommandZone: false }), piles(you)); b.append(zb);
+    b.dataset.rows = JSON.stringify([[G.you.creatures.length, 1], [G.you.others.length, 1], [G.you.lands.length, 0.7]]);
+    b.dataset.overhead = '5';
+  }
+
+  function handRow() {
+    const h = $('hand'); h.innerHTML = '';
+    h.style.setProperty('--cap', cap);
+    const cards = G.you.hand; const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const cardW = cap * 1.15 + 6, labelW = 3.4 * rem + 16;
+    const fitAll = Math.floor((h.clientWidth - labelW) / cardW);
+    const paged = cards.length > fitAll;
+    const visible = paged ? Math.max(1, Math.floor((h.clientWidth - labelW - 2 * 1.6 * rem - 7 * rem) / cardW)) : cards.length;
+    const max = Math.max(0, cards.length - visible); handOffset = Math.min(handOffset, max);
+    h.append(el('div', 'label', `HAND ${cards.length}`));
+    const row = el('div', 'cards'); cards.slice(handOffset, handOffset + visible).forEach((c) => row.append(cardEl(c, 'hand')));
+    if (paged) {
+      const left = el('button', 'arrow', '◀'); left.disabled = handOffset === 0; left.onclick = () => { handOffset--; handRow(); };
+      const right = el('button', 'arrow', '▶'); right.disabled = handOffset >= max; right.onclick = () => { handOffset++; handRow(); };
+      h.append(left, row, right, el('span', 'dim', `${handOffset + 1}–${Math.min(cards.length, handOffset + visible)} of ${cards.length}`));
+    } else h.append(row);
+  }
+
+  function phaseTrack() {
+    const i = GAME.steps.indexOf(G.step); const p = $('phase'); p.innerHTML = '';
+    p.append(el('span', 'turn', `TURN ${G.turn}`), el('span', 'who' + (G.active === 'Human-1' ? ' me' : ''), G.active === 'Human-1' ? 'your turn' : `${G.active}'s turn`));
+    const t = el('div', 'track');
+    GAME.steps.forEach((s, k) => t.append(el('div', 'seg' + (k < i ? ' past' : '') + (k === i ? ' now' : '') + (k >= 4 && k <= 8 ? ' combat' : ''), (k >= 4 && k <= 8 ? '⚔ ' : '') + s)));
+    p.append(t, el('span', 'prio' + (G.priority === 'Human-1' ? ' me' : ''), `priority: ${G.priority === 'Human-1' ? 'YOU' : G.priority}`));
+  }
+
+  function stackAndPrompt() {
+    const s = $('stack'); s.innerHTML = '';
+    if (G.stack.length === 0) s.append(el('div', 'dim', 'empty'));
+    [...G.stack].reverse().forEach((x, k) => s.append(el('div', 'stack-item' + (k === 0 ? ' top' : ''), `<div class="s-who">${x.who} cast${k === 0 ? ' · resolves next' : ''}</div><div class="s-name">${x.n}</div><div class="s-text">${x.text}</div>`)));
+    const p = $('prompt'); p.innerHTML = '';
+    p.append(el('div', 'panel-title', G.priority === 'Human-1' ? 'Your decision' : 'Waiting'));
+    if (G.prompt.waiting) { p.append(el('div', 'waiting', G.prompt.sentence)); return; }
+    const pr = el('div', 'prompt'); pr.append(el('div', 'p-sentence', G.prompt.sentence));
+    const b = el('div', 'p-buttons'); G.prompt.buttons.forEach((x) => b.append(el('button', 'btn' + (x.primary ? ' primary' : '') + (x.lit ? ' lit' : ''), x.t + (x.key ? ` <kbd>${x.key}</kbd>` : '')))); pr.append(b); p.append(pr);
+  }
+
+  // ---- fit: the one card size per board that makes its rows fit the box ----
+  // rows = [[n, scale], …] per zone; a zone of n cards at PER_ROW per row needs
+  // ceil(n/PER_ROW) rows of (card·scale·1.4) height. Width: PER_ROW cards + gaps + label.
+  function fitBoard(elm) {
+    if (!elm.dataset.rows) return;
+    const rows = JSON.parse(elm.dataset.rows); const minPerRow = Number(elm.dataset.perRow || PER_ROW);
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const H = elm.clientHeight - Number(elm.dataset.overhead || 0) * rem - rows.length * 6;
+    const W = elm.clientWidth - Number(elm.dataset.label ?? 4.6) * rem - 20;
+    // never wider than minPerRow-per-row allows; then shrink until the stacked rows fit the height
+    let c = Math.min(cap, (W - (minPerRow - 1) * 3) / minPerRow);
+    for (; auto && c > 22; c -= 1) {
+      let units = 0;
+      for (const [n, sc] of rows) {
+        const perRow = Math.max(minPerRow, Math.floor((W + 3) / (c * sc + 3)));   // a row of this zone's cards fills the width
+        units += Math.max(1, Math.ceil(n / perRow)) * sc * 1.4 + 0.06;
+      }
+      if (units * c <= H) break;
+    }
+    c = Math.max(22, c);
+    elm.style.setProperty('--card', c.toFixed(1) + 'px');
+    elm.style.setProperty('--cardn', c.toFixed(1));
+  }
+  function fitAll() {
+    document.querySelectorAll('[data-rows]').forEach(fitBoard);
+    const cells = [...document.querySelectorAll('.cell[data-rows]')];
+    if (cells.length) {
+      const c = Math.min(...cells.map((e) => parseFloat(e.style.getPropertyValue('--card'))));
+      cells.forEach((e) => { e.style.setProperty('--card', c.toFixed(1) + 'px'); e.style.setProperty('--cardn', c.toFixed(1)); });
+    }
+    handRow();
+  }
+  new ResizeObserver(fitAll).observe(document.body);
+
+  function render() {
+    const L = $('left'), Rr = $('right'); L.innerHTML = ''; Rr.innerHTML = '';
+    G.opps.forEach((o, k) => (k % 2 === 0 ? L : Rr).append(sideCell(o)));
+    focusedArea(G.opps.find((o) => o.name === focus));
+    yourBoard(); handRow(); phaseTrack(); stackAndPrompt();
+    $('seats').textContent = G.opps.length + 1;
+    fitAll();
+  }
+
+  // ---- context menu + popovers ---------------------------------------------
+  function closeFloating() { document.querySelectorAll('.ctx, .popover').forEach((n) => n.remove()); }
+  document.addEventListener('mousedown', (e) => { if (!e.target.closest('.ctx, .popover')) closeFloating(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeFloating(); });
+  function ctxMenu(e, p) {
+    e.preventDefault(); e.stopPropagation(); closeFloating();
+    const m = el('div', 'ctx'); m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px';
+    m.append(el('div', 'ctx-title', p.name));
+    const gy = el('button', '', `View graveyard (${(p.gyCards || []).length})`); gy.onclick = () => pilePopover(e, `${p.name}'s graveyard`, p.gyCards || []); m.append(gy);
+    const ex = el('button', '', `View exile (${(p.exileCards || []).length})`); ex.onclick = () => pilePopover(e, `${p.name}'s exile`, p.exileCards || []); m.append(ex);
+    m.append(el('button', '', 'Commander damage'));
+    if (p.name !== 'Human-1' && p.name !== focus) { const f = el('button', '', 'Bring across the table'); f.onclick = () => { focus = p.name; closeFloating(); render(); }; m.append(f); }
+    document.body.append(m);
+    const r = m.getBoundingClientRect(); if (r.right > innerWidth) m.style.left = (innerWidth - r.width - 8) + 'px'; if (r.bottom > innerHeight) m.style.top = (innerHeight - r.height - 8) + 'px';
+  }
+  function pilePopover(e, title, cards, note) {
+    closeFloating();
+    const p = el('div', 'popover'); p.style.setProperty('--card', '80px');
+    p.append(el('div', 'panel-title', `<span>${title} · ${cards.length}${note ? ' · ' + note : ''}</span><span style="cursor:pointer" onclick="this.closest('.popover').remove()">✕</span>`));
+    const g = cards.length ? grid8(cards) : el('div', 'dim', 'nothing to show');
+    p.append(g);
+    p.style.left = Math.min(e.clientX, innerWidth - 720) + 'px'; p.style.top = Math.min(e.clientY, innerHeight - 320) + 'px';
+    document.body.append(p);
+  }
+
+  render();
+</script></body></html>
