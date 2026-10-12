@@ -91,3 +91,7 @@ kbd { font-size: 0.7em; border: 1px solid #556; border-radius: 3px; padding: 0 3
 .card.back { background: repeating-linear-gradient(135deg, #2a1f3d 0 4px, #1c1430 4px 8px); border-color: #4a3a6a; }
 .card.back::after { content: ''; position: absolute; inset: 14%; border: 1px solid #5a4a7a; border-radius: 4px; opacity: .7; }
 .card.back .count { right: 2px; top: 2px; }
+
+/* the hover card overlay */
+.hover-card { position: fixed; z-index: 100; width: 320px; pointer-events: none; display: none; filter: drop-shadow(0 10px 30px rgba(0,0,0,.9)); }
+.hover-card img { width: 100%; display: block; border-radius: 4.5% / 3.2%; }

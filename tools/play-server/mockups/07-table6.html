@@ -44,34 +44,42 @@
   /* seats */
   .side { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
   .side.left { grid-area: left; } .side.right { grid-area: right; }
-  .cell { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; cursor: pointer; flex: 1 1 0; overflow: hidden; }
+  .cell { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; cursor: pointer; flex: 1 1 0; overflow: auto; }
   .cell:hover { border-color: #55558a; }
   .cell.active { border-color: var(--active); box-shadow: inset 0 0 0 1px var(--active); }
   .cell.focused-cell { background: #171732; border-color: #6a6aa8; }
   .cell.focused-cell .hdr::before { content: '▲ across'; font-size: 0.58rem; color: #9bd; background: #334; border-radius: 3px; padding: 0 4px; margin-right: 2px; }
-  .hdr { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-  .cmd { color: var(--dim); font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hdr { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.92rem; }
+  .hdr .counts { font-size: 0.84rem; color: #99a; }
+  .hdr .life { font-size: 1.35rem; }
+  .cmd { color: #aab; font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cmd b { color: #fd9; }
   .zones { display: flex; flex-direction: column; gap: 4px; min-height: 0; flex: 1; }
-  .zone { display: flex; gap: 6px; min-height: 0; }
+  .zone { display: flex; gap: 6px; min-height: 0; flex-shrink: 0; }
   .zone .row-label { flex: 0 0 4.2rem; padding-top: 2px; color: #586; }
   .zone .cards { gap: 3px; flex: 1; min-width: 0; }
   .zone.lands .cards { --scale: 0.7; }
-  .meta { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #889; min-height: 0; }
+  .meta { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #99a; min-height: 0; }
+  .cz { position: relative; margin-right: 6px; }
+  .cz .card { --scale: 0.7; }
+  .cz .onbf { width: calc(var(--card) * 0.7); height: calc(var(--card) * 0.7 * 1.4); border: 1px dashed #6a5a2a; border-radius: 4px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.56rem; color: #a98; padding: 2px; }
+  .cz .lbl { position: absolute; left: 0; right: 0; bottom: -0.1rem; text-align: center; font-size: 0.56rem; background: rgba(0,0,0,.8); color: #fd9; letter-spacing: .04em; }
   .meta .handrow { display: flex; gap: 2px; align-items: center; }
   .meta .handrow .card { --scale: 0.55; }
   .meta .piles { display: flex; gap: 4px; margin-left: auto; }
   .pile { position: relative; cursor: pointer; }
   .pile .card { --scale: 0.7; }
-  .pile .lbl { position: absolute; left: 0; right: 0; bottom: -0.1rem; text-align: center; font-size: 0.56rem; background: rgba(0,0,0,.8); color: #bbc; letter-spacing: .04em; }
+  .pile .lbl { position: absolute; left: 0; right: 0; bottom: -0.1rem; text-align: center; font-size: 0.6rem; background: rgba(0,0,0,.8); color: #bbc; letter-spacing: .04em; }
   .pile .empty { width: calc(var(--card) * 0.7); height: calc(var(--card) * 0.7 * 1.4); border: 1px dashed #3a3a5a; border-radius: 4px; }
 
   /* centre */
   .centre { grid-area: centre; display: grid; grid-template-rows: 42% minmax(0, 1fr) auto; gap: 6px; min-height: 0; min-width: 0; }
-  .focused { background: #121226; border: 1px solid #33335a; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: hidden; }
+  .focused { background: #121226; border: 1px solid #33335a; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: auto; }
   .focused.active { border-color: var(--active); }
   .focused .hdr, .board .hdr { border-bottom: 1px solid var(--line); padding-bottom: 3px; }
   .focused .zone.creatures { margin-top: auto; }
-  .board { background: #0f1a12; border: 1px solid #2a4a30; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: hidden; }
+  .zone.creatures, .zone.others { overflow: visible; }
+  .board { background: #0f1a12; border: 1px solid #2a4a30; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: auto; }
   .board.active { border-color: var(--you); }
   .board .hdr { border-bottom-color: #1e3a22; }
   .board .zone.lands { margin-top: auto; border-top: 1px solid #1e3a22; padding-top: 5px; }
@@ -97,17 +105,14 @@
   .t7 .zone.lands .card { --scale: 0.7; }
   .t7 .pile .card { --scale: 0.7; }
   .t7 .meta .handrow .card { --scale: 0.55; }
-  .t7 .card .band { font-size: 0.55rem; top: 0; bottom: auto; }
-  .t7 .card { --hover: calc(300 / var(--cardn, 72)); }
+  .t7 .card .band { font-size: 0.66rem; line-height: 1.15; top: 0; bottom: auto; white-space: normal; max-height: 2.4em; overflow: hidden; padding: 2px 3px; font-weight: 600; letter-spacing: 0; }
   .t7 .card .pt { font-size: 0.58rem; bottom: 1px; }
-  .t7 .card:hover { transform: scale(var(--hover)); z-index: 30; }
-  .t7 .card.tapped:hover { transform: scale(var(--hover)) rotate(6deg); }
-  .t7 .card:hover .band, .t7 .card:hover .pt { display: block; font-size: 0.32rem; }
+  .t7 .card:hover { outline: 2px solid #9bd; z-index: 5; }
 </style></head><body class="t6 t7">
 <div class="app">
   <div class="top">
     <b style="color:#adf">scutemob</b><span class="dim">seed 3 · <span id="seats">6</span> seats</span>
-    <span class="mock">mockup state <select id="state"></select> · card cap <input id="size" type="range" min="44" max="120"> <span id="sizev"></span> <button class="btn" id="nextturn">next turn ↻</button></span>
+    <span class="mock">mockup state <select id="state"></select> · card size <input id="size" type="range" min="44" max="140"> <span id="sizev"></span> <label><input id="auto" type="checkbox" checked> auto-fit</label> · <span id="vp"></span> <button class="btn" id="nextturn">next turn ↻</button></span>
     <span class="spacer"></span>
     <button class="btn" id="popout">card window ↗</button>
     <button class="btn">log</button>
@@ -141,7 +146,11 @@
   sel.onchange = () => { stateId = Number(sel.value); S = STATES[stateId](); G = S.game; focus = S.focus; handOffset = 0; render(); };
   let cap = 84; try { cap = Number(localStorage.getItem('t7-cap')) || 84; } catch {}
   const size = $('size'); size.value = cap; $('sizev').textContent = cap + 'px';
-  size.oninput = () => { cap = Number(size.value); $('sizev').textContent = cap + 'px'; try { localStorage.setItem('t7-cap', cap); } catch {} fitAll(); };
+  let auto = true; try { auto = localStorage.getItem('t7-auto') !== '0'; } catch {}
+  $('auto').checked = auto;
+  $('auto').onchange = () => { auto = $('auto').checked; try { localStorage.setItem('t7-auto', auto ? '1' : '0'); } catch {} fitAll(); };
+  size.oninput = () => { cap = Number(size.value); $('sizev').textContent = cap + 'px'; auto = false; $('auto').checked = false; try { localStorage.setItem('t7-cap', cap); localStorage.setItem('t7-auto', '0'); } catch {} fitAll(); };
+  const vp = () => { $('vp').textContent = `viewport ${innerWidth}×${innerHeight}`; }; vp(); addEventListener('resize', vp);
   $('popout').onclick = () => window.open('card-window.html', 'scutemob-card', 'width=760,height=1060');
   $('nextturn').onclick = () => {
     const order = ['Human-1', ...G.opps.map((o) => o.name)];
@@ -174,6 +183,12 @@
     d.append(pile('EX', p.exileCards?.[0], (p.exileCards || []).length, (ev) => pilePopover(ev, `${p.name}'s exile`, p.exileCards || [])));
     return d;
   }
+  function commandZone(p) {
+    const d = el('div', 'cz'); d.title = 'command zone';
+    if (p.inCommandZone) d.append(cardEl({ n: p.commander, cmd: true }, 'perm')); else d.append(el('div', 'onbf', 'cmdr on battlefield'));
+    d.append(el('div', 'lbl', `CMD${p.commanderTax ? ' · tax ' + p.commanderTax : ''}`));
+    return d;
+  }
   function oppHand(o, scale) {
     const h = el('div', 'handrow');
     (o.handCards || Array.from({ length: o.hand }, () => ({ back: true }))).forEach((c) => h.append(cardEl(c.back ? { back: true } : { n: c.n }, 'perm')));
@@ -188,8 +203,8 @@
 
   function sideCell(o) {
     const d = el('div', 'cell' + (o.active ? ' active' : '') + (o.name === G.priority ? ' prio-ring' : '') + (o.name === focus ? ' focused-cell' : ''));
-    d.append(el('div', 'hdr', seatHdr(o)), el('div', 'cmd', `★ ${o.commander}`));
-    const meta = el('div', 'meta'); meta.append(el('span', '', 'hand'), oppHand(o), piles(o)); d.append(meta);
+    d.append(el('div', 'hdr', seatHdr(o)), el('div', 'cmd', `★ <b>${o.commander}</b>${o.inCommandZone ? ' · in command zone' : ''}`));
+    const meta = el('div', 'meta'); meta.append(commandZone(o), el('span', '', 'hand'), oppHand(o), piles(o)); d.append(meta);
     const z = el('div', 'zones');
     const z1 = el('div', 'zone creatures'); z1.append(grid8(o.creatures.concat(o.others))); z.append(z1);
     const z2 = el('div', 'zone lands'); z2.append(el('div', 'row-label', `lands ${o.lands.total - o.lands.tapped}/${o.lands.total}`), landsAsCards(o.lands)); z.append(z2);
@@ -204,9 +219,9 @@
 
   function focusedArea(o) {
     const f = $('focused'); f.innerHTML = ''; f.className = 'focused' + (o.active ? ' active' : '');
-    const hdr = el('div', 'hdr' + (o.name === G.priority ? ' prio-ring' : ''), `<span class="badge" style="background:#334;color:#9bd">across</span> ${seatHdr(o, `<span class="counts">★ ${o.commander}</span>`)}`);
+    const hdr = el('div', 'hdr' + (o.name === G.priority ? ' prio-ring' : ''), `<span class="badge" style="background:#334;color:#9bd">across</span> ${seatHdr(o, `<span class="cmd">★ <b>${o.commander}</b></span>`)}`);
     hdr.oncontextmenu = (e) => ctxMenu(e, o); f.append(hdr);
-    const meta = el('div', 'meta'); meta.append(el('span', '', `hand ${o.hand}`), oppHand(o), piles(o)); f.append(meta);
+    const meta = el('div', 'meta'); meta.append(commandZone(o), el('span', '', `hand ${o.hand}`), oppHand(o), piles(o)); f.append(meta);
     const z1 = el('div', 'zone lands'); z1.append(el('div', 'row-label', `lands ${o.lands.total}`), landsAsCards(o.lands)); f.append(z1);
     const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', `other ${o.others.length}`), grid8(o.others)); f.append(z2);
     const z3 = el('div', 'zone creatures'); z3.append(el('div', 'row-label', `creatures ${o.creatures.length}`), grid8(o.creatures)); f.append(z3);
@@ -217,13 +232,13 @@
   function yourBoard() {
     const b = $('board'); b.innerHTML = '';
     b.className = 'board' + (G.active === 'Human-1' ? ' active' : '') + (G.priority === 'Human-1' ? ' prio-ring' : '');
-    const hdr = el('div', 'hdr', `<span class="badge" style="background:#443;color:#fd6">you</span> ${seatHdr(G.you, `<span class="counts">★ ${G.you.commander}</span>`)}`);
+    const hdr = el('div', 'hdr', `<span class="badge" style="background:#443;color:#fd6">you</span> ${seatHdr(G.you, `<span class="cmd">★ <b>${G.you.commander}</b></span>`)}`);
     hdr.oncontextmenu = (e) => ctxMenu(e, G.you); b.append(hdr);
     const z1 = el('div', 'zone creatures'); z1.append(el('div', 'row-label', `creatures ${G.you.creatures.length}`), grid8(G.you.creatures)); b.append(z1);
     const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', `other ${G.you.others.length}`), grid8(G.you.others)); b.append(z2);
     const z3 = el('div', 'zone lands'); z3.append(el('div', 'row-label', `lands ${G.you.lands.reduce((a, c) => a + (c.count || 1), 0)}`), cardsRow(G.you.lands, 'perm'));
     const you = { ...G.you, name: 'Human-1' };
-    const meta = el('div', 'piles'); meta.style.marginLeft = 'auto'; meta.append(piles(you)); z3.append(meta); b.append(z3);
+    const meta = el('div', 'piles'); meta.style.marginLeft = 'auto'; meta.append(commandZone({ ...you, inCommandZone: false }), piles(you)); z3.append(meta); b.append(z3);
     b.dataset.rows = JSON.stringify([[G.you.creatures.length, 1], [G.you.others.length, 1], [G.you.lands.length, 0.7]]);
     b.dataset.overhead = '5';
   }
@@ -270,7 +285,7 @@
     const W = elm.clientWidth - Number(elm.dataset.label ?? 4.6) * rem - 20;
     // never wider than minPerRow-per-row allows; then shrink until the stacked rows fit the height
     let c = Math.min(cap, (W - (minPerRow - 1) * 3) / minPerRow);
-    for (; c > 22; c -= 1) {
+    for (; auto && c > 22; c -= 1) {
       let units = 0;
       for (const [n, sc] of rows) {
         const perRow = Math.max(minPerRow, Math.floor((W + 3) / (c * sc + 3)));   // a row of this zone's cards fills the width

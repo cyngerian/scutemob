@@ -87,6 +87,22 @@ GAME.opps[0].gyCards = [{ n: 'Goblin Guide' }, { n: 'Sol Ring' }];
 GAME.opps[1].gyCards = [{ n: 'Llanowar Elves' }, { n: 'Sylvan Library' }, { n: 'Beast Whisperer' }, { n: 'Llanowar Elves' }, { n: 'Beast Within' }];
 GAME.opps[2].gyCards = [{ n: 'Bloodghast' }, { n: 'Gravecrawler' }, { n: 'Arcane Signet' }, { n: 'Phyrexian Arena' }, { n: 'Bloodghast' }, { n: 'Ayara, First of Locthwain' }, { n: 'Gravecrawler' }];
 
+/** The in-page hover card: one fixed overlay (never clipped by a board's overflow),
+ *  the `normal` 488px printing scaled to HOVER_W, placed beside the hovered card. */
+const HOVER_W = 320;
+let hoverEl = null;
+function showHover(name, r) {
+  if (!hoverEl) { hoverEl = el('div', 'hover-card'); hoverEl.append(el('img')); document.body.append(hoverEl); }
+  const img = hoverEl.firstChild; const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  img.onerror = () => { if (!img.dataset.fb) { img.dataset.fb = '1'; img.src = SCRY(name, 'normal'); } };
+  img.dataset.fb = ''; img.src = `img/${slug}-normal.jpg`;
+  const H = HOVER_W * 1.4;
+  let x = r.right + 10; if (x + HOVER_W > innerWidth - 8) x = r.left - HOVER_W - 10; if (x < 8) x = 8;
+  let y = r.top + r.height / 2 - H / 2; y = Math.max(8, Math.min(innerHeight - H - 8, y));
+  hoverEl.style.left = x + 'px'; hoverEl.style.top = y + 'px'; hoverEl.style.display = 'block';
+}
+function hideHover() { if (hoverEl) hoverEl.style.display = 'none'; }
+
 /** Hover → the popped-out card window (card-window.html) on the second monitor. */
 const CARD_CHANNEL = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('scutemob-card') : null;
 function broadcastHover(name) { CARD_CHANNEL?.postMessage({ name }); }
@@ -142,13 +158,13 @@ function pick(pool, n, seed) {
   const out = []; for (let i = 0; i < n; i++) { const name = pool[(i * 7 + seed * 3) % pool.length]; out.push({ n: name, pt: PT[name], tapped: (i * 5 + seed) % 4 === 0 }); } return out;
 }
 function seat(name, commander, life, o, seed) {
-  const creatures = pick(POOL.creatures, o.creatures, seed); creatures[0] = { n: commander, pt: PT[commander] || '4/4', cmd: true };
+  const creatures = pick(POOL.creatures, o.creatures, seed); if (!o.inCommandZone) creatures[0] = { n: commander, pt: PT[commander] || '4/4', cmd: true };
   return {
     name, commander, life, hand: o.hand, lib: o.lib ?? 60 - seed * 4, gy: o.gy, active: !!o.active,
     creatures, others: pick(POOL.others, o.others, seed + 1),
     lands: { total: o.lands[0], tapped: o.lands[1] },
     handCards: Array.from({ length: o.hand }, (_, i) => (o.revealed && i < o.revealed.length) ? { n: o.revealed[i], revealed: true } : { back: true }),
-    libTop: o.libTop || null,
+    libTop: o.libTop || null, inCommandZone: !!o.inCommandZone, commanderTax: o.commanderTax || 0,
     gyCards: pick([...POOL.creatures, ...POOL.spells, ...POOL.others, ...POOL.lands], o.gy, seed + 2).map((c) => ({ n: c.n })),
     exileCards: pick([...POOL.spells, ...POOL.creatures], o.ex, seed + 3).map((c) => ({ n: c.n })),
   };
@@ -159,9 +175,9 @@ function sixPlayerLateGame() {
   g.opps = [
     seat('Bot-2', 'Neriv, Heart of the Storm', 38, { creatures: 16, others: 5, lands: [9, 3], hand: 7, revealed: ['Goblin Guide', 'Sol Ring'], gy: 14, ex: 3 }, 1),
     seat('Bot-3', 'Toski, Bearer of Secrets', 40, { creatures: 14, others: 7, lands: [11, 8], hand: 6, gy: 12, ex: 1, libTop: 'Forest', active: true }, 2),
-    seat('Bot-4', 'Ayara, First of Locthwain', 34, { creatures: 11, others: 4, lands: [10, 10], hand: 4, gy: 19, ex: 2 }, 3),
+    seat('Bot-4', 'Ayara, First of Locthwain', 34, { creatures: 11, others: 4, lands: [10, 10], hand: 4, gy: 19, ex: 2, inCommandZone: true, commanderTax: 2 }, 3),
     seat('Bot-5', "Atraxa, Praetors' Voice", 29, { creatures: 18, others: 6, lands: [12, 2], hand: 3, gy: 9, ex: 6 }, 4),
-    seat('Bot-6', 'Korvold, Fae-Cursed King', 17, { creatures: 9, others: 8, lands: [8, 0], hand: 8, revealed: ['Beast Within'], gy: 22, ex: 0 }, 5),
+    seat('Bot-6', 'Korvold, Fae-Cursed King', 17, { creatures: 9, others: 8, lands: [8, 0], hand: 8, revealed: ['Beast Within'], gy: 22, ex: 0, inCommandZone: true, commanderTax: 4 }, 5),
   ];
   const y = g.you;
   y.creatures = pick(POOL.creatures, 17, 0); y.creatures[0] = { n: 'Nadaar, Selfless Paladin', pt: '3/3', cmd: true }; y.creatures[3].targeted = true;
@@ -195,14 +211,8 @@ function cardEl(c, size = 'perm') {
   if (c.cmd) d.classList.add('cmd');
   d.title = c.n;
   d.dataset.name = c.n;
-  d.addEventListener('mouseenter', (ev) => {
-    // Keep a magnified card on screen: flip the transform origin near the edges.
-    const r = d.getBoundingClientRect();
-    const ox = r.left < 180 ? 'left' : window.innerWidth - r.right < 180 ? 'right' : 'center';
-    const oy = r.top < 160 ? 'top' : window.innerHeight - r.bottom < 160 ? 'bottom' : 'center';
-    d.style.transformOrigin = `${ox} ${oy}`;
-    broadcastHover(c.n);
-  });
+  d.addEventListener('mouseenter', () => { showHover(c.n, d.getBoundingClientRect()); broadcastHover(c.n); });
+  d.addEventListener('mouseleave', hideHover);
   const chip = el('div', 'chip', `<div class="chip-name">${c.n}</div>`);
   const img = el('img', 'art');
   const v = size === 'hand' || size === 'big' ? 'normal' : 'small';
