@@ -1,0 +1,62 @@
+<!doctype html><html><head><meta charset="utf-8"><title>4 · Focus</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 4 · FOCUS — your board is the whole screen. Opponents are seat tiles in a
+     left rail (life, counts, a strip of their permanents); clicking one swaps
+     the main area to their board. The prompt is a single sentence pinned at
+     the top of the main area, above the stack. Log is a bottom sheet handle. */
+  .app { display: grid; height: 100vh; gap: 6px; padding: 6px;
+         grid-template-columns: 250px minmax(0,1fr);
+         grid-template-rows: 28px 64px minmax(0,1fr) 176px 20px;
+         grid-template-areas: 'top top' 'rail prompt' 'rail main' 'rail hand' 'rail sheet'; }
+  .top { grid-area: top; display: flex; align-items: center; gap: 14px; padding: 0 8px; }
+  .rail { grid-area: rail; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
+  .tile.active { border-color: var(--active); }
+  .tile.you { border-color: var(--you); background: #15180f; }
+  .tile .hdr { display: flex; align-items: center; gap: 4px; }
+  .tile .cards { flex-wrap: nowrap; overflow: hidden; --mini-w: 40px; }
+  .tile .lands { font-size: 0.68rem; }
+  .tile .hint { font-size: 0.6rem; color: #556; margin-top: 2px; }
+  .stackbox { margin-top: auto; background: var(--panel); border: 1px solid #553; border-radius: 8px; padding: 6px 8px; }
+  .prompt-bar { grid-area: prompt; background: #16163a; border: 1px solid #33335a; border-radius: 8px; padding: 0 12px; display: flex; align-items: center; }
+  .prompt-bar .p-sentence { font-size: 1.05rem; }
+  .main { grid-area: main; background: #0f1a12; border: 1px solid #2a4a30; border-radius: 8px; padding: 8px 12px; display: grid; grid-template-rows: 28px minmax(0,1fr) auto auto; gap: 10px; min-height: 0; }
+  .main .hdr { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #1e3a22; }
+  .main .cards.creatures { --perm-w: 118px; }
+  .main .cards.others { --perm-w: 90px; }
+  .lands-row { display: flex; align-items: flex-end; gap: 8px; border-top: 1px solid #1e3a22; padding-top: 8px; }
+  .lands-row .cards { --small-w: 58px; }
+  .piles { margin-left: auto; display: flex; gap: 6px; }
+  .pile { width: 58px; height: 81px; border: 1px dashed #3a5a40; border-radius: 4px; font-size: 0.6rem; color: #586; text-align: center; padding-top: 4px; }
+  .hand { grid-area: hand; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-top: 1px solid var(--line); }
+  .sheet { grid-area: sheet; display: flex; justify-content: center; align-items: center; font-size: 0.65rem; color: #667; border-top: 1px solid var(--line); cursor: pointer; }
+</style></head><body>
+<div class="app">
+  <div class="top"><b style="color:#adf">scutemob</b><span>Turn 10 · Bot-3's turn · Main 1</span><span style="margin-left:auto" class="btn">≡ menu</span></div>
+  <div class="rail" id="rail"></div>
+  <div class="prompt-bar" id="prompt"></div>
+  <div class="main" id="main"></div>
+  <div class="hand" id="hand"></div>
+  <div class="sheet">▲ log · Bot-3 casts Beast Within targeting Thalia · Bot-4 passes · Bot-2 passes</div>
+</div>
+<script src="common.js"></script>
+<script>
+  const rail = document.getElementById('rail');
+  const me = el('div', 'tile you'); me.append(el('div', 'hdr', seatLine(GAME.you)), el('div', 'hint', 'showing your board'));
+  rail.append(me);
+  GAME.opps.forEach(o => {
+    const t = el('div', 'tile' + (o.active ? ' active' : ''));
+    t.append(el('div', 'hdr', seatLine(o)), el('div', 'dim', `★ ${o.commander}`), cardsRow(o.creatures.concat(o.others), 'mini'), el('div', 'lands', `lands ${landPips(o.lands)}`), el('div', 'hint', 'click to view board'));
+    rail.append(t);
+  });
+  const sb = el('div', 'stackbox'); sb.append(el('div', 'panel-title', 'Stack'), stackList()); rail.append(sb);
+  document.getElementById('prompt').append(promptEl(true));
+  const m = document.getElementById('main');
+  m.append(el('div', 'hdr', `<span class="badge" style="background:#443;color:#fd6">you</span> <span class="seat-name">Human-1</span> <span class="dim">★ Nadaar, Selfless Paladin · 8 creatures · 6 other · 7 lands</span>`));
+  m.append(cardsRow(GAME.you.creatures, 'perm', 'creatures'));
+  m.append(cardsRow(GAME.you.others, 'perm', 'others'));
+  const lr = el('div', 'lands-row'); lr.append(el('div', 'row-label', 'lands'), cardsRow(GAME.you.lands, 'small'));
+  const piles = el('div', 'piles'); piles.append(el('div', 'pile', 'GRAVEYARD<br><b>3</b>'), el('div', 'pile', 'EXILE<br><b>1</b>')); lr.append(piles); m.append(lr);
+  GAME.you.hand.forEach(x => document.getElementById('hand').append(cardEl(x, 'hand')));
+</script></body></html>

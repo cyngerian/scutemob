@@ -1,0 +1,55 @@
+<!doctype html><html><head><meta charset="utf-8"><title>5 · Columns</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 5 · COLUMNS — every seat is a vertical column, yours twice as wide. Each
+     column is a full board top to bottom: header, creatures, other, lands.
+     The whole table is visible at once with nothing hidden. The prompt and
+     stack sit in one band across the top; the hand is a band across the
+     bottom; the log is a toggle. */
+  .app { display: grid; height: 100vh; gap: 6px; padding: 6px;
+         grid-template-rows: 28px 70px minmax(0,1fr) 160px;
+         grid-template-areas: 'top' 'band' 'cols' 'hand'; }
+  .top { grid-area: top; display: flex; align-items: center; gap: 14px; padding: 0 8px; }
+  .band { grid-area: band; display: grid; grid-template-columns: 260px minmax(0,1fr); gap: 6px; }
+  .band > div { background: #16163a; border: 1px solid #33335a; border-radius: 8px; padding: 6px 12px; display: flex; align-items: center; }
+  .band .stack-item { margin: 0; flex: 1; }
+  .cols { grid-area: cols; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 6px; min-height: 0; }
+  .col { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; overflow: hidden; }
+  .col.you { background: #0f1a12; border-color: var(--you); }
+  .col.active { border-color: var(--active); }
+  .col .hdr { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  .col .row-label { margin-top: 2px; }
+  .col .cards { --perm-w: 96px; --small-w: 72px; }
+  .col.you .cards { --perm-w: 104px; }
+  .col .lands { margin-top: auto; border-top: 1px solid var(--line); padding-top: 6px; display: flex; align-items: center; gap: 6px; }
+  .col .lands .cards { --small-w: 50px; }
+  .hand { grid-area: hand; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-top: 1px solid var(--line); }
+  .hand .card { --hand-w: 108px; }
+</style></head><body>
+<div class="app">
+  <div class="top"><b style="color:#adf">scutemob</b><span>Turn 10 · Bot-3's turn · Main 1 · <span style="color:#fa0">you have priority</span></span><span style="margin-left:auto" class="btn">log</span><span class="btn">≡ menu</span></div>
+  <div class="band"><div id="stack"></div><div id="prompt"></div></div>
+  <div class="cols" id="cols"></div>
+  <div class="hand" id="hand"></div>
+</div>
+<script src="common.js"></script>
+<script>
+  document.getElementById('stack').append(stackList());
+  document.getElementById('prompt').append(promptEl(true));
+  const cols = document.getElementById('cols');
+  function column(p, you) {
+    const c = el('div', 'col' + (you ? ' you' : '') + (p.active ? ' active' : ''));
+    c.append(el('div', 'hdr', (you ? '<span class="badge" style="background:#443;color:#fd6">you</span> ' : '') + seatLine(p)));
+    c.append(el('div', 'dim', `★ ${p.commander}`));
+    c.append(el('div', 'row-label', `creatures ${p.creatures.length}`), cardsRow(p.creatures, 'perm'));
+    c.append(el('div', 'row-label', `other ${p.others.length}`), cardsRow(p.others, you ? 'perm' : 'small'));
+    const l = el('div', 'lands');
+    if (you) { l.append(el('div', 'row-label', 'lands'), cardsRow(p.lands, 'small'), el('div', 'dim', 'gy 3 · exile 1')); }
+    else { l.innerHTML = `<span class="row-label">lands</span> ${landPips(p.lands)}`; }
+    c.append(l);
+    return c;
+  }
+  cols.append(column(GAME.you, true));
+  GAME.opps.forEach(o => cols.append(column(o, false)));
+  GAME.you.hand.forEach(x => document.getElementById('hand').append(cardEl(x, 'hand')));
+</script></body></html>

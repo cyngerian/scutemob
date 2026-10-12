@@ -1,0 +1,62 @@
+<!doctype html><html><head><meta charset="utf-8"><title>1 · Table</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 1 · TABLE — classic client shape (Cockatrice/XMage). Opponents are thin strips on
+     top; your battlefield is the big thing in the middle; prompt is a bar; hand is a
+     bar; log is a drawer you can close. Battlefield ≈ 60% of the height. */
+  .app { display: grid; height: 100vh; gap: 6px; padding: 6px;
+         grid-template-columns: minmax(0,1fr) 280px;
+         grid-template-rows: 30px 150px minmax(0,1fr) 60px 176px;
+         grid-template-areas: 'top top' 'opps side' 'board side' 'prompt side' 'hand hand'; }
+  .top { grid-area: top; display: flex; align-items: center; gap: 14px; padding: 0 8px; border-bottom: 1px solid var(--line); }
+  .opps { grid-area: opps; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+  .opp { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .opp.active { border-color: var(--active); }
+  .opp .hdr { display: flex; align-items: center; gap: 4px; }
+  .opp .perms { display: flex; gap: 4px; align-items: center; overflow: hidden; }
+  .opp .lands { font-size: 0.7rem; }
+  .board { grid-area: board; background: #0f1a12; border: 1px solid #2a4a30; border-radius: 6px; padding: 6px 10px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  .board .hdr { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #1e3a22; padding-bottom: 4px; }
+  .zone { display: flex; gap: 10px; min-height: 0; }
+  .zone .row-label { flex: 0 0 70px; padding-top: 4px; }
+  .zone.creatures { flex: 1 1 auto; }
+  .zone.others { flex: 0 0 auto; }
+  .zone.lands { flex: 0 0 auto; border-top: 1px solid #1e3a22; padding-top: 6px; }
+  .zone.lands .cards { --small-w: 56px; }
+  .piles { margin-left: auto; display: flex; gap: 6px; align-items: flex-start; }
+  .pile { width: 56px; height: 78px; border: 1px dashed #3a5a40; border-radius: 4px; font-size: 0.6rem; color: #586; text-align: center; padding-top: 4px; }
+  .prompt-bar { grid-area: prompt; background: #16163a; border: 1px solid #33335a; border-radius: 6px; padding: 0 12px; display: flex; align-items: center; }
+  .side { grid-area: side; display: grid; grid-template-rows: 150px minmax(0,1fr); gap: 6px; min-height: 0; }
+  .side > div { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px; min-height: 0; overflow: auto; }
+  .hand { grid-area: hand; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-top: 1px solid var(--line); overflow-x: auto; }
+</style></head><body>
+<div class="app">
+  <div class="top"><b style="color:#adf">scutemob</b><span>Turn 10 · Bot-3's turn · Main 1 · <span style="color:#fa0">you have priority</span></span><span class="dim">seed 3 · 4 seats</span><span style="margin-left:auto" class="btn">≡ menu</span></div>
+  <div class="opps" id="opps"></div>
+  <div class="board" id="board"></div>
+  <div class="prompt-bar" id="prompt"></div>
+  <div class="side"><div><div class="panel-title">Stack</div><div id="stack"></div></div><div><div class="panel-title">Log</div><div id="log"></div></div></div>
+  <div class="hand" id="hand"></div>
+</div>
+<script src="common.js"></script>
+<script>
+  GAME.opps.forEach(o => {
+    const d = el('div', 'opp' + (o.active ? ' active' : ''));
+    d.append(el('div', 'hdr', seatLine(o)));
+    const perms = el('div', 'perms');
+    o.creatures.concat(o.others).forEach(c => perms.append(cardEl(c, 'small')));
+    d.append(perms);
+    d.append(el('div', 'lands', `lands ${landPips(o.lands)}`));
+    document.getElementById('opps').append(d);
+  });
+  const b = document.getElementById('board');
+  b.append(el('div', 'hdr', `<span class="badge" style="background:#443;color:#fd6">you</span> ${seatLine(GAME.you)}`));
+  const z1 = el('div', 'zone creatures'); z1.append(el('div', 'row-label', 'creatures 8'), cardsRow(GAME.you.creatures, 'perm')); b.append(z1);
+  const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', 'other 6'), cardsRow(GAME.you.others, 'perm')); b.append(z2);
+  const z3 = el('div', 'zone lands'); z3.append(el('div', 'row-label', 'lands 7'), cardsRow(GAME.you.lands, 'small'));
+  const piles = el('div', 'piles'); piles.append(el('div', 'pile', 'GRAVEYARD<br><b>3</b>'), el('div', 'pile', 'EXILE<br><b>1</b>')); z3.append(piles); b.append(z3);
+  document.getElementById('prompt').append(promptEl(true));
+  document.getElementById('stack').append(stackList());
+  document.getElementById('log').append(logEl());
+  GAME.you.hand.forEach(c => document.getElementById('hand').append(cardEl(c, 'hand')));
+</script></body></html>
