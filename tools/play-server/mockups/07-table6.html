@@ -46,13 +46,14 @@
   .side.left { grid-area: left; } .side.right { grid-area: right; }
   .cell { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; cursor: pointer; flex: 1 1 0; overflow: auto; }
   .cell:hover { border-color: #55558a; }
-  .cell .top { display: flex; align-items: flex-start; gap: 8px; }
+  .cell .top { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
   .cell .who { display: flex; flex-direction: column; gap: 0; min-width: 0; }
   .cell .who .seat-name { font-size: 1rem; }
   .cell .who .life { margin: 0; font-size: 1.6rem; line-height: 1.1; }
   .zones5 { margin-left: auto; display: flex; gap: 5px; padding: 4px 5px; background: rgba(8,8,20,.75); border: 1px solid #3a3a66; border-radius: 6px; }
-  .t7 .cell .zones5 .pile .card { --scale: 1.15; }
-  .zones5 .pile .empty { width: calc(var(--card) * 1.15); height: calc(var(--card) * 1.15 * 1.4); }
+  .t7 .cell .zones5 .pile .card { --card: 56px; --scale: 1; }
+  .zones5 .pile .empty { width: 56px; height: calc(56px * 1.4); }
+  @media (max-width: 2000px) { .t7 .cell .zones5 .pile .card { --card: 44px; } .zones5 .pile .empty { width: 44px; height: calc(44px * 1.4); } .zones5 { gap: 3px; padding: 3px; } }
   .zones5 .piles { display: contents; }
   .cell.active { border-color: var(--active); box-shadow: inset 0 0 0 1px var(--active); }
   .cell.focused-cell { background: #171732; border-color: #6a6aa8; }
@@ -78,10 +79,9 @@
   .pile.cz { background: rgba(120,90,30,.28); outline: 1px solid #7a6230; outline-offset: 2px; border-radius: 4px; }
   .pile.cz .empty { border-color: #8a7a4a; display: flex; align-items: center; justify-content: center; color: #8a7a4a; font-size: 1.2rem; }
   .pile.cz .empty::after { content: '★'; }
-  .t7 .zonebox .pile .card { --scale: 1; }
-  .zonebox .pile .empty { width: var(--card); height: calc(var(--card) * 1.4); }
-  .t7 .cell .pile .card { --scale: 0.7; }
-  .board .zone, .focused .zone { padding-right: calc(var(--card) * 2 + 2.5rem); }   /* keep clear of the zone box */
+  .t7 .zonebox .pile .card { --card: 84px; --scale: 1; }
+  .zonebox .pile .empty { width: 84px; height: calc(84px * 1.4); }
+  .board .zone, .focused .zone { padding-right: calc(84px * 2 + 2.5rem); }   /* keep clear of the (fixed-size) zone box */
   .pile { position: relative; cursor: pointer; }
   .pile .card { --scale: 0.7; }
   .pile .lbl { position: absolute; left: 0; right: 0; bottom: -0.1rem; text-align: center; font-size: 0.6rem; background: rgba(0,0,0,.8); color: #bbc; letter-spacing: .04em; }
@@ -286,8 +286,8 @@
     d.append(z);
     d.onclick = () => { focus = o.name; render(); };
     d.oncontextmenu = (e) => ctxMenu(e, o);
-    d.dataset.rows = JSON.stringify([[1, 1.15], [o.creatures.length + o.others.length, 1], [2, 0.7]]);   // top row: the five zone piles at 1.15
-    d.dataset.overhead = '2.4';
+    d.dataset.rows = JSON.stringify([[o.creatures.length + o.others.length, 1], [2, 0.7]]);
+    d.dataset.overhead = '8';   // name line + the fixed 56px strip + gaps
     d.dataset.label = '0';
     return d;
   }
@@ -372,7 +372,7 @@
     let c = Math.min(cap, (W - (minPerRow - 1) * 3) / minPerRow);
     for (; (auto || elm.classList.contains('cell')) && c > 22; c -= 1) {
       let units = 0;
-      const Wb = elm.classList.contains('cell') ? W : W - (2 * c + 2.5 * rem);   // centre boards reserve the zone box's width
+      const Wb = elm.classList.contains('cell') ? W : W - (168 + 2.5 * rem);   // centre boards reserve the zone box's width
       for (const [n, sc] of rows) {
         const perRow = Math.max(minPerRow, Math.floor((Wb + 3) / (c * sc + 3)));   // a row of this zone's cards fills the width
         units += Math.max(1, Math.ceil(n / perRow)) * sc * 1.4 + 0.06;
@@ -380,8 +380,14 @@
       if (units * c <= H) break;
     }
     c = Math.max(22, c);
-    elm.style.setProperty('--card', c.toFixed(1) + 'px');
-    elm.style.setProperty('--cardn', c.toFixed(1));
+    const cUp = c;   // the model's answer is the ceiling; the DOM has the final say
+    const apply = (v) => { elm.style.setProperty('--card', v.toFixed(1) + 'px'); elm.style.setProperty('--cardn', v.toFixed(1)); };
+    const overflows = () => elm.scrollHeight > elm.clientHeight + 1 || elm.scrollWidth > elm.clientWidth + 1;
+    apply(c);
+    if (auto || elm.classList.contains('cell')) {
+      while (c > 22 && overflows()) { c -= 1; apply(c); }                      // never scroll
+      while (c < cUp) { apply(c + 1); if (overflows()) { apply(c); break; } c += 1; }   // fill the box
+    }
   }
   function fitAll() {
     document.querySelectorAll('[data-rows]').forEach(fitBoard);
