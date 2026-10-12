@@ -99,8 +99,8 @@ kbd { font-size: 0.7em; border: 1px solid #556; border-radius: 3px; padding: 0 3
 /* mockup 7 rev 4: no "T" tag (tapped reads from the tilt + dimming), name band
    readable, larger P/T */
 .t7 .card .tag.tap { display: none; }
-.t7 .card .band { font-size: 0.72rem; font-weight: 700; line-height: 1.15; max-height: 2.4em; padding: 2px 4px; color: #fff; background: rgba(0,0,0,.82); text-shadow: 0 1px 2px #000; }
-.t7 .card .pt { font-size: 1.1rem; font-weight: 800; padding: 0 6px; line-height: 1.3; bottom: 2px; right: 2px; background: rgba(0,0,0,.88); border-color: #777; color: #fff; }
+.t7 .card .band { font-size: clamp(7px, calc(var(--card) * var(--scale, 1) * 0.13), 13px); font-weight: 700; line-height: 1.15; max-height: 2.4em; padding: 2px 4px; color: #fff; background: rgba(0,0,0,.82); text-shadow: 0 1px 2px #000; }
+.t7 .card .pt { font-size: clamp(8px, calc(var(--card) * var(--scale, 1) * 0.17), 20px); font-weight: 800; padding: 0 0.35em; line-height: 1.3; bottom: 2px; right: 2px; background: rgba(0,0,0,.88); border-color: #777; color: #fff; }
 .t7 .card.tapped { transform: rotate(8deg); }
 .t7 .card.tapped .art { filter: grayscale(.5) brightness(.5); }
 .t7 .card .tag.cmdr { top: auto; bottom: 2px; left: 2px; right: auto; font-size: 0.8rem; }
