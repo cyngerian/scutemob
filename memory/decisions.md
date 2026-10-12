@@ -335,3 +335,17 @@ never a half-empty table. The `rules` table is NOT transactional on re-import (w
 it). Column renames in `cards`, `card_faces` or `rulings` require a heads-up to webber first — note
 it in the task that renames them. Readers must exclude non-game layouts:
 `art_series, token, double_faced_token, emblem, front_card` (the last shares names with real cards).
+
+## 2026-10-12 — Card images are fetched at deck-add time, never during play (owner ruling)
+
+"We should download all cards for decks when they are added so we don't rely on Scryfall after
+a deck is determined." Context: the C1 sweeps hit Scryfall 429s and fell back to chips
+(`memory/play-v3-c1-2026-10-12.md` §Measured); the brief had planned a lazy cached proxy.
+
+**Ruling**: when a deck is added (decklist resolved — CC-5 `decks/`, or whatever path hands the
+play-server a deck), every card image that deck needs is downloaded into a local store at the
+sizes the UI uses (`small` for the table, `normal` for hover, `large` for the card window).
+Play reads the store only; a miss renders the chip and is a defect to fix at deck-add time,
+not a live fetch. Lands on C3 (`scutemob-268`, criterion 8615 — "cached card-image proxy" now
+means "store-backed route + deck-time prefetch"); brief §5 amended. Rate-limit Scryfall politely
+in the prefetch (their stated 50–100 ms between requests) and keep the store gitignored.

@@ -121,8 +121,10 @@ pixel decision below; when the brief and the mockup disagree, the mockup wins.
 - `ZonesView.exile` per player (owner-keyed like graveyard), keeping the shared list for v1/v2.
 - Revealed information: hand cards revealed to all / library top revealed (needs an engine
   concept; may stay a follow-up if the engine has none).
-- `GET /api/card-image?name=&version=` cached proxy (Scryfall rate limits hit the owner's
-  browser as readily as the probes).
+- `GET /api/card-image?name=&version=` served from a **local image store**. *Owner ruling
+  (2026-10-12): every card image a deck needs is downloaded when the deck is added (decklist
+  resolution time, the sizes the UI uses), so play never depends on Scryfall once the decks are
+  determined. The route reads the store; a miss is a visible chip, not a live fetch.*
 - Pass-until a chosen step (the loop exists; add the stop step and "unless" conditions server
   side or evaluate them client side from events).
 
