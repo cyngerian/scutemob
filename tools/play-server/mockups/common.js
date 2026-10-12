@@ -180,7 +180,8 @@ function sixPlayerLateGame() {
     seat('Bot-6', 'Korvold, Fae-Cursed King', 17, { creatures: 9, others: 8, lands: [8, 0], hand: 8, revealed: ['Beast Within'], gy: 22, ex: 0, inCommandZone: true, commanderTax: 4 }, 5),
   ];
   const y = g.you;
-  y.creatures = pick(POOL.creatures, 17, 0); y.creatures[0] = { n: 'Nadaar, Selfless Paladin', pt: '3/3', cmd: true }; y.creatures[3].targeted = true;
+  y.creatures = pick(POOL.creatures, 17, 0); y.creatures[0] = { n: 'Nadaar, Selfless Paladin', pt: '3/3', cmd: true };
+  y.creatures.find((c) => c.n === 'Luminarch Aspirant').targeted = true;   // the Beast Within on the stack targets it (red outline)
   y.others = pick(POOL.others, 8, 6);
   y.lands = [{ n: 'Plains', count: 9, tapped: 4 }, { n: 'Command Tower' }, { n: 'Reliquary Tower', tapped: true }, { n: 'Forest', count: 2 }];
   y.hand = [{ n: 'Swords to Plowshares', lit: true }, { n: 'Path to Exile', lit: true }, { n: 'Sun Titan' }, { n: 'Plains' }, { n: 'Wrath of God' }, { n: 'Beast Within', lit: true }, { n: 'Plains' }, { n: 'Smothering Tithe' }, { n: 'Archon of Emeria' }, { n: 'Forest' }, { n: 'Sol Ring' }, { n: 'Elspeth, Sun\'s Champion' }];
