@@ -129,6 +129,53 @@ const STATES = {
   },
 };
 
+// ---- six-player late game (mockup 7's design state) ----------------------
+const POOL = {
+  creatures: ['Goblin Guide', 'Neriv, Heart of the Storm', 'Llanowar Elves', 'Beast Whisperer', 'Toski, Bearer of Secrets', 'Ayara, First of Locthwain', 'Gravecrawler', 'Bloodghast', 'Thalia, Guardian of Thraben', 'Adeline, Resplendent Cathar', 'Luminarch Aspirant', 'Seasoned Hallowblade', 'Archon of Emeria', 'Benalish Marshal', 'Dusk Legion Duelist', 'Sun Titan'],
+  others: ['Sol Ring', 'Lightning Greaves', 'Sylvan Library', 'Phyrexian Arena', 'Arcane Signet', 'Swiftfoot Boots', 'Thought Vessel', 'Marble Diamond', 'Hedron Archive', 'Smothering Tithe', "Elspeth, Sun's Champion"],
+  spells: ['Swords to Plowshares', 'Path to Exile', 'Wrath of God', 'Beast Within'],
+  lands: ['Plains', 'Forest', 'Command Tower', 'Reliquary Tower'],
+};
+const PT = { 'Goblin Guide': '2/2', 'Neriv, Heart of the Storm': '4/4', 'Llanowar Elves': '1/1', 'Beast Whisperer': '2/3', 'Toski, Bearer of Secrets': '1/1', 'Ayara, First of Locthwain': '2/3', 'Gravecrawler': '2/1', 'Bloodghast': '2/1', 'Thalia, Guardian of Thraben': '2/1', 'Adeline, Resplendent Cathar': '4/4', 'Luminarch Aspirant': '2/2', 'Seasoned Hallowblade': '3/1', 'Archon of Emeria': '2/3', 'Benalish Marshal': '3/3', 'Dusk Legion Duelist': '2/2', 'Sun Titan': '6/6' };
+function pick(pool, n, seed) {
+  // deterministic spread so each seat looks different
+  const out = []; for (let i = 0; i < n; i++) { const name = pool[(i * 7 + seed * 3) % pool.length]; out.push({ n: name, pt: PT[name], tapped: (i * 5 + seed) % 4 === 0 }); } return out;
+}
+function seat(name, commander, life, o, seed) {
+  const creatures = pick(POOL.creatures, o.creatures, seed); creatures[0] = { n: commander, pt: PT[commander] || '4/4', cmd: true };
+  return {
+    name, commander, life, hand: o.hand, lib: o.lib ?? 60 - seed * 4, gy: o.gy, active: !!o.active,
+    creatures, others: pick(POOL.others, o.others, seed + 1),
+    lands: { total: o.lands[0], tapped: o.lands[1] },
+    handCards: Array.from({ length: o.hand }, (_, i) => (o.revealed && i < o.revealed.length) ? { n: o.revealed[i], revealed: true } : { back: true }),
+    libTop: o.libTop || null,
+    gyCards: pick([...POOL.creatures, ...POOL.spells, ...POOL.others, ...POOL.lands], o.gy, seed + 2).map((c) => ({ n: c.n })),
+    exileCards: pick([...POOL.spells, ...POOL.creatures], o.ex, seed + 3).map((c) => ({ n: c.n })),
+  };
+}
+function sixPlayerLateGame() {
+  const g = cloneGame();
+  g.turn = 23; g.step = 'Blockers'; g.active = 'Bot-3'; g.priority = 'Human-1';
+  g.opps = [
+    seat('Bot-2', 'Neriv, Heart of the Storm', 38, { creatures: 16, others: 5, lands: [9, 3], hand: 7, revealed: ['Goblin Guide', 'Sol Ring'], gy: 14, ex: 3 }, 1),
+    seat('Bot-3', 'Toski, Bearer of Secrets', 40, { creatures: 14, others: 7, lands: [11, 8], hand: 6, gy: 12, ex: 1, libTop: 'Forest', active: true }, 2),
+    seat('Bot-4', 'Ayara, First of Locthwain', 34, { creatures: 11, others: 4, lands: [10, 10], hand: 4, gy: 19, ex: 2 }, 3),
+    seat('Bot-5', "Atraxa, Praetors' Voice", 29, { creatures: 18, others: 6, lands: [12, 2], hand: 3, gy: 9, ex: 6 }, 4),
+    seat('Bot-6', 'Korvold, Fae-Cursed King', 17, { creatures: 9, others: 8, lands: [8, 0], hand: 8, revealed: ['Beast Within'], gy: 22, ex: 0 }, 5),
+  ];
+  const y = g.you;
+  y.creatures = pick(POOL.creatures, 17, 0); y.creatures[0] = { n: 'Nadaar, Selfless Paladin', pt: '3/3', cmd: true }; y.creatures[3].targeted = true;
+  y.others = pick(POOL.others, 8, 6);
+  y.lands = [{ n: 'Plains', count: 9, tapped: 4 }, { n: 'Command Tower' }, { n: 'Reliquary Tower', tapped: true }, { n: 'Forest', count: 2 }];
+  y.hand = [{ n: 'Swords to Plowshares', lit: true }, { n: 'Path to Exile', lit: true }, { n: 'Sun Titan' }, { n: 'Plains' }, { n: 'Wrath of God' }, { n: 'Beast Within', lit: true }, { n: 'Plains' }, { n: 'Smothering Tithe' }, { n: 'Archon of Emeria' }, { n: 'Forest' }, { n: 'Sol Ring' }, { n: 'Elspeth, Sun\'s Champion' }];
+  y.gyCards = pick([...POOL.creatures, ...POOL.spells], 11, 7).map((c) => ({ n: c.n })); y.exileCards = pick(POOL.creatures, 4, 8).map((c) => ({ n: c.n }));
+  y.lib = 61; y.libTop = null;
+  g.stack = [{ who: 'Bot-3', n: 'Beast Within', text: 'targeting your Luminarch Aspirant' }, { who: 'Bot-5', n: 'Swords to Plowshares', text: 'targeting Bot-3\'s Beast Whisperer' }];
+  g.prompt = { sentence: 'Bot-5 cast Swords to Plowshares targeting Beast Whisperer, in response to Beast Within. Respond, or let it resolve.', buttons: [{ t: 'Let it resolve', key: 'space', primary: true }, { t: 'Swords to Plowshares → …', lit: true }, { t: 'Path to Exile → …', lit: true }, { t: 'Beast Within → …', lit: true }] };
+  return g;
+}
+STATES[5] = () => ({ label: 'Six players · turn 23 · late game everywhere · two spells on the stack', game: sixPlayerLateGame(), focus: 'Bot-3' });
+
 // ---- rendering helpers ------------------------------------------------------
 
 function el(tag, cls, html) {
@@ -141,6 +188,7 @@ function el(tag, cls, html) {
 /** A card box. size ∈ hand|perm|small|mini. Fixed box; image fills it; chip under it. */
 function cardEl(c, size = 'perm') {
   const d = el('div', `card ${size}`);
+  if (c.back) { d.classList.add('back'); d.title = c.n || 'hidden card'; if (c.count) d.append(el('div', 'count', `×${c.count}`)); return d; }
   if (c.tapped) d.classList.add('tapped');
   if (c.lit) d.classList.add('lit');
   if (c.targeted) d.classList.add('targeted');

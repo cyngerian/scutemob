@@ -86,3 +86,8 @@ kbd { font-size: 0.7em; border: 1px solid #556; border-radius: 3px; padding: 0 3
 .popover { position: fixed; z-index: 55; background: #14142a; border: 1px solid #44446a; border-radius: 8px; padding: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.8); max-width: 36rem; }
 .popover .panel-title { display: flex; justify-content: space-between; }
 .popover .cards { --card: 72px; }
+
+/* card backs (hidden hands, libraries) */
+.card.back { background: repeating-linear-gradient(135deg, #2a1f3d 0 4px, #1c1430 4px 8px); border-color: #4a3a6a; }
+.card.back::after { content: ''; position: absolute; inset: 14%; border: 1px solid #5a4a7a; border-radius: 4px; opacity: .7; }
+.card.back .count { right: 2px; top: 2px; }
