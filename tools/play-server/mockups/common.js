@@ -182,6 +182,7 @@ function sixPlayerLateGame() {
   const y = g.you;
   y.creatures = pick(POOL.creatures, 17, 0); y.creatures[0] = { n: 'Nadaar, Selfless Paladin', pt: '3/3', cmd: true };
   y.creatures.find((c) => c.n === 'Luminarch Aspirant').targeted = true;   // the Beast Within on the stack targets it (red outline)
+  g.opps[1].creatures.find((c) => c.n === 'Beast Whisperer').targeted = true;   // Bot-5's Swords to Plowshares targets it
   y.others = pick(POOL.others, 8, 6);
   y.lands = [{ n: 'Plains', count: 9, tapped: 4 }, { n: 'Command Tower' }, { n: 'Reliquary Tower', tapped: true }, { n: 'Forest', count: 2 }];
   y.hand = [{ n: 'Swords to Plowshares', lit: true }, { n: 'Path to Exile', lit: true }, { n: 'Sun Titan' }, { n: 'Plains' }, { n: 'Wrath of God' }, { n: 'Beast Within', lit: true }, { n: 'Plains' }, { n: 'Smothering Tithe' }, { n: 'Archon of Emeria' }, { n: 'Forest' }, { n: 'Sol Ring' }, { n: 'Elspeth, Sun\'s Champion' }];
