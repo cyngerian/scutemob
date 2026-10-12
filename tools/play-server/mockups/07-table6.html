@@ -11,9 +11,13 @@
        · library (top card face up if revealed), graveyard and exile are piles
          with the top card showing, for every seat; click opens the pile
        · the phase dial is gone; a horizontal phase track sits under the header
+       · (rev 2) every opponent keeps a fixed seat in the side columns; the focused
+         one is marked there and mirrored large at the top. Rows fill the width
+         before stacking (never fewer than 8 per row), so the size slider really
+         sets the size; hover shows a 300px card; names sit on top of the card.
      Still no fixed pixel bands: fr / % / em and one --card cap per board. */
   .app { display: grid; height: 100vh; gap: 6px; padding: 6px;
-         grid-template-columns: minmax(230px, 16%) minmax(0, 1fr) minmax(230px, 16%) 20rem;
+         grid-template-columns: minmax(230px, 17%) minmax(0, 1fr) minmax(230px, 17%) 19rem;
          grid-template-rows: 2.2rem 2rem minmax(0, 1fr);
          grid-template-areas: 'top top top top' 'phase phase phase phase' 'left centre right dock'; }
   .top { grid-area: top; display: flex; align-items: center; gap: 12px; padding: 0 8px; border-bottom: 1px solid var(--line); font-size: 0.8rem; }
@@ -43,13 +47,14 @@
   .cell { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; cursor: pointer; flex: 1 1 0; overflow: hidden; }
   .cell:hover { border-color: #55558a; }
   .cell.active { border-color: var(--active); box-shadow: inset 0 0 0 1px var(--active); }
+  .cell.focused-cell { background: #171732; border-color: #6a6aa8; }
+  .cell.focused-cell .hdr::before { content: '▲ across'; font-size: 0.58rem; color: #9bd; background: #334; border-radius: 3px; padding: 0 4px; margin-right: 2px; }
   .hdr { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
   .cmd { color: var(--dim); font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .zones { display: flex; flex-direction: column; gap: 4px; min-height: 0; flex: 1; }
   .zone { display: flex; gap: 6px; min-height: 0; }
   .zone .row-label { flex: 0 0 4.2rem; padding-top: 2px; color: #586; }
   .zone .cards { gap: 3px; flex: 1; min-width: 0; }
-  .cards.grid8 { display: grid; grid-template-columns: repeat(8, max-content); }
   .zone.lands .cards { --scale: 0.7; }
   .meta { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #889; min-height: 0; }
   .meta .handrow { display: flex; gap: 2px; align-items: center; }
@@ -92,11 +97,12 @@
   .t7 .zone.lands .card { --scale: 0.7; }
   .t7 .pile .card { --scale: 0.7; }
   .t7 .meta .handrow .card { --scale: 0.55; }
-  .t7 .card .band { font-size: 0.55rem; }
+  .t7 .card .band { font-size: 0.55rem; top: 0; bottom: auto; }
+  .t7 .card { --hover: calc(300 / var(--cardn, 72)); }
   .t7 .card .pt { font-size: 0.58rem; bottom: 1px; }
-  .t7 .card:hover { transform: scale(2.2); z-index: 30; }
-  .t7 .card.tapped:hover { transform: scale(2.2) rotate(6deg); }
-  .t7 .card:hover .band { display: block; font-size: 0.5rem; }
+  .t7 .card:hover { transform: scale(var(--hover)); z-index: 30; }
+  .t7 .card.tapped:hover { transform: scale(var(--hover)) rotate(6deg); }
+  .t7 .card:hover .band, .t7 .card:hover .pt { display: block; font-size: 0.32rem; }
 </style></head><body class="t6 t7">
 <div class="app">
   <div class="top">
@@ -133,7 +139,7 @@
   for (const k of Object.keys(STATES)) { const o = document.createElement('option'); o.value = k; o.textContent = `${k} · ${STATES[k]().label}`; sel.append(o); }
   sel.value = stateId;
   sel.onchange = () => { stateId = Number(sel.value); S = STATES[stateId](); G = S.game; focus = S.focus; handOffset = 0; render(); };
-  let cap = 72; try { cap = Number(localStorage.getItem('t7-cap')) || 72; } catch {}
+  let cap = 84; try { cap = Number(localStorage.getItem('t7-cap')) || 84; } catch {}
   const size = $('size'); size.value = cap; $('sizev').textContent = cap + 'px';
   size.oninput = () => { cap = Number(size.value); $('sizev').textContent = cap + 'px'; try { localStorage.setItem('t7-cap', cap); } catch {} fitAll(); };
   $('popout').onclick = () => window.open('card-window.html', 'scutemob-card', 'width=760,height=1060');
@@ -181,7 +187,7 @@
   }
 
   function sideCell(o) {
-    const d = el('div', 'cell' + (o.active ? ' active' : '') + (o.name === G.priority ? ' prio-ring' : ''));
+    const d = el('div', 'cell' + (o.active ? ' active' : '') + (o.name === G.priority ? ' prio-ring' : '') + (o.name === focus ? ' focused-cell' : ''));
     d.append(el('div', 'hdr', seatHdr(o)), el('div', 'cmd', `★ ${o.commander}`));
     const meta = el('div', 'meta'); meta.append(el('span', '', 'hand'), oppHand(o), piles(o)); d.append(meta);
     const z = el('div', 'zones');
@@ -258,21 +264,30 @@
   // ceil(n/PER_ROW) rows of (card·scale·1.4) height. Width: PER_ROW cards + gaps + label.
   function fitBoard(elm) {
     if (!elm.dataset.rows) return;
-    const rows = JSON.parse(elm.dataset.rows); const perRow = Number(elm.dataset.perRow || PER_ROW);
+    const rows = JSON.parse(elm.dataset.rows); const minPerRow = Number(elm.dataset.perRow || PER_ROW);
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
     const H = elm.clientHeight - Number(elm.dataset.overhead || 0) * rem - rows.length * 6;
-    const W = elm.clientWidth - Number(elm.dataset.label ?? 4.6) * rem - (perRow - 1) * 3 - 20;
-    let units = 0; for (const [n, sc] of rows) units += Math.max(1, Math.ceil(n / perRow)) * sc * 1.4 + 0.06;
-    const byH = H / units, byW = W / perRow;
-    elm.style.setProperty('--card', Math.max(22, Math.min(cap, byH, byW)).toFixed(1) + 'px');
+    const W = elm.clientWidth - Number(elm.dataset.label ?? 4.6) * rem - 20;
+    // never wider than minPerRow-per-row allows; then shrink until the stacked rows fit the height
+    let c = Math.min(cap, (W - (minPerRow - 1) * 3) / minPerRow);
+    for (; c > 22; c -= 1) {
+      let units = 0;
+      for (const [n, sc] of rows) {
+        const perRow = Math.max(minPerRow, Math.floor((W + 3) / (c * sc + 3)));   // a row of this zone's cards fills the width
+        units += Math.max(1, Math.ceil(n / perRow)) * sc * 1.4 + 0.06;
+      }
+      if (units * c <= H) break;
+    }
+    c = Math.max(22, c);
+    elm.style.setProperty('--card', c.toFixed(1) + 'px');
+    elm.style.setProperty('--cardn', c.toFixed(1));
   }
   function fitAll() { document.querySelectorAll('[data-rows]').forEach(fitBoard); }
   new ResizeObserver(fitAll).observe(document.body);
 
   function render() {
-    const others = G.opps.filter((o) => o.name !== focus);
     const L = $('left'), Rr = $('right'); L.innerHTML = ''; Rr.innerHTML = '';
-    others.forEach((o, k) => (k % 2 === 0 ? L : Rr).append(sideCell(o)));
+    G.opps.forEach((o, k) => (k % 2 === 0 ? L : Rr).append(sideCell(o)));
     focusedArea(G.opps.find((o) => o.name === focus));
     yourBoard(); handRow(); phaseTrack(); stackAndPrompt();
     $('seats').textContent = G.opps.length + 1;
