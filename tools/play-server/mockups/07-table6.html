@@ -44,6 +44,15 @@
   /* seats */
   .side { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
   .side.left { grid-area: left; } .side.right { grid-area: right; }
+  .autopass { flex: 0 0 auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; font-size: 0.8rem; }
+  .autopass .panel-title { margin: 0; }
+  .autopass .modes { display: flex; flex-wrap: wrap; gap: 4px; }
+  .autopass .mode { background: #1c1c38; color: #ccd; border: 1px solid #33335a; border-radius: 4px; font: inherit; font-size: 0.78rem; padding: 4px 8px; cursor: pointer; }
+  .autopass .mode.on { background: #23386a; border-color: #4a6ab0; color: #fff; }
+  .autopass label { display: flex; align-items: center; gap: 6px; color: #bbc; }
+  .autopass select { font: inherit; font-size: 0.78rem; background: #0f0f22; color: #ccd; border: 1px solid #33335a; border-radius: 3px; }
+  .autopass .status { color: #fc8; font-size: 0.78rem; border-top: 1px solid #22223a; padding-top: 6px; }
+  .autopass .status.off { color: #778; }
   .cell { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; cursor: pointer; flex: 1 1 0; overflow: auto; }
   .cell:hover { border-color: #55558a; }
   .cell .top { display: flex; align-items: flex-start; gap: 8px; flex-wrap: nowrap; }
@@ -85,7 +94,7 @@
   .zonebox { width: calc(55px * 2 + 8px + 12px + 2px); }
   .is-active { outline: 2px solid var(--active); outline-offset: 1px; }
   .has-prio { box-shadow: 0 0 0 3px #fc8, 0 0 14px 3px rgba(255,200,128,.45); animation: prio 1.6s ease-in-out infinite; }
-  .is-active.has-prio { box-shadow: 0 0 0 2px #0a0a14, 0 0 0 5px #fc8, 0 0 14px 5px rgba(255,200,128,.45); }
+  .is-active.has-prio { outline: none; }
   .board .zone, .focused .zone { padding-right: calc(55px * 2 + 2.5rem); }   /* keep clear of the (fixed-size) zone box */
   .pile { position: relative; cursor: pointer; }
   .pile .card { --scale: 0.7; }
@@ -425,10 +434,35 @@
   function render() {
     const L = $('left'), Rr = $('right'); L.innerHTML = ''; Rr.innerHTML = '';
     G.opps.forEach((o, k) => (k % 2 === 0 ? L : Rr).append(sideCell(o)));
+    Rr.append(autoPassPanel());
     focusedArea(G.opps.find((o) => o.name === focus));
     yourBoard(); handRow(); phaseTrack(); stackAndPrompt();
     $('seats').textContent = G.opps.length + 1;
     fitAll();
+  }
+
+  // ---- auto-pass panel (mockup-only state) ---------------------------------
+  const AP = { mode: 'off', step: 'Main 2', spell: true, ability: false, combat: true };
+  function autoPassPanel() {
+    const d = el('div', 'autopass');
+    d.append(el('div', 'panel-title', 'Auto-pass priority'));
+    const modes = el('div', 'modes');
+    [['off', 'Off'], ['eot', 'Until end of turn'], ['mynext', 'Until my next turn'], ['step', 'Until step…']].forEach(([k, t]) => {
+      const b = el('button', 'mode' + (AP.mode === k ? ' on' : ''), t); b.onclick = () => { AP.mode = k; render(); }; modes.append(b);
+    });
+    d.append(modes);
+    if (AP.mode === 'step') {
+      const sel = el('select'); GAME.steps.forEach((st) => { const o = el('option', '', st); o.value = st; if (st === AP.step) o.selected = true; sel.append(o); });
+      sel.onchange = () => { AP.step = sel.value; render(); };
+      const l = el('label', '', 'stop at '); l.append(sel); d.append(l);
+    }
+    [['spell', 'stop if a spell is cast'], ['ability', 'stop if an ability is activated'], ['combat', 'stop when attackers are declared at me']].forEach(([k, t]) => {
+      const l = el('label'); const c = el('input'); c.type = 'checkbox'; c.checked = AP[k]; c.onchange = () => { AP[k] = c.checked; render(); }; l.append(c, t); d.append(l);
+    });
+    const until = { off: null, eot: 'end of this turn', mynext: 'your next turn', step: `the ${AP.step} step` }[AP.mode];
+    const unless = [AP.spell && 'a spell is cast', AP.ability && 'an ability is activated', AP.combat && 'attackers are declared at you'].filter(Boolean);
+    d.append(el('div', 'status' + (until ? '' : ' off'), until ? `Passing automatically until ${until}${unless.length ? ', unless ' + unless.join(' or ') : ''}.` : 'Off — every priority stops here.'));
+    return d;
   }
 
   // ---- context menu + popovers ---------------------------------------------
