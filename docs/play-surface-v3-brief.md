@@ -23,7 +23,8 @@ pixel decision below; when the brief and the mockup disagree, the mockup wins.
    cell brings them across; a turn change brings the new active player across. Their hand is
    card backs (36px) on their lands row; revealed cards face up.
 3. **Fixed seats.** Every opponent keeps a cell in the side columns (left, right, left …
-   in seat order; six seats = three + two). The focused one is marked in its cell; the top
+   in seat order; six seats = three + two). The focused one's cell is greyed out (dimmed and
+   desaturated, "across" tag) so it is obvious that board is the one at the top; the top
    copy is in addition, never instead. A cell is mirrored like the board across: under the
    1×5 strip come lands, then other permanents, then creatures last (owner, 2026-10-12).
 4. **Zones are piles with the top card showing.** Your board and the focused board each

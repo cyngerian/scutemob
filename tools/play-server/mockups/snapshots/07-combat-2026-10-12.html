@@ -79,7 +79,8 @@
   .zones5 .pile .empty { width: var(--pile, 56px); height: calc(var(--pile, 56px) * 1.4); }
   .zones5 { flex: 0 0 auto; }
   .zones5 .piles { display: contents; }
-  .cell.focused-cell { background: #171732; border-color: #6a6aa8; }
+  .cell.focused-cell { background: #0e0e1c; opacity: .45; filter: grayscale(.7); }
+  .cell.focused-cell:hover { opacity: .7; }
   .cell.focused-cell .hdr::before { content: '▲ across'; font-size: 0.58rem; color: #9bd; background: #334; border-radius: 3px; padding: 0 4px; margin-right: 2px; }
   .hdr { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.92rem; }
   .hdr .counts { font-size: 0.84rem; color: #99a; }
