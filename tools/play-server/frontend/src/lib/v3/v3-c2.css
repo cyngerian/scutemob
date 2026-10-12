@@ -1,0 +1,22 @@
+/*
+ * v3-c2 — the summoning-sick outline (`docs/play-surface-v3-brief.md` §2 item 4).
+ *
+ * Not in the mockup, so not in `v3.css`. A dashed violet frame inside the card's
+ * edge: an inset shadow rather than `outline`, because `lit` (green), `targeted`
+ * (red) and the hover ring all use `outline` and must keep winning it — a
+ * creature can be sick AND offered (a sick creature can still be sacrificed,
+ * targeted, or tapped for a non-{T} cost).
+ *
+ * Every selector is prefixed `.v3`.
+ */
+.v3 .card.sick::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px dashed #b48cff;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+}
+.v3 .card.sick .art { filter: saturate(.75); }
+.v3 .card.sick.tapped .art { filter: grayscale(.5) brightness(.5); }

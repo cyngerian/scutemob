@@ -20,6 +20,7 @@
    */
   import PromptPanel from '../v2/PromptPanel.svelte';
   import CardFace from './CardFace.svelte';
+  import BlockUi from './BlockUi.svelte';
   import { answerable } from '../v2/prompt.js';
   import { splitCamel } from '../names.js';
 
@@ -195,6 +196,9 @@
       {onClearSelection}
       onChainOpenChange={handleChainOpenChange}
     />
+
+    <!-- Blocker arrows (C2): draws itself only while `BlockerPicker` is mounted in this host. -->
+    <BlockUi {decision} {cardIndex} {loading} />
 
     {#if floating && !chainOpen}
       {#each groups as group (group.title)}

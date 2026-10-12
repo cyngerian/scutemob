@@ -20,6 +20,11 @@
   import { onMount, tick } from 'svelte';
   import './v3.css';
   import './v3-dock.css';
+  import './v3-c2.css';
+  import './v3-arrows.css';
+  import './v3-order.css';
+  import './v3-block.css';
+  import './v3-autopass.css';
   import TopBar from './TopBar.svelte';
   import PhaseTrack from './PhaseTrack.svelte';
   import SideCell from './SideCell.svelte';
@@ -29,6 +34,9 @@
   import Dock from './Dock.svelte';
   import PilePopover from './PilePopover.svelte';
   import ContextMenu from './ContextMenu.svelte';
+  import AutoPass from './AutoPass.svelte';
+  import { beginArrowFromCard } from './targeting.svelte.js';
+  import { newGameKey, trackGame } from './order.js';
   import { fitAll } from './fit.js';
   import { peekStyle } from './zones.js';
   import { landStacks, pickFocus, seatOrder, sideColumns, splitBattlefield } from './layout.js';
@@ -76,6 +84,16 @@
   const priority = $derived(view?.turn?.priority ?? null);
 
   let keptHand = $state(false);
+
+  /**
+   * The key your own card order is remembered under (`order.js`). The summary
+   * carries no game id, so `trackGame` keeps one in `localStorage` and decides
+   * from the summary's counters whether this is still the same table.
+   */
+  let gameKey = $state(null);
+  $effect(() => {
+    gameKey = summary ? trackGame(summary) : null;
+  });
   const pregame = $derived(!!summary?.pregame && !keptHand);
 
   // ── Who sits across the table (mockup rule 2) ──────────────────────────────
@@ -229,6 +247,7 @@
     keptHand = false;
     chosenFocus = null;
     clearSelection();
+    newGameKey();
     await startGame(opts);
   }
 
@@ -239,6 +258,7 @@
 
   async function handleMulligan() {
     clearSelection();
+    newGameKey();
     await takeMulligan();
   }
 
@@ -377,10 +397,12 @@
           isActive={activePlayer === humanName}
           hasPrio={priority === humanName}
           {offeredIds}
+          {gameKey}
           onCardClick={handleCardClick}
           onSeatMenu={seatMenu}
+          onDragOut={beginArrowFromCard}
         />
-        <HandRow cards={ownHand} {offeredIds} onCardClick={handleCardClick} />
+        <HandRow cards={ownHand} {offeredIds} {gameKey} onCardClick={handleCardClick} onDragOut={beginArrowFromCard} />
       {:else}
         <div class="focused"></div>
         <div class="board v3-empty">
@@ -394,6 +416,7 @@
     <div class="side right">
       {#if view}
         {#each columns.right as name (name)}{@render cell(name)}{/each}
+        <AutoPass />
       {/if}
     </div>
 

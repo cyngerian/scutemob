@@ -19,6 +19,9 @@
    *   size           — 'perm' | 'hand' | 'small' | 'mini'
    *   count          — >1 draws "×N" (a land stack)
    *   lit / targeted — offered by the current decision / targeted by something on the stack
+   *
+   * A creature the seat view marks `summoning_sick` (and that has no haste) carries
+   * the `sick` outline (brief §2 item 4). Both facts are the view's own fields.
    *   pt             — a "p/t" string for a card that carries no power/toughness of its own
    *   onclick        — `(card, event)`; null leaves the click to whatever is underneath
    *   oncontextmenu  — `(event, card)`
@@ -59,6 +62,14 @@
       .join(' · '),
   );
 
+  /** CR 302.6: only a creature is held back by it, and haste lifts it. */
+  const sick = $derived(
+    !hidden &&
+      card.summoning_sick === true &&
+      (card.card_types ?? []).includes('Creature') &&
+      !(card.keywords ?? []).some((k) => String(k).toLowerCase() === 'haste'),
+  );
+
   const typeLine = $derived(hidden ? '' : [isToken ? 'token' : null, ...(card.card_types ?? [])].filter(Boolean).join(' '));
 </script>
 
@@ -70,6 +81,7 @@
   class:tapped={!hidden && card.tapped}
   class:lit
   class:targeted
+  class:sick
   class:cmd={!hidden && card.is_commander}
   class:token={isToken}
   class:has-image={hasImage}
