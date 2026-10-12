@@ -25,7 +25,9 @@ pixel decision below; when the brief and the mockup disagree, the mockup wins.
 3. **Fixed seats.** Every opponent keeps a cell in the side columns (left, right, left …
    in seat order; six seats = three + two). The focused one's cell is greyed out (dimmed and
    desaturated, "across" tag) so it is obvious that board is the one at the top; the top
-   copy is in addition, never instead. A cell is mirrored like the board across: under the
+   copy is in addition, never instead. The grey-out lifts whenever that cell's cards can be
+   chosen — while a spell or ability is being targeted (arrow or decision box), while blockers
+   are being declared, and on hover — and returns when the choice is done. A cell is mirrored like the board across: under the
    1×5 strip come lands, then other permanents, then creatures last (owner, 2026-10-12).
 4. **Zones are piles with the top card showing.** Your board and the focused board each
    carry a 2×2 box (title row: name + life; then command zone, library, graveyard, exile)
