@@ -6,6 +6,19 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-10-12 — Play surface mockups 1–7 → the alpha UI (`scutemob-265`, merge f6dbc355; v3 brief merge 475100fe)
+
+- Owner verdict on v2 ("busted from its inception") turned out to be judged at 150 % browser zoom
+  (~1707×880 CSS px); the owner now plays at 100 % (2560×1340). Five static layout candidates, then
+  mockup 7 iterated through ~30 rated rounds (`tools/play-server/mockups/07-table6.html`, states incl.
+  a six-player late game and a four-attacker combat). Owner: "this is the alpha UI". Frozen snapshots
+  + tags `mockup-7-readable` / `-zones` / `-combat` (`mockups/snapshots/README.md`).
+- NEW `docs/play-surface-v3-brief.md` (approved): the settled rules, the four must-land additions
+  (drag-arrow targeting, card right-click menus incl. counters, drag-rearrange hand/battlefield,
+  summoning-sick outline), phases C1–C3 = `scutemob-266..268` (backlog, to be dispatched), server gaps.
+- `docs/play-surface-v2-brief.md` banner'd SUPERSEDED. No engine or wire change; 5,352 tests unchanged.
+  Notes: `memory/play-v2-b2-2026-10-10.md` (B2), auto-memory `project_play_v3_alpha_ui`.
+
 ## 2026-10-10 — Play surface v2 B2 (`scutemob-264`) — card images, piles, printed activation labels
 
 - Brief §4: every v2 card is a Scryfall `small` image inside the same fixed box as the text chip, which
