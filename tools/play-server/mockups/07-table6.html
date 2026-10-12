@@ -91,9 +91,9 @@
   .t7 .zonebox .pile .card { --card: 55px; --scale: 1; }
   .zonebox .pile .empty { width: 55px; height: calc(55px * 1.4); }
   .zonebox { width: calc(55px * 2 + 8px + 12px + 2px); }
-  .is-active { outline: 2px solid var(--active); outline-offset: 1px; }
-  .has-prio { box-shadow: 0 0 0 3px #fc8, 0 0 14px 3px rgba(255,200,128,.45); animation: prio 1.6s ease-in-out infinite; }
-  .is-active.has-prio { outline: none; }
+  .is-active { border-color: var(--active) !important; }
+  .has-prio { border-color: #fc8 !important; animation: prioborder 1.6s ease-in-out infinite; }
+  @keyframes prioborder { 0%, 100% { border-color: #fc8; box-shadow: 0 0 0 0 rgba(255,200,128,0); } 50% { border-color: #ffe0b0; box-shadow: 0 0 12px 1px rgba(255,200,128,.45); } }
   .board .zone, .focused .zone { padding-right: calc(55px * 2 + 2.5rem); }   /* keep clear of the (fixed-size) zone box */
   .pile { position: relative; cursor: pointer; }
   .pile .card { --scale: 0.7; }
