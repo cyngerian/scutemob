@@ -1,0 +1,115 @@
+/*
+ * v3-dock — what the mockup does not style for the dock and the top bar
+ * (`docs/play-surface-v3-brief.md` §1 rules 10, 11). The mockup's own rules are
+ * in `v3.css`; this file holds only:
+ *
+ *   · the menu dropdown (`.v3-menu`);
+ *   · `PromptPanel` re-dressed for this page. Its scoped rules compile to
+ *     `.prompt.svelte-HASH` (specificity 0,2,0), so every override here goes
+ *     through `.v3 .decision-host .prompt …` (0,3,0 and up). It was designed as
+ *     a fixed-height strip on a 16px root; here it is a free-height block on a
+ *     13px root, in a 19rem dock column or in the centred box;
+ *   · the pickers scaled back to their designed size (`zoom: 16 / 13`).
+ *
+ * Every selector is prefixed `.v3`.
+ */
+
+/* ── decision host ──────────────────────────────────────────────────────── */
+
+.v3 .decision-host { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.v3 .decision-host.decision-float { gap: 10px; }
+.v3 .decision-host .act.disabled { opacity: 0.5; cursor: not-allowed; }
+
+.v3 .decision-host .prompt {
+  height: auto;
+  overflow: visible;
+  background: none;
+  border: none;
+  padding: 0;
+  gap: 6px;
+  font-family: inherit;
+}
+
+/* status line: wraps, legible, and takes no room while it has nothing to say */
+.v3 .decision-host .prompt .status {
+  height: auto;
+  min-height: 1.5rem;
+  font-size: 0.82rem;
+  white-space: normal;
+  overflow: visible;
+  align-items: flex-start;
+}
+.v3 .decision-host .prompt .status:has(.st.blank) { display: none; }
+.v3 .decision-host .prompt .status .st { overflow: visible; text-overflow: clip; flex-wrap: wrap; }
+.v3 .decision-host .prompt .status .st.error { color: #ffb0c0; }
+.v3 .decision-host .prompt .status .st.note { color: #dde; }
+.v3 .decision-host .prompt .status .st.chooser { color: #ccd; }
+.v3 .decision-host .prompt .status .st.auto { color: #9dd; }
+.v3 .decision-host .prompt .status .dim { color: #99a; }
+.v3 .decision-host .prompt .status .x,
+.v3 .decision-host .prompt .status .mini { font-family: inherit; font-size: 0.78rem; padding: 2px 6px; line-height: 1.3; }
+
+.v3 .decision-host .prompt .sentence {
+  font-size: 0.88rem;
+  line-height: 1.4;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  padding: 0;
+}
+.v3 .decision-host .prompt.tone-theirs .sentence,
+.v3 .decision-host .prompt.tone-idle .sentence { color: #99a; }
+
+.v3 .decision-host .prompt .buttons { flex: 0 0 auto; overflow: visible; gap: 8px; }
+.v3 .decision-host .prompt .btn { font-family: inherit; font-size: 0.82rem; padding: 6px 14px; }
+/* the mockup's `.act` (a card item, 92px column) must not reach PromptPanel's `.btn.act` */
+.v3 .decision-host .prompt .btn.act { width: auto; flex-direction: row; align-items: center; gap: 0.35rem; }
+.v3 .decision-host .prompt kbd { font-size: 0.7em; margin-left: 0; }
+.v3 .decision-host .prompt .hint { font-size: 0.8rem; color: #99a; }
+
+/* in the dock: one column, like the mockup's `.prompt-box .p-buttons` */
+.v3 .decision-host:not(.decision-float) .prompt .buttons { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+.v3 .decision-host:not(.decision-float) .prompt .btn { justify-content: center; white-space: normal; }
+.v3 .decision-host:not(.decision-float) .prompt .btn.primary { min-width: 0; font-size: 0.95rem; padding: 10px; }
+
+/* in the centre */
+.v3 .decision-host.decision-float .prompt .sentence { font-size: 1.05rem; }
+.v3 .decision-host.decision-float .prompt .btn.primary { min-width: 11rem; font-size: 1.05rem; padding: 10px 16px; }
+
+/* pickers: designed at a 16px root, this page is 13px */
+.v3 .decision-host .prompt .picker-area { zoom: 1.23; flex: 0 1 auto; max-height: calc(50vh / 1.23); overflow: auto; }
+.v3 .decision-host.decision-float .prompt .picker-area { max-height: calc(60vh / 1.23); }
+
+/* ── top bar menu ───────────────────────────────────────────────────────── */
+
+.v3 .top .mock label { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.v3 .v3-menu-wrap { position: relative; }
+.v3 .v3-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 90;
+  width: 20rem;
+  background: #141428;
+  border: 1px solid #44446a;
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.8);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+  white-space: normal;
+}
+.v3 .v3-menu .sec { display: flex; flex-direction: column; gap: 5px; padding-bottom: 8px; border-bottom: 1px solid #22223a; }
+.v3 .v3-menu .sec:last-child { border-bottom: none; padding-bottom: 0; }
+.v3 .v3-menu .sec-title { font-size: 0.72rem; color: #aab; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.v3 .v3-menu label { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #bbc; }
+.v3 .v3-menu input,
+.v3 .v3-menu select { width: 9rem; font: inherit; background: #0f0f22; color: #ccd; border: 1px solid #33335a; border-radius: 3px; padding: 2px 5px; }
+.v3 .v3-menu .btn { text-align: left; padding: 5px 10px; font-size: 0.85rem; }
+.v3 .v3-menu .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.v3 .v3-menu .btn.concede { background: #2a1418; border-color: #5a2a30; color: #e0a0a0; }
+.v3 .v3-menu .btn.danger { background: #7a1c26; border-color: #a83a46; color: #fdd; font-weight: bold; }
+.v3 .v3-menu .why { color: #aab; font-size: 0.78rem; }
+.v3 .v3-menu .why.warn { color: #f0b0b0; }

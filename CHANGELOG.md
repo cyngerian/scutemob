@@ -6,6 +6,18 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-10-12 — Play surface v3 C1 (`scutemob-266`) — the alpha table from live state
+
+- Mockup 7 built as a third surface behind `?v3` (`frontend/src/lib/v3/`, 25 files): fixed side cells
+  (mirrored, focused one greyed + lift, one-second peek), board across the table, 3-row board, hand,
+  2×2 boxes / 1×5 strips with popovers, phase track, dock (stack, combat card, centred minimisable
+  decision with card items hosting the unmodified v2 `PromptPanel`), seat menu, hover, `?card-window`.
+- `v3.css` is the mockup's stylesheet scoped under `.v3`; `fit.js` its measured fit. NEW
+  `probes/v3sweep.py` + `v3interact.py`: seeds 0, 3 × 2560×1340, 1707×880 to turn 10 and two 30-turn
+  runs — 0 page scroll, 0 box scroll, 0 page errors; 31/31 interaction checks.
+- Three source gates, each with an executed defeat. No engine or wire change; tests 5,352 → 5,355.
+  `?v2` and the default surface untouched. Notes: `memory/play-v3-c1-2026-10-12.md`.
+
 ## 2026-10-12 — Play surface mockups 1–7 → the alpha UI (`scutemob-265`, merge f6dbc355; v3 brief merge 475100fe)
 
 - Owner verdict on v2 ("busted from its inception") turned out to be judged at 150 % browser zoom
