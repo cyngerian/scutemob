@@ -98,6 +98,16 @@ Built by M11-local **Session 6** (plan §4). Vite + Svelte 5 (runes), the same
 versions as `tools/replay-viewer/frontend`: `svelte ^5.45`, `vite ^7.3`,
 `@sveltejs/vite-plugin-svelte ^6.2`.
 
+**Three surfaces, one bundle** (`src/main.js`): the first surface is the default,
+`?v2` is the second (`docs/play-surface-v2-brief.md`, superseded), and **`?v3` is
+the owner-approved alpha table** (`docs/play-surface-v3-brief.md`, `src/lib/v3/`;
+phase C1 = `scutemob-266`, notes `memory/play-v3-c1-2026-10-12.md`).
+`?card-window` is v3's popped-out card view. v3's stylesheets are the mockup's,
+scoped under `.v3` (a source gate holds that), so they cannot reach the other two.
+Headless checks for v3 live in `probes/`: `v3sweep.py` (greedy N-turn drive: no
+page scroll, no box scroll, no page errors) and `v3interact.py` (focus, popovers,
+seat menu, peek, hover, sizing). Run them against a server on 3041/3042, never 3040.
+
 ```sh
 cd tools/play-server/frontend
 npm install

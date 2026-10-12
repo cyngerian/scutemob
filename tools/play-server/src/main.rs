@@ -7994,6 +7994,301 @@ mod tests {
         );
     }
 
+    /// Every `.svelte` / `.js` / `.css` file of the v3 surface, by path.
+    fn v3_sources() -> Vec<(String, String)> {
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("frontend/src/lib/v3");
+        let mut out = Vec::new();
+        collect_frontend_files(&dir, &mut out);
+        out
+    }
+
+    /// `<img` elements in a component, not counting the closed `<img>` a comment
+    /// writes when it names the element (the v2 gate's rule).
+    fn img_elements(text: &str) -> usize {
+        text.matches("<img").count() - text.matches("<img>").count()
+    }
+
+    /// **v3 C1 (`scutemob-266`) — the alpha surface's card images are lazy, fall
+    /// back to the chip, and name their source in one place** (brief §1 rules 6-7;
+    /// the v2 gate above, carried to the new surface).
+    ///
+    /// A card box is fixed-size and holds a text chip under the picture, so an
+    /// unreachable or rate-limited Scryfall must leave the chip and never a
+    /// broken-image icon; and the URL is built only in `v2/images.js`, because
+    /// phase C3 swaps it for a cached proxy and that swap has to be one line.
+    ///
+    /// Vacuity: the walk must see `CardFace.svelte` and `CardWindow.svelte` by
+    /// name and each must really render an image element; `hover.js` builds its
+    /// overlay through the DOM, so it is pinned by its import and its handler.
+    ///
+    /// Paired probe: `tools/play-server/probes/v3sweep.py --block-scryfall`
+    /// (every card keeps a chip with the image host blocked).
+    ///
+    /// Defeat (executed 2026-10-12): `loading="lazy"` deleted from
+    /// `CardFace.svelte` → red ("every <img> in …/CardFace.svelte must be loading="lazy"");
+    /// restored → green.
+    #[test]
+    fn test_frontend_v3_card_images_are_lazy_and_fall_back() {
+        let sources = v3_sources();
+        let mut with_images = Vec::new();
+        for (path, text) in &sources {
+            assert!(
+                !text.contains("api.scryfall.com"),
+                "{path} names the image host itself; build the URL through `v2/images.js` \
+                 (the one place it is spelled, so the C3 proxy swap is one line)"
+            );
+            if !path.ends_with(".svelte") {
+                continue;
+            }
+            let imgs = img_elements(text);
+            if imgs == 0 {
+                continue;
+            }
+            assert_eq!(
+                text.matches("loading=\"lazy\"").count(),
+                imgs,
+                "every <img> in {path} must be loading=\"lazy\" (Scryfall's rate limit)"
+            );
+            assert_eq!(
+                text.matches("onerror=").count(),
+                imgs,
+                "every <img> in {path} must carry an onerror fallback"
+            );
+            assert!(
+                text.contains("from '../v2/images.js'"),
+                "{path} must build its image URL through `v2/images.js`"
+            );
+            with_images.push(path.clone());
+        }
+        for name in ["CardFace.svelte", "CardWindow.svelte"] {
+            assert!(
+                with_images.iter().any(|p| p.ends_with(name)),
+                "v3 {name} renders no <img> (or was not walked); the gate would be vacuous. \
+                 Files with images: {with_images:?}"
+            );
+        }
+        let hover = sources
+            .iter()
+            .find(|(p, _)| p.ends_with("hover.js"))
+            .map(|(_, t)| t.as_str())
+            .expect("v3 hover.js exists: the one hover overlay (brief §1 rule 7)");
+        assert!(
+            hover.contains("from '../v2/images.js'") && hover.contains("onerror"),
+            "v3 hover.js must take its URL from `v2/images.js` and handle a failed load"
+        );
+        let images =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("frontend/src/lib/v2/images.js");
+        let images = std::fs::read_to_string(&images).expect("v2 images.js is readable");
+        assert!(
+            images.contains("version=small") && images.contains("scryfallImageUrl"),
+            "images.js keeps the `small` board printing and exports the sized URL v3 hovers use"
+        );
+    }
+
+    /// **v3 C1 (`scutemob-266`) — the alpha surface is a third mount, not a
+    /// replacement** (brief §3: "v2 stays behind `?v2` and the old surface stays
+    /// default until the owner says otherwise").
+    ///
+    /// `main.js` must still mount `App` by default and `PlayAppV2` on `?v2`, and
+    /// add `TableV3` on `?v3` and `CardWindow` on `?card-window`; and nothing in
+    /// `lib/v3/` may import `PlayAppV2` — v3 ports its click-through instead, so
+    /// deleting v2 later cannot take the alpha surface with it.
+    ///
+    /// Paired probe: `tools/play-server/probes/v3sweep.py` loads `/?v3` and fails
+    /// `COULD-NOT-RUN` when `.v3 .app` never renders.
+    ///
+    /// Defeat (executed 2026-10-12): the mount expression in `main.js`
+    /// cut to `useV3 ? TableV3 : App` (v2 dropped) → red ("main.js no longer contains …");
+    /// restored → green.
+    #[test]
+    fn test_frontend_v3_is_a_third_mount_and_never_imports_the_v2_app() {
+        let main_js = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("frontend/src/main.js");
+        let main_js = std::fs::read_to_string(&main_js).expect("frontend main.js is readable");
+        for needle in [
+            "import App from './App.svelte'",
+            "import PlayAppV2 from './lib/v2/PlayAppV2.svelte'",
+            "import TableV3 from './lib/v3/TableV3.svelte'",
+            "import CardWindow from './lib/v3/CardWindow.svelte'",
+            "query.has('v2')",
+            "query.has('v3')",
+            "query.has('card-window')",
+            "useCardWindow ? CardWindow : useV3 ? TableV3 : useV2 ? PlayAppV2 : App",
+        ] {
+            assert!(
+                main_js.contains(needle),
+                "main.js no longer contains `{needle}`: the three surfaces and the card \
+                 window each keep their own mount"
+            );
+        }
+        let sources = v3_sources();
+        assert!(
+            sources.iter().any(|(p, _)| p.ends_with("TableV3.svelte")) && sources.len() >= 20,
+            "the v3 walk saw {} files and must include TableV3.svelte",
+            sources.len()
+        );
+        for (path, text) in &sources {
+            for line in text.lines() {
+                let l = line.trim_start();
+                assert!(
+                    !(l.starts_with("import") && l.contains("PlayAppV2")),
+                    "{path} imports PlayAppV2 (`{l}`); v3 ports from it and never imports it"
+                );
+            }
+        }
+    }
+
+    /// The selectors in `css` that are not scoped to the v3 surface, plus the
+    /// number of style rules seen. A selector is scoped when it starts with `.v3`
+    /// (the table's root class) or `html.v3-page`; `@keyframes` names must carry
+    /// the `v3-` prefix, since keyframe names are global too.
+    fn unscoped_v3_selectors(css: &str) -> (usize, Vec<String>) {
+        // Comments out first: a `{` inside one is not a block.
+        let mut text = String::new();
+        let mut rest = css;
+        while let Some(start) = rest.find("/*") {
+            text.push_str(&rest[..start]);
+            rest = rest[start..]
+                .find("*/")
+                .map_or("", |end| &rest[start + end + 2..]);
+        }
+        text.push_str(rest);
+
+        let scoped = |sel: &str| {
+            for root in [".v3", "html.v3-page"] {
+                if let Some(tail) = sel.strip_prefix(root) {
+                    if tail
+                        .chars()
+                        .next()
+                        .is_none_or(|c| matches!(c, ' ' | '.' | ':' | '>' | '['))
+                    {
+                        return true;
+                    }
+                }
+            }
+            false
+        };
+
+        let mut rules = 0;
+        let mut bad = Vec::new();
+        let mut depth = 0usize;
+        // Depth at which a `@keyframes` body opened; its `from` / `50%` blocks are not selectors.
+        let mut keyframes_at: Option<usize> = None;
+        let mut prelude = String::new();
+        for ch in text.chars() {
+            match ch {
+                '{' => {
+                    let head = prelude.trim().to_string();
+                    prelude.clear();
+                    depth += 1;
+                    if keyframes_at.is_some() {
+                        continue;
+                    }
+                    if let Some(name) = head.strip_prefix("@keyframes") {
+                        if !name.trim().starts_with("v3-") {
+                            bad.push(head.clone());
+                        }
+                        keyframes_at = Some(depth);
+                    } else if !head.starts_with('@') {
+                        rules += 1;
+                        let mut parens = 0i32;
+                        let mut sel = String::new();
+                        for c in head.chars().chain(std::iter::once(',')) {
+                            match c {
+                                '(' => parens += 1,
+                                ')' => parens -= 1,
+                                _ => {}
+                            }
+                            if c == ',' && parens == 0 {
+                                let s = sel.split_whitespace().collect::<Vec<_>>().join(" ");
+                                if !scoped(&s) {
+                                    bad.push(s);
+                                }
+                                sel.clear();
+                            } else {
+                                sel.push(c);
+                            }
+                        }
+                    }
+                }
+                '}' => {
+                    prelude.clear();
+                    if keyframes_at == Some(depth) {
+                        keyframes_at = None;
+                    }
+                    depth = depth.saturating_sub(1);
+                }
+                ';' if depth == 0 => prelude.clear(),
+                _ => prelude.push(ch),
+            }
+        }
+        (rules, bad)
+    }
+
+    /// **v3 C1 (`scutemob-266`) — the alpha surface's stylesheets cannot restyle
+    /// the other two surfaces.**
+    ///
+    /// `v3.css` is the mockup's stylesheet, and the mockup styles bare `.card`,
+    /// `.btn`, `.hand`, `html, body`. Vite bundles every surface into one CSS
+    /// file, so an unprefixed rule there would land on the default surface and
+    /// on `?v2` — the two the brief says to leave untouched — with no build
+    /// error and no test noticing. Every selector therefore starts at the
+    /// table's root class (`.v3`) or the page class `TableV3` sets
+    /// (`html.v3-page`), and keyframes are `v3-`-prefixed.
+    ///
+    /// Vacuity: both files must exist with a floor of rules, and the matcher is
+    /// fired at a synthetic stylesheet to prove it tells scoped from unscoped.
+    ///
+    /// No paired probe: the behaviour it stands in for is "v1 and v2 look as
+    /// they did", which no committed drive screenshots (reason for the demotion:
+    /// the v2 sweep was never committed — `memory/play-v2-b2-2026-10-10.md`).
+    ///
+    /// Defeat (executed 2026-10-12): `.v3 .card.lit` in `v3.css` cut to
+    /// `.card.lit` → red ("selectors that are not scoped … [\".card.lit\"]"); restored → green.
+    #[test]
+    fn test_frontend_v3_stylesheets_are_scoped_to_the_v3_root() {
+        let (rules, bad) = unscoped_v3_selectors(
+            "/* .x { */ .v3 .card, .v3.t7 .band:not(.a, .b) { color: red; }\n\
+             html.v3-page body { margin: 0; }\n\
+             @media (min-width: 1px) { .v3 .hand { gap: 1px; } .hand { gap: 2px; } }\n\
+             @keyframes v3-pop { from { opacity: 0; } to { opacity: 1; } }\n\
+             @keyframes pop { from { opacity: 0; } }\n\
+             .card, .v3x .card, body { color: blue; }",
+        );
+        assert_eq!(
+            rules, 5,
+            "the matcher counts style rules, not keyframe stops"
+        );
+        assert_eq!(
+            bad,
+            vec![".hand", "@keyframes pop", ".card", ".v3x .card", "body"],
+            "the matcher must flag exactly the unscoped selectors of the synthetic sheet"
+        );
+
+        let sources = v3_sources();
+        for (name, floor) in [("v3.css", 150), ("v3-dock.css", 5)] {
+            let (path, text) = sources
+                .iter()
+                .find(|(p, _)| p.ends_with(&format!("/{name}")))
+                .unwrap_or_else(|| panic!("v3 {name} was not found under frontend/src/lib/v3"));
+            let (rules, bad) = unscoped_v3_selectors(text);
+            assert!(
+                rules >= floor,
+                "{path} has {rules} rules, fewer than the {floor} the port carries; \
+                 the gate would be near-vacuous"
+            );
+            assert!(
+                bad.is_empty(),
+                "{path} has selectors that are not scoped under `.v3` / `html.v3-page` \
+                 (they would restyle the default surface and ?v2): {bad:?}"
+            );
+        }
+        // The other stylesheets of the surface, if any are added later, obey the same rule.
+        for (path, text) in sources.iter().filter(|(p, _)| p.ends_with(".css")) {
+            let (_, bad) = unscoped_v3_selectors(text);
+            assert!(bad.is_empty(), "{path} has unscoped selectors: {bad:?}");
+        }
+    }
+
     /// **UI-4 (`scutemob-185`), G1 of `memory/playtest-triage-2026-08-02b.md` —
     /// no file in the Svelte client may hand a value to a platform primitive that
     /// rejects `Proxy` objects.**
