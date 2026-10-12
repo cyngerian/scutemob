@@ -2,7 +2,9 @@
 
 <!-- last_updated: 2026-10-10 -->
 
-> Status: **APPROVED by the owner 2026-10-10** (`scutemob-262`), with the four §8
+> Status: **SUPERSEDED 2026-10-12** by `docs/play-surface-v3-brief.md` (the owner-approved alpha UI, mockup 7). Kept for the B1/B2 record.
+>
+> Former status: **APPROVED by the owner 2026-10-10** (`scutemob-262`), with the four §8
 > questions answered as recommended. Build tasks follow §7.
 
 ## 1. Why a new surface
