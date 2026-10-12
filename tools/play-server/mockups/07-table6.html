@@ -131,7 +131,11 @@
   .combat-box .dim { font-size: 0.8rem; }
   .combat-box .def { border: 1px solid #4a3028; background: #1a1220; border-radius: 6px; padding: 4px 6px; margin-top: 5px; }
   .combat-box .def .to { font-size: 0.78rem; color: #e8b090; font-weight: bold; margin-bottom: 3px; }
-  .combat-box .grp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .combat-box .grp { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+  .combat-box .pair { display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: 4px; }
+  .combat-box .pair.blocked { background: rgba(80,120,200,.18); outline: 1px solid #3a5a9a; }
+  .combat-box .pair .vs { color: #9bd; font-size: 0.9rem; line-height: 1; }
+  .combat-box .pair .blocker .card { outline: 1px solid #9bd; }
   .combat-box .card { --card: 40px; }
   .combat-box .blk { font-size: 0.7rem; color: #9bd; }
   .combat-float { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 70; width: min(1100px, 80vw); max-height: 85vh; overflow: auto; background: #14142a; border: 2px solid #d07a4a; border-radius: 10px; padding: 14px 16px; box-shadow: 0 20px 60px rgba(0,0,0,.85); display: flex; flex-direction: column; gap: 10px; }
@@ -415,7 +419,12 @@
     C.groups.forEach((gp) => {
       const box = el('div', 'def'); box.append(el('div', 'to', `→ attacking ${gp.defender === 'Human-1' ? 'you' : gp.defender}`));
       const row = el('div', 'grp');
-      gp.attackers.forEach((a) => { row.append(cardEl({ n: a.n, pt: a.pt }, 'perm')); if (a.blockers.length) row.append(el('span', 'blk', `⛨ ${a.blockers.map((b) => b.n).join(', ')}`)); });
+      gp.attackers.forEach((a) => {
+        const pr = el('div', 'pair' + (a.blockers.length ? ' blocked' : '')); pr.title = a.blockers.length ? `${a.n} blocked by ${a.blockers.map((b) => b.n).join(', ')}` : `${a.n} unblocked`;
+        pr.append(cardEl({ n: a.n, pt: a.pt }, 'perm'));
+        a.blockers.forEach((b) => { pr.append(el('span', 'vs', '⛨')); const bl = el('span', 'blocker'); bl.append(cardEl({ n: b.n, pt: b.pt }, 'perm')); pr.append(bl); });
+        row.append(pr);
+      });
       box.append(row); cb.append(box);
     });
     cb.append(el('div', 'dim', 'click to enlarge'));
