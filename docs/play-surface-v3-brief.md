@@ -122,3 +122,39 @@ pixel decision below; when the brief and the mockup disagree, the mockup wins.
   every card has an image or a chip, zero page errors, decisions answered.
 - Screenshots at turns 1 / 5 / 10 per seed, reviewed by eye against the mockup.
 - The mockup page stays as the design reference; it is updated only when the owner asks.
+
+## 7. Dispatch notes for C1 (`scutemob-266`)
+
+For the coordinator writing the worker brief:
+
+- **Change class:** new presentation surface, no engine change (`memory/conventions.md` →
+  "Change-class acceptance table", the UI row). Gates: `cargo test --workspace`, clippy
+  `--workspace --all-targets -- -D warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh`,
+  `npm run build` in `tools/play-server/frontend`, the frontend source gates in
+  `tools/play-server/src/main.rs` (`collect_frontend_files`, add a v3 gate beside
+  `test_frontend_v2_card_images_are_lazy_and_fall_back`).
+- **Start from:** `frontend/src/lib/v3/layout.js` (zone split, seat order, side columns,
+  focus rule, combat grouping, step order — written 2026-10-12, use or replace);
+  `frontend/src/main.js` (mount behind `?v3`, and a `?card-window` mount for the pop-out);
+  `frontend/src/lib/v2/PlayAppV2.svelte` (click-through, offered ids, mana rows, concede —
+  port, don't import); `frontend/src/lib/v2/PromptPanel.svelte` (the picker chain and
+  `beginExternal`; host it inside the v3 decision panel rather than rewriting the pickers);
+  `frontend/src/lib/stores.js`, `lib/api.js`, `lib/names.js`, `lib/v2/prompt.js`,
+  `lib/v2/images.js` (add a `normal`-size URL for the hover overlay).
+- **Port verbatim from the mockup:** `tools/play-server/mockups/07-table6.html` and
+  `common.css` (`.t6` / `.t7` rules) — the grid, `fitBoard` / `fitAll` / `sizeStrips`,
+  `showHover`, the dock, the combat card, the decision float, the zone box and strip CSS,
+  the legibility block. The mockup's sample data (`common.js`) is NOT ported; the seat view
+  is the data.
+- **Data notes:** opponent hands are `zones.hand[name]` entries with `hidden: true` → backs;
+  exile is one shared list (label it shared in every box until C3); command zone cards are
+  `zones.command_zone[name]`, a commander on the battlefield is `is_commander`; combat is
+  `state.combat` (`attackers[].target` is `player:<name>` / `planeswalker:<name>`,
+  `blockers[]`); P/T for a combat card comes from the battlefield entry with that `object_id`.
+- **Probes:** one play-server per game — run probes on 3041/3042, never the owner's 3040;
+  the drive script pattern is `tools/play-server/mockups/screenshot.py` plus the B1/B2
+  `v2sweep.py` loop (deal, keep hand, answer decisions, screenshot turns 1/5/10); commit
+  the v3 sweep under `tools/play-server/probes/`. Seed `OOS-DX20b-1` (Purphoros offered
+  as an attacker, engine refuses) is a known engine seed, not a surface bug.
+- **Must not:** `git add -A`; touch `?v2` or the default surface; re-filter hidden info on
+  the client (Invariant 7); run the CR/Scryfall data refresh.
