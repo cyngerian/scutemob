@@ -46,6 +46,15 @@
   .side.left { grid-area: left; } .side.right { grid-area: right; }
   .cell { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; cursor: pointer; flex: 1 1 0; overflow: auto; }
   .cell:hover { border-color: #55558a; }
+  .cell .top { display: flex; align-items: flex-start; gap: 8px; }
+  .cell .who { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+  .cell .who .seat-name { font-size: 1rem; }
+  .cell .who .life { margin: 0; font-size: 1.6rem; line-height: 1.1; }
+  .zones5 { margin-left: auto; display: flex; gap: 5px; padding: 4px 5px; background: rgba(8,8,20,.75); border: 1px solid #3a3a66; border-radius: 6px; }
+  .t7 .cell .zones5 .card, .t7 .cell .zones5 .cz .card, .t7 .cell .zones5 .pile .card { --scale: 1.15; }
+  .zones5 .onbf, .zones5 .pile .empty { width: calc(var(--card) * 1.15); height: calc(var(--card) * 1.15 * 1.4); }
+  .zones5 .cz { margin: 0; }
+  .zones5 .piles { display: contents; }
   .cell.active { border-color: var(--active); box-shadow: inset 0 0 0 1px var(--active); }
   .cell.focused-cell { background: #171732; border-color: #6a6aa8; }
   .cell.focused-cell .hdr::before { content: '▲ across'; font-size: 0.58rem; color: #9bd; background: #334; border-radius: 3px; padding: 0 4px; margin-right: 2px; }
@@ -199,6 +208,11 @@
     d.append(el('div', 'lbl', `CMD${p.commanderTax ? ' · tax ' + p.commanderTax : ''}`));
     return d;
   }
+  function handPile(o) {
+    const n = o.handCards ? o.handCards.length : o.hand;
+    const revealed = (o.handCards || []).filter((c) => !c.back);
+    return pile('HAND', { back: true }, n, (ev) => pilePopover(ev, `${o.name}'s hand`, (o.handCards || Array.from({ length: n }, () => ({ back: true }))).map((c) => (c.back ? { back: true } : { n: c.n })), revealed.length ? `${revealed.length} revealed` : 'all hidden'));
+  }
   function oppHand(o, scale) {
     const h = el('div', 'handrow');
     (o.handCards || Array.from({ length: o.hand }, () => ({ back: true }))).forEach((c) => h.append(cardEl(c.back ? { back: true } : { n: c.n }, 'perm')));
@@ -213,16 +227,18 @@
 
   function sideCell(o) {
     const d = el('div', 'cell' + (o.active ? ' active' : '') + (o.name === G.priority ? ' prio-ring' : '') + (o.name === focus ? ' focused-cell' : ''));
-    d.append(el('div', 'hdr', seatHdr(o)), el('div', 'cmd', `★ <b>${o.commander}</b>${o.inCommandZone ? ' · in command zone' : ''}`));
-    const meta = el('div', 'meta'); meta.append(commandZone(o), el('span', '', 'hand'), oppHand(o), piles(o)); d.append(meta);
+    const top = el('div', 'top');
+    const who = el('div', 'who', `<div><span class="seat-name">${o.name}</span>${o.active ? ' <span class="badge active">active</span>' : ''}${o.name === G.priority ? ' <span class="badge prio">priority</span>' : ''}</div><div class="life${o.life < 20 ? ' low' : ''}">${o.life}</div>`);
+    const z5 = el('div', 'zones5'); z5.append(commandZone(o), handPile(o), piles(o));
+    top.append(who, z5); d.append(top);
     const z = el('div', 'zones');
     const z1 = el('div', 'zone creatures'); z1.append(grid8(o.creatures.concat(o.others))); z.append(z1);
     const z2 = el('div', 'zone lands'); z2.append(el('div', 'row-label', `lands ${o.lands.total - o.lands.tapped}/${o.lands.total}`), landsAsCards(o.lands)); z.append(z2);
     d.append(z);
     d.onclick = () => { focus = o.name; render(); };
     d.oncontextmenu = (e) => ctxMenu(e, o);
-    d.dataset.rows = JSON.stringify([[1, 0.7], [o.creatures.length + o.others.length, 1], [2, 0.7]]);   // meta row: piles at 0.7
-    d.dataset.overhead = '3.6';   // rem of non-card height (hdr, cmd, meta text, gaps)
+    d.dataset.rows = JSON.stringify([[1, 1.15], [o.creatures.length + o.others.length, 1], [2, 0.7]]);   // top row: the five zone piles at 1.15
+    d.dataset.overhead = '2.4';
     d.dataset.label = '0';
     return d;
   }
