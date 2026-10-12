@@ -11,17 +11,17 @@
 - **Active Milestone**: P1 pod-first (`docs/course-correction-2026-09.md` §5, approved 2026-09-05).
   M11-local DONE 2026-08-01 (engine first-playable: one human + three bots in a browser via
   `tools/play-server`). M10+ roadmap milestones are HISTORICAL pending CC-8.
-- **Status**: 5,350 tests passing / 0 failing / 6 ignored (after `scutemob-259`, 73 targets);
+- **Status**: 5,352 tests passing / 0 failing / 6 ignored (after `scutemob-264`, 73 targets);
   209 approved golden scripts; CI green since 2026-07-10.
-- **Last Updated**: 2026-09-14 — data sync (`scutemob-259`): CR 2026-08-07, Scryfall 2026-09-14, `/start` check.
+- **Last Updated**: 2026-10-12 — play surface v3 brief approved (`docs/play-surface-v3-brief.md`); C1–C3 = `scutemob-266..268` in backlog.
 - **Headline metric**: live card coverage **1,143 / 1,803 = 63.4%** (`docs/authoring-status.md`,
   regenerate with `tools/authoring-report.py`). Replaced by pod coverage (`docs/pod-coverage.md`)
   once CC-6 lands. Wire: PROTOCOL **44** / HASH **85**.
-- **Next dispatch**: NONE from the v4 queue — the second chain is **CLOSED at rank 21** (do NOT
-  dispatch PB-DX9 / PB-DX38). LL-3 (`-257`) and LL-1 (`-255`) collected 2026-09-05. **STOP: CC-9
-  hot-seat (`scutemob-245`, pod-facing) is next and awaits owner approval**; LL-2 (`-256`) after it.
-  CC-5 decklists (`-241`, owner) gate LL-4 (`-258`) and CC-6/7/8. Every dispatch needs explicit
-  owner approval (`feedback_queue_autonomous_chaining` RETRACTED 2026-08-01).
+- **Next dispatch**: **play surface v3 C1 (`scutemob-266`)** from `docs/play-surface-v3-brief.md`
+  §4/§7 (owner-approved alpha UI, 2026-10-12), then C2 (`-267`), C3 (`-268`). v4 queue CLOSED at
+  rank 21 (do NOT dispatch PB-DX9 / PB-DX38). CC-9 hot-seat (`-245`) still awaits owner approval;
+  LL-2 (`-256`) after it; CC-5 decklists (`-241`, owner) gate LL-4 (`-258`) and CC-6/7/8. Every
+  dispatch needs explicit owner approval (`feedback_queue_autonomous_chaining` RETRACTED 2026-08-01).
 - **Where the detail is**: `CHANGELOG.md` (one ≤10-line entry per batch, newest first);
   `memory/workstream-state.md` (claims + last handoff); `docs/audits/decision-point-audit.md`
   (the OOS seed registry — ground truth; grep it before filing); v4 queue memo
