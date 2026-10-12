@@ -80,7 +80,9 @@
   .board .zonebox { bottom: 8px; }
   .focused .zonebox { top: 2.4rem; }
   .zonebox .piles { display: contents; }
-  .zonebox .cz { margin: 0; }
+  .zonebox .cz, .zones5 .cz { margin: 0; padding: 3px; background: rgba(120,90,30,.28); border: 1px solid #7a6230; border-radius: 6px; }
+  .zonebox .cz .lbl, .zones5 .cz .lbl { left: 3px; right: 3px; bottom: 3px; }
+  .cz .onbf { font-size: 1.2rem; color: #8a7a4a; border-style: dashed; }
   .t7 .zonebox .card, .t7 .zonebox .cz .card, .t7 .zonebox .pile .card { --scale: 1; }
   .zonebox .onbf, .zonebox .pile .empty { width: var(--card); height: calc(var(--card) * 1.4); }
   .t7 .cell .cz .card, .t7 .cell .pile .card { --scale: 0.7; }
@@ -94,7 +96,12 @@
   .centre { grid-area: centre; display: grid; grid-template-rows: 42% minmax(0, 1fr) auto; gap: 6px; min-height: 0; min-width: 0; }
   .focused { position: relative; background: #121226; border: 1px solid #33335a; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: auto; }
   .focused.active { border-color: var(--active); }
-  .focused .hdr, .board .hdr { border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+  .nameplate { position: absolute; left: 8px; top: 6px; z-index: 3; display: flex; flex-direction: column; gap: 0; padding: 3px 10px 4px; background: rgba(8,8,20,.8); border: 1px solid #33335a; border-radius: 8px; min-width: 8.5rem; }
+  .nameplate .line { display: flex; align-items: center; gap: 6px; }
+  .nameplate .seat-name { font-size: 1.05rem; }
+  .nameplate .life { margin: 0; font-size: 1.7rem; line-height: 1.1; }
+  .board .nameplate { border-color: #4a6a40; }
+  .pad-np { padding-left: 10.5rem; }
   .focused .zone.creatures { margin-top: auto; }
   .zone.creatures, .zone.others { overflow: visible; }
   .board { position: relative; background: #0f1a12; border: 1px solid #2a4a30; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: auto; }
@@ -247,7 +254,7 @@
   }
   function commandZone(p) {
     const d = el('div', 'cz'); d.title = 'command zone';
-    if (p.inCommandZone) d.append(cardEl({ n: p.commander, cmd: true }, 'perm')); else d.append(el('div', 'onbf', 'cmdr on battlefield'));
+    if (p.inCommandZone) d.append(cardEl({ n: p.commander, cmd: true }, 'perm')); else d.append(el('div', 'onbf', '★'));
     d.append(el('div', 'lbl', `CMD${p.commanderTax ? ' · tax ' + p.commanderTax : ''}`));
     return d;
   }
@@ -288,31 +295,31 @@
 
   function focusedArea(o) {
     const f = $('focused'); f.innerHTML = ''; f.className = 'focused' + (o.active ? ' active' : '');
-    const hdr = el('div', 'hdr' + (o.name === G.priority ? ' prio-ring' : ''), `<span class="badge" style="background:#334;color:#9bd">across</span> ${seatHdr(o, `<span class="cmd">★ <b>${o.commander}</b></span>`)}`);
-    hdr.oncontextmenu = (e) => ctxMenu(e, o); f.append(hdr);
-    const meta = el('div', 'meta'); meta.append(el('span', '', `hand ${o.hand}`), oppHand(o)); f.append(meta);
+    const np = el('div', 'nameplate' + (o.name === G.priority ? ' prio-ring' : ''), `<div class="line"><span class="badge" style="background:#334;color:#9bd">across</span><span class="seat-name">${o.name}</span>${o.active ? '<span class="badge active">active</span>' : ''}${o.name === G.priority ? '<span class="badge prio">priority</span>' : ''}</div><div class="life${o.life < 20 ? ' low' : ''}">${o.life}</div>`);
+    np.oncontextmenu = (e) => ctxMenu(e, o); f.append(np);
+    const meta = el('div', 'meta pad-np'); meta.append(el('span', '', `hand ${o.hand}`), oppHand(o)); f.append(meta);
     const zb = el('div', 'zonebox'); zb.append(commandZone(o), piles(o)); f.append(zb);
     const z1 = el('div', 'zone lands'); z1.append(el('div', 'row-label', `lands ${o.lands.total}`), landsAsCards(o.lands)); f.append(z1);
     const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', `other ${o.others.length}`), grid8(o.others)); f.append(z2);
     const z3 = el('div', 'zone creatures'); z3.append(el('div', 'row-label', `creatures ${o.creatures.length}`), grid8(o.creatures)); f.append(z3);
     const maxC = Math.max(...G.opps.map((x) => x.creatures.length)), maxO = Math.max(...G.opps.map((x) => x.others.length));
     f.dataset.rows = JSON.stringify([[1, 0.55], [maxC, 1], [maxO, 1], [2, 0.7]]);
-    f.dataset.overhead = '3.2';
+    f.dataset.overhead = '1.4';
   }
 
   function yourBoard() {
     const b = $('board'); b.innerHTML = '';
-    b.className = 'board' + (G.active === 'Human-1' ? ' active' : '') + (G.priority === 'Human-1' ? ' prio-ring' : '');
-    const hdr = el('div', 'hdr', `<span class="badge" style="background:#443;color:#fd6">you</span> ${seatHdr(G.you, `<span class="cmd">★ <b>${G.you.commander}</b></span>`)}`);
-    hdr.oncontextmenu = (e) => ctxMenu(e, G.you); b.append(hdr);
-    const z1 = el('div', 'zone creatures'); z1.append(el('div', 'row-label', `creatures ${G.you.creatures.length}`), grid8(G.you.creatures)); b.append(z1);
+    b.className = 'board' + (G.active === 'Human-1' ? ' active' : '');
+    const np = el('div', 'nameplate' + (G.priority === 'Human-1' ? ' prio-ring' : ''), `<div class="line"><span class="badge" style="background:#443;color:#fd6">you</span><span class="seat-name">Human-1</span>${G.active === 'Human-1' ? '<span class="badge active">active</span>' : ''}${G.priority === 'Human-1' ? '<span class="badge prio">priority</span>' : ''}</div><div class="life">${G.you.life}</div>`);
+    np.oncontextmenu = (e) => ctxMenu(e, G.you); b.append(np);
+    const z1 = el('div', 'zone creatures pad-np'); z1.append(el('div', 'row-label', `creatures ${G.you.creatures.length}`), grid8(G.you.creatures)); b.append(z1);
     const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', `other ${G.you.others.length}`), grid8(G.you.others)); b.append(z2);
     const z3 = el('div', 'zone lands'); z3.append(el('div', 'row-label', `lands ${G.you.lands.reduce((a, c) => a + (c.count || 1), 0)}`), cardsRow(G.you.lands, 'perm'));
     const you = { ...G.you, name: 'Human-1' };
     b.append(z3);
     const zb = el('div', 'zonebox'); zb.append(commandZone({ ...you, inCommandZone: false }), piles(you)); b.append(zb);
     b.dataset.rows = JSON.stringify([[G.you.creatures.length, 1], [G.you.others.length, 1], [G.you.lands.length, 0.7]]);
-    b.dataset.overhead = '5';
+    b.dataset.overhead = '3.2';
   }
 
   function handRow() {
