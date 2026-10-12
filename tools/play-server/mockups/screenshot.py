@@ -9,7 +9,7 @@ TARGETS = [(f"0{n}-{nm}", 1920, 1080, "") for n, nm in [(1, "table"), (2, "arena
 for st in (1, 2, 3, 4):
     TARGETS.append(("06-table", 2560, 1340, f"?state={st}"))
     TARGETS.append(("06-table", 1707, 880, f"?state={st}"))
-for st in (5, 3, 1):
+for st in (5, 6, 3, 1):
     TARGETS.append(("07-table6", 2560, 1340, f"?state={st}"))
     TARGETS.append(("07-table6", 1707, 880, f"?state={st}"))
 async def main():

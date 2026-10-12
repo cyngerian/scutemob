@@ -193,13 +193,36 @@ function sixPlayerLateGame() {
     sentence: 'Bot-5 cast Swords to Plowshares targeting Beast Whisperer, in response to Beast Within. Respond, or let it resolve.',
     buttons: [{ t: 'Let it resolve', key: 'space', primary: true }],
     groups: [
-      { title: 'Cast an instant', items: [{ t: 'Swords to Plowshares → choose a creature', lit: true }, { t: 'Path to Exile → choose a creature', lit: true }, { t: 'Beast Within → choose a permanent', lit: true }] },
-      { title: 'Activate an ability', items: [{ t: 'Seasoned Hallowblade — Discard a card: gains indestructible until end of turn, tap it', lit: true }, { t: 'Hedron Archive — {2}, {T}, Sacrifice: Draw two cards', lit: true }] },
-      { title: 'Mana (tapped automatically when you pay)', muted: true, items: [{ t: 'Plains ×5 untapped' }, { t: 'Command Tower' }, { t: 'Forest ×2' }, { t: 'Thought Vessel' }, { t: 'Marble Diamond' }, { t: 'Hedron Archive' }] },
+      { title: 'Cast an instant', items: [{ card: 'Swords to Plowshares', t: 'choose a creature', lit: true }, { card: 'Path to Exile', t: 'choose a creature', lit: true }, { card: 'Beast Within', t: 'choose a permanent', lit: true }] },
+      { title: 'Activate an ability', items: [{ card: 'Seasoned Hallowblade', t: 'Discard a card: gains indestructible until end of turn, tap it', lit: true }, { card: 'Hedron Archive', t: '{2}, {T}, Sacrifice: Draw two cards', lit: true }] },
+      { title: 'Mana (tapped automatically when you pay)', muted: true, items: [{ card: 'Plains', t: '×5 untapped' }, { card: 'Command Tower', t: '' }, { card: 'Forest', t: '×2' }, { card: 'Thought Vessel', t: '' }, { card: 'Marble Diamond', t: '' }, { card: 'Hedron Archive', t: '' }] },
     ],
   };
   return g;
 }
+STATES[6] = () => {
+  const g = sixPlayerLateGame();
+  g.step = 'Blockers'; g.stack = []; g.priority = 'Human-1';
+  g.you.creatures.forEach((c) => { delete c.targeted; }); g.opps[1].creatures.forEach((c) => { delete c.targeted; });
+  const atk = (n, tgt) => { const c = g.opps[1].creatures.find((x) => x.n === n); c.attacking = tgt; c.tapped = true; return { n, pt: c.pt }; };
+  g.combat = {
+    attacker: 'Bot-3',
+    groups: [
+      { defender: 'Human-1', attackers: [{ ...atk('Toski, Bearer of Secrets', 'Human-1'), blockers: [] }, { ...atk('Beast Whisperer', 'Human-1'), blockers: [] }] },
+      { defender: 'Bot-5', attackers: [{ ...atk('Adeline, Resplendent Cathar', 'Bot-5'), blockers: [{ n: 'Gravecrawler', pt: '2/1' }] }, { ...atk('Llanowar Elves', 'Bot-5'), blockers: [] }] },
+    ],
+  };
+  g.you.hand.forEach((c) => { delete c.lit; });
+  g.prompt = {
+    sentence: 'Bot-3 attacks you with Toski, Bearer of Secrets and Beast Whisperer (and Bot-5 with two more). Declare blockers.',
+    buttons: [{ t: 'Block with nothing', key: 'space', primary: true }, { t: 'Confirm blocks' }],
+    groups: [
+      { title: 'Block Toski, Bearer of Secrets (1/1) with', items: [{ card: 'Benalish Marshal', t: '3/3', lit: true }, { card: 'Archon of Emeria', t: '2/3 flying', lit: true }, { card: 'Dusk Legion Duelist', t: '2/2', lit: true }] },
+      { title: 'Block Beast Whisperer (2/3) with', items: [{ card: 'Sun Titan', t: '6/6', lit: true }, { card: 'Adeline, Resplendent Cathar', t: '4/4', lit: true }, { card: 'Thalia, Guardian of Thraben', t: '2/1 first strike', lit: true }] },
+    ],
+  };
+  return { label: 'Combat · Bot-3 attacks you and Bot-5 with four creatures · you declare blockers', game: g, focus: 'Bot-3' };
+};
 STATES[5] = () => ({ label: 'Six players · turn 23 · late game everywhere · two spells on the stack', game: sixPlayerLateGame(), focus: 'Bot-3' });
 
 // ---- rendering helpers ------------------------------------------------------

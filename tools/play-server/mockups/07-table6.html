@@ -126,7 +126,29 @@
   .hand .arrow:disabled { opacity: .25; cursor: default; }
 
   /* dock */
-  .dock { grid-area: dock; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 6px; min-height: 0; }
+  .dock { grid-area: dock; display: grid; grid-template-rows: minmax(0, 1fr) auto auto; gap: 6px; min-height: 0; }
+  .combat-box { cursor: pointer; }
+  .combat-box .dim { font-size: 0.8rem; }
+  .combat-box .grp { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+  .combat-box .grp .to { font-size: 0.78rem; color: #e8b090; flex: 0 0 5.5rem; }
+  .combat-box .card { --card: 40px; }
+  .combat-box .blk { font-size: 0.7rem; color: #9bd; }
+  .combat-float { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 70; width: min(1100px, 80vw); max-height: 85vh; overflow: auto; background: #14142a; border: 2px solid #d07a4a; border-radius: 10px; padding: 14px 16px; box-shadow: 0 20px 60px rgba(0,0,0,.85); display: flex; flex-direction: column; gap: 10px; }
+  .combat-float .head { display: flex; align-items: center; gap: 10px; }
+  .combat-float .head .panel-title { flex: 1; color: #e8b090; font-size: 0.85rem; }
+  .combat-float .lanes { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 14px; }
+  .combat-float .lane { background: #0f0f22; border: 1px solid #33335a; border-radius: 8px; padding: 10px; }
+  .combat-float .lane .to { font-size: 0.95rem; color: #e8b090; font-weight: bold; margin-bottom: 8px; }
+  .combat-float .pair { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .combat-float .pair .card { --card: 96px; }
+  .combat-float .pair .arrow { color: #9bd; font-size: 1.4rem; padding-top: 50px; }
+  .combat-float .pair .none { color: #778; font-size: 0.8rem; padding-top: 55px; }
+  /* decision items are cards */
+  .group .items { align-items: flex-start; }
+  .act { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 92px; cursor: pointer; }
+  .act .card { --card: 84px; --scale: 1; }
+  .act .cap { font-size: 0.68rem; color: #ccd; text-align: center; line-height: 1.2; }
+  .group.muted .act { width: 60px; } .group.muted .act .card { --card: 48px; } .group.muted .act .cap { color: #889; }
   .dock > div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-height: 0; }
   .stack-box { overflow: auto; }
   .prompt-box .p-sentence { font-size: 0.88rem; }
@@ -217,6 +239,7 @@
   <div class="side right" id="right"></div>
   <div class="dock">
     <div class="stack-box"><div class="panel-title">Stack</div><div id="stack"></div></div>
+    <div class="combat-box" id="combat"></div>
     <div class="prompt-box" id="prompt"></div>
   </div>
 </div>
@@ -371,7 +394,40 @@
     p.append(t, el('span', 'prio' + (G.priority === 'Human-1' ? ' me' : ''), `priority: ${G.priority === 'Human-1' ? 'YOU' : G.priority}`));
   }
 
+  function combatCard() {
+    const cb = $('combat'); cb.innerHTML = '';
+    document.querySelectorAll('.combat-float').forEach((n) => n.remove());
+    cb.append(el('div', 'panel-title', 'Combat'));
+    const C = G.combat;
+    if (!C) { cb.append(el('div', 'dim', 'not in combat')); cb.onclick = null; return; }
+    cb.append(el('div', '', `<b>${C.attacker}</b> attacks`));
+    C.groups.forEach((gp) => {
+      const row = el('div', 'grp'); row.append(el('span', 'to', `→ ${gp.defender === 'Human-1' ? 'you' : gp.defender}`));
+      gp.attackers.forEach((a) => { row.append(cardEl({ n: a.n, pt: a.pt }, 'perm')); if (a.blockers.length) row.append(el('span', 'blk', `⛨ ${a.blockers.map((b) => b.n).join(', ')}`)); });
+      cb.append(row);
+    });
+    cb.append(el('div', 'dim', 'click to enlarge'));
+    cb.onclick = () => openCombat();
+  }
+  function openCombat() {
+    document.querySelectorAll('.combat-float').forEach((n) => n.remove());
+    const C = G.combat; const f = el('div', 'combat-float');
+    const head = el('div', 'head'); head.append(el('div', 'panel-title', `Combat — ${C.attacker} attacks`));
+    const x = el('button', 'mini-btn', '✕ close'); x.onclick = () => f.remove(); head.append(x); f.append(head);
+    const lanes = el('div', 'lanes');
+    C.groups.forEach((gp) => {
+      const lane = el('div', 'lane'); lane.append(el('div', 'to', `→ ${gp.defender === 'Human-1' ? 'you' : gp.defender}`));
+      gp.attackers.forEach((a) => {
+        const pr = el('div', 'pair'); pr.append(cardEl({ n: a.n, pt: a.pt }, 'perm'), el('div', 'arrow', '⟵'));
+        if (a.blockers.length) a.blockers.forEach((b) => pr.append(cardEl({ n: b.n, pt: b.pt }, 'perm'))); else pr.append(el('div', 'none', 'unblocked'));
+        lane.append(pr);
+      });
+      lanes.append(lane);
+    });
+    f.append(lanes); document.body.append(f);
+  }
   function stackAndPrompt() {
+    combatCard();
     const s = $('stack'); s.innerHTML = '';
     if (G.stack.length === 0) s.append(el('div', 'dim', 'empty'));
     [...G.stack].reverse().forEach((x, k) => s.append(el('div', 'stack-item' + (k === 0 ? ' top' : ''), `<div class="s-who">${x.who} cast${k === 0 ? ' · resolves next' : ''}</div><div class="s-name">${x.n}</div><div class="s-text">${x.text}</div>`)));
@@ -394,7 +450,12 @@
     const b = el('div', 'p-buttons'); G.prompt.buttons.forEach((x) => b.append(el('button', 'btn' + (x.primary ? ' primary' : '') + (x.lit ? ' lit' : ''), x.t + (x.key ? ` <kbd>${x.key}</kbd>` : '')))); f.append(b);
     (G.prompt.groups || []).forEach((g) => {
       const gd = el('div', 'group' + (g.muted ? ' muted' : '')); gd.append(el('div', 'gtitle', g.title));
-      const it = el('div', 'items'); g.items.forEach((x) => it.append(el('button', 'btn' + (x.lit ? ' lit' : ''), x.t))); gd.append(it); f.append(gd);
+      const it = el('div', 'items');
+      g.items.forEach((x) => {
+        if (!x.card) { it.append(el('button', 'btn' + (x.lit ? ' lit' : ''), x.t)); return; }
+        const a = el('div', 'act'); a.append(cardEl({ n: x.card, lit: !!x.lit }, 'perm')); if (x.t) a.append(el('div', 'cap', x.t)); it.append(a);
+      });
+      gd.append(it); f.append(gd);
     });
     document.body.append(f);
   }
@@ -494,7 +555,7 @@
   // ---- context menu + popovers ---------------------------------------------
   function closeFloating() { document.querySelectorAll('.ctx, .popover').forEach((n) => n.remove()); }
   document.addEventListener('mousedown', (e) => { if (!e.target.closest('.ctx, .popover')) closeFloating(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeFloating(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeFloating(); document.querySelectorAll('.combat-float').forEach((n) => n.remove()); } });
   function ctxMenu(e, p) {
     e.preventDefault(); e.stopPropagation(); closeFloating();
     const m = el('div', 'ctx'); m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px';
