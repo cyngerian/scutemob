@@ -72,7 +72,10 @@
   .focused .zonebox { top: 2.4rem; }
   .zonebox .piles { display: contents; }
   .zonebox .cz { margin: 0; }
-  .board .zone.lands, .focused .zone.lands, .focused .zone.others { padding-right: calc(var(--card) * 1.6 + 2rem); }
+  .t7 .zonebox .card, .t7 .zonebox .cz .card, .t7 .zonebox .pile .card { --scale: 1; }
+  .zonebox .onbf, .zonebox .pile .empty { width: var(--card); height: calc(var(--card) * 1.4); }
+  .t7 .cell .cz .card, .t7 .cell .pile .card { --scale: 0.7; }
+  .board .zone.lands, .board .zone.others, .focused .zone.lands, .focused .zone.others { padding-right: calc(var(--card) * 2 + 2.5rem); }
   .pile { position: relative; cursor: pointer; }
   .pile .card { --scale: 0.7; }
   .pile .lbl { position: absolute; left: 0; right: 0; bottom: -0.1rem; text-align: center; font-size: 0.6rem; background: rgba(0,0,0,.8); color: #bbc; letter-spacing: .04em; }
@@ -218,7 +221,7 @@
     d.append(z);
     d.onclick = () => { focus = o.name; render(); };
     d.oncontextmenu = (e) => ctxMenu(e, o);
-    d.dataset.rows = JSON.stringify([[1, 0.7], [o.creatures.length + o.others.length, 1], [2, 0.7]]);
+    d.dataset.rows = JSON.stringify([[1, 0.7], [o.creatures.length + o.others.length, 1], [2, 0.7]]);   // meta row: piles at 0.7
     d.dataset.overhead = '3.6';   // rem of non-card height (hdr, cmd, meta text, gaps)
     d.dataset.label = '0';
     return d;
@@ -233,7 +236,8 @@
     const z1 = el('div', 'zone lands'); z1.append(el('div', 'row-label', `lands ${o.lands.total}`), landsAsCards(o.lands)); f.append(z1);
     const z2 = el('div', 'zone others'); z2.append(el('div', 'row-label', `other ${o.others.length}`), grid8(o.others)); f.append(z2);
     const z3 = el('div', 'zone creatures'); z3.append(el('div', 'row-label', `creatures ${o.creatures.length}`), grid8(o.creatures)); f.append(z3);
-    f.dataset.rows = JSON.stringify([[1, 0.7], [o.creatures.length, 1], [o.others.length, 1], [2, 0.7]]);
+    const maxC = Math.max(...G.opps.map((x) => x.creatures.length)), maxO = Math.max(...G.opps.map((x) => x.others.length));
+    f.dataset.rows = JSON.stringify([[1, 0.55], [maxC, 1], [maxO, 1], [2, 0.7]]);
     f.dataset.overhead = '3.2';
   }
 
@@ -312,7 +316,15 @@
     elm.style.setProperty('--card', c.toFixed(1) + 'px');
     elm.style.setProperty('--cardn', c.toFixed(1));
   }
-  function fitAll() { document.querySelectorAll('[data-rows]').forEach(fitBoard); handRow(); }
+  function fitAll() {
+    document.querySelectorAll('[data-rows]').forEach(fitBoard);
+    const cells = [...document.querySelectorAll('.cell[data-rows]')];
+    if (cells.length) {
+      const c = Math.min(...cells.map((e) => parseFloat(e.style.getPropertyValue('--card'))));
+      cells.forEach((e) => { e.style.setProperty('--card', c.toFixed(1) + 'px'); e.style.setProperty('--cardn', c.toFixed(1)); });
+    }
+    handRow();
+  }
   new ResizeObserver(fitAll).observe(document.body);
 
   function render() {
