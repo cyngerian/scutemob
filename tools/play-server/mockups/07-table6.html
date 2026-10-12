@@ -366,8 +366,11 @@
     d.append(z);
     d.onclick = () => { focus = o.name; closePeek(); render(); };
     d.oncontextmenu = (e) => ctxMenu(e, o);
-    d.onmouseenter = () => { clearTimeout(peekTimer); peekTimer = setTimeout(() => openPeek(o, d), 1000); };
-    d.onmouseleave = () => { clearTimeout(peekTimer); peekTimer = null; };
+    // peek arms only while the pointer rests on the cell itself, never on a card (a card hover is its own thing)
+    const arm = () => { if (peekTimer === null) peekTimer = setTimeout(() => { peekTimer = null; openPeek(o, d); }, 1000); };
+    const disarm = () => { clearTimeout(peekTimer); peekTimer = null; };
+    d.onmousemove = (e) => { if (e.target.closest('.card')) disarm(); else arm(); };
+    d.onmouseleave = disarm;
     d.dataset.rows = JSON.stringify([[2, 0.7], [o.others.length, 1], [o.creatures.length, 1]]);
     d.dataset.overhead = '8';   // name line + the fixed 56px strip + gaps
     d.dataset.label = '0';

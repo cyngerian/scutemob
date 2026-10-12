@@ -69,7 +69,8 @@ pixel decision below; when the brief and the mockup disagree, the mockup wins.
 14. **Peek.** Holding the pointer on an opponent's cell for one second grows it to double size
     in place — anchored on its own corner, over its neighbours, not a centred window — with its
     cards autoscaled to the bigger box and hoverable as usual; it closes when the pointer
-    leaves. Lets you check a board without bringing that player across (owner, 2026-10-12).
+    leaves. It arms only while the pointer rests on the cell itself, never while a card in
+    the cell is being hovered (owner, 2026-10-12). Lets you check a board without bringing that player across (owner, 2026-10-12).
 
 ## 2. Must land in the build (owner, 2026-10-12 — not possible in the mockup)
 
