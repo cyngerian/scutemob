@@ -166,11 +166,10 @@
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; text-shadow: none; letter-spacing: 0;
   }
-  .t7 .card .band { font-weight: 700; background: rgba(0,0,0,.9); line-height: 1.2; }
+  .t7 .card .band { font-weight: 700; background: rgba(0,0,0,.9); line-height: 1.2; max-height: none; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word; }
   .t7 .card .pt { font-weight: 800; }
-  .t7 .card.tapped, .t7 .card.tapped:hover { transform: none; }
-  .t7 .card.tapped .art { transform: rotate(8deg) scale(1.18); filter: grayscale(.5) brightness(.5); }
-  .t7 .card.tapped::before { content: 'TAPPED'; position: absolute; left: 0; right: 0; top: 45%; text-align: center; font: 700 clamp(7px, calc(var(--card) * var(--scale, 1) * 0.11), 11px) 'Inter', system-ui, sans-serif; color: #fff; background: rgba(0,0,0,.65); letter-spacing: .08em; padding: 1px 0; z-index: 1; }
+  .t7 .card.tapped { transform: rotate(8deg); }
+  .t7 .card.tapped:hover { transform: rotate(8deg); }
 </style></head><body class="t6 t7">
 <div class="app">
   <div class="top">
