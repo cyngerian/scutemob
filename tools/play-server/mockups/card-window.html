@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Card window</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* The popped-out card window (second monitor). Shows the last card hovered on
+     the table, full printing. Fed over BroadcastChannel('scutemob-card'). */
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 10px; background: #08080f; }
+  img { max-width: 96vw; max-height: 86vh; border-radius: 4.5% / 3.2%; box-shadow: 0 10px 40px rgba(0,0,0,.9); }
+  .name { font-size: 1.1rem; color: #ccd; }
+  .idle { color: #556; font-size: 0.9rem; text-align: center; line-height: 1.6; }
+</style></head><body>
+<div class="idle" id="idle">card window<br><span style="font-size:.8rem">hover a card on the table — it shows here.<br>Drag this window to your second monitor.</span></div>
+<img id="img" alt="" style="display:none">
+<div class="name" id="name"></div>
+<script>
+  const slug = (n) => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const SCRY = (n) => `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(n)}&format=image&version=large`;
+  const img = document.getElementById('img'), name = document.getElementById('name'), idle = document.getElementById('idle');
+  let fb = false;
+  img.onerror = () => { if (!fb) { fb = true; img.src = SCRY(img.dataset.n); } };
+  new BroadcastChannel('scutemob-card').onmessage = (ev) => {
+    const n = ev.data?.name; if (!n) return;
+    fb = false; img.dataset.n = n; img.src = `img/${slug(n)}-large.jpg`; img.style.display = ''; idle.style.display = 'none'; name.textContent = n;
+  };
+</script></body></html>

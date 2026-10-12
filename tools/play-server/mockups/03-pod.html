@@ -1,0 +1,69 @@
+<!doctype html><html><head><meta charset="utf-8"><title>3 · Pod</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 3 · POD — a four-seat table. Opponents sit left, top and right around a
+     central table surface that holds the stack, combat and the prompt. Your
+     board is the wide bottom band; the hand under it. Every seat's board is
+     always visible in its place. */
+  .app { display: grid; height: 100vh; gap: 6px; padding: 6px;
+         grid-template-columns: 240px minmax(0,1fr) 240px;
+         grid-template-rows: 28px 150px minmax(0,1fr) 150px;
+         grid-template-areas: 'top top top' 'left north right' 'left me right' 'hand hand hand'; }
+  .top { grid-area: top; display: flex; align-items: center; gap: 14px; padding: 0 8px; }
+  .seat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; }
+  .seat.active { border-color: var(--active); }
+  .seat .hdr { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .seat .cards { --small-w: 60px; }
+  .left { grid-area: left; } .right { grid-area: right; }
+  .north { grid-area: north; display: grid; gap: 6px; }
+  .north .seat { flex-direction: row; align-items: flex-start; }
+  .north .seat .cards { flex-wrap: nowrap; overflow: hidden; }
+  .north .info { flex: 0 0 140px; display: flex; flex-direction: column; gap: 2px; }
+  .north .info .life { margin: 0; }
+  .center { grid-area: me; display: grid; grid-template-rows: 90px minmax(0,1fr); gap: 6px; min-height: 0; }
+  .table { background: #16163a; border: 1px solid #33335a; border-radius: 8px; padding: 6px 12px; display: grid; grid-template-columns: 220px 1fr; gap: 12px; align-items: center; }
+  .table .stack-item { margin: 0; }
+  .me { background: #0f1a12; border: 1px solid var(--you); border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  .me .hdr { display: flex; align-items: center; gap: 6px; }
+  .zone { display: flex; gap: 8px; }
+  .zone .row-label { flex: 0 0 64px; padding-top: 4px; }
+  .zone.lands { margin-top: auto; border-top: 1px solid #1e3a22; padding-top: 6px; }
+  .zone.lands .cards { --small-w: 52px; }
+  .hand { grid-area: hand; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-top: 1px solid var(--line); }
+  .hand .card { --hand-w: 100px; }
+</style></head><body>
+<div class="app">
+  <div class="top"><b style="color:#adf">scutemob</b><span>Turn 10 · Bot-3's turn · Main 1 · <span style="color:#fa0">you have priority</span></span><span style="margin-left:auto" class="btn">log</span><span class="btn">≡ menu</span></div>
+  <div class="seat left" id="s0"></div>
+  <div class="north" id="north"></div>
+  <div class="seat right" id="s2"></div>
+  <div class="center"><div class="table" id="table"></div><div class="me" id="me"></div></div>
+  <div class="hand" id="hand"></div>
+</div>
+<script src="common.js"></script>
+<script>
+  function seatBody(o, node, horizontal) {
+    if (horizontal) {
+      const info = el('div', 'info', `<span class="seat-name">${o.name}</span>${o.active ? ' <span class="badge active">active</span>' : ''}<span class="life${o.life < 20 ? ' low' : ''}">${o.life}</span><span class="counts" style="margin:0">hand ${o.hand} · lib ${o.lib} · gy ${o.gy}</span><span class="dim" style="font-size:.7rem">lands ${landPips(o.lands)}</span>`);
+      node.append(info, cardsRow(o.creatures.concat(o.others), 'small'));
+    } else {
+      node.append(el('div', 'hdr', seatLine(o)));
+      node.append(el('div', 'row-label', 'creatures'), cardsRow(o.creatures, 'small'));
+      node.append(el('div', 'row-label', 'other'), cardsRow(o.others, 'small'));
+      node.append(el('div', 'dim', `lands ${landPips(o.lands)}`));
+    }
+  }
+  const [a, bb, c] = GAME.opps;
+  seatBody(a, document.getElementById('s0'), false);
+  seatBody(c, document.getElementById('s2'), false);
+  const n = el('div', 'seat' + (bb.active ? ' active' : '')); seatBody(bb, n, true);
+  document.getElementById('north').append(n);
+  const t = document.getElementById('table');
+  const st = el('div'); st.append(el('div', 'panel-title', 'Stack'), stackList()); t.append(st, promptEl());
+  const me = document.getElementById('me');
+  me.append(el('div', 'hdr', `<span class="badge" style="background:#443;color:#fd6">you</span> ${seatLine(GAME.you)}`));
+  const z1 = el('div', 'zone'); z1.append(el('div', 'row-label', 'creatures'), cardsRow(GAME.you.creatures, 'perm')); me.append(z1);
+  const z2 = el('div', 'zone'); z2.append(el('div', 'row-label', 'other'), cardsRow(GAME.you.others, 'perm')); me.append(z2);
+  const z3 = el('div', 'zone lands'); z3.append(el('div', 'row-label', 'lands'), cardsRow(GAME.you.lands, 'small'), el('div', 'dim', 'gy 3 · exile 1')); me.append(z3);
+  GAME.you.hand.forEach(x => document.getElementById('hand').append(cardEl(x, 'hand')));
+</script></body></html>
