@@ -1,5 +1,45 @@
 /*
  * v3-arrows — arrows, legal-target highlight, the card context menu (C2 item 1/2).
  *
+ * The mockup has blocker arrows only (`#9bd`, 2.5px, a cubic); targeting arrows
+ * keep that weight and take a warm colour of their own so the two never read
+ * as the same thing. `--target` (red) is already "targeted by something on the
+ * stack" on a card's outline, so a card that COULD be chosen is amber and
+ * dashed, and one that IS chosen is amber and solid.
+ *
  * Every selector is prefixed `.v3`; keyframes are prefixed `v3-`.
  */
+.v3 { --arrow: #ffa53a; }
+
+/* the overlay: above the decision float (70), the peek (80) and the dock, under the hover card (100) */
+.v3 svg.v3-arrows { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 96; overflow: visible; }
+.v3 svg.v3-arrows .arrow { fill: none; stroke: var(--arrow); stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(0,0,0,.9)); }
+.v3 svg.v3-arrows .arrow.live { stroke-dasharray: 9 6; animation: v3-arrow-march .5s linear infinite; }
+.v3 svg.v3-arrows marker path { fill: var(--arrow); stroke: none; }
+@keyframes v3-arrow-march { to { stroke-dashoffset: -15; } }
+
+/* a drag: the centred decision box gets out of the way of the table under it */
+.v3.arrow-dragging { user-select: none; cursor: crosshair; }
+.v3.arrow-dragging .decision-float { opacity: .07; pointer-events: none; transition: opacity .08s; }
+.v3.arrow-dragging .card { cursor: crosshair; }
+
+/* legal targets of the drag / the open target stage */
+.v3 .card.target-ok { outline: 2px dashed var(--arrow); outline-offset: 1px; box-shadow: 0 0 10px rgba(255,165,58,.55); cursor: crosshair; }
+.v3.t7 .card.target-ok:hover { outline: 3px solid var(--arrow); }
+.v3 .card.target-chosen, .v3.t7 .card.target-chosen:hover { outline: 3px solid var(--target); outline-offset: 1px; box-shadow: 0 0 12px rgba(255,80,80,.8); }
+.v3 [data-seat].target-ok { outline: 2px dashed var(--arrow); outline-offset: -3px; cursor: crosshair; }
+.v3 [data-seat].target-ok .seat-name { color: var(--arrow); }
+
+/* decision-panel card items are arrow sources: no text selection, no native drag */
+.v3 .decision-host .act[data-action-index] { user-select: none; touch-action: none; }
+.v3 .decision-host .arrow-hint { font-size: 0.72rem; color: #cbb; }
+.v3 .decision-host .arrow-hint.off { color: var(--dim); }
+
+/* the card context menu (the seat menu's box, plus sections) */
+.v3 .ctx .ctx-counters { padding: 0 10px 4px; color: #fc8; font-size: 0.72rem; }
+.v3 .ctx .ctx-section { padding: 6px 10px 2px; color: var(--dim); font-size: 0.62rem; text-transform: uppercase; letter-spacing: .06em; border-top: 1px solid #2c2c4c; margin-top: 2px; }
+.v3 .ctx.card-ctx { max-width: 30rem; max-height: 70vh; overflow: auto; }
+.v3 .ctx.card-ctx .ctx-title { color: var(--text); font-size: 0.8rem; text-transform: none; letter-spacing: 0; font-weight: bold; }
+.v3 .ctx.card-ctx button[data-role="target"] { color: #ffd9a8; }
+.v3 .ctx.card-ctx button:disabled { color: var(--dim); cursor: default; background: none; }
+.v3 .ctx .ctx-empty { padding: 6px 10px; color: var(--dim); }

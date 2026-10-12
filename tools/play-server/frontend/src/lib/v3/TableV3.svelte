@@ -18,6 +18,7 @@
    * Mounted by `main.js` when the URL carries `?v3`.
    */
   import { onMount, tick } from 'svelte';
+  import { get } from 'svelte/store';
   import './v3.css';
   import './v3-dock.css';
   import './v3-c2.css';
@@ -35,12 +36,13 @@
   import PilePopover from './PilePopover.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import AutoPass from './AutoPass.svelte';
-  import { beginArrowFromCard } from './targeting.svelte.js';
+  import Arrows from './Arrows.svelte';
+  import { beginArrowFromCard, bindTable, sync as syncTargeting, targeting } from './targeting.svelte.js';
   import { newGameKey, trackGame } from './order.js';
   import { fitAll } from './fit.js';
   import { peekStyle } from './zones.js';
   import { landStacks, pickFocus, seatOrder, sideColumns, splitBattlefield } from './layout.js';
-  import { closePeek, openCtx, settings, ui } from './ui.svelte.js';
+  import { closePeek, openCardCtx, openCtx, settings, ui } from './ui.svelte.js';
   import { getReport } from '../api.js';
   import { answerable } from '../v2/prompt.js';
   import {
@@ -294,11 +296,12 @@
   // ── The focused seat's own cell (mockup rule 3) ────────────────────────────
 
   /**
-   * The grey-out lifts while that cell's cards can be chosen: a picker chain
-   * is open (targets live in it until C2's arrows) or blockers are being
-   * declared. Hover is the stylesheet's.
+   * The grey-out lifts while that cell's cards can be chosen: an arrow is
+   * being dragged, a picker chain is open (a target stage's candidates are
+   * clickable on the table) or blockers are being declared. Hover is the
+   * stylesheet's.
    */
-  const liftFocused = $derived(pickerChainOpen || $decision?.kind === 'DeclareBlockers');
+  const liftFocused = $derived(pickerChainOpen || targeting.drag !== null || $decision?.kind === 'DeclareBlockers');
 
   // ── Sizing (mockup rule 5) ─────────────────────────────────────────────────
 
@@ -335,6 +338,54 @@
     event.stopPropagation();
     openCtx(name, event.clientX, event.clientY);
   }
+
+  // ── Arrow targeting and the card menu (C2 items 1 and 2) ───────────────────
+
+  /**
+   * `targeting.svelte.js` is the controller; this hands it the table. Its
+   * listeners sit on the root in the capture phase because the boards are
+   * other components (a side cell reads any click as "bring this seat
+   * across"), and everything it starts goes through `dock.beginExternal` —
+   * the same picker chain a click starts. The callbacks read lazily, so this
+   * effect depends on the root alone.
+   */
+  $effect(() => {
+    if (!root) return;
+    return bindTable({
+      root,
+      decision: () => get(decision),
+      loading: () => get(loading),
+      humanName: () => humanName,
+      begin: (action) => {
+        clearSelection();
+        dock?.beginExternal(action);
+      },
+      openChooser: (name, options) => {
+        clickMessage = null;
+        chooser = { name, options };
+      },
+      chooserOpen: () => chooser !== null,
+      say: (message) => {
+        chooser = null;
+        clickMessage = message;
+      },
+      // The seat view's entry when there is one (it carries the counters); a
+      // card drawn from somewhere the index does not cover still gets a menu.
+      openCardMenu: (objectId, name, x, y) => openCardCtx(cardIndex.get(objectId) ?? { object_id: objectId, name }, x, y),
+    });
+  });
+
+  $effect(() => {
+    // Anything that can change what a target stage means or re-create a seat
+    // container: a new decision, the chooser closing, the table itself, who is
+    // across, the peeked copy. Read first, re-sync once the DOM has caught up.
+    void $decision;
+    void $seatView;
+    void chooser;
+    void focus;
+    void ui.peek;
+    tick().then(syncTargeting);
+  });
 </script>
 
 {#snippet cell(name)}
@@ -353,7 +404,7 @@
   />
 {/snippet}
 
-<div class="v3 t6 t7" bind:this={root}>
+<div class="v3 t6 t7" class:arrow-dragging={targeting.drag !== null} bind:this={root}>
   <div class="app">
     <TopBar
       {summary}
@@ -471,5 +522,6 @@
     />
   {/if}
   <PilePopover />
-  <ContextMenu state={view} {humanName} {focus} onFocus={bringAcross} />
+  <ContextMenu state={view} {humanName} {focus} decision={$decision} loading={$loading} onFocus={bringAcross} onUse={chooseOption} />
+  <Arrows />
 </div>

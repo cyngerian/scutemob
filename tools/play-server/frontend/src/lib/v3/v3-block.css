@@ -3,3 +3,50 @@
  *
  * Every selector is prefixed `.v3`; keyframes are prefixed `v3-`.
  */
+
+/* `BlockUi` is mounted after `PromptPanel` (the picker chain must stay one mounted box), but the
+   arrows are the primary way and the picker's list is the fallback that carries the confirm
+   button: the box is drawn above the prompt, under the float's own title row. */
+/* It keeps its own height (the float is a flex column with a max-height: a shrinking box would spill
+   over the prompt under it); with many blockers the float scrolls instead. */
+.v3 .decision-host .blockui { order: -1; flex: 0 0 auto; }
+.v3 .decision-host > .head { order: -2; }
+
+/* Room for a wide combat. The float is a flex column with a max-height and `PromptPanel`'s root may
+   shrink to nothing (`min-height: 0`), which would leave the picker's confirm button unreachable under
+   a tall box: while the box is up the prompt keeps its height and the float scrolls as a whole. The
+   float also grows sideways with the rows, up to the combat float's own limit, before they wrap. */
+.v3 .decision-host:has(.blockui) .prompt { flex: 0 0 auto; }
+.v3 .decision-host.decision-float:has(.blockui) { width: max-content; min-width: min(640px, 60vw); max-width: min(1100px, 80vw); max-height: 90vh; }
+
+/* your creatures are drag sources: no text selection, no touch scroll stealing the drag */
+.v3 .blockui .act.mine { user-select: none; touch-action: none; }
+.v3 .blockui.dragging .act.mine { cursor: grabbing; }
+
+/* while a blocker is selected: the attackers it may block invite the click, the others are inert */
+.v3 .blockui .act.attacker { cursor: default; }
+.v3 .blockui .act.attacker.open { cursor: pointer; }
+.v3 .blockui .act.attacker.open .card { box-shadow: 0 0 10px rgba(255, 204, 136, .6); }
+.v3 .blockui .act.attacker.illegal { opacity: 0.35; cursor: not-allowed; }
+
+/* the arrow that follows the pointer during a drag */
+.v3 .blockui svg.arrows path.live { stroke-dasharray: 6 4; opacity: 0.85; }
+
+/* a blocker or attacker this seat cannot identify by id: its label in a card-sized frame */
+.v3 .blockui .act .name-chip { width: 84px; height: calc(84px * 1.4); box-sizing: border-box; padding: 4px; border-radius: 6px; border: 1px solid #2c2c50; background: #1a1a30; font-size: 0.68rem; line-height: 1.2; color: #bbc; overflow: hidden; }
+.v3 .blockui .act.attacker .name-chip { outline: 2px solid #d07a4a; }
+.v3 .blockui .act.sel .name-chip { outline: 3px solid #fc8; }
+.v3 .blockui .act.assigned .name-chip { outline: 2px solid #9bd; }
+
+/* an answer is in flight: nothing in the box takes a click */
+.v3 .blockui.inert { opacity: 0.55; pointer-events: none; }
+
+/* The sentence wraps inside whatever width the rows gave the box and never sets it: a float sized by
+   its content would otherwise change width, and slide its cards from under the pointer, each time the
+   sentence changed mid-drag. */
+.v3 .blockui .hint { width: 0; min-width: 100%; }
+
+/* Minimised to the corner, the decision has the dock's 19rem: no room for two rows of cards, and the
+   box would push the stack and the combat card out. The picker's list is what the dock shows; the
+   arrows come back, as they were, when the decision is opened in the centre again. */
+.v3 .decision-host:not(.decision-float) .blockui { display: none; }

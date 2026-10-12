@@ -23,13 +23,16 @@
    * A creature the seat view marks `summoning_sick` (and that has no haste) carries
    * the `sick` outline (brief §2 item 4). Both facts are the view's own fields.
    *   pt             — a "p/t" string for a card that carries no power/toughness of its own
+   *   targetable     — false for a copy that is not on the table (a decision-panel item): it never
+   *                    carries the legal-target highlight
    *   onclick        — `(card, event)`; null leaves the click to whatever is underneath
    *   oncontextmenu  — `(event, card)`
    */
   import { scryfallSmallUrl } from '../v2/images.js';
   import { hoverCard } from './hover.js';
+  import { targeting } from './targeting.svelte.js';
 
-  let { card, size = 'perm', count = 0, lit = false, targeted = false, pt = null, onclick = null, oncontextmenu = null } = $props();
+  let { card, size = 'perm', count = 0, lit = false, targeted = false, pt = null, targetable = true, onclick = null, oncontextmenu = null } = $props();
 
   const hidden = $derived(!card || card.hidden === true);
   const name = $derived(hidden ? '' : (card.name ?? ''));
@@ -70,6 +73,14 @@
       !(card.keywords ?? []).some((k) => String(k).toLowerCase() === 'haste'),
   );
 
+  /**
+   * A legal target of the arrow being dragged or of the open target stage, and
+   * one already chosen there (C2 item 1). Both are the decision payload's own
+   * candidate ids, looked up — nothing about legality is decided here.
+   */
+  const targetOk = $derived(targetable && !hidden && targeting.okObjects.has(Number(card.object_id)));
+  const targetChosen = $derived(targetable && !hidden && targeting.chosenObjects.has(Number(card.object_id)));
+
   const typeLine = $derived(hidden ? '' : [isToken ? 'token' : null, ...(card.card_types ?? [])].filter(Boolean).join(' '));
 </script>
 
@@ -82,6 +93,8 @@
   class:lit
   class:targeted
   class:sick
+  class:target-ok={targetOk}
+  class:target-chosen={targetChosen}
   class:cmd={!hidden && card.is_commander}
   class:token={isToken}
   class:has-image={hasImage}

@@ -1,25 +1,49 @@
 <script>
   /**
-   * ContextMenu — the seat right-click menu (mockup `ctxMenu`): that player's
-   * graveyard, exile and commander damage, and "bring across the table" for an
-   * opponent who is not already there.
+   * ContextMenu — the two right-click menus, drawn at the table's root from
+   * `ui.ctx` (see `ui.svelte.js` for why floating things are not drawn where
+   * they are opened).
    *
-   * Drawn at the table's root from `ui.ctx` (see `ui.svelte.js` for why floating
-   * things are not drawn where they are opened). It also owns the one
-   * outside-click / Escape listener that closes both this menu and the pile
-   * popover.
+   * The SEAT menu (mockup `ctxMenu`, `.ctx.seat-ctx`): that player's graveyard,
+   * exile and commander damage, and "bring across the table" for an opponent
+   * who is not already there. Exile is the seat view's single shared list;
+   * per-player exile is a server change (brief §5), and the popover says so
+   * rather than guessing owners.
    *
-   * Exile is the seat view's single shared list; per-player exile is a server
-   * change (brief §5), and the popover says so rather than guessing owners.
+   * The CARD menu (`docs/play-surface-v3-brief.md` §2 item 2, `.ctx.card-ctx`):
+   * the card's counters, then what the current decision lets you do WITH it —
+   *   "Use"          every answerable action the card is the source of;
+   *   "Target with"  every answerable action that lists the card as a legal
+   *                  target, so "put a counter on this creature" is chosen on
+   *                  the creature instead of by reading a list of every target.
+   * Both lists are the decision payload's own (`actionsFrom` /
+   * `actionsTargeting`); the menu decides nothing. "Use" starts the picker
+   * chain exactly as a click on the card would; "Target with" hands the card
+   * to `targeting.svelte.js`, which starts the same chain and then picks the
+   * card in the mounted picker.
+   *
+   * This component also owns the one outside-click / Escape listener that
+   * closes either menu and the pile popover.
    */
   import { ui, openPopover, closeFloating } from './ui.svelte.js';
+  import { actionsFrom, actionsTargeting, targeting, targetWith } from './targeting.svelte.js';
 
   // `state` is the prop's name; a local called `state` would shadow the `$state` rune.
-  const { state: view = null, humanName = null, focus = null, onFocus = null } = $props();
+  const {
+    state: view = null,
+    humanName = null,
+    focus = null,
+    decision = null,
+    loading = false,
+    onFocus = null,
+    onUse = null,
+  } = $props();
 
   let menu = $state(null);
 
-  const name = $derived(ui.ctx?.name ?? null);
+  // ── Seat menu ──────────────────────────────────────────────────────────────
+
+  const name = $derived(ui.ctx?.kind === 'seat' ? ui.ctx.name : null);
   const graveyard = $derived(name ? (view?.zones?.graveyard?.[name] ?? []) : []);
   const exile = $derived(view?.zones?.exile ?? []);
 
@@ -54,6 +78,39 @@
     closeFloating();
   }
 
+  // ── Card menu ──────────────────────────────────────────────────────────────
+
+  const card = $derived(ui.ctx?.kind === 'card' ? ui.ctx.card : null);
+  const sourceOf = $derived(card ? actionsFrom(decision, card.object_id) : []);
+  const targetOf = $derived(card ? actionsTargeting(decision, card.object_id) : []);
+
+  /** Counter keys are the view model's labels ("+1/+1", "charge", "loyalty", …), shown as sent. */
+  const counters = $derived(
+    Object.entries(card?.counters ?? {})
+      .filter(([, n]) => n > 0)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, n]) => `${label} ×${n}`)
+      .join(' · '),
+  );
+
+  /**
+   * One picker chain at a time: while one is open nothing else can start. The
+   * exception is aiming the OPEN target stage's own action at this card.
+   */
+  const busy = $derived(loading || targeting.chainOpen);
+  const canTarget = (action) => !loading && (!targeting.chainOpen || targeting.live?.index === action.index);
+
+  function use(action) {
+    closeFloating();
+    onUse?.(action);
+  }
+
+  function target(action) {
+    const chosen = card;
+    closeFloating();
+    targetWith(action, chosen);
+  }
+
   // Place at the pointer, then pull back inside the viewport once measured.
   $effect(() => {
     const ctx = ui.ctx;
@@ -82,14 +139,38 @@
   });
 </script>
 
-{#if ui.ctx}
-  <div class="ctx" bind:this={menu} role="menu">
+{#if name !== null}
+  <div class="ctx seat-ctx" bind:this={menu} role="menu">
     <div class="ctx-title">{name}</div>
     <button role="menuitem" onclick={showGraveyard}>View graveyard ({graveyard.length})</button>
     <button role="menuitem" onclick={showExile}>View exile ({exile.length})</button>
     <button role="menuitem" onclick={showCommanderDamage}>Commander damage</button>
     {#if name !== humanName && name !== focus}
       <button role="menuitem" onclick={bringAcross}>Bring across the table</button>
+    {/if}
+  </div>
+{:else if card}
+  <div class="ctx card-ctx" bind:this={menu} role="menu" data-oid={card.object_id}>
+    <div class="ctx-title">{card.name}</div>
+    {#if counters}<div class="ctx-counters">{counters}</div>{/if}
+    {#if sourceOf.length > 0}
+      <div class="ctx-section">Use</div>
+      {#each sourceOf as action (action.index)}
+        <button role="menuitem" data-role="source" data-action-index={action.index} disabled={busy} onclick={() => use(action)}>
+          {action.label}
+        </button>
+      {/each}
+    {/if}
+    {#if targetOf.length > 0}
+      <div class="ctx-section">Target with</div>
+      {#each targetOf as action (action.index)}
+        <button role="menuitem" data-role="target" data-action-index={action.index} disabled={!canTarget(action)} onclick={() => target(action)}>
+          {action.label}
+        </button>
+      {/each}
+    {/if}
+    {#if sourceOf.length === 0 && targetOf.length === 0}
+      <div class="ctx-empty">No action uses this card right now.</div>
     {/if}
   </div>
 {/if}

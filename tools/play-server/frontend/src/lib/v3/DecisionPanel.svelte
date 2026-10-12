@@ -17,12 +17,18 @@
    * action whose `object_id` is NOT in `renderedIds`, and the parent passes
    * `renderedIds` = the keys of `cardIndex`. On any other decision kind the
    * picker `PromptPanel` opens is the answer and no groups are shown.
+   *
+   * A card item is also where a targeting arrow starts (C2): a press on it that
+   * moves becomes a drag (`targeting.svelte.js`), a press that does not is the
+   * same click as before. While a target stage is open the panel says, in one
+   * line, that the table itself can be clicked — or that it cannot.
    */
   import PromptPanel from '../v2/PromptPanel.svelte';
   import CardFace from './CardFace.svelte';
   import BlockUi from './BlockUi.svelte';
   import { answerable } from '../v2/prompt.js';
   import { splitCamel } from '../names.js';
+  import { beginArrowFromAction, targeting } from './targeting.svelte.js';
 
   const {
     cardIndex = new Map(),
@@ -197,6 +203,15 @@
       onChainOpenChange={handleChainOpenChange}
     />
 
+    <!-- Arrow targeting (C2): the picker above stays the list; this says the table is live too. -->
+    {#if targeting.live}
+      <div class="arrow-hint">
+        Or choose on the table: click a highlighted card or player{targeting.live.objectId !== null ? ', or drag from the source card' : ''}.
+      </div>
+    {:else if targeting.unavailable}
+      <div class="arrow-hint off">Arrows are not available for this choice — use the list.</div>
+    {/if}
+
     <!-- Blocker arrows (C2): draws itself only while `BlockerPicker` is mounted in this host. -->
     <BlockUi {decision} {cardIndex} {loading} />
 
@@ -208,8 +223,15 @@
             {#each group.items as item (item.action.index)}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div class="act" class:disabled={loading} title={item.action.label} onclick={() => choose(item)}>
-                <CardFace card={item.card} size="perm" count={item.count} lit />
+              <div
+                class="act"
+                class:disabled={loading}
+                title={item.action.label}
+                data-action-index={item.action.index}
+                onpointerdown={(event) => beginArrowFromAction(item.action, event)}
+                onclick={() => choose(item)}
+              >
+                <CardFace card={item.card} size="perm" count={item.count} lit targetable={false} />
                 <div class="cap">{item.cap}</div>
               </div>
             {/each}
