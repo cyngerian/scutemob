@@ -11,14 +11,14 @@
 - **Active Milestone**: P1 pod-first (`docs/course-correction-2026-09.md` §5, approved 2026-09-05).
   M11-local DONE 2026-08-01 (engine first-playable: one human + three bots in a browser via
   `tools/play-server`). M10+ roadmap milestones are HISTORICAL pending CC-8.
-- **Status**: 5,356 tests passing / 0 failing / 6 ignored (after `scutemob-267`, 73 targets);
+- **Status**: 5,407 tests passing / 0 failing / 6 ignored (after `scutemob-268`, 73 targets);
   209 approved golden scripts; CI green since 2026-07-10.
-- **Last Updated**: 2026-10-12 — play surface v3 C1 + C2 SHIPPED (`scutemob-266/267`, merges `5025a70a` / `2436e4e7`): `?v3` has arrows, card menus, blocker arrows, rearranging, auto-pass; C3 = `scutemob-268` in backlog.
+- **Last Updated**: 2026-10-12 — play surface v3 C1–C3 SHIPPED (`scutemob-266/267/268`; C3 merge `01f4ac59`, stays `in_review` until the owner playtest): `?v3` complete with local image store; guide `docs/play-v3-playtest-guide.md`.
 - **Headline metric**: live card coverage **1,143 / 1,803 = 63.4%** (`docs/authoring-status.md`,
   regenerate with `tools/authoring-report.py`). Replaced by pod coverage (`docs/pod-coverage.md`)
   once CC-6 lands. Wire: PROTOCOL **44** / HASH **85**.
-- **Next dispatch**: **play surface v3 C3 (`scutemob-268`)** from `docs/play-surface-v3-brief.md`
-  §4/§5 + `memory/play-v3-c2-2026-10-12.md` §Deferred (image store per the 2026-10-12 ruling). v4 queue CLOSED at
+- **Next dispatch**: **owner playtest of `?v3` first** (`docs/play-v3-playtest-guide.md`; findings →
+  tasks, closes `-268`), then **C4 classic layout (`scutemob-269`)** per brief §4 row C4. v4 queue CLOSED at
   rank 21 (do NOT dispatch PB-DX9 / PB-DX38). CC-9 hot-seat (`-245`) still awaits owner approval;
   LL-2 (`-256`) after it; CC-5 decklists (`-241`, owner) gate LL-4 (`-258`) and CC-6/7/8. Every
   dispatch needs explicit owner approval (`feedback_queue_autonomous_chaining` RETRACTED 2026-08-01).

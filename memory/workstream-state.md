@@ -16,39 +16,37 @@
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6 |
 | W6: Primitive + Card Authoring | — | available | — | v4 queue CLOSED at rank 21. CC batch + LL-3/LL-1 COMPLETE; data sync `scutemob-259` (`5ce2795a`) 2026-09-14. STOP: CC-9 (`-245`) awaits owner approval; LL-2 (`-256`) after (baseline: `data-freshness.py cites`). LL-4 (`-258`) blocked on CC-5 (owner). History: `CHANGELOG.md` |
 
-## Last Handoff (primary session, 2026-10-12) — v3 C1 + C2 collected: the alpha table is interactive on `?v3`
+## Last Handoff (primary session, 2026-10-12) — v3 C1–C3 collected; the alpha table awaits the owner playtest
 
-**Date**: 2026-10-12 (primary; dispatched + collected `scutemob-266` (`5025a70a`) and `-267` (`2436e4e7`), pushed)
-**Workstream**: play client (`tools/play-server`), no engine / wire change (PROTOCOL 44 / HASH 85)
+**Date**: 2026-10-12 (primary; dispatched + collected `scutemob-266` `5025a70a`, `-267` `2436e4e7`, `-268` `01f4ac59`; pushed)
+**Workstream**: play client (`tools/play-server` + `crates/view-model`), no engine / wire change (PROTOCOL 44 / HASH 85)
 
-**Completed**: data refresh (`e5382c5a`: CR 2026-09-25, Scryfall 2026-10-12; `cites` 33/307 unchanged).
-C1: mockup 7 as `?v3` + `?card-window`, pickers hosted unmodified, probes `v3sweep.py` / `v3interact.py`,
-3 gates. C2: arrow targeting (cards, opponent cells, seats), card right-click menu (Use / Target with /
-counters), blocker arrows, drag-to-rearrange hand + battlefield (per-game client order), summoning-sick
-outline, auto-pass panel (4 modes, 3 stops; `startPassUntil` takes a predicate, additive); ONE submission
-path through the mounted pickers (gate + executed defeat); `v3scenario.py`; interact 35 → 122 checks.
-Reviews: C1 1H+3M, C2 1H+1M fixed in-cycle. Tests 5,352 → 5,356. Notes `memory/play-v3-c{1,2}-2026-10-12.md`.
-Owner ruling recorded (`memory/decisions.md`, brief §5, comment on `-268`): card images are downloaded
-when a deck is added; play never calls Scryfall. Collect chore also fixed the `BlockerPicker` select
-(numeric option vs String value — showed blank on every surface; C2 found it).
+**Completed**: data refresh (`e5382c5a`). C1 table, C2 interactions (see archive). C3: view-model DTOs
+(`exile_by_owner`, `commander_tax`, `stack[].target_refs`, `summary.game_id`, `pass_until` server param;
+each with a redaction case), the LOCAL IMAGE STORE (`src/images.rs`; `GET /api/card-image` serves only;
+filled at deal or `--prefetch-images`; `SCUTEMOB_IMAGE_STORE`; v3 makes 0 Scryfall requests — gate +
+defeat), `?v3` wired to all of it, `probes/v3game.py` seed 3 to game over at both viewports (turn 55,
+891 decisions, 0 errors), `verify.py` flow re-expressed (69 checks), interact 122 → 280. Reviews C3:
+0H + 3M fixed. Tests 5,356 → 5,407. Notes `memory/play-v3-c3-2026-10-12.md`. Guide
+`docs/play-v3-playtest-guide.md` + template `memory/play-v3-playtest-findings.md`. Owner idea filed:
+C4 classic layout `scutemob-269` (you bottom-left; every board its own hand + piles) — brief §4 row.
 
-**Not done / deferred (C3, `-268`)**: image store + deck-time prefetch (replaces the lazy proxy),
-per-player exile, commander tax, `GameSummary.game_id` (order key), `StackItemView` target ids (the
-`targeted` outline), pass-until-step server param, revealed cards, seed-3 game to game-over,
-`verify.py` on v3, owner playtest. Portfolio suggestion on `-268`: playtest friction log (owner to rule).
-C2 LOW list in its notes (CR 509.1b double-block inherited from `BlockerPicker`; unexercised arrow paths).
-`cockatrice*.png` (3 files) at the repo root are the owner's untracked reference shots.
+**Not done**: `-268` criterion 8617's owner half — the playtest, the recorded verdict, the filed tasks;
+task stays `in_review` until then. Three owner calls pending (C3 notes): image-store 200/404 reveals
+union-of-decks membership (fine for one human; close before CC-9 hot-seat by prefetching all pod decks);
+combat card 60vh inner scroll (only scrolling box on the surface); playtest friction-log hotkey.
+`cockatrice*.png` (3) at the repo root → `mockups/reference/` when C4 dispatches.
 
-**Next session candidates**: (1) owner plays `?v3` on 3040 (bundle rebuilt in place after each collect;
-no server restart needed); (2) `/dispatch` C3 (`-268`) — rows 1/3/4: server DTO additions are a wire
-change (predict the PROTOCOL bump), image store, game-over run, then the playtest; (3) CC-9 hot-seat
-(`-245`) still awaits owner approval. Every dispatch needs explicit owner approval.
+**Next session candidates**: (1) owner plays `?v3` per the guide (restart the server: the running
+3040 binary predates C3); (2) record verdict in the findings file, file tasks, transition `-268` done;
+(3) `/dispatch` C4 (`-269`); (4) CC-9 hot-seat (`-245`) still awaits owner approval. Every dispatch
+needs explicit owner approval.
 
-**Operator-delta line**: `?v3` is playable with arrows, menus, blocker arrows, rearranging and auto-pass;
-images still come live from Scryfall until C3's store (chips on 429).
+**Operator-delta line**: the alpha table is feature-complete for a one-human table with bots; images
+local; one seeded game runs to game over headless. Pod play still needs decklists (CC-5) and hot-seat (CC-9).
 
-**Hazards**: probes on 3041/3042 only; `.postMessage(` banned by a gate (storage-event transport);
-v3 root 13px (pickers `zoom: 1.23`); `reorder.js` swallows the click after a drag (arrow drop deferred
-two timer turns); no game id in `GameSummary` yet. CLAUDE.md is 249/250.
+**Hazards**: the old 3040 server + a rebuilt dist = chips and missing fields — restart the server
+first; probes on 3041+; first deal on a seed takes minutes to fill the store (chips meanwhile);
+`.postMessage(` banned; v3 root 13px. CLAUDE.md is 249/250.
 
-**Commit prefix used**: `scutemob-266:` / `scutemob-267:` / `merge:` / `chore:`
+**Commit prefix used**: `scutemob-266/267/268:` / `merge:` / `chore:`
