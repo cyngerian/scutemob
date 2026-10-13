@@ -108,7 +108,10 @@
           >
             <option value={NO_BLOCK}>doesn't block</option>
             {#each entry.attackers as attacker (attacker.id)}
-              <option value={attacker.id}>block {attacker.label}</option>
+              <!-- String: the select's `value` above is a String and Svelte 5 matches
+                   options strictly, so a numeric option never showed as selected
+                   (found by scutemob-267; `setBlock` already coerces back with Number). -->
+              <option value={String(attacker.id)}>block {attacker.label}</option>
             {/each}
           </select>
         </div>
