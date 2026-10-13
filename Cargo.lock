@@ -1936,6 +1936,7 @@ dependencies = [
  "mtg-engine",
  "mtg-simulator",
  "mtg-view-model",
+ "rusqlite",
  "serde",
  "serde_json",
  "tokio",

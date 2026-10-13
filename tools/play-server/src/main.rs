@@ -84,6 +84,15 @@ struct Cli {
     #[arg(long, value_name = "DIR")]
     image_store: Option<PathBuf>,
 
+    /// The `cards.sqlite` the image prefetch reads Scryfall ids from, so a card's
+    /// images come straight from the image CDN with no `api.scryfall.com` lookup.
+    /// Falls back to the `SCUTEMOB_CARDS_SQLITE` environment variable, then to
+    /// `cards.sqlite` in the current directory, then at the workspace root this
+    /// binary was built from. A file that cannot be used is not an error: every
+    /// card then takes the rate-limited lookup, and the server says so once.
+    #[arg(long, value_name = "FILE")]
+    cards_sqlite: Option<PathBuf>,
+
     /// Serve the image store but never fetch: starting a game downloads nothing.
     /// Without this flag, `POST /api/game` hands the resolved decks' card names to
     /// a background worker that fills the store from Scryfall (owner ruling
@@ -153,11 +162,18 @@ async fn async_main() -> Result<()> {
         .clone()
         .or_else(|| std::env::var_os("SCUTEMOB_IMAGE_STORE").map(PathBuf::from))
         .unwrap_or_else(images::default_store_dir);
+    let cards_sqlite = cli
+        .cards_sqlite
+        .clone()
+        .or_else(|| std::env::var_os("SCUTEMOB_CARDS_SQLITE").map(PathBuf::from))
+        .unwrap_or_else(images::default_cards_sqlite);
 
     // `--prefetch-images`: fill the store and exit. Blocking network work, so off
     // the reactor like the engine work is.
     if let Some(arg) = &cli.prefetch_images {
-        return tokio::task::block_in_place(|| images::run_cli_prefetch(&image_store, arg));
+        return tokio::task::block_in_place(|| {
+            images::run_cli_prefetch(&image_store, &cards_sqlite, arg)
+        });
     }
 
     let defaults = NewGameDefaults {
@@ -173,7 +189,7 @@ async fn async_main() -> Result<()> {
     let image_service = if cli.no_image_prefetch {
         images::ImageService::serve_only(&image_store)
     } else {
-        images::ImageService::with_prefetch(&image_store)
+        images::ImageService::with_prefetch(&image_store, &cards_sqlite)
     };
     let state: SharedState = AppState::new(defaults).with_images(image_service);
 
@@ -211,7 +227,8 @@ async fn async_main() -> Result<()> {
         if cli.no_image_prefetch {
             "prefetch OFF — store is served as it is"
         } else {
-            "prefetch at deck resolution; progress at /api/card-image/status"
+            "prefetch at deck resolution; progress at /api/card-image/status, \
+             retry failures with POST /api/card-image/retry"
         }
     );
     if dist_dir.exists() {
@@ -240,6 +257,9 @@ fn build_router(state: SharedState, dist_dir: &PathBuf) -> Router {
         // and neither fetches: a miss is a 404 and the client shows its chip.
         .route("/card-image", get(images::get_card_image))
         .route("/card-image/status", get(images::get_card_image_status))
+        // Re-queues the cards whose download failed. Fetches nothing itself: it
+        // is a channel send to the prefetch worker, and a no-op when serve-only.
+        .route("/card-image/retry", post(images::post_card_image_retry))
         .with_state(state);
 
     let router = Router::new().nest("/api", api_router);

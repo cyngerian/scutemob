@@ -25,20 +25,25 @@ Without `?v3` you get the old default surface; `?v2` is the retired B1/B2 surfac
 `--seed N` picks the table (decks are random per seat until CC-5 decklists exist); `--players 2..6`.
 The menu (top right) deals a new game, exports a bug report, and concedes.
 
-### Card images (first game on a seed takes a few minutes to fill)
+### Card images (first game on a seed takes about a minute to fill)
 
 The browser never talks to Scryfall on v3. When a game is dealt the server downloads every card of
-every deck into the image store in the background (politely: one card every ~120 ms, ≈400 cards for
-four seats). Until a card has arrived it is drawn as a **text chip** — that is the designed fallback,
+every deck into the image store in the background, straight from Scryfall's image CDN (politely:
+at most ten images a second; ≈240 cards × 3 sizes for four seats, about 70 seconds on an empty store). Until a card has arrived it is drawn as a **text chip** — that is the designed fallback,
 not a bug.
 
-- Progress: <http://127.0.0.1:3040/api/card-image/status> — ready when `queued` is `0`. `failed`
+- Progress: <http://127.0.0.1:3040/api/card-image/status> — ready when `queued` is `0`. `card_ids`
+  should name `cards.sqlite`; if it says `"none"` the server did not find it (it looks in the
+  directory it was started from — run from the repo root, or pass `--cards-sqlite <file>`) and the
+  fill falls back to the slow, rate-limited lookup. `failed`
   is a count of cards that could not be downloaded (those stay chips); the names, with the reason,
   are in the server's terminal output as `card images: <name>: <reason>` lines — report those.
 - Reload the page to pick up images that arrived after a card was first drawn (the hover overlay
   and the card window ask the store again on every hover).
-- A card that failed after a rate-limit (Scryfall 429, see the terminal line) is not retried by itself: deal again, or run
-  `--prefetch-images "Name;Name"` with those names. Two names are unknown to Scryfall
+- A card that failed (a rate limit or a network error, see the terminal line) is kept in a retry
+  queue — `retry_queue` in the status. Retry them all, without dealing again, with
+  `curl -X POST http://127.0.0.1:3040/api/card-image/retry`, then watch `queued` return to `0` and
+  reload. (A later deal that uses the card retries it too.) Two names are unknown to Scryfall
   for good: `Poisonous Viper` and `Steel Guardian` are synthetic test cards in the def set (no real
   printing), so they are always chips — not a finding.
 - To fill the store before sitting down: start the server, deal the seed you will play, wait for

@@ -52,6 +52,7 @@ cargo run -p play-server -- --port 3040 --players 4 --bot heuristic --seed 0
 | `--bot` | `heuristic` | `RandomBot` makes nonsense plays that read as engine bugs to a human (plan §8 R5); it remains the *fuzzer's* default |
 | `--seed` | `0` | the pregame build is deterministic from the seed. `POST /api/game` can override per game. **A bug report needs the mulligan count too** — see below. |
 | `--image-store <dir>` | env `SCUTEMOB_IMAGE_STORE`, else `tools/play-server/images` | the local card-image store. See [Card images](#card-images-the-local-store). |
+| `--cards-sqlite <file>` | env `SCUTEMOB_CARDS_SQLITE`, else `cards.sqlite` in the current directory, else at the workspace root | where the image prefetch reads Scryfall ids (read-only), so images come from the CDN with no `api.scryfall.com` lookup. An unusable file is not an error: every card then takes the rate-limited lookup and the server says so once. |
 | `--no-image-prefetch` | off | serve the store but never fetch: starting a game downloads nothing. Probes and sweeps use this. |
 | `--prefetch-images <file-or-names>` | — | fetch those cards at all three sizes into the store, print a summary, **exit without serving**. |
 
@@ -535,7 +536,8 @@ so the two servers could one day be merged without a route collision.
 | `GET /api/game/report` | — | the bug-report / repro artefact. A **pure read** — see below |
 | `GET /api/healthz` | — | liveness; never takes the session lock |
 | `GET /api/card-image?name=&version=` | — | one card image from the **local store**; never fetches, never takes the session lock. See [Card images](#card-images-the-local-store) |
-| `GET /api/card-image/status` | — | prefetch progress: `{enabled, store, queued, fetched, present, failed}` — counts only (`failed` is a number; the names go to the server log) |
+| `GET /api/card-image/status` | — | prefetch progress: `{enabled, store, queued, fetched, present, failed, retry_queue, by_id, named_lookups, card_ids}` — counts only (`failed` and `retry_queue` are numbers; the names go to the server log) |
+| `POST /api/card-image/retry` | — | re-queue every card of the retry queue now; answers the status body plus `requeued`. Fetches nothing itself, never takes the session lock; `requeued: 0` when serve-only |
 | everything else | — | `ServeDir` fallback to `dist/`, when that directory exists |
 
 ### Error-status semantics
@@ -718,17 +720,32 @@ route does not fetch, lazily or otherwise, ever. All of it is `src/images.rs`.
 `name` is the card's exact name as the engine spells it — a double-faced card is named
 by its front face (`Bloodline Keeper`), and its image is the front face.
 
-`GET /api/card-image/status` → `{ enabled, store, queued, fetched, present, failed }`
-(always 200, `no-store`). Counts are **cards**, cumulative for the process: `queued` =
+`GET /api/card-image/status` → `{ enabled, store, queued, fetched, present, failed,
+retry_queue, by_id, named_lookups, card_ids }` (always 200, `no-store`). Counts are **cards**, cumulative for the process: `queued` =
 handed to the worker and not finished (`0` means the store is as ready as it will get),
 `fetched` = at least one image downloaded, `present` = already complete when the worker
 reached it, `failed` = **how many** cards could not be fetched and will render as chips
 (a number, not a list). Each failed name is written with its reason to the server's
 stderr when it fails (`card images: <name>: <reason>`) — read them in the terminal the
-server runs in. `enabled` is `false` under `--no-image-prefetch`.
+server runs in. `enabled` is `false` under `--no-image-prefetch`. `retry_queue` = how
+many of the failed cards are worth trying again (all but a name Scryfall does not know);
+`by_id` = cards fetched from the CDN alone, by Scryfall id; `named_lookups` = how many
+times a card took the `api.scryfall.com` fallback, failed attempts and retries included
+(normally only names `cards.sqlite` does not hold);
+`card_ids` = the `cards.sqlite` in use, or `"none"` — then *every* card is a named lookup.
 
-**Hidden information.** Neither route reads the game session, and neither says *where*
-a card is (which seat, which zone). The status route reports counts only: the names that
+`POST /api/card-image/retry` → the same body plus `requeued` (always 200, `no-store`):
+hands every card of the retry queue back to the prefetch worker and returns at once. A
+card leaves the queue when its retry succeeds; one already waiting for the worker is not
+queued twice, so repeating the call is harmless. A failed card is also retried by itself
+whenever a later deal names it; this route is for the table already in play:
+
+```sh
+curl -X POST http://127.0.0.1:3040/api/card-image/retry
+```
+
+**Hidden information.** None of the three routes reads the game session, and none says
+*where* a card is (which seat, which zone). The status and retry routes report counts only: the names that
 failed, like the names that were queued, are cards of the table's decks — bot seats
 included — and a bot seat's decklist is hidden, so they never enter a response body.
 
@@ -787,12 +804,28 @@ dies with the worktree — point `SCUTEMOB_IMAGE_STORE` somewhere stable to shar
    failure*, not a crash.
 3. **Never** with `--no-image-prefetch`: the store is served exactly as it is.
 
-The fetch is polite: per card, **one** call to `api.scryfall.com/cards/named?exact=…`
+**By Scryfall id, from the CDN alone** (`scutemob-270`). `cards.sqlite` already holds
+every card's Scryfall id (`cards.id`), and the CDN path is a function of it:
+`https://cards.scryfall.io/<size>/front/<id[0]>/<id[1]>/<id>.jpg`. So for a name the
+sqlite knows — by `cards.name`, or by the front face in `card_faces` for a card the
+engine names by its front (`Bloodline Keeper`) — each *missing* size is one CDN download
+and **`api.scryfall.com` is not contacted at all**. Non-game layouts (`art_series`,
+`token`, `double_faced_token`, `emblem`, `front_card`) are never matched. Of the 1,803
+card defs, 1,801 resolve this way (the other two are the synthetic test cards).
+
+The **fallback** is the old route — one call to `api.scryfall.com/cards/named?exact=…`
 (JSON → `image_uris`, or `card_faces[0].image_uris` for a double-faced card) preceded by
-a 120 ms pause, then one download per *missing* size from the image CDN
-(`cards.scryfall.io`, which Scryfall does not rate-limit); a `User-Agent` and `Accept` on
-every request; a 429, a 5xx or a transport error is retried up to 5 times with a 2 / 4 /
-8 / 16 s backoff; any other status is final. Files already present are never requested.
+a 120 ms pause, then one download per missing size from the URLs it carries. It is taken
+for a name the sqlite does not hold, for every card when no sqlite could be opened
+(`card_ids: "none"`, one loud line at startup), and once per card when an id-derived
+path answers 404. `named_lookups` in the status counts them.
+
+The fetch is polite: id-derived CDN downloads start at least 100 ms apart (at most ten a
+second); a `User-Agent` and `Accept` on every request; a 429, a 5xx or a transport error
+is retried up to 5 times with a 2 / 4 / 8 / 16 s backoff, and a card that exhausts them
+joins the retry queue (above); any other status is final. Files already present are never
+requested. Measured 2026-10-12 on a cold store: a four-seat deal (seed 0, 238 cards, 714
+images, 61 MB) fully present in **72 s**, no `api.scryfall.com` request, no failure.
 Image downloads are https-only and **follow no redirect** (`ureq` follows up to 10 by default; the
 CDN agent is built with `max_redirects(0)`, and a 3xx answer is a failed image), so the
 `cards.scryfall.io` host check on the URL is also a check on where the bytes came from. The one
@@ -801,8 +834,9 @@ A token, or any name Scryfall answers 404 to, is counted in `failed`, logged to 
 
 **Tests never fetch.** `AppState::new` builds a serve-only service (no worker thread, a
 store path that does not exist); only the serving entry point installs a fetching one.
-The fetch procedure is tested through a scripted fake of the `Net` trait, whose single
-production implementation is the only networked code in the crate.
+The fetch procedure and the background worker are tested through a scripted fake of the
+`Net` trait, whose single production implementation is the only networked code in the
+crate, and the id lookup against a sqlite fixture the test writes.
 
 ## Pass-until as a server parameter (v3 C3)
 

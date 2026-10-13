@@ -24,6 +24,9 @@ anyhow = "1"
 # Card-image prefetch (`src/images.rs`). The dependency line is `tools/scryfall-import`'s,
 # verbatim, so the lockfile gains one line (this crate's edge to the `ureq` already there).
 ureq = "3"
+# Scryfall ids for the image prefetch, read from `cards.sqlite` (`src/images.rs`). The
+# dependency line is `crates/card-db`'s, verbatim: one new lockfile edge, no new package.
+rusqlite = { version = "0.32", features = ["bundled"] }
 
 [dev-dependencies]
 # CARDS-1 (OOS-M11-10): `GameState::turn_mut`/`players_mut` are engine escape
