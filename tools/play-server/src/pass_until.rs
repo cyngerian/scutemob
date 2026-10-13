@@ -465,9 +465,7 @@ mod tests {
 
     use std::collections::HashMap;
 
-    use mtg_engine::{
-        AttackTarget, CombatState, GameState, GameStateBuilder, ObjectSpec, PlayerId, Step, ZoneId,
-    };
+    use mtg_engine::{GameState, GameStateBuilder, ObjectSpec, PlayerId, Step, ZoneId};
     use mtg_view_model::{EventTier, Viewer};
 
     const ME: &str = "Human-1";
@@ -511,12 +509,27 @@ mod tests {
             .id
     }
 
-    fn attack(state: &mut GameState, attacker: &str, target: AttackTarget) {
-        let id = id_of(state, attacker);
-        let combat = state
-            .combat_mut()
-            .get_or_insert_with(|| CombatState::new(PlayerId(2)));
-        combat.attackers.insert(id, target);
+    /// Declare `attacker` as attacking `target` (`"player:<name>"` /
+    /// `"planeswalker:<name>"`, `AttackerView::target`'s own spelling) **in the
+    /// seat view**, not in the engine state.
+    ///
+    /// The rule is only ever shown the view, so the view is the honest fixture —
+    /// and writing `CombatState` from here would be a sixth CR 508 attacker entry
+    /// site as far as `pb_dx51_attacker_entry_roster` can tell (it scans `tools/`
+    /// too, test modules included; it reddened on the first cut of this helper).
+    fn attack(view: &mut StateViewModel, state: &GameState, attacker: &str, target: &str) {
+        let combat = view
+            .combat
+            .get_or_insert_with(|| mtg_view_model::CombatView {
+                attacking_player: "Bot-2".to_string(),
+                attackers: vec![],
+            });
+        combat.attackers.push(mtg_view_model::AttackerView {
+            object_id: id_of(state, attacker).0,
+            name: attacker.to_string(),
+            target: target.to_string(),
+            blockers: vec![],
+        });
     }
 
     fn line(kind: &str, text: &str, player: Option<&str>) -> EventView {
@@ -792,20 +805,20 @@ mod tests {
     /// run, a new one does once, and an attack at somebody else never does.
     #[test]
     fn test_unless_attackers_fires_once_per_new_attacker_at_this_seat() {
-        let mut state = table(6, 2, Step::DeclareAttackers);
-        attack(&mut state, "Hill Giant", AttackTarget::Player(PlayerId(1)));
-        let giant_only = seat(&state);
-        let walker = id_of(&state, "Jace Beleren");
-        attack(&mut state, "Gray Ogre", AttackTarget::Planeswalker(walker));
-        let giant_and_ogre = seat(&state);
-
-        let mut elsewhere = table(6, 2, Step::DeclareAttackers);
+        let state = table(6, 2, Step::DeclareAttackers);
+        let mut giant_only = seat(&state);
+        attack(&mut giant_only, &state, "Hill Giant", "player:Human-1");
+        let mut giant_and_ogre = seat(&state);
+        attack(&mut giant_and_ogre, &state, "Hill Giant", "player:Human-1");
         attack(
-            &mut elsewhere,
-            "Hill Giant",
-            AttackTarget::Player(PlayerId(2)),
+            &mut giant_and_ogre,
+            &state,
+            "Gray Ogre",
+            "planeswalker:Jace Beleren",
         );
-        let at_someone_else = seat(&elsewhere);
+
+        let mut at_someone_else = seat(&state);
+        attack(&mut at_someone_else, &state, "Hill Giant", "player:Bot-2");
 
         let spec = request(serde_json::json!({
             "until": { "kind": "my_next_turn" },

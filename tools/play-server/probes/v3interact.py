@@ -1662,7 +1662,15 @@ async def main():
         await pg.wait_for_timeout(200)
         big = await pg.evaluate(fit)
         auto_on = await pg.locator(".v3 .top input[type=checkbox]").first.is_checked()
-        check("moving the slider turns auto-fit off and sets the size", (not auto_on) and all(x[1] == 140 for x in big if x[0] in ("board", "focused")), str(big))
+        # The slider is a CAP: `fit.js::fitBoard` takes min(cap, the width that still gives 8 cards a
+        # row) (brief §1 rule 5), so 140 is reached only where the centre column is wide enough (the
+        # 2560 reference viewport). At a narrower viewport the size is the 8-per-row bound: both centre
+        # boards agree, it is above the auto size and below the cap. (C3: this check asserted 140
+        # outright and had only ever been run at 2560; at 1707x880 it reads 93.9 on HEAD too.)
+        big_centre = [x[1] for x in big if x[0] in ("board", "focused")]
+        slider_ok = (len(big_centre) == 2 and big_centre[0] == big_centre[1] and big_centre[0] > centre[0]
+                     and (big_centre[0] == 140 if w >= 2560 else big_centre[0] <= 140))
+        check("moving the slider turns auto-fit off and sets the size (the cap, or the 8-per-row bound)", (not auto_on) and slider_ok, str(big))
         check("the page still does not scroll", await pg.evaluate("document.documentElement.scrollHeight === innerHeight && document.documentElement.scrollWidth === innerWidth"))
         await pg.locator(".v3 .top input[type=checkbox]").first.check()
         await pg.wait_for_timeout(200)
