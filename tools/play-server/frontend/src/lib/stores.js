@@ -387,7 +387,7 @@ export function cancelPassUntil() {
 }
 
 /**
- * Pass priority repeatedly until `modeKind`'s predicate says to stop.
+ * Pass priority repeatedly until the mode's predicate says to stop.
  *
  * **Entirely client-side.** Every iteration is one ordinary `POST
  * /api/game/action` naming the `PassPriority` option the server already offered,
@@ -410,10 +410,25 @@ export function cancelPassUntil() {
  *   - the current decision offers no `PassPriority` action at all;
  *   - a request failed (`act` returns false, having set `error`);
  *   - `MAX_AUTO_PASSES` iterations.
+ *
+ * # A mode may bring its own predicate (`scutemob-267`, play surface v3 C2)
+ *
+ * `mode` is either one of the built-in kind strings above (`'my-turn'`,
+ * `'phase-end'` — the default surface and `?v2`, unchanged) or a mode **object**
+ * `{ kind, predicate }`, which is the generalisation `PASS_UNTIL_PREDICATES`'
+ * doc names: v3's auto-pass panel composes "until a chosen step, unless a spell
+ * is cast" from its own settings (`lib/v3/autopass.js`) and hands the result
+ * in. The predicate has the same `(view, ctx) => string | null` contract and is
+ * consulted at the same point; **only the lookup differs**. The loop, every
+ * unconditional stop above, the concurrency guards and the `passUntil` shape
+ * (`mode` is the object's `kind`) are shared, so a caller-supplied rule can
+ * decide when to stop sooner and can never make the loop answer a real choice.
  */
-export async function startPassUntil(modeKind) {
-  const predicate = PASS_UNTIL_PREDICATES[modeKind];
-  if (!predicate) {
+export async function startPassUntil(mode) {
+  const custom = mode !== null && typeof mode === 'object';
+  const modeKind = custom ? mode.kind : mode;
+  const predicate = custom ? mode.predicate : PASS_UNTIL_PREDICATES[modeKind];
+  if (typeof predicate !== 'function') {
     error.set({
       message: `unknown pass-until mode "${modeKind}"`,
       kind: 'client_bug',

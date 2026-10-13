@@ -4,6 +4,13 @@
 # target turn has been fully played. On EVERY iteration it checks: the page never scrolls,
 # no board/cell box scrolls in auto mode, every face-up card shows an image or a chip, and
 # no page error was thrown. Screenshots at turns 1 / 5 / 10 (float open, and minimised).
+# C2 (scutemob-267) adds, on every iteration: the auto-pass panel (`.autopass`) is a box like
+# the others — it must not scroll and must lie inside the viewport; the arrow overlay
+# (`svg.v3-arrows`) is there, is `pointer-events: none` and is never the element under a
+# point of the page (it must never take a click; that it never makes the page scroll is the
+# page-scroll measurement itself). It also counts the summoning-sick outlines it saw
+# (`.card.sick`, distinct cards) — a count, not a verdict, so a sweep that never saw one shows.
+# The driver stays greedy; the real-decision checks for C2 are in v3interact.py.
 # Needs a play-server on 127.0.0.1 (never the owner's 3040):
 #   cargo run -p play-server -- --port 3041 --players 4 --bot heuristic --seed 0
 # Run:
@@ -136,7 +143,7 @@ JS_MEASURE = """() => {
   const pageScroll = !(de.scrollHeight === innerHeight && de.scrollWidth === innerWidth)
                   || (!!b && (b.scrollHeight > innerHeight || b.scrollWidth > innerWidth));
   const boxes = [];
-  for (const sel of ['.v3 .focused', '.v3 .board', '.v3 .cell:not(.cell-pop)']) {
+  for (const sel of ['.v3 .focused', '.v3 .board', '.v3 .cell:not(.cell-pop)', '.v3 .autopass']) {
     document.querySelectorAll(sel).forEach((el, i) => {
       if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) {
         boxes.push({ box: sel + '[' + i + ']', seat: ((el.querySelector('.seat-name') || {}).textContent || '').trim(),
@@ -155,9 +162,23 @@ JS_MEASURE = """() => {
   }).length;
   let auto = true, oppAuto = true;
   try { auto = localStorage.getItem('v3-auto') !== '0'; oppAuto = localStorage.getItem('v3-oppauto') !== '0'; } catch (e) {}
+  // C2: the auto-pass panel inside the viewport; the arrow overlay never the thing under the pointer.
+  const table = document.querySelectorAll('.v3 .cell:not(.cell-pop)').length > 0;
+  const panels = [...document.querySelectorAll('.v3 .autopass')];
+  const autopassOutside = panels.filter((p) => { const r = p.getBoundingClientRect();
+    return r.width < 1 || r.height < 1 || r.left < 0 || r.top < 0 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5; }).length;
+  const overlays = [...document.querySelectorAll('.v3 svg.v3-arrows')];
+  const overlayPointer = overlays.map((o) => getComputedStyle(o).pointerEvents);
+  let overlayHits = 0;
+  for (const fx of [0.1, 0.3, 0.5, 0.7, 0.9]) for (const fy of [0.1, 0.3, 0.5, 0.7, 0.9]) {
+    const e = document.elementFromPoint(innerWidth * fx, innerHeight * fy);
+    if (e && e.closest('svg.v3-arrows')) overlayHits += 1;
+  }
+  const sick = [...new Set([...document.querySelectorAll('.v3 .card.sick')].map((c) => c.dataset.oid || '?'))];
   return { pageScroll, page: [de.scrollWidth, de.scrollHeight, b ? b.scrollWidth : 0, b ? b.scrollHeight : 0, innerWidth, innerHeight],
            boxes, cards: cards.length, images: cards.filter((c) => c.classList.contains('has-image')).length,
-           chipless, offscreen, auto, oppAuto };
+           chipless, offscreen, auto, oppAuto,
+           table, autopass: panels.length, autopassOutside, overlays: overlays.length, overlayPointer, overlayHits, sick };
 }"""
 
 
@@ -211,7 +232,11 @@ async def run(browser, a, seed, w, h):
     r = {"seed": seed, "viewport": f"{w}x{h}", "iters": 0, "final_turn": None, "page_scroll": 0, "box_scroll": 0,
          "box_scroll_incidents": [], "page_scroll_incidents": [], "chipless": 0, "offscreen": 0, "cards": 0, "images": 0,
          "page_errors": [], "console_errors": [], "console_ignored": 0, "refusals": [], "gave_up": [], "stuck": [],
-         "screenshots": [], "game_over": None, "reason": ""}
+         "screenshots": [], "game_over": None, "reason": "",
+         # C2: iterations with a table drawn; the auto-pass panel and the arrow overlay measured on them
+         "table_iters": 0, "autopass_measured": 0, "autopass_missing": 0, "autopass_outside": 0,
+         "arrows_measured": 0, "arrows_missing": 0, "arrows_pointer": 0, "arrows_intercept": 0, "sick_seen": 0}
+    sick_oids = set()
     ctx = await browser.new_context(viewport={"width": w, "height": h})   # fresh context = no stored toggles
     pg = await ctx.new_page()
     pg.on("pageerror", lambda e: r["page_errors"].append(str(e)))
@@ -268,6 +293,17 @@ async def run(browser, a, seed, w, h):
                     r["box_scroll"] += 1
                     if len(r["box_scroll_incidents"]) < 60:
                         r["box_scroll_incidents"].append({"turn": turn, "iter": r["iters"], **bx})
+                if m["table"]:                        # C2: only a drawn table has the panel
+                    r["table_iters"] += 1
+                    r["autopass_measured"] += 1 if m["autopass"] == 1 else 0
+                    r["autopass_missing"] += 1 if m["autopass"] != 1 else 0
+                    r["autopass_outside"] += 1 if m["autopassOutside"] else 0
+                r["arrows_measured"] += 1 if m["overlays"] == 1 else 0
+                r["arrows_missing"] += 1 if m["overlays"] != 1 else 0
+                r["arrows_pointer"] += 1 if any(p != "none" for p in m["overlayPointer"]) else 0
+                r["arrows_intercept"] += 1 if m["overlayHits"] else 0
+                sick_oids.update(m["sick"])
+                r["sick_seen"] = len(sick_oids)
             else:
                 r["measure_failed"] = r.get("measure_failed", 0) + 1   # a metric that was not taken is not a pass
             if st.get("status") != 200:
@@ -398,6 +434,16 @@ def verdict(r, turns):
             why.append(f"{name} {r[key]}")
     if r["page_errors"]:
         why.append(f"page-errors {len(r['page_errors'])}")
+    # C2: the auto-pass panel and the arrow overlay. A scrolling panel is already a box-scroll above.
+    for key, name in (("autopass_missing", "autopass-panel-missing"), ("autopass_outside", "autopass-outside-viewport"),
+                      ("arrows_missing", "arrow-overlay-missing"), ("arrows_pointer", "arrow-overlay-takes-pointer"),
+                      ("arrows_intercept", "arrow-overlay-on-top")):
+        if r[key]:
+            why.append(f"{name} {r[key]}")
+    if not r["reason"] and not r["autopass_measured"]:
+        why.append(f"auto-pass panel never measured (table drawn on {r['table_iters']} iterations)")
+    if not r["reason"] and not r["arrows_measured"]:
+        why.append("arrow overlay never measured")
     # Vacuity: zeroes only count if the measurements were really taken, on a table with cards on it.
     if r.get("measure_failed"):
         why.append(f"measure-failed {r['measure_failed']}")
@@ -443,7 +489,8 @@ async def main():
                 print(("BAD " if why else "ok  ") + f"{name}: {end} iters {r['iters']} page-scroll {r['page_scroll']} "
                       f"box-scroll {r['box_scroll']} page-errors {len(r['page_errors'])} chipless {r['chipless']} "
                       f"cards {r['cards']}/{r['images']} pickers {sum(r.get('pickers', {}).values())} offscreen {r['offscreen']} refusals {len(r['refusals'])} "
-                      f"gave-up {len(r['gave_up'])} stuck {len(r['stuck'])} console-errors {len(r['console_errors'])}"
+                      f"gave-up {len(r['gave_up'])} stuck {len(r['stuck'])} console-errors {len(r['console_errors'])} "
+                      f"autopass-panel {r['autopass_measured']}/{r['table_iters']} arrow-overlay {r['arrows_measured']}/{r.get('measured', 0)} sick {r['sick_seen']}"
                       + (f"  <- {'; '.join(why)}" if why else ""), flush=True)
         await browser.close()
     with open(os.path.join(a.out, "v3sweep.json"), "w") as f:

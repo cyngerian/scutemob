@@ -67,7 +67,9 @@ export function setOppAuto(on) {
 /**
  * `popover`: `{ title, note, cards, x, y }` — `cards` are seat-view entries
  *   (`CardInZoneView`, hidden ones included: they draw as backs).
- * `ctx`: `{ name, x, y }` — the seat whose context menu is open.
+ * `ctx`: the open context menu — `{ kind: 'seat', name, x, y }` for a seat, or
+ *   `{ kind: 'card', card, x, y }` for a card (`card` is the seat view's entry
+ *   for it, so its counters can be listed).
  * `peek`: `{ name, rect }` — the side cell grown to double size; `rect` is the
  *   cell's `getBoundingClientRect()` when the hover timer fired.
  * `combatOpen`: the enlarged combat view.
@@ -81,7 +83,15 @@ export function openPopover({ title, note = '', cards = [], x = 0, y = 0 }) {
 
 export function openCtx(name, x, y) {
   ui.popover = null;
-  ui.ctx = { name, x, y };
+  ui.ctx = { kind: 'seat', name, x, y };
+}
+
+/**
+ * The card menu. An open pile popover stays: a card in it can be right-clicked,
+ * and the menu is drawn over it.
+ */
+export function openCardCtx(card, x, y) {
+  ui.ctx = { kind: 'card', card, x, y };
 }
 
 export function closeFloating() {

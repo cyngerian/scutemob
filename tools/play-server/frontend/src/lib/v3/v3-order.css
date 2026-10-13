@@ -1,0 +1,26 @@
+/*
+ * v3-order — drag-to-rearrange in your hand and on your battlefield (C2 item 3).
+ *
+ * The drag is `reorder.js`; these are its three marks. The marker is fixed at the
+ * `.v3` root and takes no pointer, so it never shifts a row, never gives a board a
+ * scrollbar (the fit in `fit.js` measures scroll sizes) and never sits between the
+ * pointer and the card under it. The dragged card is dimmed and ringed rather than
+ * moved: `transform` is the tapped tilt's, and a card following the pointer would
+ * hide the slot it is about to take.
+ *
+ * Every selector is prefixed `.v3`; keyframes are prefixed `v3-`.
+ */
+.v3 .board .cards, .v3 .hand .cards { user-select: none; -webkit-user-select: none; }
+.v3 .hand .card.reorder-dragging, .v3 .board .card.reorder-dragging { opacity: .45; outline: 2px dashed #fc8; outline-offset: 1px; z-index: 6; }
+.v3 .reorder-active, .v3 .reorder-active .card { cursor: grabbing; }
+.v3 .reorder-marker { position: fixed; z-index: 60; width: 3px; border-radius: 2px; background: #fc8; box-shadow: 0 0 6px 1px rgba(255, 204, 136, .7); pointer-events: none; }
+
+/*
+ * Found while testing the reorder on a paged hand, and a C1 defect rather than part of
+ * the drag: the hand row is a grid item of `.centre`, whose automatic minimum width is
+ * its content's — every card side by side. Past about 17 cards (at 2560px) the row grew
+ * wider than its column instead of paging, because `HandRow` then measured that grown
+ * width and concluded everything fits. With no automatic minimum the row keeps the
+ * column's width and the ◀ ▶ paging does what its doc says.
+ */
+.v3 .hand { min-width: 0; }

@@ -1,0 +1,20 @@
+/*
+ * v3-autopass — the auto-pass panel, beyond what v3.css ports from the mockup.
+ *
+ * Every selector is prefixed `.v3`; keyframes are prefixed `v3-`.
+ */
+
+/* a mode that cannot start right now (no priority decision, a run in flight) */
+.v3 .autopass .mode:disabled { opacity: .45; cursor: default; }
+.v3 .autopass .mode.on:disabled { opacity: 1; }
+/* "stop at [step]" is always shown (the mode button starts the run, so the step is chosen first); dimmed unless it is the rule */
+.v3 .autopass .stop-at.idle { opacity: .6; }
+.v3 .autopass input[type='checkbox'] { margin: 0; accent-color: #4a6ab0; }
+/* the status: the rule, then what is happening / why it stopped, then Resume */
+.v3 .autopass .status { display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.v3 .autopass .status .why { color: #dde; }
+.v3 .autopass .status.off .why { color: #99a; }
+.v3 .autopass.paused { border-color: #8a6a2a; }
+.v3 .autopass.running { border-color: #4a6ab0; }
+.v3 .autopass .resume { align-self: flex-start; background: #6a4a16; color: #fff; border: 1px solid #c9a227; border-radius: 4px; font: inherit; font-size: 0.78rem; font-weight: bold; padding: 4px 12px; cursor: pointer; }
+.v3 .autopass .resume:disabled { opacity: .45; cursor: default; }

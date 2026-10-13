@@ -8289,6 +8289,143 @@ mod tests {
         }
     }
 
+    /// **v3 C2 (`scutemob-267`) — an arrow, a card-menu item and the blocker box
+    /// are front ends to the pickers, never a second submission protocol.**
+    ///
+    /// A target chosen by dragging an arrow must submit exactly what choosing it
+    /// in `TargetPicker` submits, and a block drawn in `BlockUi` exactly what
+    /// `BlockerPicker` submits. The surface guarantees that structurally: nothing
+    /// under `lib/v3/` builds action params or calls the submit helper. The one
+    /// `act(` in the whole surface is `TableV3`'s pass-through of what
+    /// `PromptPanel`'s chain hands it; `pickerDriver.js` clicks the mounted
+    /// picker's own candidate and confirm buttons, and `BlockUi` writes the
+    /// picker's own `<select>` and dispatches `change`.
+    ///
+    /// Comment lines are skipped (the docs name the things they forbid).
+    ///
+    /// It is a source gate, so it is evadable by spelling (`{ targets }`
+    /// shorthand, `params.targets = …`); it pins the direct patterns and the
+    /// import routes, and the paired probe is what catches a wrong body.
+    ///
+    /// Vacuity: the walk must see the three files the rule is about, the
+    /// pass-through must be present exactly once, and the two drivers must really
+    /// drive the DOM (`button.click()`, a bubbling `change`).
+    ///
+    /// Paired probe: `tools/play-server/probes/v3interact.py` (C2 blocks) captures
+    /// the `POST /api/game/action` body of an arrow, a menu pick and a drawn block
+    /// and compares `params` with the candidate values in the decision payload.
+    ///
+    /// Defeat (executed 2026-10-12): a `defeat(act) { act(0, { picks: [] }); }` appended to
+    /// `targeting.svelte.js` → red ("`act(` appears 2 times …"); removed → green.
+    #[test]
+    fn test_frontend_v3_arrows_and_menus_submit_only_through_the_pickers() {
+        fn code_lines(text: &str) -> impl Iterator<Item = &str> {
+            text.lines().filter(|l| {
+                let t = l.trim_start();
+                !(t.starts_with("//") || t.starts_with('*') || t.starts_with("/*"))
+            })
+        }
+        /// Occurrences of `needle` not preceded by an identifier character.
+        fn bare_calls(line: &str, needle: &str) -> usize {
+            line.match_indices(needle)
+                .filter(|(i, _)| {
+                    !line[..*i]
+                        .chars()
+                        .next_back()
+                        .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '$' || c == '.')
+                })
+                .count()
+        }
+        assert_eq!(
+            bare_calls("x = act(1); react(2); a.act(3); onAct(4)", "act("),
+            1
+        );
+
+        let sources = v3_sources();
+        for name in ["pickerDriver.js", "targeting.svelte.js", "BlockUi.svelte"] {
+            assert!(
+                sources.iter().any(|(p, _)| p.ends_with(name)),
+                "the v3 walk did not see {name}; the gate would be vacuous"
+            );
+        }
+        let mut act_sites = Vec::new();
+        for (path, text) in &sources {
+            if path.ends_with(".css") {
+                continue;
+            }
+            // The two ways to reach the submit helper under another name: the
+            // adapter itself, and `stores.js` imported whole or with `act` in the
+            // list. Only `TableV3` may do either (review finding 4).
+            if !path.ends_with("TableV3.svelte") {
+                for line in code_lines(text).filter(|l| l.contains("import ")) {
+                    assert!(
+                        !line.contains("api.js"),
+                        "{path} imports the API adapter; only TableV3 does (for the report)"
+                    );
+                    if line.contains("stores.js") {
+                        let names = line.split('{').nth(1).and_then(|r| r.split('}').next());
+                        let names = names.unwrap_or_else(|| {
+                            panic!("{path} imports stores.js without a name list:\n  {line}")
+                        });
+                        assert!(
+                            !names.split(',').any(|n| n.trim().starts_with("act")),
+                            "{path} imports `act` from stores.js; only TableV3 submits:\n  {line}"
+                        );
+                    }
+                }
+            }
+            for line in code_lines(text) {
+                for banned in [
+                    "submitAction",
+                    "onAct(",
+                    "onAct?.(",
+                    "targets:",
+                    "trigger_targets",
+                    "blockers:",
+                ] {
+                    assert!(
+                        !line.contains(banned),
+                        "{path} contains `{banned}` in code: v3 never builds action params or \
+                         submits by itself — drive the mounted picker (`pickerDriver.js`, \
+                         `BlockUi`'s select) so an arrow submits what the list would.\n  {line}"
+                    );
+                }
+                for _ in 0..bare_calls(line, "act(") {
+                    act_sites.push((path.clone(), line.trim().to_string()));
+                }
+            }
+        }
+        assert_eq!(
+            act_sites.len(),
+            1,
+            "`act(` appears {} times in lib/v3 code; the only call is TableV3's pass-through \
+             of PromptPanel's own submission: {act_sites:?}",
+            act_sites.len()
+        );
+        assert!(
+            act_sites[0].0.ends_with("TableV3.svelte")
+                && act_sites[0].1 == "onAct={(index, params) => act(index, params)}",
+            "the one `act(` must be TableV3's unmodified pass-through, found {:?}",
+            act_sites[0]
+        );
+        let text_of = |name: &str| {
+            sources
+                .iter()
+                .find(|(p, _)| p.ends_with(name))
+                .map(|(_, t)| t.as_str())
+                .unwrap_or("")
+        };
+        assert!(
+            text_of("pickerDriver.js").matches("button.click()").count() >= 2,
+            "pickerDriver.js must choose and confirm by clicking the picker's own buttons"
+        );
+        assert!(
+            text_of("BlockUi.svelte")
+                .contains("dispatchEvent(new Event('change', { bubbles: true }))"),
+            "BlockUi must assign through the picker's own <select> change event"
+        );
+    }
+
     /// **UI-4 (`scutemob-185`), G1 of `memory/playtest-triage-2026-08-02b.md` —
     /// no file in the Svelte client may hand a value to a platform primitive that
     /// rejects `Proxy` objects.**

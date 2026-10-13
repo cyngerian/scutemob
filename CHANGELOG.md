@@ -6,6 +6,18 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-10-12 — Play surface v3 C2 (`scutemob-267`) — arrows, card menus, blocker arrows, rearranging, auto-pass
+
+- The four must-land interactions on `?v3`: drag an arrow from an action or a card to a target (cards
+  in opponent cells, player seats), card right-click menu (Use / Target with / counters), blocker
+  arrows in the decision panel (mockup `blockUi`), drag-to-rearrange hand and battlefield rows
+  (per-game client order); plus the summoning-sick outline and the auto-pass panel (4 modes, 3 stops).
+- One submission path: arrows, menus and the blocker box drive the mounted pickers' own DOM; nothing in
+  `lib/v3` builds params (new source gate, executed defeat). `stores.js`: `startPassUntil` takes a predicate (additive).
+- NEW `probes/v3scenario.py` (seeded real decisions); `v3interact.py` 35 → 122 checks, sweep as C1: 0 page
+  scroll, 0 box scroll, 0 page errors. Review: 1 HIGH + 1 MEDIUM fixed. No engine or wire change; tests
+  5,355 → 5,356. Notes: `memory/play-v3-c2-2026-10-12.md` (incl. a `BlockerPicker` bug found, not ours to fix).
+
 ## 2026-10-12 — Play surface v3 C1 (`scutemob-266`) — the alpha table from live state
 
 - Mockup 7 built as a third surface behind `?v3` (`frontend/src/lib/v3/`, 25 files): fixed side cells

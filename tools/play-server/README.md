@@ -101,12 +101,18 @@ versions as `tools/replay-viewer/frontend`: `svelte ^5.45`, `vite ^7.3`,
 **Three surfaces, one bundle** (`src/main.js`): the first surface is the default,
 `?v2` is the second (`docs/play-surface-v2-brief.md`, superseded), and **`?v3` is
 the owner-approved alpha table** (`docs/play-surface-v3-brief.md`, `src/lib/v3/`;
-phase C1 = `scutemob-266`, notes `memory/play-v3-c1-2026-10-12.md`).
+phase C1 = `scutemob-266`, notes `memory/play-v3-c1-2026-10-12.md`; phase C2 =
+`scutemob-267`, notes `memory/play-v3-c2-2026-10-12.md`: targeting arrows, card
+right-click menus, blocker arrows, drag-to-rearrange, the summoning-sick outline
+and the auto-pass panel — all of them front ends to the same pickers, which a
+source gate holds).
 `?card-window` is v3's popped-out card view. v3's stylesheets are the mockup's,
 scoped under `.v3` (a source gate holds that), so they cannot reach the other two.
 Headless checks for v3 live in `probes/`: `v3sweep.py` (greedy N-turn drive: no
-page scroll, no box scroll, no page errors) and `v3interact.py` (focus, popovers,
-seat menu, peek, hover, sizing). Run them against a server on 3041/3042, never 3040.
+page scroll, no box scroll, no page errors), `v3interact.py` (focus, popovers,
+seat menu, peek, hover, sizing; then the C2 interactions, each on a real decision)
+and `v3scenario.py` (the API driver that reaches those decisions by seed). Run
+them against a server on 3041/3042, never 3040.
 
 ```sh
 cd tools/play-server/frontend
