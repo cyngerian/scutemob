@@ -18,7 +18,7 @@
 
 ## Last Handoff (primary session, 2026-10-12) — v3 C1–C3 collected; the alpha table awaits the owner playtest
 
-**Date**: 2026-10-12 (primary; dispatched + collected `scutemob-266` `5025a70a`, `-267` `2436e4e7`, `-268` `01f4ac59`; pushed)
+**Date**: 2026-10-12 (primary; dispatched + collected `scutemob-266` `5025a70a`, `-267` `2436e4e7`, `-268` `01f4ac59`, `-270` `fc9eb147`; pushed)
 **Workstream**: play client (`tools/play-server` + `crates/view-model`), no engine / wire change (PROTOCOL 44 / HASH 85)
 
 **Completed**: data refresh (`e5382c5a`). C1 table, C2 interactions (see archive). C3: view-model DTOs
@@ -30,6 +30,9 @@ defeat), `?v3` wired to all of it, `probes/v3game.py` seed 3 to game over at bot
 0H + 3M fixed. Tests 5,356 → 5,407. Notes `memory/play-v3-c3-2026-10-12.md`. Guide
 `docs/play-v3-playtest-guide.md` + template `memory/play-v3-playtest-findings.md`. Owner idea filed:
 C4 classic layout `scutemob-269` (you bottom-left; every board its own hand + piles) — brief §4 row.
+Owner playtest STARTED (seed 3 on 3040, old C3 binary): findings 1–5 in `memory/play-v3-playtest-findings.md`
+(cold-store blocker → `-270` SHIPPED: CDN by Scryfall id from `cards.sqlite`, 238 cards in 72 s, retry route;
+sticky chips until reload, no-game-at-start, attachments not drawn, decision-box pin → playtest batch).
 
 **Not done**: `-268` criterion 8617's owner half — the playtest, the recorded verdict, the filed tasks;
 task stays `in_review` until then. Three owner calls pending (C3 notes): image-store 200/404 reveals

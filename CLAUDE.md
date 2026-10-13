@@ -11,9 +11,9 @@
 - **Active Milestone**: P1 pod-first (`docs/course-correction-2026-09.md` §5, approved 2026-09-05).
   M11-local DONE 2026-08-01 (engine first-playable: one human + three bots in a browser via
   `tools/play-server`). M10+ roadmap milestones are HISTORICAL pending CC-8.
-- **Status**: 5,407 tests passing / 0 failing / 6 ignored (after `scutemob-268`, 73 targets);
+- **Status**: 5,423 tests passing / 0 failing / 6 ignored (after `scutemob-270`, 73 targets);
   209 approved golden scripts; CI green since 2026-07-10.
-- **Last Updated**: 2026-10-12 — play surface v3 C1–C3 SHIPPED (`scutemob-266/267/268`; C3 merge `01f4ac59`, stays `in_review` until the owner playtest): `?v3` complete with local image store; guide `docs/play-v3-playtest-guide.md`.
+- **Last Updated**: 2026-10-12 — v3 C1–C3 SHIPPED (`scutemob-266/267/268`; `-268` `in_review` until the owner playtest, in progress: `memory/play-v3-playtest-findings.md`); image store now CDN-by-id (`-270`, `fc9eb147`).
 - **Headline metric**: live card coverage **1,143 / 1,803 = 63.4%** (`docs/authoring-status.md`,
   regenerate with `tools/authoring-report.py`). Replaced by pod coverage (`docs/pod-coverage.md`)
   once CC-6 lands. Wire: PROTOCOL **44** / HASH **85**.
