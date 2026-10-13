@@ -61,4 +61,4 @@ file changes (then STOP: wire prediction first). PROTOCOL 44 / HASH 85 expected 
 - [x] G1 `/review` — HIGH / MEDIUM fixed in-cycle, LOW logged
 - [x] G2 notes `memory/play-v3-c3-2026-10-12.md`, CHANGELOG entry (≤10 lines), README
 - [x] G3 follow-up notes: CR 509.1b double-block picker limit; revealed cards; friction-log suggestion (owner ruling pending)
-- [ ] G4 scratch (probe image store included) deleted; criteria satisfied; signal-ready
+- [x] G4 scratch (probe image store included) deleted; criteria satisfied; signal-ready
