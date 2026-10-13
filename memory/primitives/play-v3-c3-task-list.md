@@ -27,7 +27,7 @@ file changes (then STOP: wire prediction first). PROTOCOL 44 / HASH 85 expected 
 
 ## C. Frontend (`lib/v3/`, additive `lib/v2/images.js`, `lib/stores.js`)
 
-- [ ] C1 v3 image URLs → the route (never Scryfall on v3); `hover.js` 404 shows the chip
+- [x] C1 v3 image URLs → the route (never Scryfall on v3); `hover.js` 404 shows the chip
 - [x] C2 per-player exile in the 2×2 boxes / strips / popovers (drop the `EX*` shared note)
 - [x] C3 commander tax on the CMD pile
 - [x] C4 `game_id` as the order key (`order.js`)
@@ -39,17 +39,17 @@ file changes (then STOP: wire prediction first). PROTOCOL 44 / HASH 85 expected 
 - [x] D1 seed 3 to game over on v3 headless (`v3game.py` or `v3sweep.py --turns`): game-over screen, 0 page errors, every decision answered
 - [x] D2 `verify.py` flow re-expressed for v3 in `v3interact.py` / `v3scenario.py` (picker, stack, combat each appear; usability criteria asserted)
 - [x] D3 probe checks for A1–A8, B2, C1–C6 on real decisions
-- [ ] D4 `v3sweep.py` matrix (seeds 0, 3 × 2560×1340, 1707×880) green
-- [ ] D5 `v3interact.py` (122 at HEAD) still green + new checks
+- [x] D4 `v3sweep.py` matrix (seeds 0, 3 × 2560×1340, 1707×880) green
+- [x] D5 `v3interact.py` (122 at HEAD) still green + new checks
 
 ## E. Gates
 
-- [ ] E1 new source gate(s) (v3 never names Scryfall; others as needed), each with one executed defeat recorded in the test doc
-- [ ] E2 existing `test_frontend_v3_card_images_are_lazy_and_fall_back` + `--block-scryfall` still green
-- [ ] E3 `cargo test --workspace --no-fail-fast` to a file; delta vs 5,356 itemised by NAME
-- [ ] E4 `cargo clippy --workspace --all-targets -- -D warnings`
-- [ ] E5 `cargo fmt --check` + `tools/check-defs-fmt.sh`
-- [ ] E6 `npm run build`
+- [x] E1 new source gate(s) (v3 never names Scryfall; others as needed), each with one executed defeat recorded in the test doc
+- [x] E2 existing `test_frontend_v3_card_images_are_lazy_and_fall_back` + `--block-scryfall` still green
+- [x] E3 `cargo test --workspace --no-fail-fast` to a file; delta vs 5,356 itemised by NAME
+- [x] E4 `cargo clippy --workspace --all-targets -- -D warnings`
+- [x] E5 `cargo fmt --check` + `tools/check-defs-fmt.sh`
+- [x] E6 `npm run build`
 
 ## F. Owner-playtest half — criterion 8617 (worker's half only)
 
