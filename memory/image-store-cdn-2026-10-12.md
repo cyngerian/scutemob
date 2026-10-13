@@ -90,7 +90,7 @@ The guide said "≈400 cards for four seats"; seed 0 is 238 distinct names. Guid
 
 ## Tests (all in `images.rs`; none opens a socket)
 
-Added 15: URL derivation; malformed ids refused; by-id = 3 CDN calls / 0 API calls / spacing; by-id
+Added 16 (15 + 1 from the review): URL derivation; malformed ids refused; by-id = 3 CDN calls / 0 API calls / spacing; by-id
 partial store; id 404 → named lookup exactly once; 404 mid-card; name absent → named lookup; by-id
 429 exhausts without an API call; malformed id → fallback; sqlite resolve (names, front faces,
 excluded layouts, duplicates); sqlite missing / drifted / junk / read-only; worker retries on the
@@ -98,9 +98,31 @@ next deal; `retry_failed`; retry route; retry route serve-only. The pre-existing
 are unmodified apart from `record`/`prefetch_all` gaining an argument; `ensure_card` is now a test
 helper (`ensure_card_via` with `NoIds`).
 
+## Review (Opus, 2026-10-12): 0 HIGH, 0 MEDIUM, 6 LOW
+
+Fixed in-cycle (trivial): (1) `enqueue` skips names already pending, so repeated retry calls or a
+re-deal mid-fill cannot stack duplicate backoff work (`pending` set, never serialized; +1 test);
+(2) `by_id` now counts cards FETCHED by id, `named_lookups` is documented as lookup attempts;
+(4) the guide says to check `card_ids` and what `"none"` means; (5) stale "only post_game calls
+enqueue" / "neither route" sentences. Logged, not changed: (3) and (6), below.
+
 ## Observations / LOW
 
 - The named-lookup route still downloads its three sizes back to back with no 100 ms spacing (as in
   C3; pinned by `…makes_one_api_call_then_three_cdn_downloads`). It is now reached only for names
   the sqlite lacks, so it was left alone.
 - `refused` (unknown names) is per-process; nothing clears it but a restart. Unchanged from C3.
+  Review LOW 6: a card whose stale id 404s on the CDN AND whose name the API's exact match rejects
+  lands there and never enters the retry queue. Needs both at once; left as designed.
+- `POST /api/card-image/retry` is a no-preflight request any local page could send; it can only
+  re-queue already-failed cards, once each while pending.
+
+## Gates (final tree)
+
+- `cargo test --workspace --no-fail-fast` to a file: **5,423 passed / 0 failed / 6 ignored**, 73 targets
+  (5,407 at HEAD + 16). Delta by name: the 16 `test_image_*` / `test_card_image_retry_*` tests added
+  in `images.rs`; 0 test functions removed or renamed (checked on `git diff main..HEAD`, not against a
+  separately run baseline list). `test_frontend_v3_never_names_scryfall` and
+  `test_frontend_v3_card_images_are_lazy_and_fall_back` ok.
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean. `cargo fmt --check`: clean.
+  `tools/check-defs-fmt.sh`: 1803 defs, clean. `npm run build`: not run — no frontend file changed.

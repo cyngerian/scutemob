@@ -21,7 +21,7 @@ Updated live; the same list is reposted as an `esm task comment` at each milesto
 - [x] 16. Test: status body still carries counts only (no names) with the new fields
 - [x] 17. Docs: README route + flag lines; playtest guide §1 "deal again" replaced
 - [x] 18. Cold-store measurement: scratch store, probe server on 3041, four-seat deal, time to `queued == 0`; scratch deleted
-- [ ] 19. Gates: `cargo test --workspace --no-fail-fast` to a file (delta by NAME vs 5,407), clippy, fmt --check, check-defs-fmt.sh
+- [x] 19. Gates: `cargo test --workspace --no-fail-fast` to a file (delta by NAME vs 5,407), clippy, fmt --check, check-defs-fmt.sh
 - [x] 20. Notes `memory/image-store-cdn-2026-10-12.md` + CHANGELOG entry
-- [ ] 21. /review; HIGH/MEDIUM fixed in-cycle, LOW logged
-- [ ] 22. Satisfy criteria as met (8623, 8624, 8625, 8626); signal-ready; session end
+- [x] 21. /review; HIGH/MEDIUM fixed in-cycle, LOW logged
+- [x] 22. Satisfy criteria as met (8623, 8624, 8625, 8626); signal-ready; session end

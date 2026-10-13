@@ -15,8 +15,8 @@ carry pointers only, never narrative. Entries before 2026-09-05 are in
 - Retry: failed cards sit in a retry queue, are retried by the next deal that names them and by
   `POST /api/card-image/retry`; status gains `retry_queue`, `by_id`, `named_lookups`, `card_ids` (counts only).
 - Measured cold store, seed 0, four seats: 238 cards / 714 images in 72 s, 0 lookups, 0 failures
-  (was 41 cards in ~4 min under 429 backoff). Play-server only; no engine or wire change.
-  Notes: `memory/image-store-cdn-2026-10-12.md`.
+  (was 41 cards in ~4 min under 429 backoff). Play-server only; no engine or wire change; tests
+  5,407 → 5,423; review 0 HIGH / 0 MEDIUM. Notes: `memory/image-store-cdn-2026-10-12.md`.
 
 ## 2026-10-12 — Play surface v3 C3 (`scutemob-268`) — server gaps, local image store, full game, playtest guide
 

@@ -32,7 +32,10 @@ every deck into the image store in the background, straight from Scryfall's imag
 at most ten images a second; ≈240 cards × 3 sizes for four seats, about 70 seconds on an empty store). Until a card has arrived it is drawn as a **text chip** — that is the designed fallback,
 not a bug.
 
-- Progress: <http://127.0.0.1:3040/api/card-image/status> — ready when `queued` is `0`. `failed`
+- Progress: <http://127.0.0.1:3040/api/card-image/status> — ready when `queued` is `0`. `card_ids`
+  should name `cards.sqlite`; if it says `"none"` the server did not find it (it looks in the
+  directory it was started from — run from the repo root, or pass `--cards-sqlite <file>`) and the
+  fill falls back to the slow, rate-limited lookup. `failed`
   is a count of cards that could not be downloaded (those stay chips); the names, with the reason,
   are in the server's terminal output as `card images: <name>: <reason>` lines — report those.
 - Reload the page to pick up images that arrived after a card was first drawn (the hover overlay

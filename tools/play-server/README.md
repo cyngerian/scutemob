@@ -729,21 +729,23 @@ reached it, `failed` = **how many** cards could not be fetched and will render a
 stderr when it fails (`card images: <name>: <reason>`) — read them in the terminal the
 server runs in. `enabled` is `false` under `--no-image-prefetch`. `retry_queue` = how
 many of the failed cards are worth trying again (all but a name Scryfall does not know);
-`by_id` = cards fetched from the CDN alone, by Scryfall id; `named_lookups` = cards that
-took the `api.scryfall.com` fallback (normally only names `cards.sqlite` does not hold);
+`by_id` = cards fetched from the CDN alone, by Scryfall id; `named_lookups` = how many
+times a card took the `api.scryfall.com` fallback, failed attempts and retries included
+(normally only names `cards.sqlite` does not hold);
 `card_ids` = the `cards.sqlite` in use, or `"none"` — then *every* card is a named lookup.
 
 `POST /api/card-image/retry` → the same body plus `requeued` (always 200, `no-store`):
 hands every card of the retry queue back to the prefetch worker and returns at once. A
-card leaves the queue when its retry succeeds. A failed card is also retried by itself
+card leaves the queue when its retry succeeds; one already waiting for the worker is not
+queued twice, so repeating the call is harmless. A failed card is also retried by itself
 whenever a later deal names it; this route is for the table already in play:
 
 ```sh
 curl -X POST http://127.0.0.1:3040/api/card-image/retry
 ```
 
-**Hidden information.** Neither route reads the game session, and neither says *where*
-a card is (which seat, which zone). The status route reports counts only: the names that
+**Hidden information.** None of the three routes reads the game session, and none says
+*where* a card is (which seat, which zone). The status and retry routes report counts only: the names that
 failed, like the names that were queued, are cards of the table's decks — bot seats
 included — and a bot seat's decklist is hidden, so they never enter a response body.
 

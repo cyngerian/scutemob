@@ -10,12 +10,12 @@
 //!
 //! [`get_card_image`] reads one file and answers. It has no handle on the network
 //! half of this module at all — the fetcher lives behind [`ImageService::enqueue`],
-//! which only `api::post_game` calls. A store miss is a defect to fix at deck-add
+//! which only `api::post_game` and the retry route ([`ImageService::retry_failed`]) call. A store miss is a defect to fix at deck-add
 //! time, never a live fetch.
 //!
 //! # Hidden information (Architecture Invariant 7)
 //!
-//! Neither route reads the game session. `GET /api/card-image` maps a card NAME the
+//! None of the routes reads the game session. `GET /api/card-image` maps a card NAME the
 //! client already holds to bytes on disk; any client can ask for any name, and the
 //! answer says nothing about WHERE a card is (which seat, which zone).
 //!
@@ -870,15 +870,22 @@ pub struct PrefetchStatus {
     /// by `POST /api/card-image/retry`. **Serialized as its COUNT**, like `failed`.
     #[serde(serialize_with = "serialize_len")]
     pub retry_queue: Vec<String>,
-    /// Cards whose images came from the CDN alone, by Scryfall id — no
-    /// `api.scryfall.com` request.
+    /// Cards fetched from the CDN alone, by Scryfall id — no `api.scryfall.com`
+    /// request. Counted when the card succeeds, so a retried card counts once.
     pub by_id: usize,
-    /// Cards that took the `api.scryfall.com` named lookup (the fallback): a name
-    /// `cards.sqlite` does not hold, or an id path that answered 404.
+    /// How many times a card took the `api.scryfall.com` named lookup (the
+    /// fallback): a name `cards.sqlite` does not hold, or an id path that answered
+    /// 404. Counts ATTEMPTS, failed ones and retries included — it is the measure
+    /// of load on the rate-limited API.
     pub named_lookups: usize,
     /// The `cards.sqlite` the ids are read from, or `"none"` when it could not be
     /// opened (then every card is a named lookup).
     pub card_ids: String,
+    /// Names handed to the worker and not yet finished (`queued` is its size).
+    /// Never serialized. A name already here is not queued a second time, so a
+    /// repeated retry or a re-deal during a slow fill cannot stack duplicate work.
+    #[serde(skip)]
+    pending: BTreeSet<String>,
 }
 
 /// Serialize a list as its length (see [`PrefetchStatus::failed`]).
@@ -980,21 +987,31 @@ impl ImageService {
         let Some(queue) = &self.inner.queue else {
             return 0;
         };
-        let names = distinct(names);
+        let names: Vec<String> = {
+            let mut status = lock_status(&self.inner);
+            let fresh: Vec<String> = distinct(names)
+                .into_iter()
+                .filter(|name| status.pending.insert(name.clone()))
+                .collect();
+            status.queued = status.pending.len();
+            fresh
+        };
         if names.is_empty() {
             return 0;
         }
         let count = names.len();
-        lock_status(&self.inner).queued += count;
         let sent = queue
             .lock()
             .unwrap_or_else(|p| p.into_inner())
-            .send(names)
+            .send(names.clone())
             .is_ok();
         if !sent {
             // The worker is gone; nothing will ever drain these.
             let mut status = lock_status(&self.inner);
-            status.queued = status.queued.saturating_sub(count);
+            for name in &names {
+                status.pending.remove(name);
+            }
+            status.queued = status.pending.len();
             return 0;
         }
         count
@@ -1018,11 +1035,16 @@ fn insert_sorted(list: &mut Vec<String>, name: &str) {
 
 /// Fold one card's outcome into the status.
 fn record(status: &mut PrefetchStatus, name: &str, outcome: &CardOutcome, route: Route) {
-    status.queued = status.queued.saturating_sub(1);
-    match route {
-        Route::Store => {}
-        Route::CdnById => status.by_id += 1,
-        Route::NamedLookup => status.named_lookups += 1,
+    if status.pending.remove(name) {
+        status.queued = status.pending.len();
+    } else {
+        // Not queued through `enqueue` (a unit test folding outcomes by hand).
+        status.queued = status.queued.saturating_sub(1);
+    }
+    match (route, outcome) {
+        (Route::CdnById, CardOutcome::Fetched(_)) => status.by_id += 1,
+        (Route::NamedLookup, _) => status.named_lookups += 1,
+        _ => {}
     }
     match outcome {
         CardOutcome::Present | CardOutcome::Fetched(_) => {
@@ -2208,7 +2230,11 @@ mod tests {
             vec!["Sol Ring"],
             "an unknown name is not worth retrying"
         );
-        assert_eq!((status.by_id, status.named_lookups), (1, 1));
+        assert_eq!(
+            (status.by_id, status.named_lookups),
+            (0, 1),
+            "a failed card was not fetched by id; the unknown name cost one lookup"
+        );
         assert_eq!(status.card_ids, "fake");
         // Deal two names it again; the CDN has recovered.
         serve_all_sizes(&net);
@@ -2217,13 +2243,42 @@ mod tests {
         let status = drained(&service);
         assert_eq!(status.failed, vec!["Steel Guardian"]);
         assert!(status.retry_queue.is_empty());
-        assert_eq!(status.fetched, 1);
+        assert_eq!((status.fetched, status.by_id), (1, 1));
         assert!(missing_versions(service.store(), "Sol Ring").is_empty());
         assert_eq!(
             net.0.lock().unwrap().calls_to("https://api.scryfall.com/"),
             api_before,
             "the refused name is not asked about again, and the retry is CDN-only"
         );
+    }
+
+    #[test]
+    fn test_image_enqueue_does_not_queue_a_name_that_is_already_pending() {
+        let temp = TempStore::new("worker-pending");
+        // A service whose worker never drains: the receiver is kept, unread.
+        let (tx, _rx) = mpsc::channel::<Vec<String>>();
+        let service = ImageService::build(temp.root.clone(), Some(tx));
+        let names = || vec!["Sol Ring".to_string(), "Forest".to_string()];
+        assert_eq!(service.enqueue(names()), 2);
+        assert_eq!(service.enqueue(names()), 0, "both are already pending");
+        assert_eq!(
+            service.enqueue(vec!["Forest".to_string(), "Island".to_string()]),
+            1
+        );
+        assert_eq!(service.status().queued, 3, "three distinct cards pending");
+        // Finished cards may be queued again.
+        let mut status = lock_status(&service.inner);
+        record(
+            &mut status,
+            "Forest",
+            &CardOutcome::Failed("HTTP 429".to_string()),
+            Route::CdnById,
+        );
+        assert_eq!(status.queued, 2);
+        drop(status);
+        assert_eq!(service.retry_failed(), 1);
+        assert_eq!(service.retry_failed(), 0, "the retry is pending now");
+        assert_eq!(service.status().queued, 3);
     }
 
     #[test]
@@ -2286,7 +2341,7 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["failed"], 1);
         assert_eq!(json["retry_queue"], 1, "the status route reports the queue");
-        assert_eq!(json["by_id"], 1);
+        assert_eq!(json["by_id"], 0, "nothing was fetched yet");
         assert_eq!(json["named_lookups"], 0);
         assert_eq!(json["card_ids"], "fake");
 
