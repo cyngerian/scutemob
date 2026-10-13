@@ -48,14 +48,32 @@
 //! cannot leave the root) and two names that differ only in punctuation cannot share
 //! a file.
 //!
+//! # Where a card's images come from (`scutemob-270`)
+//!
+//! `cards.sqlite` already holds every card's Scryfall id, and the image CDN's paths
+//! are a pure function of that id ([`cdn_image_url`]). So a card whose name the
+//! sqlite knows ([`CardIds`], [`SqliteIds`]) is downloaded from `cards.scryfall.io`
+//! alone: **no `api.scryfall.com` request at all**. The rate-limited named lookup
+//! ([`named_card_url`]) remains only as the fallback — for a name the sqlite does
+//! not hold, when no sqlite could be opened, and (once per card) when an id-derived
+//! path answers 404. The status route counts both routes.
+//!
+//! # Retry
+//!
+//! A card that failed for a reason worth trying again (anything but "Scryfall knows
+//! no card by this name") stays in the **retry queue**. It is tried again when a
+//! later deal names it, and `POST /api/card-image/retry` re-queues the whole retry
+//! queue at once. The status route reports the queue's size.
+//!
 //! # Testability
 //!
-//! Planning what to fetch ([`missing_versions`]), the slug, the Scryfall JSON to
-//! image-URL extraction ([`image_urls`]), the backoff schedule ([`backoff_delay`])
-//! and the decklist parser are pure. The whole fetch procedure ([`ensure_card`]) is
-//! written against the [`Net`] trait, whose one production implementation
-//! ([`HttpNet`]) is the only code in this crate that talks to the network. Tests
-//! drive `ensure_card` with a scripted fake and never construct `HttpNet`.
+//! Planning what to fetch ([`missing_versions`]), the slug, the id to CDN-URL
+//! derivation ([`cdn_image_url`]), the Scryfall JSON to image-URL extraction
+//! ([`image_urls`]), the backoff schedule ([`backoff_delay`]) and the decklist
+//! parser are pure. The whole fetch procedure ([`ensure_card_via`]) is written
+//! against the [`Net`] and [`CardIds`] traits. [`HttpNet`] is the only code in this
+//! crate that talks to the network; tests drive the procedure — and the background
+//! worker — with a scripted fake and never construct `HttpNet`.
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -214,6 +232,10 @@ pub const USER_AGENT: &str = "scutemob-play-server/0.1 (local card-image prefetc
 /// between API calls; this stays clear of the upper figure.
 pub const API_SPACING: Duration = Duration::from_millis(120);
 
+/// Least time between the STARTS of two id-derived CDN downloads ([`Net::space`]):
+/// at most ten requests a second, the rate Scryfall asks API clients to stay under.
+pub const CDN_SPACING: Duration = Duration::from_millis(100);
+
 /// How many times one URL is tried before the card is recorded as failed.
 pub const MAX_ATTEMPTS: u32 = 5;
 
@@ -240,6 +262,36 @@ pub fn named_card_url(name: &str) -> String {
         "https://api.scryfall.com/cards/named?exact={}",
         percent_encode(name)
     )
+}
+
+/// Whether `id` has the shape of a Scryfall id: a lowercase hyphenated UUID
+/// (`8-4-4-4-12` hex digits). The id comes out of a file on disk; anything else
+/// must not be spliced into a URL.
+fn is_scryfall_id(id: &str) -> bool {
+    id.len() == 36
+        && id.bytes().enumerate().all(|(i, b)| match i {
+            8 | 13 | 18 | 23 => b == b'-',
+            _ => b.is_ascii_digit() || (b'a'..=b'f').contains(&b),
+        })
+}
+
+/// The image CDN's URL for the FRONT of the card with Scryfall id `id` at
+/// `version`: `https://cards.scryfall.io/<size>/front/<id[0]>/<id[1]>/<id>.jpg`.
+///
+/// This is where every `image_uris` entry Scryfall publishes points (less a
+/// cache-busting query string), so it needs no API call. A double-faced card's
+/// faces share the card's id — `front/` is its front face, the image the play
+/// surface draws for the card's name — and a split, adventure or flip card is one
+/// image. `None` when `id` is not shaped like a Scryfall id.
+pub fn cdn_image_url(id: &str, version: Version) -> Option<String> {
+    is_scryfall_id(id).then(|| {
+        format!(
+            "{IMAGE_CDN_PREFIX}{}/front/{}/{}/{id}.jpg",
+            version.as_str(),
+            &id[0..1],
+            &id[1..2]
+        )
+    })
 }
 
 /// Pull the three CDN URLs out of a Scryfall card object.
@@ -298,6 +350,14 @@ impl std::fmt::Display for FetchError {
 pub trait Net {
     fn get(&mut self, url: &str, accept: &str) -> Result<Vec<u8>, FetchError>;
     fn pause(&mut self, duration: Duration);
+
+    /// Called before each id-derived CDN download: make sure at least `gap` lies
+    /// between the starts of consecutive such downloads. The default simply pauses
+    /// for `gap` (always enough, and what a recording fake sees); [`HttpNet`]
+    /// waits only for what is left of `gap` since the previous call.
+    fn space(&mut self, gap: Duration) {
+        self.pause(gap);
+    }
 }
 
 /// Whether a GET of `url` must refuse redirects: every image download.
@@ -336,6 +396,8 @@ pub struct HttpNet {
     api: ureq::Agent,
     /// Image downloads from the CDN. Never follows a redirect ([`cdn_config`]).
     cdn: ureq::Agent,
+    /// When [`Net::space`] last returned.
+    last_spaced: Option<std::time::Instant>,
 }
 
 impl HttpNet {
@@ -343,6 +405,7 @@ impl HttpNet {
         HttpNet {
             api: base_config().build().into(),
             cdn: cdn_config().into(),
+            last_spaced: None,
         }
     }
 }
@@ -378,6 +441,13 @@ impl Net for HttpNet {
 
     fn pause(&mut self, duration: Duration) {
         std::thread::sleep(duration);
+    }
+
+    fn space(&mut self, gap: Duration) {
+        if let Some(last) = self.last_spaced {
+            std::thread::sleep(gap.saturating_sub(last.elapsed()));
+        }
+        self.last_spaced = Some(std::time::Instant::now());
     }
 }
 
@@ -422,10 +492,109 @@ pub enum CardOutcome {
     Failed(String),
 }
 
+/// Which route a card's images took. Counted by the status route.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Route {
+    /// Nothing was requested: the store already held the card.
+    Store,
+    /// The image CDN only, from the Scryfall id. No `api.scryfall.com` request.
+    CdnById,
+    /// The `api.scryfall.com` named lookup was used (the fallback).
+    NamedLookup,
+}
+
+/// Download one image and store it. `Err` is the failure reason.
+fn download_into(
+    net: &mut dyn Net,
+    store: &ImageStore,
+    name: &str,
+    version: Version,
+    url: &str,
+) -> Result<(), DownloadError> {
+    let bytes = get_with_retry(net, url, "image/jpeg").map_err(DownloadError::Fetch)?;
+    // JPEG start-of-image marker. Anything else (an HTML error page, an empty
+    // body) must not land in a file the route serves as `image/jpeg`.
+    if !bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        return Err(DownloadError::Other(format!(
+            "{} image is not a JPEG",
+            version.as_str()
+        )));
+    }
+    store.write_atomic(name, version, &bytes).map_err(|e| {
+        DownloadError::Other(format!(
+            "{} image could not be stored: {e}",
+            version.as_str()
+        ))
+    })
+}
+
+/// Why [`download_into`] failed: the GET itself, or what came back.
+enum DownloadError {
+    Fetch(FetchError),
+    Other(String),
+}
+
+impl DownloadError {
+    fn reason(self, version: Version) -> String {
+        match self {
+            DownloadError::Fetch(e) => format!("{} image: {e}", version.as_str()),
+            DownloadError::Other(reason) => reason,
+        }
+    }
+}
+
 /// Make sure the store holds all three sizes of `name`, downloading what is
-/// missing: one API call for the card object, then one CDN download per missing
-/// size. Never panics and never returns an error — a failure is an outcome.
-pub fn ensure_card(net: &mut dyn Net, store: &ImageStore, name: &str) -> CardOutcome {
+/// missing, and say which route was used. Never panics and never returns an
+/// error — a failure is an outcome.
+///
+/// When `ids` knows the name, each missing size is one CDN download from the
+/// id-derived URL ([`cdn_image_url`]) and `api.scryfall.com` is not contacted.
+/// Otherwise — and once, if an id-derived URL answers 404 (an id the CDN no longer
+/// serves) — the card goes through the named lookup: one API call for the card
+/// object, then one CDN download per size still missing.
+pub fn ensure_card_via(
+    net: &mut dyn Net,
+    store: &ImageStore,
+    ids: &dyn CardIds,
+    name: &str,
+) -> (CardOutcome, Route) {
+    let missing = missing_versions(store, name);
+    if missing.is_empty() {
+        return (CardOutcome::Present, Route::Store);
+    }
+    let mut written = 0;
+    if let Some(id) = ids.scryfall_id(name) {
+        let mut gone = false;
+        for version in &missing {
+            let Some(url) = cdn_image_url(&id, *version) else {
+                // Not an id at all: the sqlite is not what this code expects.
+                gone = true;
+                break;
+            };
+            net.space(CDN_SPACING);
+            match download_into(net, store, name, *version, &url) {
+                Ok(()) => written += 1,
+                Err(DownloadError::Fetch(FetchError::Status(404))) => {
+                    gone = true;
+                    break;
+                }
+                Err(e) => return (CardOutcome::Failed(e.reason(*version)), Route::CdnById),
+            }
+        }
+        if !gone {
+            return (CardOutcome::Fetched(written), Route::CdnById);
+        }
+    }
+    let outcome = match ensure_by_named_lookup(net, store, name) {
+        CardOutcome::Fetched(count) => CardOutcome::Fetched(written + count),
+        other => other,
+    };
+    (outcome, Route::NamedLookup)
+}
+
+/// The fallback route: ask `api.scryfall.com` for the card object by exact name,
+/// then download each size still missing from the URLs it carries.
+fn ensure_by_named_lookup(net: &mut dyn Net, store: &ImageStore, name: &str) -> CardOutcome {
     let missing = missing_versions(store, name);
     if missing.is_empty() {
         return CardOutcome::Present;
@@ -456,24 +625,145 @@ pub fn ensure_card(net: &mut dyn Net, store: &ImageStore, name: &str) -> CardOut
         if !missing.contains(&version) {
             continue;
         }
-        let bytes = match get_with_retry(net, &url, "image/jpeg") {
-            Ok(bytes) => bytes,
-            Err(e) => return CardOutcome::Failed(format!("{} image: {e}", version.as_str())),
-        };
-        // JPEG start-of-image marker. Anything else (an HTML error page, an empty
-        // body) must not land in a file the route serves as `image/jpeg`.
-        if !bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
-            return CardOutcome::Failed(format!("{} image is not a JPEG", version.as_str()));
-        }
-        if let Err(e) = store.write_atomic(name, version, &bytes) {
-            return CardOutcome::Failed(format!(
-                "{} image could not be stored: {e}",
-                version.as_str()
-            ));
+        if let Err(e) = download_into(net, store, name, version, &url) {
+            return CardOutcome::Failed(e.reason(version));
         }
         written += 1;
     }
     CardOutcome::Fetched(written)
+}
+
+// ── Scryfall ids from `cards.sqlite` ──────────────────────────────────────────
+
+/// Where a card name's Scryfall id comes from. One production implementation
+/// ([`SqliteIds`]); [`NoIds`] when there is no sqlite; a map in tests.
+pub trait CardIds {
+    /// The Scryfall id of the card the play surface means by `name`, if known.
+    fn scryfall_id(&self, name: &str) -> Option<String>;
+}
+
+/// No id source: every card takes the named lookup.
+pub struct NoIds;
+
+impl CardIds for NoIds {
+    fn scryfall_id(&self, _name: &str) -> Option<String> {
+        None
+    }
+}
+
+// The two reads of `cards.sqlite`. This module deliberately does not depend on
+// `card-db`'s schema module (it would pull the importer's types into the play
+// server for a two-column read), so it names the columns itself:
+// `cards(id, name, layout)` and `card_faces(card_id, face_index, name)`.
+// HEADS-UP RULE (`memory/decisions.md`, 2026-09-14 entry): these columns have
+// readers outside `card-db`; renaming one needs a heads-up to them — this file is
+// one. A rename that arrives anyway is survived: `SqliteIds::open` fails its probe
+// and the server falls back to the named lookup, loudly.
+//
+// The excluded layouts are Scryfall's non-game objects, which share names with
+// real cards (same entry). `ORDER BY id` makes the pick among same-named rows
+// (seventeen Un-set names with several variants) the same on every run.
+const SQL_ID_BY_NAME: &str = "SELECT id FROM cards \
+     WHERE name = ?1 \
+       AND layout NOT IN ('art_series', 'token', 'double_faced_token', 'emblem', 'front_card') \
+     ORDER BY id LIMIT 1";
+// The engine names a double-faced (or adventure, or split) card by its front
+// face, while `cards.name` is `Front // Back`: match face 0 and take its card.
+const SQL_ID_BY_FRONT_FACE: &str = "SELECT c.id FROM card_faces f \
+     JOIN cards c ON c.id = f.card_id \
+     WHERE f.name = ?1 AND f.face_index = 0 \
+       AND c.layout NOT IN ('art_series', 'token', 'double_faced_token', 'emblem', 'front_card') \
+     ORDER BY c.id LIMIT 1";
+
+/// Scryfall ids read from `cards.sqlite`, opened read-only.
+pub struct SqliteIds {
+    conn: rusqlite::Connection,
+    /// Set once a query has failed, so the log line is written once.
+    query_failed: std::cell::Cell<bool>,
+}
+
+impl SqliteIds {
+    /// Open `path` read-only and check both queries compile against it. `Err`
+    /// (the reason, for the log) when the file is missing, is not a database, or
+    /// does not have the columns the queries name.
+    pub fn open(path: &Path) -> Result<Self, String> {
+        use rusqlite::OpenFlags;
+        // Read-only and never created: a missing file is an error here, not an
+        // empty database that would then "know" no names.
+        let conn = rusqlite::Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(|e| e.to_string())?;
+        for sql in [SQL_ID_BY_NAME, SQL_ID_BY_FRONT_FACE] {
+            conn.prepare_cached(sql).map_err(|e| e.to_string())?;
+        }
+        Ok(SqliteIds {
+            conn,
+            query_failed: std::cell::Cell::new(false),
+        })
+    }
+
+    fn query(&self, sql: &str, name: &str) -> rusqlite::Result<Option<String>> {
+        use rusqlite::OptionalExtension as _;
+        self.conn
+            .prepare_cached(sql)?
+            .query_row([name], |row| row.get::<_, String>(0))
+            .optional()
+    }
+}
+
+impl CardIds for SqliteIds {
+    fn scryfall_id(&self, name: &str) -> Option<String> {
+        let found = self
+            .query(SQL_ID_BY_NAME, name)
+            .and_then(|by_name| match by_name {
+                Some(id) => Ok(Some(id)),
+                None => self.query(SQL_ID_BY_FRONT_FACE, name),
+            });
+        match found {
+            Ok(id) => id,
+            Err(e) => {
+                if !self.query_failed.replace(true) {
+                    eprintln!(
+                        "card images: reading cards.sqlite failed ({e}); \
+                         affected cards use the api.scryfall.com lookup"
+                    );
+                }
+                None
+            }
+        }
+    }
+}
+
+/// The id source the server and `--prefetch-images` use: `path` when it opens,
+/// else [`NoIds`] with ONE loud line saying every card will take the rate-limited
+/// lookup. The `String` is what the status route reports as `card_ids`.
+pub fn open_card_ids(path: &Path) -> (Box<dyn CardIds + Send>, String) {
+    match SqliteIds::open(path) {
+        Ok(ids) => (Box::new(ids), path.display().to_string()),
+        Err(reason) => {
+            eprintln!(
+                "card images: WARNING — no Scryfall ids: {} could not be used ({reason}). \
+                 EVERY card will take the rate-limited api.scryfall.com lookup \
+                 (minutes per deal, 429s likely). Point --cards-sqlite / \
+                 SCUTEMOB_CARDS_SQLITE at the repo's cards.sqlite.",
+                path.display()
+            );
+            (Box::new(NoIds), "none".to_string())
+        }
+    }
+}
+
+/// The default `cards.sqlite`: in the current directory when one is there (a
+/// `cargo run` from the workspace root), else at the root of the workspace this
+/// binary was built from.
+pub fn default_cards_sqlite() -> PathBuf {
+    let here = PathBuf::from("cards.sqlite");
+    if here.is_file() {
+        return here;
+    }
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../cards.sqlite")
 }
 
 // ── Decklists ─────────────────────────────────────────────────────────────────
@@ -575,6 +865,20 @@ pub struct PrefetchStatus {
     /// name with its reason to stderr when it fails.
     #[serde(serialize_with = "serialize_len")]
     pub failed: Vec<String>,
+    /// The subset of `failed` worth trying again (everything but a name Scryfall
+    /// does not know). Each is retried when a later deal names it, and all of them
+    /// by `POST /api/card-image/retry`. **Serialized as its COUNT**, like `failed`.
+    #[serde(serialize_with = "serialize_len")]
+    pub retry_queue: Vec<String>,
+    /// Cards whose images came from the CDN alone, by Scryfall id — no
+    /// `api.scryfall.com` request.
+    pub by_id: usize,
+    /// Cards that took the `api.scryfall.com` named lookup (the fallback): a name
+    /// `cards.sqlite` does not hold, or an id path that answered 404.
+    pub named_lookups: usize,
+    /// The `cards.sqlite` the ids are read from, or `"none"` when it could not be
+    /// opened (then every card is a named lookup).
+    pub card_ids: String,
 }
 
 /// Serialize a list as its length (see [`PrefetchStatus::failed`]).
@@ -611,15 +915,29 @@ impl ImageService {
         Self::build(root.into(), None)
     }
 
-    /// Serve the store and start the background worker that fills it. Called from
-    /// the serving entry point only.
-    pub fn with_prefetch(root: impl Into<PathBuf>) -> Self {
+    /// Serve the store and start the background worker that fills it, reading
+    /// Scryfall ids from `cards_sqlite`. Called from the serving entry point only.
+    pub fn with_prefetch(root: impl Into<PathBuf>, cards_sqlite: &Path) -> Self {
+        let (ids, card_ids) = open_card_ids(cards_sqlite);
+        Self::with_worker(root.into(), ids, card_ids, HttpNet::new)
+    }
+
+    /// [`ImageService::with_prefetch`] over any id source and any [`Net`]. The
+    /// network value is built ON the worker thread (`make_net`), so it need not be
+    /// `Send` itself.
+    fn with_worker<N: Net>(
+        root: PathBuf,
+        ids: Box<dyn CardIds + Send>,
+        card_ids: String,
+        make_net: impl FnOnce() -> N + Send + 'static,
+    ) -> Self {
         let (tx, rx) = mpsc::channel::<Vec<String>>();
-        let service = Self::build(root.into(), Some(tx));
+        let service = Self::build(root, Some(tx));
+        lock_status(&service.inner).card_ids = card_ids;
         let inner = Arc::clone(&service.inner);
         let spawned = std::thread::Builder::new()
             .name("card-image-prefetch".to_string())
-            .spawn(move || worker(&inner, &rx));
+            .spawn(move || worker(&inner, &rx, &mut make_net(), ids.as_ref()));
         if let Err(e) = spawned {
             eprintln!(
                 "card images: the prefetch worker could not start ({e}); serving the store only"
@@ -632,6 +950,7 @@ impl ImageService {
         let status = PrefetchStatus {
             enabled: tx.is_some(),
             store: root.display().to_string(),
+            card_ids: "none".to_string(),
             ..PrefetchStatus::default()
         };
         ImageService {
@@ -680,21 +999,47 @@ impl ImageService {
         }
         count
     }
+
+    /// Hand every card of the retry queue back to the worker. Returns how many
+    /// were queued — `0` on a serve-only service or with nothing to retry. A name
+    /// stays in the retry queue until the worker reaches it and it succeeds.
+    pub fn retry_failed(&self) -> usize {
+        let names = lock_status(&self.inner).retry_queue.clone();
+        self.enqueue(names)
+    }
+}
+
+/// Insert `name` into a sorted, duplicate-free list.
+fn insert_sorted(list: &mut Vec<String>, name: &str) {
+    if let Err(at) = list.binary_search_by(|n| n.as_str().cmp(name)) {
+        list.insert(at, name.to_string());
+    }
 }
 
 /// Fold one card's outcome into the status.
-fn record(status: &mut PrefetchStatus, name: &str, outcome: &CardOutcome) {
+fn record(status: &mut PrefetchStatus, name: &str, outcome: &CardOutcome, route: Route) {
     status.queued = status.queued.saturating_sub(1);
+    match route {
+        Route::Store => {}
+        Route::CdnById => status.by_id += 1,
+        Route::NamedLookup => status.named_lookups += 1,
+    }
     match outcome {
-        CardOutcome::Present => status.present += 1,
-        CardOutcome::Fetched(_) => {
-            status.fetched += 1;
+        CardOutcome::Present | CardOutcome::Fetched(_) => {
+            if matches!(outcome, CardOutcome::Present) {
+                status.present += 1;
+            } else {
+                status.fetched += 1;
+            }
             status.failed.retain(|n| n != name);
+            status.retry_queue.retain(|n| n != name);
         }
-        CardOutcome::Failed(_) => {
-            if !status.failed.iter().any(|n| n == name) {
-                status.failed.push(name.to_string());
-                status.failed.sort();
+        CardOutcome::Failed(reason) => {
+            insert_sorted(&mut status.failed, name);
+            if reason == UNKNOWN_NAME {
+                status.retry_queue.retain(|n| n != name);
+            } else {
+                insert_sorted(&mut status.retry_queue, name);
             }
         }
     }
@@ -702,17 +1047,22 @@ fn record(status: &mut PrefetchStatus, name: &str, outcome: &CardOutcome) {
 
 /// The background worker: drains batches until every sender is dropped. Holds no
 /// lock while it talks to the network, and never touches the game session.
-fn worker(inner: &ServiceInner, rx: &mpsc::Receiver<Vec<String>>) {
-    let mut net = HttpNet::new();
+fn worker(
+    inner: &ServiceInner,
+    rx: &mpsc::Receiver<Vec<String>>,
+    net: &mut dyn Net,
+    ids: &dyn CardIds,
+) {
     // Names Scryfall has already refused in this process. A new game with the same
     // decks must not spend one API call per unknown name again.
     let mut refused: HashSet<String> = HashSet::new();
     while let Ok(batch) = rx.recv() {
         for name in batch {
-            let outcome = if refused.contains(&name) {
-                CardOutcome::Failed(UNKNOWN_NAME.to_string())
+            // A refused name asks the network nothing, so it took no route.
+            let (outcome, route) = if refused.contains(&name) {
+                (CardOutcome::Failed(UNKNOWN_NAME.to_string()), Route::Store)
             } else {
-                ensure_card(&mut net, &inner.store, &name)
+                ensure_card_via(net, &inner.store, ids, &name)
             };
             if let CardOutcome::Failed(reason) = &outcome {
                 if !refused.contains(&name) {
@@ -722,7 +1072,7 @@ fn worker(inner: &ServiceInner, rx: &mpsc::Receiver<Vec<String>>) {
                     refused.insert(name.clone());
                 }
             }
-            record(&mut lock_status(inner), &name, &outcome);
+            record(&mut lock_status(inner), &name, &outcome, route);
         }
     }
 }
@@ -735,18 +1085,24 @@ pub struct PrefetchSummary {
     pub fetched: Vec<String>,
     pub present: Vec<String>,
     pub failed: Vec<(String, String)>,
+    /// How many cards took the `api.scryfall.com` named lookup (the fallback).
+    pub named_lookups: usize,
 }
 
 /// Fetch every name into the store through `net`, reporting each card on `log`.
 pub fn prefetch_all(
     net: &mut dyn Net,
     store: &ImageStore,
+    ids: &dyn CardIds,
     names: &[String],
     log: &mut dyn FnMut(&str),
 ) -> PrefetchSummary {
     let mut summary = PrefetchSummary::default();
     for (index, name) in names.iter().enumerate() {
-        let outcome = ensure_card(net, store, name);
+        let (outcome, route) = ensure_card_via(net, store, ids, name);
+        if route == Route::NamedLookup {
+            summary.named_lookups += 1;
+        }
         let position = format!("[{}/{}]", index + 1, names.len());
         match outcome {
             CardOutcome::Present => {
@@ -769,7 +1125,7 @@ pub fn prefetch_all(
 /// `play-server --prefetch-images <decklist-file | names>`: fill the store and
 /// return. `Err` only when the argument could not be read; a card Scryfall does
 /// not know is a reported failure in the summary, not an error.
-pub fn run_cli_prefetch(store_root: &Path, arg: &str) -> anyhow::Result<()> {
+pub fn run_cli_prefetch(store_root: &Path, cards_sqlite: &Path, arg: &str) -> anyhow::Result<()> {
     use anyhow::Context as _;
 
     let names =
@@ -780,13 +1136,17 @@ pub fn run_cli_prefetch(store_root: &Path, arg: &str) -> anyhow::Result<()> {
         names.len(),
         store.root().display()
     );
+    let (ids, _) = open_card_ids(cards_sqlite);
     let mut net = HttpNet::new();
-    let summary = prefetch_all(&mut net, &store, &names, &mut |line| println!("{line}"));
+    let summary = prefetch_all(&mut net, &store, ids.as_ref(), &names, &mut |line| {
+        println!("{line}")
+    });
     println!(
-        "Done: {} fetched, {} already present, {} failed.",
+        "Done: {} fetched, {} already present, {} failed; {} took the api.scryfall.com lookup.",
         summary.fetched.len(),
         summary.present.len(),
-        summary.failed.len()
+        summary.failed.len(),
+        summary.named_lookups
     );
     for (name, reason) in &summary.failed {
         println!("  failed: {name} — {reason}");
@@ -891,6 +1251,23 @@ pub async fn get_card_image(
 /// the names (module doc, "Hidden information").
 pub async fn get_card_image_status(State(state): State<SharedState>) -> Response {
     let mut response = Json(state.images.status()).into_response();
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static(CACHE_MISS));
+    response
+}
+
+/// `POST /api/card-image/retry` — hand every card of the retry queue back to the
+/// prefetch worker now, and answer with the status (same body as the status
+/// route, plus `requeued`: how many cards this call queued). Counts only. Reads no
+/// session and fetches nothing itself; on a serve-only server `requeued` is `0`.
+pub async fn post_card_image_retry(State(state): State<SharedState>) -> Response {
+    let requeued = state.images.retry_failed();
+    let mut body = serde_json::to_value(state.images.status()).unwrap_or_default();
+    if let Some(object) = body.as_object_mut() {
+        object.insert("requeued".to_string(), requeued.into());
+    }
+    let mut response = Json(body).into_response();
     response
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static(CACHE_MISS));
@@ -1019,6 +1396,35 @@ mod tests {
                 "large": "https://cards.scryfall.io/large/back/c/d/keeper.jpg?2" } }
         ]
     }"#;
+
+    /// The fetch procedure with NO id source: every missing card takes the named
+    /// lookup. The tests that pin that route (it predates the id route) call this.
+    fn ensure_card(net: &mut dyn Net, store: &ImageStore, name: &str) -> CardOutcome {
+        let (outcome, route) = ensure_card_via(net, store, &NoIds, name);
+        assert_eq!(
+            route == Route::Store,
+            outcome == CardOutcome::Present,
+            "only a card already in the store takes no route"
+        );
+        outcome
+    }
+
+    /// An id source that is a map, and a real Scryfall-shaped id to put in it.
+    impl CardIds for HashMap<&'static str, &'static str> {
+        fn scryfall_id(&self, name: &str) -> Option<String> {
+            self.get(name).map(|id| id.to_string())
+        }
+    }
+
+    const SOL_RING_ID: &str = "8ee443cc-e17a-493b-9c93-1f9e141a30e4";
+
+    fn sol_ring_ids() -> HashMap<&'static str, &'static str> {
+        HashMap::from([("Sol Ring", SOL_RING_ID)])
+    }
+
+    fn id_url(id: &str, version: Version) -> String {
+        cdn_image_url(id, version).expect("a well-formed id")
+    }
 
     fn sol_ring_net() -> FakeNet {
         let mut net = FakeNet::default();
@@ -1398,6 +1804,525 @@ mod tests {
         assert_eq!(net.calls_to("https://cards.scryfall.io/small/back/"), 0);
     }
 
+    // ── CDN by Scryfall id (`scutemob-270`) ──
+
+    #[test]
+    fn test_image_cdn_url_is_derived_from_the_scryfall_id() {
+        assert_eq!(
+            cdn_image_url(SOL_RING_ID, Version::Small).as_deref(),
+            Some(
+                "https://cards.scryfall.io/small/front/8/e/8ee443cc-e17a-493b-9c93-1f9e141a30e4.jpg"
+            )
+        );
+        for version in Version::ALL {
+            let url = id_url(SOL_RING_ID, version);
+            assert!(url.starts_with(&format!(
+                "https://cards.scryfall.io/{}/front/8/e/",
+                version.as_str()
+            )));
+            assert!(
+                refuses_redirects(&url),
+                "an id-derived URL is fetched by the redirect-refusing agent"
+            );
+        }
+    }
+
+    #[test]
+    fn test_image_cdn_url_refuses_anything_not_shaped_like_a_scryfall_id() {
+        for bad in [
+            "",
+            "sol-ring",
+            "8ee443cc-e17a-493b-9c93-1f9e141a30e",
+            "8ee443cc-e17a-493b-9c93-1f9e141a30e44",
+            "8EE443CC-E17A-493B-9C93-1F9E141A30E4",
+            "8ee443cce17a493b9c931f9e141a30e4",
+            "../../../../etc/passwd/aaaaaaaaaaaaa",
+            "8ee443cc-e17a-493b-9c93-1f9e141a30e/",
+            "8ee443cc/e17a-493b-9c93-1f9e141a30e4",
+            "8ee443cc-e17a-493b-9c93-1f9e141a30e?",
+            "ééééééééééééééééé-",
+        ] {
+            assert_eq!(cdn_image_url(bad, Version::Small), None, "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn test_image_ensure_card_by_id_makes_three_cdn_downloads_and_no_api_call() {
+        let temp = TempStore::new("by-id");
+        let store = temp.store();
+        let mut net = FakeNet::default();
+        for version in Version::ALL {
+            net.script(&id_url(SOL_RING_ID, version), Ok(JPEG.to_vec()));
+        }
+        assert_eq!(
+            ensure_card_via(&mut net, &store, &sol_ring_ids(), "Sol Ring"),
+            (CardOutcome::Fetched(3), Route::CdnById)
+        );
+        assert_eq!(
+            net.calls_to("https://api.scryfall.com/"),
+            0,
+            "a known id needs no api.scryfall.com request"
+        );
+        assert_eq!(net.calls.len(), 3);
+        assert!(net.calls.iter().all(|(url, accept)| {
+            url.starts_with("https://cards.scryfall.io/") && accept == "image/jpeg"
+        }));
+        assert_eq!(
+            net.pauses,
+            vec![CDN_SPACING; 3],
+            "spaced before every CDN download"
+        );
+        assert!(CDN_SPACING >= Duration::from_millis(100));
+        for version in Version::ALL {
+            assert_eq!(
+                std::fs::read(store.path_for("Sol Ring", version)).unwrap(),
+                JPEG
+            );
+        }
+        // Present now: nothing is asked of the network or of the id source's route.
+        let mut silent = FakeNet::default();
+        assert_eq!(
+            ensure_card_via(&mut silent, &store, &sol_ring_ids(), "Sol Ring"),
+            (CardOutcome::Present, Route::Store)
+        );
+        assert!(silent.calls.is_empty() && silent.pauses.is_empty());
+    }
+
+    #[test]
+    fn test_image_ensure_card_by_id_downloads_only_the_missing_sizes() {
+        let temp = TempStore::new("by-id-partial");
+        let store = temp.store();
+        store
+            .write_atomic("Sol Ring", Version::Normal, JPEG)
+            .unwrap();
+        let mut net = FakeNet::default();
+        for version in Version::ALL {
+            net.script(&id_url(SOL_RING_ID, version), Ok(JPEG.to_vec()));
+        }
+        assert_eq!(
+            ensure_card_via(&mut net, &store, &sol_ring_ids(), "Sol Ring"),
+            (CardOutcome::Fetched(2), Route::CdnById)
+        );
+        assert_eq!(net.calls_to("https://cards.scryfall.io/normal/"), 0);
+        assert_eq!(net.calls.len(), 2);
+    }
+
+    #[test]
+    fn test_image_ensure_card_id_path_404_falls_back_to_the_named_lookup_exactly_once() {
+        let temp = TempStore::new("by-id-404");
+        let store = temp.store();
+        // Every id-derived URL is unscripted, so each would answer 404. The named
+        // lookup and the URLs its JSON carries are scripted.
+        let mut net = sol_ring_net();
+        assert_eq!(
+            ensure_card_via(&mut net, &store, &sol_ring_ids(), "Sol Ring"),
+            (CardOutcome::Fetched(3), Route::NamedLookup)
+        );
+        assert_eq!(
+            net.calls_to("https://api.scryfall.com/"),
+            1,
+            "the named lookup, exactly once for the card"
+        );
+        assert_eq!(
+            net.calls[0].0,
+            id_url(SOL_RING_ID, Version::Small),
+            "the id path is tried first"
+        );
+        assert_eq!(
+            net.calls
+                .iter()
+                .filter(|(url, _)| url.contains(SOL_RING_ID))
+                .count(),
+            1,
+            "one 404 settles it: the other sizes are not asked for by id"
+        );
+        assert_eq!(net.calls.len(), 5, "1 id miss + 1 lookup + 3 downloads");
+        assert_eq!(net.pauses, vec![CDN_SPACING, API_SPACING], "no backoff");
+        assert!(missing_versions(&store, "Sol Ring").is_empty());
+    }
+
+    #[test]
+    fn test_image_ensure_card_id_path_404_mid_card_keeps_what_was_stored() {
+        let temp = TempStore::new("by-id-404-mid");
+        let store = temp.store();
+        let mut net = sol_ring_net();
+        net.script(&id_url(SOL_RING_ID, Version::Small), Ok(JPEG.to_vec()));
+        assert_eq!(
+            ensure_card_via(&mut net, &store, &sol_ring_ids(), "Sol Ring"),
+            (CardOutcome::Fetched(3), Route::NamedLookup)
+        );
+        assert_eq!(net.calls_to("https://api.scryfall.com/"), 1);
+        assert_eq!(
+            net.calls_to("https://cards.scryfall.io/small/"),
+            1,
+            "the size the id path already stored is not downloaded again"
+        );
+    }
+
+    #[test]
+    fn test_image_ensure_card_name_absent_from_the_ids_takes_the_named_lookup() {
+        let temp = TempStore::new("absent");
+        let store = temp.store();
+        let mut net = sol_ring_net();
+        let ids: HashMap<&'static str, &'static str> = HashMap::from([("Forest", SOL_RING_ID)]);
+        assert_eq!(
+            ensure_card_via(&mut net, &store, &ids, "Sol Ring"),
+            (CardOutcome::Fetched(3), Route::NamedLookup)
+        );
+        assert_eq!(net.calls_to("https://api.scryfall.com/"), 1);
+        assert_eq!(net.pauses, vec![API_SPACING]);
+        // And a name neither knows is a failure that route owns.
+        let mut net = FakeNet::default();
+        let (outcome, route) = ensure_card_via(&mut net, &store, &ids, "Steel Guardian");
+        assert_eq!(outcome, CardOutcome::Failed(UNKNOWN_NAME.to_string()));
+        assert_eq!(route, Route::NamedLookup);
+    }
+
+    #[test]
+    fn test_image_ensure_card_by_id_retries_a_429_and_fails_without_an_api_call() {
+        let temp = TempStore::new("by-id-429");
+        let store = temp.store();
+        let mut net = FakeNet::default();
+        let small = id_url(SOL_RING_ID, Version::Small);
+        for _ in 0..MAX_ATTEMPTS {
+            net.script(&small, Err(FetchError::Status(429)));
+        }
+        assert_eq!(
+            ensure_card_via(&mut net, &store, &sol_ring_ids(), "Sol Ring"),
+            (
+                CardOutcome::Failed("small image: HTTP 429".to_string()),
+                Route::CdnById
+            )
+        );
+        assert_eq!(net.calls.len(), MAX_ATTEMPTS as usize);
+        assert_eq!(
+            net.calls_to("https://api.scryfall.com/"),
+            0,
+            "a rate-limited CDN is not a reason to go to the rate-limited API"
+        );
+        assert_eq!(net.pauses[0], CDN_SPACING);
+        assert_eq!(
+            net.pauses[1..],
+            [
+                backoff_delay(0),
+                backoff_delay(1),
+                backoff_delay(2),
+                backoff_delay(3)
+            ]
+        );
+    }
+
+    #[test]
+    fn test_image_ensure_card_a_malformed_id_takes_the_named_lookup() {
+        let temp = TempStore::new("bad-id");
+        let store = temp.store();
+        let mut net = sol_ring_net();
+        let ids: HashMap<&'static str, &'static str> =
+            HashMap::from([("Sol Ring", "../../not-an-id")]);
+        assert_eq!(
+            ensure_card_via(&mut net, &store, &ids, "Sol Ring"),
+            (CardOutcome::Fetched(3), Route::NamedLookup)
+        );
+        assert!(
+            net.calls.iter().all(|(url, _)| !url.contains("not-an-id")),
+            "a malformed id never reaches a URL"
+        );
+    }
+
+    // ── cards.sqlite ──
+
+    /// A sqlite file with the columns this module reads, in a temp directory.
+    fn sqlite_fixture(temp: &TempStore, schema: &str) -> PathBuf {
+        std::fs::create_dir_all(&temp.root).unwrap();
+        let path = temp.root.join("cards.sqlite");
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute_batch(schema).unwrap();
+        path
+    }
+
+    const FIXTURE_SCHEMA: &str = "
+        CREATE TABLE cards (id TEXT PRIMARY KEY, name TEXT NOT NULL, layout TEXT NOT NULL);
+        CREATE TABLE card_faces (card_id TEXT NOT NULL, face_index INTEGER NOT NULL, name TEXT NOT NULL);
+        INSERT INTO cards VALUES
+          ('8ee443cc-e17a-493b-9c93-1f9e141a30e4', 'Sol Ring', 'normal'),
+          ('00000000-0000-0000-0000-00000000aaaa', 'Sol Ring', 'art_series'),
+          ('60658907-dd63-478d-a66a-123e4e9d2a00', 'Bloodline Keeper // Lord of Lineage', 'transform'),
+          ('a85e6c5e-3895-4b26-a6e6-e08c2bc00821', 'Bloodline Keeper // Bloodline Keeper', 'art_series'),
+          ('18303862-4726-4136-814f-157aa7006579', 'Fire // Ice', 'split'),
+          ('11111111-1111-1111-1111-111111111111', 'Goblin', 'token'),
+          ('22222222-2222-2222-2222-222222222222', 'Elspeth Emblem', 'emblem'),
+          ('33333333-3333-3333-3333-333333333333', 'Treasure // Food', 'double_faced_token'),
+          ('44444444-4444-4444-4444-444444444444', 'Front Card', 'front_card'),
+          ('bbbbbbbb-0000-0000-0000-000000000002', 'Everythingamajig', 'normal'),
+          ('bbbbbbbb-0000-0000-0000-000000000001', 'Everythingamajig', 'normal');
+        INSERT INTO card_faces VALUES
+          ('60658907-dd63-478d-a66a-123e4e9d2a00', 0, 'Bloodline Keeper'),
+          ('60658907-dd63-478d-a66a-123e4e9d2a00', 1, 'Lord of Lineage'),
+          ('a85e6c5e-3895-4b26-a6e6-e08c2bc00821', 0, 'Bloodline Keeper'),
+          ('a85e6c5e-3895-4b26-a6e6-e08c2bc00821', 1, 'Bloodline Keeper'),
+          ('18303862-4726-4136-814f-157aa7006579', 0, 'Fire'),
+          ('18303862-4726-4136-814f-157aa7006579', 1, 'Ice'),
+          ('33333333-3333-3333-3333-333333333333', 0, 'Treasure');";
+
+    #[test]
+    fn test_image_sqlite_ids_resolve_exact_names_and_front_faces_and_skip_non_game_layouts() {
+        let temp = TempStore::new("sqlite");
+        let ids = SqliteIds::open(&sqlite_fixture(&temp, FIXTURE_SCHEMA)).expect("opens");
+        let id = |name: &str| ids.scryfall_id(name);
+        // Exact name; the art-series row of the same name is never the answer.
+        assert_eq!(id("Sol Ring").as_deref(), Some(SOL_RING_ID));
+        // The full two-part name, and the front face the engine names the card by.
+        let keeper = Some("60658907-dd63-478d-a66a-123e4e9d2a00".to_string());
+        assert_eq!(id("Bloodline Keeper // Lord of Lineage"), keeper);
+        assert_eq!(id("Bloodline Keeper"), keeper);
+        assert_eq!(
+            id("Fire").as_deref(),
+            Some("18303862-4726-4136-814f-157aa7006579")
+        );
+        // A back face is not a card name, and non-game objects are not cards.
+        for absent in [
+            "Lord of Lineage",
+            "Ice",
+            "Goblin",
+            "Elspeth Emblem",
+            "Treasure // Food",
+            "Treasure",
+            "Front Card",
+            "Bloodline Keeper // Bloodline Keeper",
+            "sol ring",
+            "Sol Ring ",
+            "Steel Guardian",
+            "",
+            "' OR 1=1 --",
+        ] {
+            assert_eq!(id(absent), None, "{absent:?}");
+        }
+        // Same-named rows: the pick is the lowest id, every time.
+        assert_eq!(
+            id("Everythingamajig").as_deref(),
+            Some("bbbbbbbb-0000-0000-0000-000000000001")
+        );
+    }
+
+    #[test]
+    fn test_image_sqlite_ids_open_read_only_and_refuse_a_missing_or_drifted_file() {
+        let temp = TempStore::new("sqlite-bad");
+        let missing = temp.root.join("nope.sqlite");
+        assert!(SqliteIds::open(&missing).is_err());
+        assert!(!missing.exists(), "a read-only open creates nothing");
+        // A renamed column (the heads-up rule's case) fails the open, not a query.
+        let drifted = sqlite_fixture(
+            &temp,
+            "CREATE TABLE cards (scryfall_id TEXT, name TEXT, layout TEXT);
+             CREATE TABLE card_faces (card_id TEXT, face_index INTEGER, name TEXT);",
+        );
+        assert!(SqliteIds::open(&drifted).is_err());
+        // Not a database at all.
+        let junk = temp.root.join("junk.sqlite");
+        std::fs::write(&junk, b"this is not sqlite").unwrap();
+        assert!(SqliteIds::open(&junk).is_err());
+        // The server's opener turns each of those into "no ids", reported as such.
+        let (ids, label) = open_card_ids(&missing);
+        assert_eq!(label, "none");
+        assert_eq!(ids.scryfall_id("Sol Ring"), None);
+        // A good file is written to by nobody: the connection refuses.
+        let temp2 = TempStore::new("sqlite-ro");
+        let good = sqlite_fixture(&temp2, FIXTURE_SCHEMA);
+        let ids = SqliteIds::open(&good).unwrap();
+        assert!(ids.conn.execute("DELETE FROM cards", []).is_err());
+        let (boxed, label) = open_card_ids(&good);
+        assert_eq!(label, good.display().to_string());
+        assert_eq!(boxed.scryfall_id("Sol Ring").as_deref(), Some(SOL_RING_ID));
+    }
+
+    // ── the worker, the retry queue and the retry route ──
+
+    /// A [`FakeNet`] the test keeps a handle on while the worker thread uses it.
+    #[derive(Clone, Default)]
+    struct SharedNet(Arc<Mutex<FakeNet>>);
+
+    impl Net for SharedNet {
+        fn get(&mut self, url: &str, accept: &str) -> Result<Vec<u8>, FetchError> {
+            self.0.lock().unwrap().get(url, accept)
+        }
+
+        fn pause(&mut self, duration: Duration) {
+            self.0.lock().unwrap().pause(duration);
+        }
+    }
+
+    /// A fetching service over a scripted network and the Sol Ring id map.
+    fn fake_service(temp: &TempStore, net: &SharedNet) -> ImageService {
+        let net = net.clone();
+        ImageService::with_worker(
+            temp.root.clone(),
+            Box::new(sol_ring_ids()),
+            "fake".to_string(),
+            move || net,
+        )
+    }
+
+    /// Wait (bounded) for the worker to drain its queue.
+    fn drained(service: &ImageService) -> PrefetchStatus {
+        for _ in 0..2000 {
+            let status = service.status();
+            if status.queued == 0 {
+                return status;
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        panic!("the worker never drained: {:?}", service.status());
+    }
+
+    fn fail_small(net: &SharedNet, code: u16) {
+        let mut net = net.0.lock().unwrap();
+        for _ in 0..MAX_ATTEMPTS {
+            net.script(
+                &id_url(SOL_RING_ID, Version::Small),
+                Err(FetchError::Status(code)),
+            );
+        }
+    }
+
+    fn serve_all_sizes(net: &SharedNet) {
+        let mut net = net.0.lock().unwrap();
+        for version in Version::ALL {
+            net.script(&id_url(SOL_RING_ID, version), Ok(JPEG.to_vec()));
+        }
+    }
+
+    #[test]
+    fn test_image_worker_retries_a_failed_card_on_the_next_deal_that_names_it() {
+        let temp = TempStore::new("worker-redeal");
+        let net = SharedNet::default();
+        fail_small(&net, 429);
+        let service = fake_service(&temp, &net);
+        // Deal one: Sol Ring exhausts its attempts on a 429; the other name is
+        // unknown to the id map and to (the fake) Scryfall.
+        let deal = vec!["Sol Ring".to_string(), "Steel Guardian".to_string()];
+        assert_eq!(service.enqueue(deal.clone()), 2);
+        let status = drained(&service);
+        assert_eq!(status.failed, vec!["Sol Ring", "Steel Guardian"]);
+        assert_eq!(
+            status.retry_queue,
+            vec!["Sol Ring"],
+            "an unknown name is not worth retrying"
+        );
+        assert_eq!((status.by_id, status.named_lookups), (1, 1));
+        assert_eq!(status.card_ids, "fake");
+        // Deal two names it again; the CDN has recovered.
+        serve_all_sizes(&net);
+        let api_before = net.0.lock().unwrap().calls_to("https://api.scryfall.com/");
+        assert_eq!(service.enqueue(deal), 2);
+        let status = drained(&service);
+        assert_eq!(status.failed, vec!["Steel Guardian"]);
+        assert!(status.retry_queue.is_empty());
+        assert_eq!(status.fetched, 1);
+        assert!(missing_versions(service.store(), "Sol Ring").is_empty());
+        assert_eq!(
+            net.0.lock().unwrap().calls_to("https://api.scryfall.com/"),
+            api_before,
+            "the refused name is not asked about again, and the retry is CDN-only"
+        );
+    }
+
+    #[test]
+    fn test_image_retry_failed_requeues_the_retry_queue_and_only_it() {
+        let temp = TempStore::new("worker-retry");
+        let net = SharedNet::default();
+        fail_small(&net, 503);
+        let service = fake_service(&temp, &net);
+        service.enqueue(vec!["Sol Ring".to_string(), "Steel Guardian".to_string()]);
+        let status = drained(&service);
+        assert_eq!(status.retry_queue, vec!["Sol Ring"]);
+        // Still down: the retry fails again and the card stays queued for retry.
+        fail_small(&net, 503);
+        assert_eq!(service.retry_failed(), 1, "one card, not the unknown name");
+        assert_eq!(drained(&service).retry_queue, vec!["Sol Ring"]);
+        // Recovered.
+        serve_all_sizes(&net);
+        assert_eq!(service.retry_failed(), 1);
+        let status = drained(&service);
+        assert!(status.retry_queue.is_empty());
+        assert_eq!(status.failed, vec!["Steel Guardian"]);
+        assert!(missing_versions(service.store(), "Sol Ring").is_empty());
+        assert_eq!(service.retry_failed(), 0, "nothing left to retry");
+        assert_eq!(
+            net.0.lock().unwrap().calls_to("https://api.scryfall.com/"),
+            1,
+            "only the unknown name's one lookup ever reached the API"
+        );
+    }
+
+    async fn post(state: &AppState, uri: &str) -> (StatusCode, axum::http::HeaderMap, Vec<u8>) {
+        let response = app(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(uri)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("router is infallible");
+        let status = response.status();
+        let headers = response.headers().clone();
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        (status, headers, body.to_vec())
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_card_image_retry_route_requeues_failed_cards_and_reports_counts_only() {
+        let temp = TempStore::new("route-retry");
+        let net = SharedNet::default();
+        fail_small(&net, 429);
+        let service = fake_service(&temp, &net);
+        service.enqueue(vec!["Sol Ring".to_string()]);
+        drained(&service);
+        let state = AppState::new(defaults()).with_images(service.clone());
+
+        let (status, _, body) = get(&state, "/api/card-image/status").await;
+        assert_eq!(status, StatusCode::OK);
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["failed"], 1);
+        assert_eq!(json["retry_queue"], 1, "the status route reports the queue");
+        assert_eq!(json["by_id"], 1);
+        assert_eq!(json["named_lookups"], 0);
+        assert_eq!(json["card_ids"], "fake");
+
+        serve_all_sizes(&net);
+        let (status, headers, body) = post(&state, "/api/card-image/retry").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CACHE_CONTROL], "no-store");
+        let text = String::from_utf8(body).unwrap();
+        assert!(!text.contains("Sol Ring"), "counts only: {text}");
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(json["requeued"], 1);
+        let status = drained(&service);
+        assert!(status.failed.is_empty() && status.retry_queue.is_empty());
+        assert!(missing_versions(service.store(), "Sol Ring").is_empty());
+
+        // Nothing to retry, and a GET is not the retry route.
+        let (_, _, body) = post(&state, "/api/card-image/retry").await;
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["requeued"], 0);
+        let (status, _, _) = get(&state, "/api/card-image/retry").await;
+        assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_card_image_retry_route_is_a_no_op_on_a_serve_only_server() {
+        let state = AppState::new(defaults());
+        let (status, _, body) = post(&state, "/api/card-image/retry").await;
+        assert_eq!(status, StatusCode::OK);
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["requeued"], 0);
+        assert_eq!(json["enabled"], false);
+        assert_eq!(json["retry_queue"], 0);
+        assert_eq!(json["card_ids"], "none");
+        assert!(!state.images.store().root().exists());
+    }
+
     #[test]
     fn test_image_ensure_card_never_stores_a_non_jpeg_body() {
         let temp = TempStore::new("nonjpeg");
@@ -1433,7 +2358,9 @@ mod tests {
             "Sol Ring".to_string(),
         ];
         let mut lines = Vec::new();
-        let summary = prefetch_all(&mut net, &store, &names, &mut |l| lines.push(l.to_string()));
+        let summary = prefetch_all(&mut net, &store, &NoIds, &names, &mut |l| {
+            lines.push(l.to_string())
+        });
         assert_eq!(summary.fetched, vec!["Sol Ring".to_string()]);
         assert_eq!(summary.present, vec!["Command Tower".to_string()]);
         assert_eq!(summary.failed.len(), 1);
@@ -1537,13 +2464,23 @@ mod tests {
             queued: 4,
             ..PrefetchStatus::default()
         };
-        record(&mut status, "B", &CardOutcome::Failed("x".to_string()));
-        record(&mut status, "B", &CardOutcome::Failed("x".to_string()));
-        record(&mut status, "A", &CardOutcome::Present);
+        record(
+            &mut status,
+            "B",
+            &CardOutcome::Failed("x".to_string()),
+            Route::NamedLookup,
+        );
+        record(
+            &mut status,
+            "B",
+            &CardOutcome::Failed("x".to_string()),
+            Route::NamedLookup,
+        );
+        record(&mut status, "A", &CardOutcome::Present, Route::Store);
         assert_eq!((status.queued, status.present, status.fetched), (1, 1, 0));
         assert_eq!(status.failed, vec!["B"]);
-        record(&mut status, "B", &CardOutcome::Fetched(3));
-        record(&mut status, "C", &CardOutcome::Fetched(1));
+        record(&mut status, "B", &CardOutcome::Fetched(3), Route::CdnById);
+        record(&mut status, "C", &CardOutcome::Fetched(1), Route::CdnById);
         assert_eq!((status.queued, status.fetched), (0, 2));
         assert!(status.failed.is_empty());
     }
@@ -1731,15 +2668,19 @@ mod tests {
             &mut status,
             "Zzyzx Hidden Bot Card",
             &CardOutcome::Failed("HTTP 429".to_string()),
+            Route::CdnById,
         );
         record(
             &mut status,
             "Another Secret Name",
             &CardOutcome::Failed("HTTP 429".to_string()),
+            Route::CdnById,
         );
         assert_eq!(status.failed.len(), 2, "the names stay in memory");
+        assert_eq!(status.retry_queue.len(), 2);
         let json = serde_json::to_value(&status).unwrap();
         assert_eq!(json["failed"], 2);
+        assert_eq!(json["retry_queue"], 2, "a count, like `failed`");
         let text = json.to_string();
         assert!(
             !text.contains("Zzyzx") && !text.contains("Secret"),
