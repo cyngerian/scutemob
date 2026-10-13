@@ -6,6 +6,18 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-10-12 — Image store: CDN by Scryfall id, retry queue (`scutemob-270`)
+
+- Prefetch reads each card's Scryfall id from `cards.sqlite` (read-only; `--cards-sqlite` /
+  `SCUTEMOB_CARDS_SQLITE`) and downloads `cards.scryfall.io/<size>/front/<a>/<b>/<id>.jpg` directly:
+  no `api.scryfall.com` request when the id is known (1,801 of 1,803 defs; 13 via front-face match).
+  The named lookup remains as the fallback (name absent, no sqlite, or an id path 404 — once per card).
+- Retry: failed cards sit in a retry queue, are retried by the next deal that names them and by
+  `POST /api/card-image/retry`; status gains `retry_queue`, `by_id`, `named_lookups`, `card_ids` (counts only).
+- Measured cold store, seed 0, four seats: 238 cards / 714 images in 72 s, 0 lookups, 0 failures
+  (was 41 cards in ~4 min under 429 backoff). Play-server only; no engine or wire change.
+  Notes: `memory/image-store-cdn-2026-10-12.md`.
+
 ## 2026-10-12 — Play surface v3 C3 (`scutemob-268`) — server gaps, local image store, full game, playtest guide
 
 - View-model / play-server (additive, each with its redaction case): `zones.exile_by_owner`,
