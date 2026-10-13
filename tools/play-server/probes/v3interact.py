@@ -13,8 +13,9 @@
 # C2 (scutemob-267), after those: each interaction on a REAL decision. Every block re-deals by seed
 # through the API, drives to its scenario with `v3scenario.drive_until` (same directory — the scenario
 # table, the policies and the determinism proof live there), loads `/?v3` in a fresh browser context and
-# acts with real pointer events. A block whose scenario cannot be reached prints `COULD-NOT-RUN <block>`
-# and never counts as ok. The blocks (`--blocks` picks some):
+# acts with real pointer events. A block whose scenario cannot be reached — or is reached at another step
+# than the scout recorded (drift) — prints `COULD-NOT-RUN <block>` and never counts as ok. The blocks
+# (`--blocks` picks some):
 #   arrows    drag from a decision card item to an opponent's card / a player's seat: the live arrow,
 #             `.arrow-dragging`, `.target-ok` on candidates only, the POST body (action_index + the
 #             candidate's `value` byte for byte), 200, the stack; a drop on a non-candidate and Escape
@@ -25,13 +26,16 @@
 #   menu      card context menu: source / target entries with their action index, "Target with" ends
 #             in the arrow's POST body, counters, the "No action uses this card" line, the seat menu
 #   blockers  the real DeclareBlockers: the box matches `legal_blocks`; click-click, undo, drag; the
-#             picker's select follows; its Confirm posts `[[blocker, attacker]]`; combat shows the block
+#             picker's select follows; its Confirm posts `[[blocker, attacker]]`; combat shows the block;
+#             Escape mid-drag cancels the drag only
 #   order     drag-rearranging the hand and the battlefield: order kept over a reload, a plain click
-#             still plays the land it is on, the played land drops out, a drawn card appends
+#             still plays the land it is on, the played land drops out, a drawn card appends;
+#             a new table dealt from the menu does not inherit the order
 #   sick      the creature just cast is outlined, and is not on the human's next turn; every creature on
 #             screen is outlined exactly when the seat view says so
 #   autopass  the panel: until my next turn / end of turn / a step; the spell and combat stops on a real
-#             bot spell and a real attack; Resume; Off cancels; a reload never starts passing
+#             bot spell and a real attack; Resume; Off cancels; a reload never starts passing; no run
+#             can start while a picker is open (review fix: it left a stale picker behind)
 #   plus, at the end of every block: no page scroll, no box scroll (both axes); and zero page errors.
 # Run:  python3 tools/play-server/probes/v3interact.py --port 3041 --seed 3 --out /tmp/v3i
 #       python3 tools/play-server/probes/v3interact.py --port 3041 --out /tmp/v3i --c2-only [--blocks arrows,menu]
@@ -202,8 +206,8 @@ class Table:
         r = scn.reach(self.port, name)
         if not r.ok:
             raise NotReached(f"scenario {name!r}: {r.why}")
-        if r.why:
-            print(f"note {name}: {r.why}", flush=True)
+        if r.why:      # reached, but not at the recorded step: the game is not the one the scout saw
+            raise NotReached(f"scenario {name!r}: {r.why}")
         await self.load()
         return r
 
@@ -301,6 +305,17 @@ def post_detail(p):
 
 def on_stack(v, source_name, target):
     return any(i.get("source_name") == source_name and target in (i.get("targets") or []) for i in (v or {}).get("state", {}).get("zones", {}).get("stack", []))
+
+
+def source_actions(acts, oid):
+    """The indexes a card's menu must list under "Use": the answerable actions carrying its object id, plus a
+    declare action listing it as eligible (`targeting.svelte.js` `actionsFrom`, `lib/v2/prompt.js` `answerable`)."""
+    def usable(x):
+        if x["kind"] in ("PassPriority", "Concede"):
+            return False
+        return x["target_min"] <= 0 or not x["target_slots"] or any(s["candidates"] for s in x["target_slots"])
+    return sorted(x["index"] for x in acts if usable(x) and (
+        x["object_id"] == oid or any(e["id"] == oid for e in ((x["attack"] or {}).get("eligible") or []) + ((x["block"] or {}).get("eligible") or []))))
 
 
 def name_of(v, oid):
@@ -499,10 +514,10 @@ async def blk_menu(T):
     async def source():
         await T.click(await T.point(SRC), button="right")
         got = await indexes("source")
-        mine = {x["index"] for x in acts if x["object_id"] == src}
+        mine = source_actions(acts, src)
         check("menu: right-click on the source card opens its menu", await T.n(f'{MENU}[data-oid="{src}"]') == 1 and await T.n(".v3 .ctx.seat-ctx") == 0,
               f"{name_of(v, src)}: {await T.n(MENU)} card menu(s), {await T.n('.v3 .ctx.seat-ctx')} seat menu(s)")
-        check("menu: it lists the actions the card is the source of, by action index", N in got and bool(got) and set(got) <= mine, f"source entries {got}; the payload's actions on oid {src}: {sorted(mine)}; the targeted one is {N}")
+        check("menu: it lists the actions the card is the source of, by action index", N in got and sorted(got) == mine, f"source entries {got}; the payload's answerable actions on oid {src}: {mine}; the targeted one is {N}")
         await T.shot("menu-source")
         await pg.keyboard.press("Escape")
         await pg.wait_for_timeout(150)
@@ -516,7 +531,7 @@ async def blk_menu(T):
             raise NotReached("no hand card with an action in this scenario")
         await T.click(await T.point(f'.v3 .hand .card[data-oid="{h["object_id"]}"]'), button="right")
         got = await indexes("source")
-        check("menu: a hand card's menu lists its action", await T.n(f'{MENU}[data-oid="{h["object_id"]}"]') == 1 and h["index"] in got, f"{h['label']} = action {h['index']}; source entries {got}")
+        check("menu: a hand card's menu lists its action", await T.n(f'{MENU}[data-oid="{h["object_id"]}"]') == 1 and sorted(got) == source_actions(acts, h["object_id"]), f"{h['label']} = action {h['index']}; source entries {got}, expected {source_actions(acts, h['object_id'])}")
         await pg.keyboard.press("Escape")
         await pg.wait_for_timeout(150)
     await T.part("menu: a hand card", hand)
@@ -611,6 +626,22 @@ async def blk_blockers(T):
               f"blockers {mine} / {want_mine}; attackers {atts} / blockable {sorted(blockable)}")
         check("blockers: the list picker is still there under it", await T.n(".v3 .blocker-picker .blocker-row") == len(legal), f"{await T.n('.v3 .blocker-picker .blocker-row')} rows / {len(legal)} legal blockers")
     await T.part("blockers: the box", box)
+
+    async def escape():
+        src, dst = await T.point(MINE), await T.point(ATT)
+        mid = ((src[0] + dst[0]) / 2, (src[1] + dst[1]) / 2)
+        await T.drag(src, mid, release=False)
+        await pg.keyboard.press("Escape")
+        await pg.wait_for_timeout(200)
+        held = [await T.n(BU), await T.n(".v3 .blocker-picker"), await T.n(f"{BU} svg.arrows path[data-blocker]")]
+        await pg.mouse.move(*dst, steps=6)
+        await pg.mouse.up()
+        s = await state()
+        check("blockers: Escape during a blocker drag cancels the drag only",
+              held == [1, 1, 0] and await T.n(BU) == 1 and await T.n(".v3 .blocker-picker") == 1 and s["paths"] == 0 and s["select"] != str(aid) and not T.posts,
+              f"after Escape [.blockui, .blocker-picker, paths] = {held}; after the release over the attacker: box {await T.n(BU)}, picker {await T.n('.v3 .blocker-picker')}, paths {s['paths']}, select {s['select']!r}, POSTs {len(T.posts)}")
+        await pg.mouse.move(1, 1)
+    await T.part("blockers: Escape mid-drag", escape)
 
     async def clicks():
         await T.click(await T.point(MINE))
@@ -714,6 +745,32 @@ async def blk_order(T):
         check("order: a drawn card goes to the end and the rest keep their order", d4 == want, f"drew {[name_of(drew.view, x) for x in new]} on turn {drew.view['state']['turn']['number']}: {d4}, expected {want}")
         kept["hand_game"] = True
     await T.part("order: the hand", hand)
+
+    async def new_game():
+        r = await T.at("rearrange_hand")
+        old = [c["object_id"] for c in scn.my_hand(r.view)]
+        await T.drag(await T.point(HAND, nth=0), await T.point(HAND, fx=0.8, nth=2))
+        await T.idle(400)
+        moved = await hand_dom()
+        key = "() => { try { return JSON.parse(localStorage.getItem('v3-game') || 'null')?.key ?? null; } catch (e) { return null; } }"
+        k0 = await pg.evaluate(key)
+        # the table's own menu: a different seed (the scenario's is CHOSEN's; 2 is not it)
+        seed = 2 if scn.CHOSEN["rearrange_hand"]["seed"] != 2 else 3
+        await pg.locator(".v3 .top .v3-menu-wrap > button.btn").click(timeout=2000)
+        await pg.locator(".v3 .v3-menu label", has_text="seed").locator("input").fill(str(seed), timeout=2000)
+        await pg.locator(".v3 .v3-menu button", has_text="Deal a new table").click(timeout=2000)
+        await T.idle(700)
+        await pg.wait_for_timeout(300)
+        now = scn.view(T.port)
+        want = [c["object_id"] for c in scn.my_hand(now)]
+        dom = await hand_dom()
+        k1 = await pg.evaluate(key)
+        shared = [x for x in want if x in old]
+        check("order: a new table dealt from the menu does not inherit the hand order",
+              moved != old and bool(want) and same(dom, want) and len(shared) >= 3,
+              f"old game rearranged to {moved[:5]}; new game (seed {seed}, pregame {now['summary']['pregame']}) shows {dom[:8]}, seat view {want[:8]}; {len(shared)} object ids are in both hands")
+        check("order: the new table has a new game key", bool(k0) and bool(k1) and k0 != k1, f"v3-game key {k0!r} -> {k1!r}")
+    await T.part("order: a new game", new_game)
 
     async def board():
         r = await T.at("rearrange_board")
@@ -931,6 +988,33 @@ async def blk_autopass(T):
               f"{len(T.posts)} passes from turn {t0}; {[x['name'] for x in scn.attacks_on_human(v)]} attacking at {turn_of(v)}; resume {await T.n(f'{AP} .resume')}; status {(await T.text(f'{AP} .status'))[:120]!r}")
         await T.shot("autopass-combat-stop")
     await T.part("autopass: the combat stop", combat)
+
+    async def picker_open():
+        r = await T.at("target_burn")
+        a = scn.target_actions(r.view, "opp+player")[0]
+        await T.click(await T.point(f'.v3 .decision-float .act[data-action-index="{a["index"]}"]'))
+        if not await T.wait_for(".v3 .decision-host .picker-area .target-picker", 1500):
+            raise Missing("the target picker did not open on a click on the action")
+        seq0 = T.last_view["decision"]["seq"]
+        dis = "(sel) => Object.fromEntries([...document.querySelectorAll(sel)].map((e) => [e.dataset.mode, e.disabled]))"
+        d0 = await pg.evaluate(dis, f"{AP} .mode[data-mode]")
+        status = await T.text(f"{AP} .status")
+        check("autopass: while a picker is open every mode but Off is disabled and the status says why",
+              d0 == {"off": False, "eot": True, "mynext": True, "step": True} and "picker" in status.lower(), f"disabled {d0}; status {status[:140]!r}")
+        for mode in ("eot", "mynext", "step"):      # pressed anyway, three ways; none may start a run
+            await pg.locator(f'{AP} .mode[data-mode="{mode}"]').click(force=True, timeout=2000)
+            await pg.locator(f'{AP} .mode[data-mode="{mode}"]').dispatch_event("click")
+            await pg.evaluate("(sel) => document.querySelector(sel)?.click()", f'{AP} .mode[data-mode="{mode}"]')
+        await pg.wait_for_timeout(900)
+        seq1 = scn.view(T.port)["decision"]["seq"]
+        check("autopass: a mode pressed anyway while the picker is open sends nothing and leaves the picker on its decision",
+              not T.posts and await T.n(".v3 .decision-host .picker-area .target-picker") == 1 and seq1 == seq0 and await mode_on() == ["off"],
+              f"POSTs {len(T.posts)} in 900 ms; picker {await T.n('.v3 .target-picker')}; server decision seq {seq0} -> {seq1}; on: {await mode_on()}")
+        await pg.locator(".v3 .target-picker .picker-actions .cancel").click(timeout=2000)
+        await pg.wait_for_timeout(250)
+        d1 = await pg.evaluate(dis, f"{AP} .mode[data-mode]")
+        check("autopass: backing out of the picker enables the modes again", await T.n(".v3 .picker-area") == 0 and not any(d1.values()) and len(d1) == 4 and not T.posts, f"disabled {d1}; picker {await T.n('.v3 .picker-area')}")
+    await T.part("autopass: a picker is open", picker_open)
 
     async def off():
         r = await T.at("autopass_round")

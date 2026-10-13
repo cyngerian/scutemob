@@ -8303,6 +8303,10 @@ mod tests {
     ///
     /// Comment lines are skipped (the docs name the things they forbid).
     ///
+    /// It is a source gate, so it is evadable by spelling (`{ targets }`
+    /// shorthand, `params.targets = …`); it pins the direct patterns and the
+    /// import routes, and the paired probe is what catches a wrong body.
+    ///
     /// Vacuity: the walk must see the three files the rule is about, the
     /// pass-through must be present exactly once, and the two drivers must really
     /// drive the DOM (`button.click()`, a bubbling `change`).
@@ -8348,6 +8352,27 @@ mod tests {
         for (path, text) in &sources {
             if path.ends_with(".css") {
                 continue;
+            }
+            // The two ways to reach the submit helper under another name: the
+            // adapter itself, and `stores.js` imported whole or with `act` in the
+            // list. Only `TableV3` may do either (review finding 4).
+            if !path.ends_with("TableV3.svelte") {
+                for line in code_lines(text).filter(|l| l.contains("import ")) {
+                    assert!(
+                        !line.contains("api.js"),
+                        "{path} imports the API adapter; only TableV3 does (for the report)"
+                    );
+                    if line.contains("stores.js") {
+                        let names = line.split('{').nth(1).and_then(|r| r.split('}').next());
+                        let names = names.unwrap_or_else(|| {
+                            panic!("{path} imports stores.js without a name list:\n  {line}")
+                        });
+                        assert!(
+                            !names.split(',').any(|n| n.trim().starts_with("act")),
+                            "{path} imports `act` from stores.js; only TableV3 submits:\n  {line}"
+                        );
+                    }
+                }
             }
             for line in code_lines(text) {
                 for banned in [

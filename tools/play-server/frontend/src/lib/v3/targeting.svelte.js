@@ -339,7 +339,21 @@ function applyToLive(pick, { toggle = false, confirm = false } = {}) {
     say('The picker is busy — choose from the list.');
     return;
   }
-  if (confirm && !(already && toggle)) autoConfirm = { kind: pick.kind, id: pick.id, name: pick.name };
+  if (confirm && !(already && toggle)) {
+    const wanted = { kind: pick.kind, id: pick.id, name: pick.name };
+    autoConfirm = wanted;
+    // The intent to confirm lives for this gesture only: if the picker has not
+    // shown the pick as chosen two flushes later, it is dropped, so a later
+    // manual choice of the same candidate in the list never confirms by itself.
+    tick()
+      .then(sync)
+      .then(tick)
+      .then(() => {
+        sync();
+        if (autoConfirm === wanted) autoConfirm = null;
+      });
+    return;
+  }
   tick().then(sync);
 }
 

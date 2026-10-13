@@ -52,6 +52,7 @@
   import { get } from 'svelte/store';
   import { untrack } from 'svelte';
   import { seatView, decision, loading, passUntil, startPassUntil, cancelPassUntil } from '../stores.js';
+  import { targeting } from './targeting.svelte.js';
   import { decisionKindName } from '../names.js';
   import { SHORT_STEP } from './layout.js';
   import { MODES, STOPS, STOPPABLE_STEPS, normaliseSettings, ruleSentence, buildPredicate, turnFacts, untilReached } from './autopass.js';
@@ -106,6 +107,11 @@
     if (view.summary?.pregame) return 'Keep or mulligan first.';
     if (!pending) return 'Nothing to answer right now.';
     if (pending.kind !== 'Priority') return `Answer the ${decisionKindName(pending.kind)} decision first.`;
+    // A picker chain keeps the option it was opened on until it is confirmed or
+    // backed out of; passing under it would leave it pointing at a decision
+    // that no longer exists (review finding 1: its Confirm then posted a stale
+    // action index). `PromptPanel` hides its own pass buttons for the same reason.
+    if (targeting.chainOpen) return 'Finish or back out of the open picker first.';
     return null;
   });
   const canStart = $derived(inert === null && !running && !$loading);

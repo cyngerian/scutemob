@@ -387,7 +387,21 @@
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', cancelDrag);
+    window.removeEventListener('keydown', onDragKey, true);
     if (drag) drag = null;
+  }
+
+  /**
+   * Escape during a drag cancels the drag only. Without this the key reaches
+   * `PromptPanel`, which backs out of the whole block stage and loses every
+   * block already drawn (review finding 3).
+   */
+  function onDragKey(e) {
+    if (e.key !== 'Escape' || !drag?.live) return;
+    e.preventDefault();
+    e.stopPropagation();
+    sel = null;
+    cancelDrag();
   }
 
   function downMine(e, m) {
@@ -397,6 +411,7 @@
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', cancelDrag);
+    window.addEventListener('keydown', onDragKey, true);
   }
 </script>
 

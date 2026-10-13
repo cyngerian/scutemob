@@ -47,7 +47,7 @@ Live list (reposted as an `esm task comment` at every milestone). Change class: 
 
 ## Close
 - [x] C1 `esm task satisfy` 8609–8614, each the moment it is verifiably met
-- [ ] C2 `/review`; HIGH + MEDIUM fixed in-cycle, LOW logged
-- [ ] C3 notes `memory/play-v3-c2-2026-10-12.md` (measured table, per-interaction probe results, gate defeats, deferred for C3)
-- [ ] C4 `CHANGELOG.md` entry ≤10 lines; `tools/play-server/README.md` if routes/controls text needs it
-- [ ] C5 scratch deleted, probe servers stopped; commit by explicit path; `signal-ready`; session end
+- [x] C2 `/review`: 1 HIGH + 1 MEDIUM fixed in-cycle (+4 LOW fixed), rest logged; probes re-run 122 ok (worker's last run: 2 C1 hover checks could-not-find-out under a Scryfall 429)
+- [x] C3 notes `memory/play-v3-c2-2026-10-12.md` (measured table, per-interaction probe results, gate defeats, deferred for C3)
+- [x] C4 `CHANGELOG.md` entry ≤10 lines; `tools/play-server/README.md` if routes/controls text needs it
+- [x] C5 scratch deleted, probe servers stopped; commit by explicit path; `signal-ready`; session end
