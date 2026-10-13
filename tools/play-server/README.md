@@ -535,7 +535,7 @@ so the two servers could one day be merged without a route collision.
 | `GET /api/game/report` | — | the bug-report / repro artefact. A **pure read** — see below |
 | `GET /api/healthz` | — | liveness; never takes the session lock |
 | `GET /api/card-image?name=&version=` | — | one card image from the **local store**; never fetches, never takes the session lock. See [Card images](#card-images-the-local-store) |
-| `GET /api/card-image/status` | — | prefetch progress: `{enabled, store, queued, fetched, present, failed}` |
+| `GET /api/card-image/status` | — | prefetch progress: `{enabled, store, queued, fetched, present, failed}` — counts only (`failed` is a number; the names go to the server log) |
 | everything else | — | `ServeDir` fallback to `dist/`, when that directory exists |
 
 ### Error-status semantics
@@ -718,18 +718,28 @@ route does not fetch, lazily or otherwise, ever. All of it is `src/images.rs`.
 `name` is the card's exact name as the engine spells it — a double-faced card is named
 by its front face (`Bloodline Keeper`), and its image is the front face.
 
-`GET /api/card-image/status` → `{ enabled, store, queued, fetched, present, failed: [names] }`
+`GET /api/card-image/status` → `{ enabled, store, queued, fetched, present, failed }`
 (always 200, `no-store`). Counts are **cards**, cumulative for the process: `queued` =
 handed to the worker and not finished (`0` means the store is as ready as it will get),
 `fetched` = at least one image downloaded, `present` = already complete when the worker
-reached it, `failed` = names that could not be fetched and will render as chips.
-`enabled` is `false` under `--no-image-prefetch`.
+reached it, `failed` = **how many** cards could not be fetched and will render as chips
+(a number, not a list). Each failed name is written with its reason to the server's
+stderr when it fails (`card images: <name>: <reason>`) — read them in the terminal the
+server runs in. `enabled` is `false` under `--no-image-prefetch`.
 
-**Hidden information.** Neither route reads the game session, so neither can leak it:
-`/api/card-image` maps a name the client *already holds* to bytes on disk, any client
-may ask for any name, and the answer is the same whether or not that card is in the
-game. The status route reports counts plus the names that **failed** — never the names
-that were queued, because a bot seat's decklist is hidden.
+**Hidden information.** Neither route reads the game session, and neither says *where*
+a card is (which seat, which zone). The status route reports counts only: the names that
+failed, like the names that were queued, are cards of the table's decks — bot seats
+included — and a bot seat's decklist is hidden, so they never enter a response body.
+
+**Known consequence of the deck-time fill** (owner ruling 2026-10-12). The store is
+filled from *every* seat's deck. So on a store that was not already full,
+`GET /api/card-image?name=X` answering 200 rather than 404 reveals that X is in the
+**union** of the decks this store has been filled for. It does not say which seat holds
+X; it is diluted as the store accumulates games; and it needs deliberate probing of names
+by the local player (the page only asks for names it was already shipped). Two ways to
+close it, **awaiting an owner ruling — neither is implemented**: prefetch the whole card
+pool up front (a 200 then says nothing), or accept it for a local single-human table.
 
 ### Store layout
 
@@ -783,7 +793,11 @@ a 120 ms pause, then one download per *missing* size from the image CDN
 (`cards.scryfall.io`, which Scryfall does not rate-limit); a `User-Agent` and `Accept` on
 every request; a 429, a 5xx or a transport error is retried up to 5 times with a 2 / 4 /
 8 / 16 s backoff; any other status is final. Files already present are never requested.
-A token, or any name Scryfall answers 404 to, is recorded in `failed` and stays a chip.
+Image downloads are https-only and **follow no redirect** (`ureq` follows up to 10 by default; the
+CDN agent is built with `max_redirects(0)`, and a 3xx answer is a failed image), so the
+`cards.scryfall.io` host check on the URL is also a check on where the bytes came from. The one
+API call keeps `ureq`'s default: its JSON is parsed, never stored.
+A token, or any name Scryfall answers 404 to, is counted in `failed`, logged to stderr, and stays a chip.
 
 **Tests never fetch.** `AppState::new` builds a serve-only service (no worker thread, a
 store path that does not exist); only the serving entry point installs a fetching one.

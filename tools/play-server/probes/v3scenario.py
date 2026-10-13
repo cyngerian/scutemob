@@ -488,6 +488,20 @@ def c3_target_stack_object(v):
     return _priority(v) and any(r["kind"] == "stack_object" for _, r in stack_refs(v))
 
 
+def ability_source_targets(v):
+    """[(ability item, targeting item)] — an ABILITY on the stack (kind != "spell") whose SOURCE object a
+    DIFFERENT stack item targets by an object ref. The ref names the permanent, not the ability."""
+    stack = v["state"]["zones"]["stack"]
+    return [(a, b) for a in stack if a["kind"] != "spell" and a.get("source_object_id") is not None
+            for b in stack if b["id"] != a["id"]
+            and any(r["kind"] == "object" and r.get("id") == a["source_object_id"] for r in b.get("target_refs") or [])]
+
+
+def c3_ability_source_targeted(v):
+    """An ability is on the stack and another stack item targets that ability's source permanent."""
+    return _priority(v) and bool(ability_source_targets(v))
+
+
 def stack_candidate_actions(v):
     """The targets-only actions of a Priority decision that list a `stack_object` candidate (a counterspell,
     a redirect): what a click or an arrow on a stack item can answer."""
@@ -573,6 +587,7 @@ SCENARIOS = {
     "c3_target_withheld": (("lands", "develop"), c3_target_withheld, "a stack item with a withheld target id (real, not fabricated)"),
     "c3_target_stack_object": (("lands", "develop"), c3_target_stack_object, "a stack item targets another stack item by stack id"),
     "c3_stack_candidate": (("lands", "develop"), c3_stack_candidate, "a targets-only action of the human's with a stack_object candidate"),
+    "c3_ability_source_targeted": (("lands", "develop"), c3_ability_source_targeted, "an ability on the stack whose source permanent another stack item targets"),
     "c3_discard_ahead":  (("lands",), c3_discard_ahead, "second main with more than seven cards: passing meets the cleanup discard"),
 }
 AUTOPASS = ("autopass_round", "autopass_spell", "autopass_combat")
@@ -636,6 +651,11 @@ CHOSEN = {
     # Turn 14 (Bot-2's upkeep): the human may cast Deflecting Swat (hand, oid 7); its candidates are two
     # activations of Bot-2's Staff of Domination on the stack (stack ids 452 and 453 — the SAME label twice).
     "c3_stack_candidate": {"seed": 30, "policy": "lands", "steps": 118},
+    # Review fix (scutemob-268), scouted 2026-10-12 over seeds 0-20. Turn 28 (an upkeep): Ezuri, Renegade
+    # Leader's activated ability (stack id 561, source oid 440) is on the stack, and Minamo, School at
+    # Water's Edge's ability (stack id 560) targets that PERMANENT (object ref 440) — not the ability.
+    # (Seed 7 / develop / step 95 is the same shape with a source that has LEFT play: nothing to outline.)
+    "c3_ability_source_targeted": {"seed": 4, "policy": "develop", "steps": 289},
     # Turn 1, the human's second main with eight cards in hand: passing runs into the cleanup discard.
     "c3_discard_ahead":  {"seed": 0, "policy": "lands", "steps": 6},
 }

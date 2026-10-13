@@ -583,6 +583,15 @@ export async function startPassUntilOnServer(mode) {
       passUntil.set(null);
       return startPassUntil(mode);
     }
+    // No HTTP status = the request died in transit (or its answer could not be
+    // read): the server may already have applied passes — a whole run of them —
+    // while the page still shows the state from before. Re-read the game before
+    // the panel settles, so "paused" is said over the table as it now is. The
+    // original failure is what stays in the error banner, whatever the re-read
+    // does (`refresh` clears or replaces `error`; it is set after).
+    if (failure.status === undefined || failure.status === null) {
+      await refresh();
+    }
     error.set(toStoreError(failure));
     return finish(0, 'failed', 'a request failed — see the error above');
   }

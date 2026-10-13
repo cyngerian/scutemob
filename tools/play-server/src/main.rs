@@ -8156,7 +8156,8 @@ mod tests {
     ///    `https://…` literal this gate exists to catch; so prose in `lib/v3` says
     ///    "the image store" instead. That one word covers every Scryfall host and
     ///    both v2 URL builders (`scryfallSmallUrl`, `scryfallImageUrl`).
-    /// 2. A v3 file that imports from `v2/images.js` imports exactly
+    /// 2. A v3 file that imports from `v2/images.js` — in single quotes, double
+    ///    quotes or a backtick — imports exactly
     ///    `{ cardImageUrl }`, and at least `CardFace.svelte`, `CardWindow.svelte`
     ///    and `hover.js` do (vacuity floor).
     /// 3. `cardImageUrl` in `v2/images.js` builds a same-origin `/api/card-image`
@@ -8171,6 +8172,12 @@ mod tests {
     /// reads pictures only from the local store …") while
     /// `test_frontend_v3_card_images_are_lazy_and_fall_back` stayed green (it only
     /// bans the literal host); restored → green.
+    ///
+    /// Defeat of rule 2's quoting (executed 2026-10-12, review fix): a line
+    /// `import { cardImageUrl, somethingElse } from "../v2/images.js";` (double
+    /// quotes) appended to `stackTargets.svelte.js` → red ("… may take only
+    /// `cardImageUrl` from `v2/images.js`"); removed → green. Before the fix the
+    /// rule matched single-quoted imports only and did not see that line.
     #[test]
     fn test_frontend_v3_never_names_scryfall() {
         let sources = v3_sources();
@@ -8190,9 +8197,17 @@ mod tests {
                      say \"the image store\""
                 );
             }
-            for line in text.lines().filter(|l| l.contains("v2/images.js'")) {
+            // Quote-agnostic (review fix, `scutemob-268`): an import written with
+            // double quotes or a backtick is the same import. Any line that closes a
+            // string on `v2/images.js` must be THE import, whatever quote it uses.
+            let closes_on_images = |l: &&str| {
+                ['\'', '"', '`']
+                    .iter()
+                    .any(|quote| l.contains(&format!("v2/images.js{quote}")))
+            };
+            for line in text.lines().filter(closes_on_images) {
                 assert_eq!(
-                    line.trim(),
+                    line.trim().replace(['"', '`'], "'"),
                     "import { cardImageUrl } from '../v2/images.js';",
                     "{path} may take only `cardImageUrl` from `v2/images.js`"
                 );

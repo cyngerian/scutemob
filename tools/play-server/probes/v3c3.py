@@ -89,6 +89,17 @@ def refs_of(v):
     return [r for _, r in scn.stack_refs(v)]
 
 
+def spell_of_object(v):
+    """{object id: stack item id} — the stack item an OBJECT ref to that id means: the one non-copy SPELL whose
+    card it is. An ability is not its source (it is targeted by `stack_object` refs only); a copy shares its
+    original's source id and has no card; two claimants = ambiguous = none. Stated here independently of the page."""
+    claims = {}
+    for i in v["state"]["zones"]["stack"]:
+        if i["kind"] == "spell" and not i.get("is_copy") and i.get("source_object_id") is not None:
+            claims.setdefault(i["source_object_id"], []).append(i["id"])
+    return {src: ids[0] for src, ids in claims.items() if len(ids) == 1}
+
+
 def all_ids(v):
     """Every object id this seat's view places somewhere (battlefields, hands, graveyards, exile, command zones)."""
     z = v["state"]["zones"]
@@ -341,15 +352,16 @@ async def run(I, browser, a, base, w, h):
             check(f"targets ({tag}): a targeted player's seat is marked — every container of that seat, and no other seat",
                   d["seats"] == players and [list(x) for x in want_seats] == d["seatBoxes"] and (not players or all("solid" in x for x in d["ring"])),
                   f"player refs {players}; marked {d['seats']}; containers {d['seatBoxes']}; ring {d['ring'][:2]}")
-            want_items = sorted(i["id"] for i in v["state"]["zones"]["stack"] if i["id"] in stack_ids or (i.get("source_object_id") is not None and i["source_object_id"] in obj))
+            spells = spell_of_object(v)
+            want_items = sorted(i["id"] for i in v["state"]["zones"]["stack"] if i["id"] in stack_ids or (spells.get(i.get("source_object_id")) == i["id"] and i["source_object_id"] in obj))
             got_items = sorted(i["id"] for i in d["items"] if i["targeted"])
-            check(f"targets ({tag}): a stack item is marked exactly when a ref names its source card or its stack id",
-                  got_items == want_items and len(d["items"]) == len(v["state"]["zones"]["stack"]), f"stack {[(i['id'], i['src']) for i in d['items']]}; marked {got_items}, want {want_items}")
+            check(f"targets ({tag}): a stack item is marked exactly when a `stack_object` ref names its stack id, or it is a SPELL and an object ref names its card (never an ability whose source is targeted)",
+                  got_items == want_items and len(d["items"]) == len(v["state"]["zones"]["stack"]), f"stack {[(i['id'], i['source_object_id'], i['kind']) for i in v['state']['zones']['stack']]}; marked {got_items}, want {want_items}")
             return obj, players, drawn
 
         async def hover(tag, v, drawn):
             """One arrow per ref that has something on screen to point at; none for a withheld id."""
-            src_items = {i["source_object_id"]: i["id"] for i in v["state"]["zones"]["stack"] if i.get("source_object_id") is not None}
+            src_items = spell_of_object(v)      # an object ref can only mean the SPELL that object is, never an ability of it
             sids = {i["id"] for i in v["state"]["zones"]["stack"]}
             total, withheld, bad, colours = 0, 0, [], set()
             for item in v["state"]["zones"]["stack"]:
@@ -417,6 +429,38 @@ async def run(I, browser, a, base, w, h):
             obj, players, drawn = await marks("a stack object", r.view)
             await hover("a stack object", r.view, drawn)
         await T.part("targets: a stack object", stack_object)
+
+        async def ability_source():
+            # Review fix: an object ref whose id is an ABILITY's source names the permanent, not the ability.
+            r = await T.at("c3_ability_source_targeted")
+            v = r.view
+            obj, players, drawn = await marks("an ability whose source is targeted", v)
+            await hover("an ability whose source is targeted", v, drawn)
+            stack_ids = {x["id"] for _, x in scn.stack_refs(v) if x["kind"] == "stack_object"}
+            pairs = [(a_, b) for a_, b in scn.ability_source_targets(v) if a_["id"] not in stack_ids]
+            if not pairs:
+                raise NotReached("every such ability is also named by a `stack_object` ref here; nothing to tell apart")
+            abil, by = pairs[0]
+            src = abil["source_object_id"]
+            d = await pg.evaluate(JS_TARGETED)
+            item = next((i for i in d["items"] if i["id"] == abil["id"]), None)
+            check("targets: REAL state — an ability on the stack is NOT outlined when another stack item targets its source permanent; the permanent on the battlefield is",
+                  item is not None and item["targeted"] is False and src in drawn and src in d["marked"],
+                  f"{abil['source_name']}'s {abil['kind']} (stack id {abil['id']}, source oid {src}) targeted-class {item and item['targeted']}; "
+                  f"{by['source_name']} (stack id {by['id']}) refs {by.get('target_refs')}; source drawn {src in drawn}, outlined {src in d['marked']}")
+            await pg.mouse.move(*(await T.point(ITEM(by["id"]))))
+            await pg.wait_for_timeout(220)
+            s = await pg.evaluate(JS_AIMED)
+            to_perm = [x for x in s["arrows"] if x["oid"] == src]
+            end = await pg.evaluate("""(sel) => { const p = document.querySelector(sel); if (!p) return null; const e = p.getPointAtLength(p.getTotalLength());
+                const hit = (q) => [...document.querySelectorAll(q)].some((el) => { const r = el.getBoundingClientRect(); return e.x >= r.left && e.x <= r.right && e.y >= r.top && e.y <= r.bottom; });
+                return { card: hit('.v3 .card[data-oid="' + p.dataset.toOid + '"]'), stack: hit('.v3 .stack-box .stack-item') }; }""",
+                                    f'.v3 svg.v3-arrows path.arrow.aimed[data-to-oid="{src}"]')
+            check("targets: REAL state — the arrow for that ref ends on the source permanent's card, not on the ability's stack item",
+                  len(to_perm) == 1 and end == {"card": True, "stack": False}, f"arrows from stack id {by['id']}: {s['arrows']}; the arrow's end lies on {end}")
+            await T.shot("c3-ability-source")
+            await pg.mouse.move(5, 5)
+        await T.part("targets: an ability whose source is targeted", ability_source)
 
     # ------------------------------------------------------------------ a stack item as a click target
     async def blk_stackpick(T):

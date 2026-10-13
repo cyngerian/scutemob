@@ -54,6 +54,7 @@ Answer each, even with "did not come up":
 | Rearranging: did the order survive the game? a new game? | |
 | Per-player exile and commander tax: correct and where you looked for them? | |
 | Images: any card left as a chip after the store was filled? (name it) | |
+| A big combat: the dock's combat card scrolls inside itself past 60 % of the window height (the worker's number) — acceptable, or should it shrink / summarise instead? | |
 | Blocking: a block you wanted and could not express (e.g. one creature blocking two attackers, CR 509.1b — known picker limit) | |
 
 ## Not findings (already known, do not re-file)

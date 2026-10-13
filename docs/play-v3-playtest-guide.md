@@ -33,10 +33,11 @@ four seats). Until a card has arrived it is drawn as a **text chip** — that is
 not a bug.
 
 - Progress: <http://127.0.0.1:3040/api/card-image/status> — ready when `queued` is `0`. `failed`
-  lists names Scryfall could not resolve (those stay chips: report them).
+  is a count of cards that could not be downloaded (those stay chips); the names, with the reason,
+  are in the server's terminal output as `card images: <name>: <reason>` lines — report those.
 - Reload the page to pick up images that arrived after a card was first drawn (the hover overlay
   and the card window ask the store again on every hover).
-- A name in `failed` after a rate-limit (Scryfall 429) is not retried by itself: deal again, or run
+- A card that failed after a rate-limit (Scryfall 429, see the terminal line) is not retried by itself: deal again, or run
   `--prefetch-images "Name;Name"` with those names. Two names are unknown to Scryfall
   for good: `Poisonous Viper` and `Steel Guardian` are synthetic test cards in the def set (no real
   printing), so they are always chips — not a finding.

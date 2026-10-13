@@ -17,9 +17,23 @@
 //!
 //! Neither route reads the game session. `GET /api/card-image` maps a card NAME the
 //! client already holds to bytes on disk; any client can ask for any name, and the
-//! answer says nothing about where (or whether) that card is in the current game.
-//! The status route reports counts and the names that FAILED to download, never the
-//! names that were queued — a decklist is hidden information for the bot seats.
+//! answer says nothing about WHERE a card is (which seat, which zone).
+//!
+//! **Known consequence of the deck-time fill (owner ruling 2026-10-12).** The store
+//! is filled from every seat's deck, bot seats included. So on a store that was not
+//! already full, `GET /api/card-image?name=X` answering 200 rather than 404 reveals
+//! that X is in the UNION of the decks this store has been filled for. It does not
+//! say which seat holds X, it is diluted as the store accumulates games (a 200 then
+//! only means "some table dealt on this store had X"), and it takes deliberate
+//! probing of names by the local player — the page itself only asks for names it was
+//! already shipped. Two ways to close it, **awaiting an owner ruling, neither
+//! implemented**: (a) prefetch the whole card pool up front, so a 200 says nothing;
+//! (b) accept it for a local single-human table.
+//!
+//! The status route reports COUNTS only. `failed` is the number of cards that could
+//! not be downloaded; their names (cards of the table's decks, bot seats included —
+//! a decklist is hidden information) go to stderr, the server's own log, with the
+//! reason, and never into a response body. Queued names are not reported anywhere.
 //!
 //! # Store layout
 //!
@@ -286,21 +300,50 @@ pub trait Net {
     fn pause(&mut self, duration: Duration);
 }
 
+/// Whether a GET of `url` must refuse redirects: every image download.
+///
+/// [`image_urls`] only accepts a URL on the image CDN, but that checks the FIRST
+/// URL. `ureq` 3 follows up to 10 redirects by default (`Config::max_redirects`),
+/// so without this a 3xx from the CDN could send the download to any host and the
+/// bytes would still be stored. The one API call (`api.scryfall.com/cards/named`)
+/// keeps `ureq`'s default: its answer is JSON that is parsed, never stored, and
+/// the image URLs in it are host-checked again.
+fn refuses_redirects(url: &str) -> bool {
+    url.starts_with(IMAGE_CDN_PREFIX)
+}
+
+/// The `ureq` configuration both agents share: a global timeout and the
+/// `User-Agent` Scryfall asks for.
+fn base_config() -> ureq::config::ConfigBuilder<ureq::typestate::AgentScope> {
+    ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(30)))
+        .user_agent(USER_AGENT)
+}
+
+/// The configuration image downloads use: https only and **no redirect is ever
+/// followed**. With `max_redirects(0)` `ureq` hands a 3xx back as an ordinary
+/// response instead of following it; [`HttpNet::get`] turns any non-2xx status
+/// into [`FetchError::Status`], so a redirected image is a failed image.
+fn cdn_config() -> ureq::config::Config {
+    base_config().https_only(true).max_redirects(0).build()
+}
+
 /// The production [`Net`]: `ureq`, blocking, with a global timeout. **The only
 /// networked code in this crate.** Constructed by `--prefetch-images` and by the
 /// worker thread [`ImageService::with_prefetch`] starts; never by a test.
 pub struct HttpNet {
-    agent: ureq::Agent,
+    /// The Scryfall API call (JSON). `ureq`'s default redirect handling.
+    api: ureq::Agent,
+    /// Image downloads from the CDN. Never follows a redirect ([`cdn_config`]).
+    cdn: ureq::Agent,
 }
 
 impl HttpNet {
     pub fn new() -> Self {
-        let agent: ureq::Agent = ureq::Agent::config_builder()
-            .timeout_global(Some(Duration::from_secs(30)))
-            .user_agent(USER_AGENT)
-            .build()
-            .into();
-        HttpNet { agent }
+        HttpNet {
+            api: base_config().build().into(),
+            cdn: cdn_config().into(),
+        }
     }
 }
 
@@ -312,7 +355,18 @@ impl Default for HttpNet {
 
 impl Net for HttpNet {
     fn get(&mut self, url: &str, accept: &str) -> Result<Vec<u8>, FetchError> {
-        match self.agent.get(url).header("Accept", accept).call() {
+        let agent = if refuses_redirects(url) {
+            &self.cdn
+        } else {
+            &self.api
+        };
+        match agent.get(url).header("Accept", accept).call() {
+            // `ureq` reports 4xx / 5xx as an error; a 3xx it was told not to
+            // follow arrives here as a response. Only a 2xx carries the body
+            // that was asked for.
+            Ok(response) if !response.status().is_success() => {
+                Err(FetchError::Status(response.status().as_u16()))
+            }
             Ok(mut response) => response
                 .body_mut()
                 .read_to_vec()
@@ -515,8 +569,17 @@ pub struct PrefetchStatus {
     pub fetched: usize,
     /// Cards that were already complete in the store when the worker reached them.
     pub present: usize,
-    /// Names that could not be fetched. They render as text chips.
+    /// Names that could not be fetched. They render as text chips. **Serialized
+    /// as their COUNT**: the names are cards of the table's decks (bot seats
+    /// included), so the route's body must not carry them. The worker writes each
+    /// name with its reason to stderr when it fails.
+    #[serde(serialize_with = "serialize_len")]
     pub failed: Vec<String>,
+}
+
+/// Serialize a list as its length (see [`PrefetchStatus::failed`]).
+fn serialize_len<S: serde::Serializer>(list: &[String], serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.serialize_u64(list.len() as u64)
 }
 
 struct ServiceInner {
@@ -824,6 +887,8 @@ pub async fn get_card_image(
 }
 
 /// `GET /api/card-image/status` — prefetch progress. `queued == 0` means done.
+/// Every field but `store` and `enabled` is a count; `failed` is a number, never
+/// the names (module doc, "Hidden information").
 pub async fn get_card_image_status(State(state): State<SharedState>) -> Response {
     let mut response = Json(state.images.status()).into_response();
     response
@@ -1628,8 +1693,59 @@ mod tests {
         assert_eq!(json["queued"], 0);
         assert_eq!(json["fetched"], 0);
         assert_eq!(json["present"], 0);
-        assert_eq!(json["failed"], serde_json::json!([]));
+        assert_eq!(json["failed"], 0, "`failed` is a count, never a name list");
         assert!(json["store"].is_string());
+    }
+
+    #[test]
+    fn test_image_cdn_downloads_refuse_redirects_and_the_api_call_does_not() {
+        // The host check in `image_urls` covers the first URL only; the CDN
+        // agent must not follow a 3xx anywhere else. Built, never used: no
+        // request is made here.
+        let cdn = cdn_config();
+        assert_eq!(cdn.max_redirects(), 0, "image downloads follow no redirect");
+        assert!(cdn.https_only());
+        assert!(refuses_redirects(
+            "https://cards.scryfall.io/small/front/a/b/abc.jpg"
+        ));
+        assert!(!refuses_redirects(&named_card_url("Sol Ring")));
+        // Every URL `image_urls` lets through is one the redirect-refusing agent takes.
+        let card = serde_json::json!({"image_uris": {
+            "small": "https://cards.scryfall.io/small/x.jpg",
+            "normal": "https://cards.scryfall.io/normal/x.jpg",
+            "large": "https://cards.scryfall.io/large/x.jpg",
+        }});
+        let urls = image_urls(&card).expect("three CDN urls");
+        assert!(urls.iter().all(|(_, url)| refuses_redirects(url)));
+    }
+
+    #[test]
+    fn test_image_status_body_carries_the_failed_count_and_no_card_name() {
+        // The failed names are cards of the table's decks, bot seats included:
+        // the body may say how many, never which (Architecture Invariant 7).
+        let mut status = PrefetchStatus {
+            queued: 2,
+            ..PrefetchStatus::default()
+        };
+        record(
+            &mut status,
+            "Zzyzx Hidden Bot Card",
+            &CardOutcome::Failed("HTTP 429".to_string()),
+        );
+        record(
+            &mut status,
+            "Another Secret Name",
+            &CardOutcome::Failed("HTTP 429".to_string()),
+        );
+        assert_eq!(status.failed.len(), 2, "the names stay in memory");
+        let json = serde_json::to_value(&status).unwrap();
+        assert_eq!(json["failed"], 2);
+        let text = json.to_string();
+        assert!(
+            !text.contains("Zzyzx") && !text.contains("Secret"),
+            "{text}"
+        );
+        assert!(json.as_object().unwrap().values().all(|v| !v.is_array()));
     }
 
     #[tokio::test(flavor = "multi_thread")]

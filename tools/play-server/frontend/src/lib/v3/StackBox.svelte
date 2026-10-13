@@ -9,7 +9,9 @@
    *
    * C3 (`scutemob-268`): each item carries `data-stack-id` (its `StackItemView.id`)
    * and `data-source-oid`, is outlined red when another item on the stack targets
-   * it (an object ref naming its source card, or a `stack_object` ref naming it),
+   * it: a `stack_object` ref naming it, or — for a SPELL only — an object ref naming
+   * its card. An ability whose source permanent is targeted is NOT outlined (the
+   * permanent is, on the battlefield); see `stackTargets.svelte.js`,
    * and — hovered or focused — asks `Arrows.svelte` for one red arrow to each of
    * its own targets that is on screen (`stackTargets.svelte.js`).
    *
@@ -26,7 +28,9 @@
 
   const isTargeted = (item) =>
     stackTargets.stackItems.has(Number(item.id)) ||
-    (item.source_object_id !== null && item.source_object_id !== undefined && stackTargets.objects.has(Number(item.source_object_id)));
+    (item.source_object_id !== null &&
+      item.source_object_id !== undefined &&
+      stackTargets.spellOfObject.get(Number(item.source_object_id)) === Number(item.id));
   const refCount = (item) => stackTargets.byItem.get(Number(item.id))?.length ?? 0;
   const leave = (item) => {
     if (stackHover.id === Number(item.id)) stackHover.id = null;
@@ -61,6 +65,7 @@
         class:target-ok={targeting.okStack.has(Number(item.id))}
         class:target-chosen={targeting.chosenStack.has(Number(item.id))}
         data-stack-id={item.id}
+        data-kind={item.kind}
         data-source-oid={item.source_object_id ?? undefined}
         tabindex="0"
         onmouseenter={() => (stackHover.id = Number(item.id))}

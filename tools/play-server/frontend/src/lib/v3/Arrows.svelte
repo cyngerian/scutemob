@@ -33,9 +33,16 @@
 
   const NONE = { live: null, chosen: [], aimed: [] };
 
-  /** The dock's element for a stack item id; for an object id, the item whose source card that is. */
+  /**
+   * The dock's element for a stack item id; for an object id, the item that object IS —
+   * the one non-copy SPELL whose card it is (`stackTargets.spellOfObject`). Never an
+   * ability whose source that object is, and never a guess among several items.
+   */
   const stackItemElement = (id) => document.querySelector(`.v3 .stack-box .stack-item[data-stack-id="${Number(id)}"]`);
-  const stackItemOfSource = (oid) => document.querySelector(`.v3 .stack-box .stack-item[data-source-oid="${Number(oid)}"]`);
+  const stackItemOfSource = (oid) => {
+    const id = stackTargets.spellOfObject.get(Number(oid));
+    return id === undefined ? null : stackItemElement(id);
+  };
 
   /** Leaves the item from its left edge (the table is to the left of the dock). */
   const leftEdge = (el) => {

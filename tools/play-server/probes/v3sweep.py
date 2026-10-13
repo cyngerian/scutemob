@@ -10,9 +10,10 @@
 # regression cannot reach the real service from a probe; the count is taken either way).
 # `--store` says what the server's store is expected to hold:
 #   filled : every face-up non-token card must show its image; one that still shows the chip
-#            must be named in the status route's `failed` list or in `--known-missing`
-#            (the saved `/api/card-image/status` JSON of the run that filled the store, or a
-#            file of one name per line), or be one of the seat view's placeholder names for a
+#            must be named in `--known-missing` (a file of one name per line, or a JSON list of
+#            names — take them from the fill run's stderr lines `card images: <name>: <reason>`
+#            or from the `--prefetch-images` summary; the status route's `failed` is a COUNT and
+#            names nothing, so it explains no chip), or be one of the seat view's placeholder names for a
 #            card the seat may not identify (PLACEHOLDER_NAMES: a face-down permanent arrives as
 #            a face-up card called "Face-down card"; the client asks the store for that name and
 #            gets a 404). Anything else is BAD ("unexplained chip").
@@ -32,7 +33,7 @@
 # Run:
 #   python3 tools/play-server/probes/v3sweep.py --port 3041 --seeds 0,3 \
 #       --viewports 2560x1340,1707x880 --turns 10 --out /tmp/v3sweep [--block-scryfall]
-#       [--store filled --known-missing fill-status.json | --store empty]
+#       [--store filled --known-missing missing.txt | --store empty]
 # Exit 0 = every run ok, 1 = a run is BAD, 2 = a run COULD-NOT-RUN (no server / no table).
 import argparse, asyncio, json, os, sys
 from playwright.async_api import async_playwright
@@ -236,15 +237,23 @@ def is_scryfall(url):
 
 
 def load_known_missing(path):
-    """Names the store is known not to hold: a saved status JSON (`failed`) or one name per line."""
+    """Names the store is known not to hold: one name per line, or a JSON list of names.
+
+    A saved status JSON is accepted only if its `failed` is a list (the pre-review body shape);
+    the route now answers a count, which names nothing and therefore explains nothing."""
     if not path:
         return set()
     text = open(path).read()
     try:
         data = json.loads(text)
-        return set(data.get("failed", []) if isinstance(data, dict) else data)
     except ValueError:
         return {ln.strip() for ln in text.splitlines() if ln.strip()}
+    if isinstance(data, dict):
+        data = data.get("failed")
+    if not isinstance(data, list):
+        raise SystemExit(f"--known-missing {path}: no list of names in it (`failed` is a count on this server; "
+                         "give a file of one name per line)")
+    return {str(n) for n in data}
 
 
 async def api(pg):
@@ -340,7 +349,8 @@ async def run(browser, a, seed, w, h):
             raise CouldNotRun("page did not render `.v3 .app` within 10 s")
 
         r["store_status"] = await ev(pg, JS_IMAGE_STATUS, default={"error": "evaluate failed"})
-        known_missing = set(a.known_missing) | set((r["store_status"] or {}).get("failed") or []) | PLACEHOLDER_NAMES
+        # the status route's `failed` is a count (it must not name bot-deck cards): reported, explains no chip
+        known_missing = set(a.known_missing) | PLACEHOLDER_NAMES
         tag = f"v3-s{seed}-{w}x{h}"
         tried, chooser_tried, steps, gave = {}, {}, {}, set()   # keyed by decision seq
         attacked, shot = set(), set()
@@ -569,7 +579,7 @@ async def main():
     ap.add_argument("--max-iters", type=int, default=600)
     ap.add_argument("--block-scryfall", action="store_true", help="abort any request to a Scryfall host (it is counted, and BAD, either way)")
     ap.add_argument("--store", choices=("any", "filled", "empty"), default="any", help="what the server's image store is expected to hold")
-    ap.add_argument("--known-missing", default="", help="saved /api/card-image/status JSON (its `failed`) or a file of names: chips --store filled accepts")
+    ap.add_argument("--known-missing", default="", help="a file of one name per line (or a JSON list of names): the chips --store filled accepts")
     a = ap.parse_args()
     a.known_missing = load_known_missing(a.known_missing)
     if a.port == 3040:

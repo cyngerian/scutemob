@@ -16,8 +16,8 @@ carry pointers only, never narrative. Entries before 2026-09-05 are in
 - `?v3`: per-player exile, tax badge, `game_id` order key, targeted outline + stack arrows, one-request
   auto-pass (client loop as fallback), hover chip on a miss; fixed a dock-width page scroll (seed 6).
 - NEW `probes/v3game.py`: seed 3 to the game-over screen at both viewports (turn 55, 891 decisions, 0 page
-  errors); `verify.py` flow re-expressed (69 checks); `v3interact.py` 122 → 273. No engine or wire change;
-  tests 5,356 → 5,405. Owner playtest pending (`docs/play-v3-playtest-guide.md`). Notes: `memory/play-v3-c3-2026-10-12.md`.
+  errors); `verify.py` flow re-expressed (69 checks); `v3interact.py` 122 → 280. Review: 3 MEDIUM fixed. No
+  engine or wire change; tests 5,356 → 5,407. Owner playtest pending (`docs/play-v3-playtest-guide.md`). Notes: `memory/play-v3-c3-2026-10-12.md`.
 
 ## 2026-10-12 — Play surface v3 C2 (`scutemob-267`) — arrows, card menus, blocker arrows, rearranging, auto-pass
 

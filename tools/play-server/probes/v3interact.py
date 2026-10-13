@@ -905,13 +905,63 @@ async def blk_autopass(T):
             prev = p["view"]
         return True
 
-    def server_passes():
-        """Passes the server reports for the page's run(s) (C3: one request makes a whole run)."""
-        return sum(((p["view"] or {}).get("pass_until") or {}).get("passes", 0) for p in T.posts)
+    # ---- "and no further" (review fix, scutemob-268) -------------------------------------------------
+    # Since C3 a run is ONE request, so C2's `first_where(pred) == len(T.posts) - 1` reads `0 == 0` and no
+    # longer proves the run did not overshoot. The proof is now a REFERENCE: the same scenario re-driven
+    # over the HTTP API one PassPriority per request (the pre-C3 behaviour), with the stop rule stated here
+    # independently of the server and of the page, giving the exact pass count and the exact (turn, active
+    # player, step) the run must end on. The page's one request must report that pass count and that stop
+    # kind in `pass_until`, and leave the table on that exact state. A run that went one pass too far (or
+    # stopped one short) differs in the pass count and, wherever the pass moved the game, in the state.
+    # Defeat (executed 2026-10-12): a server whose "until step" rule skipped the start turn's own End step ran
+    # 10 passes to (2, Bot-2, End) instead of 1 to (1, Human-1, End) -> "until step" BAD here; C2's form passed it.
+    def reference(name, until, unless=None):
+        """Re-deal `name`, then pass one request at a time. `until(view, start)` / `unless(view, seen)` are
+        asked after every pass, `until` first (it wins on the same pass). Consumes the game: `T.at(name)` after."""
+        r = scn.reach(T.port, name)
+        if not r.ok or r.why:
+            raise NotReached(f"reference drive of {name!r}: {r.why}")
+        v, start, passes = r.view, turn_of(r.view), 0
+        seen = {"attackers": {x["object_id"] for x in scn.attacks_on_human(v)}}
+        while True:
+            d = v.get("decision")
+            if v.get("game_over"):
+                return {"passes": passes, "stop": "game_over", "why": "", "state": turn_of(v), "start": start, "seen": seen}
+            if not d:
+                return {"passes": passes, "stop": "no_decision", "why": "", "state": turn_of(v), "start": start, "seen": seen}
+            if d["kind"] != "Priority":
+                return {"passes": passes, "stop": "decision", "why": d["kind"], "state": turn_of(v), "start": start, "seen": seen}
+            pa = next((x for x in d["actions"] if x["kind"] == "PassPriority"), None)
+            if pa is None:
+                return {"passes": passes, "stop": "no_pass", "why": "", "state": turn_of(v), "start": start, "seen": seen}
+            if passes >= 400:
+                return {"passes": passes, "stop": "limit", "why": "", "state": turn_of(v), "start": start, "seen": seen}
+            try:
+                v = scn.act(T.port, d["seq"], pa["index"], {})
+            except scn.Refused as e:
+                raise NotReached(f"reference drive of {name!r}: pass {passes + 1} refused: {e}")
+            passes += 1
+            hit = until(v, start)
+            why = unless(v, seen) if unless else None      # asked on every pass: it keeps the attackers it has seen
+            if hit:
+                return {"passes": passes, "stop": "until", "why": "", "state": turn_of(v), "start": start, "seen": seen}
+            if why:
+                return {"passes": passes, "stop": "unless", "why": why, "state": turn_of(v), "start": start, "seen": seen}
 
-    def first_where(pred):
-        """Index of the first POST whose answer satisfies `pred`, or None."""
-        return next((i for i, p in enumerate(T.posts) if p["view"] and pred(p["view"])), None)
+    def outcome():
+        """The `pass_until` object of the page's run, when the run was exactly one request that carried one."""
+        if len(T.posts) != 1 or not T.posts[0]["view"]:
+            return None
+        return T.posts[0]["view"].get("pass_until")
+
+    def no_further(ref, v):
+        """The one request reports the reference's stop kind and pass count, and the table is on the reference's state."""
+        o = outcome()
+        return bool(o) and o.get("stop") == ref["stop"] and o.get("passes") == ref["passes"] and turn_of(v) == ref["state"]
+
+    def versus(ref, v):
+        return (f"reference (one pass per request): {ref['passes']} passes from {ref['start']} to {ref['state']}, stop {ref['stop']!r}"
+                + (f" ({ref['why']})" if ref["why"] else "") + f"; the page: {len(T.posts)} request(s), pass_until {outcome()}, table at {turn_of(v)}")
 
     async def run(mode):
         first = T.last_view
@@ -930,6 +980,7 @@ async def blk_autopass(T):
     await T.part("autopass: the panel", panel)
 
     async def my_next():
+        ref = reference("autopass_round", lambda x, s: x["state"]["turn"]["active_player"] == scn.human(x) and x["state"]["turn"]["number"] != s[0])
         r = await T.at("autopass_round")
         t0, me = r.view["state"]["turn"]["number"], scn.human(r.view)
         await stops()
@@ -937,48 +988,62 @@ async def blk_autopass(T):
         first, settled = await run("mynext")
         v = T.last_view
         mine = lambda x: x["state"]["turn"]["number"] > t0 and x["state"]["turn"]["active_player"] == me
+        # the reference stops on the FIRST pass after which it is the human's turn again: that turn number, and
+        # the step that pass landed on, are the only state "my next turn and no further" allows
         check("autopass: \"until my next turn\" with no stop passes to the human's next turn and no further",
-              settled and bool(T.posts) and mine(v) and first_where(mine) == len(T.posts) - 1 and passes_only(first),
-              f"turn {t0} -> {turn_of(v)} in {len(T.posts)} request(s) ({server_passes()} server passes); first view of my next turn at request {None if first_where(mine) is None else first_where(mine) + 1}; passes only {passes_only(first)}")
+              settled and mine(v) and ref["stop"] == "until" and ref["start"] == turn_of(first) and no_further(ref, v) and passes_only(first),
+              f"turn {t0} -> {turn_of(v)}; {versus(ref, v)}; passes only {passes_only(first)}")
         after = await T.text(f"{AP} .status")
         check("autopass: the mode is back to Off and the status says why it stopped", await mode_on() == ["off"] and bool(after) and after != before and await T.n(f"{AP} .resume") == 0, f"on: {await mode_on()}; status {after[:140]!r}")
         await T.shot("autopass-mynext")
     await T.part("autopass: until my next turn", my_next)
 
     async def eot():
+        ref = reference("autopass_round", lambda x, s: x["state"]["turn"]["number"] != s[0])
         r = await T.at("autopass_round")
         t0 = r.view["state"]["turn"]["number"]
         await stops()
         first, settled = await run("eot")
         v = T.last_view
-        nxt = lambda x: x["state"]["turn"]["number"] > t0
-        check("autopass: \"until end of turn\" stops at the next turn", settled and bool(T.posts) and v["state"]["turn"]["number"] == t0 + 1 and first_where(nxt) == len(T.posts) - 1 and passes_only(first) and await mode_on() == ["off"],
-              f"turn {t0} -> {turn_of(v)} in {len(T.posts)} request(s) ({server_passes()} server passes); on: {await mode_on()}")
+        check("autopass: \"until end of turn\" stops at the next turn", settled and v["state"]["turn"]["number"] == t0 + 1 and ref["stop"] == "until" and ref["start"] == turn_of(first) and no_further(ref, v) and passes_only(first) and await mode_on() == ["off"],
+              f"turn {t0} -> {turn_of(v)}; {versus(ref, v)}; on: {await mode_on()}")
     await T.part("autopass: until end of turn", eot)
 
     async def step():
+        ref = reference("autopass_round", lambda x, s: x["state"]["turn"]["step"] == "End" and turn_of(x)[::2] != s[::2])
         r = await T.at("autopass_round")
         await stops()
         await pg.locator(f"{AP} select.step").select_option("End", timeout=2000)
         first, settled = await run("step")
         v = T.last_view
         at_end = lambda x: x["state"]["turn"]["step"] == "End"
-        check("autopass: \"until step\" with End chosen stops at an End step", settled and bool(T.posts) and at_end(v) and first_where(at_end) == len(T.posts) - 1 and passes_only(first) and await mode_on() == ["off"],
-              f"{turn_of(first)} -> {turn_of(v)} in {len(T.posts)} request(s) ({server_passes()} server passes); on: {await mode_on()}")
+        # the scenario starts in the human's own post-combat main, so the FIRST End step after the start is
+        # this same turn's, the human still active: a run that reached any later End step went too far
+        t0, me0, _ = turn_of(first)
+        check("autopass: \"until step\" with End chosen stops at an End step", settled and at_end(v) and turn_of(v) == (t0, me0, "End") and ref["stop"] == "until" and ref["start"] == turn_of(first) and no_further(ref, v) and passes_only(first) and await mode_on() == ["off"],
+              f"{turn_of(first)} -> {turn_of(v)} (the first End step after the start is {(t0, me0, 'End')}); {versus(ref, v)}; on: {await mode_on()}")
     await T.part("autopass: until a step", step)
 
     async def spell():
+        mynext = lambda x, s: x["state"]["turn"]["active_player"] == scn.human(x) and x["state"]["turn"]["number"] != s[0]
+        # the reference's stop: the FIRST pass whose own answer carries a SpellCast by another player
+        def bot_spell(x, seen):
+            seen["spells"] = [e["text"] for e in scn.bot_spells(x.get("events", []), x)]     # of THIS pass's answer only
+            return seen["spells"][0] if seen["spells"] else None
+        ref = reference("autopass_spell", mynext, bot_spell)
         r = await T.at("autopass_spell")
         t0, me = r.view["state"]["turn"]["number"], scn.human(r.view)
         await stops(spell=True)
         first, settled = await run("mynext")
         v = T.last_view
-        cast = lambda x: bool(scn.bot_spells(x.get("events", []), x))
         said = scn.bot_spells(v.get("events", []), v)
         text = said[0]["text"] if said else ""
         card = text.split(" casts ", 1)[-1] if text else ""
-        check("autopass: with the spell stop on, the run stops on a real bot SpellCast", settled and bool(said) and first_where(cast) == len(T.posts) - 1 and passes_only(first) and v["state"]["turn"]["number"] < t0 + 4,
-              f"{len(T.posts)} request(s) ({server_passes()} server passes), then {text!r} (turn {turn_of(v)})")
+        o = outcome() or {}
+        check("autopass: with the spell stop on, the run stops on a real bot SpellCast",
+              settled and bool(said) and ref["stop"] == "unless" and bool(ref["why"]) and ref["start"] == turn_of(first) and no_further(ref, v)
+              and o.get("reason") == ref["why"] and text == ref["why"] and [e["text"] for e in said] == ref["seen"].get("spells") and passes_only(first) and v["state"]["turn"]["number"] < t0 + 4,
+              f"the run's events carry {[e['text'] for e in said]}; the reference's stopping pass carried {ref['seen'].get('spells')} (the first spell another player cast after the start; nothing cast after that pass may be in the run); {versus(ref, v)}")
         status = await T.text(f"{AP} .status")
         check("autopass: the status carries the event and Resume is shown", bool(card) and (text in status or card in status) and await T.n(f"{AP} .resume") == 1, f"status {status[:160]!r}; resume {await T.n(f'{AP} .resume')}; on: {await mode_on()}")
         await T.shot("autopass-spell-stop")
@@ -1003,15 +1068,27 @@ async def blk_autopass(T):
     await T.part("autopass: reload", reload)
 
     async def combat():
+        mynext = lambda x, s: x["state"]["turn"]["active_player"] == scn.human(x) and x["state"]["turn"]["number"] != s[0]
+
+        def fresh_attack(x, seen):
+            """Attackers at the human that were not there at the previous look (the set follows every look)."""
+            now = scn.attacks_on_human(x)
+            new = [a["name"] for a in now if a["object_id"] not in seen["attackers"]]
+            seen["attackers"] = {a["object_id"] for a in now}
+            return ", ".join(new) or None
+        ref = reference("autopass_combat", mynext, fresh_attack)
         r = await T.at("autopass_combat")
         t0 = r.view["state"]["turn"]["number"]
         await stops(combat=True)
         first, settled = await run("mynext")
         v = T.last_view
         hit = lambda x: bool(scn.attacks_on_human(x))
+        o = outcome() or {}
+        names = ", ".join(x["name"] for x in scn.attacks_on_human(v))
         check("autopass: with the combat stop on, the run stops when a bot declares attackers at the human",
-              settled and hit(v) and first_where(hit) == len(T.posts) - 1 and passes_only(first) and await T.n(f"{AP} .resume") == 1,
-              f"{len(T.posts)} request(s) ({server_passes()} server passes) from turn {t0}; {[x['name'] for x in scn.attacks_on_human(v)]} attacking at {turn_of(v)}; resume {await T.n(f'{AP} .resume')}; status {(await T.text(f'{AP} .status'))[:120]!r}")
+              settled and hit(v) and ref["stop"] == "unless" and ref["start"] == turn_of(first) and no_further(ref, v) and names == ref["why"]
+              and str(o.get("reason", "")).startswith("attackers are declared at you") and ref["why"] in str(o.get("reason", "")) and passes_only(first) and await T.n(f"{AP} .resume") == 1,
+              f"from turn {t0}: {names!r} attacking at {turn_of(v)}; {versus(ref, v)}; resume {await T.n(f'{AP} .resume')}; status {(await T.text(f'{AP} .status'))[:120]!r}")
         await T.shot("autopass-combat-stop")
     await T.part("autopass: the combat stop", combat)
 
