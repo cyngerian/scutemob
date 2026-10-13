@@ -28,6 +28,7 @@
           "Alesha, Who Smiles at Death": 6
         }
       },
+      "commander_tax": {},
       "graveyard_size": 2,
       "hand_size": 3,
       "has_citys_blessing": false,
@@ -48,6 +49,9 @@
     },
     "bob": {
       "commander_damage_received": {},
+      "commander_tax": {
+        "Alesha, Who Smiles at Death": 0
+      },
       "graveyard_size": 0,
       "hand_size": 2,
       "has_citys_blessing": false,
@@ -68,6 +72,9 @@
     },
     "carol": {
       "commander_damage_received": {},
+      "commander_tax": {
+        "Kenrith, the Returned King": 0
+      },
       "graveyard_size": 1,
       "hand_size": 1,
       "has_citys_blessing": true,
@@ -88,6 +95,7 @@
     },
     "dave": {
       "commander_damage_received": {},
+      "commander_tax": {},
       "graveyard_size": 0,
       "hand_size": 0,
       "has_citys_blessing": false,
@@ -339,6 +347,26 @@
         "object_id": 26
       }
     ],
+    "exile_by_owner": {
+      "alice": [
+        {
+          "card_types": [],
+          "hidden": false,
+          "name": "Oblivion Ring Target",
+          "object_id": 25
+        }
+      ],
+      "bob": [
+        {
+          "card_types": [],
+          "hidden": false,
+          "name": "Saw It Coming",
+          "object_id": 26
+        }
+      ],
+      "carol": [],
+      "dave": []
+    },
     "graveyard": {
       "alice": [
         {
@@ -418,6 +446,16 @@
         "kind": "spell",
         "source_name": "Lightning Bolt",
         "source_object_id": 9,
+        "target_refs": [
+          {
+            "id": 5,
+            "kind": "object"
+          },
+          {
+            "kind": "player",
+            "name": "bob"
+          }
+        ],
         "targets": [
           "object:Serra Angel",
           "player:bob"

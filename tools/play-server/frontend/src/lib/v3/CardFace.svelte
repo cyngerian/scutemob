@@ -4,7 +4,7 @@
    *
    * The DOM and class names are the mockup's `cardEl`, so the ported
    * stylesheet (`v3.css`) applies unchanged: a fixed box sized by the board's
-   * `--card`, the Scryfall image over a text chip, the name band on top, P/T
+   * `--card`, the card image (the server's local store) over a text chip, the name band on top, P/T
    * bottom-right, the stack count, the commander star, counters. Tapped is the
    * whole-card tilt (no "T" tag).
    *
@@ -28,9 +28,10 @@
    *   onclick        — `(card, event)`; null leaves the click to whatever is underneath
    *   oncontextmenu  — `(event, card)`
    */
-  import { scryfallSmallUrl } from '../v2/images.js';
+  import { cardImageUrl } from '../v2/images.js';
   import { hoverCard } from './hover.js';
   import { targeting } from './targeting.svelte.js';
+  import { stackTargets } from './stackTargets.svelte.js';
 
   let { card, size = 'perm', count = 0, lit = false, targeted = false, pt = null, targetable = true, onclick = null, oncontextmenu = null } = $props();
 
@@ -38,8 +39,8 @@
   const name = $derived(hidden ? '' : (card.name ?? ''));
   const isToken = $derived(!hidden && card.is_token === true);
 
-  /** Nothing to fetch, and nothing to magnify, for a hidden card or a token. */
-  const url = $derived(hidden || isToken ? null : scryfallSmallUrl(name));
+  /** Nothing to show, and nothing to magnify, for a hidden card or a token. A store miss (404) leaves the chip. */
+  const url = $derived(hidden || isToken ? null : cardImageUrl(name, 'small'));
   const hoverName = $derived(hidden || isToken ? null : name || null);
 
   // Load state is remembered per URL, so a card whose name changes starts over on its chip.
@@ -81,6 +82,13 @@
   const targetOk = $derived(targetable && !hidden && targeting.okObjects.has(Number(card.object_id)));
   const targetChosen = $derived(targetable && !hidden && targeting.chosenObjects.has(Number(card.object_id)));
 
+  /**
+   * Something on the stack targets this object (C3): its id is in a stack item's
+   * `target_refs`. Every drawn copy is outlined — a board, a cell, a pile's top
+   * card, a popover — except a decision-panel item, which is not the card itself.
+   */
+  const stackTargeted = $derived(targetable && !hidden && stackTargets.objects.has(Number(card.object_id)));
+
   const typeLine = $derived(hidden ? '' : [isToken ? 'token' : null, ...(card.card_types ?? [])].filter(Boolean).join(' '));
 </script>
 
@@ -91,7 +99,7 @@
   class:back={hidden}
   class:tapped={!hidden && card.tapped}
   class:lit
-  class:targeted
+  class:targeted={targeted || stackTargeted}
   class:sick
   class:target-ok={targetOk}
   class:target-chosen={targetChosen}

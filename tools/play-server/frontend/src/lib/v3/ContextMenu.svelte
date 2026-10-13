@@ -6,9 +6,9 @@
    *
    * The SEAT menu (mockup `ctxMenu`, `.ctx.seat-ctx`): that player's graveyard,
    * exile and commander damage, and "bring across the table" for an opponent
-   * who is not already there. Exile is the seat view's single shared list;
-   * per-player exile is a server change (brief §5), and the popover says so
-   * rather than guessing owners.
+   * who is not already there. Exile is that player's own (`seatPiles` in
+   * `zones.js`: `zones.exile_by_owner`, or the shared list with a note against
+   * a server that does not send it).
    *
    * The CARD menu (`docs/play-surface-v3-brief.md` §2 item 2, `.ctx.card-ctx`):
    * the card's counters, then what the current decision lets you do WITH it —
@@ -26,6 +26,7 @@
    * closes either menu and the pile popover.
    */
   import { ui, openPopover, closeFloating } from './ui.svelte.js';
+  import { seatPiles } from './zones.js';
   import { actionsFrom, actionsTargeting, targeting, targetWith } from './targeting.svelte.js';
 
   // `state` is the prop's name; a local called `state` would shadow the `$state` rune.
@@ -45,7 +46,8 @@
 
   const name = $derived(ui.ctx?.kind === 'seat' ? ui.ctx.name : null);
   const graveyard = $derived(name ? (view?.zones?.graveyard?.[name] ?? []) : []);
-  const exile = $derived(view?.zones?.exile ?? []);
+  const exilePile = $derived(name ? seatPiles(name, view?.players?.[name], view?.zones).ex : null);
+  const exile = $derived(exilePile?.cards ?? []);
 
   function commanderDamageNote() {
     const received = view?.players?.[name]?.commander_damage_received ?? {};
@@ -65,7 +67,7 @@
 
   function showExile() {
     const { x, y } = ui.ctx;
-    openPopover({ title: 'Exile', note: 'shared by all players (per-player exile is a later server change)', cards: exile, x, y });
+    openPopover({ title: exilePile.title, note: exilePile.note, cards: exile, x, y });
   }
 
   function showCommanderDamage() {

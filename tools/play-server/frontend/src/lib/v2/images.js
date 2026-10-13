@@ -18,3 +18,15 @@ export function scryfallImageUrl(name, version = 'normal') {
   if (!name) return null;
   return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=${version}`;
 }
+
+/**
+ * The v3 surface never asks a third party for a picture (owner ruling 2026-10-12):
+ * it reads the play server's local image store, `GET /api/card-image`, at `small`
+ * (table), `normal` (hover) or `large` (card window). A name the store does not hold
+ * is a 404 and the caller shows its text chip. v2 and the default surface keep the
+ * two builders above.
+ */
+export function cardImageUrl(name, version = 'small') {
+  if (!name) return null;
+  return `/api/card-image?name=${encodeURIComponent(name)}&version=${version}`;
+}

@@ -260,3 +260,46 @@ export function buildPredicate(mode, settings, start, onStop = null, anchor = nu
     return null;
   };
 }
+
+// ── the same rule, for the server (C3, `scutemob-268`) ───────────────────────
+
+/** The panel's mode → the wire's `until.kind` (`src/pass_until.rs::Until`). */
+const SERVER_UNTIL = { eot: 'end_of_turn', mynext: 'my_next_turn', step: 'step' };
+
+/**
+ * The `pass_until` object `POST /api/game/action` takes: the rule the panel
+ * states, in the server's words (`tools/play-server/README.md` §"Pass-until as
+ * a server parameter"). The server then makes the whole run inside one request
+ * and reports `{ passes, stop, reason }` — `buildPredicate` above is the very
+ * rule it ported, and stays the fallback for a server that does not know it.
+ *
+ * Three things differ from the predicate, all forced by "one request":
+ *
+ *   - `settings` is a **snapshot** (a box ticked while the request is in flight
+ *     cannot reach it; the panel locks the boxes for that moment);
+ *   - the panel's `combat` box is the wire's `attackers` flag (sending `combat`
+ *     is a 400);
+ *   - `anchor` is sent only for a **resumed** run — `{ turn, step }` of where
+ *     the mode was chosen (`turnFacts`), so "until end of turn" keeps meaning
+ *     that turn. A fresh run is measured from the state the request finds.
+ *
+ * Returns null for anything the wire cannot say (an unknown mode, a step
+ * priority is never given in); the caller then runs the client loop.
+ */
+export function buildServerRule(mode, settings, anchor = null) {
+  const kind = SERVER_UNTIL[mode];
+  if (!kind) return null;
+  const until = { kind };
+  if (mode === 'step') {
+    if (!STOPPABLE_STEPS.includes(settings?.step)) return null;
+    until.step = settings.step;
+  }
+  const rule = {
+    until,
+    unless: { spell: settings?.spell === true, ability: settings?.ability === true, attackers: settings?.combat === true },
+  };
+  if (anchor && Number.isInteger(anchor.number) && anchor.number >= 0 && typeof anchor.step === 'string') {
+    rule.anchor = { turn: anchor.number, step: anchor.step };
+  }
+  return rule;
+}

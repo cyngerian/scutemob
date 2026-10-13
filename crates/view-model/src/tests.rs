@@ -444,6 +444,11 @@ fn test_event_view_redacts_other_seats_card_draw() {
 /// was diffed key-by-key against the previous snapshot, and "additive" means
 /// literally zero removed and zero changed keys, not merely that it looked
 /// right.
+///
+/// Regenerated a third time by play surface v3 C3 (`scutemob-268`), same
+/// method: **6** added keys, zero removed, zero changed — `commander_tax` on
+/// each of the 4 players, `zones.exile_by_owner`, and `zones.stack[0].
+/// target_refs`. (A new key is counted once; its contents are not walked.)
 #[test]
 fn test_omniscient_view_is_unchanged_for_fixture_state() {
     let (state, names) = golden_fixture_state();
@@ -1235,5 +1240,297 @@ fn test_event_view_renders_prose_for_the_variants_players_care_about() {
             view.kind
         );
         assert_eq!(view.tier, expected_tier, "{} tiered wrong", view.kind);
+    }
+}
+
+// ── Play surface v3 C3 (`scutemob-268`): the three additive fields ──────────
+
+/// CR 406.3: "Cards 'exiled face down' can't be examined by any player except
+/// when instructions allow it" — and `exile_by_owner` is the same pile as
+/// `exile`, partitioned by owner (CR 108.3), so the redaction has to hold in
+/// BOTH places. Architecture Invariant 7.
+#[test]
+fn test_exile_by_owner_partitions_exile_and_redacts_a_face_down_card_in_both_lists() {
+    let (state, names) = golden_fixture_state();
+    let alice = PlayerId(1);
+    let bob = PlayerId(2);
+    let foretold = object_id_of(&state, "Saw It Coming", &ZoneId::Exile).0;
+    let face_up = object_id_of(&state, "Oblivion Ring Target", &ZoneId::Exile).0;
+
+    // Omniscient: untouched, and every player is a key.
+    let omni = StateViewModel::from_game_state_for(&state, &names, Viewer::Omniscient);
+    let mut keys: Vec<&str> = omni
+        .zones
+        .exile_by_owner
+        .keys()
+        .map(String::as_str)
+        .collect();
+    keys.sort_unstable();
+    assert_eq!(keys, ["alice", "bob", "carol", "dave"]);
+    assert!(omni.zones.exile_by_owner["carol"].is_empty());
+    assert!(omni.zones.exile_by_owner["dave"].is_empty());
+    let omni_bob = &omni.zones.exile_by_owner["bob"];
+    assert_eq!(omni_bob.len(), 1);
+    assert_eq!(omni_bob[0].name, "Saw It Coming");
+    assert!(!omni_bob[0].hidden);
+    assert_eq!(
+        omni.zones.exile_by_owner["alice"][0].name,
+        "Oblivion Ring Target"
+    );
+    // The partition is exactly the shared pile: nothing added, nothing dropped.
+    let mut partitioned: Vec<u64> = omni
+        .zones
+        .exile_by_owner
+        .values()
+        .flatten()
+        .map(|c| c.object_id)
+        .collect();
+    partitioned.sort_unstable();
+    let mut shared: Vec<u64> = omni.zones.exile.iter().map(|c| c.object_id).collect();
+    shared.sort_unstable();
+    assert_eq!(partitioned, shared);
+
+    // alice does not own bob's face-down card: blanked + `hidden` in both lists,
+    // and it keeps its id and its place under bob (the partition is public).
+    let alice_view = StateViewModel::from_game_state_for(&state, &names, Viewer::Seat(alice));
+    for (list, card) in [
+        (
+            "exile",
+            alice_view
+                .zones
+                .exile
+                .iter()
+                .find(|c| c.object_id == foretold),
+        ),
+        (
+            "exile_by_owner",
+            alice_view.zones.exile_by_owner["bob"]
+                .iter()
+                .find(|c| c.object_id == foretold),
+        ),
+    ] {
+        let card = card.unwrap_or_else(|| panic!("{list}: bob's exiled card must be listed"));
+        assert_eq!(card.name, FACE_DOWN_NAME, "{list}");
+        assert!(card.hidden, "{list}");
+        assert!(card.card_types.is_empty(), "{list}");
+    }
+    // Her own face-up card is untouched in both.
+    assert!(alice_view.zones.exile_by_owner["alice"]
+        .iter()
+        .any(|c| c.object_id == face_up && c.name == "Oblivion Ring Target" && !c.hidden));
+    assert_absent(
+        &as_json_string(&alice_view),
+        FACE_DOWN_CARDS,
+        "alice's seat view",
+    );
+
+    // bob owns it: visible in both lists.
+    let bob_view = StateViewModel::from_game_state_for(&state, &names, Viewer::Seat(bob));
+    assert!(bob_view
+        .zones
+        .exile
+        .iter()
+        .any(|c| c.object_id == foretold && c.name == "Saw It Coming" && !c.hidden));
+    assert!(bob_view.zones.exile_by_owner["bob"]
+        .iter()
+        .any(|c| c.object_id == foretold && c.name == "Saw It Coming" && !c.hidden));
+}
+
+/// CR 903.8: "A commander cast from the command zone costs an additional {2} for
+/// each previous time the player casting it has cast it from the command zone
+/// that game." The field carries the engine's COUNT of previous casts.
+///
+/// This pins the redaction DISPOSITION as much as the value: a seat view carries
+/// an opponent's tax, on purpose (CR 903.6 — the commander starts face up in the
+/// public command zone — see the `redact` module's "Commander tax" section).
+#[test]
+fn test_seat_view_carries_an_opponents_commander_tax() {
+    let (mut state, names) = golden_fixture_state();
+    let alice = PlayerId(1);
+    let kenrith = CardId("kenrith_the_returned_king".to_string());
+    if let Some(player) = state.players_mut().get_mut(&PlayerId(3)) {
+        // Two previous casts from the command zone: the third costs {4} more.
+        player.commander_tax.insert(kenrith, 2);
+    }
+
+    for viewer in [Viewer::Seat(alice), Viewer::Omniscient] {
+        let view = StateViewModel::from_game_state_for(&state, &names, viewer);
+        let carol: Vec<(&str, u32)> = view.players["carol"]
+            .commander_tax
+            .iter()
+            .map(|(name, casts)| (name.as_str(), *casts))
+            .collect();
+        assert_eq!(
+            carol,
+            [("Kenrith, the Returned King", 2)],
+            "{viewer:?}: the cast COUNT, not the mana"
+        );
+        // A commander that was never cast from the command zone is a key at 0.
+        let bob: Vec<(&str, u32)> = view.players["bob"]
+            .commander_tax
+            .iter()
+            .map(|(name, casts)| (name.as_str(), *casts))
+            .collect();
+        assert_eq!(bob, [("Alesha, Who Smiles at Death", 0)], "{viewer:?}");
+        // No commander, no keys.
+        assert!(view.players["alice"].commander_tax.is_empty(), "{viewer:?}");
+    }
+}
+
+/// The spell on the fixture's stack, retargeted.
+fn fixture_with_stack_targets(targets: Vec<Target>) -> (GameState, HashMap<PlayerId, String>) {
+    let (mut state, names) = golden_fixture_state();
+    if let Some(spell) = state.stack_objects_mut().front_mut() {
+        spell.targets = targets
+            .into_iter()
+            .map(|target| SpellTarget {
+                target,
+                zone_at_cast: None,
+            })
+            .collect();
+    }
+    (state, names)
+}
+
+fn target_refs_json(view: &StateViewModel) -> serde_json::Value {
+    serde_json::to_value(&view.zones.stack[0].target_refs).expect("target refs serialize")
+}
+
+/// CR 601.2c: a spell's targets are announced as it is cast, and the stack is a
+/// public zone (CR 400.2) — so a seat may be told WHICH public object or player
+/// is targeted. `target_refs` is that, index-aligned with `targets`.
+#[test]
+fn test_target_refs_name_a_battlefield_object_and_a_player_for_a_non_owner_seat() {
+    let (state, names) = golden_fixture_state();
+    let angel = object_id_of(&state, "Serra Angel", &ZoneId::Battlefield).0;
+
+    // bob neither owns nor controls carol's Serra Angel; the id is on his
+    // payload anyway (`zones.battlefield`), so the ref carries it.
+    for viewer in [
+        Viewer::Seat(PlayerId(2)),
+        Viewer::Seat(PlayerId(1)),
+        Viewer::Omniscient,
+    ] {
+        let view = StateViewModel::from_game_state_for(&state, &names, viewer);
+        assert_eq!(
+            target_refs_json(&view),
+            serde_json::json!([
+                { "kind": "object", "id": angel },
+                { "kind": "player", "name": "bob" },
+            ]),
+            "{viewer:?}"
+        );
+        assert_eq!(
+            view.zones.stack[0].targets,
+            ["object:Serra Angel", "player:bob"],
+            "{viewer:?}: the text targets are unchanged"
+        );
+    }
+}
+
+/// Architecture Invariant 7 (CR 402.1 hand, CR 401.2 library, CR 400.7 a gone
+/// object): an object id is a handle, and a seat is never handed one the rest of
+/// its payload does not already carry.
+#[test]
+fn test_target_refs_withhold_an_id_the_seat_is_not_shipped() {
+    let (base, _) = golden_fixture_state();
+    let alice = PlayerId(1);
+    let bob = PlayerId(2);
+    let in_bobs_hand = object_id_of(&base, "Wrath of God", &ZoneId::Hand(bob));
+    let in_bobs_library = object_id_of(&base, "Plains", &ZoneId::Library(bob));
+    let gone = ObjectId(987_654);
+    assert!(!base.objects().contains_key(&gone));
+    let morph = object_id_of(&base, "Exalted Angel", &ZoneId::Battlefield);
+
+    let (state, names) = fixture_with_stack_targets(vec![
+        Target::Object(in_bobs_hand),
+        Target::Object(in_bobs_library),
+        Target::Object(gone),
+        Target::Object(morph),
+        Target::StackObject(ObjectId(9_001)),
+    ]);
+
+    // Omniscient: every id.
+    let omni = StateViewModel::from_game_state_for(&state, &names, Viewer::Omniscient);
+    assert_eq!(
+        target_refs_json(&omni),
+        serde_json::json!([
+            { "kind": "object", "id": in_bobs_hand.0 },
+            { "kind": "object", "id": in_bobs_library.0 },
+            { "kind": "object", "id": gone.0 },
+            { "kind": "object", "id": morph.0 },
+            { "kind": "stack_object", "id": 9_001 },
+        ])
+    );
+
+    // alice: bob's hand card, his library card and the gone object are all
+    // withheld. bob's FACE-DOWN permanent keeps its id (alice can point at it —
+    // it is in `zones.battlefield` with that id — she just cannot name it), and
+    // a stack-object id is public.
+    let alice_view = StateViewModel::from_game_state_for(&state, &names, Viewer::Seat(alice));
+    assert_eq!(
+        target_refs_json(&alice_view),
+        serde_json::json!([
+            { "kind": "object", "id": null },
+            { "kind": "object", "id": null },
+            { "kind": "object", "id": null },
+            { "kind": "object", "id": morph.0 },
+            { "kind": "stack_object", "id": 9_001 },
+        ])
+    );
+    // And the withheld id is nowhere else in her document either: the hand card
+    // is a placeholder with id 0. (A library card is never enumerated at all.)
+    assert!(alice_view.zones.hand["bob"]
+        .iter()
+        .all(|c| c.object_id == 0 && c.hidden));
+
+    // bob: his own hand card's id is on his payload (`zones.hand`), so it is
+    // kept. His own LIBRARY card is still withheld — CR 401.2, a library is
+    // hidden from its owner too, and the view never ships a library id.
+    let bob_view = StateViewModel::from_game_state_for(&state, &names, Viewer::Seat(bob));
+    assert_eq!(
+        target_refs_json(&bob_view),
+        serde_json::json!([
+            { "kind": "object", "id": in_bobs_hand.0 },
+            { "kind": "object", "id": null },
+            { "kind": "object", "id": null },
+            { "kind": "object", "id": morph.0 },
+            { "kind": "stack_object", "id": 9_001 },
+        ])
+    );
+}
+
+/// `target_refs` is index-aligned with `targets`: same length in every view of
+/// every fixture, so a client may zip them.
+#[test]
+fn test_target_refs_are_always_as_long_as_targets() {
+    let (base, _) = golden_fixture_state();
+    let bears = object_id_of(&base, "Grizzly Bears", &ZoneId::Battlefield);
+    let fixtures = [
+        golden_fixture_state(),
+        fixture_with_face_down_in_combat(),
+        fixture_with_stack_targets(vec![]),
+        fixture_with_stack_targets(vec![
+            Target::Player(PlayerId(4)),
+            Target::Object(ObjectId(987_654)),
+            Target::Object(bears),
+            Target::StackObject(ObjectId(9_001)),
+        ]),
+    ];
+    for (state, names) in &fixtures {
+        let viewers = [Viewer::Omniscient]
+            .into_iter()
+            .chain((1..=4).map(|n| Viewer::Seat(PlayerId(n))));
+        for viewer in viewers {
+            let view = StateViewModel::from_game_state_for(state, names, viewer);
+            for item in &view.zones.stack {
+                assert_eq!(
+                    item.target_refs.len(),
+                    item.targets.len(),
+                    "{viewer:?}: stack item {}",
+                    item.id
+                );
+            }
+        }
     }
 }

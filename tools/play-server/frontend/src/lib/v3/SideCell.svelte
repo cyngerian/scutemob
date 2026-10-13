@@ -33,6 +33,7 @@
   import { settings, openPeek, closePeek } from './ui.svelte.js';
   import { fitBoard } from './fit.js';
   import { poolText, seatOut } from './zones.js';
+  import { stackTargets } from './stackTargets.svelte.js';
 
   let {
     name,
@@ -125,6 +126,7 @@
   class:has-prio={hasPrio}
   class:focused-cell={focused && !pop}
   class:seat-out={!!out}
+  class:seat-targeted={stackTargets.seats.has(name)}
   class:lift={lift && !pop}
   style={pop ? popStyle : undefined}
   data-seat={name}

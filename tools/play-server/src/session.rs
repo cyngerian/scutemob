@@ -29,6 +29,8 @@ use mtg_simulator::{
     LocalGameError, PendingDecision, RandomBot, SetupError, StubProvider,
 };
 
+use crate::images::ImageService;
+
 /// A single in-progress local game plus everything the HTTP layer needs to
 /// render one seat's view of it.
 ///
@@ -73,6 +75,67 @@ pub struct PlaySession {
     /// ever grows; [`PlaySession::next_seq_base`] reads it when the session is
     /// rebuilt.
     highest_wire_seq: u64,
+    /// The opaque id of **this table**, shipped as `GameSummary::game_id`. Minted
+    /// by [`fresh_game_id`] every time the table is built — [`new_game`] and
+    /// [`PlaySession::mulligan`] — and never changed in between. Private with a
+    /// getter so nothing outside this module can assign a derived value to it.
+    game_id: String,
+}
+
+/// Mint the opaque id of a freshly built table (play surface v3 C3,
+/// `scutemob-268`): what the client keys its remembered card order by.
+///
+/// # What it is made of, and why none of it is the game
+///
+/// Sixteen hex digits of a hash, then the hex of a process-wide counter:
+///
+/// * the hash is `std::hash::RandomState` — keyed from OS randomness once per
+///   process — over the wall-clock nanoseconds and process id captured at the
+///   first call, plus the counter;
+/// * the counter is one `AtomicU64`, bumped on every call.
+///
+/// The counter makes two ids from one process differ with certainty (so does the
+/// suffix, which is the counter itself, whatever the hash does). The random key
+/// and the clock make ids from two different processes differ with overwhelming
+/// likelihood, which is what a browser holding an order from before a server
+/// restart needs.
+///
+/// **It takes no argument, and that is the Architecture Invariant 7 property.**
+/// `GameSummary`'s doc records review MR-M11-01: the seed shipped on this payload
+/// once, and `(seed, players, bot, mulligan_count)` rebuild every other seat's
+/// hand and library order — a *reconstruction key*. An id computed from the seed,
+/// the config, the decklists or the state would be the same key wearing a hash,
+/// and for a 64-bit seed a hash is no protection at all against a client that
+/// can enumerate seeds it has reason to try (the default is `0`). This function
+/// cannot be that, because the game is not in scope here: nothing about a table
+/// reaches it, so two tables built from the identical seed get unrelated ids
+/// (`test_game_id_differs_between_two_games_from_the_same_seed`). The counter half
+/// does disclose one thing — how many tables this process has built — which is
+/// not information about any table's contents.
+fn fresh_game_id() -> String {
+    use std::hash::{BuildHasher, Hash, Hasher, RandomState};
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::OnceLock;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static PROCESS: OnceLock<(RandomState, u128, u32)> = OnceLock::new();
+    static TABLES_BUILT: AtomicU64 = AtomicU64::new(0);
+
+    let (keys, started_nanos, pid) = PROCESS.get_or_init(|| {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            // A clock before 1970 loses the time component only; the random key
+            // and the counter still carry the uniqueness.
+            .map_or(0, |d| d.as_nanos());
+        (RandomState::new(), nanos, std::process::id())
+    });
+    let n = TABLES_BUILT.fetch_add(1, Ordering::Relaxed);
+
+    let mut hasher = keys.build_hasher();
+    started_nanos.hash(&mut hasher);
+    pid.hash(&mut hasher);
+    n.hash(&mut hasher);
+    format!("{:016x}{n:x}", hasher.finish())
 }
 
 /// CLI-supplied fallbacks for `POST /api/game` when the request body omits a
@@ -90,14 +153,30 @@ pub struct NewGameDefaults {
 pub struct AppState {
     pub session: Arc<Mutex<Option<PlaySession>>>,
     pub defaults: NewGameDefaults,
+    /// The local card-image store and, when the serving entry point asked for it,
+    /// the background prefetch (`images.rs`). Independent of `session`: the image
+    /// routes never take the session lock.
+    pub images: ImageService,
 }
 
 impl AppState {
+    /// A state whose image service **serves only**: no prefetch worker, and a
+    /// store path that need not exist (every image request is then a 404). Every
+    /// test builds its state here, so a test cannot start a fetch by construction;
+    /// only the serving entry point swaps a fetching service in, with
+    /// [`AppState::with_images`].
     pub fn new(defaults: NewGameDefaults) -> Self {
         AppState {
             session: Arc::new(Mutex::new(None)),
             defaults,
+            images: ImageService::serve_only("nonexistent_image_store"),
         }
+    }
+
+    /// Replace the image service (store location, prefetch on or off).
+    pub fn with_images(mut self, images: ImageService) -> Self {
+        self.images = images;
+        self
     }
 }
 
@@ -273,6 +352,7 @@ pub fn new_game(cfg: LocalGameConfig, seq_base: u64) -> Result<PlaySession, Sess
         kept: false,
         seq_base,
         highest_wire_seq: seq_base,
+        game_id: fresh_game_id(),
     })
 }
 
@@ -452,7 +532,35 @@ impl PlaySession {
         // [`PlaySession::wire_seq`].
         self.seq_base = self.next_seq_base();
         self.highest_wire_seq = self.seq_base;
+        // A redeal is a new table: every object id is reminted and every hand is
+        // different, so a card order remembered against the old id must not be
+        // applied to this one.
+        self.game_id = fresh_game_id();
         Ok(())
+    }
+
+    /// The opaque id of this table — see [`fresh_game_id`]. Stable from one
+    /// build of the table to the next, and never derived from the game.
+    pub fn game_id(&self) -> &str {
+        &self.game_id
+    }
+
+    /// The error a submission carrying `wire_seq` must be answered with, or
+    /// `None` when `wire_seq` addresses the outstanding decision.
+    ///
+    /// Exactly the verdict [`PlaySession::submit`] would reach, without
+    /// submitting: `api.rs`'s pass-until path has to refuse a stale request
+    /// *before* it inspects the decision that request claims to answer, and it
+    /// must refuse it with the same 409 a plain action would get.
+    pub fn stale_error(&self, wire_seq: u64) -> Option<LocalGameError> {
+        match self.pending_wire_seq() {
+            Some(expected) if expected == wire_seq => None,
+            Some(expected) => Some(LocalGameError::StaleDecision {
+                expected,
+                got: wire_seq,
+            }),
+            None => Some(LocalGameError::NoPendingDecision),
+        }
     }
 
     /// True while a redeal is still offered: no command applied **and** the hand not

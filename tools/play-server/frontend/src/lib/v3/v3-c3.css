@@ -1,0 +1,36 @@
+/*
+ * v3-c3 — what the C3 server fields draw (`scutemob-268`): the commander-tax badge on
+ * the command pile, "already targeted by something on the stack" on a seat and on a
+ * stack item, the red arrows a hovered stack item draws, and the auto-pass panel while
+ * a server-side run is in flight.
+ *
+ * `.card.targeted` itself (red outline) is the mockup's rule in `v3.css`.
+ * Every selector is prefixed `.v3`; keyframes are prefixed `v3-`.
+ */
+
+/* commander tax: "+2n" on the command pile, top-right, clear of the label at the bottom */
+.v3 .pile .taxes { position: absolute; top: 1px; right: 1px; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; pointer-events: none; z-index: 2; }
+.v3 .pile .tax { font-size: 0.72rem; font-weight: 800; line-height: 1.15; padding: 0 3px; border-radius: 3px; background: rgba(0, 0, 0, .9); color: #ffd890; border: 1px solid #a8842c; text-shadow: 0 1px 0 #000; }
+/* the commander is somewhere else right now: the tax still stands, drawn quieter */
+.v3 .pile .tax.away { color: #c9b88a; border-style: dashed; }
+
+/* a player something on the stack targets: a restrained red ring on the name, nothing added to the container */
+.v3 [data-seat].seat-targeted .seat-name { color: #ffb0b0; outline: 2px solid var(--target); outline-offset: 1px; border-radius: 3px; box-shadow: 0 0 8px rgba(255, 80, 80, .55); }
+
+/* stack items: hoverable (their arrows), and red-edged when another item targets them */
+.v3 .stack-item { cursor: default; outline: none; }
+.v3 .stack-item.has-targets:hover, .v3 .stack-item.has-targets:focus-visible { background: #1e1e48; }
+.v3 .stack-item.targeted { outline: 2px solid var(--target); outline-offset: -2px; box-shadow: 0 0 10px rgba(255, 80, 80, .5); }
+
+/* arrows from the hovered stack item to what it targets: red = already targeted (amber stays "choosing") */
+.v3 svg.v3-arrows .arrow.aimed { stroke: var(--target); stroke-width: 2.5; }
+.v3 svg.v3-arrows marker#v3-arrow-head-aimed path { fill: var(--target); }
+
+/* a server-side auto-pass run: one request, nothing to stop — the decision panel's own Stop buttons would be a lie */
+.v3.server-passing .decision-host .btn.stop, .v3.server-passing .decision-host button.x { display: none; }
+.v3 .autopass.server-run input, .v3 .autopass.server-run select { opacity: .5; }
+
+/* a spell or ability on the stack that the open target stage (or the dragged arrow) may choose, and one it has chosen */
+.v3 .stack-item.target-ok { outline: 2px dashed var(--arrow); outline-offset: -2px; cursor: crosshair; }
+.v3 .stack-item.target-ok:hover { outline-style: solid; }
+.v3 .stack-item.target-chosen { outline: 3px solid var(--target); outline-offset: -3px; box-shadow: 0 0 12px rgba(255, 80, 80, .8); }

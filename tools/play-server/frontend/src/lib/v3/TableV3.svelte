@@ -17,7 +17,7 @@
    *
    * Mounted by `main.js` when the URL carries `?v3`.
    */
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { get } from 'svelte/store';
   import './v3.css';
   import './v3-dock.css';
@@ -26,6 +26,7 @@
   import './v3-order.css';
   import './v3-block.css';
   import './v3-autopass.css';
+  import './v3-c3.css';
   import TopBar from './TopBar.svelte';
   import PhaseTrack from './PhaseTrack.svelte';
   import SideCell from './SideCell.svelte';
@@ -39,6 +40,7 @@
   import Arrows from './Arrows.svelte';
   import { beginArrowFromCard, bindTable, sync as syncTargeting, targeting } from './targeting.svelte.js';
   import { newGameKey, trackGame } from './order.js';
+  import { syncStackTargets } from './stackTargets.svelte.js';
   import { fitAll } from './fit.js';
   import { peekStyle } from './zones.js';
   import { landStacks, pickFocus, seatOrder, sideColumns, splitBattlefield } from './layout.js';
@@ -88,15 +90,26 @@
   let keptHand = $state(false);
 
   /**
-   * The key your own card order is remembered under (`order.js`). The summary
-   * carries no game id, so `trackGame` keeps one in `localStorage` and decides
-   * from the summary's counters whether this is still the same table.
+   * The key your own card order is remembered under (`order.js`): the
+   * server's `summary.game_id` (C3), which changes on every new deal whoever
+   * dealt it. `trackGame` falls back to the C2 counters heuristic only for a
+   * summary that carries none.
    */
   let gameKey = $state(null);
   $effect(() => {
     gameKey = summary ? trackGame(summary) : null;
   });
   const pregame = $derived(!!summary?.pregame && !keptHand);
+
+  // What the stack is already aimed at (C3): the red `targeted` outline on
+  // cards, the ring on a targeted seat, a stack item's hover arrows. All of it
+  // is `stack[i].target_refs`, looked up — see `stackTargets.svelte.js`.
+  $effect(() => {
+    const stack = zones?.stack ?? [];
+    untrack(() => syncStackTargets(stack));
+  });
+  // A server-side auto-pass run is one request: nothing can stop it (C3).
+  const serverPassing = $derived(!!$passUntil && $passUntil.stopReason === null && $passUntil.server === true);
 
   // ── Who sits across the table (mockup rule 2) ──────────────────────────────
 
@@ -404,7 +417,7 @@
   />
 {/snippet}
 
-<div class="v3 t6 t7" class:arrow-dragging={targeting.drag !== null} bind:this={root}>
+<div class="v3 t6 t7" class:arrow-dragging={targeting.drag !== null} class:server-passing={serverPassing} bind:this={root}>
   <div class="app">
     <TopBar
       {summary}

@@ -6,6 +6,19 @@ deltas, and the notes file that holds the full record. `CLAUDE.md` and `memory/w
 carry pointers only, never narrative. Entries before 2026-09-05 are in
 `memory/archive/claude-md-current-state-2026-09-05.md` and `memory/archive/claude-md-changelog-2026-0{7,8}.md`.
 
+## 2026-10-12 — Play surface v3 C3 (`scutemob-268`) — server gaps, local image store, full game, playtest guide
+
+- View-model / play-server (additive, each with its redaction case): `zones.exile_by_owner`,
+  `players[].commander_tax` (cast count), `stack[].target_refs` (ids withheld per Invariant 7),
+  `summary.game_id` (not seed-derived), `pass_until` on `POST /api/game/action` (until + "unless" stops).
+- Card-image store (owner ruling): `GET /api/card-image` serves a local store only (miss = 404 = chip),
+  filled at deck resolution or by `--prefetch-images`; v3 never calls Scryfall (new source gate, executed defeat).
+- `?v3`: per-player exile, tax badge, `game_id` order key, targeted outline + stack arrows, one-request
+  auto-pass (client loop as fallback), hover chip on a miss; fixed a dock-width page scroll (seed 6).
+- NEW `probes/v3game.py`: seed 3 to the game-over screen at both viewports (turn 55, 891 decisions, 0 page
+  errors); `verify.py` flow re-expressed (69 checks); `v3interact.py` 122 → 280. Review: 3 MEDIUM fixed. No
+  engine or wire change; tests 5,356 → 5,407. Owner playtest pending (`docs/play-v3-playtest-guide.md`). Notes: `memory/play-v3-c3-2026-10-12.md`.
+
 ## 2026-10-12 — Play surface v3 C2 (`scutemob-267`) — arrows, card menus, blocker arrows, rearranging, auto-pass
 
 - The four must-land interactions on `?v3`: drag an arrow from an action or a card to a target (cards

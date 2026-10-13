@@ -41,11 +41,48 @@
 //! | `AttackerView::name` and its planeswalker `target` | raw `characteristics.name` | yes |
 //! | `BlockerView::name` | raw `characteristics.name` | yes |
 //! | `PlayerView::commander_damage_received` (inner keys) | raw `characteristics.name` | **no, and correctly so** — a non-zero entry requires that commander to have dealt combat damage, at which point CR 903.10a makes the association public in paper too. Same information, same timing. |
+//! | `PlayerView::commander_tax` (keys and counts) | raw `characteristics.name` via `commander_ids` | **no, and correctly so** — see "Commander tax" below. Pinned by `test_seat_view_carries_an_opponents_commander_tax`. |
+//! | `ZonesView::exile_by_owner` (the cards) | raw `characteristics.name` | yes — the very entries of `exile`, redacted by the same loop in `redact_face_down_exile` |
+//! | `ZonesView::exile_by_owner` (the partition itself: which owner's list a card is in) | `obj.owner` | **no** — see "The exile owner partition" below |
+//! | `StackItemView::target_refs` (object ids) | `Target::Object` | yes — an id survives only if this payload already ships it to this seat; see `redact_stack` |
+//! | `StackItemView::target_refs` (player names, stack-object ids) | `Target::Player` / `Target::StackObject` | no — both public (CR 400.2) and both already on the payload |
 //!
 //! If a field is added to `StateViewModel` that renders *or derives* a card
 //! identity, it belongs in this table with a disposition. `is_commander` is the
 //! reminder that "renders a name" is too narrow a test: it renders a boolean and
 //! leaks a name.
+//!
+//! # Commander tax
+//!
+//! `PlayerView::commander_tax` names each of a player's commanders and says how
+//! many times it has been cast from the command zone (CR 903.8). Both halves are
+//! public. CR 903.6: "each player puts their commander from their deck face up
+//! into the command zone", and CR 400.2 lists the command zone among the public
+//! zones — so the name is known to the table from the first moment of the game,
+//! wherever the card later goes. And a cast from the command zone is a public
+//! act: the card visibly leaves a public zone.
+//!
+//! The case worth writing down is a commander cast **face down** (morph,
+//! CR 708.4). The count goes up by one on a named key while a nameless spell sits
+//! on the stack. That is not a leak through this field: the same payload's
+//! `command_zone` list lost that card in the same response, which says the same
+//! thing, and in paper the table watches the card leave the command zone. What
+//! stays hidden after that is *which* face-down permanent is the commander once
+//! a player has more than one — and a per-name count cannot answer that, which is
+//! why `is_commander` is still cleared on a face-down permanent and this is not.
+//!
+//! # The exile owner partition
+//!
+//! `exile_by_owner` says which player owns each exiled card, including a
+//! face-down one. Ownership is a fact fixed at the start of the game (CR 108.3:
+//! "the owner of a card in the game is the player who started the game with it in
+//! their deck"), and CR 406.3 hides a face-down exiled card's *face* ("can't be
+//! examined"), not its existence or where it came from — every route into
+//! face-down exile (foretell from a hand, hideaway from a library, an effect that
+//! exiles another player's card face down) is performed in front of the table.
+//! No CR rule was found that states "ownership is public" in so many words; the
+//! disposition rests on those two rules and on CR 400.2 calling exile a public
+//! zone. The face-down card's `object_id` was already shipped by `exile`.
 //!
 //! # Known conservatism (safe direction, wrong log)
 //!
@@ -68,11 +105,11 @@
 //! reverse does. (A future, more precise pass may want control for battlefield
 //! and owner for exile; the test pins the current behaviour either way.)
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use mtg_engine::{AttackTarget, GameState, ObjectId, PlayerId, Target, ZoneId};
 
-use crate::{CardInZoneView, StateViewModel};
+use crate::{CardInZoneView, StateViewModel, TargetRefView};
 
 /// What another seat's hand card is called in a redacted view.
 ///
@@ -99,6 +136,8 @@ pub(crate) const HIDDEN_TARGET: &str = "object:Face-down card";
 ///
 /// Called only from `StateViewModel::from_game_state_for`.
 pub(crate) fn redact_state_for_seat(view: &mut StateViewModel, state: &GameState, seat: PlayerId) {
+    // ORDER: `redact_hands` must precede `redact_stack`, which reads the set of
+    // ids this view ships off the view itself (see `shipped_object_ids`).
     redact_hands(view, state, seat);
     redact_face_down_permanents(view, state, seat);
     redact_face_down_exile(view, state, seat);
@@ -194,7 +233,11 @@ fn redact_face_down_permanents(view: &mut StateViewModel, state: &GameState, sea
 /// `objects_in_zone_as_card_views` reads `obj.characteristics.name` raw, with no
 /// layer pass, so a face-down exiled card ships its printed name today.
 fn redact_face_down_exile(view: &mut StateViewModel, state: &GameState, seat: PlayerId) {
-    for card in view.zones.exile.iter_mut() {
+    // `exile` and `exile_by_owner` hold the same cards twice (the second is the
+    // first partitioned by owner), so ONE loop redacts both: a second function
+    // would be a second place to forget.
+    let by_owner = view.zones.exile_by_owner.values_mut().flatten();
+    for card in view.zones.exile.iter_mut().chain(by_owner) {
         if is_face_down_not_owned_by(state, ObjectId(card.object_id), seat) {
             card.name = FACE_DOWN_NAME.to_string();
             card.card_types = vec![];
@@ -219,7 +262,37 @@ fn redact_face_down_exile(view: &mut StateViewModel, state: &GameState, seat: Pl
 /// `testing/replay_harness.rs`); an id match cannot drift. Within a single
 /// `StackObject`, `targets` *is* index-correspondent — both the view's vector and
 /// the engine's are the same `so.targets`, mapped in place.
+///
+/// # `target_refs`: an object id is never a NEW handle
+///
+/// `StackItemView::target_refs` carries each target's id so the client can point
+/// at it. For an object target the id is kept only when **this view already
+/// ships that id to this seat** — and that set is read off the view itself
+/// ([`shipped_object_ids`]), after `redact_hands` has run, rather than
+/// re-derived from zones. So the rule cannot drift from what the rest of the
+/// payload does: if some later change stops shipping an id, this stops shipping
+/// it too. What that withholds in practice is a target that is a card in another
+/// seat's hand (CR 402.1) or in any library (CR 401.2), and an object that is
+/// gone (CR 400.7). It is applied to every entry, including one with no matching
+/// engine `StackObject`, and it needs no cross-list matching: the refs live on
+/// the item being redacted.
+///
+/// **Order matters:** this must run after `redact_hands`, which is what turns
+/// another seat's hand ids into `0` placeholders. `redact_state_for_seat` calls
+/// them in that order and `test_target_refs_withhold_an_id_the_seat_is_not_shipped`
+/// fails if they are swapped.
 fn redact_stack(view: &mut StateViewModel, state: &GameState, seat: PlayerId) {
+    let shipped = shipped_object_ids(view);
+    for item in view.zones.stack.iter_mut() {
+        for target_ref in item.target_refs.iter_mut() {
+            if let TargetRefView::Object { id } = target_ref {
+                if id.is_some_and(|raw| !shipped.contains(&raw)) {
+                    *id = None;
+                }
+            }
+        }
+    }
+
     for item in view.zones.stack.iter_mut() {
         let Some(stack_object) = state.stack_objects().iter().find(|so| so.id.0 == item.id) else {
             // No matching engine object: we cannot establish entitlement for
@@ -310,6 +383,34 @@ fn redact_combat(view: &mut StateViewModel, state: &GameState, seat: PlayerId) {
             }
         }
     }
+}
+
+/// Every `ObjectId` this (already hand-redacted) view hands the seat, anywhere.
+///
+/// The allow-list for `StackItemView::target_refs`: battlefield permanents
+/// (face-down ones keep their real id — see `StackItemView::source_object_id`'s
+/// doc), graveyards, exile, command zones, stack sources, and hand cards that
+/// are not placeholders. A `hidden` hand entry is skipped rather than trusted to
+/// carry `0`: the placeholder id is a convention of `hidden_placeholder`, and
+/// this must not start shipping `ObjectId(0)` if that convention ever changes.
+fn shipped_object_ids(view: &StateViewModel) -> HashSet<u64> {
+    let zones = &view.zones;
+    let cards = zones
+        .hand
+        .values()
+        .chain(zones.graveyard.values())
+        .chain(zones.command_zone.values())
+        .chain(zones.exile_by_owner.values())
+        .flatten()
+        .chain(zones.exile.iter())
+        // A face-down exiled card is `hidden` but keeps its real id (it is a
+        // public object the seat can point at); only HAND placeholders are
+        // id-less, and those are the entries carrying `HIDDEN_CARD_NAME`.
+        .filter(|card| !(card.hidden && card.name == HIDDEN_CARD_NAME))
+        .map(|card| card.object_id);
+    let permanents = zones.battlefield.values().flatten().map(|p| p.object_id);
+    let sources = zones.stack.iter().filter_map(|item| item.source_object_id);
+    cards.chain(permanents).chain(sources).collect()
 }
 
 /// `true` when `id` names an object that is currently face down and owned by

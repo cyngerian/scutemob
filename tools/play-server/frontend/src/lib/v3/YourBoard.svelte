@@ -29,6 +29,7 @@
   import { splitBattlefield, landStacks } from './layout.js';
   import { applyOrder, loadOrder, moveItems, saveOrder } from './order.js';
   import { reorderable } from './reorder.js';
+  import { stackTargets } from './stackTargets.svelte.js';
 
   let {
     name,
@@ -100,6 +101,7 @@
   class:active={isActive}
   class:is-active={isActive}
   class:has-prio={hasPrio}
+  class:seat-targeted={stackTargets.seats.has(name)}
   data-seat={name}
   data-rows={dataRows}
   data-overhead="3.2"

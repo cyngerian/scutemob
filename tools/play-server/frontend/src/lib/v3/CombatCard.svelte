@@ -73,8 +73,11 @@
             <div class="pair" class:blocked={a.blockers?.length > 0} title={pairTitle(a)}>
               <CardFace card={cardFor(a)} size="perm" />
               {#each a.blockers ?? [] as b (b.object_id)}
-                <span class="vs">⛨</span>
-                <span class="blocker"><CardFace card={cardFor(b)} size="perm" /></span>
+                <!-- one unit, so a wrapped row never leaves the shield alone at a line end -->
+                <span class="blk-unit">
+                  <span class="vs">⛨</span>
+                  <span class="blocker"><CardFace card={cardFor(b)} size="perm" /></span>
+                </span>
               {/each}
             </div>
           {/each}

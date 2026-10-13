@@ -6,8 +6,16 @@
  * pile carries what its popover lists. Nothing is filtered (Invariant 7): a
  * hidden hand entry stays in the list and is drawn as a back.
  *
- * Exile is ONE list shared by all players until the server gives a per-player
- * one (brief §5, phase C3), so that pile is labelled `EX*` and says so.
+ * Exile is per player (`zones.exile_by_owner`, C3 `scutemob-268`): each seat's
+ * pile is its OWN exiled cards, newest on top as the view orders them. A
+ * face-down exiled card this seat may not identify arrives `hidden: true` and
+ * is a back. Against a server that does not send the map, the pile falls back
+ * to the one shared list and is labelled `EX*` with a note, as C1 drew it.
+ *
+ * Commander tax (`players[name].commander_tax`, same task) is a CAST COUNT per
+ * commander name; the next cast from the command zone costs `{2 × n}` more
+ * (CR 903.8). The command pile carries one `+2n` badge per commander with
+ * n > 0 — whether or not that commander is in the command zone right now.
  */
 
 /** "W2 G1" for a non-empty mana pool, else ''. The pool is public (CR 106.4). */
@@ -24,16 +32,50 @@ export function seatOut(player) {
   return player?.has_conceded ? 'conceded' : player?.has_lost ? 'out' : null;
 }
 
-export const EXILE_NOTE = 'shared by all players (per-player exile is a later server change)';
+export const EXILE_NOTE = 'shared by all players (this server sends no per-player exile)';
+
+/**
+ * The commanders of a seat and what the next cast of each costs extra:
+ * `[{ name, casts, extra, inZone }]`, every key of `commander_tax` (0 included),
+ * in name order. `extra` is `2 × casts` generic mana (CR 903.8).
+ */
+export function commanderTaxes(player, command) {
+  const tax = player?.commander_tax;
+  if (!tax || typeof tax !== 'object') return [];
+  const inZone = new Set((command ?? []).filter((c) => !c?.hidden).map((c) => c.name));
+  return Object.keys(tax)
+    .sort()
+    .map((name) => {
+      const casts = Number(tax[name]) || 0;
+      return { name, casts, extra: casts * 2, inZone: inZone.has(name) };
+    });
+}
+
+/** "Name: cast 2× — next cast costs 4 more" per taxed commander, for the pile's popover. */
+function taxNote(taxes) {
+  return taxes
+    .filter((t) => t.casts > 0)
+    .map((t) => `${t.name}: cast ${t.casts}× from here — next cast costs ${t.extra} more${t.inZone ? '' : ' (not in the command zone now)'}`)
+    .join('; ');
+}
 
 const BACK = { hidden: true };
 
-/** The five piles of `name`: `{ cmd, hand, lib, gy, ex }`, each `{ label, top, count, cz, title, note, cards }`. */
+/**
+ * The five piles of `name`: `{ cmd, hand, lib, gy, ex }`, each `{ label, top, count, cz, title, note, cards }`.
+ * `cmd` also carries `taxes` (`commanderTaxes`).
+ */
 export function seatPiles(name, player, zones) {
-  const command = zones?.command_zone?.[name] ?? [];
+  const taxes = commanderTaxes(player, zones?.command_zone?.[name] ?? []);
+  // Every key of `commander_tax` is a commander, so a card of that name in the
+  // command zone gets the ★ the battlefield copy carries (`CardInZoneView` has no flag of its own).
+  const commanders = new Set(taxes.map((t) => t.name));
+  const command = (zones?.command_zone?.[name] ?? []).map((c) => (c && !c.hidden && commanders.has(c.name) ? { ...c, is_commander: true } : c));
   const hand = zones?.hand?.[name] ?? [];
   const graveyard = zones?.graveyard?.[name] ?? [];
-  const exile = zones?.exile ?? [];
+  const perPlayer = zones?.exile_by_owner && typeof zones.exile_by_owner === 'object' ? zones.exile_by_owner : null;
+  const exile = perPlayer ? (perPlayer[name] ?? []) : (zones?.exile ?? []);
+  const tax = taxNote(taxes);
   const handSize = player?.hand_size ?? hand.length;
   const librarySize = player?.library_size ?? 0;
   const revealed = hand.filter((c) => !c.hidden).length;
@@ -44,8 +86,9 @@ export function seatPiles(name, player, zones) {
       count: null,
       cz: true,
       title: `${name}'s command zone`,
-      note: command.length ? '' : 'commander is not in the command zone',
+      note: [command.length ? '' : 'commander is not in the command zone', tax].filter(Boolean).join(' · '),
       cards: command,
+      taxes,
     },
     hand: {
       label: 'HAND',
@@ -75,12 +118,12 @@ export function seatPiles(name, player, zones) {
       cards: graveyard,
     },
     ex: {
-      label: 'EX*',
+      label: perPlayer ? 'EX' : 'EX*',
       top: exile[0] ?? null,
       count: exile.length,
       cz: false,
-      title: 'Exile',
-      note: EXILE_NOTE,
+      title: perPlayer ? `${name}'s exile` : 'Exile',
+      note: perPlayer ? '' : EXILE_NOTE,
       cards: exile,
     },
   };

@@ -249,6 +249,10 @@ class Reached:
         v = json.loads(json.dumps(self.view))
         if v.get("decision"):
             v["decision"]["seq"] = None
+        # `summary.game_id` (C3, scutemob-268) is the second such field: the server mints a new one per deal
+        # by design, so two drives of one seed never share it. Everything else must still be identical.
+        if isinstance(v.get("summary"), dict) and "game_id" in v["summary"]:
+            v["summary"]["game_id"] = None
         return hashlib.sha256(json.dumps(v, sort_keys=True).encode()).hexdigest()[:16]
 
 
@@ -402,6 +406,122 @@ def my_second_main(turn):
     return pred
 
 
+# --- the three moments of the `verify` flow (v3interact.py `--verify-only`, scutemob-268): the -260
+# `verify.py` played "until a picker, the stack and combat each appear"; these are those three stops.
+def verify_stack(v):
+    """The human holds priority with something on the stack."""
+    return _priority(v) and bool(v["state"]["zones"]["stack"])
+
+
+def verify_picker(v):
+    """A DeclareAttackers decision with one declare action and an eligible attacker (its picker opens by itself)."""
+    d = v.get("decision")
+    if not d or d["kind"] != "DeclareAttackers":
+        return False
+    declare = [a for a in d["actions"] if a["attack"] is not None]
+    return len(declare) == 1 and bool(declare[0]["attack"]["eligible"])
+
+
+def verify_combat(v):
+    """The human has a decision while attackers are declared (anyone's combat)."""
+    return bool(v.get("decision")) and bool((v["state"].get("combat") or {}).get("attackers"))
+
+
+# --- C3 (scutemob-268): the states the new seat-view fields are checked on (v3c3.py). Each predicate reads
+# only the fields under test, so a scenario is "that field is non-trivial here", found by scanning seeds.
+def exile_piles(v):
+    """{seat: [cards]} — `state.zones.exile_by_owner` (every seat a key)."""
+    return v["state"]["zones"].get("exile_by_owner") or {}
+
+
+def taxes(v):
+    """{seat: {commander: cast count}} — `state.players[seat].commander_tax`."""
+    return {seat: dict(p.get("commander_tax") or {}) for seat, p in v["state"]["players"].items()}
+
+
+def in_command_zone(v, seat, commander):
+    return any(c.get("name") == commander for c in v["state"]["zones"]["command_zone"].get(seat, []))
+
+
+def stack_refs(v):
+    """[(stack item, ref)] for every `target_refs` entry on the stack, in the view's order."""
+    return [(it, r) for it in v["state"]["zones"]["stack"] for r in it.get("target_refs") or []]
+
+
+def c3_exile(v):
+    """Two seats each have a card in their OWN exile, and at least one seat has none."""
+    piles = exile_piles(v)
+    return bool(v.get("decision")) and sum(1 for x in piles.values() if x) >= 2 and any(not x for x in piles.values())
+
+
+def c3_tax_recast(v):
+    """The human has cast their own commander from the command zone at least twice (tax +4 or more)."""
+    return _priority(v) and any(n >= 2 for n in taxes(v).get(human(v), {}).values())
+
+
+def c3_tax_in_zone(v):
+    """The human's commander has been cast at least once and is back in the command zone."""
+    return _priority(v) and any(n >= 1 and in_command_zone(v, human(v), c) for c, n in taxes(v).get(human(v), {}).items())
+
+
+def c3_target_permanent(v):
+    """Something on the stack targets a permanent (an object ref whose id is on a battlefield); human to act."""
+    on_field = {p["object_id"] for perms in v["state"]["zones"]["battlefield"].values() for p in perms}
+    return _priority(v) and any(r["kind"] == "object" and r.get("id") in on_field for _, r in stack_refs(v))
+
+
+def c3_target_spell_and_player(v):
+    """One stack item targets a SPELL on the stack (object ref = another item's `source_object_id`) and one a player."""
+    sources = {it.get("source_object_id") for it in v["state"]["zones"]["stack"]} - {None}
+    refs = stack_refs(v)
+    return (_priority(v) and any(r["kind"] == "object" and r.get("id") in sources for _, r in refs)
+            and any(r["kind"] == "player" for _, r in refs))
+
+
+def c3_target_withheld(v):
+    """A stack item has a target the server withheld from this seat (`{"kind":"object","id":null}`)."""
+    return _priority(v) and any(r["kind"] == "object" and r.get("id") is None for _, r in stack_refs(v))
+
+
+def c3_target_stack_object(v):
+    """A stack item targets another stack item by its stack id (`{"kind":"stack_object","id":N}`)."""
+    return _priority(v) and any(r["kind"] == "stack_object" for _, r in stack_refs(v))
+
+
+def ability_source_targets(v):
+    """[(ability item, targeting item)] — an ABILITY on the stack (kind != "spell") whose SOURCE object a
+    DIFFERENT stack item targets by an object ref. The ref names the permanent, not the ability."""
+    stack = v["state"]["zones"]["stack"]
+    return [(a, b) for a in stack if a["kind"] != "spell" and a.get("source_object_id") is not None
+            for b in stack if b["id"] != a["id"]
+            and any(r["kind"] == "object" and r.get("id") == a["source_object_id"] for r in b.get("target_refs") or [])]
+
+
+def c3_ability_source_targeted(v):
+    """An ability is on the stack and another stack item targets that ability's source permanent."""
+    return _priority(v) and bool(ability_source_targets(v))
+
+
+def stack_candidate_actions(v):
+    """The targets-only actions of a Priority decision that list a `stack_object` candidate (a counterspell,
+    a redirect): what a click or an arrow on a stack item can answer."""
+    if not _priority(v):
+        return []
+    return [a for a in actions(v) if targets_only(a) and any(c["kind"] == "stack_object" for c in candidates(a))]
+
+
+def c3_stack_candidate(v):
+    return bool(stack_candidate_actions(v))
+
+
+def c3_discard_ahead(v):
+    """The human's second main, stack empty, more than seven cards in hand: passing from here runs into the
+    cleanup discard (CR 514.1) — the "a real decision stops an auto-pass run" case."""
+    t = v["state"]["turn"]
+    return (_priority(v) and t["active_player"] == human(v) and t["step"] == "PostCombatMain"
+            and not v["state"]["zones"]["stack"] and len(my_hand(v)) > 7)
+
+
 def my_turn_after(turn):
     def pred(v):
         t = v["state"]["turn"]
@@ -454,6 +574,21 @@ SCENARIOS = {
     "autopass_round":  (("lands", "develop"), my_second_main, "passing alone reaches the human's next turn (no other decision on the way)"),
     "autopass_spell":  (("lands", "develop"), my_second_main, "passing alone makes a bot cast a spell"),
     "autopass_combat": (("lands", "develop"), my_second_main, "passing alone makes a bot declare attackers at the human"),
+    # the verify flow's three moments, one game (same seed, same policy), in the order they come
+    "verify_stack":  (("develop",), verify_stack, "the human holds priority with a non-empty stack"),
+    "verify_picker": (("develop",), verify_picker, "DeclareAttackers with an eligible attacker (the picker opens by itself)"),
+    "verify_combat": (("develop",), verify_combat, "a decision for the human while attackers are declared"),
+    # C3 (scutemob-268): the new seat-view fields, each on a state where it is non-trivial
+    "c3_exile":          (("lands", "develop"), c3_exile, "two seats with a card in their own exile, one seat with none"),
+    "c3_tax_recast":     (("develop",), c3_tax_recast, "the human's commander cast twice from the command zone"),
+    "c3_tax_in_zone":    (("develop",), c3_tax_in_zone, "the human's commander cast once and back in the command zone"),
+    "c3_target_permanent": (("lands", "develop"), c3_target_permanent, "a stack item targets a permanent; human to act"),
+    "c3_target_spell_and_player": (("lands", "develop"), c3_target_spell_and_player, "stack items target a spell on the stack and a player"),
+    "c3_target_withheld": (("lands", "develop"), c3_target_withheld, "a stack item with a withheld target id (real, not fabricated)"),
+    "c3_target_stack_object": (("lands", "develop"), c3_target_stack_object, "a stack item targets another stack item by stack id"),
+    "c3_stack_candidate": (("lands", "develop"), c3_stack_candidate, "a targets-only action of the human's with a stack_object candidate"),
+    "c3_ability_source_targeted": (("lands", "develop"), c3_ability_source_targeted, "an ability on the stack whose source permanent another stack item targets"),
+    "c3_discard_ahead":  (("lands",), c3_discard_ahead, "second main with more than seven cards: passing meets the cleanup discard"),
 }
 AUTOPASS = ("autopass_round", "autopass_spell", "autopass_combat")
 
@@ -486,6 +621,43 @@ CHOSEN = {
     # From the human's turn-9 second main, passing alone: Bot-2 casts Goblin Chainwhirler after 4 passes
     # and attacks the human with Phyrexian Walker after 8; the human's turn 13 after 33.
     "autopass_combat": {"seed": 5, "policy": "lands", "steps": 77, "turn": 9},
+    # The verify flow (scouted 2026-10-12 against HEAD 717c776b), seed 3 as the -260 `verify.py` used:
+    # turn 3, Bot-3's Basilisk Collar on the stack, the human to act; turn 9, the human's own declare-
+    # attackers decision with Dusk Legion Duelist (oid 418) eligible; turn 22, Bot-2's Vampire token (483)
+    # attacking Bot-4 with the human holding priority.
+    "verify_stack":    {"seed": 3, "policy": "develop", "steps": 19},
+    "verify_picker":   {"seed": 3, "policy": "develop", "steps": 80},
+    "verify_combat":   {"seed": 3, "policy": "develop", "steps": 210},
+    # C3 (scutemob-268), scouted 2026-10-12 over seeds 0-40 against HEAD 5cef662a.
+    # Turn 11 (Bot-3's main): Human-1's exile holds Phyrexian Walker, Bot-3's holds Dragonspeaker Shaman;
+    # Bot-2's and Bot-4's are empty.
+    "c3_exile":          {"seed": 32, "policy": "develop", "steps": 95},
+    # Turn 17, the human's main: Krenko, Tin Street Kingpin cast a second time (commander_tax 2 -> "+4"),
+    # on the stack, so not in the command zone; Bot-4's Miara, Thorn of the Glade is at 1.
+    "c3_tax_recast":     {"seed": 17, "policy": "develop", "steps": 164},
+    # Turn 12 (Bot-4's main): Krenko has been cast once (tax 1 -> "+2") and is back in the command zone.
+    "c3_tax_in_zone":    {"seed": 17, "policy": "develop", "steps": 105},
+    # Turn 2 (Bot-2's main): Mind Games on the stack targeting a Forest (oid 402) on the battlefield.
+    "c3_target_permanent": {"seed": 38, "policy": "lands", "steps": 11},
+    # Turn 12 (Bot-4's upkeep): Agent Venom (spell, source oid 454), Deflecting Swat targeting that SPELL
+    # (object ref 454), and a Forbidden Orchard trigger targeting the player Human-1.
+    "c3_target_spell_and_player": {"seed": 1, "policy": "lands", "steps": 103},
+    # Turn 22 (Bot-2's main): Necron Deathmark with two targets — a face-down card the server withholds
+    # from this seat (`id: null`) and the player Human-1.
+    "c3_target_withheld": {"seed": 3, "policy": "develop", "steps": 207},
+    # Turn 23 (Bot-3's upkeep): Olivia Voldaren's ability (stack id 534, targeting oid 496) and Bolt Bend
+    # targeting that ABILITY by stack id (`stack_object` 534).
+    "c3_target_stack_object": {"seed": 9, "policy": "develop", "steps": 219},
+    # Turn 14 (Bot-2's upkeep): the human may cast Deflecting Swat (hand, oid 7); its candidates are two
+    # activations of Bot-2's Staff of Domination on the stack (stack ids 452 and 453 — the SAME label twice).
+    "c3_stack_candidate": {"seed": 30, "policy": "lands", "steps": 118},
+    # Review fix (scutemob-268), scouted 2026-10-12 over seeds 0-20. Turn 28 (an upkeep): Ezuri, Renegade
+    # Leader's activated ability (stack id 561, source oid 440) is on the stack, and Minamo, School at
+    # Water's Edge's ability (stack id 560) targets that PERMANENT (object ref 440) — not the ability.
+    # (Seed 7 / develop / step 95 is the same shape with a source that has LEFT play: nothing to outline.)
+    "c3_ability_source_targeted": {"seed": 4, "policy": "develop", "steps": 289},
+    # Turn 1, the human's second main with eight cards in hand: passing runs into the cleanup discard.
+    "c3_discard_ahead":  {"seed": 0, "policy": "lands", "steps": 6},
 }
 
 
@@ -541,6 +713,18 @@ def describe(name, r, turn=None, facts=None):
         return f"creatures {[p['name'] for p in my_battlefield(v) if is_creature(p)]}, land stacks {land_stacks(v)}"
     if facts:
         return json.dumps(facts)
+    if name.startswith("c3_"):
+        t = v["state"]["turn"]
+        z = v["state"]["zones"]
+        return (f"turn {t['number']} {t['step']} ({t['active_player']}), {(v.get('decision') or {}).get('kind')}; exile "
+                f"{ {k: [c['name'] for c in x] for k, x in exile_piles(v).items() if x} }; tax "
+                f"{ {k: x for k, x in taxes(v).items() if any(x.values())} }; stack "
+                f"{[(i['id'], i['source_name'], i.get('target_refs')) for i in z['stack']]}; hand {len(my_hand(v))}")
+    if name.startswith("verify"):
+        t = v["state"]["turn"]
+        return (f"turn {t['number']} {t['step']} ({t['active_player']}), {v['decision']['kind']}; stack "
+                f"{[i['source_name'] for i in v['state']['zones']['stack']]}; attackers "
+                f"{[x['name'] + ' -> ' + x['target'] for x in (v['state'].get('combat') or {}).get('attackers', [])]}")
     return ""
 
 

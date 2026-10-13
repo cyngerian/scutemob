@@ -47,7 +47,7 @@
       {#if pool}<span class="seat-flag pool">{pool}</span>{/if}
     </div>
   {/if}
-  <Pile label={piles.cmd.label} top={piles.cmd.top} cz onclick={(e) => open(piles.cmd, e)} />
+  <Pile label={piles.cmd.label} top={piles.cmd.top} taxes={piles.cmd.taxes} cz onclick={(e) => open(piles.cmd, e)} />
   <div class="piles">
     {#each [piles.lib, piles.gy, piles.ex] as pile (pile.label)}
       <Pile label={pile.label} top={pile.top} count={pile.count} onclick={(e) => open(pile, e)} />

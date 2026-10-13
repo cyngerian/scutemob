@@ -5,10 +5,31 @@
    *
    * Off / until end of turn / until my next turn / until a chosen step, three
    * stop-conditions, and a sentence stating the rule. No props: it reads
-   * `seatView` / `decision` / `passUntil` / `loading` from `stores.js` and drives
-   * the one pass-until loop there (`startPassUntil({ kind, predicate })`), so it
-   * shares every guard the loop has. The rule itself — the predicate and the
-   * sentence — is `autopass.js`, which is pure.
+   * `seatView` / `decision` / `passUntil` / `loading` from `stores.js` and starts
+   * runs through `startPassUntilOnServer({ kind, rule, predicate })` there. The
+   * rule itself — the wire object, the predicate and the sentence — is
+   * `autopass.js`, which is pure.
+   *
+   * # One request per run (C3, `scutemob-268`)
+   *
+   * A run is ONE `POST /api/game/action`: the pass, plus the rule as the
+   * server's `pass_until` parameter. The server keeps passing inside that
+   * request and answers with where it stopped and why; the panel turns that
+   * into the same three endings as before (below). The store finds the
+   * `PassPriority` action and sends empty params itself — this panel hands it
+   * a rule about *when to stop*, never an action (the surface's "one
+   * submission path" rule, and the gate that pins it, are untouched).
+   *
+   * What that costs, stated on the panel while it applies: a server run cannot
+   * be cancelled part-way, so **Off is disabled until the answer arrives**, and
+   * the boxes and the step are locked for that moment (the request carries a
+   * snapshot of them). Measured on a debug server a whole round of the table
+   * answers in well under a second; the brakes that remain are the "unless"
+   * stops and the server's 400-pass cap.
+   *
+   * The client loop (`startPassUntil`, one request per pass, cancellable, boxes
+   * read live) is still there and is what runs when the server does not know
+   * the parameter (400 `invalid_body`) — the store falls back by itself.
    *
    * # What choosing a mode does
    *
@@ -51,11 +72,11 @@
    */
   import { get } from 'svelte/store';
   import { untrack } from 'svelte';
-  import { seatView, decision, loading, passUntil, startPassUntil, cancelPassUntil } from '../stores.js';
+  import { seatView, decision, loading, passUntil, startPassUntilOnServer, cancelPassUntil } from '../stores.js';
   import { targeting } from './targeting.svelte.js';
   import { decisionKindName } from '../names.js';
   import { SHORT_STEP } from './layout.js';
-  import { MODES, STOPS, STOPPABLE_STEPS, normaliseSettings, ruleSentence, buildPredicate, turnFacts, untilReached } from './autopass.js';
+  import { MODES, STOPS, STOPPABLE_STEPS, normaliseSettings, ruleSentence, buildPredicate, buildServerRule, turnFacts, untilReached } from './autopass.js';
 
   const STORE_KEY = 'scutemob-v3-autopass';
 
@@ -97,6 +118,8 @@
   const view = $derived($seatView);
   const pending = $derived($decision);
   const running = $derived(!!$passUntil && $passUntil.stopReason === null);
+  // The run in flight is one server request: nothing can interrupt it.
+  const serverRun = $derived(running && $passUntil.server === true);
   // A run in flight that is not ours: `PromptPanel`'s two buttons.
   const foreign = $derived(running && phase !== 'running');
 
@@ -130,17 +153,24 @@
     if (!resume || !anchor) anchor = turnFacts(start);
     let outcome = null;
     const predicate = buildPredicate(kind, settings, start, (o) => (outcome = o), anchor);
+    // The same rule in the server's words. The anchor rides only on a Resume.
+    const rule = buildServerRule(kind, settings, resume ? anchor : null);
     const token = ++runToken;
     mode = kind;
     phase = 'running';
     stopped = null;
 
-    const started = await startPassUntil({ kind, predicate });
+    const started = await startPassUntilOnServer({ kind, rule, predicate });
     if (token !== runToken) return; // Off, or a redeal, got there first.
 
     const done = get(passUntil);
     const passes = done?.passes ?? 0;
     const reason = done?.stopReason ?? null;
+    // A server run reports its ending as a tag; the fallback loop reported it
+    // through the predicate's `onStop` above. Either way `outcome.stop` is
+    // 'until' (finished) or 'unless' (interrupted), and anything else — a real
+    // decision, nothing to answer, the pass cap, a refusal — hands the table back.
+    if (done?.server && (done.stop === 'until' || done.stop === 'unless')) outcome = { stop: done.stop, reason };
     const now = get(seatView);
     if (!started || !reason) {
       // The store refused (a rival run, a request in flight): nothing ran.
@@ -220,13 +250,14 @@
   /** The second sentence: what is happening now, or why the last run stopped. */
   const why = $derived.by(() => {
     if (foreign) return null;
+    if (serverRun) return 'Passing on the server — one request for the whole run; it cannot be stopped until it answers.';
     if (phase === 'running') return `Passing… ${$passUntil?.passes ?? 0}`;
     if (stopped) return `Stopped after ${plural(stopped.passes)} — ${stopped.reason}.`;
     return inert;
   });
 </script>
 
-<div class="autopass" class:running={phase === 'running' || foreign} class:paused={phase === 'paused'}>
+<div class="autopass" class:running={phase === 'running' || foreign} class:paused={phase === 'paused'} class:server-run={serverRun}>
   <div class="panel-title">Auto-pass priority</div>
   <div class="modes">
     {#each MODES as [kind, label] (kind)}
@@ -234,21 +265,21 @@
         class="mode"
         class:on={mode === kind}
         data-mode={kind}
-        disabled={kind !== 'off' && !canStart}
+        disabled={kind === 'off' ? serverRun : !canStart}
         onclick={() => choose(kind)}
       >{label}</button>
     {/each}
   </div>
   <label class="stop-at" class:idle={mode !== 'step'}>
     stop at
-    <select class="step" bind:value={settings.step}>
+    <select class="step" disabled={serverRun} bind:value={settings.step}>
       {#each STOPPABLE_STEPS as step (step)}
         <option value={step}>{SHORT_STEP[step] ?? step}</option>
       {/each}
     </select>
   </label>
   {#each STOPS as [key, text] (key)}
-    <label><input type="checkbox" data-stop={key} bind:checked={settings[key]} />{text}</label>
+    <label><input type="checkbox" data-stop={key} disabled={serverRun} bind:checked={settings[key]} />{text}</label>
   {/each}
   <div class="status" class:off={mode === 'off' && !foreign}>
     <span class="rule">{rule}</span>

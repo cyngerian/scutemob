@@ -101,12 +101,18 @@ export function getGame() {
  * mismatch is a 409 `stale_decision`. `params` mirrors `ActionParamsDto`, whose
  * every field defaults, so `{}` is valid for an action that announces nothing.
  * Session 7 fills it in for targets / attackers / blockers / X / modes.
+ *
+ * `passUntil` (optional, v3 C3) is the `pass_until` rule object; the response
+ * then carries a top-level `pass_until: { passes, stop, reason }` outcome.
  */
-export function submitAction(seq, actionIndex, params = {}) {
-  return apiFetch(
-    '/api/game/action',
-    jsonPost({ seq, action_index: actionIndex, params }),
-  );
+export function submitAction(seq, actionIndex, params = {}, passUntil = null) {
+  const body = { seq, action_index: actionIndex, params };
+  // v3 C3 (`scutemob-268`): the optional server-side pass-until rule rides
+  // beside a `PassPriority` answer (README "Pass-until as a server parameter").
+  // The key is only ever present when a rule was handed in, so every older
+  // caller sends the byte-identical body it always did.
+  if (passUntil !== null && passUntil !== undefined) body.pass_until = passUntil;
+  return apiFetch('/api/game/action', jsonPost(body));
 }
 
 /**

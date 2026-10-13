@@ -37,7 +37,27 @@
 #             bot spell and a real attack; Resume; Off cancels; a reload never starts passing; no run
 #             can start while a picker is open (review fix: it left a stale picker behind)
 #   plus, at the end of every block: no page scroll, no box scroll (both axes); and zero page errors.
+#
+# C3 (scutemob-268), after C2: the client side of the new server fields — per-player exile, commander
+# tax, `game_id` as the order key, the `targeted` outline + stack-item arrows, auto-pass as ONE request
+# carrying `pass_until`. The blocks are `v3c3.py` (same directory; its header lists them); `--c3-only`
+# runs them alone, `--c3-blocks` picks some. C2's `autopass` block still runs and still passes on the
+# server path, with ONE check rewritten ("Off cancels a run" -> "Off is disabled while the one server
+# request is in flight"; the cancel itself is asserted on the fallback loop in v3c3's `serverpass`).
+# C3 (scutemob-268), card images (`hover_checks`, part of the C1 run, alone with --images-only):
+#   v3 reads pictures only from the server's local store (`GET /api/card-image`), so these run with no
+#   network. A store MISS is made for real: the image requests of one hover are re-addressed to a name
+#   the store cannot hold, the server answers its own 404, and the hover overlay and the card window
+#   must each show their text chip (never nothing). A store HIT (the natural request) must load the
+#   picture (naturalWidth > 0) from /api/card-image; when the server's store does not hold that card
+#   the hit checks are COULD-NOT-RUN (exit 2) — fill the store, or expect that against an empty one.
+#   No request to a Scryfall host may be made by the page at any point.
+# C3 (scutemob-268), after those: the `verify` flow — the never-committed -260 `verify.py` ("play until a
+# picker, the stack and combat each appear, assert every usability criterion") re-expressed for v3; the
+# mapping table old criterion -> v3 assertion is the comment block above `blk_verify`. `--verify-only` runs it alone.
 # Run:  python3 tools/play-server/probes/v3interact.py --port 3041 --seed 3 --out /tmp/v3i
+#       python3 tools/play-server/probes/v3interact.py --port 3041 --out /tmp/v3i --verify-only
+#       python3 tools/play-server/probes/v3interact.py --port 3041 --seed 3 --out /tmp/v3i --images-only
 #       python3 tools/play-server/probes/v3interact.py --port 3041 --out /tmp/v3i --c2-only [--blocks arrows,menu]
 # Exit 0 = every check ok, 1 = a check is BAD, 2 = COULD-NOT-RUN (no server / no table / a C2 scenario
 # not reached). BAD wins over COULD-NOT-RUN.
@@ -46,6 +66,7 @@ from playwright.async_api import async_playwright
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import v3scenario as scn  # noqa: E402
+import v3c3  # noqa: E402  (the C3 blocks: exile, tax, gameid, targets, serverpass — see its header)
 
 RESULTS = []
 COULD_NOT = []     # C2 blocks that did not run; any entry makes the exit code 2 (unless something is BAD)
@@ -873,7 +894,8 @@ async def blk_autopass(T):
         return t["number"], t["active_player"], t["step"]
 
     def passes_only(first):
-        """Every POST of the run answered a Priority decision with PassPriority (read off the view before it)."""
+        """Every POST of the run answered a Priority decision with PassPriority (read off the view before it).
+        Since C3 a run is one POST that also carries `pass_until`; the answer it names is still the pass."""
         prev = first
         for p in T.posts:
             d = (prev or {}).get("decision") or {}
@@ -883,9 +905,63 @@ async def blk_autopass(T):
             prev = p["view"]
         return True
 
-    def first_where(pred):
-        """Index of the first POST whose answer satisfies `pred`, or None."""
-        return next((i for i, p in enumerate(T.posts) if p["view"] and pred(p["view"])), None)
+    # ---- "and no further" (review fix, scutemob-268) -------------------------------------------------
+    # Since C3 a run is ONE request, so C2's `first_where(pred) == len(T.posts) - 1` reads `0 == 0` and no
+    # longer proves the run did not overshoot. The proof is now a REFERENCE: the same scenario re-driven
+    # over the HTTP API one PassPriority per request (the pre-C3 behaviour), with the stop rule stated here
+    # independently of the server and of the page, giving the exact pass count and the exact (turn, active
+    # player, step) the run must end on. The page's one request must report that pass count and that stop
+    # kind in `pass_until`, and leave the table on that exact state. A run that went one pass too far (or
+    # stopped one short) differs in the pass count and, wherever the pass moved the game, in the state.
+    # Defeat (executed 2026-10-12): a server whose "until step" rule skipped the start turn's own End step ran
+    # 10 passes to (2, Bot-2, End) instead of 1 to (1, Human-1, End) -> "until step" BAD here; C2's form passed it.
+    def reference(name, until, unless=None):
+        """Re-deal `name`, then pass one request at a time. `until(view, start)` / `unless(view, seen)` are
+        asked after every pass, `until` first (it wins on the same pass). Consumes the game: `T.at(name)` after."""
+        r = scn.reach(T.port, name)
+        if not r.ok or r.why:
+            raise NotReached(f"reference drive of {name!r}: {r.why}")
+        v, start, passes = r.view, turn_of(r.view), 0
+        seen = {"attackers": {x["object_id"] for x in scn.attacks_on_human(v)}}
+        while True:
+            d = v.get("decision")
+            if v.get("game_over"):
+                return {"passes": passes, "stop": "game_over", "why": "", "state": turn_of(v), "start": start, "seen": seen}
+            if not d:
+                return {"passes": passes, "stop": "no_decision", "why": "", "state": turn_of(v), "start": start, "seen": seen}
+            if d["kind"] != "Priority":
+                return {"passes": passes, "stop": "decision", "why": d["kind"], "state": turn_of(v), "start": start, "seen": seen}
+            pa = next((x for x in d["actions"] if x["kind"] == "PassPriority"), None)
+            if pa is None:
+                return {"passes": passes, "stop": "no_pass", "why": "", "state": turn_of(v), "start": start, "seen": seen}
+            if passes >= 400:
+                return {"passes": passes, "stop": "limit", "why": "", "state": turn_of(v), "start": start, "seen": seen}
+            try:
+                v = scn.act(T.port, d["seq"], pa["index"], {})
+            except scn.Refused as e:
+                raise NotReached(f"reference drive of {name!r}: pass {passes + 1} refused: {e}")
+            passes += 1
+            hit = until(v, start)
+            why = unless(v, seen) if unless else None      # asked on every pass: it keeps the attackers it has seen
+            if hit:
+                return {"passes": passes, "stop": "until", "why": "", "state": turn_of(v), "start": start, "seen": seen}
+            if why:
+                return {"passes": passes, "stop": "unless", "why": why, "state": turn_of(v), "start": start, "seen": seen}
+
+    def outcome():
+        """The `pass_until` object of the page's run, when the run was exactly one request that carried one."""
+        if len(T.posts) != 1 or not T.posts[0]["view"]:
+            return None
+        return T.posts[0]["view"].get("pass_until")
+
+    def no_further(ref, v):
+        """The one request reports the reference's stop kind and pass count, and the table is on the reference's state."""
+        o = outcome()
+        return bool(o) and o.get("stop") == ref["stop"] and o.get("passes") == ref["passes"] and turn_of(v) == ref["state"]
+
+    def versus(ref, v):
+        return (f"reference (one pass per request): {ref['passes']} passes from {ref['start']} to {ref['state']}, stop {ref['stop']!r}"
+                + (f" ({ref['why']})" if ref["why"] else "") + f"; the page: {len(T.posts)} request(s), pass_until {outcome()}, table at {turn_of(v)}")
 
     async def run(mode):
         first = T.last_view
@@ -904,6 +980,7 @@ async def blk_autopass(T):
     await T.part("autopass: the panel", panel)
 
     async def my_next():
+        ref = reference("autopass_round", lambda x, s: x["state"]["turn"]["active_player"] == scn.human(x) and x["state"]["turn"]["number"] != s[0])
         r = await T.at("autopass_round")
         t0, me = r.view["state"]["turn"]["number"], scn.human(r.view)
         await stops()
@@ -911,48 +988,62 @@ async def blk_autopass(T):
         first, settled = await run("mynext")
         v = T.last_view
         mine = lambda x: x["state"]["turn"]["number"] > t0 and x["state"]["turn"]["active_player"] == me
+        # the reference stops on the FIRST pass after which it is the human's turn again: that turn number, and
+        # the step that pass landed on, are the only state "my next turn and no further" allows
         check("autopass: \"until my next turn\" with no stop passes to the human's next turn and no further",
-              settled and bool(T.posts) and mine(v) and first_where(mine) == len(T.posts) - 1 and passes_only(first),
-              f"turn {t0} -> {turn_of(v)} in {len(T.posts)} passes; first view of my next turn at pass {None if first_where(mine) is None else first_where(mine) + 1}; passes only {passes_only(first)}")
+              settled and mine(v) and ref["stop"] == "until" and ref["start"] == turn_of(first) and no_further(ref, v) and passes_only(first),
+              f"turn {t0} -> {turn_of(v)}; {versus(ref, v)}; passes only {passes_only(first)}")
         after = await T.text(f"{AP} .status")
         check("autopass: the mode is back to Off and the status says why it stopped", await mode_on() == ["off"] and bool(after) and after != before and await T.n(f"{AP} .resume") == 0, f"on: {await mode_on()}; status {after[:140]!r}")
         await T.shot("autopass-mynext")
     await T.part("autopass: until my next turn", my_next)
 
     async def eot():
+        ref = reference("autopass_round", lambda x, s: x["state"]["turn"]["number"] != s[0])
         r = await T.at("autopass_round")
         t0 = r.view["state"]["turn"]["number"]
         await stops()
         first, settled = await run("eot")
         v = T.last_view
-        nxt = lambda x: x["state"]["turn"]["number"] > t0
-        check("autopass: \"until end of turn\" stops at the next turn", settled and bool(T.posts) and v["state"]["turn"]["number"] == t0 + 1 and first_where(nxt) == len(T.posts) - 1 and passes_only(first) and await mode_on() == ["off"],
-              f"turn {t0} -> {turn_of(v)} in {len(T.posts)} passes; on: {await mode_on()}")
+        check("autopass: \"until end of turn\" stops at the next turn", settled and v["state"]["turn"]["number"] == t0 + 1 and ref["stop"] == "until" and ref["start"] == turn_of(first) and no_further(ref, v) and passes_only(first) and await mode_on() == ["off"],
+              f"turn {t0} -> {turn_of(v)}; {versus(ref, v)}; on: {await mode_on()}")
     await T.part("autopass: until end of turn", eot)
 
     async def step():
+        ref = reference("autopass_round", lambda x, s: x["state"]["turn"]["step"] == "End" and turn_of(x)[::2] != s[::2])
         r = await T.at("autopass_round")
         await stops()
         await pg.locator(f"{AP} select.step").select_option("End", timeout=2000)
         first, settled = await run("step")
         v = T.last_view
         at_end = lambda x: x["state"]["turn"]["step"] == "End"
-        check("autopass: \"until step\" with End chosen stops at an End step", settled and bool(T.posts) and at_end(v) and first_where(at_end) == len(T.posts) - 1 and passes_only(first) and await mode_on() == ["off"],
-              f"{turn_of(first)} -> {turn_of(v)} in {len(T.posts)} passes; on: {await mode_on()}")
+        # the scenario starts in the human's own post-combat main, so the FIRST End step after the start is
+        # this same turn's, the human still active: a run that reached any later End step went too far
+        t0, me0, _ = turn_of(first)
+        check("autopass: \"until step\" with End chosen stops at an End step", settled and at_end(v) and turn_of(v) == (t0, me0, "End") and ref["stop"] == "until" and ref["start"] == turn_of(first) and no_further(ref, v) and passes_only(first) and await mode_on() == ["off"],
+              f"{turn_of(first)} -> {turn_of(v)} (the first End step after the start is {(t0, me0, 'End')}); {versus(ref, v)}; on: {await mode_on()}")
     await T.part("autopass: until a step", step)
 
     async def spell():
+        mynext = lambda x, s: x["state"]["turn"]["active_player"] == scn.human(x) and x["state"]["turn"]["number"] != s[0]
+        # the reference's stop: the FIRST pass whose own answer carries a SpellCast by another player
+        def bot_spell(x, seen):
+            seen["spells"] = [e["text"] for e in scn.bot_spells(x.get("events", []), x)]     # of THIS pass's answer only
+            return seen["spells"][0] if seen["spells"] else None
+        ref = reference("autopass_spell", mynext, bot_spell)
         r = await T.at("autopass_spell")
         t0, me = r.view["state"]["turn"]["number"], scn.human(r.view)
         await stops(spell=True)
         first, settled = await run("mynext")
         v = T.last_view
-        cast = lambda x: bool(scn.bot_spells(x.get("events", []), x))
         said = scn.bot_spells(v.get("events", []), v)
         text = said[0]["text"] if said else ""
         card = text.split(" casts ", 1)[-1] if text else ""
-        check("autopass: with the spell stop on, the run stops on a real bot SpellCast", settled and bool(said) and first_where(cast) == len(T.posts) - 1 and passes_only(first) and v["state"]["turn"]["number"] < t0 + 4,
-              f"{len(T.posts)} passes, then {text!r} (turn {turn_of(v)})")
+        o = outcome() or {}
+        check("autopass: with the spell stop on, the run stops on a real bot SpellCast",
+              settled and bool(said) and ref["stop"] == "unless" and bool(ref["why"]) and ref["start"] == turn_of(first) and no_further(ref, v)
+              and o.get("reason") == ref["why"] and text == ref["why"] and [e["text"] for e in said] == ref["seen"].get("spells") and passes_only(first) and v["state"]["turn"]["number"] < t0 + 4,
+              f"the run's events carry {[e['text'] for e in said]}; the reference's stopping pass carried {ref['seen'].get('spells')} (the first spell another player cast after the start; nothing cast after that pass may be in the run); {versus(ref, v)}")
         status = await T.text(f"{AP} .status")
         check("autopass: the status carries the event and Resume is shown", bool(card) and (text in status or card in status) and await T.n(f"{AP} .resume") == 1, f"status {status[:160]!r}; resume {await T.n(f'{AP} .resume')}; on: {await mode_on()}")
         await T.shot("autopass-spell-stop")
@@ -962,7 +1053,7 @@ async def blk_autopass(T):
         v2 = T.last_view
         ended = (await T.n(f"{AP} .resume") == 1) or (await mode_on() == ["off"] and v2["state"]["turn"]["active_player"] == me and v2["state"]["turn"]["number"] > t0)
         check("autopass: Resume continues the same run", settled and len(T.posts) > n0 and ended,
-              f"{len(T.posts) - n0} more passes to {turn_of(v2)}; paused again {await T.n(f'{AP} .resume') == 1}, on: {await mode_on()}, status {(await T.text(f'{AP} .status'))[:120]!r}")
+              f"{len(T.posts) - n0} more request(s) to {turn_of(v2)}; paused again {await T.n(f'{AP} .resume') == 1}, on: {await mode_on()}, status {(await T.text(f'{AP} .status'))[:120]!r}")
     await T.part("autopass: the spell stop", spell)
 
     async def reload():
@@ -977,15 +1068,27 @@ async def blk_autopass(T):
     await T.part("autopass: reload", reload)
 
     async def combat():
+        mynext = lambda x, s: x["state"]["turn"]["active_player"] == scn.human(x) and x["state"]["turn"]["number"] != s[0]
+
+        def fresh_attack(x, seen):
+            """Attackers at the human that were not there at the previous look (the set follows every look)."""
+            now = scn.attacks_on_human(x)
+            new = [a["name"] for a in now if a["object_id"] not in seen["attackers"]]
+            seen["attackers"] = {a["object_id"] for a in now}
+            return ", ".join(new) or None
+        ref = reference("autopass_combat", mynext, fresh_attack)
         r = await T.at("autopass_combat")
         t0 = r.view["state"]["turn"]["number"]
         await stops(combat=True)
         first, settled = await run("mynext")
         v = T.last_view
         hit = lambda x: bool(scn.attacks_on_human(x))
+        o = outcome() or {}
+        names = ", ".join(x["name"] for x in scn.attacks_on_human(v))
         check("autopass: with the combat stop on, the run stops when a bot declares attackers at the human",
-              settled and hit(v) and first_where(hit) == len(T.posts) - 1 and passes_only(first) and await T.n(f"{AP} .resume") == 1,
-              f"{len(T.posts)} passes from turn {t0}; {[x['name'] for x in scn.attacks_on_human(v)]} attacking at {turn_of(v)}; resume {await T.n(f'{AP} .resume')}; status {(await T.text(f'{AP} .status'))[:120]!r}")
+              settled and hit(v) and ref["stop"] == "unless" and ref["start"] == turn_of(first) and no_further(ref, v) and names == ref["why"]
+              and str(o.get("reason", "")).startswith("attackers are declared at you") and ref["why"] in str(o.get("reason", "")) and passes_only(first) and await T.n(f"{AP} .resume") == 1,
+              f"from turn {t0}: {names!r} attacking at {turn_of(v)}; {versus(ref, v)}; resume {await T.n(f'{AP} .resume')}; status {(await T.text(f'{AP} .status'))[:120]!r}")
         await T.shot("autopass-combat-stop")
     await T.part("autopass: the combat stop", combat)
 
@@ -1017,27 +1120,28 @@ async def blk_autopass(T):
     await T.part("autopass: a picker is open", picker_open)
 
     async def off():
+        # C3 (scutemob-268) changed what this can assert. A run is now ONE request the server completes
+        # (`pass_until`), so there is no "between passes" for Off to land in: C2's "Off cancels a run" is
+        # asserted where it is still true — on the fallback client loop — by `v3c3.py` ("serverpass: on the
+        # fallback loop Off is enabled and cancels the run"). Here: Off cannot interrupt the server run, and
+        # the panel does not pretend it can.
         r = await T.at("autopass_round")
         t0, me = r.view["state"]["turn"]["number"], scn.human(r.view)
         await stops()
-        T.delay_ms = 150            # slow the page's action POSTs so Off lands mid-run (content untouched)
+        T.delay_ms = 700            # hold the page's one action POST so Off is pressed mid-request (content untouched)
         try:
             await pg.locator(f'{AP} .mode[data-mode="mynext"]').click(timeout=2000)
-            for _ in range(60):
-                if len(T.posts) >= 2:
-                    break
-                await pg.wait_for_timeout(50)
-            started = len(T.posts)
-            await pg.locator(f'{AP} .mode[data-mode="off"]').click(timeout=2000)
-            await T.idle(1200, 20000)
-            n1 = len(T.posts)
-            await pg.wait_for_timeout(1200)
+            await pg.wait_for_timeout(300)
+            off_disabled = await pg.evaluate("(sel) => document.querySelector(sel)?.disabled ?? null", f'{AP} .mode[data-mode="off"]')
+            await pg.locator(f'{AP} .mode[data-mode="off"]').click(force=True, timeout=2000)
+            await T.idle(1200, 60000)
         finally:
             T.delay_ms = 0
         v = T.last_view
         reached = v["state"]["turn"]["number"] > t0 and v["state"]["turn"]["active_player"] == me
-        check("autopass: Off cancels a run", started >= 2 and len(T.posts) == n1 and not reached and await mode_on() == ["off"],
-              f"Off pressed after {started} passes; {n1} sent in all, none later ({len(T.posts)}); at {turn_of(v)}; on: {await mode_on()}")
+        check("autopass: Off is disabled while the one server request is in flight, and the run completes (cancelling is the fallback loop's — see C3 serverpass)",
+              off_disabled is True and len(T.posts) == 1 and reached and await mode_on() == ["off"],
+              f"Off disabled mid-request: {off_disabled}; {len(T.posts)} request(s); at {turn_of(v)}; on: {await mode_on()}")
     await T.part("autopass: Off", off)
 
 
@@ -1077,22 +1181,443 @@ async def c2(browser, a, base, w, h):
     check("C2: zero page errors", not errs, str(errs[:5]))
 
 
+MISS_NAME = "v3interact no such card"   # a name no store holds: the server's own 404 for it
+
+JS_HOVER_STATE = """() => {
+  const all = document.querySelectorAll('.v3 .hover-card');
+  const e = all[0];
+  if (!e) return null;
+  const r = e.getBoundingClientRect(), img = e.querySelector('img'), chip = e.querySelector('.hover-chip');
+  const shown = (n) => !!n && getComputedStyle(n).display !== 'none' && n.getBoundingClientRect().height > 50;
+  return { count: all.length, display: getComputedStyle(e).display, box: [r.left, r.top, r.right, r.bottom],
+           face: e.dataset.face ?? null, imgShown: shown(img), chipShown: shown(chip),
+           chipName: (e.querySelector('.hover-chip-name')?.textContent ?? '').trim(),
+           src: img?.getAttribute('src') ?? '', natural: img?.naturalWidth ?? 0 };
+}"""
+
+JS_CARDWIN_STATE = """() => {
+  const root = document.querySelector('.v3-cardwin'), img = root?.querySelector('img'), chip = root?.querySelector('.chip');
+  return { text: (root?.innerText ?? ''), img: !!img, src: img?.getAttribute('src') ?? '', natural: img?.naturalWidth ?? 0,
+           chip: !!chip && chip.getBoundingClientRect().height > 50,
+           chipName: (chip?.querySelector('.chip-name')?.textContent ?? '').trim() };
+}"""
+
+
+def watch_scryfall(ctx):
+    """Every request of the context that goes to a Scryfall host (v3 must make none)."""
+    hits = []
+    ctx.on("request", lambda rq: hits.append(rq.url[:200]) if "scryfall" in (rq.url.split("/")[2] if rq.url.startswith("http") else "").lower() else None)
+    return hits
+
+
+async def hover_checks(ctx, pg, base, w, h):
+    """C1: the one hover overlay and the card window. C3: the pictures are the local store's; a miss is a chip."""
+    answers = []                                       # (url, status) of every image-route answer in this context
+    ctx.on("response", lambda resp: answers.append((resp.url, resp.status)) if "/api/card-image?" in resp.url else None)
+
+    async def answered(version, since, ms=3000):
+        for _ in range(ms // 50):
+            got = [st for (u, st) in answers[since:] if f"version={version}" in u]
+            if got:
+                return got[-1]
+            await pg.wait_for_timeout(50)
+        return None
+
+    is_image = lambda url: "/api/card-image?" in url   # noqa: E731
+    cw = await ctx.new_page()
+    await cw.goto(f"{base}/?card-window")
+    await cw.wait_for_selector(".v3-cardwin", timeout=5000)
+    hand = pg.locator(".v3 .hand .card").first
+    name = await hand.get_attribute("data-name")
+    inside = lambda v: bool(v) and v["count"] == 1 and v["display"] != "none" and v["box"][0] >= 0 and v["box"][1] >= 0 and v["box"][2] <= w and v["box"][3] <= h  # noqa: E731
+
+    # a store miss, for real: this hover's image requests go to the server under a name it cannot hold
+    async def readdress(route):
+        url = route.request.url
+        head, _, tail = url.partition("name=")
+        await route.continue_(url=head + "name=" + MISS_NAME.replace(" ", "%20") + ("&" + tail.split("&", 1)[1] if "&" in tail else ""))
+    await ctx.route(is_image, readdress)
+    mark = len(answers)
+    await hand.hover()
+    normal = await answered("normal", mark)
+    await pg.wait_for_timeout(200)
+    vis = await pg.evaluate(JS_HOVER_STATE)
+    check("a store miss: the hover shows its chip, not nothing", normal == 404 and inside(vis) and vis["face"] == "chip" and vis["chipShown"]
+          and not vis["imgShown"] and vis["chipName"] == name, f"{name!r} HTTP {normal} {vis}")
+    large = await answered("large", mark)
+    await cw.wait_for_timeout(200)
+    win = await cw.evaluate(JS_CARDWIN_STATE)
+    check("a store miss: the card window shows its chip", large == 404 and bool(name) and win["chip"] and win["chipName"] == name and not win["img"],
+          f"{name!r} HTTP {large} {win}")
+    await pg.screenshot(path=os.path.join(OUT_DIR, "images-miss-hover.png"))
+    await cw.screenshot(path=os.path.join(OUT_DIR, "images-miss-cardwin.png"))
+    await ctx.unroute(is_image, readdress)
+    await pg.mouse.move(w // 2, 5)
+    await pg.wait_for_timeout(150)
+
+    # the natural request: whatever this server's store holds for the card
+    mark = len(answers)
+    await hand.hover()
+    normal = await answered("normal", mark)
+    await pg.wait_for_timeout(300)
+    vis = await pg.evaluate(JS_HOVER_STATE)
+    face_ok = bool(vis) and ((normal == 200 and vis["face"] == "image" and vis["imgShown"]) or (normal == 404 and vis["face"] == "chip" and vis["chipShown"] and vis["chipName"] == name))
+    check("hover shows the one overlay, inside the viewport", inside(vis) and face_ok, f"{name!r} HTTP {normal} {vis}")
+    large = await answered("large", mark)
+    await cw.wait_for_timeout(300)
+    win = await cw.evaluate(JS_CARDWIN_STATE)
+    win_ok = (large == 200 and win["img"] and "version=large" in win["src"]) or (large == 404 and win["chip"] and win["chipName"] == name)
+    check("the card window shows the hovered card", bool(name) and name in win["text"] and win_ok, f"{name!r} HTTP {large} {win}")
+    if normal == 200 and large == 200:
+        check("a store hit: the hover picture loaded from /api/card-image", vis["natural"] > 0 and vis["src"].startswith("/api/card-image?") and "version=normal" in vis["src"]
+              and not vis["chipShown"], str(vis))
+        check("a store hit: the card window picture loaded from /api/card-image", win["natural"] > 0 and win["src"].startswith("/api/card-image?") and not win["chip"], str(win))
+        await pg.screenshot(path=os.path.join(OUT_DIR, "images-hit-hover.png"))
+        await cw.screenshot(path=os.path.join(OUT_DIR, "images-hit-cardwin.png"))
+    else:
+        could_not("images: store hit", f"the server's store does not hold {name!r} (normal HTTP {normal}, large HTTP {large})")
+    await cw.close()
+    await pg.mouse.move(w // 2, 5)
+    await pg.wait_for_timeout(100)
+    check("leaving the card hides the overlay", await pg.evaluate("getComputedStyle(document.querySelector('.v3 .hover-card')).display") == "none")
+
+
+OUT_DIR = "."
+
+
+# ======================================================================================
+# The `verify.py` flow, re-expressed for v3 (scutemob-268 criterion 2).
+#
+# The -260 usability pass (`memory/play-ui-usability-2026-10-09.md`) ended with a scratch `verify.py`
+# that was never committed: seed 3, play "until a picker, the stack and combat each appear", and assert
+# every usability criterion of that pass on the OLD surface. This block is that flow on `/?v3`: the same
+# seed 3 game (policy `develop`, `v3scenario.CHOSEN` verify_stack / verify_picker / verify_combat —
+# turn 3, turn 9, turn 22 of one game, driven over the API between the stops, each stop loaded in the
+# page and ANSWERED through the page), plus one stop on the C2 `block` game for a blocker in the combat
+# card. At every stop the criteria below are asserted. `--verify-only` runs this block alone.
+#
+# Old criterion (finding # of the -260 notes)       -> v3 assertion                                   -> check name
+#  0 served dist/ was stale                          -> not applicable on v3: a build-process note, not a property of a surface
+#  1 nothing marks which cards can be used           -> the `.card.lit` set on the table is exactly the decision's offered ids
+#                                                       (object_id of every answerable non-mana action + declare `eligible`)   -> "the lit cards are exactly the cards the decision offers"
+#  2 three identical "Play Plains" buttons           -> v3 options are cards (brief §1 rule 11), one item per card by design, so
+#                                                       "folded by label" becomes: no two loose buttons share a label, every card
+#                                                       item carries a distinct action index of this decision, and identical mana
+#                                                       sources show once (one muted item per name+label)                         -> "no decision option is drawn twice"
+#  3 raw enum names in the UI (PreCombatMain,        -> no engine identifier (step / decision-kind / action-kind names) anywhere in
+#    DECLAREATTACKERS, "PreCombatMain — PreCombatMain")  the surface's visible text; the lit phase-track segment is the humanised step -> "no raw engine identifier on screen", "the phase track lights the current step"
+#  4 a full-width empty COMBAT box every combat      -> v3 keeps a fixed combat card in the dock by design (rule 10); the criterion
+#                                                       becomes: it draws defender boxes only for declared attackers and says
+#                                                       "not in combat" / "no attackers declared" otherwise, matching `state.combat` -> "the combat card shows exactly the declared attackers"
+#  5 declare-attackers needed an extra click         -> on a DeclareAttackers decision with one declare action the attacker picker
+#                                                       is open with no click; Back closes it and it stays closed; its button re-opens -> "the attacker picker opens by itself", "Back closes it and it stays closed"
+#  6 feed stopped following after pass-until         -> not applicable on v3: v3 draws no event feed (C1 notes "No log panel")
+#  7 eight feed lines per priority round             -> not applicable on v3: no event feed
+#  8 "STOPPED" strip stays after the human acted     -> the auto-pass panel's stop reason is shown after a finished run and is gone
+#                                                       once the human answers the next decision                                  -> "a finished auto-pass run's stop line clears once the human acts"
+#  9 names cut at 11 chars; a land stack's ×N fell   -> every card on the table carries its full name (name band / chip text ==
+#    off; the combat row's attacker name cut            `data-name`, a band clipped by its two lines still has the hover); every
+#                                                       land-stack count sits inside its card; stack / combat / phase / button text
+#                                                       is not clipped (scrollWidth <= clientWidth)                               -> "names are whole: cards, counts, dock text"
+# 10 "Lands: 1" read as a land count                 -> not applicable on v3: `land_plays_remaining` is not drawn anywhere on v3
+#                                                       (asserted: no "Lands: N" text; v3's "LANDS n" row label IS a land count)   -> "no \"Lands: N\" counter that means land drops"
+# v3's own metrics (docs/play-surface-v3-brief.md §6 and §1 rules 10, 11, 13), at every stop:
+#    no page scroll, no auto-mode box scroll                                                                                       -> "nothing scrolls"
+#    every face-up card has an image or a chip                                                                                     -> "every card has an image or a chip"
+#    the decision is reachable and visible: the centred box inside the viewport, its answering control inside the
+#    viewport and the topmost element at its own centre                                                                            -> "the decision box and its answer are on screen and on top"
+#    the decision is answerable: answered through the page, the page's POST is a 200                                               -> "… answered through the page (200)"
+#    stack: one row per stack object, top first, the top row lit and saying "resolves next"; text legible                          -> "the stack lists …", "the top item is lit …"
+#    legibility (rule 13: stack text, panel titles; plus the sentence and the answer button): >= 9px and contrast >= 4.5:1        -> "dock text is legible"
+#    combat: the card and its enlarged view                                                                                        -> "the combat card enlarges …", "a blocker is drawn beside its attacker"
+# Not translated (listed, not dropped): 0, 6, 7 (above). Nothing else of the -260 list is missing.
+# ======================================================================================
+RAW_IDENTIFIERS = ["precombatmain", "postcombatmain", "beginningofcombat", "declareattackers", "declareblockers", "combatdamage",
+                   "endofcombat", "firststrikedamage", "cleanupdiscard", "passpriority", "castspell", "playland", "activateability",
+                   "tapformana", "effectchoice", "triggertargets", "commanderzonechoice"]
+SHORT_STEP_WORD = {"Untap": "untap", "Upkeep": "upkeep", "Draw": "draw", "PreCombatMain": "main 1", "BeginningOfCombat": "begin combat",
+                   "DeclareAttackers": "attackers", "DeclareBlockers": "blockers", "FirstStrikeDamage": "first", "CombatDamage": "damage",
+                   "EndOfCombat": "end combat", "PostCombatMain": "main 2", "End": "end", "Cleanup": "cleanup"}
+
+JS_USABILITY = """(raw) => {
+  const txt = (e) => ((e && e.textContent) || '').replace(/\\s+/g, ' ').trim();
+  const q = (s, root) => [...(root || document).querySelectorAll(s)];
+  const lum = (c) => { const m = c.match(/[\\d.]+/g).map(Number); const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+                       return [0.2126 * f(m[0]) + 0.7152 * f(m[1]) + 0.0722 * f(m[2]), m.length > 3 ? m[3] : 1]; };
+  const bg = (e) => { for (let n = e; n; n = n.parentElement) { const l = lum(getComputedStyle(n).backgroundColor); if (l[1] > 0.5) return l[0]; } return 0; };
+  const zoom = (e) => { let z = 1; for (let n = e; n; n = n.parentElement) z *= parseFloat(getComputedStyle(n).zoom) || 1; return z; };
+  const leg = (sel) => q(sel).map((e) => { const cs = getComputedStyle(e); const f = lum(cs.color)[0], b = bg(e);
+    return { sel, text: txt(e).slice(0, 28), px: Math.round(parseFloat(cs.fontSize) * zoom(e) * 10) / 10, contrast: Math.round((Math.max(f, b) + 0.05) / (Math.min(f, b) + 0.05) * 10) / 10 }; });
+  const table = (c) => !c.closest('.decision-float, .popover, .dock, .hover-card');
+  const onTop = (e) => { if (!e) return null; const r = e.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { inside: r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5, top: !!hit && (e === hit || e.contains(hit)), text: txt(e).slice(0, 40) }; };
+  const fl = document.querySelector('.v3 .decision-float');
+  const answer = fl ? (fl.querySelector('.picker-area .picker-actions .confirm') || fl.querySelector('.prompt .buttons .btn.primary')) : null;
+  const text = document.querySelector('.v3').innerText.toLowerCase();
+  const cards = q('.v3 .card:not(.back)');
+  const bands = q('.v3 .card .band, .v3 .card .chip-name');
+  const clipSel = '.v3 .stack-item .s-who, .v3 .stack-item .s-name, .v3 .stack-item .s-text, .v3 .combat-box .to, .v3 .phase .seg, .v3 .decision-float .prompt .buttons .btn, .v3 .decision-float .sentence, .v3 .picker-actions button';
+  return {
+    lit: [...new Set(q('.v3 .card.lit').filter(table).map((c) => Number(c.dataset.oid)))].sort((a, b) => a - b),
+    present: [...new Set(q('.v3 .card[data-oid]').filter(table).map((c) => Number(c.dataset.oid)))],
+    raw: raw.filter((w) => text.includes(w)), landsCounter: /\\blands:\\s*\\d/.test(text),
+    segNow: q('.v3 .phase .seg.now').map(txt), segs: q('.v3 .phase .seg').length,
+    buttons: fl ? q('.prompt .buttons .btn', fl).map(txt) : [], items: fl ? q('.act[data-action-index]', fl).map((e) => [Number(e.dataset.actionIndex), !!e.closest('.group.muted'), e.querySelector('.card')?.dataset.name || '', txt(e.querySelector('.cap'))]) : [],
+    float: onTop(fl), answer: onTop(answer), picker: q('.v3 .picker-area').length, attackerPicker: q('.v3 .picker-area .attacker-picker').length,
+    toggles: q('.v3 .picker-area .attacker-toggle').map(txt),
+    stack: q('.v3 .stack-box .stack-item').map((e) => { const cs = getComputedStyle(e); return { top: e.classList.contains('top'), who: txt(e.querySelector('.s-who')), name: txt(e.querySelector('.s-name')), text: txt(e.querySelector('.s-text')),
+                                                           edge: cs.borderLeftColor, other: cs.borderBottomColor, edgeW: parseFloat(cs.borderLeftWidth) }; }),
+    stackEmpty: q('.v3 .stack-box .dim').map(txt),
+    combat: { box: q('.v3 .combat-box').length, text: txt(document.querySelector('.v3 .combat-box')).slice(0, 160),
+              defs: q('.v3 .combat-box .def').map((d) => ({ to: txt(d.querySelector('.to')), pairs: q('.pair', d).map((p) => ({ blocked: p.classList.contains('blocked'),
+                attacker: Number(q('.card', p).find((c) => !c.closest('.blocker'))?.dataset.oid), blockers: q('.blocker .card', p).map((c) => Number(c.dataset.oid)) })) })) },
+    legible: ['.v3 .stack-box .panel-title', '.v3 .stack-item .s-who', '.v3 .stack-item .s-name', '.v3 .stack-item .s-text', '.v3 .combat-box .panel-title', '.v3 .combat-box .to',
+              '.v3 .decision-float .head .panel-title', '.v3 .decision-float .prompt .sentence', '.v3 .decision-float .prompt .buttons .btn.primary', '.v3 .picker-area .picker-actions .confirm'].flatMap(leg),
+    faint: ['.v3 .decision-float .stage-step', '.v3 .autopass .status', '.v3 .decision-float .cap', '.v3 .phase .seg:not(.now)', '.v3 .combat-box .dim', '.v3 .stack-box .dim'].flatMap((s) => leg(s).slice(0, 1)),
+    cards: cards.length, chipless: cards.filter((c) => !c.classList.contains('has-image') && !txt(c.querySelector('.chip'))).length,
+    bands: bands.length, bandWrong: bands.filter((b) => txt(b) !== (b.closest('.card').dataset.name || '')).map((b) => txt(b)).slice(0, 4),
+    bandClipped: bands.filter((b) => b.scrollHeight > b.clientHeight + 1 || b.scrollWidth > b.clientWidth + 1).length,
+    counts: q('.v3 .card .count').filter(table).map((c) => { const a = c.getBoundingClientRect(), b = c.closest('.card').getBoundingClientRect();
+      return a.width > 0 && a.left >= b.left - 1 && a.right <= b.right + 1 && a.top >= b.top - 1 && a.bottom <= b.bottom + 1; }),
+    clipped: q(clipSel).filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => txt(e).slice(0, 40)), clipMeasured: q(clipSel).length,
+  };
+}"""
+
+
+def offered_ids(v):
+    """`TableV3`'s `offeredIds`, from the payload: every answerable non-mana action's object, plus declare `eligible`."""
+    ids = set()
+    for a in scn.actions(v):
+        if a["kind"] == "TapForMana":
+            continue
+        if not (a["target_min"] <= 0 or not a["target_slots"] or any(s["candidates"] for s in a["target_slots"])):
+            continue
+        if a["object_id"] is not None:
+            ids.add(a["object_id"])
+        ids |= {e["id"] for e in ((a["attack"] or {}).get("eligible") or []) + ((a["block"] or {}).get("eligible") or [])}
+    return ids
+
+
+async def usability(T, v, tag):
+    """The criteria every stop is held to (the mapping table above). Returns the page's measurements."""
+    pg = T.pg
+    await pg.mouse.move(1, 1)
+    await pg.wait_for_timeout(250)
+    u = await pg.evaluate(JS_USABILITY, RAW_IDENTIFIERS)
+    m = await pg.evaluate(JS_NOSCROLL)
+    V = f"verify[{tag}]"
+    check(f"{V}: nothing scrolls (page, boards, cells, auto-pass panel)", m["boxes"] >= 5 and not m["bad"], f"{m['boxes']} boxes measured; {m['bad']}")
+    check(f"{V}: every card has an image or a chip", u["cards"] > 0 and u["chipless"] == 0, f"{u['cards']} face-up cards, {u['chipless']} with neither")
+    want = sorted(offered_ids(v) & set(u["present"]))
+    check(f"{V}: the lit cards are exactly the cards the decision offers", u["lit"] == want, f"lit {u['lit']}, offered and on the table {want} ({len(u['present'])} cards on the table)")
+    acts = {a["index"]: a for a in scn.actions(v)}
+    idx = [i[0] for i in u["items"]]
+    loose = [b for b in u["buttons"]]
+    mana = [(i[2], i[3]) for i in u["items"] if i[1]]
+    check(f"{V}: no decision option is drawn twice", len(set(loose)) == len(loose) and len(set(idx)) == len(idx) and all(i in acts for i in idx) and len(set(mana)) == len(mana),
+          f"buttons {loose}; card items by action index {idx}; mana items {mana} for {sum(1 for a in acts.values() if a['kind'] == 'TapForMana')} mana actions")
+    step = v["state"]["turn"]["step"]
+    check(f"{V}: no raw engine identifier on screen", not u["raw"], f"found {u['raw']}" if u["raw"] else f"{len(RAW_IDENTIFIERS)} identifiers looked for in the surface's visible text")
+    check(f"{V}: the phase track lights the current step, humanised", len(u["segNow"]) == 1 and SHORT_STEP_WORD[step] in u["segNow"][0].lower() and u["segs"] >= 12, f"step {step}: lit segment {u['segNow']} of {u['segs']}")
+    combat = v["state"].get("combat")
+    want_pairs = sorted((x["object_id"], tuple(sorted(b["object_id"] for b in x.get("blockers", [])))) for x in (combat or {}).get("attackers", []))
+    got_pairs = sorted((p["attacker"], tuple(sorted(p["blockers"]))) for d in u["combat"]["defs"] for p in d["pairs"])
+    words = u["combat"]["text"].lower()
+    quiet = "not in combat" in words if not combat else ("no attackers declared" in words if not want_pairs else True)
+    check(f"{V}: the combat card shows exactly the declared attackers", u["combat"]["box"] == 1 and got_pairs == want_pairs and quiet and (bool(want_pairs) or not u["combat"]["defs"]),
+          f"card {got_pairs}, state.combat {want_pairs}; {u['combat']['text'][:80]!r}")
+    check(f"{V}: no \"Lands: N\" counter that means land drops", not u["landsCounter"])
+    check(f"{V}: the decision box and its answer are on screen and on top", bool(u["float"]) and u["float"]["inside"] and bool(u["answer"]) and u["answer"]["inside"] and u["answer"]["top"],
+          f"box {u['float']}; answering control {u['answer']}")
+    weak = [x for x in u["legible"] if x["px"] < 9 or x["contrast"] < 4.5]
+    faint = "; fainter than 4.5:1 elsewhere (not asserted): " + ", ".join(f"{x['sel'].split(' ')[-1]} {x['contrast']}" for x in u["faint"] if x["contrast"] < 4.5) if any(x["contrast"] < 4.5 for x in u["faint"]) else ""
+    check(f"{V}: dock text is legible (>= 9px, contrast >= 4.5:1)", len(u["legible"]) >= 4 and not weak,
+          (f"weak: {weak}" if weak else f"{len(u['legible'])} texts, smallest {min(x['px'] for x in u['legible'])}px, lowest contrast {min(x['contrast'] for x in u['legible'])}") + faint)
+    check(f"{V}: names are whole: cards, counts, dock text", u["bands"] > 0 and not u["bandWrong"] and all(u["counts"]) and u["clipMeasured"] > 0 and not u["clipped"],
+          f"{u['bands']} name bands / chips all equal to the card's name ({u['bandClipped']} clipped by the two-line band; hover has them); {len(u['counts'])} land-stack counts inside their card; "
+          f"{u['clipMeasured']} dock / track / button texts, clipped: {u['clipped']}; wrong: {u['bandWrong']}")
+    return u
+
+
+async def blk_verify(T):
+    pg = T.pg
+    FL = ".v3 .decision-float"
+
+    async def pass_by_page(tag):
+        await pg.locator(f"{FL} .prompt .buttons .btn.primary").click(timeout=2000)
+        got = await T.wait_posts(1)
+        p = T.posts[-1] if got else None
+        check(f"verify[{tag}]: the decision is answered through the page (200)", got and len(T.posts) == 1 and p["status"] == 200 and (p["body"] or {}).get("params") in ({}, None),
+              post_detail(p) if p else "no POST /api/game/action within 5 s")
+        return p
+
+    async def stack():
+        r = await T.at("verify_stack")
+        v = r.view
+        wire = v["state"]["zones"]["stack"]
+        u = await usability(T, v, "stack")
+        await T.shot("verify-stack")
+        top = wire[-1]
+        rows = u["stack"]
+        check("verify[stack]: the stack lists one row per stack object, top first", len(rows) == len(wire) and [x["name"] for x in rows] == [i["source_name"] for i in reversed(wire)],
+              f"{[x['name'] for x in rows]} for wire (bottom first) {[i['source_name'] for i in wire]}")
+        t = rows[0] if rows else {}
+        check("verify[stack]: the top item is lit and says it resolves next", bool(rows) and [x["top"] for x in rows] == [True] + [False] * (len(rows) - 1) and "resolves next" in t["who"] and top["controller"] in t["who"]
+              and t["edgeW"] >= 2 and t["edge"] != t["other"] and all("resolves next" not in x["who"] for x in rows[1:]),
+              f"{t.get('who')!r} / {t.get('name')!r}; left edge {t.get('edgeW')}px {t.get('edge')} against {t.get('other')}")
+        p = await pass_by_page("stack")
+        after = ((p or {}).get("view") or {}).get("state", {}).get("zones", {}).get("stack")
+        await pg.wait_for_timeout(300)
+        shown = await pg.evaluate("() => [...document.querySelectorAll('.v3 .stack-box .stack-item .s-name')].map((e) => e.textContent.trim())")
+        check("verify[stack]: after the pass the stack box follows the seat view", after is not None and shown == [i["source_name"] for i in reversed(after)], f"box {shown}, seat view {[i['source_name'] for i in (after or [])]}")
+    await T.part("verify: the stack", stack)
+
+    async def picker():
+        r = await T.at("verify_picker")
+        v = r.view
+        a = next(x for x in scn.actions(v) if x["attack"] is not None)
+        elig = a["attack"]["eligible"]
+        opened = await T.wait_for(".v3 .picker-area .attacker-picker", 2500)
+        u = await usability(T, v, "picker")
+        await T.shot("verify-picker")
+        check("verify[picker]: the attacker picker opens by itself, with every eligible attacker", opened and not T.posts and u["attackerPicker"] == 1 and sorted(u["toggles"]) == sorted(e["label"] for e in elig),
+              f"open without a click {opened}; toggles {u['toggles']}, eligible {[e['label'] for e in elig]}")
+        await pg.locator(".v3 .picker-area .picker-actions .cancel").click(timeout=2000)
+        await pg.wait_for_timeout(900)
+        closed = await T.n(".v3 .picker-area") == 0
+        btns = await pg.locator(f"{FL} .prompt .buttons .btn").all_inner_texts()
+        check("verify[picker]: Back closes it and it stays closed, with the decision's buttons in its place", closed and not T.posts and any(t.strip().startswith("Declare attackers") for t in btns), f"picker open after 900 ms: {not closed}; buttons {[t.strip() for t in btns]}")
+        await pg.locator(f"{FL} .prompt .buttons .btn", has_text="Declare attackers").click(timeout=2000)
+        again = await T.wait_for(".v3 .picker-area .attacker-picker", 1500)
+        await pg.locator(".v3 .picker-area .attacker-toggle").first.click(timeout=2000)
+        await pg.wait_for_timeout(150)
+        label = await T.text(".v3 .picker-area .picker-actions .confirm")
+        await pg.locator(".v3 .picker-area .picker-actions .confirm").click(timeout=2000)
+        got = await T.wait_posts(1)
+        p = T.posts[-1] if got else None
+        sent = ((p or {}).get("body") or {}).get("params", {}).get("attackers") or []
+        check("verify[picker]: the decision is answered through the page (200): a real attack", again and got and len(T.posts) == 1 and p["status"] == 200 and (p["body"] or {}).get("action_index") == a["index"]
+              and [x[0] for x in sent] == [elig[0]["id"]], f"button {label!r}; " + (post_detail(p) if p else "no POST"))
+        # the same game, one answer later: the human's attacker is in the combat card
+        nxt = (p or {}).get("view")
+        if nxt and nxt.get("decision") and (nxt["state"].get("combat") or {}).get("attackers"):
+            await pg.wait_for_timeout(300)
+            await usability(T, nxt, "picker, after the attack")
+        else:
+            could_not("verify[picker, after the attack]", "the answer to the attack carried no decision with attackers still declared")
+    await T.part("verify: a picker", picker)
+
+    async def combat():
+        r = await T.at("verify_combat")
+        v = r.view
+        u = await usability(T, v, "combat")
+        await T.shot("verify-combat")
+        atts = v["state"]["combat"]["attackers"]
+        tos = [d["to"] for d in u["combat"]["defs"]]
+        want_to = {x["target"].split(":", 1)[1] for x in atts}
+        me = scn.human(v)
+        check("verify[combat]: one box per defending player, named", len(tos) == len(want_to) and all(any((("you" if n == me else n) in t) for t in tos) for n in want_to), f"{tos} for defenders {sorted(want_to)}")
+        await T.click(await T.point(".v3 .combat-box .panel-title"))
+        big = await T.wait_for(".v3 .combat-float", 1500)
+        f = await pg.evaluate("""() => { const e = document.querySelector('.v3 .combat-float'); if (!e) return null; const r = e.getBoundingClientRect();
+            return { inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5, lanes: e.querySelectorAll('.lane').length,
+                     cards: [...e.querySelectorAll('.lane .card')].map((c) => Number(c.dataset.oid)), unblocked: e.querySelectorAll('.none').length }; }""")
+        ids = sorted([x["object_id"] for x in atts] + [b["object_id"] for x in atts for b in x.get("blockers", [])])
+        check("verify[combat]: the combat card enlarges to a lane per defender, inside the viewport", big and bool(f) and f["inside"] and f["lanes"] == len(want_to) and sorted(f["cards"]) == ids,
+              f"{f}; attackers and blockers {ids}")
+        await pg.keyboard.press("Escape")
+        await pg.wait_for_timeout(200)
+        check("verify[combat]: Escape closes the enlarged view and the decision is still there", await T.n(".v3 .combat-float") == 0 and await T.n(f"{FL} .prompt .buttons .btn.primary") == 1)
+        await pass_by_page("combat")
+    await T.part("verify: combat", combat)
+
+    async def blocked():
+        r = await T.at("block")
+        blk = scn.block_action(r.view)
+        b, t = blk["block"]["legal_blocks"][0]["blocker"]["id"], blk["block"]["legal_blocks"][0]["attackers"][0]["id"]
+        try:
+            nxt = scn.act(T.port, r.view["decision"]["seq"], blk["index"], {"blockers": [[b, t]]})     # the block itself is C2's `blockers` block; here it is set up
+        except scn.Refused as e:
+            raise NotReached(f"the block was refused: {e}")
+        pairs = [(x["object_id"], [y["object_id"] for y in x.get("blockers", [])]) for x in (nxt["state"].get("combat") or {}).get("attackers", [])]
+        if not nxt.get("decision") or (t, [b]) not in pairs:
+            raise NotReached(f"no decision with the block still in combat after declaring it (combat {pairs})")
+        await T.load()
+        u = await usability(T, nxt, "combat, blocked")
+        await T.shot("verify-combat-blocked")
+        drawn = [p for d in u["combat"]["defs"] for p in d["pairs"] if p["attacker"] == t]
+        check("verify[combat, blocked]: a blocker is drawn beside its attacker", len(drawn) == 1 and drawn[0]["blocked"] and drawn[0]["blockers"] == [b], f"{drawn} for {t} blocked by {b}")
+    await T.part("verify: combat with a blocker", blocked)
+
+    async def stop_line():
+        await T.at("autopass_round")
+        AP = ".v3 .autopass"
+        idle = await T.text(f"{AP} .status")
+        await pg.locator(f'{AP} input[data-stop="spell"]').set_checked(False, timeout=2000)
+        await pg.locator(f'{AP} input[data-stop="ability"]').set_checked(False, timeout=2000)
+        await pg.locator(f'{AP} input[data-stop="combat"]').set_checked(False, timeout=2000)
+        await pg.locator(f'{AP} .mode[data-mode="eot"]').click(timeout=2000)
+        settled = await T.idle(900, 60000)
+        ran = len(T.posts)
+        stopped = await T.text(f"{AP} .status")
+        T.posts.clear()
+        await pg.locator(f"{FL} .prompt .buttons .btn.primary").click(timeout=2000)
+        await T.wait_posts(1)
+        await pg.wait_for_timeout(300)
+        after = await T.text(f"{AP} .status")
+        check("verify: a finished auto-pass run's stop line clears once the human acts", settled and ran > 0 and stopped != idle and len(stopped) > len(idle) and after == idle and len(T.posts) == 1 and T.posts[0]["status"] == 200,
+              f"idle {idle!r}; after {ran} passes {stopped[:120]!r}; after the human's own pass {after!r}")
+    await T.part("verify: the auto-pass stop line", stop_line)
+
+
+async def verify_flow(browser, a, base, w, h):
+    """The verify block: one fresh browser context, the three stops of one seed-3 game and the two extras."""
+    print("---- verify (scutemob-268): the -260 verify.py flow on v3 — a picker, the stack, combat", flush=True)
+    errs = []
+    ctx = await browser.new_context(viewport={"width": w, "height": h})
+    pg = await ctx.new_page()
+    T = Table(pg, base, a.port, errs, a.out)
+    await T.route()
+    try:
+        await blk_verify(T)
+    except NotReached as e:
+        could_not("verify", str(e))
+    except Exception as e:  # noqa: BLE001
+        check("verify: the block ran to its end", False, f"{type(e).__name__}: {str(e).splitlines()[0][:260]}")
+    await ctx.close()
+    check("verify: zero page errors", not errs, str(errs[:5]))
+
+
 async def main():
+    global OUT_DIR
     ap = argparse.ArgumentParser()
+    ap.add_argument("--images-only", action="store_true", help="run only the hover / card-window / image-store checks")
     ap.add_argument("--port", type=int, default=3041)
     ap.add_argument("--seed", type=int, default=3)
     ap.add_argument("--viewport", default="2560x1340")
     ap.add_argument("--out", default=".")
     ap.add_argument("--c2-only", action="store_true", help="skip the C1 checks; run only the C2 blocks")
+    ap.add_argument("--verify-only", action="store_true", help="run only the verify flow (the -260 verify.py re-expressed for v3)")
     ap.add_argument("--blocks", default="", help="comma list of C2 blocks to run (default: all): " + ",".join(C2_BLOCKS))
+    ap.add_argument("--c3-only", action="store_true", help="run only the C3 blocks (v3c3.py: the new seat-view fields, server-side pass-until)")
+    ap.add_argument("--c3-blocks", default="", help="comma list of C3 blocks to run (default: all): " + ",".join(v3c3.C3_BLOCKS))
     a = ap.parse_args()
     if a.port == 3040:
         print("COULD-NOT-RUN 3040 is the owner's server"); sys.exit(2)
     w, h = (int(x) for x in a.viewport.split("x"))
     os.makedirs(a.out, exist_ok=True)
+    OUT_DIR = a.out
     base = f"http://127.0.0.1:{a.port}"
     async with async_playwright() as p:
         b = await p.chromium.launch(executable_path="/usr/bin/chromium")
+        if a.verify_only:
+            await verify_flow(b, a, base, w, h)
+            await b.close()
+            sys.exit(0 if all(RESULTS) and RESULTS and not COULD_NOT else 1 if not all(RESULTS) else 2)
+        if a.c3_only:
+            await v3c3.run(sys.modules[__name__], b, a, base, w, h)
+            await b.close()
+            sys.exit(0 if all(RESULTS) and RESULTS and not COULD_NOT else 1 if not all(RESULTS) else 2)
         if a.c2_only:
             await c2(b, a, base, w, h)
             await b.close()
@@ -1101,6 +1626,7 @@ async def main():
         pg = await ctx.new_page()
         errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)))
+        scryfall = watch_scryfall(ctx)
         try:
             await pg.goto(f"{base}/?v3")
             await pg.wait_for_selector(".v3 .app", timeout=10000)
@@ -1111,6 +1637,12 @@ async def main():
         await pg.wait_for_selector(".v3 .cell", timeout=10000)
         await pg.click(".v3 .decision-float .btn.primary")  # Keep this hand
         await pg.wait_for_timeout(600)
+        if a.images_only:
+            await hover_checks(ctx, pg, base, w, h)
+            check("no request to a Scryfall host", not scryfall, str(scryfall[:3]))
+            check("zero page errors", not errs, str(errs))
+            await b.close()
+            sys.exit(1 if not all(RESULTS) else 2 if COULD_NOT else 0)
 
         # decision float: minimise sends it to the dock, the dock button brings it back
         check("decision opens in the centre", await pg.locator(".v3 .decision-float").count() == 1)
@@ -1167,24 +1699,8 @@ async def main():
         await pg.wait_for_timeout(200)
         check("the menu brings the seat across", await pg.evaluate("document.querySelector('.v3 .focused')?.dataset.seat ?? null") == tgt_name)
 
-        # hover overlay on a hand card, and the card window fed over a storage event
-        cw = await ctx.new_page()
-        await cw.goto(f"{base}/?card-window")
-        await cw.wait_for_selector(".v3-cardwin", timeout=5000)
-        hand = pg.locator(".v3 .hand .card").first
-        name = await hand.get_attribute("data-name")
-        await hand.hover()
-        await pg.wait_for_timeout(300)
-        vis = await pg.evaluate("(() => { const e = document.querySelector('.v3 .hover-card'); if (!e) return null; const r = e.getBoundingClientRect(); return [getComputedStyle(e).display, r.left, r.top, r.right, r.bottom, e.querySelector('img')?.src ?? '']; })()")
-        check("hover shows the one overlay, inside the viewport", bool(vis) and vis[0] != "none" and vis[1] >= 0 and vis[2] >= 0 and vis[3] <= w and vis[4] <= h and "version=normal" in vis[5], str(vis))
-        await cw.wait_for_timeout(300)
-        cw_text = await cw.locator(".v3-cardwin").inner_text()
-        cw_src = await cw.evaluate("document.querySelector('.v3-cardwin img')?.src ?? ''")
-        check("the card window shows the hovered card", bool(name) and name in cw_text and "version=large" in cw_src, f"{name!r}")
-        await cw.close()
-        await pg.mouse.move(w // 2, 5)
-        await pg.wait_for_timeout(100)
-        check("leaving the card hides the overlay", await pg.evaluate("getComputedStyle(document.querySelector('.v3 .hover-card')).display") == "none")
+        # hover overlay on a hand card, the card window fed over a storage event, and the image store (C3)
+        await hover_checks(ctx, pg, base, w, h)
 
         # peek: one second on the cell itself grows it; resting on a card never arms it
         cell = pg.locator(".v3 .cell:not(.cell-pop)").first
@@ -1223,7 +1739,15 @@ async def main():
         await pg.wait_for_timeout(200)
         big = await pg.evaluate(fit)
         auto_on = await pg.locator(".v3 .top input[type=checkbox]").first.is_checked()
-        check("moving the slider turns auto-fit off and sets the size", (not auto_on) and all(x[1] == 140 for x in big if x[0] in ("board", "focused")), str(big))
+        # The slider is a CAP: `fit.js::fitBoard` takes min(cap, the width that still gives 8 cards a
+        # row) (brief §1 rule 5), so 140 is reached only where the centre column is wide enough (the
+        # 2560 reference viewport). At a narrower viewport the size is the 8-per-row bound: both centre
+        # boards agree, it is above the auto size and below the cap. (C3: this check asserted 140
+        # outright and had only ever been run at 2560; at 1707x880 it reads 93.9 on HEAD too.)
+        big_centre = [x[1] for x in big if x[0] in ("board", "focused")]
+        slider_ok = (len(big_centre) == 2 and big_centre[0] == big_centre[1] and big_centre[0] > centre[0]
+                     and (big_centre[0] == 140 if w >= 2560 else big_centre[0] <= 140))
+        check("moving the slider turns auto-fit off and sets the size (the cap, or the 8-per-row bound)", (not auto_on) and slider_ok, str(big))
         check("the page still does not scroll", await pg.evaluate("document.documentElement.scrollHeight === innerHeight && document.documentElement.scrollWidth === innerWidth"))
         await pg.locator(".v3 .top input[type=checkbox]").first.check()
         await pg.wait_for_timeout(200)
@@ -1312,12 +1836,17 @@ async def main():
         btns = await pg.locator(".v3 .decision-float .prompt .buttons .btn").all_inner_texts()
         check("a commander-zone choice shows both answers as buttons", sum("command zone" in t for t in btns) == 1 and sum("where it is" in t for t in btns) == 1, str(btns))
         mut["fn"] = None
+        check("no request to a Scryfall host", not scryfall, str(scryfall[:3]))
         check("zero page errors", not errs, str(errs))
         await ctx.close()
 
         await c2(b, a, base, w, h)
+        await v3c3.run(sys.modules[__name__], b, a, base, w, h)
+        await verify_flow(b, a, base, w, h)
         await b.close()
+    print(f"---- {sum(RESULTS)} ok, {len(RESULTS) - sum(RESULTS)} BAD, {len(COULD_NOT)} could not run", flush=True)
     sys.exit(1 if not all(RESULTS) else 2 if COULD_NOT else 0)
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

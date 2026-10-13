@@ -4,6 +4,23 @@
 # target turn has been fully played. On EVERY iteration it checks: the page never scrolls,
 # no board/cell box scrolls in auto mode, every face-up card shows an image or a chip, and
 # no page error was thrown. Screenshots at turns 1 / 5 / 10 (float open, and minimised).
+# C3 (scutemob-268), card images: v3 reads pictures only from the server's local store
+# (`GET /api/card-image`). On EVERY run the probe counts every request by host; one request
+# to a Scryfall host is BAD (`--block-scryfall` additionally aborts such a request, so a
+# regression cannot reach the real service from a probe; the count is taken either way).
+# `--store` says what the server's store is expected to hold:
+#   filled : every face-up non-token card must show its image; one that still shows the chip
+#            must be named in `--known-missing` (a file of one name per line, or a JSON list of
+#            names — take them from the fill run's stderr lines `card images: <name>: <reason>`
+#            or from the `--prefetch-images` summary; the status route's `failed` is a COUNT and
+#            names nothing, so it explains no chip), or be one of the seat view's placeholder names for a
+#            card the seat may not identify (PLACEHOLDER_NAMES: a face-down permanent arrives as
+#            a face-up card called "Face-down card"; the client asks the store for that name and
+#            gets a 404). Anything else is BAD ("unexplained chip").
+#   empty  : no image may load at all (every card is a chip) and every image request is a 404.
+#   any    : (default) image or chip, as before; the counts are reported, nothing is asserted.
+# The store is the server's: start it with `--image-store <dir> --no-image-prefetch`
+# (an empty dir for `--store empty`).
 # C2 (scutemob-267) adds, on every iteration: the auto-pass panel (`.autopass`) is a box like
 # the others — it must not scroll and must lie inside the viewport; the arrow overlay
 # (`svg.v3-arrows`) is there, is `pointer-events: none` and is never the element under a
@@ -16,6 +33,7 @@
 # Run:
 #   python3 tools/play-server/probes/v3sweep.py --port 3041 --seeds 0,3 \
 #       --viewports 2560x1340,1707x880 --turns 10 --out /tmp/v3sweep [--block-scryfall]
+#       [--store filled --known-missing missing.txt | --store empty]
 # Exit 0 = every run ok, 1 = a run is BAD, 2 = a run COULD-NOT-RUN (no server / no table).
 import argparse, asyncio, json, os, sys
 from playwright.async_api import async_playwright
@@ -153,6 +171,10 @@ JS_MEASURE = """() => {
     });
   }
   const cards = [...document.querySelectorAll('.v3 .card:not(.back)')];
+  // C3: face-up non-token cards still on their chip, by name (a token has no printing; a back is hidden)
+  const noImage = [...new Set(cards.filter((c) => !c.classList.contains('has-image') && !c.classList.contains('token'))
+    .map((c) => c.dataset.name || '?'))];
+  const tokens = cards.filter((c) => c.classList.contains('token')).length;
   const chipless = cards.filter((c) => !c.classList.contains('has-image')
     && !(((c.querySelector('.chip') || {}).textContent || '').trim())).length;
   const offscreen = [...document.querySelectorAll('.v3 .card')].filter((c) => {
@@ -177,7 +199,7 @@ JS_MEASURE = """() => {
   const sick = [...new Set([...document.querySelectorAll('.v3 .card.sick')].map((c) => c.dataset.oid || '?'))];
   return { pageScroll, page: [de.scrollWidth, de.scrollHeight, b ? b.scrollWidth : 0, b ? b.scrollHeight : 0, innerWidth, innerHeight],
            boxes, cards: cards.length, images: cards.filter((c) => c.classList.contains('has-image')).length,
-           chipless, offscreen, auto, oppAuto,
+           chipless, offscreen, auto, oppAuto, noImage, tokens,
            table, autopass: panels.length, autopassOutside, overlays: overlays.length, overlayPointer, overlayHits, sick };
 }"""
 
@@ -192,6 +214,46 @@ async def ev(pg, js, arg=None, default=None):
         return await pg.evaluate(js, arg)
     except Exception:
         return default
+
+
+JS_IMAGE_STATUS = """async () => {
+  try { const r = await fetch('/api/card-image/status'); return r.ok ? await r.json() : { http: r.status }; }
+  catch (e) { return { error: String(e) }; }
+}"""
+
+JS_IMAGE_HTTP = """async (name) => {
+  try { return (await fetch('/api/card-image?name=' + encodeURIComponent(name) + '&version=small')).status; }
+  catch (e) { return 0; }
+}"""
+
+
+# `crates/view-model/src/redact.rs` FACE_DOWN_NAME / HIDDEN_CARD_NAME: not card names, so never in a store.
+PLACEHOLDER_NAMES = {"Face-down card", "Hidden card"}
+
+
+def is_scryfall(url):
+    host = url.split('/')[2].lower() if url.count('/') >= 2 else url.lower()
+    return 'scryfall' in host
+
+
+def load_known_missing(path):
+    """Names the store is known not to hold: one name per line, or a JSON list of names.
+
+    A saved status JSON is accepted only if its `failed` is a list (the pre-review body shape);
+    the route now answers a count, which names nothing and therefore explains nothing."""
+    if not path:
+        return set()
+    text = open(path).read()
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return {ln.strip() for ln in text.splitlines() if ln.strip()}
+    if isinstance(data, dict):
+        data = data.get("failed")
+    if not isinstance(data, list):
+        raise SystemExit(f"--known-missing {path}: no list of names in it (`failed` is a count on this server; "
+                         "give a file of one name per line)")
+    return {str(n) for n in data}
 
 
 async def api(pg):
@@ -235,8 +297,13 @@ async def run(browser, a, seed, w, h):
          "screenshots": [], "game_over": None, "reason": "",
          # C2: iterations with a table drawn; the auto-pass panel and the arrow overlay measured on them
          "table_iters": 0, "autopass_measured": 0, "autopass_missing": 0, "autopass_outside": 0,
-         "arrows_measured": 0, "arrows_missing": 0, "arrows_pointer": 0, "arrows_intercept": 0, "sick_seen": 0}
+         "arrows_measured": 0, "arrows_missing": 0, "arrows_pointer": 0, "arrows_intercept": 0, "sick_seen": 0,
+         # C3: requests by host; image-route answers; the most face-up cards seen at once and how many had a picture
+         "hosts": {}, "scryfall_requests": 0, "scryfall_urls": [], "image_200": 0, "image_404": 0, "image_other": 0,
+         "peak_cards": 0, "peak_images": 0, "peak_tokens": 0, "images_seen_max": 0,
+         "unexplained_chips": {}, "explained_chips": [], "store": a.store, "store_status": None}
     sick_oids = set()
+    explained = set()
     ctx = await browser.new_context(viewport={"width": w, "height": h})   # fresh context = no stored toggles
     pg = await ctx.new_page()
     pg.on("pageerror", lambda e: r["page_errors"].append(str(e)))
@@ -245,13 +312,27 @@ async def run(browser, a, seed, w, h):
         if m.type != "error":
             return
         where = (m.location or {}).get("url", "") if isinstance(m.location, dict) else ""
-        if "scryfall" in (m.text + where).lower():
+        if "scryfall" in (m.text + where).lower() or "/api/card-image?" in where:   # a store miss is a 404 by design
             r["console_ignored"] += 1
         else:
             r["console_errors"].append(f"{m.text} [{where}]"[:400])
     pg.on("console", on_console)
+
+    def on_request(rq):                                # every request of the context, by host
+        host = rq.url.split('/')[2] if rq.url.startswith('http') else rq.url.split(':')[0] + ':'
+        r["hosts"][host] = r["hosts"].get(host, 0) + 1
+        if is_scryfall(rq.url):
+            r["scryfall_requests"] += 1
+            if len(r["scryfall_urls"]) < 5:
+                r["scryfall_urls"].append(rq.url[:200])
+
+    def on_response(resp):
+        if "/api/card-image?" in resp.url:
+            r["image_200" if resp.status == 200 else "image_404" if resp.status == 404 else "image_other"] += 1
+    ctx.on("request", on_request)
+    ctx.on("response", on_response)
     if a.block_scryfall:
-        await pg.route("**/*scryfall*", lambda route: route.abort())
+        await pg.route(lambda url: is_scryfall(url), lambda route: route.abort())
     base = f"http://127.0.0.1:{a.port}/?v3"
     try:
         try:
@@ -267,6 +348,9 @@ async def run(browser, a, seed, w, h):
         except Exception:
             raise CouldNotRun("page did not render `.v3 .app` within 10 s")
 
+        r["store_status"] = await ev(pg, JS_IMAGE_STATUS, default={"error": "evaluate failed"})
+        # the status route's `failed` is a count (it must not name bot-deck cards): reported, explains no chip
+        known_missing = set(a.known_missing) | PLACEHOLDER_NAMES
         tag = f"v3-s{seed}-{w}x{h}"
         tried, chooser_tried, steps, gave = {}, {}, {}, set()   # keyed by decision seq
         attacked, shot = set(), set()
@@ -283,6 +367,24 @@ async def run(browser, a, seed, w, h):
                     break
                 r["measured"] = r.get("measured", 0) + 1
                 r["cards"], r["images"] = m["cards"], m["images"]
+                r["images_seen_max"] = max(r["images_seen_max"], m["images"])
+                if m["cards"] >= r["peak_cards"]:
+                    r["peak_cards"], r["peak_images"], r["peak_tokens"] = m["cards"], m["images"], m["tokens"]
+                if a.store == "filled":
+                    # a chip must be explained: a name the fill could not fetch. A card drawn this
+                    # instant gets two more looks before it counts (its picture may be in flight).
+                    pending = [n for n in m["noImage"] if n not in known_missing]
+                    for _ in range(4):
+                        if not pending:
+                            break
+                        await pg.wait_for_timeout(250)
+                        again = await ev(pg, JS_MEASURE) or {}
+                        pending = [n for n in pending if n in again.get("noImage", [])]
+                    for n in pending:
+                        if n not in r["unexplained_chips"]:
+                            r["unexplained_chips"][n] = {"turn": turn, "iter": r["iters"], "store_http": await ev(pg, JS_IMAGE_HTTP, n)}
+                    explained.update(n for n in m["noImage"] if n in known_missing)
+                    r["explained_chips"] = sorted(explained)
                 r["max_cards"] = max(r.get("max_cards", 0), m["cards"])
                 r["chipless"], r["offscreen"] = max(r["chipless"], m["chipless"]), max(r["offscreen"], m["offscreen"])
                 if m["pageScroll"]:
@@ -434,6 +536,21 @@ def verdict(r, turns):
             why.append(f"{name} {r[key]}")
     if r["page_errors"]:
         why.append(f"page-errors {len(r['page_errors'])}")
+    # C3: the v3 surface never asks Scryfall for anything, whatever the store holds.
+    if r["scryfall_requests"]:
+        why.append(f"scryfall-requests {r['scryfall_requests']} (first: {r['scryfall_urls'][0]})")
+    if r["image_other"]:
+        why.append(f"image-route answered neither 200 nor 404 on {r['image_other']} requests")
+    if not r["reason"] and not (r["image_200"] + r["image_404"]):
+        why.append("no request to /api/card-image was seen (the image check would be vacuous)")
+    if r["store"] == "filled":
+        if r["unexplained_chips"]:
+            why.append(f"unexplained-chips {len(r['unexplained_chips'])}: {sorted(r['unexplained_chips'])[:8]}")
+        if not r["reason"] and not r["images_seen_max"]:
+            why.append("--store filled but no card ever showed an image")
+    elif r["store"] == "empty":
+        if r["images_seen_max"] or r["image_200"]:
+            why.append(f"--store empty but images loaded (most at once {r['images_seen_max']}, 200s {r['image_200']})")
     # C2: the auto-pass panel and the arrow overlay. A scrolling panel is already a box-scroll above.
     for key, name in (("autopass_missing", "autopass-panel-missing"), ("autopass_outside", "autopass-outside-viewport"),
                       ("arrows_missing", "arrow-overlay-missing"), ("arrows_pointer", "arrow-overlay-takes-pointer"),
@@ -460,8 +577,11 @@ async def main():
     ap.add_argument("--turns", type=int, default=10)
     ap.add_argument("--out", default=".")
     ap.add_argument("--max-iters", type=int, default=600)
-    ap.add_argument("--block-scryfall", action="store_true")
+    ap.add_argument("--block-scryfall", action="store_true", help="abort any request to a Scryfall host (it is counted, and BAD, either way)")
+    ap.add_argument("--store", choices=("any", "filled", "empty"), default="any", help="what the server's image store is expected to hold")
+    ap.add_argument("--known-missing", default="", help="a file of one name per line (or a JSON list of names): the chips --store filled accepts")
     a = ap.parse_args()
+    a.known_missing = load_known_missing(a.known_missing)
     if a.port == 3040:
         sys.exit("refusing port 3040: that is the owner's server")
     os.makedirs(a.out, exist_ok=True)
@@ -488,14 +608,18 @@ async def main():
                 end = "game over" if r["game_over"] else f"reached turn {r['final_turn']}"
                 print(("BAD " if why else "ok  ") + f"{name}: {end} iters {r['iters']} page-scroll {r['page_scroll']} "
                       f"box-scroll {r['box_scroll']} page-errors {len(r['page_errors'])} chipless {r['chipless']} "
-                      f"cards {r['cards']}/{r['images']} pickers {sum(r.get('pickers', {}).values())} offscreen {r['offscreen']} refusals {len(r['refusals'])} "
+                      f"cards {r['cards']}/{r['images']} peak-cards/with-image {r['peak_cards']}/{r['peak_images']} (tokens {r['peak_tokens']}) "
+                      f"store {r['store']} image-200/404 {r['image_200']}/{r['image_404']} scryfall-requests {r['scryfall_requests']} "
+                      f"explained-chips {len(r['explained_chips'])} unexplained-chips {len(r['unexplained_chips'])} pickers {sum(r.get('pickers', {}).values())} offscreen {r['offscreen']} refusals {len(r['refusals'])} "
                       f"gave-up {len(r['gave_up'])} stuck {len(r['stuck'])} console-errors {len(r['console_errors'])} "
                       f"autopass-panel {r['autopass_measured']}/{r['table_iters']} arrow-overlay {r['arrows_measured']}/{r.get('measured', 0)} sick {r['sick_seen']}"
                       + (f"  <- {'; '.join(why)}" if why else ""), flush=True)
         await browser.close()
     with open(os.path.join(a.out, "v3sweep.json"), "w") as f:
-        json.dump({"port": a.port, "turns": a.turns, "block_scryfall": a.block_scryfall, "runs": runs}, f, indent=1)
+        json.dump({"port": a.port, "turns": a.turns, "block_scryfall": a.block_scryfall, "store": a.store,
+                   "known_missing": sorted(a.known_missing), "runs": runs}, f, indent=1)
     sys.exit(1 if bad else 2 if could_not else 0)
 
 
-asyncio.run(main())
+if __name__ == "__main__":      # v3game.py imports this module for its page-side helpers
+    asyncio.run(main())
