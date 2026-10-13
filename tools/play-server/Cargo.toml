@@ -21,6 +21,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 clap = { version = "4", features = ["derive"] }
 anyhow = "1"
+# Card-image prefetch (`src/images.rs`). The dependency line is `tools/scryfall-import`'s,
+# verbatim, so the lockfile gains one line (this crate's edge to the `ureq` already there).
+ureq = "3"
 
 [dev-dependencies]
 # CARDS-1 (OOS-M11-10): `GameState::turn_mut`/`players_mut` are engine escape

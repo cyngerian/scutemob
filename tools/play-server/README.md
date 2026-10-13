@@ -51,6 +51,9 @@ cargo run -p play-server -- --port 3040 --players 4 --bot heuristic --seed 0
 | `--players` | `4` | CR 903.1 — Commander is a multiplayer format; range is 2..=6 |
 | `--bot` | `heuristic` | `RandomBot` makes nonsense plays that read as engine bugs to a human (plan §8 R5); it remains the *fuzzer's* default |
 | `--seed` | `0` | the pregame build is deterministic from the seed. `POST /api/game` can override per game. **A bug report needs the mulligan count too** — see below. |
+| `--image-store <dir>` | env `SCUTEMOB_IMAGE_STORE`, else `tools/play-server/images` | the local card-image store. See [Card images](#card-images-the-local-store). |
+| `--no-image-prefetch` | off | serve the store but never fetch: starting a game downloads nothing. Probes and sweeps use this. |
+| `--prefetch-images <file-or-names>` | — | fetch those cards at all three sizes into the store, print a summary, **exit without serving**. |
 
 #### Reproducing a table from a bug report
 
@@ -527,10 +530,12 @@ so the two servers could one day be merged without a route collision.
 |---|---|---|
 | `POST /api/game` | `{players?, bot?, seed?}` (all optional; body optional) | start (or restart) a game; the response already carries the human's first decision |
 | `GET /api/game` | — | this seat's view, its pending decision, and every event since the last read |
-| `POST /api/game/action` | `{seq, action_index, params?}` | answer the pending decision, then let the bots act |
+| `POST /api/game/action` | `{seq, action_index, params?, pass_until?}` | answer the pending decision, then let the bots act; with `pass_until`, keep passing server-side — see [Pass-until](#pass-until-as-a-server-parameter-v3-c3) |
 | `POST /api/game/mulligan` | `{take, cards_to_bottom?}` | CR 103.5 pregame redeal. **Pregame only.** |
 | `GET /api/game/report` | — | the bug-report / repro artefact. A **pure read** — see below |
 | `GET /api/healthz` | — | liveness; never takes the session lock |
+| `GET /api/card-image?name=&version=` | — | one card image from the **local store**; never fetches, never takes the session lock. See [Card images](#card-images-the-local-store) |
+| `GET /api/card-image/status` | — | prefetch progress: `{enabled, store, queued, fetched, present, failed}` |
 | everything else | — | `ServeDir` fallback to `dist/`, when that directory exists |
 
 ### Error-status semantics
@@ -691,6 +696,166 @@ subtraction on a client-supplied `u64` — turns that into a `stale_decision` 40
 with a truthful `expected`/`got`.
 
 ---
+
+## Card images: the local store
+
+Owner ruling 2026-10-12 (`memory/decisions.md`; `docs/play-surface-v3-brief.md` §5):
+**the browser never calls Scryfall on the v3 surface.** Card images live in a local,
+gitignored store that is filled when a game's decks are resolved. Play reads the store
+only. A miss is a 404, the client shows its text chip, and the fix is to prefetch — the
+route does not fetch, lazily or otherwise, ever. All of it is `src/images.rs`.
+
+### Routes
+
+`GET /api/card-image?name=<exact card name>&version=<small|normal|large>`
+
+| Status | Headers | When |
+|---|---|---|
+| **200** | `content-type: image/jpeg`, `cache-control: public, max-age=2592000` | the store holds this card at this size |
+| **400** `bad_params` | JSON envelope, `cache-control: no-store` | `name` missing or blank; `version` missing or not exactly `small`, `normal` or `large` |
+| **404** `image_not_in_store` | JSON envelope, `cache-control: no-store` | not in the store. `no-store` so an image prefetched a minute later appears without a hard reload |
+
+`name` is the card's exact name as the engine spells it — a double-faced card is named
+by its front face (`Bloodline Keeper`), and its image is the front face.
+
+`GET /api/card-image/status` → `{ enabled, store, queued, fetched, present, failed: [names] }`
+(always 200, `no-store`). Counts are **cards**, cumulative for the process: `queued` =
+handed to the worker and not finished (`0` means the store is as ready as it will get),
+`fetched` = at least one image downloaded, `present` = already complete when the worker
+reached it, `failed` = names that could not be fetched and will render as chips.
+`enabled` is `false` under `--no-image-prefetch`.
+
+**Hidden information.** Neither route reads the game session, so neither can leak it:
+`/api/card-image` maps a name the client *already holds* to bytes on disk, any client
+may ask for any name, and the answer is the same whether or not that card is in the
+game. The status route reports counts plus the names that **failed** — never the names
+that were queued, because a bot seat's decklist is hidden.
+
+### Store layout
+
+```text
+<store>/small/<slug>.jpg     table        (Scryfall `small`,  146x204)
+<store>/normal/<slug>.jpg    hover        (Scryfall `normal`, 488x680)
+<store>/large/<slug>.jpg     card window  (Scryfall `large`,  672x936)
+```
+
+`<slug>` = the name lowercased with each run of non-`[a-z0-9]` characters collapsed to
+one `-` (at most 60 characters), then `-`, then the 16-hex-digit FNV-1a-64 hash of the
+**exact** name: `Sol Ring` → `sol-ring-<hash>.jpg`. The alphabet is `[a-z0-9-]`, so no
+name can leave the store directory, and the hash keeps names that differ only in
+punctuation or accents (`Fire // Ice` / `Fire-Ice`) in separate files. Files are written
+to `<slug>.jpg.<pid>.part` and renamed, so the route never serves a half-written image.
+Deleting a file (or the whole directory) is always safe; it is refetched at the next
+deck resolution.
+
+The store directory is, in order: `--image-store`, `$SCUTEMOB_IMAGE_STORE`, an `images/`
+next to the executable **if it already exists**, `tools/play-server/images` under the
+current directory when run from the workspace root, else the crate directory the binary
+was built from. `tools/play-server/images/` is gitignored. A store inside a git worktree
+dies with the worktree — point `SCUTEMOB_IMAGE_STORE` somewhere stable to share one.
+
+### When images are fetched
+
+1. **At deck resolution** (default). `POST /api/game` pins the table's decklists
+   (`session::new_game`), then hands the distinct card names of every seat's commander
+   and main deck to a background thread and returns — the response is not delayed and
+   the worker never holds the session lock. A mulligan permutes the same pinned decks,
+   so it queues nothing. Watch `GET /api/card-image/status` until `queued` is `0`.
+2. **Ahead of time**, before a playtest:
+
+   ```sh
+   cargo run -p play-server -- --prefetch-images decks/atraxa.txt
+   cargo run -p play-server -- --prefetch-images "Sol Ring,Command Tower,Bloodline Keeper"
+   cargo run -p play-server -- --prefetch-images "Atraxa, Praetors' Voice;Sol Ring"   # `;` when a name has a comma
+   ```
+
+   Decklist file: one card per line, optional leading count (`1 Sol Ring`, `1x Sol Ring`),
+   blank lines ignored, a line **starting** with `#` or `//` is a comment. (Set codes and
+   collector numbers after the name are not stripped.) It prints one line per card and a
+   final `fetched / already present / failed` summary. The exit status is non-zero only
+   when the argument could not be read; a name Scryfall does not know is a *reported
+   failure*, not a crash.
+3. **Never** with `--no-image-prefetch`: the store is served exactly as it is.
+
+The fetch is polite: per card, **one** call to `api.scryfall.com/cards/named?exact=…`
+(JSON → `image_uris`, or `card_faces[0].image_uris` for a double-faced card) preceded by
+a 120 ms pause, then one download per *missing* size from the image CDN
+(`cards.scryfall.io`, which Scryfall does not rate-limit); a `User-Agent` and `Accept` on
+every request; a 429, a 5xx or a transport error is retried up to 5 times with a 2 / 4 /
+8 / 16 s backoff; any other status is final. Files already present are never requested.
+A token, or any name Scryfall answers 404 to, is recorded in `failed` and stays a chip.
+
+**Tests never fetch.** `AppState::new` builds a serve-only service (no worker thread, a
+store path that does not exist); only the serving entry point installs a fetching one.
+The fetch procedure is tested through a scripted fake of the `Net` trait, whose single
+production implementation is the only networked code in the crate.
+
+## Pass-until as a server parameter (v3 C3)
+
+`scutemob-268`. `POST /api/game/action` may carry a `pass_until` object beside a
+**`PassPriority`** answer; the server then keeps passing for this seat inside the one
+request until the rule says stop. It is `frontend/src/lib/stores.js::startPassUntil`
+plus `v3/autopass.js::buildPredicate`, ported — same guards, same order — so a run stops
+at the same pass whichever side drives it (`src/pass_until.rs`, `api.rs::run_pass_until`).
+
+```json
+{ "seq": 12, "action_index": 0, "params": {},
+  "pass_until": {
+    "until":  { "kind": "end_of_turn" },
+    "unless": { "spell": true, "ability": false, "attackers": true },
+    "anchor": { "turn": 2, "step": "Upkeep" } } }
+```
+
+* `until` — `{"kind":"end_of_turn"}`, `{"kind":"my_next_turn"}` or
+  `{"kind":"step","step":S}`, `S` one of the eleven steps priority is given in (`Upkeep`,
+  `Draw`, `PreCombatMain`, `BeginningOfCombat`, `DeclareAttackers`, `DeclareBlockers`,
+  `FirstStrikeDamage`, `CombatDamage`, `EndOfCombat`, `PostCombatMain`, `End`).
+* `unless` — optional, each flag defaults to `false`: another player casts a spell,
+  another player activates an ability (CR 602 — not a trigger, not a mana ability),
+  attackers are declared at this seat or a planeswalker it controls.
+* `anchor` — optional; the `{turn, step}` a **resumed** run originally started from.
+
+The response is the ordinary seat view, with `events` holding every line of the whole
+run in order, plus a top-level `pass_until` outcome. That key is **absent** (not `null`)
+from every response to a request that carried no `pass_until`.
+
+```json
+"pass_until": { "passes": 2, "stop": "unless", "reason": "Bot-2 casts Spidersilk Net" }
+```
+
+| `stop` | Meaning |
+|---|---|
+| `until` | the point `until` names was reached — the run is finished |
+| `unless` | an `unless` condition fired first — interrupted, resumable |
+| `decision` | this seat has a decision that is not a `Priority` decision; it is left unanswered |
+| `no_decision` | nothing awaits this seat's answer |
+| `game_over` | the game ended or was halted |
+| `no_pass` | the `Priority` decision does not offer `PassPriority` |
+| `limit` | 400 passes were made |
+| `rejected` | a pass after the first was refused; the passes already made stand |
+
+`until` wins over `unless` on the same pass (the reason then carries both, `"; "`-joined),
+and the rule is consulted only after at least one pass, so "until my next turn" can be
+started on your own turn.
+
+**Hidden information.** The loop submits one kind of answer only — `PassPriority`, to a
+`Priority` decision addressed to this seat. And the stop rule is shown only what a
+response would have carried: each pass's event lines rendered for `Viewer::Seat` and the
+seat-redacted state. Where a run stops is itself a signal, so the rule's inputs are the
+seat's own view by type (`PassRule::check` takes a `StateViewModel` and `EventView`s, no
+`GameState`).
+
+**Refusals** apply nothing: `pass_until` beside an `action_index` that is not the
+decision's `PassPriority` is **400 `bad_params`**; a malformed rule (an unknown key, the
+`Untap` or `Cleanup` step) is **400 `invalid_body`**; a stale `seq` is the usual **409**.
+A server-side run cannot be cancelled part-way — the `unless` stops and the 400-pass cap
+are its only brakes.
+
+`summary.game_id` (same task) is an opaque per-table id for the client to key remembered
+card order by: stable across one table's responses, new on `POST /api/game` and on a
+redealing mulligan, and **not derived from the seed or anything else about the game**
+(`session::fresh_game_id` takes no argument) — see `GameSummary::game_id` for why that
+matters under MR-M11-01.
 
 ## Decision record: no WebSocket, no SSE in M11-local
 

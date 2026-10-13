@@ -51,3 +51,6 @@ codebase_analysis_*.md
 # f4696e09 and removed by PB-DP9's closing-review fix cycle (LOW-2).
 crash-reports/
 tools/play-server/mockups/img/
+# Local card-image store (owner ruling 2026-10-12): filled at deck resolution or by
+# `play-server --prefetch-images`; never committed.
+tools/play-server/images/

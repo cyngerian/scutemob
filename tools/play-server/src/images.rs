@@ -1,0 +1,1658 @@
+//! The local card-image store, its two routes, and the deck-time prefetch.
+//!
+//! Owner ruling 2026-10-12 (`memory/decisions.md`, `docs/play-surface-v3-brief.md` §5):
+//! the browser never calls Scryfall on the v3 surface. Card images live in a local,
+//! gitignored store that is filled **when a game's decks are resolved** (or ahead of
+//! time with `--prefetch-images`), at the three sizes the UI uses. Play reads the
+//! store only: a miss is a 404 and the client shows its text chip.
+//!
+//! # The route never fetches
+//!
+//! [`get_card_image`] reads one file and answers. It has no handle on the network
+//! half of this module at all — the fetcher lives behind [`ImageService::enqueue`],
+//! which only `api::post_game` calls. A store miss is a defect to fix at deck-add
+//! time, never a live fetch.
+//!
+//! # Hidden information (Architecture Invariant 7)
+//!
+//! Neither route reads the game session. `GET /api/card-image` maps a card NAME the
+//! client already holds to bytes on disk; any client can ask for any name, and the
+//! answer says nothing about where (or whether) that card is in the current game.
+//! The status route reports counts and the names that FAILED to download, never the
+//! names that were queued — a decklist is hidden information for the bot seats.
+//!
+//! # Store layout
+//!
+//! ```text
+//! <root>/small/<slug>.jpg     table size   (Scryfall `small`,  146x204)
+//! <root>/normal/<slug>.jpg    hover size   (Scryfall `normal`, 488x680)
+//! <root>/large/<slug>.jpg     card window  (Scryfall `large`,  672x936)
+//! ```
+//!
+//! `<slug>` is [`slug`]: a readable ASCII stem plus a 16-hex-digit FNV-1a hash of the
+//! exact name, so it can only ever contain `[a-z0-9-]` (no separator, no dot — it
+//! cannot leave the root) and two names that differ only in punctuation cannot share
+//! a file.
+//!
+//! # Testability
+//!
+//! Planning what to fetch ([`missing_versions`]), the slug, the Scryfall JSON to
+//! image-URL extraction ([`image_urls`]), the backoff schedule ([`backoff_delay`])
+//! and the decklist parser are pure. The whole fetch procedure ([`ensure_card`]) is
+//! written against the [`Net`] trait, whose one production implementation
+//! ([`HttpNet`]) is the only code in this crate that talks to the network. Tests
+//! drive `ensure_card` with a scripted fake and never construct `HttpNet`.
+
+use std::collections::{BTreeSet, HashMap, HashSet};
+use std::path::{Path, PathBuf};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::Duration;
+
+use axum::extract::{Query, State};
+use axum::http::{header, HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Response};
+use axum::Json;
+use mtg_simulator::{DeckSource, LocalGameConfig};
+use serde::Serialize;
+
+use crate::api::{ApiError, ApiFailure};
+use crate::session::SharedState;
+
+// ── Versions and the slug ─────────────────────────────────────────────────────
+
+/// The three image sizes the UI uses. Exactly these; anything else is a 400.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Version {
+    /// The table.
+    Small,
+    /// The hover magnifier.
+    Normal,
+    /// The card window.
+    Large,
+}
+
+impl Version {
+    pub const ALL: [Version; 3] = [Version::Small, Version::Normal, Version::Large];
+
+    /// The wire spelling, the store directory name and Scryfall's `image_uris` key.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Version::Small => "small",
+            Version::Normal => "normal",
+            Version::Large => "large",
+        }
+    }
+
+    pub fn parse(text: &str) -> Option<Version> {
+        Version::ALL.into_iter().find(|v| v.as_str() == text)
+    }
+}
+
+/// Longest readable stem kept in a slug; the hash carries the identity.
+const SLUG_STEM_MAX: usize = 60;
+
+/// 64-bit FNV-1a over the exact bytes of `name`. Stable across builds and
+/// platforms (unlike `std`'s `DefaultHasher`, whose algorithm is unspecified), which
+/// a file name on disk needs.
+fn fnv1a64(name: &str) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in name.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
+/// File stem for a card name: `<readable-stem>-<16 hex digits>`.
+///
+/// The stem is the name lowercased with every run of non-`[a-z0-9]` characters
+/// collapsed to one `-` (so `Atraxa, Praetors' Voice` reads `atraxa-praetors-voice`),
+/// capped at [`SLUG_STEM_MAX`]. That stem alone collides (`Fire // Ice` and
+/// `Fire-Ice`, or two accented names that differ only in the accent), so the hash of
+/// the EXACT name is appended: equal slugs mean equal names, up to a 64-bit
+/// collision. The output alphabet is `[a-z0-9-]`, so no input can produce a path
+/// separator, a dot or an absolute path.
+pub fn slug(name: &str) -> String {
+    let mut stem = String::new();
+    let mut pending_dash = false;
+    for ch in name.chars() {
+        let lower = ch.to_ascii_lowercase();
+        if lower.is_ascii_lowercase() || lower.is_ascii_digit() {
+            if pending_dash && !stem.is_empty() {
+                stem.push('-');
+            }
+            pending_dash = false;
+            stem.push(lower);
+        } else {
+            pending_dash = true;
+        }
+        if stem.len() >= SLUG_STEM_MAX {
+            break;
+        }
+    }
+    if stem.is_empty() {
+        stem.push_str("card");
+    }
+    format!("{stem}-{:016x}", fnv1a64(name))
+}
+
+// ── The store ─────────────────────────────────────────────────────────────────
+
+/// A directory of card images. See the module doc for the layout.
+#[derive(Clone, Debug)]
+pub struct ImageStore {
+    root: PathBuf,
+}
+
+impl ImageStore {
+    pub fn new(root: impl Into<PathBuf>) -> Self {
+        ImageStore { root: root.into() }
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    /// Where `name` at `version` lives. Always strictly inside the root.
+    pub fn path_for(&self, name: &str, version: Version) -> PathBuf {
+        self.root
+            .join(version.as_str())
+            .join(format!("{}.jpg", slug(name)))
+    }
+
+    pub fn has(&self, name: &str, version: Version) -> bool {
+        self.path_for(name, version).is_file()
+    }
+
+    /// Write `bytes` for `name` at `version` through a temp file and a rename, so a
+    /// concurrent read sees the old state (absent) or the whole image, never a
+    /// half-written one.
+    pub fn write_atomic(&self, name: &str, version: Version, bytes: &[u8]) -> std::io::Result<()> {
+        let dest = self.path_for(name, version);
+        if let Some(dir) = dest.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
+        // The `.part` suffix keeps a leftover from a killed process from ever being
+        // served: the route only opens `<slug>.jpg`.
+        let tmp = dest.with_extension(format!("jpg.{}.part", std::process::id()));
+        std::fs::write(&tmp, bytes)?;
+        std::fs::rename(&tmp, &dest).inspect_err(|_| {
+            let _ = std::fs::remove_file(&tmp);
+        })
+    }
+}
+
+/// The pure planner: which of the three versions of `name` the store lacks.
+/// Empty means "nothing to fetch for this card".
+pub fn missing_versions(store: &ImageStore, name: &str) -> Vec<Version> {
+    Version::ALL
+        .into_iter()
+        .filter(|v| !store.has(name, *v))
+        .collect()
+}
+
+// ── Scryfall: URLs, JSON, backoff ─────────────────────────────────────────────
+
+/// Identifies this tool to Scryfall, as their API guidelines require.
+pub const USER_AGENT: &str = "scutemob-play-server/0.1 (local card-image prefetch)";
+
+/// Pause before every request to `api.scryfall.com`. Scryfall asks for 50-100 ms
+/// between API calls; this stays clear of the upper figure.
+pub const API_SPACING: Duration = Duration::from_millis(120);
+
+/// How many times one URL is tried before the card is recorded as failed.
+pub const MAX_ATTEMPTS: u32 = 5;
+
+/// The only host an image is ever downloaded from. An `image_uris` entry pointing
+/// anywhere else is ignored rather than followed.
+const IMAGE_CDN_PREFIX: &str = "https://cards.scryfall.io/";
+
+/// Percent-encode `text` as one query-string value (RFC 3986 unreserved set kept).
+fn percent_encode(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for byte in text.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+            out.push(char::from(byte));
+        } else {
+            out.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    out
+}
+
+/// The ONE rate-limited call per card: the card object, as JSON, by exact name.
+pub fn named_card_url(name: &str) -> String {
+    format!(
+        "https://api.scryfall.com/cards/named?exact={}",
+        percent_encode(name)
+    )
+}
+
+/// Pull the three CDN URLs out of a Scryfall card object.
+///
+/// A single-faced card (and a split card, which is one image) carries `image_uris`
+/// at the top level. A double-faced card carries none there and one set per entry
+/// of `card_faces`; the FRONT face (`card_faces[0]`) is the card's image in every
+/// zone the play surface draws from a name. `None` when a size is absent or points
+/// off the image CDN.
+pub fn image_urls(card: &serde_json::Value) -> Option<[(Version, String); 3]> {
+    let uris = match card.get("image_uris") {
+        Some(uris) if uris.is_object() => uris,
+        _ => card.get("card_faces")?.get(0)?.get("image_uris")?,
+    };
+    let url = |version: Version| -> Option<(Version, String)> {
+        let text = uris.get(version.as_str())?.as_str()?;
+        text.starts_with(IMAGE_CDN_PREFIX)
+            .then(|| (version, text.to_string()))
+    };
+    Some([
+        url(Version::Small)?,
+        url(Version::Normal)?,
+        url(Version::Large)?,
+    ])
+}
+
+/// How long to wait after failed attempt number `attempt` (0-based) before the
+/// next one: 2 s, 4 s, 8 s, 16 s, then capped at 30 s.
+pub fn backoff_delay(attempt: u32) -> Duration {
+    // `attempt.min(4)` first: a shift past the width would wrap to 0, not saturate.
+    let secs = (2u64 << attempt.min(4)).min(30);
+    Duration::from_secs(secs)
+}
+
+/// Why one HTTP GET failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FetchError {
+    /// The server answered with this non-2xx status.
+    Status(u16),
+    /// DNS, TLS, timeout, a truncated body — anything short of a status.
+    Transport(String),
+}
+
+impl std::fmt::Display for FetchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FetchError::Status(code) => write!(f, "HTTP {code}"),
+            FetchError::Transport(detail) => write!(f, "{detail}"),
+        }
+    }
+}
+
+/// The network, as far as this module is concerned: one GET, and the ability to
+/// wait. Waiting is on the trait so a test can record the pauses instead of
+/// sleeping through them.
+pub trait Net {
+    fn get(&mut self, url: &str, accept: &str) -> Result<Vec<u8>, FetchError>;
+    fn pause(&mut self, duration: Duration);
+}
+
+/// The production [`Net`]: `ureq`, blocking, with a global timeout. **The only
+/// networked code in this crate.** Constructed by `--prefetch-images` and by the
+/// worker thread [`ImageService::with_prefetch`] starts; never by a test.
+pub struct HttpNet {
+    agent: ureq::Agent,
+}
+
+impl HttpNet {
+    pub fn new() -> Self {
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .timeout_global(Some(Duration::from_secs(30)))
+            .user_agent(USER_AGENT)
+            .build()
+            .into();
+        HttpNet { agent }
+    }
+}
+
+impl Default for HttpNet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Net for HttpNet {
+    fn get(&mut self, url: &str, accept: &str) -> Result<Vec<u8>, FetchError> {
+        match self.agent.get(url).header("Accept", accept).call() {
+            Ok(mut response) => response
+                .body_mut()
+                .read_to_vec()
+                .map_err(|e| FetchError::Transport(e.to_string())),
+            Err(ureq::Error::StatusCode(code)) => Err(FetchError::Status(code)),
+            Err(other) => Err(FetchError::Transport(other.to_string())),
+        }
+    }
+
+    fn pause(&mut self, duration: Duration) {
+        std::thread::sleep(duration);
+    }
+}
+
+/// GET with bounded retries. A 429, a 5xx and a transport error are worth waiting
+/// out ([`backoff_delay`]); any other status is an answer and is returned at once.
+fn get_with_retry(net: &mut dyn Net, url: &str, accept: &str) -> Result<Vec<u8>, FetchError> {
+    let mut last = FetchError::Transport("no attempt was made".to_string());
+    for attempt in 0..MAX_ATTEMPTS {
+        match net.get(url, accept) {
+            Ok(bytes) => return Ok(bytes),
+            Err(FetchError::Status(code)) if code != 429 && !(500..600).contains(&code) => {
+                return Err(FetchError::Status(code));
+            }
+            Err(retryable) => last = retryable,
+        }
+        if attempt + 1 < MAX_ATTEMPTS {
+            net.pause(backoff_delay(attempt));
+        }
+    }
+    Err(last)
+}
+
+/// One polite call to the Scryfall API for `name`'s card object.
+fn fetch_card_json(net: &mut dyn Net, name: &str) -> Result<Vec<u8>, FetchError> {
+    net.pause(API_SPACING);
+    get_with_retry(net, &named_card_url(name), "application/json")
+}
+
+/// The failure reason for a name Scryfall answered 404 to. The worker remembers
+/// these (and only these) so a rematch does not ask again; a transient failure is
+/// retried the next time the card is queued.
+const UNKNOWN_NAME: &str = "Scryfall knows no card by this exact name";
+
+/// What happened to one card.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CardOutcome {
+    /// All three sizes were already in the store; nothing was requested.
+    Present,
+    /// This many images were downloaded and written.
+    Fetched(usize),
+    /// Nothing usable could be fetched; the card stays a text chip.
+    Failed(String),
+}
+
+/// Make sure the store holds all three sizes of `name`, downloading what is
+/// missing: one API call for the card object, then one CDN download per missing
+/// size. Never panics and never returns an error — a failure is an outcome.
+pub fn ensure_card(net: &mut dyn Net, store: &ImageStore, name: &str) -> CardOutcome {
+    let missing = missing_versions(store, name);
+    if missing.is_empty() {
+        return CardOutcome::Present;
+    }
+    let json = match fetch_card_json(net, name) {
+        Ok(bytes) => bytes,
+        // The engine names a double-faced card by its front face, which Scryfall's
+        // exact match accepts. Should a `Front // Back` name ever arrive and be
+        // refused, the front half alone is the same card.
+        Err(FetchError::Status(404)) => match name.split_once(" // ") {
+            Some((front, _)) => match fetch_card_json(net, front) {
+                Ok(bytes) => bytes,
+                Err(e) => return CardOutcome::Failed(format!("card lookup: {e}")),
+            },
+            None => return CardOutcome::Failed(UNKNOWN_NAME.to_string()),
+        },
+        Err(e) => return CardOutcome::Failed(format!("card lookup: {e}")),
+    };
+    let card: serde_json::Value = match serde_json::from_slice(&json) {
+        Ok(card) => card,
+        Err(e) => return CardOutcome::Failed(format!("card lookup returned non-JSON: {e}")),
+    };
+    let Some(urls) = image_urls(&card) else {
+        return CardOutcome::Failed("the card object carries no usable image_uris".to_string());
+    };
+    let mut written = 0;
+    for (version, url) in urls {
+        if !missing.contains(&version) {
+            continue;
+        }
+        let bytes = match get_with_retry(net, &url, "image/jpeg") {
+            Ok(bytes) => bytes,
+            Err(e) => return CardOutcome::Failed(format!("{} image: {e}", version.as_str())),
+        };
+        // JPEG start-of-image marker. Anything else (an HTML error page, an empty
+        // body) must not land in a file the route serves as `image/jpeg`.
+        if !bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+            return CardOutcome::Failed(format!("{} image is not a JPEG", version.as_str()));
+        }
+        if let Err(e) = store.write_atomic(name, version, &bytes) {
+            return CardOutcome::Failed(format!(
+                "{} image could not be stored: {e}",
+                version.as_str()
+            ));
+        }
+        written += 1;
+    }
+    CardOutcome::Fetched(written)
+}
+
+// ── Decklists ─────────────────────────────────────────────────────────────────
+
+/// Trim, drop empties, de-duplicate, sort.
+fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
+    names
+        .into_iter()
+        .map(|n| n.trim().to_string())
+        .filter(|n| !n.is_empty())
+        .collect::<BTreeSet<String>>()
+        .into_iter()
+        .collect()
+}
+
+/// Parse a decklist: one card per line, an optional leading count (`1 Sol Ring`,
+/// `1x Sol Ring`), blank lines ignored, and a line that STARTS with `#` or `//` is
+/// a comment (a `//` inside a line is part of a split card's name). Returns the
+/// distinct names; counts are irrelevant to an image store.
+pub fn parse_decklist(text: &str) -> Vec<String> {
+    distinct(text.lines().filter_map(|line| {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') || line.starts_with("//") {
+            return None;
+        }
+        let name = match line.split_once(char::is_whitespace) {
+            Some((first, rest)) if is_count(first) => rest,
+            _ => line,
+        };
+        Some(name.to_string())
+    }))
+}
+
+/// `3` or `3x` / `3X`.
+fn is_count(token: &str) -> bool {
+    let digits = token.strip_suffix(['x', 'X']).unwrap_or(token);
+    !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// Parse an inline name list. Separated by `;` when the text contains one —
+/// card names contain commas (`Atraxa, Praetors' Voice`) but never semicolons —
+/// and by `,` otherwise.
+pub fn parse_name_list(text: &str) -> Vec<String> {
+    let separator = if text.contains(';') { ';' } else { ',' };
+    distinct(text.split(separator).map(str::to_string))
+}
+
+/// Resolve `--prefetch-images <arg>`: a decklist file when `arg` names an existing
+/// path, an inline name list otherwise. The only error is a path that exists and
+/// cannot be read as text.
+pub fn names_from_arg(arg: &str) -> std::io::Result<Vec<String>> {
+    let path = Path::new(arg);
+    if path.exists() {
+        Ok(parse_decklist(&std::fs::read_to_string(path)?))
+    } else {
+        Ok(parse_name_list(arg))
+    }
+}
+
+/// Every distinct card name a resolved table needs: each seat's commander and
+/// main deck. Empty for a config whose decks are still a recipe
+/// (`DeckSource::RandomPerSeat`) — `session::new_game` resolves it before this is
+/// called.
+pub fn deck_card_names(cfg: &LocalGameConfig) -> Vec<String> {
+    let DeckSource::Fixed(decks) = &cfg.decks else {
+        return Vec::new();
+    };
+    let names_by_id: HashMap<_, _> = mtg_engine::all_cards()
+        .into_iter()
+        .map(|def| (def.card_id, def.name))
+        .collect();
+    distinct(decks.iter().flat_map(|(_, deck)| {
+        std::iter::once(&deck.commander)
+            .chain(deck.main_deck.iter())
+            .filter_map(|id| names_by_id.get(id).cloned())
+    }))
+}
+
+// ── The service: store + optional background prefetch ─────────────────────────
+
+/// Prefetch progress, as `GET /api/card-image/status` reports it. Counts are
+/// cards (not files) and are cumulative for the life of the process.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct PrefetchStatus {
+    /// Whether this process fetches at all (`--no-image-prefetch` turns it off).
+    pub enabled: bool,
+    /// The store directory, as configured.
+    pub store: String,
+    /// Cards handed to the worker and not yet finished. `0` means the store is as
+    /// ready as it is going to get.
+    pub queued: usize,
+    /// Cards for which at least one image was downloaded.
+    pub fetched: usize,
+    /// Cards that were already complete in the store when the worker reached them.
+    pub present: usize,
+    /// Names that could not be fetched. They render as text chips.
+    pub failed: Vec<String>,
+}
+
+struct ServiceInner {
+    store: ImageStore,
+    status: Mutex<PrefetchStatus>,
+    /// `Some` only when a worker thread exists. `Sender` is not `Sync`, hence the
+    /// mutex; it is held for one non-blocking `send`.
+    queue: Option<Mutex<mpsc::Sender<Vec<String>>>>,
+}
+
+/// The image half of the axum state: the store the route reads, and — only when
+/// built with [`ImageService::with_prefetch`] — a background worker that fills it.
+#[derive(Clone)]
+pub struct ImageService {
+    inner: Arc<ServiceInner>,
+}
+
+/// Lock that survives a panicked holder: the status is plain counters, and a
+/// stale count is better than a dead status route.
+fn lock_status(inner: &ServiceInner) -> std::sync::MutexGuard<'_, PrefetchStatus> {
+    inner.status.lock().unwrap_or_else(|p| p.into_inner())
+}
+
+impl ImageService {
+    /// Serve the store; never fetch. No thread is started and no network code is
+    /// reachable from the value returned. This is what `AppState::new` builds, so
+    /// a test cannot trigger a fetch by construction.
+    pub fn serve_only(root: impl Into<PathBuf>) -> Self {
+        Self::build(root.into(), None)
+    }
+
+    /// Serve the store and start the background worker that fills it. Called from
+    /// the serving entry point only.
+    pub fn with_prefetch(root: impl Into<PathBuf>) -> Self {
+        let (tx, rx) = mpsc::channel::<Vec<String>>();
+        let service = Self::build(root.into(), Some(tx));
+        let inner = Arc::clone(&service.inner);
+        let spawned = std::thread::Builder::new()
+            .name("card-image-prefetch".to_string())
+            .spawn(move || worker(&inner, &rx));
+        if let Err(e) = spawned {
+            eprintln!(
+                "card images: the prefetch worker could not start ({e}); serving the store only"
+            );
+        }
+        service
+    }
+
+    fn build(root: PathBuf, tx: Option<mpsc::Sender<Vec<String>>>) -> Self {
+        let status = PrefetchStatus {
+            enabled: tx.is_some(),
+            store: root.display().to_string(),
+            ..PrefetchStatus::default()
+        };
+        ImageService {
+            inner: Arc::new(ServiceInner {
+                store: ImageStore::new(root),
+                status: Mutex::new(status),
+                queue: tx.map(Mutex::new),
+            }),
+        }
+    }
+
+    pub fn store(&self) -> &ImageStore {
+        &self.inner.store
+    }
+
+    pub fn prefetch_enabled(&self) -> bool {
+        self.inner.queue.is_some()
+    }
+
+    pub fn status(&self) -> PrefetchStatus {
+        lock_status(&self.inner).clone()
+    }
+
+    /// Hand card names to the background worker and return at once. Returns how
+    /// many distinct names were queued — always `0` on a serve-only service.
+    pub fn enqueue(&self, names: Vec<String>) -> usize {
+        let Some(queue) = &self.inner.queue else {
+            return 0;
+        };
+        let names = distinct(names);
+        if names.is_empty() {
+            return 0;
+        }
+        let count = names.len();
+        lock_status(&self.inner).queued += count;
+        let sent = queue
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .send(names)
+            .is_ok();
+        if !sent {
+            // The worker is gone; nothing will ever drain these.
+            let mut status = lock_status(&self.inner);
+            status.queued = status.queued.saturating_sub(count);
+            return 0;
+        }
+        count
+    }
+}
+
+/// Fold one card's outcome into the status.
+fn record(status: &mut PrefetchStatus, name: &str, outcome: &CardOutcome) {
+    status.queued = status.queued.saturating_sub(1);
+    match outcome {
+        CardOutcome::Present => status.present += 1,
+        CardOutcome::Fetched(_) => {
+            status.fetched += 1;
+            status.failed.retain(|n| n != name);
+        }
+        CardOutcome::Failed(_) => {
+            if !status.failed.iter().any(|n| n == name) {
+                status.failed.push(name.to_string());
+                status.failed.sort();
+            }
+        }
+    }
+}
+
+/// The background worker: drains batches until every sender is dropped. Holds no
+/// lock while it talks to the network, and never touches the game session.
+fn worker(inner: &ServiceInner, rx: &mpsc::Receiver<Vec<String>>) {
+    let mut net = HttpNet::new();
+    // Names Scryfall has already refused in this process. A new game with the same
+    // decks must not spend one API call per unknown name again.
+    let mut refused: HashSet<String> = HashSet::new();
+    while let Ok(batch) = rx.recv() {
+        for name in batch {
+            let outcome = if refused.contains(&name) {
+                CardOutcome::Failed(UNKNOWN_NAME.to_string())
+            } else {
+                ensure_card(&mut net, &inner.store, &name)
+            };
+            if let CardOutcome::Failed(reason) = &outcome {
+                if !refused.contains(&name) {
+                    eprintln!("card images: {name}: {reason}");
+                }
+                if reason == UNKNOWN_NAME {
+                    refused.insert(name.clone());
+                }
+            }
+            record(&mut lock_status(inner), &name, &outcome);
+        }
+    }
+}
+
+// ── `--prefetch-images` ───────────────────────────────────────────────────────
+
+/// What a prefetch run did, by card.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct PrefetchSummary {
+    pub fetched: Vec<String>,
+    pub present: Vec<String>,
+    pub failed: Vec<(String, String)>,
+}
+
+/// Fetch every name into the store through `net`, reporting each card on `log`.
+pub fn prefetch_all(
+    net: &mut dyn Net,
+    store: &ImageStore,
+    names: &[String],
+    log: &mut dyn FnMut(&str),
+) -> PrefetchSummary {
+    let mut summary = PrefetchSummary::default();
+    for (index, name) in names.iter().enumerate() {
+        let outcome = ensure_card(net, store, name);
+        let position = format!("[{}/{}]", index + 1, names.len());
+        match outcome {
+            CardOutcome::Present => {
+                log(&format!("{position} present  {name}"));
+                summary.present.push(name.clone());
+            }
+            CardOutcome::Fetched(count) => {
+                log(&format!("{position} fetched  {name} ({count} images)"));
+                summary.fetched.push(name.clone());
+            }
+            CardOutcome::Failed(reason) => {
+                log(&format!("{position} FAILED   {name}: {reason}"));
+                summary.failed.push((name.clone(), reason));
+            }
+        }
+    }
+    summary
+}
+
+/// `play-server --prefetch-images <decklist-file | names>`: fill the store and
+/// return. `Err` only when the argument could not be read; a card Scryfall does
+/// not know is a reported failure in the summary, not an error.
+pub fn run_cli_prefetch(store_root: &Path, arg: &str) -> anyhow::Result<()> {
+    use anyhow::Context as _;
+
+    let names =
+        names_from_arg(arg).with_context(|| format!("--prefetch-images: could not read {arg}"))?;
+    let store = ImageStore::new(store_root);
+    println!(
+        "Prefetching {} card(s) x 3 sizes into {}",
+        names.len(),
+        store.root().display()
+    );
+    let mut net = HttpNet::new();
+    let summary = prefetch_all(&mut net, &store, &names, &mut |line| println!("{line}"));
+    println!(
+        "Done: {} fetched, {} already present, {} failed.",
+        summary.fetched.len(),
+        summary.present.len(),
+        summary.failed.len()
+    );
+    for (name, reason) in &summary.failed {
+        println!("  failed: {name} — {reason}");
+    }
+    Ok(())
+}
+
+/// The default store directory, resolved the way `dist/` is: next to the
+/// executable when an `images/` already sits there (an installed build), else
+/// `tools/play-server/images` under the current directory when that crate
+/// directory is there (a `cargo run` from the workspace root), else the crate
+/// directory this binary was built from.
+pub fn default_store_dir() -> PathBuf {
+    let beside_exe = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|pp| pp.join("images")));
+    if let Some(dir) = beside_exe.filter(|d| d.is_dir()) {
+        return dir;
+    }
+    let crate_dir = PathBuf::from("tools/play-server");
+    if crate_dir.is_dir() {
+        return crate_dir.join("images");
+    }
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("images")
+}
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+
+/// A served image may be cached for 30 days: a card's image at a size does not
+/// change, and the URL carries both.
+const CACHE_HIT: &str = "public, max-age=2592000";
+/// A miss must not be cached, so an image prefetched a minute later shows up on
+/// the next request without a hard reload.
+const CACHE_MISS: &str = "no-store";
+
+fn failure(status: StatusCode, kind: &'static str, error: impl Into<String>) -> Response {
+    let mut response = ApiFailure {
+        status,
+        body: ApiError {
+            error: error.into(),
+            kind,
+        },
+    }
+    .into_response();
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static(CACHE_MISS));
+    response
+}
+
+/// `GET /api/card-image?name=<exact card name>&version=<small|normal|large>`.
+///
+/// | Status | When |
+/// |---|---|
+/// | 200 `image/jpeg` | the store holds this card at this size |
+/// | 400 `bad_params` | `name` missing or empty, `version` missing or not one of the three |
+/// | 404 `image_not_in_store` | not in the store — the client shows its chip |
+///
+/// Reads one file. Never fetches, never reads the session (module doc).
+pub async fn get_card_image(
+    State(state): State<SharedState>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    let name = query.get("name").map(String::as_str).unwrap_or("");
+    if name.trim().is_empty() {
+        return failure(
+            StatusCode::BAD_REQUEST,
+            "bad_params",
+            "`name` is required: the exact card name",
+        );
+    }
+    let Some(version) = query.get("version").and_then(|v| Version::parse(v)) else {
+        return failure(
+            StatusCode::BAD_REQUEST,
+            "bad_params",
+            "`version` is required and must be one of small, normal, large",
+        );
+    };
+    let path = state.images.store().path_for(name, version);
+    match tokio::fs::read(&path).await {
+        Ok(bytes) => (
+            [
+                (header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg")),
+                (header::CACHE_CONTROL, HeaderValue::from_static(CACHE_HIT)),
+            ],
+            bytes,
+        )
+            .into_response(),
+        Err(_) => failure(
+            StatusCode::NOT_FOUND,
+            "image_not_in_store",
+            format!(
+                "no {} image for {name:?} in the local store; prefetch it (see the README)",
+                version.as_str()
+            ),
+        ),
+    }
+}
+
+/// `GET /api/card-image/status` — prefetch progress. `queued == 0` means done.
+pub async fn get_card_image_status(State(state): State<SharedState>) -> Response {
+    let mut response = Json(state.images.status()).into_response();
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static(CACHE_MISS));
+    response
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+//
+// Nothing below opens a socket or constructs the production network type: the
+// fetch procedure is driven through a scripted fake, and the routes through the
+// router with `oneshot` against a store directory under the system temp dir.
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::collections::VecDeque;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    use axum::body::Body;
+    use axum::http::Request;
+    use http_body_util::BodyExt;
+    use mtg_simulator::BotKind;
+    use tower::ServiceExt;
+
+    use crate::session::{self, AppState, NewGameDefaults};
+
+    const JPEG: &[u8] = &[0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, b'J', b'F', b'I', b'F'];
+
+    /// A fresh, uniquely named store directory under the system temp dir, removed
+    /// when the guard drops.
+    struct TempStore {
+        root: PathBuf,
+    }
+
+    impl TempStore {
+        fn new(tag: &str) -> Self {
+            static NEXT: AtomicU32 = AtomicU32::new(0);
+            let root = std::env::temp_dir().join(format!(
+                "scutemob-images-test-{}-{}-{tag}",
+                std::process::id(),
+                NEXT.fetch_add(1, Ordering::Relaxed)
+            ));
+            let _ = std::fs::remove_dir_all(&root);
+            TempStore { root }
+        }
+
+        fn store(&self) -> ImageStore {
+            ImageStore::new(&self.root)
+        }
+    }
+
+    impl Drop for TempStore {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    /// A scripted network: answers are popped per URL, every call and every pause
+    /// is recorded, and an unscripted URL is a 404.
+    #[derive(Default)]
+    struct FakeNet {
+        answers: HashMap<String, VecDeque<Result<Vec<u8>, FetchError>>>,
+        calls: Vec<(String, String)>,
+        pauses: Vec<Duration>,
+    }
+
+    impl FakeNet {
+        fn script(&mut self, url: &str, answer: Result<Vec<u8>, FetchError>) {
+            self.answers
+                .entry(url.to_string())
+                .or_default()
+                .push_back(answer);
+        }
+
+        fn calls_to(&self, host_prefix: &str) -> usize {
+            self.calls
+                .iter()
+                .filter(|(url, _)| url.starts_with(host_prefix))
+                .count()
+        }
+    }
+
+    impl Net for FakeNet {
+        fn get(&mut self, url: &str, accept: &str) -> Result<Vec<u8>, FetchError> {
+            self.calls.push((url.to_string(), accept.to_string()));
+            self.answers
+                .get_mut(url)
+                .and_then(VecDeque::pop_front)
+                .unwrap_or(Err(FetchError::Status(404)))
+        }
+
+        fn pause(&mut self, duration: Duration) {
+            self.pauses.push(duration);
+        }
+    }
+
+    /// Hand-written: the fields of a Scryfall card object this module reads, for
+    /// a single-faced card.
+    const SOL_RING_JSON: &str = r#"{
+        "object": "card",
+        "name": "Sol Ring",
+        "layout": "normal",
+        "image_uris": {
+            "small": "https://cards.scryfall.io/small/front/a/b/sol.jpg?1",
+            "normal": "https://cards.scryfall.io/normal/front/a/b/sol.jpg?1",
+            "large": "https://cards.scryfall.io/large/front/a/b/sol.jpg?1",
+            "png": "https://cards.scryfall.io/png/front/a/b/sol.png?1"
+        }
+    }"#;
+
+    /// Hand-written: a double-faced card has no top-level `image_uris`; each face
+    /// carries its own.
+    const DFC_JSON: &str = r#"{
+        "object": "card",
+        "name": "Bloodline Keeper // Lord of Lineage",
+        "layout": "transform",
+        "card_faces": [
+            { "name": "Bloodline Keeper", "image_uris": {
+                "small": "https://cards.scryfall.io/small/front/c/d/keeper.jpg?2",
+                "normal": "https://cards.scryfall.io/normal/front/c/d/keeper.jpg?2",
+                "large": "https://cards.scryfall.io/large/front/c/d/keeper.jpg?2" } },
+            { "name": "Lord of Lineage", "image_uris": {
+                "small": "https://cards.scryfall.io/small/back/c/d/keeper.jpg?2",
+                "normal": "https://cards.scryfall.io/normal/back/c/d/keeper.jpg?2",
+                "large": "https://cards.scryfall.io/large/back/c/d/keeper.jpg?2" } }
+        ]
+    }"#;
+
+    fn sol_ring_net() -> FakeNet {
+        let mut net = FakeNet::default();
+        net.script(
+            &named_card_url("Sol Ring"),
+            Ok(SOL_RING_JSON.as_bytes().to_vec()),
+        );
+        for size in ["small", "normal", "large"] {
+            net.script(
+                &format!("https://cards.scryfall.io/{size}/front/a/b/sol.jpg?1"),
+                Ok(JPEG.to_vec()),
+            );
+        }
+        net
+    }
+
+    // ── slug ──
+
+    #[test]
+    fn test_image_slug_alphabet_cannot_escape_the_store_root() {
+        let hostile = [
+            "../../etc/passwd",
+            "/etc/passwd",
+            "..",
+            ".",
+            "",
+            "a/../../b",
+            "C:\\Windows\\system32",
+            "name\0with-nul",
+            "Fire // Ice",
+            "Lim-Dûl's Vault",
+            "Atraxa, Praetors' Voice",
+            "%2e%2e%2f",
+        ];
+        let store = ImageStore::new("/store-root");
+        for name in hostile {
+            let s = slug(name);
+            assert!(
+                !s.is_empty()
+                    && s.bytes()
+                        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-'),
+                "slug({name:?}) = {s:?} leaves [a-z0-9-]"
+            );
+            for version in Version::ALL {
+                let path = store.path_for(name, version);
+                assert_eq!(
+                    path.parent(),
+                    Some(Path::new("/store-root").join(version.as_str()).as_path()),
+                    "{name:?} must land directly in the version directory, got {path:?}"
+                );
+                assert!(path
+                    .components()
+                    .all(|c| c != std::path::Component::ParentDir));
+            }
+        }
+    }
+
+    #[test]
+    fn test_image_slug_is_readable_stable_and_bounded() {
+        let s = slug("Atraxa, Praetors' Voice");
+        assert!(s.starts_with("atraxa-praetors-voice-"), "{s}");
+        assert_eq!(s.len(), "atraxa-praetors-voice-".len() + 16);
+        // Pinned: the file name on disk must not move between builds.
+        assert_eq!(
+            slug("Sol Ring"),
+            format!("sol-ring-{:016x}", fnv1a64("Sol Ring"))
+        );
+        assert_eq!(fnv1a64(""), 0xcbf2_9ce4_8422_2325);
+        assert_eq!(fnv1a64("a"), 0xaf63_dc4c_8601_ec8c);
+        assert!(slug(&"x".repeat(500)).len() <= SLUG_STEM_MAX + 17);
+        assert!(slug("!!!").starts_with("card-"));
+    }
+
+    #[test]
+    fn test_image_slug_names_differing_only_in_punctuation_do_not_collide() {
+        let groups: [&[&str]; 3] = [
+            &[
+                "Fire // Ice",
+                "Fire Ice",
+                "Fire-Ice",
+                "fire ice",
+                "Fire, Ice",
+            ],
+            &["Lim-Dûl's Vault", "Lim-Dul's Vault", "Lim-D l's Vault"],
+            &["Sol Ring", "Sol Ring ", " Sol Ring", "Sol  Ring"],
+        ];
+        for group in groups {
+            let slugs: BTreeSet<String> = group.iter().map(|n| slug(n)).collect();
+            assert_eq!(
+                slugs.len(),
+                group.len(),
+                "collision inside {group:?}: {slugs:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_image_version_parses_exactly_three_spellings() {
+        for version in Version::ALL {
+            assert_eq!(Version::parse(version.as_str()), Some(version));
+        }
+        for bad in [
+            "",
+            "Small",
+            "png",
+            "art_crop",
+            "border_crop",
+            "small ",
+            "../small",
+        ] {
+            assert_eq!(Version::parse(bad), None, "{bad:?}");
+        }
+    }
+
+    // ── planner ──
+
+    #[test]
+    fn test_image_plan_is_versions_minus_what_the_store_holds() {
+        let temp = TempStore::new("plan");
+        let store = temp.store();
+        assert_eq!(missing_versions(&store, "Sol Ring"), Version::ALL.to_vec());
+        store
+            .write_atomic("Sol Ring", Version::Normal, JPEG)
+            .unwrap();
+        assert_eq!(
+            missing_versions(&store, "Sol Ring"),
+            vec![Version::Small, Version::Large]
+        );
+        // Another card's files do not count.
+        assert_eq!(
+            missing_versions(&store, "Sol Ring 2"),
+            Version::ALL.to_vec()
+        );
+        store
+            .write_atomic("Sol Ring", Version::Small, JPEG)
+            .unwrap();
+        store
+            .write_atomic("Sol Ring", Version::Large, JPEG)
+            .unwrap();
+        assert!(missing_versions(&store, "Sol Ring").is_empty());
+        // The atomic write leaves no temp file behind.
+        let leftovers: Vec<_> = std::fs::read_dir(temp.root.join("small"))
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().is_none_or(|x| x != "jpg"))
+            .collect();
+        assert!(leftovers.is_empty(), "{leftovers:?}");
+    }
+
+    // ── Scryfall JSON, URLs, backoff ──
+
+    #[test]
+    fn test_image_urls_come_from_the_top_level_for_a_single_faced_card() {
+        let card: serde_json::Value = serde_json::from_str(SOL_RING_JSON).unwrap();
+        let urls = image_urls(&card).expect("three urls");
+        assert_eq!(
+            urls[0],
+            (
+                Version::Small,
+                "https://cards.scryfall.io/small/front/a/b/sol.jpg?1".to_string()
+            )
+        );
+        assert_eq!(urls[1].0, Version::Normal);
+        assert_eq!(
+            urls[2],
+            (
+                Version::Large,
+                "https://cards.scryfall.io/large/front/a/b/sol.jpg?1".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn test_image_urls_come_from_the_front_face_of_a_double_faced_card() {
+        let card: serde_json::Value = serde_json::from_str(DFC_JSON).unwrap();
+        let urls = image_urls(&card).expect("three urls");
+        for (version, url) in urls {
+            assert_eq!(
+                url,
+                format!(
+                    "https://cards.scryfall.io/{}/front/c/d/keeper.jpg?2",
+                    version.as_str()
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn test_image_urls_refuse_missing_sizes_and_foreign_hosts() {
+        let no_images = serde_json::json!({ "object": "card", "name": "X" });
+        assert!(image_urls(&no_images).is_none());
+        let error = serde_json::json!({ "object": "error", "status": 404 });
+        assert!(image_urls(&error).is_none());
+        let partial = serde_json::json!({ "image_uris": {
+            "small": "https://cards.scryfall.io/s.jpg", "normal": "https://cards.scryfall.io/n.jpg" } });
+        assert!(image_urls(&partial).is_none());
+        let foreign = serde_json::json!({ "image_uris": {
+            "small": "https://cards.scryfall.io/s.jpg",
+            "normal": "https://example.com/n.jpg",
+            "large": "https://cards.scryfall.io/l.jpg" } });
+        assert!(image_urls(&foreign).is_none());
+    }
+
+    #[test]
+    fn test_image_named_card_url_percent_encodes_the_exact_name() {
+        assert_eq!(
+            named_card_url("Sol Ring"),
+            "https://api.scryfall.com/cards/named?exact=Sol%20Ring"
+        );
+        assert_eq!(
+            named_card_url("Atraxa, Praetors' Voice"),
+            "https://api.scryfall.com/cards/named?exact=Atraxa%2C%20Praetors%27%20Voice"
+        );
+        assert_eq!(
+            named_card_url("Fire // Ice&format=image"),
+            "https://api.scryfall.com/cards/named?exact=Fire%20%2F%2F%20Ice%26format%3Dimage"
+        );
+        assert!(named_card_url("Lim-Dûl's Vault").ends_with("Lim-D%C3%BBl%27s%20Vault"));
+    }
+
+    #[test]
+    fn test_image_backoff_schedule_grows_and_is_capped() {
+        let secs: Vec<u64> = (0..6).map(|a| backoff_delay(a).as_secs()).collect();
+        assert_eq!(secs, vec![2, 4, 8, 16, 30, 30]);
+        assert_eq!(backoff_delay(63).as_secs(), 30);
+        assert_eq!(backoff_delay(64).as_secs(), 30);
+        assert_eq!(backoff_delay(u32::MAX).as_secs(), 30);
+        // Scryfall's stated floor between API calls is 50-100 ms.
+        assert!(API_SPACING >= Duration::from_millis(100));
+    }
+
+    // ── the fetch procedure, against the scripted fake ──
+
+    #[test]
+    fn test_image_ensure_card_makes_one_api_call_then_three_cdn_downloads() {
+        let temp = TempStore::new("ensure");
+        let store = temp.store();
+        let mut net = sol_ring_net();
+        assert_eq!(
+            ensure_card(&mut net, &store, "Sol Ring"),
+            CardOutcome::Fetched(3)
+        );
+        assert_eq!(net.calls_to("https://api.scryfall.com/"), 1);
+        assert_eq!(net.calls_to("https://cards.scryfall.io/"), 3);
+        assert_eq!(net.calls[0].1, "application/json");
+        assert!(net.calls[1..]
+            .iter()
+            .all(|(_, accept)| accept == "image/jpeg"));
+        assert_eq!(
+            net.pauses,
+            vec![API_SPACING],
+            "one polite pause, before the API call"
+        );
+        for version in Version::ALL {
+            assert_eq!(
+                std::fs::read(store.path_for("Sol Ring", version)).unwrap(),
+                JPEG
+            );
+        }
+        // A second pass asks the network nothing at all.
+        let mut silent = FakeNet::default();
+        assert_eq!(
+            ensure_card(&mut silent, &store, "Sol Ring"),
+            CardOutcome::Present
+        );
+        assert!(silent.calls.is_empty() && silent.pauses.is_empty());
+    }
+
+    #[test]
+    fn test_image_ensure_card_downloads_only_the_missing_sizes() {
+        let temp = TempStore::new("partial");
+        let store = temp.store();
+        store
+            .write_atomic("Sol Ring", Version::Small, b"\xFF\xD8\xFFold")
+            .unwrap();
+        let mut net = sol_ring_net();
+        assert_eq!(
+            ensure_card(&mut net, &store, "Sol Ring"),
+            CardOutcome::Fetched(2)
+        );
+        assert_eq!(net.calls_to("https://cards.scryfall.io/small/"), 0);
+        assert_eq!(
+            std::fs::read(store.path_for("Sol Ring", Version::Small)).unwrap(),
+            b"\xFF\xD8\xFFold",
+            "a present file is never rewritten"
+        );
+    }
+
+    #[test]
+    fn test_image_ensure_card_retries_a_429_with_growing_backoff() {
+        let temp = TempStore::new("retry");
+        let store = temp.store();
+        let mut net = FakeNet::default();
+        let api = named_card_url("Sol Ring");
+        net.script(&api, Err(FetchError::Status(429)));
+        net.script(&api, Err(FetchError::Transport("timed out".to_string())));
+        net.script(&api, Err(FetchError::Status(503)));
+        net.script(&api, Ok(SOL_RING_JSON.as_bytes().to_vec()));
+        for size in ["small", "normal", "large"] {
+            net.script(
+                &format!("https://cards.scryfall.io/{size}/front/a/b/sol.jpg?1"),
+                Ok(JPEG.to_vec()),
+            );
+        }
+        assert_eq!(
+            ensure_card(&mut net, &store, "Sol Ring"),
+            CardOutcome::Fetched(3)
+        );
+        assert_eq!(net.calls_to("https://api.scryfall.com/"), 4);
+        assert_eq!(
+            net.pauses,
+            vec![
+                API_SPACING,
+                backoff_delay(0),
+                backoff_delay(1),
+                backoff_delay(2)
+            ]
+        );
+    }
+
+    #[test]
+    fn test_image_ensure_card_gives_up_after_a_bounded_number_of_attempts() {
+        let temp = TempStore::new("bounded");
+        let store = temp.store();
+        let mut net = FakeNet::default();
+        let api = named_card_url("Sol Ring");
+        for _ in 0..50 {
+            net.script(&api, Err(FetchError::Status(429)));
+        }
+        let outcome = ensure_card(&mut net, &store, "Sol Ring");
+        assert_eq!(
+            outcome,
+            CardOutcome::Failed("card lookup: HTTP 429".to_string())
+        );
+        assert_eq!(net.calls.len(), MAX_ATTEMPTS as usize);
+        // No pause after the last attempt: there is nothing left to wait for.
+        assert_eq!(net.pauses.len(), MAX_ATTEMPTS as usize);
+        assert!(missing_versions(&store, "Sol Ring").len() == 3);
+    }
+
+    #[test]
+    fn test_image_ensure_card_records_an_unknown_name_as_failed_without_retrying() {
+        let temp = TempStore::new("unknown");
+        let store = temp.store();
+        let mut net = FakeNet::default();
+        let outcome = ensure_card(&mut net, &store, "Goblin Token");
+        assert!(matches!(outcome, CardOutcome::Failed(_)), "{outcome:?}");
+        assert_eq!(
+            net.calls.len(),
+            1,
+            "a 404 is an answer, not a reason to retry"
+        );
+        assert!(!temp.root.exists(), "a failure writes nothing");
+    }
+
+    #[test]
+    fn test_image_ensure_card_falls_back_to_the_front_half_of_a_two_part_name() {
+        let temp = TempStore::new("front");
+        let store = temp.store();
+        let mut net = FakeNet::default();
+        let name = "Bloodline Keeper // Lord of Lineage";
+        net.script(
+            &named_card_url("Bloodline Keeper"),
+            Ok(DFC_JSON.as_bytes().to_vec()),
+        );
+        for size in ["small", "normal", "large"] {
+            net.script(
+                &format!("https://cards.scryfall.io/{size}/front/c/d/keeper.jpg?2"),
+                Ok(JPEG.to_vec()),
+            );
+        }
+        assert_eq!(ensure_card(&mut net, &store, name), CardOutcome::Fetched(3));
+        assert!(
+            store.has(name, Version::Large),
+            "stored under the name that was asked for"
+        );
+        assert_eq!(net.calls_to("https://cards.scryfall.io/small/back/"), 0);
+    }
+
+    #[test]
+    fn test_image_ensure_card_never_stores_a_non_jpeg_body() {
+        let temp = TempStore::new("nonjpeg");
+        let store = temp.store();
+        let mut net = FakeNet::default();
+        net.script(
+            &named_card_url("Sol Ring"),
+            Ok(SOL_RING_JSON.as_bytes().to_vec()),
+        );
+        net.script(
+            "https://cards.scryfall.io/small/front/a/b/sol.jpg?1",
+            Ok(b"<html>rate limited</html>".to_vec()),
+        );
+        let outcome = ensure_card(&mut net, &store, "Sol Ring");
+        assert_eq!(
+            outcome,
+            CardOutcome::Failed("small image is not a JPEG".to_string())
+        );
+        assert!(!store.has("Sol Ring", Version::Small));
+    }
+
+    #[test]
+    fn test_image_prefetch_all_summarises_fetched_present_and_failed() {
+        let temp = TempStore::new("summary");
+        let store = temp.store();
+        for version in Version::ALL {
+            store.write_atomic("Command Tower", version, JPEG).unwrap();
+        }
+        let mut net = sol_ring_net();
+        let names = vec![
+            "Command Tower".to_string(),
+            "No Such Card Zzz".to_string(),
+            "Sol Ring".to_string(),
+        ];
+        let mut lines = Vec::new();
+        let summary = prefetch_all(&mut net, &store, &names, &mut |l| lines.push(l.to_string()));
+        assert_eq!(summary.fetched, vec!["Sol Ring".to_string()]);
+        assert_eq!(summary.present, vec!["Command Tower".to_string()]);
+        assert_eq!(summary.failed.len(), 1);
+        assert_eq!(summary.failed[0].0, "No Such Card Zzz");
+        assert_eq!(lines.len(), 3);
+        assert!(lines[1].starts_with("[2/3] FAILED"), "{lines:?}");
+    }
+
+    // ── decklists ──
+
+    #[test]
+    fn test_image_decklist_parser_handles_counts_comments_and_blank_lines() {
+        let text = "# my deck\n\
+                    // commander\n\
+                    1 Atraxa, Praetors' Voice\n\
+                    \n\
+                    1x Sol Ring\n\
+                    12X Forest\n\
+                    \t 3   Fire // Ice  \r\n\
+                    Command Tower\n\
+                    1 Sol Ring\n\
+                    2 1996 World Champion\n\
+                    7th Fleet\n\
+                    x Marks the Spot\n";
+        assert_eq!(
+            parse_decklist(text),
+            vec![
+                "1996 World Champion",
+                "7th Fleet",
+                "Atraxa, Praetors' Voice",
+                "Command Tower",
+                "Fire // Ice",
+                "Forest",
+                "Sol Ring",
+                "x Marks the Spot",
+            ]
+        );
+        assert!(parse_decklist("").is_empty());
+        assert!(parse_decklist("#only\n//comments\n\n").is_empty());
+    }
+
+    #[test]
+    fn test_image_name_list_splits_on_semicolons_when_present_else_commas() {
+        assert_eq!(
+            parse_name_list("Sol Ring, Forest ,,Sol Ring"),
+            vec!["Forest", "Sol Ring"]
+        );
+        assert_eq!(
+            parse_name_list("Atraxa, Praetors' Voice; Sol Ring"),
+            vec!["Atraxa, Praetors' Voice", "Sol Ring"]
+        );
+        assert!(parse_name_list(" , ").is_empty());
+    }
+
+    #[test]
+    fn test_image_prefetch_argument_reads_a_file_when_one_exists() {
+        let temp = TempStore::new("arg");
+        std::fs::create_dir_all(&temp.root).unwrap();
+        let file = temp.root.join("deck.txt");
+        std::fs::write(&file, "1 Sol Ring\n# c\n1 Forest\n").unwrap();
+        assert_eq!(
+            names_from_arg(file.to_str().unwrap()).unwrap(),
+            vec!["Forest", "Sol Ring"]
+        );
+        assert_eq!(
+            names_from_arg("Sol Ring,Forest").unwrap(),
+            vec!["Forest", "Sol Ring"]
+        );
+        // A path that exists but is not readable text is the one hard error.
+        assert!(names_from_arg(temp.root.to_str().unwrap()).is_err());
+    }
+
+    // ── the service and the deck hook ──
+
+    fn defaults() -> NewGameDefaults {
+        NewGameDefaults {
+            players: 4,
+            bot: BotKind::Heuristic,
+            seed: 0,
+        }
+    }
+
+    #[test]
+    fn test_image_default_app_state_serves_only_and_cannot_queue_a_fetch() {
+        let state = AppState::new(defaults());
+        assert!(!state.images.prefetch_enabled());
+        assert_eq!(state.images.enqueue(vec!["Sol Ring".to_string()]), 0);
+        let status = state.images.status();
+        assert!(!status.enabled);
+        assert_eq!((status.queued, status.fetched, status.present), (0, 0, 0));
+        assert!(status.failed.is_empty());
+        assert!(
+            !state.images.store().root().exists(),
+            "the default test store must be a path that does not exist"
+        );
+    }
+
+    #[test]
+    fn test_image_status_bookkeeping_counts_cards_and_clears_a_recovered_failure() {
+        let mut status = PrefetchStatus {
+            queued: 4,
+            ..PrefetchStatus::default()
+        };
+        record(&mut status, "B", &CardOutcome::Failed("x".to_string()));
+        record(&mut status, "B", &CardOutcome::Failed("x".to_string()));
+        record(&mut status, "A", &CardOutcome::Present);
+        assert_eq!((status.queued, status.present, status.fetched), (1, 1, 0));
+        assert_eq!(status.failed, vec!["B"]);
+        record(&mut status, "B", &CardOutcome::Fetched(3));
+        record(&mut status, "C", &CardOutcome::Fetched(1));
+        assert_eq!((status.queued, status.fetched), (0, 2));
+        assert!(status.failed.is_empty());
+    }
+
+    #[test]
+    fn test_image_deck_card_names_cover_every_seat_of_a_resolved_table() {
+        let cfg = session::config_for(defaults()).unwrap();
+        assert!(
+            deck_card_names(&cfg).is_empty(),
+            "an unresolved recipe names no cards"
+        );
+        let play = session::new_game(cfg, 0).unwrap();
+        let names = deck_card_names(&play.cfg);
+        let DeckSource::Fixed(decks) = &play.cfg.decks else {
+            panic!("new_game pins the decks");
+        };
+        assert_eq!(decks.len(), 4);
+        let by_id: HashMap<_, _> = mtg_engine::all_cards()
+            .into_iter()
+            .map(|d| (d.card_id, d.name))
+            .collect();
+        let mut expected = BTreeSet::new();
+        for (_, deck) in decks {
+            expected.insert(by_id[&deck.commander].clone());
+            for id in &deck.main_deck {
+                expected.insert(by_id[id].clone());
+            }
+        }
+        assert!(expected.len() > 4, "four decks name more than four cards");
+        assert_eq!(names, expected.into_iter().collect::<Vec<_>>());
+    }
+
+    // ── routes ──
+
+    fn app(state: AppState) -> axum::Router {
+        crate::build_router(state, &PathBuf::from("nonexistent_dist"))
+    }
+
+    async fn get(state: &AppState, uri: &str) -> (StatusCode, axum::http::HeaderMap, Vec<u8>) {
+        let response = app(state.clone())
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+            .await
+            .expect("router is infallible");
+        let status = response.status();
+        let headers = response.headers().clone();
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        (status, headers, body.to_vec())
+    }
+
+    fn state_over(temp: &TempStore) -> AppState {
+        AppState::new(defaults()).with_images(ImageService::serve_only(&temp.root))
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_card_image_route_serves_a_stored_jpeg_with_a_long_cache() {
+        let temp = TempStore::new("route-hit");
+        let name = "Atraxa, Praetors' Voice";
+        temp.store()
+            .write_atomic(name, Version::Normal, JPEG)
+            .unwrap();
+        let state = state_over(&temp);
+        let uri = format!(
+            "/api/card-image?name={}&version=normal",
+            percent_encode(name)
+        );
+        let (status, headers, body) = get(&state, &uri).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "image/jpeg");
+        assert_eq!(headers[header::CACHE_CONTROL], "public, max-age=2592000");
+        assert_eq!(body, JPEG);
+        // `+` for a space, as a browser's URLSearchParams writes it.
+        let (status, _, _) = get(
+            &state,
+            "/api/card-image?version=normal&name=Atraxa%2C+Praetors%27+Voice",
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_card_image_route_answers_404_no_store_for_a_miss() {
+        let temp = TempStore::new("route-miss");
+        temp.store()
+            .write_atomic("Sol Ring", Version::Small, JPEG)
+            .unwrap();
+        let state = state_over(&temp);
+        for uri in [
+            "/api/card-image?name=Sol%20Ring&version=large",
+            "/api/card-image?name=Forest&version=small",
+            "/api/card-image?name=..%2F..%2Fetc%2Fpasswd&version=small",
+            "/api/card-image?name=..%2Fsmall%2Fsol-ring&version=normal",
+        ] {
+            let (status, headers, body) = get(&state, uri).await;
+            assert_eq!(status, StatusCode::NOT_FOUND, "{uri}");
+            assert_eq!(headers[header::CACHE_CONTROL], "no-store", "{uri}");
+            let json: serde_json::Value = serde_json::from_slice(&body).expect("envelope");
+            assert_eq!(json["kind"], "image_not_in_store", "{uri}");
+            assert!(json["error"].is_string());
+        }
+        // Once the file exists the very next request is a hit.
+        temp.store()
+            .write_atomic("Forest", Version::Small, JPEG)
+            .unwrap();
+        let (status, _, _) = get(&state, "/api/card-image?name=Forest&version=small").await;
+        assert_eq!(status, StatusCode::OK);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_card_image_route_answers_400_for_a_bad_version_or_missing_name() {
+        let temp = TempStore::new("route-400");
+        temp.store()
+            .write_atomic("Sol Ring", Version::Small, JPEG)
+            .unwrap();
+        let state = state_over(&temp);
+        for uri in [
+            "/api/card-image",
+            "/api/card-image?version=small",
+            "/api/card-image?name=&version=small",
+            "/api/card-image?name=%20&version=small",
+            "/api/card-image?name=Sol%20Ring",
+            "/api/card-image?name=Sol%20Ring&version=png",
+            "/api/card-image?name=Sol%20Ring&version=Small",
+            "/api/card-image?name=Sol%20Ring&version=..%2Fsmall",
+        ] {
+            let (status, headers, body) = get(&state, uri).await;
+            assert_eq!(status, StatusCode::BAD_REQUEST, "{uri}");
+            assert_eq!(headers[header::CONTENT_TYPE], "application/json", "{uri}");
+            let json: serde_json::Value = serde_json::from_slice(&body).expect("envelope");
+            assert_eq!(json["kind"], "bad_params", "{uri}");
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_card_image_route_works_with_no_session_and_no_store_directory() {
+        // No game was ever started and the store path does not exist: the image
+        // routes read no session, so neither matters.
+        let state = AppState::new(defaults());
+        let (status, _, _) = get(&state, "/api/card-image?name=Sol%20Ring&version=small").await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        let (status, _, _) = get(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "there is no session");
+        let (status, headers, body) = get(&state, "/api/card-image/status").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CACHE_CONTROL], "no-store");
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["enabled"], false);
+        assert_eq!(json["queued"], 0);
+        assert_eq!(json["fetched"], 0);
+        assert_eq!(json["present"], 0);
+        assert_eq!(json["failed"], serde_json::json!([]));
+        assert!(json["store"].is_string());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_starting_a_game_on_a_default_state_queues_no_image_fetch() {
+        let temp = TempStore::new("route-game");
+        let state = state_over(&temp);
+        let response = app(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/game")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("router is infallible");
+        assert_eq!(response.status(), StatusCode::OK);
+        let status = state.images.status();
+        assert!(!status.enabled);
+        assert_eq!((status.queued, status.fetched, status.present), (0, 0, 0));
+        assert!(
+            !temp.root.exists(),
+            "starting a game wrote nothing to the store"
+        );
+    }
+}

@@ -10,6 +10,8 @@
 //!   play-server --port 3040 --players 4 --bot heuristic --seed 0
 
 mod api;
+mod images;
+mod pass_until;
 mod session;
 mod view;
 
@@ -73,6 +75,28 @@ struct Cli {
     /// a bug report".
     #[arg(long, default_value = "0")]
     seed: u64,
+
+    /// Directory of the local card-image store (`<dir>/<small|normal|large>/<slug>.jpg`).
+    /// Falls back to the `SCUTEMOB_IMAGE_STORE` environment variable, then to
+    /// `tools/play-server/images` (resolved like `dist/` — see
+    /// `images::default_store_dir`). The directory need not exist; it is created
+    /// by the first image written.
+    #[arg(long, value_name = "DIR")]
+    image_store: Option<PathBuf>,
+
+    /// Serve the image store but never fetch: starting a game downloads nothing.
+    /// Without this flag, `POST /api/game` hands the resolved decks' card names to
+    /// a background worker that fills the store from Scryfall (owner ruling
+    /// 2026-10-12: images are fetched at deck resolution, never during play).
+    #[arg(long)]
+    no_image_prefetch: bool,
+
+    /// Fetch these cards at all three sizes into the image store, print a
+    /// summary, and exit without serving. The value is a decklist file (one card
+    /// per line, optional leading count, `#` and `//` comment lines) or an inline
+    /// list of names separated by `,` — or by `;` when a name contains a comma.
+    #[arg(long, value_name = "DECKLIST_FILE_OR_NAMES")]
+    prefetch_images: Option<String>,
 }
 
 /// clap mirror of `mtg_simulator::BotKind` — the simulator type is not a clap
@@ -124,6 +148,18 @@ fn main() -> Result<()> {
 async fn async_main() -> Result<()> {
     let cli = Cli::parse();
 
+    let image_store = cli
+        .image_store
+        .clone()
+        .or_else(|| std::env::var_os("SCUTEMOB_IMAGE_STORE").map(PathBuf::from))
+        .unwrap_or_else(images::default_store_dir);
+
+    // `--prefetch-images`: fill the store and exit. Blocking network work, so off
+    // the reactor like the engine work is.
+    if let Some(arg) = &cli.prefetch_images {
+        return tokio::task::block_in_place(|| images::run_cli_prefetch(&image_store, arg));
+    }
+
     let defaults = NewGameDefaults {
         players: cli.players,
         bot: cli.bot.into(),
@@ -132,7 +168,14 @@ async fn async_main() -> Result<()> {
     // Fail fast on an unusable table size rather than 400-ing every request.
     session::config_for(defaults).map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
-    let state: SharedState = AppState::new(defaults);
+    // The one place a FETCHING image service is built. `AppState::new` alone is
+    // serve-only, which is what every test gets.
+    let image_service = if cli.no_image_prefetch {
+        images::ImageService::serve_only(&image_store)
+    } else {
+        images::ImageService::with_prefetch(&image_store)
+    };
+    let state: SharedState = AppState::new(defaults).with_images(image_service);
 
     // Same resolution order as the replay viewer: next to the executable first
     // (an installed build), then the crate's own dist/ (a `cargo run` from the
@@ -162,6 +205,15 @@ async fn async_main() -> Result<()> {
 
     println!("Play server running at http://{}:{}/", cli.host, cli.port);
     println!("API: http://{}:{}/api/", cli.host, cli.port);
+    println!(
+        "Card images: store {} ({})",
+        image_store.display(),
+        if cli.no_image_prefetch {
+            "prefetch OFF — store is served as it is"
+        } else {
+            "prefetch at deck resolution; progress at /api/card-image/status"
+        }
+    );
     if dist_dir.exists() {
         println!("Frontend: serving from {}", dist_dir.display());
     } else {
@@ -184,6 +236,10 @@ fn build_router(state: SharedState, dist_dir: &PathBuf) -> Router {
         .route("/game/mulligan", post(api::post_mulligan))
         .route("/game/report", get(api::get_report))
         .route("/healthz", get(api::get_healthz))
+        // Store-backed card images (`images.rs`). Neither route reads the session
+        // and neither fetches: a miss is a 404 and the client shows its chip.
+        .route("/card-image", get(images::get_card_image))
+        .route("/card-image/status", get(images::get_card_image_status))
         .with_state(state);
 
     let router = Router::new().nest("/api", api_router);
@@ -16194,5 +16250,585 @@ mod tests {
             "the activation was accepted but the Equipment never attached — a 200 on a \
              fizzle is exactly what this assertion exists to catch"
         );
+    }
+
+    // ── Play surface v3 C3 (`scutemob-268`): `game_id` and server-side pass-until ──
+    //
+    // Seed-pinned like the rest of this module: every pass count, turn number and
+    // card name below was READ OFF A REAL RUN (2026-10-12), not derived. A
+    // completeness flip in a card-def batch re-deals the seeded decks and moves
+    // them; re-observe, do not guess.
+
+    fn game_id(view: &Value) -> String {
+        view["summary"]["game_id"]
+            .as_str()
+            .expect("summary.game_id is a string")
+            .to_string()
+    }
+
+    fn turn_facts(view: &Value) -> (u64, String, String) {
+        let turn = &view["state"]["turn"];
+        (
+            turn["number"].as_u64().expect("turn number"),
+            turn["active_player"].as_str().expect("active").to_string(),
+            turn["step"].as_str().expect("step").to_string(),
+        )
+    }
+
+    fn pass_index(view: &Value) -> u64 {
+        *action_indices(view, "PassPriority")
+            .first()
+            .unwrap_or_else(|| panic!("no PassPriority offered: {}", view["decision"]))
+    }
+
+    /// `POST /api/game/action` answering `view`'s decision with its
+    /// `PassPriority` action and the given `pass_until`.
+    async fn post_pass_until(
+        state: &SharedState,
+        view: &Value,
+        spec: Value,
+    ) -> (StatusCode, Value) {
+        post_json(
+            state,
+            "/api/game/action",
+            json!({
+                "seq": seq(view),
+                "action_index": pass_index(view),
+                "params": {},
+                "pass_until": spec,
+            }),
+        )
+        .await
+    }
+
+    /// One plain pass — what the browser's own loop sends per iteration.
+    async fn post_one_pass(state: &SharedState, view: &Value) -> Value {
+        let (status, next) = post_json(
+            state,
+            "/api/game/action",
+            json!({ "seq": seq(view), "action_index": pass_index(view), "params": {} }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "a plain pass failed: {next}");
+        next
+    }
+
+    /// A fresh table on `seed`, hand kept, driven to the human's first priority
+    /// of turn 2 (Bot-2's upkeep) — the nearest state from which a run can pass
+    /// through whole turns without a decision of the human's own in the way.
+    ///
+    /// Getting there is itself the `decision` stop, so it is asserted here
+    /// rather than assumed: from the first priority after the keep the human is
+    /// on the play with a drawn eighth card, so eight passes reach turn 1's
+    /// cleanup step and a CR 514.1 discard. The run must stop THERE, with the
+    /// discard still unanswered — the loop never answers anything but a
+    /// `Priority` decision. Observed identically on seeds 0 and 1.
+    async fn drive_to_turn_two(state: &SharedState, seed: u64) -> Value {
+        let (status, _) = post_json(state, "/api/game", json!({ "seed": seed })).await;
+        assert_eq!(status, StatusCode::OK);
+        let (status, kept) = post_json(state, "/api/game/mulligan", json!({ "take": false })).await;
+        assert_eq!(status, StatusCode::OK, "{kept}");
+        assert_eq!(
+            turn_facts(&kept),
+            (1, HUMAN.to_string(), "Upkeep".to_string())
+        );
+
+        let (status, at_cleanup) =
+            post_pass_until(state, &kept, json!({ "until": { "kind": "my_next_turn" } })).await;
+        assert_eq!(status, StatusCode::OK, "{at_cleanup}");
+        assert_eq!(
+            at_cleanup["pass_until"],
+            json!({
+                "passes": 8,
+                "stop": "decision",
+                "reason": "you have a Cleanup discard decision to make",
+            }),
+            "seed {seed}"
+        );
+        assert_eq!(decision(&at_cleanup)["kind"], "CleanupDiscard");
+        assert_eq!(turn_facts(&at_cleanup).2, "Cleanup");
+
+        // The human answers it; the server did not.
+        let discard = action_indices(&at_cleanup, "DiscardToHandSize")[0];
+        let (status, turn_two) = post_json(
+            state,
+            "/api/game/action",
+            json!({ "seq": seq(&at_cleanup), "action_index": discard, "params": {} }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{turn_two}");
+        assert_eq!(
+            turn_facts(&turn_two),
+            (2, "Bot-2".to_string(), "Upkeep".to_string()),
+            "seed {seed}"
+        );
+        assert_eq!(decision(&turn_two)["kind"], "Priority");
+        turn_two
+    }
+
+    /// `GameSummary::game_id` is not a function of the game: two tables built
+    /// from the SAME seed get different ids, in one process and across two
+    /// `AppState`s. This is the Architecture Invariant 7 half (review MR-M11-01)
+    /// — an id that repeated for a repeated seed would be the seed, hashed.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_game_id_differs_between_two_games_from_the_same_seed() {
+        const DISTINCTIVE_SEED: u64 = 987_654_321;
+        let state = shared_state();
+        let other_state = shared_state();
+        let body = json!({ "seed": DISTINCTIVE_SEED });
+
+        let (_, first) = post_json(&state, "/api/game", body.clone()).await;
+        let (_, second) = post_json(&state, "/api/game", body.clone()).await;
+        let (_, third) = post_json(&other_state, "/api/game", body).await;
+        let ids = [game_id(&first), game_id(&second), game_id(&third)];
+
+        // Same seed, same config: the tables are the same table...
+        assert_eq!(first["state"], second["state"]);
+        assert_eq!(first["state"], third["state"]);
+        // ...and the ids are not.
+        let distinct: BTreeSet<&String> = ids.iter().collect();
+        assert_eq!(distinct.len(), 3, "ids must all differ: {ids:?}");
+
+        for id in &ids {
+            // Hex of a hash, then a counter: at least 17 hex digits, nothing else.
+            assert!(id.len() >= 17, "{id}");
+            assert!(id.chars().all(|c| c.is_ascii_hexdigit()), "{id}");
+            // Kept honest: the seed is not sitting in it in either spelling.
+            assert!(!id.contains(&DISTINCTIVE_SEED.to_string()), "{id}");
+            assert!(!id.contains(&format!("{DISTINCTIVE_SEED:x}")), "{id}");
+        }
+    }
+
+    /// One table, one id — on every kind of response — and a new id exactly when
+    /// the table is rebuilt: a new game, and a mulligan that redeals (CR 103.5).
+    /// Keeping the hand is not a rebuild.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_game_id_is_stable_for_one_table_and_changes_when_it_is_rebuilt() {
+        let state = shared_state();
+        let dealt = new_game(&state).await;
+        let first_table = game_id(&dealt);
+
+        let (_, read) = get_json(&state, "/api/game").await;
+        assert_eq!(game_id(&read), first_table, "GET of the same table");
+
+        // A redeal reminting every object id is a new table.
+        let (status, redealt) =
+            post_json(&state, "/api/game/mulligan", json!({ "take": true })).await;
+        assert_eq!(status, StatusCode::OK, "{redealt}");
+        let second_table = game_id(&redealt);
+        assert_ne!(second_table, first_table, "a mulligan must change the id");
+
+        let (_, read) = get_json(&state, "/api/game").await;
+        assert_eq!(game_id(&read), second_table, "GET after the redeal");
+        let (_, kept) = post_json(&state, "/api/game/mulligan", json!({ "take": false })).await;
+        assert_eq!(game_id(&kept), second_table, "keeping is not a rebuild");
+        let passed = post_one_pass(&state, &kept).await;
+        assert_eq!(game_id(&passed), second_table, "an action response");
+        let (_, run) = post_pass_until(
+            &state,
+            &passed,
+            json!({ "until": { "kind": "end_of_turn" } }),
+        )
+        .await;
+        assert_eq!(game_id(&run), second_table, "a pass-until response");
+
+        // And a new game is a new table again.
+        let fresh = new_game(&state).await;
+        assert_ne!(game_id(&fresh), second_table);
+        assert_ne!(game_id(&fresh), first_table);
+    }
+
+    /// A response to a request WITHOUT `pass_until` has no `pass_until` key at
+    /// all — the document's top level is exactly what it was before C3.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_a_response_without_pass_until_has_no_pass_until_key() {
+        let state = shared_state();
+        let dealt = new_game(&state).await;
+        let (_, read) = get_json(&state, "/api/game").await;
+        let (_, kept) = post_json(&state, "/api/game/mulligan", json!({ "take": false })).await;
+        let passed = post_one_pass(&state, &kept).await;
+
+        for (what, view) in [
+            ("POST /api/game", &dealt),
+            ("GET /api/game", &read),
+            ("POST /api/game/mulligan", &kept),
+            ("POST /api/game/action", &passed),
+        ] {
+            let keys: BTreeSet<&str> = view
+                .as_object()
+                .expect("a seat view is an object")
+                .keys()
+                .map(String::as_str)
+                .collect();
+            assert_eq!(
+                keys,
+                BTreeSet::from(["decision", "events", "game_over", "state", "summary"]),
+                "{what}"
+            );
+        }
+
+        // An explicit `null` is the same as leaving it out.
+        let (status, nulled) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&passed),
+                "action_index": pass_index(&passed),
+                "params": {},
+                "pass_until": null,
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{nulled}");
+        assert!(nulled.get("pass_until").is_none());
+        // One pass and no run: turn 1 moved on by exactly one step.
+        assert_eq!(turn_facts(&passed).2, "Draw");
+        assert_eq!(turn_facts(&nulled).2, "PreCombatMain");
+    }
+
+    /// "Until end of turn" stops with `stop: "until"` when the turn number moves
+    /// on — and the run is the browser's own loop, moved server-side: the same
+    /// number of passes, the same event lines in the same order with none
+    /// dropped or repeated, and the same final state as issuing the passes one
+    /// request at a time.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_pass_until_end_of_turn_matches_passing_one_request_at_a_time() {
+        // The server-side run.
+        let served = shared_state();
+        let start = drive_to_turn_two(&served, SEED).await;
+        let (status, run) = post_pass_until(
+            &served,
+            &start,
+            json!({ "until": { "kind": "end_of_turn" } }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{run}");
+        assert_eq!(
+            run["pass_until"],
+            json!({
+                "passes": 8,
+                "stop": "until",
+                "reason": "the turn ended (turn 3 is Bot-3's)",
+            })
+        );
+        assert_eq!(
+            turn_facts(&run),
+            (3, "Bot-3".to_string(), "Upkeep".to_string())
+        );
+        assert_eq!(decision(&run)["kind"], "Priority");
+
+        // The same run, as `startPassUntil` makes it: one pass per request,
+        // stopping when the turn number has moved on.
+        let by_hand = shared_state();
+        let mut view = drive_to_turn_two(&by_hand, SEED).await;
+        let mut lines: Vec<Value> = Vec::new();
+        let mut passes = 0u64;
+        loop {
+            view = post_one_pass(&by_hand, &view).await;
+            passes += 1;
+            lines.extend(view["events"].as_array().expect("events").iter().cloned());
+            if turn_facts(&view).0 != 2 {
+                break;
+            }
+            assert!(passes < 50, "the by-hand run never left turn 2");
+        }
+
+        assert_eq!(run["pass_until"]["passes"], passes);
+        assert_eq!(
+            run["events"].as_array().expect("events"),
+            &lines,
+            "the run's events are every pass's events, in order"
+        );
+        assert!(lines.len() > 50, "non-vacuity: {} lines", lines.len());
+        assert_eq!(run["state"], view["state"]);
+        assert_eq!(run["decision"]["actions"], view["decision"]["actions"]);
+        assert_eq!(command_count(&run), command_count(&view));
+
+        // Nothing was left behind for the next read to find twice.
+        let (_, after) = get_json(&served, "/api/game").await;
+        assert_eq!(after["events"], json!([]));
+    }
+
+    /// "Until my next turn" ends on the human's own turn, having gone round the
+    /// table; "until step" ends on any player's next occurrence of the step,
+    /// which is never the (turn, step) the run started in.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_pass_until_my_next_turn_and_a_step_target() {
+        // A step later in the same turn.
+        let state = shared_state();
+        let start = drive_to_turn_two(&state, SEED).await;
+        let (status, run) = post_pass_until(
+            &state,
+            &start,
+            json!({ "until": { "kind": "step", "step": "PostCombatMain" } }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{run}");
+        assert_eq!(
+            run["pass_until"],
+            json!({
+                "passes": 6,
+                "stop": "until",
+                "reason": "reached Bot-2's Main 2 (turn 2)",
+            })
+        );
+        assert_eq!(
+            turn_facts(&run),
+            (2, "Bot-2".to_string(), "PostCombatMain".to_string())
+        );
+
+        // The step the run is ALREADY in: the next player's, not this one.
+        let (status, run) = post_pass_until(
+            &state,
+            &run,
+            json!({ "until": { "kind": "step", "step": "PostCombatMain" } }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{run}");
+        assert_eq!(run["pass_until"]["stop"], "until");
+        assert_eq!(
+            run["pass_until"]["reason"],
+            "reached Bot-3's Main 2 (turn 3)"
+        );
+        assert_eq!(run["pass_until"]["passes"], 8);
+
+        // Round the table to the human's own turn.
+        let (status, run) =
+            post_pass_until(&state, &run, json!({ "until": { "kind": "my_next_turn" } })).await;
+        assert_eq!(status, StatusCode::OK, "{run}");
+        assert_eq!(run["pass_until"]["stop"], "until");
+        assert_eq!(run["pass_until"]["reason"], "your turn 5 began");
+        assert_eq!(
+            turn_facts(&run),
+            (5, HUMAN.to_string(), "Upkeep".to_string())
+        );
+        assert_eq!(decision(&run)["kind"], "Priority");
+        assert!(
+            run["pass_until"]["passes"].as_u64().expect("passes") >= 1,
+            "{}",
+            run["pass_until"]
+        );
+    }
+
+    /// An "unless" stop interrupts the run at the pass a bot's spell appears on,
+    /// reports the line the seat was shown, and can be resumed with an anchor.
+    /// The same run without the condition goes straight past it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_pass_until_stops_unless_a_spell_is_cast_by_another_player() {
+        const SPELL_SEED: u64 = 1;
+        let rule = json!({
+            "until": { "kind": "my_next_turn" },
+            "unless": { "spell": true },
+        });
+
+        let state = shared_state();
+        let start = drive_to_turn_two(&state, SPELL_SEED).await;
+        let (status, run) = post_pass_until(&state, &start, rule.clone()).await;
+        assert_eq!(status, StatusCode::OK, "{run}");
+        assert_eq!(
+            run["pass_until"],
+            json!({
+                "passes": 2,
+                "stop": "unless",
+                "reason": "Bot-2 casts Spidersilk Net",
+            })
+        );
+        assert_eq!(
+            turn_facts(&run),
+            (2, "Bot-2".to_string(), "PreCombatMain".to_string())
+        );
+        // The line the server stopped on is a line the seat was sent.
+        assert!(run["events"]
+            .as_array()
+            .expect("events")
+            .iter()
+            .any(|e| e["kind"] == "SpellCast"
+                && e["player"] == "Bot-2"
+                && e["text"] == "Bot-2 casts Spidersilk Net"));
+        assert_eq!(decision(&run)["kind"], "Priority");
+
+        // Resumed, anchored at where the run began: the next bot spell stops it
+        // again, and the first one does not fire a second time.
+        let mut resumed = rule.clone();
+        resumed["anchor"] = json!({ "turn": 2, "step": "Upkeep" });
+        let (status, run) = post_pass_until(&state, &run, resumed).await;
+        assert_eq!(status, StatusCode::OK, "{run}");
+        assert_eq!(
+            run["pass_until"],
+            json!({
+                "passes": 9,
+                "stop": "unless",
+                "reason": "Bot-3 casts Flame Jab",
+            })
+        );
+        assert_eq!(turn_facts(&run).0, 3);
+
+        // Without the condition the same table passes straight through both.
+        let unconditional = shared_state();
+        let start = drive_to_turn_two(&unconditional, SPELL_SEED).await;
+        let (status, run) = post_pass_until(
+            &unconditional,
+            &start,
+            json!({ "until": { "kind": "my_next_turn" } }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{run}");
+        assert_eq!(
+            run["pass_until"],
+            json!({ "passes": 27, "stop": "until", "reason": "your turn 5 began" })
+        );
+        let cast: Vec<&str> = run["events"]
+            .as_array()
+            .expect("events")
+            .iter()
+            .filter(|e| e["kind"] == "SpellCast")
+            .map(|e| e["text"].as_str().expect("text"))
+            .collect();
+        assert_eq!(
+            cast,
+            ["Bot-2 casts Spidersilk Net", "Bot-3 casts Flame Jab"]
+        );
+    }
+
+    /// The loop answers `PassPriority` on a `Priority` decision and nothing
+    /// else. A `DeclareAttackers` decision OFFERS a pass (declaring no attackers
+    /// is not it) — the run must still stop before it, and a `pass_until` sent
+    /// straight at it makes no pass at all.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_pass_until_never_answers_a_non_priority_decision() {
+        const ATTACK_SEED: u64 = 1;
+        let state = shared_state();
+        let start = drive_to_turn_two(&state, ATTACK_SEED).await;
+        let (_, my_turn) = post_pass_until(
+            &state,
+            &start,
+            json!({ "until": { "kind": "my_next_turn" } }),
+        )
+        .await;
+        assert_eq!(
+            turn_facts(&my_turn),
+            (5, HUMAN.to_string(), "Upkeep".to_string())
+        );
+
+        // Headed for the declare-attackers step, which is exactly where the
+        // human's own attack declaration is waiting: the decision wins.
+        let headed = json!({ "until": { "kind": "step", "step": "DeclareAttackers" } });
+        let (status, run) = post_pass_until(&state, &my_turn, headed.clone()).await;
+        assert_eq!(status, StatusCode::OK, "{run}");
+        assert_eq!(
+            run["pass_until"],
+            json!({
+                "passes": 4,
+                "stop": "decision",
+                "reason": "you have a Declare attackers decision to make",
+            })
+        );
+        assert_eq!(decision(&run)["kind"], "DeclareAttackers");
+        // It offers a pass, which is what makes this case reachable at all.
+        let before = command_count(&run);
+        let held_seq = seq(&run);
+        assert!(!action_indices(&run, "PassPriority").is_empty());
+
+        let (status, again) = post_pass_until(&state, &run, headed).await;
+        assert_eq!(status, StatusCode::OK, "{again}");
+        assert_eq!(
+            again["pass_until"],
+            json!({
+                "passes": 0,
+                "stop": "decision",
+                "reason": "you have a Declare attackers decision to make",
+            })
+        );
+        assert_eq!(command_count(&again), before, "nothing was submitted");
+        assert_eq!(
+            seq(&again),
+            held_seq,
+            "the decision is still the one outstanding"
+        );
+        assert_eq!(decision(&again)["kind"], "DeclareAttackers");
+    }
+
+    /// What a `pass_until` request is refused for, before anything is applied.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_pass_until_refusals_apply_nothing() {
+        let state = shared_state();
+        new_game(&state).await;
+        let (_, kept) = post_json(&state, "/api/game/mulligan", json!({ "take": false })).await;
+        let before = command_count(&kept);
+        let rule = json!({ "until": { "kind": "end_of_turn" } });
+        let not_a_pass = decision(&kept)["actions"]
+            .as_array()
+            .expect("actions")
+            .iter()
+            .find(|a| a["kind"] != "PassPriority")
+            .expect("the first priority offers more than a pass")["index"]
+            .clone();
+
+        // Beside any answer that is not the pass: 400, this crate's envelope.
+        let (status, err) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&kept),
+                "action_index": not_a_pass,
+                "params": {},
+                "pass_until": rule,
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{err}");
+        assert_eq!(err["kind"], "bad_params");
+        assert!(
+            err["error"]
+                .as_str()
+                .expect("error")
+                .contains("PassPriority"),
+            "{err}"
+        );
+
+        // An index that is not in the list at all.
+        let (status, err) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": seq(&kept), "action_index": 9_999, "params": {}, "pass_until": rule }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{err}");
+        assert_eq!(err["kind"], "unknown_action");
+
+        // A stale `seq` is still the 409 a plain action gets.
+        let (status, err) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&kept) + 1_000,
+                "action_index": pass_index(&kept),
+                "params": {},
+                "pass_until": rule,
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CONFLICT, "{err}");
+        assert_eq!(err["kind"], "stale_decision");
+
+        // A rule the panel cannot express: nobody receives priority in the
+        // untap step (CR 502.4), and an unknown key is a typo, not an option.
+        for malformed in [
+            json!({ "until": { "kind": "step", "step": "Untap" } }),
+            json!({ "until": { "kind": "end_of_turn" }, "unless": { "combat": true } }),
+            json!({ "unless": { "spell": true } }),
+        ] {
+            let (status, err) = post_pass_until(&state, &kept, malformed.clone()).await;
+            assert_eq!(status, StatusCode::BAD_REQUEST, "{malformed}: {err}");
+            assert_eq!(err["kind"], "invalid_body", "{malformed}");
+        }
+
+        let (_, after) = get_json(&state, "/api/game").await;
+        assert_eq!(
+            command_count(&after),
+            before,
+            "no refusal applied a command"
+        );
+        assert_eq!(seq(&after), seq(&kept), "the decision is untouched");
     }
 }

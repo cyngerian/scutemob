@@ -91,6 +91,39 @@ pub struct PlayerView {
     pub graveyard_size: usize,
     /// Outer key: opponent name. Inner key: that opponent's commander card name.
     pub commander_damage_received: HashMap<String, HashMap<String, u32>>,
+    /// CR 903.8 commander tax, keyed by the NAME of each of this player's
+    /// commanders. **Additive (play surface v3 C3, `scutemob-268`).**
+    ///
+    /// # The unit is a CAST COUNT, not mana
+    ///
+    /// The value is the engine's `PlayerState::commander_tax` entry verbatim: the
+    /// number of times this player has previously cast that commander from the
+    /// command zone this game (`rules/casting.rs` increments it by one per such
+    /// cast; `rules/commander.rs::apply_commander_tax` multiplies it by two when
+    /// it prices the next cast). The additional cost of the NEXT cast is therefore
+    /// `{2 × value}` generic mana (CR 903.8: "an additional {2} for each previous
+    /// time"). It is deliberately not converted here, so a client renders
+    /// `+{2 * n}` itself and the number on the wire is the one the engine holds.
+    ///
+    /// Every commander in the player's `commander_ids` is a key, with `0` when it
+    /// has never been cast from the command zone; a player with no commander has
+    /// an empty map. Names resolve exactly as `commander_damage_received`'s inner
+    /// keys do (first object carrying that `CardId`, falling back to the id text).
+    ///
+    /// # Not redacted, and that is a decision (Architecture Invariant 7)
+    ///
+    /// See the inventory table in the `redact` module. In short: which card is a
+    /// player's commander is public from the start of the game (CR 903.6 puts it
+    /// face up in the command zone, a public zone under CR 400.2), and a cast from
+    /// the command zone is a public act — the card visibly leaves a public zone.
+    /// That holds for a commander cast FACE DOWN too (CR 708.4): the table sees
+    /// the command zone lose the card at the same moment the face-down spell
+    /// appears, so the incremented count says nothing the `command_zone` list in
+    /// this same payload has not already said. What stays hidden afterwards —
+    /// *which* face-down permanent on the battlefield is the commander, once there
+    /// is more than one — is not derivable from a per-name count, and
+    /// `PermanentView::is_commander` stays redacted for that reason.
+    pub commander_tax: HashMap<String, u32>,
     pub land_plays_remaining: u32,
     pub has_lost: bool,
     pub has_conceded: bool,
@@ -181,7 +214,56 @@ pub struct StackItemView {
     pub source_name: String,
     /// Human-readable target descriptions.
     pub targets: Vec<String>,
+    /// Machine-readable targets, **index-aligned with [`StackItemView::targets`]**
+    /// (same length, same order, always). **Additive (play surface v3 C3,
+    /// `scutemob-268`)**: the client draws a "targeted" outline and an arrow from
+    /// a stack item to what it targets, which the display strings cannot support
+    /// (they carry names, and names are not unique).
+    ///
+    /// See [`TargetRefView`] for the wire shape and for when an object id is
+    /// withheld from a seat.
+    pub target_refs: Vec<TargetRefView>,
     pub is_copy: bool,
+}
+
+/// One target of a stack item, as something a client can point at.
+///
+/// Serialized as a tagged object:
+///
+/// * `{"kind":"object","id":123}` — an object, by `ObjectId`; the id space of
+///   `PermanentView::object_id`, `CardInZoneView::object_id` and
+///   `StackItemView::source_object_id`.
+/// * `{"kind":"object","id":null}` — an object whose id this seat is not given.
+/// * `{"kind":"player","name":"Bot-2"}` — a player, by display name (the key
+///   space of `StateViewModel::players`).
+/// * `{"kind":"stack_object","id":7}` — an ability on the stack, by
+///   `StackItemView::id` (NOT `source_object_id`; see that field's doc for why
+///   the two id spaces differ).
+///
+/// # When an object id is withheld (Architecture Invariant 7)
+///
+/// The omniscient view carries every id. In a seat view an object id survives
+/// only when **this same payload already ships that id to this seat** somewhere
+/// else — a battlefield permanent (face down or not), a graveyard, exile or
+/// command-zone card, a stack item's source, or a card in the seat's own hand.
+/// Anything else (a card in another seat's hand, a card in any library, an
+/// object that has left `state.objects()`, CR 400.7) becomes `id: null`.
+/// `redact::redact_stack` enforces it by reading the ids off the already-redacted
+/// view, so the rule is "never a new handle", structurally, rather than a second
+/// entitlement table that could drift from the first.
+///
+/// A player name and a stack-object id are never withheld: both are public
+/// (CR 400.2 makes the stack a public zone; display names are public) and both
+/// are already on the payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TargetRefView {
+    /// `Target::Object`. `id` is `None` when withheld from this seat.
+    Object { id: Option<u64> },
+    /// `Target::Player`, by display name.
+    Player { name: String },
+    /// `Target::StackObject`, by `StackItemView::id`.
+    StackObject { id: u64 },
 }
 
 /// A card in a non-battlefield zone (hand, graveyard, exile, command).
@@ -209,6 +291,16 @@ pub struct ZonesView {
     pub graveyard: HashMap<String, Vec<CardInZoneView>>,
     /// Shared exile pile.
     pub exile: Vec<CardInZoneView>,
+    /// The same exile pile, partitioned by each card's OWNER (CR 108.3):
+    /// player_name -> that player's exiled cards, in exile-zone order. **Additive
+    /// (play surface v3 C3, `scutemob-268`)**; `exile` above is unchanged.
+    ///
+    /// Every player is a key, with an empty list when they own nothing in exile,
+    /// so the union of the lists is exactly `exile`. A face-down card is redacted
+    /// here exactly as it is in `exile` (CR 406.3) — the same entry, in a second
+    /// place. Which player owns an exiled card is not hidden: see the `redact`
+    /// module's inventory table.
+    pub exile_by_owner: HashMap<String, Vec<CardInZoneView>>,
     /// Per-player command zone: player_name -> list of cards.
     pub command_zone: HashMap<String, Vec<CardInZoneView>>,
     /// Stack in LIFO order (last element = top of stack).
@@ -389,6 +481,24 @@ fn build_players_view(
             commander_damage.insert(opp_name, by_card_view);
         }
 
+        // CR 903.8: commander tax, as the engine's own cast COUNT (see the field
+        // doc for the unit). Every commander is a key so a client can render "+0".
+        let mut commander_tax: HashMap<String, u32> = HashMap::new();
+        for card_id in player
+            .commander_ids
+            .iter()
+            .chain(player.commander_tax.keys())
+        {
+            let card_name = state
+                .objects()
+                .values()
+                .find(|o| o.card_id.as_ref() == Some(card_id))
+                .map(|o| o.characteristics.name.clone())
+                .unwrap_or_else(|| card_id.0.clone());
+            let casts = player.commander_tax.get(card_id).copied().unwrap_or(0);
+            commander_tax.insert(card_name, casts);
+        }
+
         let view = PlayerView {
             life: player.life_total,
             poison: player.poison_counters,
@@ -404,6 +514,7 @@ fn build_players_view(
             library_size,
             graveyard_size,
             commander_damage_received: commander_damage,
+            commander_tax,
             land_plays_remaining: player.land_plays_remaining,
             has_lost: player.has_lost,
             has_conceded: player.has_conceded,
@@ -501,6 +612,27 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
     // ── Exile ──────────────────────────────────────────────────────────────
     let exile = objects_in_zone_as_card_views(state, &ZoneId::Exile);
 
+    // The same pile by owner (CR 108.3). Every player gets a key first, so an
+    // owner with nothing in exile still appears; the cards are then dealt out in
+    // zone order, reading `obj.owner` (never `controller` — CR 108.4: a card in
+    // exile has no controller).
+    let mut exile_by_owner: HashMap<String, Vec<CardInZoneView>> = state
+        .players()
+        .keys()
+        .map(|pid| (player_name(*pid, player_names), Vec::new()))
+        .collect();
+    let exile_ids = state
+        .zones()
+        .get(&ZoneId::Exile)
+        .map(|z| z.object_ids())
+        .unwrap_or_default();
+    for obj in exile_ids.iter().filter_map(|id| state.objects().get(id)) {
+        exile_by_owner
+            .entry(player_name(obj.owner, player_names))
+            .or_default()
+            .push(card_in_zone_view(obj));
+    }
+
     // ── Command zones ──────────────────────────────────────────────────────
     let mut command_zone: HashMap<String, Vec<CardInZoneView>> = HashMap::new();
     for pid in state.players().keys() {
@@ -526,6 +658,13 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
                 .iter()
                 .map(|t| format_target(&t.target, state, player_names))
                 .collect();
+            // Same `so.targets`, mapped in place, so the two vectors are
+            // index-aligned by construction.
+            let target_refs: Vec<TargetRefView> = so
+                .targets
+                .iter()
+                .map(|t| target_ref(&t.target, player_names))
+                .collect();
 
             StackItemView {
                 id: so.id.0,
@@ -537,6 +676,7 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
                 kind: kind.to_string(),
                 source_name,
                 targets,
+                target_refs,
                 is_copy: so.is_copy,
             }
         })
@@ -547,6 +687,7 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
         hand,
         graveyard,
         exile,
+        exile_by_owner,
         command_zone,
         stack,
     }
@@ -748,6 +889,41 @@ fn format_target(
     }
 }
 
+/// The OMNISCIENT machine-readable form of a `Target` (see [`TargetRefView`]).
+///
+/// Every id is present here; `redact::redact_stack` is what withholds an object
+/// id from a seat. It reads no object, so there is nothing for it to leak beyond
+/// the id itself.
+fn target_ref(
+    target: &mtg_engine::state::targeting::Target,
+    player_names: &HashMap<PlayerId, String>,
+) -> TargetRefView {
+    use mtg_engine::state::targeting::Target;
+    match target {
+        Target::Player(pid) => TargetRefView::Player {
+            name: player_name(*pid, player_names),
+        },
+        Target::Object(oid) => TargetRefView::Object { id: Some(oid.0) },
+        Target::StackObject(sid) => TargetRefView::StackObject { id: sid.0 },
+    }
+}
+
+/// One object as a `CardInZoneView` (omniscient; `redact` narrows it for a seat).
+fn card_in_zone_view(obj: &mtg_engine::GameObject) -> CardInZoneView {
+    CardInZoneView {
+        object_id: obj.id.0,
+        name: obj.characteristics.name.clone(),
+        card_types: obj
+            .characteristics
+            .card_types
+            .iter()
+            .map(|t| format!("{t:?}"))
+            .collect(),
+        // Omniscient by construction; `redact` flips this for a seat view.
+        hidden: false,
+    }
+}
+
 /// Collect all objects in a zone as `CardInZoneView`s, in zone order.
 fn objects_in_zone_as_card_views(state: &GameState, zone_id: &ZoneId) -> Vec<CardInZoneView> {
     let ids = match state.zones().get(zone_id) {
@@ -756,18 +932,7 @@ fn objects_in_zone_as_card_views(state: &GameState, zone_id: &ZoneId) -> Vec<Car
     };
     ids.iter()
         .filter_map(|id| state.objects().get(id))
-        .map(|obj| CardInZoneView {
-            object_id: obj.id.0,
-            name: obj.characteristics.name.clone(),
-            card_types: obj
-                .characteristics
-                .card_types
-                .iter()
-                .map(|t| format!("{t:?}"))
-                .collect(),
-            // Omniscient by construction; `redact` flips this for a seat view.
-            hidden: false,
-        })
+        .map(card_in_zone_view)
         .collect()
 }
 

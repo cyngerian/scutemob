@@ -58,6 +58,8 @@ use mtg_simulator::{
 use mtg_view_model::{EventView, StateViewModel};
 use serde::{Deserialize, Serialize};
 
+use crate::pass_until::{PassUntilOutcome, PassUntilRequest};
+
 /// What a label says about an object the viewing seat may not identify.
 pub const HIDDEN_LABEL: &str = "(hidden card)";
 
@@ -129,6 +131,28 @@ pub struct GameSummary {
     pub mulligan_count: u32,
     /// True while `POST /api/game/mulligan` is still accepted.
     pub pregame: bool,
+    /// An opaque id for **this table** (play surface v3 C3, `scutemob-268`): the
+    /// key the client stores its remembered hand and battlefield order under.
+    ///
+    /// The same string on every response of one table; a different one whenever
+    /// the table is rebuilt — `POST /api/game`, and a `POST /api/game/mulligan`
+    /// that redeals (object ids are reminted by both, so an order remembered
+    /// against the old table would name the wrong cards). Unique across server
+    /// restarts with overwhelming likelihood. Compare it for equality and nothing
+    /// else: its contents mean nothing and its format may change.
+    ///
+    /// # This is not the seed coming back (review MR-M11-01)
+    ///
+    /// The note above explains why no reconstruction key may ride on this payload.
+    /// This id is not one because it is **not a function of the game at all**:
+    /// `session::fresh_game_id` takes no argument, and hashes process-start
+    /// entropy with a counter. The seed, the config, the decklists and the state
+    /// never reach it, so nothing about a table can be recovered from its id and
+    /// two tables built from one seed carry unrelated ids. An id *derived* from
+    /// any of those — even through a hash — would be a reconstruction key for
+    /// anyone able to enumerate the inputs, which for a seed that defaults to `0`
+    /// is everyone.
+    pub game_id: String,
 }
 
 /// Everything one seat is entitled to know right now.
@@ -143,6 +167,14 @@ pub struct SeatView {
     /// Rendered, already-redacted history lines since the client last read.
     pub events: Vec<EventView>,
     pub game_over: Option<GameOverView>,
+    /// How a server-side pass-until run ended — present **only** on the response
+    /// to a `POST /api/game/action` that carried a `pass_until`, and absent from
+    /// the document otherwise (not `null`), so every other response is byte-for-
+    /// byte what it was before the field existed.
+    ///
+    /// When present, `events` holds the lines of the **whole run**, in order.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pass_until: Option<PassUntilOutcome>,
 }
 
 /// The decision the human must answer, if any.
@@ -1146,6 +1178,11 @@ pub struct ActionRequest {
     pub action_index: usize,
     #[serde(default)]
     pub params: ActionParamsDto,
+    /// Keep passing for this seat after this answer, until the rule says stop
+    /// (play surface v3 C3). Only valid when `action_index` is this decision's
+    /// `PassPriority` action. See [`crate::pass_until`].
+    #[serde(default)]
+    pub pass_until: Option<PassUntilRequest>,
 }
 
 /// Client-facing mirror of `mtg_simulator::ActionParams`.

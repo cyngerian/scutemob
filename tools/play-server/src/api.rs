@@ -52,6 +52,9 @@ use serde::Serialize;
 use mtg_simulator::{AdvanceOutcome, BotKind, HumanChoice, LocalGameError, SetupError};
 use mtg_view_model::{event_view_for, StateViewModel, Viewer};
 
+use crate::pass_until::{
+    self, PassRule, PassUntilOutcome, PassUntilRequest, StopKind, MAX_AUTO_PASSES,
+};
 use crate::session::{self, AppState, NewGameDefaults, PlaySession, SessionError, SharedState};
 use crate::view::{
     self, ActionRequest, GameSummary, MulliganRequest, NameIndex, NewGameRequest, SeatView,
@@ -1552,23 +1555,53 @@ fn poisoned() -> ApiFailure {
 /// out-of-band oracle the seat-redaction test checks this payload against. A
 /// comment that claimed otherwise would be false.)
 fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
+    seat_view_after(session, outcome, Vec::new(), None)
+}
+
+/// Drain the journal since the last read and render it for the human seat.
+///
+/// The lines are rendered against the CURRENT state, after every command in the
+/// drained batch has been applied. (`event_view_for` uses the state only to
+/// resolve object identity for the entitlement check, so a card that has since
+/// changed zones renders name-free rather than wrongly named.)
+///
+/// Draining moves `journal_cursor`, so each record is rendered exactly once
+/// however many times this is called within a request — which is what lets
+/// [`run_pass_until`] call it after every pass and concatenate the results
+/// without dropping or repeating a line.
+fn drain_event_views(session: &mut PlaySession) -> Vec<mtg_view_model::EventView> {
+    let viewer = Viewer::Seat(session.human);
+    let records = session.take_new_records();
+    let state = session.game.state();
+    records
+        .iter()
+        .flat_map(|record| record.events.iter())
+        .filter_map(|ev| event_view_for(ev, state, &session.names, viewer))
+        .collect()
+}
+
+/// [`seat_view`], for a response that follows more than one drain of the journal.
+///
+/// `earlier_events` are lines already drained and rendered during this request
+/// (a pass-until run renders each pass's lines as it goes); they are placed
+/// BEFORE whatever is still undrained, so the feed stays in order. `pass_until`
+/// is the run's outcome, `None` for every ordinary response.
+fn seat_view_after(
+    session: &mut PlaySession,
+    outcome: &AdvanceOutcome,
+    earlier_events: Vec<mtg_view_model::EventView>,
+    pass_until: Option<PassUntilOutcome>,
+) -> SeatView {
     let human = session.human;
     let viewer = Viewer::Seat(human);
 
-    // Events first: they are rendered against the CURRENT state, after every
-    // command in the batch has been applied. (`event_view_for` uses the state
-    // only to resolve object identity for the entitlement check, so a card that
-    // has since changed zones renders name-free rather than wrongly named.)
-    let records = session.take_new_records();
+    // Events first — see `drain_event_views`.
+    let mut events = earlier_events;
+    events.extend(drain_event_views(session));
     let state = session.game.state();
     // The client-facing `seq`, which is NOT `pending.seq` — see
     // `PlaySession::wire_seq`.
     let wire_seq = session.pending_wire_seq();
-    let events = records
-        .iter()
-        .flat_map(|record| record.events.iter())
-        .filter_map(|ev| event_view_for(ev, state, &session.names, viewer))
-        .collect();
 
     let state_view = StateViewModel::from_game_state_for(state, &session.names, viewer);
     let names = NameIndex::from_view(&state_view);
@@ -1641,6 +1674,8 @@ fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
         command_count: session.game.command_count(),
         mulligan_count: session.mulligan_count,
         pregame: session.is_pregame(),
+        // Opaque, and NOT derived from anything above — see `GameSummary::game_id`.
+        game_id: session.game_id().to_string(),
     };
 
     SeatView {
@@ -1649,7 +1684,197 @@ fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
         decision,
         events,
         game_over,
+        pass_until,
     }
+}
+
+// ── Pass-until (play surface v3 C3) ──────────────────────────────────────────
+
+/// Run a `pass_until` request: make the request's own pass, then keep passing
+/// for the human seat until the rule or an unconditional guard stops the run.
+///
+/// The loop is `frontend/src/lib/stores.js::startPassUntil`, moved inside one
+/// request — same guards, same order, so a run stops at the same pass whichever
+/// side drives it. The rule it consults is [`PassRule`]; the module doc of
+/// [`crate::pass_until`] has the design.
+///
+/// # What the loop will and will not answer (Architecture Invariant 7)
+///
+/// It submits exactly one kind of answer: `PassPriority`, to a `Priority`
+/// decision addressed to **this seat**. A decision addressed to another seat
+/// ends the run as `no_decision` — the same `pending.player == human` filter
+/// [`seat_view_after`] hides such a decision with — and a decision of any other
+/// kind (a discard, a scry, trigger targets, a block) ends it as `decision`,
+/// untouched, for the human to make. No rule a client sends can widen that:
+/// the request chooses when to stop SOONER and nothing else.
+///
+/// # What the rule is shown
+///
+/// After each pass the journal is drained and rendered for `Viewer::Seat(human)`
+/// against the state as it then stands, and the state itself is rendered for the
+/// same viewer; the rule sees those two values and nothing else. That is the
+/// very pair a client making that pass by hand would have received, so the pass
+/// a run stops at can never depend on something the seat is not entitled to.
+///
+/// # Events
+///
+/// Every drained line is kept and returned, in order: lines left unread before
+/// the run (none in practice — every response drains), then each pass's lines.
+/// [`drain_event_views`] moves the journal cursor as it reads, so nothing is
+/// rendered twice and the final [`seat_view_after`] drain finds nothing new.
+///
+/// # Errors
+///
+/// Before the first pass, anything wrong is an ordinary error response and
+/// nothing has been applied: a stale `seq` is the usual 409, and an
+/// `action_index` that is not this decision's `PassPriority` is a 400 (a
+/// `pass_until` beside any other answer would silently pass *after* it, which is
+/// never what a client that sent it meant). After the first pass an error can no
+/// longer be an error response — the passes already made stand and their event
+/// lines must reach the client — so a refusal there ends the run as `rejected`
+/// in a 200.
+fn run_pass_until(
+    play: &mut PlaySession,
+    seq: u64,
+    action_index: usize,
+    params: crate::view::ActionParamsDto,
+    spec: &PassUntilRequest,
+) -> Result<SeatView, ApiFailure> {
+    use mtg_simulator::{DecisionKind, LegalAction};
+
+    let human = play.human;
+    if let Some(stale) = play.stale_error(seq) {
+        return Err(stale.into());
+    }
+    // `stale_error` returned `None`, so a decision is outstanding; the caller's
+    // foreign-seat guard has already established that it is this seat's.
+    let Some(pending) = play.pending.as_ref() else {
+        return Err(LocalGameError::NoPendingDecision.into());
+    };
+    match pending.actions.get(action_index) {
+        None => return Err(LocalGameError::UnknownAction(action_index).into()),
+        Some(LegalAction::PassPriority) => {}
+        Some(_) => {
+            return Err(ApiFailure::new(
+                StatusCode::BAD_REQUEST,
+                "bad_params",
+                "pass_until may only accompany this decision's PassPriority action; \
+                 answer the decision first, or send the PassPriority action_index",
+            ));
+        }
+    }
+
+    let human_name = view::display_name(human, &play.names);
+    let start_view =
+        StateViewModel::from_game_state_for(play.game.state(), &play.names, Viewer::Seat(human));
+    let mut rule = PassRule::new(spec, &start_view, &human_name);
+
+    // Idempotent while a decision is outstanding: this re-issues the decision
+    // the request just addressed and yields the outcome the first guard reads.
+    let mut outcome = play.advance();
+    let mut events = drain_event_views(play);
+    // The lines the most recent pass produced: what the rule is shown, and what
+    // a client would have received as that pass's `events`.
+    let mut last_pass: Vec<mtg_view_model::EventView> = Vec::new();
+    let mut first_answer = Some((action_index, params));
+    let mut passes: u32 = 0;
+
+    let (stop, reason) = loop {
+        if passes >= MAX_AUTO_PASSES {
+            break (
+                StopKind::Limit,
+                format!("stopped after {MAX_AUTO_PASSES} passes — this looks stuck"),
+            );
+        }
+        if !matches!(outcome, AdvanceOutcome::AwaitingHuman(_)) {
+            break (StopKind::GameOver, "the game is over".to_string());
+        }
+        let Some(pending) = play.pending.as_ref().filter(|p| p.player == human) else {
+            break (
+                StopKind::NoDecision,
+                "there is nothing to answer".to_string(),
+            );
+        };
+        if !matches!(pending.kind, DecisionKind::Priority) {
+            let tag = view::decision_kind_tag(pending.kind);
+            break (
+                StopKind::Decision,
+                format!(
+                    "you have a {} decision to make",
+                    pass_until::decision_label(&tag)
+                ),
+            );
+        }
+        // Only after at least one pass: otherwise "until my next turn" would
+        // refuse to start on your own turn (`startPassUntil`'s own comment).
+        if passes > 0 {
+            let now = StateViewModel::from_game_state_for(
+                play.game.state(),
+                &play.names,
+                Viewer::Seat(human),
+            );
+            if let Some(stopped) = rule.check(&now, &last_pass) {
+                break stopped;
+            }
+        }
+        // The first pass is the request's own answer, params and all, so it is
+        // judged exactly as it would have been without a `pass_until`. Every
+        // later one is the decision's `PassPriority` with nothing announced.
+        let (index, answer) = match first_answer.take() {
+            Some((index, params)) => (index, params.into()),
+            None => {
+                let offered = pending
+                    .actions
+                    .iter()
+                    .position(|a| matches!(a, LegalAction::PassPriority));
+                let Some(index) = offered else {
+                    break (
+                        StopKind::NoPass,
+                        "passing is not offered right now".to_string(),
+                    );
+                };
+                (index, mtg_simulator::ActionParams::default())
+            }
+        };
+        let Some(wire_seq) = play.pending_wire_seq() else {
+            break (
+                StopKind::NoDecision,
+                "there is nothing to answer".to_string(),
+            );
+        };
+        if let Err(err) = play.submit(
+            wire_seq,
+            HumanChoice {
+                action_index: index,
+                params: answer,
+            },
+        ) {
+            if passes == 0 {
+                return Err(err.into());
+            }
+            let refusal = ApiFailure::from(err);
+            break (
+                StopKind::Rejected,
+                format!("a pass was refused: {}", refusal.body.error),
+            );
+        }
+        passes += 1;
+        outcome = play.advance();
+        events.append(&mut last_pass);
+        last_pass = drain_event_views(play);
+    };
+    events.append(&mut last_pass);
+
+    Ok(seat_view_after(
+        play,
+        &outcome,
+        events,
+        Some(PassUntilOutcome {
+            passes,
+            stop,
+            reason,
+        }),
+    ))
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -1785,6 +2010,17 @@ pub async fn post_game(
             ));
         }
         let mut play = session::new_game(cfg, seq_base)?;
+        // Owner ruling 2026-10-12: card images are fetched when a game's decks are
+        // resolved, never during play. `new_game` has just pinned the decklists, so
+        // hand their card names to the background worker. `enqueue` is a channel
+        // send and returns at once — the fetching happens on the worker's thread,
+        // which never takes this lock. Skipped outright when prefetch is off
+        // (`--no-image-prefetch`, and every `AppState::new` a test builds).
+        if state.images.prefetch_enabled() {
+            state
+                .images
+                .enqueue(crate::images::deck_card_names(&play.cfg));
+        }
         let outcome = play.advance();
         let view = seat_view(&mut play, &outcome);
         *guard = Some(play);
@@ -1917,6 +2153,14 @@ pub async fn post_action(
                 // PB-DX29 `/review` M2 (CR 606.6): the loyalty `{X}` this batch opened.
                 validate_loyalty_x_value(action, &req.params, play.game.state())?;
             }
+        }
+
+        // Play surface v3 C3: the same answer, followed by a server-side run of
+        // passes. Everything above has already run for it — the foreign-seat
+        // guard and the four validators — so the request's own pass is held to
+        // exactly the standard a plain one is.
+        if let Some(spec) = req.pass_until.as_ref() {
+            return run_pass_until(play, req.seq, req.action_index, req.params, spec).map(Json);
         }
 
         // `LegalAction` never crossed the wire: the index is resolved against
