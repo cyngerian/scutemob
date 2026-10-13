@@ -21,7 +21,7 @@
 </script>
 
 <div class="zones5">
-  <Pile label={piles.cmd.label} top={piles.cmd.top} cz onclick={(e) => open(piles.cmd, e)} />
+  <Pile label={piles.cmd.label} top={piles.cmd.top} taxes={piles.cmd.taxes} cz onclick={(e) => open(piles.cmd, e)} />
   <Pile label={piles.hand.label} top={piles.hand.top} count={piles.hand.count} onclick={(e) => open(piles.hand, e)} />
   <div class="piles">
     {#each [piles.lib, piles.gy, piles.ex] as pile (pile.label)}

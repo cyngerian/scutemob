@@ -8141,6 +8141,89 @@ mod tests {
         );
     }
 
+    /// **v3 C3 (`scutemob-268`) — the alpha surface never names Scryfall** (owner
+    /// ruling 2026-10-12, `docs/play-surface-v3-brief.md` §5: the browser never calls
+    /// Scryfall on v3; pictures come from the server's local store through
+    /// `GET /api/card-image`, and a miss is the text chip).
+    ///
+    /// Scans every `.svelte` / `.js` / `.css` file under `frontend/src/lib/v3`
+    /// (`CardWindow.svelte`, the `?card-window` mount, lives there and is required
+    /// by name). Three rules:
+    ///
+    /// 1. No v3 file contains the word `scryfall`, in any letter case, anywhere —
+    ///    **comments included**. Telling code from prose would need a comment
+    ///    stripper, and the obvious one (`//` to end of line) eats exactly the
+    ///    `https://…` literal this gate exists to catch; so prose in `lib/v3` says
+    ///    "the image store" instead. That one word covers every Scryfall host and
+    ///    both v2 URL builders (`scryfallSmallUrl`, `scryfallImageUrl`).
+    /// 2. A v3 file that imports from `v2/images.js` imports exactly
+    ///    `{ cardImageUrl }`, and at least `CardFace.svelte`, `CardWindow.svelte`
+    ///    and `hover.js` do (vacuity floor).
+    /// 3. `cardImageUrl` in `v2/images.js` builds a same-origin `/api/card-image`
+    ///    URL: its body names no scheme and no host.
+    ///
+    /// What it does not see: a URL assembled from pieces at run time, or a request
+    /// made by a dependency. The paired probe does: `tools/play-server/probes/v3sweep.py`
+    /// counts every request by host on every run and is BAD on one Scryfall request.
+    ///
+    /// Defeat (executed 2026-10-12): `hover.js` put back on `scryfallImageUrl`
+    /// (import and call) → red ("…/lib/v3/hover.js:20 names Scryfall. The v3 surface
+    /// reads pictures only from the local store …") while
+    /// `test_frontend_v3_card_images_are_lazy_and_fall_back` stayed green (it only
+    /// bans the literal host); restored → green.
+    #[test]
+    fn test_frontend_v3_never_names_scryfall() {
+        let sources = v3_sources();
+        assert!(
+            sources.len() >= 20,
+            "only {} files walked under lib/v3; the gate would be near-vacuous",
+            sources.len()
+        );
+        let mut importers = Vec::new();
+        for (path, text) in &sources {
+            let lower = text.to_lowercase();
+            if let Some(at) = lower.find("scryfall") {
+                let line = lower[..at].matches('\n').count() + 1;
+                panic!(
+                    "{path}:{line} names Scryfall. The v3 surface reads pictures only from the \
+                     local store (`cardImageUrl` → `/api/card-image`); comments count too, \
+                     say \"the image store\""
+                );
+            }
+            for line in text.lines().filter(|l| l.contains("v2/images.js'")) {
+                assert_eq!(
+                    line.trim(),
+                    "import { cardImageUrl } from '../v2/images.js';",
+                    "{path} may take only `cardImageUrl` from `v2/images.js`"
+                );
+                importers.push(path.clone());
+            }
+        }
+        for name in ["CardFace.svelte", "CardWindow.svelte", "hover.js"] {
+            assert!(
+                importers.iter().any(|p| p.ends_with(name)),
+                "v3 {name} does not import `cardImageUrl` (or was not walked). \
+                 Importers: {importers:?}"
+            );
+        }
+        let images =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("frontend/src/lib/v2/images.js");
+        let images = std::fs::read_to_string(&images).expect("v2 images.js is readable");
+        let start = images
+            .find("export function cardImageUrl(")
+            .expect("v2/images.js exports `cardImageUrl`, the v3 store-route URL builder");
+        let body = &images[start..];
+        let body = &body[..body.find("\n}").expect("cardImageUrl has a closing brace")];
+        assert!(
+            body.contains("`/api/card-image?name=${encodeURIComponent(name)}&version=${version}`"),
+            "cardImageUrl must build the store route URL; got:\n{body}"
+        );
+        assert!(
+            !body.to_lowercase().contains("scryfall") && !body.contains("//"),
+            "cardImageUrl must stay same-origin (no scheme, no host); got:\n{body}"
+        );
+    }
+
     /// **v3 C1 (`scutemob-266`) — the alpha surface is a third mount, not a
     /// replacement** (brief §3: "v2 stays behind `?v2` and the old surface stays
     /// default until the owner says otherwise").

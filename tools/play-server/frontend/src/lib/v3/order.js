@@ -8,8 +8,16 @@
  *
  * ## Which game is this? (`trackGame`, `newGameKey`)
  *
- * The seat view's `summary` carries no game id and — deliberately, Invariant 7 — no seed.
- * So the key is kept here: `localStorage['v3-game']` holds
+ * **C3 (`scutemob-268`): `summary.game_id`.** The server stamps every response of one
+ * table with the same opaque string and changes it on a new game and on a redealing
+ * mulligan, whoever dealt it (this page, another tab, a script). When the summary has
+ * one, the order key IS that id (`id:<game_id>`; it is only ever compared for equality)
+ * and nothing below is consulted. `localStorage['v3-game']` then holds `{ key, game_id }`
+ * for the record only.
+ *
+ * **Fallback, for a summary without `game_id`** (an older server): the C2 heuristic.
+ * The summary carries — deliberately, Invariant 7 — no seed, so the key is kept here:
+ * `localStorage['v3-game']` holds
  * `{ key, players, human_name, bot, mulligan_count, turn, command_count }`, and
  * `trackGame(summary)` answers that `key` for as long as the summary is consistent with
  * being the same table: the same `players` / `human_name` / `bot` / `mulligan_count`, and
@@ -17,12 +25,15 @@
  * forward). Anything else mints a new key. `newGameKey()` drops the record, which
  * `TableV3` calls before it deals or mulligans.
  *
- * **Known limitation.** A different game started somewhere else (another tab, a server
+ * **Known limitation of the fallback only.** A different game started somewhere else (another tab, a server
  * restart, a probe) that has already run PAST the stored counters is indistinguishable
  * from this one, and keeps the key. A stale order is then applied to whatever object ids
  * happen to match. That is cosmetic — the order of your own cards on your own screen,
  * never a rules matter, and one drag overwrites it — but it is a guess. The real fix is
- * a `game_id` on `GameSummary`, a server change that belongs to C3 (`scutemob-268`).
+ * the `game_id` above.
+ *
+ * Old orders do not pile up either way: `saveOrder` keeps the `KEEP_GAMES` most recently
+ * saved games' orders (heuristic-keyed ones from before C3 age out the same way).
  *
  * ## The order (`applyOrder`, `moveItem`, `moveItems`, `loadOrder`, `saveOrder`)
  *
@@ -120,6 +131,16 @@ function mintKey() {
  * keeps looking like the same table (see the header for when that is a guess).
  */
 export function trackGame(summary) {
+  const gameId = summary?.game_id;
+  if (typeof gameId === 'string' && gameId !== '') {
+    // The server's own identity of the table: no guessing, no counters.
+    const key = `id:${gameId}`;
+    if (memoryGame?.key !== key) {
+      memoryGame = { key, game_id: gameId };
+      writeJson(GAME_KEY, memoryGame);
+    }
+    return key;
+  }
   const stored = readJson(GAME_KEY) ?? memoryGame;
   const same = sameTable(stored, summary);
   const record = {

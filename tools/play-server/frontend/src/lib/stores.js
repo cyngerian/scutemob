@@ -500,6 +500,104 @@ export async function startPassUntil(mode) {
   }
 }
 
+// ── Pass-until as a server parameter (v3 C3, `scutemob-268`) ─────────────────
+
+/**
+ * Run one pass-until **on the server**: a single `POST /api/game/action` that
+ * carries the `PassPriority` answer plus a `pass_until` rule, instead of one
+ * request per pass (`tools/play-server/README.md` §"Pass-until as a server
+ * parameter", `src/pass_until.rs`).
+ *
+ * `mode` is `{ kind, rule, predicate }`:
+ *
+ *   - `rule` — the wire object (`{ until, unless?, anchor? }`). It says *when to
+ *     stop* and nothing else: **this function** finds the decision's own
+ *     `PassPriority` action and sends `params: {}`, exactly as the loop above
+ *     does, so a caller can never use this path to submit anything but a pass.
+ *   - `predicate` — the same rule as the client loop's `(view, ctx)` function.
+ *     It is the **fallback**: when `rule` is missing (a setting the wire cannot
+ *     express) or the server answers 400 `invalid_body` (an older server that
+ *     does not know the field — `deny_unknown_fields` — or a rule it will not
+ *     take; either way nothing was applied), the run is handed to
+ *     `startPassUntil(mode)` unchanged.
+ *
+ * The iteration-0 guards are the loop's, in the loop's order, so the two paths
+ * refuse the same starts with the same sentences.
+ *
+ * # The `passUntil` shape while and after a server run
+ *
+ * `{ mode, passes, stopReason, server: true, stop }` — the three fields every
+ * other reader uses, plus `server` (this run is one request: **it cannot be
+ * cancelled**, `cancelPassUntil` has nothing to interrupt) and, once finished,
+ * `stop`: the server's tag (`until | unless | decision | no_decision |
+ * game_over | no_pass | limit | rejected`), or `failed` / `unreported` for the
+ * two endings only the client can see. `stopReason` is the server's sentence.
+ *
+ * The response's `events` are every line of the whole run; `applySeatView`
+ * appends them as one batch under the same `MAX_EVENTS` cap as any response.
+ *
+ * Only v3's auto-pass panel calls this. The default surface and `?v2` keep
+ * calling `startPassUntil` and never send the field.
+ */
+export async function startPassUntilOnServer(mode) {
+  const rule = mode?.rule ?? null;
+  if (rule === null || typeof rule !== 'object') return startPassUntil(mode);
+  const modeKind = mode.kind;
+
+  const running = get(passUntil);
+  if (running && running.stopReason === null) return false;
+  if (get(loading)) return false;
+  const start = get(seatView);
+  if (!start) return false;
+
+  const finish = (passes, stop, stopReason) => {
+    passUntil.set({ mode: modeKind, passes, stopReason, server: true, stop });
+    return true;
+  };
+  if (start.game_over) return finish(0, 'game_over', 'the game is over');
+  const pending = get(decision);
+  if (!pending) return finish(0, 'no_decision', 'there is nothing to answer');
+  if (pending.kind !== 'Priority') {
+    return finish(0, 'decision', `you have a ${decisionKindName(pending.kind)} decision to make`);
+  }
+  const pass = (pending.actions ?? []).find((a) => a.kind === 'PassPriority');
+  if (!pass) return finish(0, 'no_pass', 'passing is not offered right now');
+
+  passUntilCancelled = false;
+  passUntil.set({ mode: modeKind, passes: 0, stopReason: null, server: true, stop: null });
+  loading.set(true);
+  let view = null;
+  let failure = null;
+  try {
+    view = await api.submitAction(pending.seq, pass.index, {}, rule);
+  } catch (err) {
+    failure = err;
+  } finally {
+    loading.set(false);
+  }
+
+  if (failure) {
+    if (failure.status === 400 && failure.kind === 'invalid_body') {
+      // Nothing was applied. Clear the server-run marker first: the loop
+      // refuses to start while a run is recorded as in flight.
+      passUntil.set(null);
+      return startPassUntil(mode);
+    }
+    error.set(toStoreError(failure));
+    return finish(0, 'failed', 'a request failed — see the error above');
+  }
+
+  applySeatView(view);
+  error.set(null);
+  const outcome = view?.pass_until ?? null;
+  if (!outcome || typeof outcome !== 'object') {
+    // A 200 without the outcome: the pass itself was made (the body is an
+    // ordinary PassPriority answer), but nothing says the rule was run.
+    return finish(1, 'unreported', 'the server passed once and did not report a pass-until run');
+  }
+  return finish(Number(outcome.passes) || 0, String(outcome.stop ?? 'unreported'), String(outcome.reason ?? 'the run stopped'));
+}
+
 /** Clear the finished-run status line. */
 export function dismissPassUntil() {
   passUntil.set(null);

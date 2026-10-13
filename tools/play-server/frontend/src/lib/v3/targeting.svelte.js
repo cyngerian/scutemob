@@ -46,7 +46,9 @@ const EMPTY = new Set();
  *   chainOpen   — any picker stage is open
  *   selection   — the open stage's chosen candidates: `{ kind: 'object', id }` | `{ kind: 'player', name }`
  *   okObjects / okSeats — legal targets of the drag, else of the open stage (object ids / seat names)
+ *   okStack             — the same for `stack_object` candidates: stack item ids (C3; `StackBox` reads it)
  *   chosenObjects       — the object ids in `selection`
+ *   chosenStack         — the stack item ids in `selection`
  */
 export const targeting = $state({
   drag: null,
@@ -56,7 +58,9 @@ export const targeting = $state({
   selection: [],
   okObjects: EMPTY,
   okSeats: EMPTY,
+  okStack: EMPTY,
   chosenObjects: EMPTY,
+  chosenStack: EMPTY,
 });
 
 // ── Private controller state (nothing draws from it) ─────────────────────────
@@ -91,11 +95,12 @@ function usable(action) {
 
 function takesTargets(action) {
   const c = driver.candidatesOf(action);
-  return c.objects.size + c.players.size > 0;
+  return c.objects.size + c.players.size + c.stack.size > 0;
 }
 
 function hasCandidate(action, pick) {
   const c = driver.candidatesOf(action);
+  if (pick.kind === 'stack_object') return c.stack.has(Number(pick.id));
   return pick.kind === 'object' ? c.objects.has(Number(pick.id)) : c.players.has(pick.name);
 }
 
@@ -173,6 +178,13 @@ export function seatElement(name) {
   return container?.querySelector('.nameplate, .who') ?? container;
 }
 
+/** The dock's stack item for a stack id (C3): where an arrow to a spell or ability on the stack points. */
+export function stackElement(stackId) {
+  const root = table?.root;
+  if (!root || stackId === null || stackId === undefined) return null;
+  return root.querySelector(`.stack-box .stack-item[data-stack-id="${Number(stackId)}"]`);
+}
+
 /** The decision-panel card item of an action, while it is drawn. */
 export function actionElement(index) {
   return host()?.querySelector(`.act[data-action-index="${Number(index)}"]`) ?? null;
@@ -202,28 +214,36 @@ function markSeats() {
 function refreshHighlights() {
   let objects = EMPTY;
   let seats = EMPTY;
+  let stack = EMPTY;
   if (dragSpec && !dragSpec.live) {
     objects = new Set();
     seats = new Set();
+    stack = new Set();
     for (const action of dragSpec.actions) {
       const c = driver.candidatesOf(action);
       c.objects.forEach((id) => objects.add(id));
       c.players.forEach((name) => seats.add(name));
+      c.stack.forEach((id) => stack.add(id));
     }
   } else if (resolved) {
     objects = new Set();
     seats = new Set();
+    stack = new Set();
     for (const slot of resolved.slots) {
       for (const c of slot.candidates ?? []) {
         if (c.kind === 'object') objects.add(Number(c.id));
         else if (c.kind === 'player' && c.owner) seats.add(c.owner);
+        else if (c.kind === 'stack_object') stack.add(Number(c.id));
       }
     }
   }
   if (!sameSet(objects, targeting.okObjects)) targeting.okObjects = objects;
   if (!sameSet(seats, targeting.okSeats)) targeting.okSeats = seats;
+  if (!sameSet(stack, targeting.okStack)) targeting.okStack = stack;
   const chosen = new Set(targeting.selection.filter((p) => p.kind === 'object').map((p) => p.id));
   if (!sameSet(chosen, targeting.chosenObjects)) targeting.chosenObjects = chosen;
+  const chosenStack = new Set(targeting.selection.filter((p) => p.kind === 'stack_object').map((p) => p.id));
+  if (!sameSet(chosenStack, targeting.chosenStack)) targeting.chosenStack = chosenStack;
   markSeats();
 }
 
@@ -452,6 +472,9 @@ function hitTest(x, y) {
       const hidden = card.dataset.oid === undefined;
       return { kind: 'card', hidden, id: hidden ? null : Number(card.dataset.oid), name: card.dataset.name ?? null };
     }
+    // A spell or ability on the stack (C3): the dock's item, by its stack id.
+    const item = el.closest('.stack-box .stack-item[data-stack-id]');
+    if (item) return { kind: 'stack', id: Number(item.dataset.stackId), name: item.querySelector('.s-name')?.textContent?.trim() || null };
     const seat = el.closest('[data-seat]');
     if (seat) return { kind: 'seat', name: seat.dataset.seat };
     return null;
@@ -476,7 +499,11 @@ function onPointerUp(event) {
     return;
   }
   const pick =
-    hit.kind === 'card' ? { kind: 'object', id: hit.id, label: hit.name ?? 'That card' } : { kind: 'player', name: hit.name, label: hit.name };
+    hit.kind === 'card'
+      ? { kind: 'object', id: hit.id, label: hit.name ?? 'That card' }
+      : hit.kind === 'stack'
+        ? { kind: 'stack_object', id: hit.id, label: hit.name ?? 'That stack item' }
+        : { kind: 'player', name: hit.name, label: hit.name };
   const fits = spec.actions.filter((a) => hasCandidate(a, pick));
   if (fits.length === 0) {
     say(`${pick.label} is not a legal target for ${what}.`);
@@ -582,6 +609,16 @@ function onRootClick(event) {
     event.stopPropagation();
     event.preventDefault();
     applyToLive({ kind: 'object', id, label: card.dataset.name }, { toggle: true });
+    return;
+  }
+  // A stack item that is a candidate of the open stage (C3): chosen like a card.
+  const item = target.closest('.stack-box .stack-item[data-stack-id]');
+  if (item) {
+    const id = Number(item.dataset.stackId);
+    if (!targeting.okStack.has(id)) return;
+    event.stopPropagation();
+    event.preventDefault();
+    applyToLive({ kind: 'stack_object', id, label: item.querySelector('.s-name')?.textContent?.trim() || 'That stack item' }, { toggle: true });
     return;
   }
   if (target.closest(INTERACTIVE)) return;

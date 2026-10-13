@@ -125,18 +125,24 @@ export function slotListsFor(option) {
 
 /**
  * Every candidate an option could ever announce, across all of its slot lists:
- * `{ objects: Set<number>, players: Set<string> }`. A player candidate is keyed
- * by `owner`, which for a player target is that player's display name
- * (`TargetOptionView.owner`), i.e. the `data-seat` of their containers.
+ * `{ objects: Set<number>, players: Set<string>, stack: Set<number> }`. A player
+ * candidate is keyed by `owner`, which for a player target is that player's
+ * display name (`TargetOptionView.owner`), i.e. the `data-seat` of their
+ * containers. `stack` (C3) holds the ids of `stack_object` candidates — a spell
+ * or ability on the stack, in the `StackItemView.id` space, which is what the
+ * dock's stack items carry as `data-stack-id`. It is a separate set on purpose:
+ * a stack id is never looked up among the cards.
  */
 export function candidatesOf(option) {
   const objects = new Set();
   const players = new Set();
+  const stack = new Set();
   const read = (slots) => {
     for (const slot of slots ?? []) {
       for (const c of slot?.candidates ?? []) {
         if (c?.kind === 'object') objects.add(Number(c.id));
         else if (c?.kind === 'player' && c.owner) players.add(c.owner);
+        else if (c?.kind === 'stack_object') stack.add(Number(c.id));
       }
     }
   };
@@ -144,14 +150,15 @@ export function candidatesOf(option) {
   read(option?.fused_target_slots);
   for (const mode of option?.modes ?? []) read(mode.target_slots);
   if (option?.decision?.answer?.shape === 'Slots') read(option.decision.answer.slots);
-  return { objects, players };
+  return { objects, players, stack };
 }
 
-/** Does `candidate` stand for `pick` (`{ kind: 'object', id }` | `{ kind: 'player', name }`)? */
+/** Does `candidate` stand for `pick` (`{ kind: 'object', id }` | `{ kind: 'player', name }` | `{ kind: 'stack_object', id }`)? */
 export function matchesPick(candidate, pick) {
   if (!candidate || !pick) return false;
   if (pick.kind === 'object') return candidate.kind === 'object' && Number(candidate.id) === Number(pick.id);
   if (pick.kind === 'player') return candidate.kind === 'player' && candidate.owner === pick.name;
+  if (pick.kind === 'stack_object') return candidate.kind === 'stack_object' && Number(candidate.id) === Number(pick.id);
   return false;
 }
 

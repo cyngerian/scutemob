@@ -23,6 +23,7 @@
   import CardFace from './CardFace.svelte';
   import ZoneBox from './ZoneBox.svelte';
   import { splitBattlefield, landStacks } from './layout.js';
+  import { stackTargets } from './stackTargets.svelte.js';
 
   let {
     name,
@@ -57,6 +58,7 @@
   class:active={isActive}
   class:is-active={isActive}
   class:has-prio={hasPrio}
+  class:seat-targeted={stackTargets.seats.has(name)}
   data-seat={name}
   data-rows={dataRows}
   data-overhead="1.4"

@@ -113,3 +113,33 @@
 .v3 .v3-menu .btn.danger { background: #7a1c26; border-color: #a83a46; color: #fdd; font-weight: bold; }
 .v3 .v3-menu .why { color: #aab; font-size: 0.78rem; }
 .v3 .v3-menu .why.warn { color: #f0b0b0; }
+
+/* ── dock column and combat card width ──────────────────────────────────── */
+
+/* The mockup's `.dock` is a grid with no column template: its one implicit column is `auto`, whose
+   minimum is the widest panel's min-content. A long unbreakable row in any panel (first seen: one
+   attacker with five blockers in the combat card, 307px in a 247px dock) widened the column, and with
+   it all three panels, past the right edge of the page. The column is the dock's width and no more. */
+.v3 .dock { grid-template-columns: minmax(0, 1fr); }
+.v3 .dock > div { min-width: 0; }
+
+/* Rule 10: each attacker with its blockers beside it, inside the dock. A pair that does not fit one
+   line wraps inside its own outlined box (attacker first, blockers after, each with its shield); the
+   enlarged lane view is where a big combat is read in full. */
+.v3 .combat-box .grp { min-width: 0; }
+.v3 .combat-box .pair { flex-wrap: wrap; row-gap: 3px; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.v3 .combat-box .pair .blk-unit { display: inline-flex; align-items: center; gap: 2px; }
+
+/* The same in the other direction: the dock's rows are `minmax(0, 1fr) auto auto`, and a combat taller
+   than the dock (15 pairs at 1707x880) ran out of the bottom of the page. The card keeps at most 60%
+   of the viewport, so the stack above it is never squeezed out, and scrolls inside itself past that,
+   as the stack box does. */
+.v3 .combat-box { max-height: 60vh; overflow-x: hidden; overflow-y: auto; }
+
+/* ── the top stack item is not the top bar ──────────────────────────────── */
+
+/* `.v3 .top` (the top bar: a flex row with a bottom border, `v3.css`) also matches `.stack-item.top`,
+   so the item that resolves next was laid out as a three-column row and its target text squeezed
+   (seen with any targeted item on top, e.g. seed 9 `c3_target_stack_object`). The mockup has the same
+   collision; the stack item keeps its own block layout. */
+.v3 .stack-item.top { display: block; padding: 4px 6px; border-bottom: 0; font-size: inherit; }
